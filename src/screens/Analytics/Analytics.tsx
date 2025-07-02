@@ -1,19 +1,9 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
+import { motion } from "framer-motion";
+import { X, BarChart3, MessageSquare, FileText, Briefcase, Users, TrendingUp, Menu, Settings, Bell } from "lucide-react";
 import { AnalyticsContent } from "../../components/analytics/AnalyticsContent";
-import { 
-  TrendingUp, 
-  Users, 
-  Briefcase, 
-  MessageSquare, 
-  FileText, 
-  BarChart3,
-  Settings,
-  Bell,
-  Menu,
-  X
-} from "lucide-react";
 
 export const Analytics = (): JSX.Element => {
   const [selectedPeriod, setSelectedPeriod] = useState("1 Month");
