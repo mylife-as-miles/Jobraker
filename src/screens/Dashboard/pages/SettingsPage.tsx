@@ -1,25 +1,9 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
-import { 
-  User, 
-  Bell, 
-  Shield, 
-  Palette, 
-  Globe, 
-  CreditCard,
-  Download,
-  Upload,
-  Trash2,
-  Eye,
-  EyeOff,
-  Save,
-  RefreshCw,
-  LogOut,
-  Settings as SettingsIcon
-} from "lucide-react";
 import { motion } from "framer-motion";
+import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon } from "lucide-react";
 
 export const SettingsPage = (): JSX.Element => {
   const [activeTab, setActiveTab] = useState("profile");
