@@ -20,7 +20,7 @@ export const Analytics = (): JSX.Element => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-black flex">
+    <div className="min-h-screen bg-black flex flex-col">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
@@ -102,7 +102,7 @@ export const Analytics = (): JSX.Element => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 max-w-full mx-auto w-full sm:w-[95vw] md:w-[80vw] lg:w-[60vw] xl:w-[40vw] p-3 sm:p-6">
         {/* Header */}
         <header className="bg-[#0a0a0a] border-b border-[#ffffff1a] p-4 lg:p-6">
           <div className="flex items-center justify-between">

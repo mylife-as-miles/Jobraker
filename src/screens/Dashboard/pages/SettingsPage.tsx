@@ -362,56 +362,61 @@ export const SettingsPage = (): JSX.Element => {
   };
 
   return (
-    <div className="p-4 lg:p-6">
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Settings Navigation */}
-        <div className="lg:w-64 space-y-2">
-          <h1 className="text-2xl font-bold text-white mb-6 flex items-center">
-            <SettingsIcon className="w-6 h-6 mr-2" />
-            Settings
-          </h1>
-          
-          {tabs.map((tab) => (
-            <Button
-              key={tab.id}
-              variant="ghost"
-              onClick={() => setActiveTab(tab.id)}
-              className={`w-full justify-start transition-all duration-200 ${
-                activeTab === tab.id
-                  ? "text-white bg-[#1dff0020] border-r-2 border-[#1dff00]"
-                  : "text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]"
-              }`}
-            >
-              {tab.icon}
-              <span className="ml-3">{tab.label}</span>
-            </Button>
-          ))}
-          
-          <div className="pt-4 border-t border-[#ffffff1a]">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-500/10"
-            >
-              <LogOut className="w-4 h-4 mr-3" />
-              Sign Out
-            </Button>
-          </div>
-        </div>
+    <div className="min-h-screen bg-black flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0 max-w-full mx-auto w-full sm:w-[95vw] md:w-[80vw] lg:w-[60vw] xl:w-[40vw] p-3 sm:p-6">
+        {/* Responsive settings layout */}
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Settings Navigation */}
+            <div className="lg:w-64 space-y-2">
+              <h1 className="text-2xl font-bold text-white mb-6 flex items-center">
+                <SettingsIcon className="w-6 h-6 mr-2" />
+                Settings
+              </h1>
+              
+              {tabs.map((tab) => (
+                <Button
+                  key={tab.id}
+                  variant="ghost"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-full justify-start transition-all duration-200 ${
+                    activeTab === tab.id
+                      ? "text-white bg-[#1dff0020] border-r-2 border-[#1dff00]"
+                      : "text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]"
+                  }`}
+                >
+                  {tab.icon}
+                  <span className="ml-3">{tab.label}</span>
+                </Button>
+              ))}
+              
+              <div className="pt-4 border-t border-[#ffffff1a]">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                >
+                  <LogOut className="w-4 h-4 mr-3" />
+                  Sign Out
+                </Button>
+              </div>
+            </div>
 
-        {/* Settings Content */}
-        <div className="flex-1">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px]">
-              <CardContent className="p-6">
-                {renderTabContent()}
-              </CardContent>
-            </Card>
-          </motion.div>
+            {/* Settings Content */}
+            <div className="flex-1">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px]">
+                  <CardContent className="p-6">
+                    {renderTabContent()}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
