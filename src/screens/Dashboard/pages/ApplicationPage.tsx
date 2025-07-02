@@ -266,38 +266,104 @@ export const ApplicationPage = (): JSX.Element => {
                             onClick={() => setSelectedApplication(application.id)}
                           >
                             <td className="p-4">
-                            </div>
-                            <div>
-                              <div className="text-white font-medium text-sm">{application.jobTitle}</div>
-                              <div className="text-xs text-[#ffffff80]">{application.company}</div>
-                            </div>
+                              <div className="flex items-center space-x-3">
+                                <div className="w-8 h-8 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-sm">
+                                  {application.logo}
+                                </div>
+                                <div>
+                                  <div className="text-white font-medium text-sm">{application.jobTitle}</div>
+                                  <div className="text-xs text-[#ffffff80]">{application.company}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center space-x-1 text-[#ffffff80]">
+                                <MapPin className="w-3 h-3" />
+                                <span className="text-xs">{application.location}</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center space-x-1 text-[#ffffff80]">
+                                <Calendar className="w-3 h-3" />
+                                <span className="text-xs">{new Date(application.appliedDate).toLocaleDateString()}</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(application.status)}`}>
+                                {getStatusIcon(application.status)}
+                                <span>{application.status}</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className="text-xs text-[#1dff00] font-medium">{application.salary}</span>
+                            </td>
+                            <td className="p-4">
+                              <span className="text-xs text-[#ffffff80]">{application.nextStep}</span>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center space-x-1">
+                                <Button variant="ghost" size="sm" className="text-[#ffffff60] hover:text-white p-1">
+                                  <Eye className="w-3 h-3" />
+                                </Button>
+                                <Button variant="ghost" size="sm" className="text-[#ffffff60] hover:text-white p-1">
+                                  <Edit className="w-3 h-3" />
+                                </Button>
+                                <Button variant="ghost" size="sm" className="text-[#ffffff60] hover:text-white p-1">
+                                  <MoreVertical className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </td>
+                          </motion.tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Mobile/Tablet Card View */}
+            <div className="lg:hidden space-y-3">
+              {filteredApplications.map((application, index) => (
+                <motion.div
+                  key={application.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: index * 0.1 }}
+                  onClick={() => setSelectedApplication(application.id)}
+                >
+                  <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] hover:shadow-lg transition-all duration-300 cursor-pointer">
+                    <CardContent className="p-3 sm:p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-sm flex-shrink-0">
+                            {application.logo}
                           </div>
-                        </td>
-                        <td className="p-4">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-white font-medium text-sm sm:text-base truncate">{application.jobTitle}</h3>
+                            <p className="text-xs sm:text-sm text-[#ffffff80]">{application.company}</p>
+                          </div>
+                        </div>
+                        <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(application.status)} flex-shrink-0`}>
+                          {getStatusIcon(application.status)}
+                          <span className="hidden sm:inline">{application.status}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2 text-xs sm:text-sm">
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-1 text-[#ffffff80]">
                             <MapPin className="w-3 h-3" />
-                            <span className="text-xs">{application.location}</span>
+                            <span>{application.location}</span>
                           </div>
-                        </td>
-                        <td className="p-4">
                           <div className="flex items-center space-x-1 text-[#ffffff80]">
                             <Calendar className="w-3 h-3" />
-                            <span className="text-xs">{new Date(application.appliedDate).toLocaleDateString()}</span>
+                            <span>{new Date(application.appliedDate).toLocaleDateString()}</span>
                           </div>
-                        </td>
-                        <td className="p-4">
-                          <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(application.status)}`}>
-                            {getStatusIcon(application.status)}
-                            <span>{application.status}</span>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <span className="text-xs text-[#1dff00] font-medium">{application.salary}</span>
-                        </td>
-                        <td className="p-4">
-                          <span className="text-xs text-[#ffffff80]">{application.nextStep}</span>
-                        </td>
-                        <td className="p-4">
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-[#1dff00] font-medium">{application.salary}</span>
                           <div className="flex items-center space-x-1">
                             <Button variant="ghost" size="sm" className="text-[#ffffff60] hover:text-white p-1">
                               <Eye className="w-3 h-3" />
@@ -309,172 +375,111 @@ export const ApplicationPage = (): JSX.Element => {
                               <MoreVertical className="w-3 h-3" />
                             </Button>
                           </div>
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                        </div>
+                        
+                        <p className="text-[#ffffff80] truncate">{application.nextStep}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </div>
 
-        {/* Mobile/Tablet Card View */}
-        <div className="lg:hidden space-y-3">
-          {filteredApplications.map((application, index) => (
+          {/* Application Details Modal */}
+          {selectedApplication && (
             <motion.div
-              key={application.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: index * 0.1 }}
-              onClick={() => setSelectedApplication(application.id)}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4"
+              onClick={() => setSelectedApplication(null)}
             >
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] hover:shadow-lg transition-all duration-300 cursor-pointer">
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center space-x-3 flex-1 min-w-0">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-sm flex-shrink-0">
-                        {application.logo}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-white font-medium text-sm sm:text-base truncate">{application.jobTitle}</h3>
-                        <p className="text-xs sm:text-sm text-[#ffffff80]">{application.company}</p>
-                      </div>
-                    </div>
-                    <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(application.status)} flex-shrink-0`}>
-                      {getStatusIcon(application.status)}
-                      <span className="hidden sm:inline">{application.status}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2 text-xs sm:text-sm">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-1 text-[#ffffff80]">
-                        <MapPin className="w-3 h-3" />
-                        <span>{application.location}</span>
-                      </div>
-                      <div className="flex items-center space-x-1 text-[#ffffff80]">
-                        <Calendar className="w-3 h-3" />
-                        <span>{new Date(application.appliedDate).toLocaleDateString()}</span>
-                      </div>
-                    </div>
+              <Card 
+                className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <CardContent className="p-4 sm:p-6">
+                  {(() => {
+                    const app = applications.find(a => a.id === selectedApplication);
+                    if (!app) return null;
                     
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#1dff00] font-medium">{application.salary}</span>
-                      <div className="flex items-center space-x-1">
-                        <Button variant="ghost" size="sm" className="text-[#ffffff60] hover:text-white p-1">
-                          <Eye className="w-3 h-3" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-[#ffffff60] hover:text-white p-1">
-                          <Edit className="w-3 h-3" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-[#ffffff60] hover:text-white p-1">
-                          <MoreVertical className="w-3 h-3" />
-                        </Button>
+                    return (
+                      <div className="space-y-4 sm:space-y-6">
+                        {/* Header */}
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg sm:text-xl flex-shrink-0">
+                              {app.logo}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h2 className="text-lg sm:text-xl font-bold text-white">{app.jobTitle}</h2>
+                              <p className="text-sm sm:text-base text-[#ffffff80]">{app.company}</p>
+                              <p className="text-xs sm:text-sm text-[#ffffff60]">{app.location}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedApplication(null)}
+                            className="text-[#ffffff60] hover:text-white p-1 sm:p-2 flex-shrink-0"
+                          >
+                            <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                          </Button>
+                        </div>
+                        
+                        {/* Status and Details */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                          <div>
+                            <label className="text-xs sm:text-sm text-[#ffffff80]">Status</label>
+                            <div className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium mt-1 ${getStatusColor(app.status)}`}>
+                              {getStatusIcon(app.status)}
+                              <span>{app.status}</span>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs sm:text-sm text-[#ffffff80]">Applied Date</label>
+                            <p className="text-white mt-1 text-sm sm:text-base">{new Date(app.appliedDate).toLocaleDateString()}</p>
+                          </div>
+                          <div>
+                            <label className="text-xs sm:text-sm text-[#ffffff80]">Salary Range</label>
+                            <p className="text-[#1dff00] font-medium mt-1 text-sm sm:text-base">{app.salary}</p>
+                          </div>
+                          <div>
+                            <label className="text-xs sm:text-sm text-[#ffffff80]">Next Step</label>
+                            <p className="text-white mt-1 text-sm sm:text-base">{app.nextStep}</p>
+                          </div>
+                        </div>
+                        
+                        {/* Notes */}
+                        <div>
+                          <label className="text-xs sm:text-sm text-[#ffffff80]">Notes</label>
+                          <p className="text-white mt-1 leading-relaxed text-sm sm:text-base">{app.notes}</p>
+                        </div>
+                        
+                        {/* Actions */}
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 pt-4 border-t border-[#ffffff1a]">
+                          <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 text-sm">
+                            <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+                            Edit Application
+                          </Button>
+                          <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] text-sm">
+                            <Share className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+                            Share
+                          </Button>
+                          <Button variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10 text-sm">
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+                            Delete
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                    
-                    <p className="text-[#ffffff80] truncate">{application.nextStep}</p>
-                  </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </motion.div>
-          ))}
+          )}
         </div>
       </div>
-
-      {/* Application Details Modal */}
-      {selectedApplication && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4"
-          onClick={() => setSelectedApplication(null)}
-        >
-          <Card 
-            className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <CardContent className="p-4 sm:p-6">
-              {(() => {
-                const app = applications.find(a => a.id === selectedApplication);
-                if (!app) return null;
-                
-                return (
-                  <div className="space-y-4 sm:space-y-6">
-                    {/* Header */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg sm:text-xl flex-shrink-0">
-                          {app.logo}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h2 className="text-lg sm:text-xl font-bold text-white">{app.jobTitle}</h2>
-                          <p className="text-sm sm:text-base text-[#ffffff80]">{app.company}</p>
-                          <p className="text-xs sm:text-sm text-[#ffffff60]">{app.location}</p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedApplication(null)}
-                        className="text-[#ffffff60] hover:text-white p-1 sm:p-2 flex-shrink-0"
-                      >
-                        <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                      </Button>
-                    </div>
-                    
-                    {/* Status and Details */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      <div>
-                        <label className="text-xs sm:text-sm text-[#ffffff80]">Status</label>
-                        <div className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium mt-1 ${getStatusColor(app.status)}`}>
-                          {getStatusIcon(app.status)}
-                          <span>{app.status}</span>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-xs sm:text-sm text-[#ffffff80]">Applied Date</label>
-                        <p className="text-white mt-1 text-sm sm:text-base">{new Date(app.appliedDate).toLocaleDateString()}</p>
-                      </div>
-                      <div>
-                        <label className="text-xs sm:text-sm text-[#ffffff80]">Salary Range</label>
-                        <p className="text-[#1dff00] font-medium mt-1 text-sm sm:text-base">{app.salary}</p>
-                      </div>
-                      <div>
-                        <label className="text-xs sm:text-sm text-[#ffffff80]">Next Step</label>
-                        <p className="text-white mt-1 text-sm sm:text-base">{app.nextStep}</p>
-                      </div>
-                    </div>
-                    
-                    {/* Notes */}
-                    <div>
-                      <label className="text-xs sm:text-sm text-[#ffffff80]">Notes</label>
-                      <p className="text-white mt-1 leading-relaxed text-sm sm:text-base">{app.notes}</p>
-                    </div>
-                    
-                    {/* Actions */}
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 pt-4 border-t border-[#ffffff1a]">
-                      <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 text-sm">
-                        <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                        Edit Application
-                      </Button>
-                      <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] text-sm">
-                        <Share className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                        Share
-                      </Button>
-                      <Button variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10 text-sm">
-                        <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })()}
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
     </div>
   );
 };
