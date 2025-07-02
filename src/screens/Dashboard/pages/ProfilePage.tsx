@@ -1,27 +1,8 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
-import { Input } from "../../../components/ui/input";
-import { 
-  User, 
-  MapPin, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  Briefcase,
-  GraduationCap,
-  Award,
-  Star,
-  Edit,
-  Plus,
-  Trash2,
-  ExternalLink,
-  Download,
-  Share,
-  Settings,
-  Camera
-} from "lucide-react";
 import { motion } from "framer-motion";
+import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award } from "lucide-react";
 
 interface Experience {
   id: string;
@@ -52,7 +33,6 @@ interface Skill {
 }
 
 export const ProfilePage = (): JSX.Element => {
-  const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
   const profileData = {

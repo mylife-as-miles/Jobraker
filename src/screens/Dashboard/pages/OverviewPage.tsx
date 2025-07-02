@@ -1,30 +1,8 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
-import { 
-  Calendar,
-  Building2,
-  AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  CheckCircle,
-  XCircle
-} from "lucide-react";
 import { motion } from "framer-motion";
-
-interface JobApplication {
-  id: string;
-  company: string;
-  position: string;
-  location: string;
-  salary: string;
-  appliedDate: string;
-  status: "Applied" | "Interview" | "Offer" | "Rejected";
-  logo?: string;
-  jobType: string;
-  workType: "Remote" | "On-site" | "Hybrid";
-}
+import { Building2, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Notification {
   id: string;

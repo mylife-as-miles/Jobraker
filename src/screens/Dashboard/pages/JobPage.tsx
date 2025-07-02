@@ -1,6 +1,17 @@
 import { useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
+import { Input } from "../../../components/ui/input";
+import { 
+  Search, 
+  MapPin, 
+  Bookmark, 
+  Clock, 
+  Briefcase, 
+  Share, 
+  Heart, 
+  MoreVertical 
+} from "lucide-react";
 import { motion } from "framer-motion";
 
 interface Job {
