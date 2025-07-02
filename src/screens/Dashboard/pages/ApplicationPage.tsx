@@ -155,117 +155,117 @@ export const ApplicationPage = (): JSX.Element => {
   };
 
   return (
-    <div className="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">Application Tracker</h1>
-          <p className="text-sm sm:text-base text-[#ffffff80]">Track and manage your job applications</p>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-          <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 text-sm">
-            <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-            Add Application
-          </Button>
-          <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] text-sm">
-            <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-            Export
-          </Button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-        {[
-          { label: "Total", value: stats.total, color: "text-white" },
-          { label: "Applied", value: stats.applied, color: "text-blue-400" },
-          { label: "Interviews", value: stats.interviews, color: "text-yellow-400" },
-          { label: "Offers", value: stats.offers, color: "text-green-400" },
-          { label: "Rejected", value: stats.rejected, color: "text-red-400" }
-        ].map((stat, index) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: index * 0.1 }}
-          >
-            <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-3 sm:p-4">
-              <div className="text-center">
-                <div className={`text-xl sm:text-2xl font-bold mb-1 ${stat.color}`}>{stat.value}</div>
-                <div className="text-xs sm:text-sm text-[#ffffff80]">{stat.label}</div>
-              </div>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Search and Filters */}
-      <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-3 sm:p-4">
-        <div className="flex flex-col gap-3 sm:gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-[#ffffff60]" />
-            <Input
-              placeholder="Search applications..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 sm:pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] text-sm"
-            />
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
-            {["All", "Applied", "Interview", "Offer", "Rejected"].map((status) => (
-              <Button
-                key={status}
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedStatus(status)}
-                className={`text-xs sm:text-sm ${
-                  selectedStatus === status
-                    ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-                    : "text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]"
-                }`}
-              >
-                {status}
+    <div className="min-h-screen bg-black flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0 max-w-full mx-auto w-full sm:w-[95vw] md:w-[80vw] lg:w-[60vw] xl:w-[40vw] p-3 sm:p-6">
+        {/* Responsive application layout */}
+        <div className="flex flex-col gap-4">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">Application Tracker</h1>
+              <p className="text-sm sm:text-base text-[#ffffff80]">Track and manage your job applications</p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+              <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 text-sm">
+                <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+                Add Application
               </Button>
+              <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] text-sm">
+                <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+                Export
+              </Button>
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+            {[
+              { label: "Total", value: stats.total, color: "text-white" },
+              { label: "Applied", value: stats.applied, color: "text-blue-400" },
+              { label: "Interviews", value: stats.interviews, color: "text-yellow-400" },
+              { label: "Offers", value: stats.offers, color: "text-green-400" },
+              { label: "Rejected", value: stats.rejected, color: "text-red-400" }
+            ].map((stat, index) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: index * 0.1 }}
+              >
+                <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-3 sm:p-4">
+                  <div className="text-center">
+                    <div className={`text-xl sm:text-2xl font-bold mb-1 ${stat.color}`}>{stat.value}</div>
+                    <div className="text-xs sm:text-sm text-[#ffffff80]">{stat.label}</div>
+                  </div>
+                </Card>
+              </motion.div>
             ))}
           </div>
-        </div>
-      </Card>
 
-      {/* Applications Table/Cards */}
-      <div className="space-y-3 sm:space-y-4">
-        {/* Desktop Table View */}
-        <div className="hidden lg:block">
-          <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px]">
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-[#ffffff1a]">
-                      <th className="text-left p-4 text-[#ffffff80] font-medium text-sm">Job & Company</th>
-                      <th className="text-left p-4 text-[#ffffff80] font-medium text-sm">Location</th>
-                      <th className="text-left p-4 text-[#ffffff80] font-medium text-sm">Applied Date</th>
-                      <th className="text-left p-4 text-[#ffffff80] font-medium text-sm">Status</th>
-                      <th className="text-left p-4 text-[#ffffff80] font-medium text-sm">Salary</th>
-                      <th className="text-left p-4 text-[#ffffff80] font-medium text-sm">Next Step</th>
-                      <th className="text-left p-4 text-[#ffffff80] font-medium text-sm">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredApplications.map((application, index) => (
-                      <motion.tr
-                        key={application.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, delay: index * 0.1 }}
-                        className="border-b border-[#ffffff0d] hover:bg-[#ffffff0a] transition-colors cursor-pointer"
-                        onClick={() => setSelectedApplication(application.id)}
-                      >
-                        <td className="p-4">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-sm">
-                              {application.logo}
+          {/* Search and Filters */}
+          <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-3 sm:p-4">
+            <div className="flex flex-col gap-3 sm:gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-[#ffffff60]" />
+                <Input
+                  placeholder="Search applications..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 sm:pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] text-sm"
+                />
+              </div>
+              
+              <div className="flex flex-wrap gap-2">
+                {["All", "Applied", "Interview", "Offer", "Rejected"].map((status) => (
+                  <Button
+                    key={status}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedStatus(status)}
+                    className={`text-xs sm:text-sm ${
+                      selectedStatus === status
+                        ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+                        : "text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]"
+                    }`}
+                  >
+                    {status}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </Card>
+
+          {/* Applications Table/Cards */}
+          <div className="space-y-3 sm:space-y-4">
+            {/* Desktop Table View */}
+            <div className="hidden lg:block">
+              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px]">
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-[#ffffff1a]">
+                          <th className="text-left p-4 text-[#ffffff80] font-medium text-sm">Job & Company</th>
+                          <th className="text-left p-4 text-[#ffffff80] font-medium text-sm">Location</th>
+                          <th className="text-left p-4 text-[#ffffff80] font-medium text-sm">Applied Date</th>
+                          <th className="text-left p-4 text-[#ffffff80] font-medium text-sm">Status</th>
+                          <th className="text-left p-4 text-[#ffffff80] font-medium text-sm">Salary</th>
+                          <th className="text-left p-4 text-[#ffffff80] font-medium text-sm">Next Step</th>
+                          <th className="text-left p-4 text-[#ffffff80] font-medium text-sm">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredApplications.map((application, index) => (
+                          <motion.tr
+                            key={application.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4, delay: index * 0.1 }}
+                            className="border-b border-[#ffffff0d] hover:bg-[#ffffff0a] transition-colors cursor-pointer"
+                            onClick={() => setSelectedApplication(application.id)}
+                          >
+                            <td className="p-4">
                             </div>
                             <div>
                               <div className="text-white font-medium text-sm">{application.jobTitle}</div>
