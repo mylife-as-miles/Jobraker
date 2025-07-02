@@ -1,20 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "../../../components/ui/button";
-import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
-import { 
-  Send, 
-  Search, 
-  MoreVertical, 
-  Phone, 
-  Video, 
-  Paperclip,
-  Smile,
-  Plus,
-  MessageCircle,
-  Users,
-  Settings
-} from "lucide-react";
+import { Send } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface ChatMessage {
@@ -37,10 +24,7 @@ interface ChatConversation {
 }
 
 export const ChatPage = (): JSX.Element => {
-  const [selectedChat, setSelectedChat] = useState<string>("1");
   const [newMessage, setNewMessage] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const conversations: ChatConversation[] = [
     {
@@ -100,7 +84,6 @@ export const ChatPage = (): JSX.Element => {
 
   const handleSendMessage = () => {
     if (newMessage.trim()) {
-      // Add message logic here
       setNewMessage("");
     }
   };

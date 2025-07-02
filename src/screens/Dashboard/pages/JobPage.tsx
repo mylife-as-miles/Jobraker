@@ -1,24 +1,6 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "../../../components/ui/button";
-import { Card, CardContent } from "../../../components/ui/card";
-import { Input } from "../../../components/ui/input";
-import { 
-  Search, 
-  Filter, 
-  MapPin, 
-  Building2, 
-  Clock, 
-  DollarSign,
-  Bookmark,
-  ExternalLink,
-  Star,
-  Briefcase,
-  Users,
-  Calendar,
-  Heart,
-  Share,
-  MoreVertical
-} from "lucide-react";
+import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
 
 interface Job {

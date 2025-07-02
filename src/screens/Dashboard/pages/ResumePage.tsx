@@ -1,22 +1,6 @@
-import React, { useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
-import { Input } from "../../../components/ui/input";
-import { 
-  Download, 
-  Edit, 
-  Eye, 
-  Plus, 
-  Trash2, 
-  Upload,
-  FileText,
-  Star,
-  Copy,
-  Share,
-  MoreVertical,
-  Search,
-  Filter
-} from "lucide-react";
+import { Download, Edit, Eye, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface Resume {
@@ -31,9 +15,6 @@ interface Resume {
 }
 
 export const ResumePage = (): JSX.Element => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState("All");
-
   const resumes: Resume[] = [
     {
       id: "1",
