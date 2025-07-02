@@ -106,20 +106,20 @@ export const ChatPage = (): JSX.Element => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-black">
+    <div className="h-full flex flex-col bg-black min-h-screen">
       {/* Main Chat Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 max-w-full mx-auto w-full sm:w-[95vw] md:w-[80vw] lg:w-[60vw] xl:w-[40vw]">
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-black">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 bg-black">
           {/* System Message 1 */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="flex justify-start"
           >
-            <div className="max-w-md">
-              <div className="bg-[#ffffff1a] text-white p-4 rounded-2xl border border-[#ffffff33]">
-                <p className="text-sm leading-relaxed">
+            <div className="max-w-xs sm:max-w-md md:max-w-lg">
+              <div className="bg-[#ffffff1a] text-white p-3 sm:p-4 rounded-2xl border border-[#ffffff33]">
+                <p className="text-xs sm:text-sm leading-relaxed">
                   Your application for the role of UI/UX designer at Google LLC requires your current street address.
                 </p>
               </div>
@@ -132,9 +132,9 @@ export const ChatPage = (): JSX.Element => {
             animate={{ opacity: 1, y: 0 }}
             className="flex justify-end"
           >
-            <div className="max-w-md">
-              <div className="bg-[#ffffff1a] text-white p-4 rounded-2xl border border-[#ffffff33]">
-                <p className="text-sm leading-relaxed">
+            <div className="max-w-xs sm:max-w-md md:max-w-lg">
+              <div className="bg-[#ffffff1a] text-white p-3 sm:p-4 rounded-2xl border border-[#ffffff33]">
+                <p className="text-xs sm:text-sm leading-relaxed">
                   Your application for the role of UI/UX designer at Google LLC requires your current street address. Click on the button to fill in the form
                 </p>
               </div>
@@ -143,19 +143,19 @@ export const ChatPage = (): JSX.Element => {
         </div>
 
         {/* Message Input */}
-        <div className="p-6 bg-black">
-          <div className="flex items-center space-x-3">
+        <div className="p-3 sm:p-4 md:p-6 bg-black">
+          <div className="flex items-center space-x-2 sm:space-x-3">
             <div className="flex-1 relative">
               <Input
                 placeholder="Type in a message"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] pr-12 py-3 rounded-full text-sm"
+                className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] pr-10 sm:pr-12 py-2 sm:py-3 rounded-full text-xs sm:text-sm"
               />
               <Button
                 onClick={handleSendMessage}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white text-black hover:bg-gray-200 rounded-full w-8 h-8 p-0 flex items-center justify-center"
+                className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 bg-white text-black hover:bg-gray-200 rounded-full w-7 h-7 sm:w-8 sm:h-8 p-0 flex items-center justify-center"
               >
                 <Send className="w-4 h-4" />
               </Button>
