@@ -393,7 +393,7 @@ export const LandingPage = (): JSX.Element => {
       {/* Features Section */}
       <section ref={featuresRef} className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <ScrollAnimationWrapper animation="fadeInUp" className="text-center mb-16">
             <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4">
               Everything You Need to
               <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
@@ -403,9 +403,9 @@ export const LandingPage = (): JSX.Element => {
             <p className="text-xl text-[#ffffff80] max-w-3xl mx-auto">
               Our comprehensive suite of tools helps you track, optimize, and accelerate your job search journey.
             </p>
-          </div>
+          </ScrollAnimationWrapper>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <ScrollAnimationWrapper animation="stagger" className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
               <Card
                 key={index}
@@ -422,7 +422,7 @@ export const LandingPage = (): JSX.Element => {
                 </CardContent>
               </Card>
             ))}
-          </div>
+          </ScrollAnimationWrapper>
         </div>
       </section>
 
