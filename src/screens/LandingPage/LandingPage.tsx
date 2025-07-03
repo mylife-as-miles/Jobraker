@@ -24,6 +24,10 @@ import {
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
+import { ScrollAnimationWrapper } from "../../components/animations/ScrollAnimationWrapper";
+import { ParticleBackground } from "../../components/animations/ParticleBackground";
+import { MagneticButton } from "../../components/ui/MagneticButton";
+import { TypingAnimation } from "../../components/animations/TypingAnimation";
 
 // Register GSAP ScrollTrigger
 gsap.registerPlugin(ScrollTrigger);
