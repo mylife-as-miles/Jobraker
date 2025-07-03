@@ -430,7 +430,7 @@ export const LandingPage = (): JSX.Element => {
       <section ref={benefitsRef} className="py-20 bg-[#0a0a0a]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
+            <ScrollAnimationWrapper animation="fadeInLeft">
               <h2 className="text-3xl lg:text-4xl font-bold text-white mb-6">
                 Why Choose
                 <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
@@ -450,14 +450,14 @@ export const LandingPage = (): JSX.Element => {
                   </div>
                 ))}
               </div>
-            </div>
-            <div className="relative">
+            </ScrollAnimationWrapper>
+            <ScrollAnimationWrapper animation="fadeInRight" className="relative">
               <img
                 src="https://images.unsplash.com/photo-1555212697-194d092e3b8f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwyfHxjYXJlZXIlMjBzdWNjZXNzfGVufDB8fHxibHVlfDE3NTE1Nzk5OTl8MA&ixlib=rb-4.1.0&q=85"
                 alt="Career Success"
                 className="w-full h-auto rounded-2xl shadow-2xl border border-[#ffffff1a]"
               />
-            </div>
+            </ScrollAnimationWrapper>
           </div>
         </div>
       </section>
