@@ -286,6 +286,9 @@ export const LandingPage = (): JSX.Element => {
 
       {/* Hero Section */}
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        {/* Particle Background */}
+        <ParticleBackground />
+        
         {/* Animated Background */}
         <div className="absolute inset-0">
           <div className="floating-element absolute top-20 left-10 w-32 h-32 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-full blur-3xl"></div>
@@ -307,7 +310,12 @@ export const LandingPage = (): JSX.Element => {
                   {" "}Dream Job
                 </span>
                 <br />
-                Faster Than Ever
+                <TypingAnimation 
+                  texts={["Faster Than Ever", "With AI Power", "Like A Pro"]}
+                  className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent"
+                  speed={0.15}
+                  delay={2}
+                />
               </motion.h1>
               
               <motion.p 
@@ -326,22 +334,24 @@ export const LandingPage = (): JSX.Element => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
               >
-                <Button
+                <MagneticButton
                   size="lg"
                   onClick={() => navigate("/signup")}
-                  className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-white hover:shadow-2xl transition-all transform hover:scale-105 px-8 py-4 text-lg"
+                  className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-white hover:shadow-2xl transition-all px-8 py-4 text-lg"
+                  strength={0.4}
                 >
                   Start Free Trial
                   <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-                <Button
+                </MagneticButton>
+                <MagneticButton
                   size="lg"
                   variant="outline"
                   className="border-[#ffffff30] text-white hover:bg-[#ffffff10] px-8 py-4 text-lg"
+                  strength={0.3}
                 >
                   <Play className="w-5 h-5 mr-2" />
                   Watch Demo
-                </Button>
+                </MagneticButton>
               </motion.div>
             </div>
             
