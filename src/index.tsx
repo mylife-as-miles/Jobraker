@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { LandingPage } from "./screens/LandingPage";
 import { JobrackerSignup } from "./screens/JobrackerSignup";
 import { Onboarding } from "./screens/Onboarding";
 import { Analytics } from "./screens/Analytics";
@@ -10,8 +11,8 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Default route redirects to signup */}
-        <Route path="/" element={<Navigate to="/signup" replace />} />
+        {/* Default route shows landing page */}
+        <Route path="/" element={<LandingPage />} />
         
         {/* Step 1: Signup Page */}
         <Route path="/signup" element={<JobrackerSignup />} />
@@ -25,8 +26,8 @@ function App() {
         {/* Standalone Analytics Page (for backward compatibility) */}
         <Route path="/analytics" element={<Analytics />} />
         
-        {/* Catch all - redirect to signup */}
-        <Route path="*" element={<Navigate to="/signup" replace />} />
+        {/* Catch all - redirect to landing page */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
