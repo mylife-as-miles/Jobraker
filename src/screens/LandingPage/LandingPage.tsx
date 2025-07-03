@@ -512,7 +512,7 @@ export const LandingPage = (): JSX.Element => {
       {/* Final CTA Section */}
       <section ref={ctaRef} className="py-20 bg-gradient-to-r from-[#1dff00] to-[#0a8246]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="cta-content">
+          <ScrollAnimationWrapper animation="fadeInUp" className="cta-content">
             <h2 className="text-3xl lg:text-4xl font-bold text-white mb-6">
               Ready to Transform Your Career?
             </h2>
@@ -520,26 +520,28 @@ export const LandingPage = (): JSX.Element => {
               Join over 50,000 professionals who've already accelerated their career growth with JobRaker.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
+              <MagneticButton
                 size="lg"
                 onClick={() => navigate("/signup")}
-                className="bg-white text-[#0a8246] hover:bg-white/90 transition-all transform hover:scale-105 px-8 py-4 text-lg font-bold"
+                className="bg-white text-[#0a8246] hover:bg-white/90 transition-all px-8 py-4 text-lg font-bold"
+                strength={0.4}
               >
                 Start Your Free Trial
                 <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-              <Button
+              </MagneticButton>
+              <MagneticButton
                 size="lg"
                 variant="outline"
                 className="border-white text-white hover:bg-white/10 px-8 py-4 text-lg"
+                strength={0.3}
               >
                 Schedule Demo
-              </Button>
+              </MagneticButton>
             </div>
             <p className="text-white/60 text-sm mt-4">
               No credit card required • 14-day free trial • Cancel anytime
             </p>
-          </div>
+          </ScrollAnimationWrapper>
         </div>
       </section>
 
