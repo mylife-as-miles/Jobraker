@@ -1,9 +1,17 @@
+<<<<<<< HEAD
 import React, { useState, useEffect } from "react";
+=======
+import { useState } from "react";
+>>>>>>> 96a5f12096373c7b5db91129c2d9cb763580b9aa
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
+<<<<<<< HEAD
 import { ChevronLeft, ChevronRight, CheckCircle } from "lucide-react";
+=======
+import { ChevronLeft, ChevronRight, User, Briefcase, Target, MapPin, Sparkles, CheckCircle } from "lucide-react";
+>>>>>>> 96a5f12096373c7b5db91129c2d9cb763580b9aa
 import { motion, AnimatePresence } from "framer-motion";
 
 interface OnboardingStep {
@@ -26,10 +34,15 @@ export const Onboarding = (): JSX.Element => {
     goals: [] as string[],
   });
 
+<<<<<<< HEAD
+=======
+  // Dynamic scaling based on screen size and height
+>>>>>>> 96a5f12096373c7b5db91129c2d9cb763580b9aa
   useEffect(() => {
     const calculateScale = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
+<<<<<<< HEAD
       let scale = 80;
       if (width < 480) scale = 65;
       else if (width < 640) scale = 70;
@@ -44,6 +57,42 @@ export const Onboarding = (): JSX.Element => {
     };
     calculateScale();
     window.addEventListener('resize', calculateScale);
+=======
+      
+      let scale = 80; // Base scale (20% reduction)
+      
+      // Adjust based on screen width
+      if (width < 480) {
+        scale = 65; // 35% reduction for very small screens
+      } else if (width < 640) {
+        scale = 70; // 30% reduction for small screens
+      } else if (width < 768) {
+        scale = 75; // 25% reduction for medium screens
+      } else if (width < 1024) {
+        scale = 80; // 20% reduction for large screens
+      } else if (width < 1280) {
+        scale = 85; // 15% reduction for xl screens
+      } else {
+        scale = 90; // 10% reduction for 2xl+ screens
+      }
+      
+      // Adjust based on screen height
+      if (height < 600) {
+        scale -= 10; // Additional 10% reduction for short screens
+      } else if (height < 700) {
+        scale -= 5; // Additional 5% reduction for medium height screens
+      }
+      
+      // Ensure scale doesn't go below 50% or above 95%
+      scale = Math.max(50, Math.min(95, scale));
+      
+      setScalePercentage(scale);
+    };
+
+    calculateScale();
+    window.addEventListener('resize', calculateScale);
+    
+>>>>>>> 96a5f12096373c7b5db91129c2d9cb763580b9aa
     return () => window.removeEventListener('resize', calculateScale);
   }, []);
 
@@ -60,6 +109,7 @@ export const Onboarding = (): JSX.Element => {
     }));
   };
 
+<<<<<<< HEAD
   const getScaledValue = (baseValue: number) => Math.round(baseValue * (scalePercentage / 100));
 
   const steps: OnboardingStep[] = [
@@ -166,6 +216,8 @@ export const Onboarding = (): JSX.Element => {
     }
   };
 
+=======
+>>>>>>> 96a5f12096373c7b5db91129c2d9cb763580b9aa
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.9 },
     visible: {
@@ -193,6 +245,7 @@ export const Onboarding = (): JSX.Element => {
     },
   };
 
+<<<<<<< HEAD
   return (
     <div className="min-h-screen bg-black flex flex-col justify-center items-center p-4">
       <motion.div
@@ -250,3 +303,18 @@ export const Onboarding = (): JSX.Element => {
     </div>
   );
 };
+=======
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease: "easeOut" },
+    },
+  };
+
+  const floatingVariants = {
+    animate: {
+      y: [-10, 10, -10],
+      transition:
+>>>>>>> 96a5f12096373c7b5db91129c2d9cb763580b9aa
