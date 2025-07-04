@@ -275,7 +275,7 @@ export const JobrackerSignup = (): JSX.Element => {
                           ? "Create Account"
                           : "Welcome Back"}
                       </motion.h2>
-                    </AnimatePresence
+                    </AnimatePresence>
                     
                     <motion.p
                       className="text-[#ffffff80] text-center"
