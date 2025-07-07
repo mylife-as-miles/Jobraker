@@ -3,37 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { 
-  BarChart3, 
-  MessageSquare, 
-  FileText, 
-  Briefcase, 
-  Users, 
-  TrendingUp,
-  Target,
-  Shield,
-  Globe,
-  Zap,
-  Sparkles,
-  ArrowRight,
-  Play,
-  Quote,
-  Star,
-  CheckCircle,
-  Award,
-  Clock,
-  Brain,
-  Rocket,
-  Heart,
-  Menu,
-  X,
-  Bot,
-  Search,
-  Send,
-  Automation,
-  Settings,
-  Activity
-} from "lucide-react";
+import { BarChart3, MessageSquare, FileText, Briefcase, Users, TrendingUp, Target, Shield, Globe, Zap, Sparkles, ArrowRight, Play, Quote, Star, CheckCircle, Award, Clock, Brain, Rocket, Heart, Menu, X, Bot, Search, Send, Radiation as Automation, Settings, Activity } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
