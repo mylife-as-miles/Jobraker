@@ -1,0 +1,270 @@
+/* Global Transparent UI Styles */
+/* This file ensures all UI elements have transparent backgrounds across the platform */
+
+/* Reset any default backgrounds */
+* {
+  --tw-bg-opacity: 1;
+}
+
+/* Button Base Styles */
+button,
+.btn,
+[role="button"] {
+  background: transparent !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Input Base Styles */
+input,
+textarea,
+select,
+.input,
+.form-control {
+  background: transparent !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Card and Container Styles */
+.card,
+.container,
+.panel {
+  background: transparent !important;
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+}
+
+/* Focus States for Accessibility */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #1dff00;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(29, 255, 0, 0.2);
+}
+
+/* Hover Effects */
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+input:hover,
+textarea:hover,
+select:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Active States */
+button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Disabled States */
+button:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  button,
+  input,
+  textarea,
+  select {
+    border-width: 2px;
+    border-color: currentColor;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  button,
+  input,
+  textarea,
+  select {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* Dark Theme Specific Styles */
+@media (prefers-color-scheme: dark) {
+  button {
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+  }
+  
+  input,
+  textarea,
+  select {
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+  }
+  
+  input::placeholder,
+  textarea::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+  }
+}
+
+/* Light Theme Specific Styles */
+@media (prefers-color-scheme: light) {
+  button {
+    border-color: rgba(0, 0, 0, 0.2);
+    color: #000000;
+  }
+  
+  input,
+  textarea,
+  select {
+    border-color: rgba(0, 0, 0, 0.2);
+    color: #000000;
+  }
+  
+  input::placeholder,
+  textarea::placeholder {
+    color: rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  button,
+  input,
+  textarea,
+  select {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  button:hover {
+    transform: none;
+  }
+}
+
+/* Print Styles */
+@media print {
+  button,
+  input,
+  textarea,
+  select {
+    background: white !important;
+    color: black !important;
+    border: 1px solid black !important;
+  }
+}
+
+/* Custom Scrollbar for Select Dropdowns */
+.select-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.select-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.select-content::-webkit-scrollbar-thumb {
+  background: rgba(29, 255, 0, 0.3);
+  border-radius: 4px;
+}
+
+.select-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(29, 255, 0, 0.5);
+}
+
+/* Animation Keyframes */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(29, 255, 0, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(29, 255, 0, 0.4);
+  }
+}
+
+/* Ripple Effect Class */
+.ripple-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-effect::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s, height 0.3s;
+}
+
+.ripple-effect:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* Glow Effect Class */
+.glow-effect {
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+/* Glass Morphism Effect */
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+}
+
+/* Neumorphism Effect */
+.neumorphism {
+  background: transparent;
+  box-shadow: 
+    inset 5px 5px 10px rgba(0, 0, 0, 0.2),
+    inset -5px -5px 10px rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient Border Effect */
+.gradient-border {
+  position: relative;
+  background: transparent;
+  border: none;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  background: linear-gradient(45deg, #1dff00, #0a8246);
+  border-radius: inherit;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+}
