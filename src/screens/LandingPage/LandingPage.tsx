@@ -26,7 +26,13 @@ import {
   Rocket,
   Heart,
   Menu,
-  X
+  X,
+  Bot,
+  Search,
+  Send,
+  Automation,
+  Settings,
+  Activity
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
@@ -55,9 +61,9 @@ export const LandingPage = (): JSX.Element => {
   useScrollReveal(".reveal-element");
   useParallaxEffect(".parallax-bg", 0.3);
   useCounterAnimation(".counter-50000", 50000);
-  useCounterAnimation(".counter-89", 89);
+  useCounterAnimation(".counter-95", 95);
   useCounterAnimation(".counter-1200", 1200);
-  useCounterAnimation(".counter-12", 12);
+  useCounterAnimation(".counter-7", 7);
   useStaggerAnimation(".stagger-item", 0.15);
   useTextReveal(".text-reveal");
 
@@ -344,39 +350,39 @@ export const LandingPage = (): JSX.Element => {
 
   const features = [
     {
-      icon: <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
-      title: "Smart Analytics",
-      description: "Get deep insights into your job search performance with AI-powered analytics and personalized recommendations.",
+      icon: <Bot className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
+      title: "Autonomous Job Search",
+      description: "Our AI continuously scans thousands of job boards and company websites to find opportunities that match your profile 24/7.",
       gradient: "from-[#1dff00]/20 to-[#0a8246]/20"
     },
     {
-      icon: <MessageSquare className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
-      title: "AI Career Coach",
-      description: "24/7 AI assistant that provides personalized career advice, interview prep, and job search strategies.",
+      icon: <Send className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
+      title: "Auto-Apply Technology",
+      description: "Automatically submit tailored applications to relevant positions while you sleep. No manual work required.",
       gradient: "from-[#1dff00]/20 to-[#0a8246]/20"
     },
     {
       icon: <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
-      title: "Smart Resume Builder",
-      description: "Create ATS-optimized resumes tailored to specific jobs with our intelligent template system.",
+      title: "Dynamic Resume Optimization",
+      description: "AI automatically customizes your resume for each application, optimizing keywords and formatting for maximum ATS compatibility.",
       gradient: "from-[#1dff00]/20 to-[#0a8246]/20"
     },
     {
-      icon: <Briefcase className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
-      title: "Job Tracking",
-      description: "Never lose track of applications with automated status updates and deadline reminders.",
+      icon: <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
+      title: "Smart Analytics Dashboard",
+      description: "Track application success rates, response times, and optimize your job search strategy with real-time insights.",
       gradient: "from-[#1dff00]/20 to-[#0a8246]/20"
     },
     {
-      icon: <Users className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
-      title: "Network Builder",
-      description: "Connect with industry professionals and get referrals through our networking platform.",
+      icon: <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
+      title: "Intelligent Filtering",
+      description: "Advanced AI filters ensure applications only go to legitimate, high-quality positions that match your criteria.",
       gradient: "from-[#1dff00]/20 to-[#0a8246]/20"
     },
     {
-      icon: <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
-      title: "Career Growth",
-      description: "Track your career progression and get personalized growth recommendations.",
+      icon: <Activity className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
+      title: "Real-Time Monitoring",
+      description: "Get instant notifications about application status, interview requests, and new opportunities as they happen.",
       gradient: "from-[#1dff00]/20 to-[#0a8246]/20"
     }
   ];
@@ -384,27 +390,27 @@ export const LandingPage = (): JSX.Element => {
   const benefits = [
     {
       icon: <Target className="w-5 h-5 sm:w-6 sm:h-6 text-[#1dff00]" />,
-      title: "3x Higher Success Rate",
-      description: "Our users land interviews 3x faster than traditional job seekers",
-      stat: "300%"
+      title: "10x More Applications",
+      description: "Apply to 100+ relevant jobs per week automatically while maintaining quality",
+      stat: "10x"
     },
     {
       icon: <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-[#1dff00]" />,
-      title: "Save 15+ Hours Weekly",
-      description: "Automate repetitive tasks and focus on what matters most",
-      stat: "15h"
+      title: "24/7 Job Hunting",
+      description: "Never miss an opportunity - our AI works around the clock",
+      stat: "24/7"
     },
     {
       icon: <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-[#1dff00]" />,
-      title: "AI-Powered Insights",
-      description: "Get personalized recommendations based on market data",
-      stat: "AI"
+      title: "95% Application Accuracy",
+      description: "AI ensures each application is perfectly tailored and error-free",
+      stat: "95%"
     },
     {
-      icon: <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-[#1dff00]" />,
-      title: "Enterprise Security",
-      description: "Your data is protected with bank-level encryption",
-      stat: "100%"
+      icon: <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-[#1dff00]" />,
+      title: "Zero Manual Work",
+      description: "Completely hands-off job search - just set your preferences and relax",
+      stat: "0%"
     }
   ];
 
@@ -414,7 +420,7 @@ export const LandingPage = (): JSX.Element => {
       role: "Senior Software Engineer",
       company: "Google",
       image: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop&crop=face",
-      content: "JobRaker transformed my job search completely. I went from 0 responses to 5 interviews in just 2 weeks. The AI insights were game-changing!",
+      content: "JobRaker applied to 200+ jobs for me in just one month. I got 15 interviews and landed my dream job at Google without lifting a finger!",
       rating: 5
     },
     {
@@ -422,7 +428,7 @@ export const LandingPage = (): JSX.Element => {
       role: "Product Manager",
       company: "Meta",
       image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
-      content: "The analytics dashboard helped me understand exactly what wasn't working in my applications. Now I'm a PM at Meta!",
+      content: "The autonomous application system is incredible. While I was working my current job, JobRaker was secretly applying to better positions. Now I'm at Meta!",
       rating: 5
     },
     {
@@ -430,61 +436,64 @@ export const LandingPage = (): JSX.Element => {
       role: "UX Designer",
       company: "Apple",
       image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
-      content: "Best career tool I've ever used. The resume builder and job tracking features are absolutely incredible. Highly recommend!",
+      content: "I was skeptical about automated job applications, but JobRaker's AI is so smart. Every application was perfectly tailored. Got hired at Apple in 3 weeks!",
       rating: 5
     }
   ];
 
   const stats = [
-    { number: "50,000+", label: "Active Users", icon: <Users className="w-4 h-4 sm:w-5 sm:h-5" /> },
-    { number: "89%", label: "Success Rate", icon: <Target className="w-4 h-4 sm:w-5 sm:h-5" /> },
-    { number: "1,200+", label: "Partner Companies", icon: <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" /> },
-    { number: "12 Days", label: "Avg. Time to Offer", icon: <Clock className="w-4 h-4 sm:w-5 sm:h-5" /> }
+    { number: "50,000+", label: "Jobs Applied Daily", icon: <Send className="w-4 h-4 sm:w-5 sm:h-5" /> },
+    { number: "95%", label: "Application Success Rate", icon: <Target className="w-4 h-4 sm:w-5 sm:h-5" /> },
+    { number: "1,200+", label: "Partner Job Boards", icon: <Globe className="w-4 h-4 sm:w-5 sm:h-5" /> },
+    { number: "7 Days", label: "Avg. Time to Interview", icon: <Clock className="w-4 h-4 sm:w-5 sm:h-5" /> }
   ];
 
   const pricingPlans = [
     {
-      name: "Free",
-      price: "$0",
-      period: "forever",
-      description: "Perfect for getting started",
+      name: "Starter",
+      price: "$29",
+      period: "per month",
+      description: "Perfect for active job seekers",
       features: [
-        "Track up to 10 applications",
-        "Basic resume builder",
+        "Up to 50 applications/week",
+        "Basic resume optimization",
         "Email notifications",
-        "Community support"
+        "Standard job board access",
+        "Application tracking"
       ],
-      cta: "Get Started Free",
+      cta: "Start Free Trial",
       popular: false
     },
     {
-      name: "Pro",
-      price: "$19",
+      name: "Professional",
+      price: "$59",
       period: "per month",
-      description: "For serious job seekers",
+      description: "For serious career changers",
       features: [
         "Unlimited applications",
-        "AI-powered insights",
-        "Advanced resume builder",
-        "Priority support",
-        "Interview preparation",
-        "Salary negotiation tools"
+        "Advanced AI resume tailoring",
+        "Premium job board access",
+        "Real-time notifications",
+        "Interview scheduling assistance",
+        "Salary negotiation insights",
+        "Priority support"
       ],
       cta: "Start Free Trial",
       popular: true
     },
     {
-      name: "Enterprise",
-      price: "$49",
+      name: "Executive",
+      price: "$99",
       period: "per month",
-      description: "For teams and organizations",
+      description: "For senior-level positions",
       features: [
-        "Everything in Pro",
-        "Team collaboration",
-        "Custom integrations",
-        "Dedicated support",
-        "Advanced analytics",
-        "White-label options"
+        "Everything in Professional",
+        "Executive job board access",
+        "Personal career consultant",
+        "Custom application strategies",
+        "LinkedIn optimization",
+        "Reference management",
+        "White-glove service"
       ],
       cta: "Contact Sales",
       popular: false
@@ -516,7 +525,7 @@ export const LandingPage = (): JSX.Element => {
               transition={{ duration: 0.6 }}
             >
               <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center">
-                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
               <span className="text-white font-bold text-lg sm:text-xl lg:text-2xl">JobRaker</span>
             </motion.div>
@@ -527,13 +536,13 @@ export const LandingPage = (): JSX.Element => {
                 onClick={() => scrollToSection(featuresRef)}
                 className="text-[#ffffff80] hover:text-white transition-colors text-sm lg:text-base"
               >
-                Features
+                How It Works
               </button>
               <button className="text-[#ffffff80] hover:text-white transition-colors text-sm lg:text-base">
                 Pricing
               </button>
               <button className="text-[#ffffff80] hover:text-white transition-colors text-sm lg:text-base">
-                About
+                Success Stories
               </button>
               <button className="text-[#ffffff80] hover:text-white transition-colors text-sm lg:text-base">
                 Contact
@@ -553,7 +562,7 @@ export const LandingPage = (): JSX.Element => {
                 onClick={() => navigate("/signup")}
                 className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-white hover:shadow-lg transition-all text-sm lg:text-base px-4 lg:px-6"
               >
-                Get Started
+                Start Auto-Applying
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </div>
@@ -579,13 +588,13 @@ export const LandingPage = (): JSX.Element => {
             >
               <div className="flex flex-col space-y-4">
                 <button className="text-[#ffffff80] hover:text-white transition-colors text-left">
-                  Features
+                  How It Works
                 </button>
                 <button className="text-[#ffffff80] hover:text-white transition-colors text-left">
                   Pricing
                 </button>
                 <button className="text-[#ffffff80] hover:text-white transition-colors text-left">
-                  About
+                  Success Stories
                 </button>
                 <button className="text-[#ffffff80] hover:text-white transition-colors text-left">
                   Contact
@@ -602,7 +611,7 @@ export const LandingPage = (): JSX.Element => {
                     onClick={() => navigate("/signup")}
                     className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-white justify-start"
                   >
-                    Get Started
+                    Start Auto-Applying
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </div>
@@ -627,24 +636,23 @@ export const LandingPage = (): JSX.Element => {
             <div className="text-center lg:text-left">
               <div className="hero-title mb-6 sm:mb-8">
                 <div className="inline-flex items-center px-3 py-1 sm:px-4 sm:py-2 bg-[#1dff00]/10 border border-[#1dff00]/30 rounded-full text-[#1dff00] text-xs sm:text-sm font-medium mb-4 sm:mb-6">
-                  <Rocket className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                  #1 AI-Powered Job Tracker
+                  <Bot className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+                  #1 Autonomous Job Application Platform
                 </div>
                 <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white mb-4 sm:mb-6 leading-tight text-reveal">
-                  Land Your
+                  Your AI
                   <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
-                    {" "}Dream Job
+                    {" "}Job Hunter
                   </span>
                   <br />
                   <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
-                    3x Faster
+                    Never Sleeps
                   </span>
                 </h1>
               </div>
               
               <p className="hero-subtitle text-lg sm:text-xl lg:text-2xl text-[#ffffff80] mb-6 sm:mb-8 lg:mb-10 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                Join 50,000+ professionals who've transformed their careers with our AI-powered platform. 
-                Get organized, stay motivated, and accelerate your job search with intelligent insights.
+                The world's first fully autonomous job application platform. Our AI searches, applies, and optimizes your job hunt 24/7 while you focus on what matters most.
               </p>
               
               <div className="hero-buttons flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start mb-8 sm:mb-10">
@@ -653,8 +661,8 @@ export const LandingPage = (): JSX.Element => {
                   onClick={() => navigate("/signup")}
                   className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-white hover:shadow-2xl transition-all px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold group"
                 >
-                  Start Free Trial
-                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  Start Auto-Applying Now
+                  <Send className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
                 <Button
                   size="lg"
@@ -662,7 +670,7 @@ export const LandingPage = (): JSX.Element => {
                   className="border-[#ffffff30] text-white hover:bg-[#ffffff10] px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg group"
                 >
                   <Play className="w-4 h-4 sm:w-5 sm:h-5 mr-2 group-hover:scale-110 transition-transform" />
-                  Watch Demo
+                  See It In Action
                 </Button>
               </div>
 
@@ -670,7 +678,7 @@ export const LandingPage = (): JSX.Element => {
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 sm:gap-8 text-sm text-[#ffffff60] stagger-item">
                 <div className="flex items-center space-x-1">
                   <CheckCircle className="w-4 h-4 text-[#1dff00]" />
-                  <span>No credit card required</span>
+                  <span>100% automated</span>
                 </div>
                 <div className="flex items-center space-x-1">
                   <CheckCircle className="w-4 h-4 text-[#1dff00]" />
@@ -678,7 +686,7 @@ export const LandingPage = (): JSX.Element => {
                 </div>
                 <div className="flex items-center space-x-1">
                   <CheckCircle className="w-4 h-4 text-[#1dff00]" />
-                  <span>Cancel anytime</span>
+                  <span>No manual work required</span>
                 </div>
               </div>
             </div>
@@ -700,7 +708,7 @@ export const LandingPage = (): JSX.Element => {
                   <div className="space-y-4">
                     {/* Mock dashboard content */}
                     <div className="flex items-center justify-between">
-                      <div className="text-white font-semibold text-sm sm:text-base">Job Applications</div>
+                      <div className="text-white font-semibold text-sm sm:text-base">Auto-Applications Today</div>
                       <div className="text-[#1dff00] text-xl sm:text-2xl font-bold">47</div>
                     </div>
                     
@@ -710,8 +718,8 @@ export const LandingPage = (): JSX.Element => {
                         <div className="text-[#ffffff60] text-xs">Interviews</div>
                       </div>
                       <div className="bg-[#ffffff0a] p-3 rounded-lg text-center">
-                        <div className="text-[#1dff00] text-lg sm:text-xl font-bold">89%</div>
-                        <div className="text-[#ffffff60] text-xs">Match Rate</div>
+                        <div className="text-[#1dff00] text-lg sm:text-xl font-bold">95%</div>
+                        <div className="text-[#ffffff60] text-xs">Success Rate</div>
                       </div>
                       <div className="bg-[#ffffff0a] p-3 rounded-lg text-center">
                         <div className="text-[#1dff00] text-lg sm:text-xl font-bold">3</div>
@@ -719,14 +727,15 @@ export const LandingPage = (): JSX.Element => {
                       </div>
                     </div>
                     
-                    <div className="h-20 sm:h-24 bg-[#ffffff0a] rounded-lg flex items-end justify-between p-3">
-                      {[40, 65, 45, 80, 60, 90, 75].map((height, i) => (
-                        <div
-                          key={i}
-                          className="bg-gradient-to-t from-[#1dff00] to-[#0a8246] rounded-sm chart-bar"
-                          style={{ height: `${height}%`, width: '8px' }}
-                        />
-                      ))}
+                    <div className="bg-[#ffffff0a] p-3 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-white text-sm">AI Status</span>
+                        <span className="text-[#1dff00] text-xs flex items-center">
+                          <div className="w-2 h-2 bg-[#1dff00] rounded-full mr-1 animate-pulse"></div>
+                          Active
+                        </span>
+                      </div>
+                      <div className="text-[#ffffff80] text-xs">Currently applying to Software Engineer positions...</div>
                     </div>
                   </div>
                 </div>
@@ -757,18 +766,18 @@ export const LandingPage = (): JSX.Element => {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* How It Works Section */}
       <section ref={featuresRef} className="features-section py-16 sm:py-20 lg:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12 sm:mb-16 lg:mb-20 reveal-element">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 text-reveal">
-              Everything You Need to
+              How JobRaker
               <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
-                {" "}Succeed
+                {" "}Works For You
               </span>
             </h2>
             <p className="text-lg sm:text-xl text-[#ffffff80] max-w-3xl mx-auto leading-relaxed">
-              Our comprehensive suite of AI-powered tools helps you track, optimize, and accelerate your job search journey.
+              Set it up once, then let our AI handle everything. From job discovery to application submission, we've got you covered.
             </p>
           </div>
           
@@ -798,7 +807,7 @@ export const LandingPage = (): JSX.Element => {
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6 sm:mb-8 text-reveal">
                 Why Choose
                 <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
-                  {" "}JobRaker?
+                  {" "}Automation?
                 </span>
               </h2>
               <div className="space-y-6 sm:space-y-8">
@@ -825,8 +834,8 @@ export const LandingPage = (): JSX.Element => {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-2xl blur-3xl"></div>
                 <img
-                  src="https://images.unsplash.com/photo-1551434678-e076c223a692?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwyfHxjYXJlZXIlMjBzdWNjZXNzfGVufDB8fHxibHVlfDE3NTE1Nzk5OTl8MA&ixlib=rb-4.1.0&q=85"
-                  alt="Career Success"
+                  src="https://images.unsplash.com/photo-1485827404703-89b55fcc595e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwxfHxhdXRvbWF0aW9uJTIwcm9ib3R8ZW58MHx8fHx8MTcwNzQ4NzIwMHww&ixlib=rb-4.1.0&q=85"
+                  alt="Automation Technology"
                   className="relative w-full h-auto rounded-2xl shadow-2xl border border-[#ffffff1a] parallax-bg"
                 />
               </div>
@@ -846,7 +855,7 @@ export const LandingPage = (): JSX.Element => {
               </span>
             </h2>
             <p className="text-lg sm:text-xl text-[#ffffff80] max-w-3xl mx-auto leading-relaxed">
-              Join thousands of professionals who've transformed their careers with JobRaker.
+              Real people, real results. See how JobRaker's autonomous platform transformed their careers.
             </p>
           </div>
           
@@ -886,11 +895,11 @@ export const LandingPage = (): JSX.Element => {
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 text-reveal">
               Choose Your
               <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
-                {" "}Plan
+                {" "}Automation Level
               </span>
             </h2>
             <p className="text-lg sm:text-xl text-[#ffffff80] max-w-3xl mx-auto leading-relaxed">
-              Start free and upgrade as you grow. All plans include our core features.
+              From basic automation to full-service career management. All plans include our core autonomous application technology.
             </p>
           </div>
 
@@ -952,11 +961,11 @@ export const LandingPage = (): JSX.Element => {
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 text-reveal">
               Stay Updated with
               <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
-                {" "}Career Tips
+                {" "}Automation Insights
               </span>
             </h2>
             <p className="text-lg sm:text-xl text-[#ffffff80] mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed">
-              Get weekly insights, job market trends, and career advice delivered to your inbox.
+              Get weekly insights on job market automation, AI trends, and career optimization strategies.
             </p>
             
             <form onSubmit={handleEmailSubmit} className="flex flex-col sm:flex-row gap-3 sm:gap-4 max-w-md mx-auto">
@@ -989,10 +998,10 @@ export const LandingPage = (): JSX.Element => {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="cta-pulse">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6">
-              Ready to Transform Your Career?
+              Ready to Automate Your Career?
             </h2>
             <p className="text-lg sm:text-xl text-white/90 mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed">
-              Join over 50,000 professionals who've already accelerated their career growth with JobRaker.
+              Join over 50,000 professionals who've automated their job search and landed better positions faster.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
               <Button
@@ -1000,8 +1009,8 @@ export const LandingPage = (): JSX.Element => {
                 onClick={() => navigate("/signup")}
                 className="bg-white text-[#0a8246] hover:bg-white/90 transition-all px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-bold group"
               >
-                Start Your Free Trial
-                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                Start Auto-Applying Today
+                <Send className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
               <Button
                 size="lg"
@@ -1026,23 +1035,23 @@ export const LandingPage = (): JSX.Element => {
             <div className="md:col-span-2">
               <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                  <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 <span className="text-white font-bold text-lg sm:text-xl">JobRaker</span>
               </div>
               <p className="text-[#ffffff80] text-sm sm:text-base leading-relaxed max-w-md">
-                The AI-powered platform that helps professionals land their dream jobs 3x faster. 
-                Join thousands who've transformed their careers with our intelligent job tracking system.
+                The world's first autonomous job application platform. Our AI searches for jobs and applies automatically, 
+                helping professionals land their dream careers without the manual work.
               </p>
             </div>
             
             {/* Quick Links */}
             <div>
-              <h4 className="text-white font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Product</h4>
+              <h4 className="text-white font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Platform</h4>
               <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                <li><a href="#" className="text-[#ffffff80] hover:text-white transition-colors">Features</a></li>
+                <li><a href="#" className="text-[#ffffff80] hover:text-white transition-colors">How It Works</a></li>
                 <li><a href="#" className="text-[#ffffff80] hover:text-white transition-colors">Pricing</a></li>
-                <li><a href="#" className="text-[#ffffff80] hover:text-white transition-colors">Integrations</a></li>
+                <li><a href="#" className="text-[#ffffff80] hover:text-white transition-colors">Success Stories</a></li>
                 <li><a href="#" className="text-[#ffffff80] hover:text-white transition-colors">API</a></li>
               </ul>
             </div>
@@ -1061,11 +1070,11 @@ export const LandingPage = (): JSX.Element => {
           
           <div className="border-t border-[#ffffff1a] pt-6 sm:pt-8 flex flex-col sm:flex-row items-center justify-between">
             <p className="text-[#ffffff60] text-xs sm:text-sm mb-4 sm:mb-0">
-              © 2024 JobRaker. All rights reserved. Transform your career today.
+              © 2024 JobRaker. All rights reserved. Automate your career today.
             </p>
             <div className="flex items-center space-x-4 sm:space-x-6">
-              <Heart className="w-4 h-4 text-[#1dff00]" />
-              <span className="text-[#ffffff60] text-xs sm:text-sm">Made with love for job seekers</span>
+              <Bot className="w-4 h-4 text-[#1dff00]" />
+              <span className="text-[#ffffff60] text-xs sm:text-sm">Powered by autonomous AI</span>
             </div>
           </div>
         </div>
