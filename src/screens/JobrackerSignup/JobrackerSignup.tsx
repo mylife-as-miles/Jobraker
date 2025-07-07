@@ -261,7 +261,7 @@ export const JobrackerSignup = (): JSX.Element => {
                           <div className="flex w-full items-center relative bg-transparent border border-solid border-[#ffffff33] shadow-[0px_2px_14px_#0000000d] backdrop-blur-sm hover:border-[#ffffff4d] focus-within:border-[#1dff00] transition-all duration-300 h-12 sm:h-14 md:h-16 lg:h-18 px-4 sm:px-5 md:px-6 rounded-lg sm:rounded-xl">
                             <LockKeyholeIcon className="text-white flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5" />
                             <Input
-                              className="border-none bg-transparent text-white tracking-wide placeholder:text-[#ffffff99] focus-visible:ring-0 focus:ring-0 focus:outline-none focus:border-none p-0 h-auto flex-1 ml-3 sm:ml-4 text-sm sm:text-base font-normal"
+                              className="border-none bg-transparent text-white tracking-wide placeholder:text-[#ffffff99] focus-visible:ring-0 p-0 h-auto flex-1 ml-3 sm:ml-4 text-base sm:text-lg md:text-xl lg:text-2xl font-medium"
                               type={showPassword ? "text" : "password"}
                               placeholder="Password"
                               value={formData.password}
@@ -297,7 +297,7 @@ export const JobrackerSignup = (): JSX.Element => {
                           <div className="flex w-full items-center relative bg-transparent border border-solid border-[#ffffff33] shadow-[0px_2px_14px_#0000000d] backdrop-blur-sm hover:border-[#ffffff4d] focus-within:border-[#1dff00] transition-all duration-300 h-12 sm:h-14 md:h-16 lg:h-18 px-4 sm:px-5 md:px-6 rounded-lg sm:rounded-xl">
                             <LockKeyholeIcon className="text-white flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5" />
                             <Input
-                              className="border-none bg-transparent text-white tracking-wide placeholder:text-[#ffffff99] focus-visible:ring-0 focus:ring-0 focus:outline-none focus:border-none p-0 h-auto ml-3 sm:ml-4 text-sm sm:text-base font-normal"
+                              className="border-none bg-transparent text-white tracking-wide placeholder:text-[#ffffff99] focus-visible:ring-0 p-0 h-auto ml-3 sm:ml-4 text-base sm:text-lg md:text-xl lg:text-2xl font-medium"
                               type="password"
                               placeholder="Confirm Password"
                               value={formData.confirmPassword}
