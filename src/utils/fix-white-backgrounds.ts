@@ -1,4 +1,5 @@
 // Utility to identify and fix white background elements
+import { useState, useEffect, useCallback } from 'react';
 
 export interface WhiteBackgroundElement {
   element: HTMLElement;
