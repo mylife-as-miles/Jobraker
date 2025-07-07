@@ -13,6 +13,7 @@
 
 /* Import targeted white background fixes */
 @import url('./src/styles/fix-white-backgrounds.css');
+@import url('./src/styles/responsive-inputs.css');
 
 @layer base {
   :root {
