@@ -21,7 +21,7 @@ import { AnalyticsContent } from "../../components/analytics/AnalyticsContent";
 
 // Import sub-page components
 import { OverviewPage } from "./pages/OverviewPage";
-import ChatPage from "./pages/ChatPage";
+import { ChatPage } from "./pages/ChatPage";
 import { ResumePage } from "./pages/ResumePage";
 import { JobPage } from "./pages/JobPage";
 import { ApplicationPage } from "./pages/ApplicationPage";
