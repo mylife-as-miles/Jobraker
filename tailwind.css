@@ -11,8 +11,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Import global transparent styles */
-@import url('./src/styles/global-transparent.css');
+/* Import targeted white background fixes */
+@import url('./src/styles/fix-white-backgrounds.css');
 
 @layer base {
   :root {
@@ -90,15 +90,5 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
-  }
-  
-  /* Ensure all backgrounds are transparent */
-  button, input, textarea, select {
-    background: transparent !important;
-  }
-  
-  /* Override any component library defaults */
-  .bg-white, .bg-gray-50, .bg-gray-100, .bg-gray-200 {
-    background: transparent !important;
   }
 }

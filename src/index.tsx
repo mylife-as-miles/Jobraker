@@ -6,10 +6,14 @@ import { JobrackerSignup } from "./screens/JobrackerSignup";
 import { Onboarding } from "./screens/Onboarding";
 import { Analytics } from "./screens/Analytics";
 import { Dashboard } from "./screens/Dashboard";
+import { WhiteBackgroundFixer } from "./components/WhiteBackgroundFixer";
 
 function App() {
   return (
     <BrowserRouter>
+      {/* Auto-fix white backgrounds across the app */}
+      <WhiteBackgroundFixer autoFix={true} showDebugInfo={false} />
+      
       <Routes>
         {/* Default route shows landing page */}
         <Route path="/" element={<LandingPage />} />

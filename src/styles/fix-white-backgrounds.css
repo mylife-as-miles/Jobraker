@@ -1,0 +1,207 @@
+/* Fix White Backgrounds - Target Only Affected Elements */
+
+/* Remove white backgrounds from specific button variants */
+.bg-white,
+.bg-gray-50,
+.bg-gray-100,
+.bg-gray-200,
+.bg-slate-50,
+.bg-slate-100,
+.bg-neutral-50,
+.bg-neutral-100 {
+  background: transparent !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+/* Fix white input backgrounds */
+input.bg-white,
+textarea.bg-white,
+select.bg-white,
+.form-control.bg-white,
+.input.bg-white {
+  background: transparent !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Fix white card backgrounds */
+.card.bg-white,
+.panel.bg-white,
+.container.bg-white {
+  background: transparent !important;
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Specific component fixes */
+.bg-white button,
+.bg-gray-50 button,
+.bg-gray-100 button {
+  background: transparent !important;
+  border: 1px solid rgba(29, 255, 0, 0.3);
+  color: #1dff00;
+}
+
+.bg-white input,
+.bg-gray-50 input,
+.bg-gray-100 input {
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+/* Hover states for fixed elements */
+.bg-white:hover,
+.bg-gray-50:hover,
+.bg-gray-100:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(29, 255, 0, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(29, 255, 0, 0.2);
+}
+
+/* Focus states for accessibility */
+.bg-white:focus,
+.bg-gray-50:focus,
+.bg-gray-100:focus {
+  outline: 2px solid #1dff00;
+  outline-offset: 2px;
+  background: rgba(29, 255, 0, 0.1) !important;
+}
+
+/* Ensure text remains visible */
+.bg-white,
+.bg-gray-50,
+.bg-gray-100 {
+  color: #ffffff !important;
+}
+
+.bg-white::placeholder,
+.bg-gray-50::placeholder,
+.bg-gray-100::placeholder {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Fix for specific UI library classes */
+.btn-light,
+.btn-outline-light,
+.form-control-light,
+.card-light {
+  background: transparent !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* Material UI specific fixes */
+.MuiButton-containedPrimary.bg-white,
+.MuiTextField-root .MuiInputBase-root.bg-white,
+.MuiPaper-root.bg-white {
+  background: transparent !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Bootstrap specific fixes */
+.btn-light,
+.btn-outline-light,
+.bg-light {
+  background: transparent !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Tailwind specific overrides */
+.bg-white\/10,
+.bg-white\/20,
+.bg-white\/30,
+.bg-gray-50\/10,
+.bg-gray-100\/10 {
+  background: transparent !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* React component specific fixes */
+[class*="bg-white"],
+[class*="bg-gray-50"],
+[class*="bg-gray-100"],
+[style*="background: white"],
+[style*="background-color: white"],
+[style*="background: #fff"],
+[style*="background-color: #fff"] {
+  background: transparent !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .bg-white,
+  .bg-gray-50,
+  .bg-gray-100 {
+    border-width: 2px !important;
+    border-color: #1dff00 !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .bg-white,
+  .bg-gray-50,
+  .bg-gray-100 {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+/* Dark theme adjustments */
+@media (prefers-color-scheme: dark) {
+  .bg-white,
+  .bg-gray-50,
+  .bg-gray-100 {
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+  }
+}
+
+/* Light theme adjustments */
+@media (prefers-color-scheme: light) {
+  .bg-white,
+  .bg-gray-50,
+  .bg-gray-100 {
+    border-color: rgba(0, 0, 0, 0.2) !important;
+    color: #000000 !important;
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .bg-white,
+  .bg-gray-50,
+  .bg-gray-100 {
+    backdrop-filter: blur(6px) !important;
+    -webkit-backdrop-filter: blur(6px) !important;
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Print styles */
+@media print {
+  .bg-white,
+  .bg-gray-50,
+  .bg-gray-100 {
+    background: white !important;
+    color: black !important;
+    border: 1px solid black !important;
+    backdrop-filter: none !important;
+  }
+}
