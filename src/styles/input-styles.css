@@ -1,0 +1,137 @@
+/* Custom Input Styles - EditText Design Specifications */
+
+/* Remove default input styling */
+.styled-input {
+  /* Remove default backgrounds and underlines */
+  background: none;
+  border: none;
+  outline: none;
+  text-decoration: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  
+  /* Apply consistent padding (16dp = 1rem) */
+  padding: 12px 16px;
+  margin: 0;
+  
+  /* Custom background with rounded corners (8dp = 0.5rem) */
+  background-color: rgba(245, 245, 245, 0.9);
+  border: 1px solid #E0E0E0;
+  border-radius: 8px;
+  
+  /* Text styling */
+  font-size: 16px; /* 16sp equivalent */
+  color: #212121;
+  line-height: 1.5;
+  
+  /* Layout constraints */
+  width: 100%;
+  box-sizing: border-box;
+  
+  /* Smooth transitions */
+  transition: all 0.3s ease;
+}
+
+/* Placeholder styling */
+.styled-input::placeholder {
+  color: #757575;
+  opacity: 1;
+}
+
+/* Hover state */
+.styled-input:hover {
+  border-color: #BDBDBD;
+  background-color: rgba(245, 245, 245, 1);
+}
+
+/* Focus state */
+.styled-input:focus {
+  border-color: #1dff00;
+  background-color: rgba(245, 245, 245, 1);
+  box-shadow: 0 0 0 2px rgba(29, 255, 0, 0.2);
+}
+
+/* Error state */
+.styled-input.error {
+  border-color: #f44336;
+  background-color: rgba(255, 235, 238, 0.9);
+}
+
+.styled-input.error:focus {
+  border-color: #f44336;
+  box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2);
+}
+
+/* Container for input groups */
+.input-group-container {
+  width: 100%;
+  padding: 0 16px; /* 16dp margins from screen edges */
+}
+
+/* Vertical spacing between inputs (24dp = 1.5rem) */
+.input-group-container .styled-input + .styled-input {
+  margin-top: 24px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .styled-input {
+    padding: 14px 16px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  .input-group-container {
+    padding: 0 12px;
+  }
+}
+
+/* Dark theme variant */
+.styled-input.dark {
+  background-color: transparent;
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.styled-input.dark::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.styled-input.dark:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.styled-input.dark:focus {
+  border-color: #1dff00;
+  background-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 2px rgba(29, 255, 0, 0.3);
+}
+
+/* Accessibility improvements */
+.styled-input:focus-visible {
+  outline: 2px solid #1dff00;
+  outline-offset: 2px;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .styled-input {
+    border-width: 2px;
+    border-color: #000000;
+  }
+  
+  .styled-input:focus {
+    border-color: #1dff00;
+    box-shadow: 0 0 0 3px rgba(29, 255, 0, 0.5);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .styled-input {
+    transition: none;
+  }
+}
