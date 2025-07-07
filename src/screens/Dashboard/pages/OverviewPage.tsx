@@ -59,10 +59,10 @@ export const OverviewPage = (): JSX.Element => {
   const today = 1; // August 1st highlighted in the design
 
   return (
-    <div className="min-h-screen bg-black flex flex-col">
-      <div className="flex-1 flex flex-col min-w-0 max-w-full mx-auto w-full sm:w-[95vw] md:w-[80vw] lg:w-[60vw] xl:w-[40vw] p-3 sm:p-6">
+    <div className="min-h-screen bg-black">
+      <div className="w-full max-w-7xl mx-auto p-3 sm:p-4 lg:p-6 xl:p-8">
         {/* Responsive overview layout */}
-        <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Left Column - Applications and Match Score */}
           <div className="xl:col-span-2 space-y-4 sm:space-y-6">
             {/* Applications Card */}
@@ -70,12 +70,14 @@ export const OverviewPage = (): JSX.Element => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
+              whileHover={{ scale: 1.02 }}
+              className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500">
+              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/30 transition-all duration-500">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-2">
-                  <h2 className="text-lg sm:text-xl font-bold text-white">Applications</h2>
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Applications</h2>
                   <div className="text-left sm:text-right">
-                    <span className="text-xl sm:text-2xl font-bold text-white">0/3</span>
+                    <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">0/3</span>
                   </div>
                 </div>
 
@@ -87,11 +89,11 @@ export const OverviewPage = (): JSX.Element => {
                       variant="ghost"
                       size="sm"
                       onClick={() => setSelectedPeriod(period)}
-                      className={`text-xs sm:text-sm ${
+                      className={`text-xs sm:text-sm transition-all duration-200 hover:scale-105 ${
                         selectedPeriod === period
                           ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
                           : "text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]"
-                      } transition-all duration-200`}
+                      }`}
                     >
                       {period}
                     </Button>
@@ -100,14 +102,22 @@ export const OverviewPage = (): JSX.Element => {
 
                 {/* Stats */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-8 space-y-4 sm:space-y-0 mb-4 sm:mb-6">
-                  <div className="text-center sm:text-left">
-                    <div className="text-2xl sm:text-3xl font-bold text-white mb-1">58</div>
+                  <motion.div 
+                    className="text-center sm:text-left"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-1">58</div>
                     <div className="text-xs sm:text-sm text-white/70">Applications</div>
-                  </div>
-                  <div className="text-center sm:text-left">
-                    <div className="text-2xl sm:text-3xl font-bold text-white mb-1">15</div>
+                  </motion.div>
+                  <motion.div 
+                    className="text-center sm:text-left"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-1">15</div>
                     <div className="text-xs sm:text-sm text-white/70">Interviews</div>
-                  </div>
+                  </motion.div>
                 </div>
 
                 {/* Chart Area */}
@@ -137,34 +147,54 @@ export const OverviewPage = (): JSX.Element => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
+              whileHover={{ scale: 1.02 }}
+              className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500">
+              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/30 transition-all duration-500">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h2 className="text-lg sm:text-xl font-bold text-white">Match Score Average</h2>
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Match Score Average</h2>
                 </div>
 
                 <div className="mb-4 sm:mb-6">
-                  <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#1dff00] mb-2 drop-shadow-lg">56%</div>
-                  <p className="text-xs sm:text-sm text-white/70 leading-relaxed">Ratio of jobs found to jobs successfully applied</p>
+                  <motion.div 
+                    className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-black text-[#1dff00] mb-2 drop-shadow-lg"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    56%
+                  </motion.div>
+                  <p className="text-xs sm:text-sm lg:text-base text-white/70 leading-relaxed">Ratio of jobs found to jobs successfully applied</p>
                 </div>
 
                 {/* Bar Chart */}
-                <div className="flex items-end justify-between h-24 sm:h-28 lg:h-32 space-x-2 sm:space-x-4">
-                  <div className="flex flex-col items-center space-y-1 sm:space-y-2 flex-1">
-                    <div className="w-full max-w-[40px] sm:max-w-[48px] bg-gradient-to-t from-[#3B82F6] to-[#60A5FA] rounded-t-lg" style={{ height: '60px' }}></div>
-                    <div className="text-xs font-bold text-white">104</div>
+                <div className="flex items-end justify-between h-24 sm:h-28 lg:h-32 xl:h-36 space-x-2 sm:space-x-4">
+                  <motion.div 
+                    className="flex flex-col items-center space-y-1 sm:space-y-2 flex-1"
+                    whileHover={{ scale: 1.1 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    <div className="w-full max-w-[40px] sm:max-w-[48px] lg:max-w-[56px] bg-gradient-to-t from-[#3B82F6] to-[#60A5FA] rounded-t-lg hover:shadow-lg transition-shadow duration-300" style={{ height: '60px' }}></div>
+                    <div className="text-xs sm:text-sm font-bold text-white">104</div>
                     <div className="text-xs text-white/60 text-center leading-tight">Jobs found</div>
-                  </div>
-                  <div className="flex flex-col items-center space-y-1 sm:space-y-2 flex-1">
-                    <div className="w-full max-w-[40px] sm:max-w-[48px] bg-gradient-to-t from-[#1dff00] to-[#4ade80] rounded-t-lg" style={{ height: '35px' }}></div>
-                    <div className="text-xs font-bold text-white">58</div>
+                  </motion.div>
+                  <motion.div 
+                    className="flex flex-col items-center space-y-1 sm:space-y-2 flex-1"
+                    whileHover={{ scale: 1.1 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    <div className="w-full max-w-[40px] sm:max-w-[48px] lg:max-w-[56px] bg-gradient-to-t from-[#1dff00] to-[#4ade80] rounded-t-lg hover:shadow-lg transition-shadow duration-300" style={{ height: '35px' }}></div>
+                    <div className="text-xs sm:text-sm font-bold text-white">58</div>
                     <div className="text-xs text-white/60 text-center leading-tight">Applications</div>
-                  </div>
-                  <div className="flex flex-col items-center space-y-1 sm:space-y-2 flex-1">
-                    <div className="w-full max-w-[40px] sm:max-w-[48px] bg-gradient-to-t from-[#F59E0B] to-[#FCD34D] rounded-t-lg" style={{ height: '10px' }}></div>
-                    <div className="text-xs font-bold text-white">15</div>
+                  </motion.div>
+                  <motion.div 
+                    className="flex flex-col items-center space-y-1 sm:space-y-2 flex-1"
+                    whileHover={{ scale: 1.1 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    <div className="w-full max-w-[40px] sm:max-w-[48px] lg:max-w-[56px] bg-gradient-to-t from-[#F59E0B] to-[#FCD34D] rounded-t-lg hover:shadow-lg transition-shadow duration-300" style={{ height: '10px' }}></div>
+                    <div className="text-xs sm:text-sm font-bold text-white">15</div>
                     <div className="text-xs text-white/60 text-center leading-tight">Interviews</div>
-                  </div>
+                  </motion.div>
                 </div>
               </Card>
             </motion.div>
@@ -177,11 +207,17 @@ export const OverviewPage = (): JSX.Element => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
+              whileHover={{ scale: 1.02 }}
+              className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500">
+              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/30 transition-all duration-500">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h2 className="text-lg sm:text-xl font-bold text-white">Notification</h2>
-                  <Button variant="ghost" size="sm" className="text-[#1dff00] hover:text-[#1dff00]/80 text-xs sm:text-sm">
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Notification</h2>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-[#1dff00] hover:text-[#1dff00]/80 hover:bg-[#1dff00]/10 text-xs sm:text-sm transition-all duration-300"
+                  >
                     See more
                   </Button>
                 </div>
@@ -193,7 +229,8 @@ export const OverviewPage = (): JSX.Element => {
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.4, delay: 0.1 * index }}
-                      className="flex items-start space-x-2 sm:space-x-3 p-2 sm:p-3 bg-gradient-to-r from-[#ffffff08] to-[#ffffff05] rounded-lg border border-[#ffffff15] hover:bg-gradient-to-r hover:from-[#ffffff12] hover:to-[#ffffff08] transition-all duration-300"
+                      whileHover={{ scale: 1.02, x: 4 }}
+                      className="flex items-start space-x-2 sm:space-x-3 p-2 sm:p-3 bg-gradient-to-r from-[#ffffff08] to-[#ffffff05] rounded-lg border border-[#ffffff15] hover:bg-gradient-to-r hover:from-[#ffffff12] hover:to-[#ffffff08] hover:border-[#1dff00]/30 transition-all duration-300 cursor-pointer"
                     >
                       {notification.icon}
                       <div className="flex-1 min-w-0">
@@ -211,14 +248,24 @@ export const OverviewPage = (): JSX.Element => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
+              whileHover={{ scale: 1.02 }}
+              className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500">
+              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/30 transition-all duration-500">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-[#ffffff1a] p-1 sm:p-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-white hover:bg-[#ffffff1a] hover:scale-110 p-1 sm:p-2 transition-all duration-300"
+                  >
                     <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
                   </Button>
-                  <h2 className="text-sm sm:text-lg font-bold text-white">August, 2025</h2>
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-[#ffffff1a] p-1 sm:p-2">
+                  <h2 className="text-sm sm:text-lg lg:text-xl font-bold text-white">August, 2025</h2>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-white hover:bg-[#ffffff1a] hover:scale-110 p-1 sm:p-2 transition-all duration-300"
+                  >
                     <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
                   </Button>
                 </div>
@@ -236,33 +283,35 @@ export const OverviewPage = (): JSX.Element => {
                 <div className="grid grid-cols-7 gap-1">
                   {/* Previous month days */}
                   {[27, 28, 29, 30, 31].map((day) => (
-                    <div key={`prev-${day}`} className="text-center text-xs text-white/30 py-1 sm:py-2">
+                    <div key={`prev-${day}`} className="text-center text-xs text-white/30 py-1 sm:py-2 hover:bg-[#ffffff0a] rounded transition-colors duration-200">
                       {day}
                     </div>
                   ))}
                   
                   {/* Current month days */}
                   {calendarDays.map((day) => (
-                    <div
+                    <motion.div
                       key={day}
-                      className={`text-center text-xs py-1 sm:py-2 rounded-lg transition-all duration-200 ${
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
+                      className={`text-center text-xs py-1 sm:py-2 rounded-lg transition-all duration-200 cursor-pointer ${
                         day === today
-                          ? 'bg-[#1dff00] text-black font-bold'
+                          ? 'bg-[#1dff00] text-black font-bold shadow-lg'
                           : day === 20 || day === 21
-                          ? 'text-[#1dff00] font-medium relative'
-                          : 'text-white hover:bg-[#ffffff1a]'
+                          ? 'text-[#1dff00] font-medium relative hover:bg-[#1dff00]/10'
+                          : 'text-white hover:bg-[#ffffff1a] hover:text-[#1dff00]'
                       }`}
                     >
                       {day}
                       {(day === 20 || day === 21) && (
                         <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-[#1dff00] rounded-full"></div>
                       )}
-                    </div>
+                    </motion.div>
                   ))}
                   
                   {/* Next month days */}
                   {[1, 2].map((day) => (
-                    <div key={`next-${day}`} className="text-center text-xs text-white/30 py-1 sm:py-2">
+                    <div key={`next-${day}`} className="text-center text-xs text-white/30 py-1 sm:py-2 hover:bg-[#ffffff0a] rounded transition-colors duration-200">
                       {day}
                     </div>
                   ))}

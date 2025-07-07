@@ -26,7 +26,7 @@ function App() {
         {/* Standalone Analytics Page (for backward compatibility) */}
         <Route path="/analytics" element={<Analytics />} />
         
-        {/* Catch all - redirect to signup */}
+        {/* Catch all - redirect to landing page */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

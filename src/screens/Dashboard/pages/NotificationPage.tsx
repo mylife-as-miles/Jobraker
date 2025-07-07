@@ -3,7 +3,7 @@ import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { Bell, Calendar, AlertCircle, Search } from "lucide-react";
+import { Bell, Calendar, AlertCircle, Search, MoreVertical, Trash2, Archive, Star } from "lucide-react";
 
 interface Notification {
   id: string;
@@ -24,6 +24,7 @@ interface Notification {
 export const NotificationPage = (): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNotification, setSelectedNotification] = useState<string | null>("2");
+  const [filter, setFilter] = useState("all");
 
   const notifications: Notification[] = [
     {
@@ -101,28 +102,89 @@ export const NotificationPage = (): JSX.Element => {
   const filteredNotifications = notifications.filter(notification => {
     const matchesSearch = notification.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          notification.message.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
+    const matchesFilter = filter === "all" || 
+                         (filter === "unread" && !notification.isRead) ||
+                         (filter === "starred" && notification.isStarred);
+    return matchesSearch && matchesFilter;
   });
 
   const selectedNotificationData = notifications.find(n => n.id === selectedNotification);
 
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high":
+        return "border-l-red-500";
+      case "medium":
+        return "border-l-yellow-500";
+      case "low":
+        return "border-l-green-500";
+      default:
+        return "border-l-gray-500";
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-black flex flex-col">
-      <div className="flex-1 flex flex-col min-w-0 max-w-full mx-auto w-full sm:w-[95vw] md:w-[80vw] lg:w-[60vw] xl:w-[40vw] p-3 sm:p-6">
-        {/* Responsive notification layout */}
-        <div className="flex flex-col gap-4">
+    <div className="min-h-screen bg-black">
+      <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+          <div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Notifications</h1>
+            <p className="text-[#ffffff80] text-sm sm:text-base">Stay updated with your job search progress</p>
+          </div>
+          <div className="flex gap-2 sm:gap-3">
+            <Button 
+              variant="outline" 
+              className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+            >
+              Mark All Read
+            </Button>
+            <Button 
+              variant="outline" 
+              className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+            >
+              <Archive className="w-4 h-4 mr-2" />
+              Archive
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
           {/* Left Sidebar - Notifications List */}
-          <div className="w-full bg-[#0a0a0a] border-r border-[#ffffff1a] flex flex-col">
+          <div className="lg:col-span-1 bg-[#0a0a0a] border border-[#ffffff1a] rounded-2xl flex flex-col max-h-[80vh]">
             {/* Search Header */}
-            <div className="p-4 border-b border-[#ffffff1a]">
-              <div className="relative">
+            <div className="p-4 sm:p-6 border-b border-[#ffffff1a]">
+              <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
                 <Input
                   placeholder="Search Messages"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] text-sm rounded-lg"
+                  className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] rounded-lg transition-all duration-300"
                 />
+              </div>
+              
+              {/* Filter buttons */}
+              <div className="flex gap-2">
+                {[
+                  { key: "all", label: "All" },
+                  { key: "unread", label: "Unread" },
+                  { key: "starred", label: "Starred" }
+                ].map((filterOption) => (
+                  <Button
+                    key={filterOption.key}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFilter(filterOption.key)}
+                    className={`text-xs transition-all duration-300 hover:scale-105 ${
+                      filter === filterOption.key
+                        ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+                        : "text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]"
+                    }`}
+                  >
+                    {filterOption.label}
+                  </Button>
+                ))}
               </div>
             </div>
 
@@ -132,7 +194,7 @@ export const NotificationPage = (): JSX.Element => {
                 <motion.div
                   key={notification.id}
                   onClick={() => setSelectedNotification(notification.id)}
-                  className={`p-4 border-b border-[#ffffff0d] cursor-pointer transition-all duration-200 ${
+                  className={`p-4 sm:p-5 border-b border-[#ffffff0d] cursor-pointer transition-all duration-300 border-l-4 ${getPriorityColor(notification.priority)} ${
                     selectedNotification === notification.id
                       ? "bg-[#1dff0015] border-r-2 border-r-[#1dff00]"
                       : "hover:bg-[#ffffff0a]"
@@ -140,7 +202,7 @@ export const NotificationPage = (): JSX.Element => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: index * 0.05 }}
-                  whileHover={{ x: 4 }}
+                  whileHover={{ x: 4, scale: 1.01 }}
                 >
                   <div className="flex items-start space-x-3">
                     {/* Icon */}
@@ -150,10 +212,36 @@ export const NotificationPage = (): JSX.Element => {
                     
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm leading-relaxed ${notification.isRead ? "text-[#ffffff80]" : "text-white"} font-medium mb-1`}>
-                        {notification.title}
-                      </p>
+                      <div className="flex items-start justify-between mb-1">
+                        <p className={`text-sm leading-relaxed font-medium mb-1 ${notification.isRead ? "text-[#ffffff80]" : "text-white"}`}>
+                          {notification.title}
+                        </p>
+                        <div className="flex items-center space-x-1 flex-shrink-0 ml-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-[#ffffff60] hover:text-yellow-400 hover:scale-110 transition-all duration-300 p-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // Toggle star
+                            }}
+                          >
+                            <Star className={`w-3 h-3 ${notification.isStarred ? "fill-current text-yellow-400" : ""}`} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300 p-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
                       <p className="text-xs text-[#ffffff60]">{notification.timestamp}</p>
+                      {!notification.isRead && (
+                        <div className="w-2 h-2 bg-[#1dff00] rounded-full mt-1"></div>
+                      )}
                     </div>
                   </div>
                 </motion.div>
@@ -162,11 +250,11 @@ export const NotificationPage = (): JSX.Element => {
           </div>
 
           {/* Right Content Area */}
-          <div className="flex-1 flex flex-col bg-black">
+          <div className="lg:col-span-2 flex flex-col bg-black">
             {selectedNotificationData ? (
               <>
                 {/* Header */}
-                <div className="p-6 border-b border-[#ffffff1a] bg-black">
+                <div className="p-6 border-b border-[#ffffff1a] bg-[#0a0a0a] rounded-t-2xl">
                   <div className="flex items-start space-x-4">
                     <div className="flex-shrink-0">
                       {selectedNotificationData.icon}
@@ -179,20 +267,61 @@ export const NotificationPage = (): JSX.Element => {
                         9:00AM, 01-08-2025
                       </p>
                     </div>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300"
+                      >
+                        <Archive className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-[#ffffff60] hover:text-red-400 hover:scale-110 transition-all duration-300"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 p-6 bg-black overflow-y-auto">
+                <div className="flex-1 p-6 bg-[#0a0a0a] rounded-b-2xl overflow-y-auto">
                   {selectedNotificationData.hasDetailedContent ? (
                     <div className="space-y-6">
-                      <p className="text-[#ffffff80] leading-relaxed text-sm">
+                      <motion.p 
+                        className="text-[#ffffff80] leading-relaxed"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5 }}
+                      >
                         Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam eu turpis molestie, dictum est a, mattis tellus. Sed dignissim, metus nec fringilla accumsan, risus sem sollicitudin lacus, ut interdum tellus elit sed risus. Maecenas eget condimentum velit, sit amet feugiat lectus. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Praesent auctor purus luctus enim egestas, ac scelerisque ante pulvinar. Donec ut rhoncus ex. Suspendisse ac rhoncus nisl, eu tempor urna. Curabitur vel bibendum lorem. Morbi convallis convallis diam sit amet lacinia. Aliquam in elementum tellus.
-                      </p>
+                      </motion.p>
                       
-                      <p className="text-[#ffffff80] leading-relaxed text-sm">
+                      <motion.p 
+                        className="text-[#ffffff80] leading-relaxed"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.2 }}
+                      >
                         Curabitur tempor quis eros tempus lacinia. Nam bibendum pellentesque quam a convallis. Sed ut vulputate nisl. Integer in felis sed leo vestibulum venenatis. Suspendisse quis arcu sem. Aenean feugiat ex eu vestibulum vestibulum. Morbi a eleifend magna. Nam metus lacus, porttitor eu mauris a, blandit ultrices nibh. Mauris sit amet magna non ligula vestibulum eleifend. Nulla varius volutpat turpis sed lacinia. Nam eget mi in purus lobortis eleifend. Sed nec ante dictum sem condimentum ullamcorper quis venenatis nisl. Proin vitae facilibus nisl, ac posuere leo.
-                      </p>
+                      </motion.p>
+
+                      {/* Action buttons */}
+                      <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-[#ffffff1a]">
+                        <Button 
+                          className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                        >
+                          Take Action
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                        >
+                          Mark as Read
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex items-center justify-center h-full">
@@ -208,13 +337,13 @@ export const NotificationPage = (): JSX.Element => {
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center bg-black">
-                <div className="text-center">
+              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-8 text-center h-full flex items-center justify-center">
+                <div>
                   <Bell className="w-16 h-16 text-[#ffffff40] mx-auto mb-4" />
                   <h3 className="text-xl font-medium text-white mb-2">Select a notification</h3>
                   <p className="text-[#ffffff60]">Choose a notification from the list to view details</p>
                 </div>
-              </div>
+              </Card>
             )}
           </div>
         </div>
