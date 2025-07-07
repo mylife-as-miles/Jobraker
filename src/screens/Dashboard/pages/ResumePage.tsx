@@ -58,8 +58,8 @@ export const ResumePage = (): JSX.Element => {
         <div className="mb-6 sm:mb-8 lg:mb-10">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
             <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Resume Builder</h1>
-              <p className="text-[#ffffff80] text-sm sm:text-base lg:text-lg max-w-2xl leading-relaxed">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1dff00] mb-2">Resume Builder</h1>
+              <p className="text-[#888888] text-sm sm:text-base lg:text-lg max-w-2xl leading-relaxed">
                 Upload your resume to get a tailored resume that increases your chances of getting hired
               </p>
             </div>
@@ -72,7 +72,7 @@ export const ResumePage = (): JSX.Element => {
               </Button>
               <Button 
                 variant="outline" 
-                className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300 text-sm sm:text-base"
+                className="border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10 hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300 text-sm sm:text-base"
               >
                 <Upload className="w-4 h-4 mr-2" />
                 Import
@@ -93,14 +93,14 @@ export const ResumePage = (): JSX.Element => {
               whileHover={{ scale: 1.02 }}
               className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] hover:shadow-xl hover:border-[#1dff00]/50 transition-all duration-300 group h-full">
+              <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] hover:shadow-xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-300 group h-full">
                 <CardContent className="p-4 sm:p-5 lg:p-6 h-full flex flex-col">
                   {/* Resume Thumbnail */}
                   <div className="relative mb-4 sm:mb-5">
-                    <div className="w-full h-40 sm:h-48 lg:h-56 bg-[#d1d5db] rounded-lg border border-[#ffffff33] flex items-center justify-center group-hover:border-[#1dff00]/50 transition-all duration-300">
+                    <div className="w-full h-40 sm:h-48 lg:h-56 bg-[#222222] rounded-lg border border-[#1dff00]/20 flex items-center justify-center group-hover:border-[#1dff00]/50 transition-all duration-300">
                       {/* Gray placeholder matching screenshot */}
-                      <div className="w-full h-full bg-gradient-to-br from-[#d1d5db] to-[#9ca3af] rounded-lg flex items-center justify-center">
-                        <div className="text-gray-600 text-xs sm:text-sm font-medium">Resume Preview</div>
+                      <div className="w-full h-full bg-gradient-to-br from-[#222222] to-[#333333] rounded-lg flex items-center justify-center">
+                        <div className="text-[#888888] text-xs sm:text-sm font-medium">Resume Preview</div>
                       </div>
                     </div>
                     
@@ -111,7 +111,7 @@ export const ResumePage = (): JSX.Element => {
                       className={`absolute top-2 right-2 p-1 rounded-full transition-all duration-300 ${
                         resume.isFavorite 
                           ? "text-yellow-400 bg-yellow-400/20 hover:bg-yellow-400/30" 
-                          : "text-[#ffffff60] hover:text-yellow-400 hover:bg-yellow-400/20"
+                          : "text-[#666666] hover:text-yellow-400 hover:bg-yellow-400/20"
                       }`}
                     >
                       <Star className={`w-3 h-3 sm:w-4 sm:h-4 ${resume.isFavorite ? "fill-current" : ""}`} />
@@ -127,28 +127,28 @@ export const ResumePage = (): JSX.Element => {
                       <Button 
                         size="sm" 
                         variant="ghost" 
-                        className="text-white hover:bg-white/20 hover:scale-110 transition-all duration-300"
+                        className="text-[#1dff00] hover:bg-[#1dff00]/20 hover:scale-110 transition-all duration-300"
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
                       <Button 
                         size="sm" 
                         variant="ghost" 
-                        className="text-white hover:bg-white/20 hover:scale-110 transition-all duration-300"
+                        className="text-[#1dff00] hover:bg-[#1dff00]/20 hover:scale-110 transition-all duration-300"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
                       <Button 
                         size="sm" 
                         variant="ghost" 
-                        className="text-white hover:bg-white/20 hover:scale-110 transition-all duration-300"
+                        className="text-[#1dff00] hover:bg-[#1dff00]/20 hover:scale-110 transition-all duration-300"
                       >
                         <Download className="w-4 h-4" />
                       </Button>
                       <Button 
                         size="sm" 
                         variant="ghost" 
-                        className="text-white hover:bg-white/20 hover:scale-110 transition-all duration-300"
+                        className="text-[#1dff00] hover:bg-[#1dff00]/20 hover:scale-110 transition-all duration-300"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </Button>
@@ -158,18 +158,18 @@ export const ResumePage = (): JSX.Element => {
                   {/* Resume Info */}
                   <div className="space-y-3 sm:space-y-4 flex-grow">
                     <div>
-                      <h3 className="text-white font-semibold text-sm sm:text-base lg:text-lg mb-1 truncate">{resume.name}</h3>
-                      <p className="text-[#ffffff80] text-xs sm:text-sm">{resume.template}</p>
+                      <h3 className="text-[#1dff00] font-semibold text-sm sm:text-base lg:text-lg mb-1 truncate">{resume.name}</h3>
+                      <p className="text-[#888888] text-xs sm:text-sm">{resume.template}</p>
                     </div>
                     
                     <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-[#ffffff60]">Modified {resume.lastModified}</span>
+                      <span className="text-[#666666]">Modified {resume.lastModified}</span>
                       <span className="text-[#1dff00] font-medium">{resume.applications} apps</span>
                     </div>
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex gap-2 mt-4 pt-4 border-t border-[#ffffff1a]">
+                  <div className="flex gap-2 mt-4 pt-4 border-t border-[#1dff00]/20">
                     <Button 
                       size="sm" 
                       className="flex-1 bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300 text-xs sm:text-sm"
@@ -180,14 +180,14 @@ export const ResumePage = (): JSX.Element => {
                     <Button 
                       size="sm" 
                       variant="outline" 
-                      className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                      className="border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10 hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
                     >
                       <Copy className="w-3 h-3 sm:w-4 sm:h-4" />
                     </Button>
                     <Button 
                       size="sm" 
                       variant="outline" 
-                      className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-red-500/50 hover:text-red-400 hover:scale-105 transition-all duration-300"
+                      className="border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10 hover:border-red-500/50 hover:text-red-400 hover:scale-105 transition-all duration-300"
                     >
                       <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                     </Button>
@@ -205,7 +205,7 @@ export const ResumePage = (): JSX.Element => {
             whileHover={{ scale: 1.02 }}
             className="transition-transform duration-300"
           >
-            <Card className="bg-transparent border-2 border-dashed border-[#1dff00] hover:bg-[#1dff0010] hover:border-[#1dff00]/80 hover:shadow-lg transition-all duration-300 group cursor-pointer h-full min-h-[300px] sm:min-h-[350px] lg:min-h-[400px]">
+            <Card className="bg-transparent border-2 border-dashed border-[#1dff00] hover:bg-[#1dff00]/10 hover:border-[#1dff00]/80 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300 group cursor-pointer h-full min-h-[300px] sm:min-h-[350px] lg:min-h-[400px]">
               <CardContent className="p-4 sm:p-5 lg:p-6 h-full flex flex-col">
                 {/* Upload Area */}
                 <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 sm:space-y-6">
@@ -218,11 +218,11 @@ export const ResumePage = (): JSX.Element => {
                   </motion.div>
                   <div>
                     <h3 className="text-[#1dff00] font-semibold text-base sm:text-lg lg:text-xl mb-2">Upload Resume</h3>
-                    <p className="text-[#ffffff80] text-xs sm:text-sm lg:text-base max-w-xs">
+                    <p className="text-[#888888] text-xs sm:text-sm lg:text-base max-w-xs">
                       Drag and drop your resume here or click to browse
                     </p>
                   </div>
-                  <div className="text-xs sm:text-sm text-[#ffffff60]">
+                  <div className="text-xs sm:text-sm text-[#666666]">
                     Supports PDF, DOC, DOCX
                   </div>
                 </div>
@@ -238,7 +238,7 @@ export const ResumePage = (): JSX.Element => {
             whileHover={{ scale: 1.02 }}
             className="transition-transform duration-300"
           >
-            <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] hover:shadow-xl hover:border-[#1dff00]/50 transition-all duration-300 group cursor-pointer h-full min-h-[300px] sm:min-h-[350px] lg:min-h-[400px]">
+            <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] hover:shadow-xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-300 group cursor-pointer h-full min-h-[300px] sm:min-h-[350px] lg:min-h-[400px]">
               <CardContent className="p-4 sm:p-5 lg:p-6 h-full flex flex-col">
                 {/* Create Area */}
                 <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 sm:space-y-6">
@@ -250,8 +250,8 @@ export const ResumePage = (): JSX.Element => {
                     <Edit className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-[#1dff00]" />
                   </motion.div>
                   <div>
-                    <h3 className="text-white font-semibold text-base sm:text-lg lg:text-xl mb-2">Create New Resume</h3>
-                    <p className="text-[#ffffff80] text-xs sm:text-sm lg:text-base max-w-xs">
+                    <h3 className="text-[#1dff00] font-semibold text-base sm:text-lg lg:text-xl mb-2">Create New Resume</h3>
+                    <p className="text-[#888888] text-xs sm:text-sm lg:text-base max-w-xs">
                       Start from scratch with our professional templates
                     </p>
                   </div>
@@ -268,7 +268,7 @@ export const ResumePage = (): JSX.Element => {
 
         {/* Templates Section */}
         <div className="mt-12 sm:mt-16 lg:mt-20">
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-6 sm:mb-8">Popular Templates</h2>
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#1dff00] mb-6 sm:mb-8">Popular Templates</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-6">
             {["Modern", "Classic", "Creative", "Minimal", "Professional", "Executive"].map((template, index) => (
               <motion.div
@@ -279,12 +279,12 @@ export const ResumePage = (): JSX.Element => {
                 whileHover={{ scale: 1.05 }}
                 className="transition-transform duration-300"
               >
-                <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] hover:shadow-lg hover:border-[#1dff00]/50 transition-all duration-300 group cursor-pointer">
+                <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] hover:shadow-lg hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-300 group cursor-pointer">
                   <CardContent className="p-3 sm:p-4">
-                    <div className="aspect-[3/4] bg-[#ffffff1a] rounded-lg mb-3 flex items-center justify-center group-hover:bg-[#ffffff26] transition-colors duration-300">
-                      <span className="text-[#ffffff60] text-xs sm:text-sm">{template}</span>
+                    <div className="aspect-[3/4] bg-[#222222] rounded-lg mb-3 flex items-center justify-center group-hover:bg-[#333333] transition-colors duration-300">
+                      <span className="text-[#666666] text-xs sm:text-sm">{template}</span>
                     </div>
-                    <h4 className="text-white font-medium text-xs sm:text-sm text-center">{template}</h4>
+                    <h4 className="text-[#1dff00] font-medium text-xs sm:text-sm text-center">{template}</h4>
                   </CardContent>
                 </Card>
               </motion.div>
