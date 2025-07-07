@@ -30,6 +30,12 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { useState } from "react";
+import { VeedStyleHero } from "../../components/landing/VeedStyleHero";
+import { VeedStyleFeatures } from "../../components/landing/VeedStyleFeatures";
+import { VeedStyleHowTo } from "../../components/landing/VeedStyleHowTo";
+import { VeedStyleTestimonials } from "../../components/landing/VeedStyleTestimonials";
+import { VeedStyleFAQ } from "../../components/landing/VeedStyleFAQ";
+import { VeedStyleFooter } from "../../components/landing/VeedStyleFooter";
 
 export const LandingPage = (): JSX.Element => {
   const navigate = useNavigate();
@@ -319,6 +325,9 @@ export const LandingPage = (): JSX.Element => {
 
       {/* Hero Section */}
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16 sm:pt-20">
+        {/* VEED-Style Hero Section */}
+        <VeedStyleHero />
+        
         {/* Animated Background */}
         <div className="absolute inset-0">
           <motion.div 
@@ -539,6 +548,9 @@ export const LandingPage = (): JSX.Element => {
 
       {/* Features Section */}
       <section ref={featuresRef} className="py-16 sm:py-20 lg:py-24">
+        {/* VEED-Style Features */}
+        <VeedStyleFeatures />
+        
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             className="text-center mb-12 sm:mb-16 lg:mb-20"
@@ -586,6 +598,9 @@ export const LandingPage = (): JSX.Element => {
 
       {/* Benefits Section */}
       <section className="py-16 sm:py-20 lg:py-24 bg-[#0a0a0a]">
+        {/* VEED-Style How To Section */}
+        <VeedStyleHowTo />
+        
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             <motion.div
@@ -649,6 +664,9 @@ export const LandingPage = (): JSX.Element => {
 
       {/* Testimonials Section */}
       <section className="py-16 sm:py-20 lg:py-24">
+        {/* VEED-Style Testimonials */}
+        <VeedStyleTestimonials />
+        
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             className="text-center mb-12 sm:mb-16 lg:mb-20"
@@ -787,6 +805,9 @@ export const LandingPage = (): JSX.Element => {
 
       {/* Newsletter Section */}
       <section className="py-16 sm:py-20 lg:py-24">
+        {/* VEED-Style FAQ Section */}
+        <VeedStyleFAQ />
+        
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -870,6 +891,9 @@ export const LandingPage = (): JSX.Element => {
 
       {/* Footer */}
       <footer className="bg-[#0a0a0a] border-t border-[#ffffff1a] py-12 sm:py-16">
+        {/* VEED-Style Footer */}
+        <VeedStyleFooter />
+        
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8 sm:gap-12 mb-8 sm:mb-12">
             {/* Company Info */}
