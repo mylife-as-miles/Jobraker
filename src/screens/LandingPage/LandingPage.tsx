@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { gsap } from "gsap";
@@ -7,14 +7,6 @@ import { BarChart3, MessageSquare, FileText, Briefcase, Users, TrendingUp, Targe
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
-import { useState } from "react";
-import { 
-  useScrollReveal, 
-  useParallaxEffect, 
-  useCounterAnimation, 
-  useStaggerAnimation,
-  useTextReveal
-} from "../../hooks/useGSAPAnimations";
 
 // Register GSAP plugins
 gsap.registerPlugin(ScrollTrigger);
@@ -23,26 +15,35 @@ export const LandingPage = (): JSX.Element => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [email, setEmail] = useState("");
+  const [scrollY, setScrollY] = useState(0);
   const heroRef = useRef<HTMLDivElement>(null);
   const featuresRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const parallaxBgRef = useRef<HTMLDivElement>(null);
+  const heroContentRef = useRef<HTMLDivElement>(null);
 
-  // GSAP Animations
-  useScrollReveal(".reveal-element");
-  useParallaxEffect(".parallax-bg", 0.3);
-  useCounterAnimation(".counter-50000", 50000);
-  useCounterAnimation(".counter-95", 95);
-  useCounterAnimation(".counter-1200", 1200);
-  useCounterAnimation(".counter-7", 7);
-  useStaggerAnimation(".stagger-item", 0.15);
-  useTextReveal(".text-reveal");
+  // Parallax scroll effect
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      setScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Calculate parallax values
+  const parallaxOffset = scrollY * 0.5; // Background moves at 0.5x speed
+  const zoomScale = 1 + scrollY * 0.0002; // Subtle zoom effect
+  const contentOffset = scrollY * 0.1; // Content moves slightly slower
 
   useEffect(() => {
     // Smooth scroll behavior
     document.documentElement.style.scrollBehavior = 'smooth';
     
     const ctx = gsap.context(() => {
-      // Hero section animations
+      // Hero section animations with parallax
       const heroTl = gsap.timeline();
       
       heroTl.fromTo(".hero-title", {
@@ -88,11 +89,63 @@ export const LandingPage = (): JSX.Element => {
         ease: "power3.out",
       }, "-=1");
 
-      // Floating background elements
+      // Advanced parallax scrolling for background elements
+      gsap.to(".parallax-bg-1", {
+        yPercent: -50,
+        scale: 1.2,
+        ease: "none",
+        scrollTrigger: {
+          trigger: ".hero-section",
+          start: "top bottom",
+          end: "bottom top",
+          scrub: 1,
+        }
+      });
+
+      gsap.to(".parallax-bg-2", {
+        yPercent: -30,
+        scale: 1.1,
+        rotation: 10,
+        ease: "none",
+        scrollTrigger: {
+          trigger: ".hero-section",
+          start: "top bottom",
+          end: "bottom top",
+          scrub: 1.5,
+        }
+      });
+
+      gsap.to(".parallax-bg-3", {
+        yPercent: -70,
+        scale: 1.3,
+        rotation: -5,
+        ease: "none",
+        scrollTrigger: {
+          trigger: ".hero-section",
+          start: "top bottom",
+          end: "bottom top",
+          scrub: 0.8,
+        }
+      });
+
+      // Hero content parallax
+      gsap.to(".hero-content", {
+        yPercent: -20,
+        ease: "none",
+        scrollTrigger: {
+          trigger: ".hero-section",
+          start: "top bottom",
+          end: "bottom top",
+          scrub: 2,
+        }
+      });
+
+      // Floating background elements with enhanced movement
       gsap.to(".floating-bg-1", {
         y: -30,
         x: 20,
         rotation: 10,
+        scale: 1.1,
         duration: 6,
         repeat: -1,
         yoyo: true,
@@ -103,6 +156,7 @@ export const LandingPage = (): JSX.Element => {
         y: 20,
         x: -15,
         rotation: -5,
+        scale: 0.9,
         duration: 8,
         repeat: -1,
         yoyo: true,
@@ -114,6 +168,7 @@ export const LandingPage = (): JSX.Element => {
         y: -15,
         x: 10,
         rotation: 8,
+        scale: 1.05,
         duration: 10,
         repeat: -1,
         yoyo: true,
@@ -121,7 +176,7 @@ export const LandingPage = (): JSX.Element => {
         delay: 2,
       });
 
-      // Navigation scroll effect
+      // Navigation scroll effect with parallax
       ScrollTrigger.create({
         trigger: "body",
         start: "top -80",
@@ -143,7 +198,7 @@ export const LandingPage = (): JSX.Element => {
         },
       });
 
-      // Features section reveal
+      // Features section with depth parallax
       gsap.fromTo(".feature-card", {
         y: 100,
         opacity: 0,
@@ -164,7 +219,21 @@ export const LandingPage = (): JSX.Element => {
         }
       });
 
-      // Benefits section with morphing effect
+      // Parallax for feature cards
+      gsap.utils.toArray(".feature-card").forEach((card: any, index) => {
+        gsap.to(card, {
+          yPercent: -10 * (index % 2 === 0 ? 1 : -1),
+          ease: "none",
+          scrollTrigger: {
+            trigger: card,
+            start: "top bottom",
+            end: "bottom top",
+            scrub: 1.5,
+          }
+        });
+      });
+
+      // Benefits section with morphing parallax effect
       gsap.fromTo(".benefit-item", {
         x: -100,
         opacity: 0,
@@ -183,7 +252,7 @@ export const LandingPage = (): JSX.Element => {
         }
       });
 
-      // Testimonials carousel effect
+      // Testimonials with 3D parallax carousel effect
       gsap.fromTo(".testimonial-card", {
         y: 80,
         opacity: 0,
@@ -204,7 +273,22 @@ export const LandingPage = (): JSX.Element => {
         }
       });
 
-      // Pricing cards with 3D effect
+      // Testimonial cards parallax
+      gsap.utils.toArray(".testimonial-card").forEach((card: any, index) => {
+        gsap.to(card, {
+          yPercent: -15 + (index * 5),
+          rotationY: index % 2 === 0 ? 2 : -2,
+          ease: "none",
+          scrollTrigger: {
+            trigger: ".testimonials-section",
+            start: "top bottom",
+            end: "bottom top",
+            scrub: 2,
+          }
+        });
+      });
+
+      // Pricing cards with 3D depth parallax
       gsap.fromTo(".pricing-card", {
         y: 100,
         opacity: 0,
@@ -224,7 +308,7 @@ export const LandingPage = (): JSX.Element => {
         }
       });
 
-      // Stats counter animation with morphing background
+      // Stats section with morphing background parallax
       gsap.fromTo(".stats-section", {
         backgroundColor: "rgba(10, 10, 10, 0)",
       }, {
@@ -238,7 +322,21 @@ export const LandingPage = (): JSX.Element => {
         }
       });
 
-      // Newsletter section with wave effect
+      // Stats parallax movement
+      gsap.utils.toArray(".stat-item").forEach((stat: any, index) => {
+        gsap.to(stat, {
+          yPercent: -20 + (index * 10),
+          ease: "none",
+          scrollTrigger: {
+            trigger: ".stats-section",
+            start: "top bottom",
+            end: "bottom top",
+            scrub: 1,
+          }
+        });
+      });
+
+      // Newsletter section with wave parallax effect
       gsap.fromTo(".newsletter-section", {
         y: 50,
         opacity: 0,
@@ -254,7 +352,7 @@ export const LandingPage = (): JSX.Element => {
         }
       });
 
-      // CTA section with pulsing effect
+      // CTA section with pulsing parallax effect
       gsap.fromTo(".cta-section", {
         scale: 0.9,
         opacity: 0,
@@ -270,7 +368,7 @@ export const LandingPage = (): JSX.Element => {
         }
       });
 
-      // Continuous pulsing animation for CTA
+      // Continuous pulsing animation for CTA with parallax
       gsap.to(".cta-pulse", {
         scale: 1.05,
         duration: 2,
@@ -279,7 +377,7 @@ export const LandingPage = (): JSX.Element => {
         ease: "power2.inOut",
       });
 
-      // Mouse follower effect
+      // Advanced mouse follower with parallax trail
       const cursor = document.createElement('div');
       cursor.className = 'custom-cursor';
       cursor.style.cssText = `
@@ -308,7 +406,9 @@ export const LandingPage = (): JSX.Element => {
 
       return () => {
         document.removeEventListener('mousemove', moveCursor);
-        document.body.removeChild(cursor);
+        if (document.body.contains(cursor)) {
+          document.body.removeChild(cursor);
+        }
       };
     }, containerRef);
     
@@ -591,25 +691,58 @@ export const LandingPage = (): JSX.Element => {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16 sm:pt-20">
-        {/* Animated Background */}
+      {/* Hero Section with Advanced Parallax */}
+      <section ref={heroRef} className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden pt-16 sm:pt-20">
+        {/* Parallax Background Layer */}
+        <div 
+          ref={parallaxBgRef}
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwxfHxzcGFjZSUyMHRlY2hub2xvZ3l8ZW58MHx8fHx8MTcwNzQ4NzIwMHww&ixlib=rb-4.1.0&q=85')`,
+            transform: `translateY(${parallaxOffset}px) scale(${zoomScale})`,
+            transformOrigin: 'center center',
+            opacity: 0.1,
+          }}
+        />
+
+        {/* Animated Background Elements with Enhanced Parallax */}
         <div className="absolute inset-0">
-          <div className="floating-bg-1 parallax-bg absolute top-20 left-10 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-full blur-3xl" />
-          <div className="floating-bg-2 parallax-bg absolute top-40 right-20 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 bg-gradient-to-r from-[#1dff00]/10 to-[#0a8246]/10 rounded-full blur-3xl" />
-          <div className="floating-bg-3 parallax-bg absolute bottom-20 left-1/3 w-40 h-40 sm:w-56 sm:h-56 lg:w-72 lg:h-72 bg-gradient-to-r from-[#1dff00]/15 to-[#0a8246]/15 rounded-full blur-3xl" />
+          <div 
+            className="parallax-bg-1 floating-bg-1 absolute top-20 left-10 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-full blur-3xl"
+            style={{
+              transform: `translateY(${scrollY * 0.3}px) scale(${1 + scrollY * 0.0001})`,
+            }}
+          />
+          <div 
+            className="parallax-bg-2 floating-bg-2 absolute top-40 right-20 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 bg-gradient-to-r from-[#1dff00]/10 to-[#0a8246]/10 rounded-full blur-3xl"
+            style={{
+              transform: `translateY(${scrollY * 0.4}px) scale(${1 + scrollY * 0.00015}) rotate(${scrollY * 0.05}deg)`,
+            }}
+          />
+          <div 
+            className="parallax-bg-3 floating-bg-3 absolute bottom-20 left-1/3 w-40 h-40 sm:w-56 sm:h-56 lg:w-72 lg:h-72 bg-gradient-to-r from-[#1dff00]/15 to-[#0a8246]/15 rounded-full blur-3xl"
+            style={{
+              transform: `translateY(${scrollY * 0.2}px) scale(${1 + scrollY * 0.0002}) rotate(${-scrollY * 0.03}deg)`,
+            }}
+          />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-            {/* Hero Content */}
-            <div className="text-center lg:text-left">
+            {/* Hero Content with Parallax */}
+            <div 
+              ref={heroContentRef}
+              className="hero-content text-center lg:text-left"
+              style={{
+                transform: `translateY(${contentOffset}px)`,
+              }}
+            >
               <div className="hero-title mb-6 sm:mb-8">
                 <div className="inline-flex items-center px-3 py-1 sm:px-4 sm:py-2 bg-[#1dff00]/10 border border-[#1dff00]/30 rounded-full text-[#1dff00] text-xs sm:text-sm font-medium mb-4 sm:mb-6">
                   <Bot className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                   #1 Autonomous Job Application Platform
                 </div>
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white mb-4 sm:mb-6 leading-tight text-reveal">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white mb-4 sm:mb-6 leading-tight">
                   Your AI
                   <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
                     {" "}Job Hunter
@@ -645,7 +778,7 @@ export const LandingPage = (): JSX.Element => {
               </div>
 
               {/* Trust Indicators */}
-              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 sm:gap-8 text-sm text-[#ffffff60] stagger-item">
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 sm:gap-8 text-sm text-[#ffffff60]">
                 <div className="flex items-center space-x-1">
                   <CheckCircle className="w-4 h-4 text-[#1dff00]" />
                   <span>100% automated</span>
@@ -661,8 +794,13 @@ export const LandingPage = (): JSX.Element => {
               </div>
             </div>
             
-            {/* Hero Image/Dashboard Preview */}
-            <div className="hero-dashboard relative">
+            {/* Hero Dashboard with Parallax */}
+            <div 
+              className="hero-dashboard relative"
+              style={{
+                transform: `translateY(${scrollY * 0.15}px) rotateY(${scrollY * 0.02}deg)`,
+              }}
+            >
               <div className="relative">
                 {/* Glowing border effect */}
                 <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-2xl blur-xl opacity-30"></div>
@@ -715,12 +853,12 @@ export const LandingPage = (): JSX.Element => {
         </div>
       </section>
 
-      {/* Stats Section */}
+      {/* Stats Section with Parallax */}
       <section className="stats-section py-12 sm:py-16 lg:py-20 bg-[#0a0a0a] border-y border-[#ffffff1a]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
             {stats.map((stat, index) => (
-              <div key={index} className="text-center reveal-element">
+              <div key={index} className="stat-item text-center">
                 <div className="flex items-center justify-center mb-2 sm:mb-3">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-lg flex items-center justify-center text-[#1dff00] mr-2 sm:mr-3">
                     {stat.icon}
@@ -736,11 +874,11 @@ export const LandingPage = (): JSX.Element => {
         </div>
       </section>
 
-      {/* How It Works Section */}
+      {/* How It Works Section with Parallax */}
       <section ref={featuresRef} className="features-section py-16 sm:py-20 lg:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12 sm:mb-16 lg:mb-20 reveal-element">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 text-reveal">
+          <div className="text-center mb-12 sm:mb-16 lg:mb-20">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6">
               How JobRaker
               <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
                 {" "}Works For You
@@ -769,12 +907,12 @@ export const LandingPage = (): JSX.Element => {
         </div>
       </section>
 
-      {/* Benefits Section */}
+      {/* Benefits Section with Parallax */}
       <section className="benefits-section py-16 sm:py-20 lg:py-24 bg-[#0a0a0a]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            <div className="reveal-element">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6 sm:mb-8 text-reveal">
+            <div>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6 sm:mb-8">
                 Why Choose
                 <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
                   {" "}Automation?
@@ -800,13 +938,13 @@ export const LandingPage = (): JSX.Element => {
               </div>
             </div>
             
-            <div className="relative reveal-element">
+            <div className="relative">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-2xl blur-3xl"></div>
                 <img
                   src="https://images.unsplash.com/photo-1485827404703-89b55fcc595e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwxfHxhdXRvbWF0aW9uJTIwcm9ib3R8ZW58MHx8fHx8MTcwNzQ4NzIwMHww&ixlib=rb-4.1.0&q=85"
                   alt="Automation Technology"
-                  className="relative w-full h-auto rounded-2xl shadow-2xl border border-[#ffffff1a] parallax-bg"
+                  className="relative w-full h-auto rounded-2xl shadow-2xl border border-[#ffffff1a]"
                 />
               </div>
             </div>
@@ -814,11 +952,11 @@ export const LandingPage = (): JSX.Element => {
         </div>
       </section>
 
-      {/* Testimonials Section */}
+      {/* Testimonials Section with Parallax */}
       <section className="testimonials-section py-16 sm:py-20 lg:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12 sm:mb-16 lg:mb-20 reveal-element">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 text-reveal">
+          <div className="text-center mb-12 sm:mb-16 lg:mb-20">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6">
               Success Stories from
               <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
                 {" "}Our Users
@@ -858,11 +996,11 @@ export const LandingPage = (): JSX.Element => {
         </div>
       </section>
 
-      {/* Pricing Section */}
+      {/* Pricing Section with Parallax */}
       <section className="pricing-section py-16 sm:py-20 lg:py-24 bg-[#0a0a0a]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12 sm:mb-16 lg:mb-20 reveal-element">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 text-reveal">
+          <div className="text-center mb-12 sm:mb-16 lg:mb-20">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6">
               Choose Your
               <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
                 {" "}Automation Level
@@ -924,11 +1062,11 @@ export const LandingPage = (): JSX.Element => {
         </div>
       </section>
 
-      {/* Newsletter Section */}
+      {/* Newsletter Section with Parallax */}
       <section className="newsletter-section py-16 sm:py-20 lg:py-24">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="reveal-element">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 text-reveal">
+          <div>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6">
               Stay Updated with
               <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
                 {" "}Automation Insights
@@ -963,7 +1101,7 @@ export const LandingPage = (): JSX.Element => {
         </div>
       </section>
 
-      {/* Final CTA Section */}
+      {/* Final CTA Section with Parallax */}
       <section className="cta-section py-16 sm:py-20 lg:py-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="cta-pulse">

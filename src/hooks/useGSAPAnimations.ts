@@ -11,10 +11,16 @@ export const useGSAPAnimations = () => {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Set up smooth scrolling
+      // Set up smooth scrolling with enhanced performance
       gsap.config({
         force3D: true,
         nullTargetWarn: false,
+      });
+
+      // Enable hardware acceleration for better performance
+      gsap.set("body", { 
+        perspective: 1000,
+        transformStyle: "preserve-3d"
       });
     }, containerRef);
 
@@ -68,11 +74,44 @@ export const useParallaxEffect = (selector: string, speed: number = 0.5) => {
           trigger: element,
           start: "top bottom",
           end: "bottom top",
-          scrub: true
+          scrub: true,
+          invalidateOnRefresh: true,
         }
       });
     });
   }, [selector, speed]);
+};
+
+export const useAdvancedParallax = (selector: string, config: {
+  speed?: number;
+  scale?: number;
+  rotation?: number;
+  opacity?: boolean;
+} = {}) => {
+  useEffect(() => {
+    const { speed = 0.5, scale = 0, rotation = 0, opacity = false } = config;
+    const elements = gsap.utils.toArray(selector);
+    
+    elements.forEach((element: any) => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: element,
+          start: "top bottom",
+          end: "bottom top",
+          scrub: 1,
+          invalidateOnRefresh: true,
+        }
+      });
+
+      tl.to(element, {
+        yPercent: -50 * speed,
+        scale: 1 + scale,
+        rotation: rotation,
+        opacity: opacity ? 0.3 : 1,
+        ease: "none",
+      });
+    });
+  }, [selector, config]);
 };
 
 export const useCounterAnimation = (selector: string, endValue: number) => {
@@ -182,6 +221,87 @@ export const useMorphingBackground = (selector: string) => {
         duration: 4,
         morphSVG: "M0,0 Q50,-50 100,0 T200,0 L200,100 L0,100 Z",
       });
+    });
+  }, [selector]);
+};
+
+export const useMouseFollower = () => {
+  useEffect(() => {
+    const cursor = document.createElement('div');
+    cursor.className = 'mouse-follower';
+    cursor.style.cssText = `
+      position: fixed;
+      width: 20px;
+      height: 20px;
+      background: linear-gradient(45deg, #1dff00, #0a8246);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      mix-blend-mode: difference;
+      transition: transform 0.1s ease;
+      will-change: transform;
+    `;
+    document.body.appendChild(cursor);
+
+    const moveCursor = (e: MouseEvent) => {
+      gsap.to(cursor, {
+        x: e.clientX - 10,
+        y: e.clientY - 10,
+        duration: 0.1,
+        ease: "power2.out",
+      });
+    };
+
+    document.addEventListener('mousemove', moveCursor);
+
+    return () => {
+      document.removeEventListener('mousemove', moveCursor);
+      if (document.body.contains(cursor)) {
+        document.body.removeChild(cursor);
+      }
+    };
+  }, []);
+};
+
+export const use3DCardEffect = (selector: string) => {
+  useEffect(() => {
+    const cards = gsap.utils.toArray(selector);
+    
+    cards.forEach((card: any) => {
+      const handleMouseMove = (e: MouseEvent) => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        const rotateX = (y - centerY) / 10;
+        const rotateY = (centerX - x) / 10;
+
+        gsap.to(card, {
+          duration: 0.3,
+          rotationX: rotateX,
+          rotationY: rotateY,
+          transformPerspective: 1000,
+          ease: "power2.out"
+        });
+      };
+
+      const handleMouseLeave = () => {
+        gsap.to(card, {
+          duration: 0.3,
+          rotationX: 0,
+          rotationY: 0,
+          ease: "power2.out"
+        });
+      };
+
+      card.addEventListener('mousemove', handleMouseMove);
+      card.addEventListener('mouseleave', handleMouseLeave);
+
+      return () => {
+        card.removeEventListener('mousemove', handleMouseMove);
+        card.removeEventListener('mouseleave', handleMouseLeave);
+      };
     });
   }, [selector]);
 };
