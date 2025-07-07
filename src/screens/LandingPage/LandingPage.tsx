@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { 
   BarChart3, 
   MessageSquare, 
@@ -30,6 +32,16 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { useState } from "react";
+import { 
+  useScrollReveal, 
+  useParallaxEffect, 
+  useCounterAnimation, 
+  useStaggerAnimation,
+  useTextReveal
+} from "../../hooks/useGSAPAnimations";
+
+// Register GSAP plugins
+gsap.registerPlugin(ScrollTrigger);
 
 export const LandingPage = (): JSX.Element => {
   const navigate = useNavigate();
@@ -37,12 +49,295 @@ export const LandingPage = (): JSX.Element => {
   const [email, setEmail] = useState("");
   const heroRef = useRef<HTMLDivElement>(null);
   const featuresRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // GSAP Animations
+  useScrollReveal(".reveal-element");
+  useParallaxEffect(".parallax-bg", 0.3);
+  useCounterAnimation(".counter-50000", 50000);
+  useCounterAnimation(".counter-89", 89);
+  useCounterAnimation(".counter-1200", 1200);
+  useCounterAnimation(".counter-12", 12);
+  useStaggerAnimation(".stagger-item", 0.15);
+  useTextReveal(".text-reveal");
 
   useEffect(() => {
     // Smooth scroll behavior
     document.documentElement.style.scrollBehavior = 'smooth';
     
+    const ctx = gsap.context(() => {
+      // Hero section animations
+      const heroTl = gsap.timeline();
+      
+      heroTl.fromTo(".hero-title", {
+        y: 100,
+        opacity: 0,
+        scale: 0.8,
+      }, {
+        y: 0,
+        opacity: 1,
+        scale: 1,
+        duration: 1.2,
+        ease: "power3.out",
+      })
+      .fromTo(".hero-subtitle", {
+        y: 50,
+        opacity: 0,
+      }, {
+        y: 0,
+        opacity: 1,
+        duration: 1,
+        ease: "power2.out",
+      }, "-=0.8")
+      .fromTo(".hero-buttons", {
+        y: 30,
+        opacity: 0,
+      }, {
+        y: 0,
+        opacity: 1,
+        duration: 0.8,
+        ease: "power2.out",
+      }, "-=0.6")
+      .fromTo(".hero-dashboard", {
+        x: 100,
+        opacity: 0,
+        rotationY: 20,
+        scale: 0.8,
+      }, {
+        x: 0,
+        opacity: 1,
+        rotationY: 0,
+        scale: 1,
+        duration: 1.5,
+        ease: "power3.out",
+      }, "-=1");
+
+      // Floating background elements
+      gsap.to(".floating-bg-1", {
+        y: -30,
+        x: 20,
+        rotation: 10,
+        duration: 6,
+        repeat: -1,
+        yoyo: true,
+        ease: "power2.inOut",
+      });
+
+      gsap.to(".floating-bg-2", {
+        y: 20,
+        x: -15,
+        rotation: -5,
+        duration: 8,
+        repeat: -1,
+        yoyo: true,
+        ease: "power2.inOut",
+        delay: 1,
+      });
+
+      gsap.to(".floating-bg-3", {
+        y: -15,
+        x: 10,
+        rotation: 8,
+        duration: 10,
+        repeat: -1,
+        yoyo: true,
+        ease: "power2.inOut",
+        delay: 2,
+      });
+
+      // Navigation scroll effect
+      ScrollTrigger.create({
+        trigger: "body",
+        start: "top -80",
+        end: "bottom bottom",
+        onUpdate: (self) => {
+          if (self.direction === 1) {
+            gsap.to(".navbar", {
+              y: -100,
+              duration: 0.3,
+              ease: "power2.out",
+            });
+          } else {
+            gsap.to(".navbar", {
+              y: 0,
+              duration: 0.3,
+              ease: "power2.out",
+            });
+          }
+        },
+      });
+
+      // Features section reveal
+      gsap.fromTo(".feature-card", {
+        y: 100,
+        opacity: 0,
+        scale: 0.8,
+        rotationX: 45,
+      }, {
+        y: 0,
+        opacity: 1,
+        scale: 1,
+        rotationX: 0,
+        duration: 1,
+        stagger: 0.2,
+        ease: "power3.out",
+        scrollTrigger: {
+          trigger: ".features-section",
+          start: "top 70%",
+          toggleActions: "play none none reverse",
+        }
+      });
+
+      // Benefits section with morphing effect
+      gsap.fromTo(".benefit-item", {
+        x: -100,
+        opacity: 0,
+        scale: 0.8,
+      }, {
+        x: 0,
+        opacity: 1,
+        scale: 1,
+        duration: 1.2,
+        stagger: 0.3,
+        ease: "back.out(1.7)",
+        scrollTrigger: {
+          trigger: ".benefits-section",
+          start: "top 75%",
+          toggleActions: "play none none reverse",
+        }
+      });
+
+      // Testimonials carousel effect
+      gsap.fromTo(".testimonial-card", {
+        y: 80,
+        opacity: 0,
+        rotationY: 45,
+        scale: 0.9,
+      }, {
+        y: 0,
+        opacity: 1,
+        rotationY: 0,
+        scale: 1,
+        duration: 1,
+        stagger: 0.2,
+        ease: "power3.out",
+        scrollTrigger: {
+          trigger: ".testimonials-section",
+          start: "top 70%",
+          toggleActions: "play none none reverse",
+        }
+      });
+
+      // Pricing cards with 3D effect
+      gsap.fromTo(".pricing-card", {
+        y: 100,
+        opacity: 0,
+        rotationX: 60,
+        transformOrigin: "center bottom",
+      }, {
+        y: 0,
+        opacity: 1,
+        rotationX: 0,
+        duration: 1.2,
+        stagger: 0.15,
+        ease: "power3.out",
+        scrollTrigger: {
+          trigger: ".pricing-section",
+          start: "top 70%",
+          toggleActions: "play none none reverse",
+        }
+      });
+
+      // Stats counter animation with morphing background
+      gsap.fromTo(".stats-section", {
+        backgroundColor: "rgba(10, 10, 10, 0)",
+      }, {
+        backgroundColor: "rgba(10, 10, 10, 1)",
+        duration: 1,
+        scrollTrigger: {
+          trigger: ".stats-section",
+          start: "top 80%",
+          end: "bottom 20%",
+          scrub: true,
+        }
+      });
+
+      // Newsletter section with wave effect
+      gsap.fromTo(".newsletter-section", {
+        y: 50,
+        opacity: 0,
+      }, {
+        y: 0,
+        opacity: 1,
+        duration: 1.5,
+        ease: "power3.out",
+        scrollTrigger: {
+          trigger: ".newsletter-section",
+          start: "top 80%",
+          toggleActions: "play none none reverse",
+        }
+      });
+
+      // CTA section with pulsing effect
+      gsap.fromTo(".cta-section", {
+        scale: 0.9,
+        opacity: 0,
+      }, {
+        scale: 1,
+        opacity: 1,
+        duration: 1.5,
+        ease: "elastic.out(1, 0.5)",
+        scrollTrigger: {
+          trigger: ".cta-section",
+          start: "top 80%",
+          toggleActions: "play none none reverse",
+        }
+      });
+
+      // Continuous pulsing animation for CTA
+      gsap.to(".cta-pulse", {
+        scale: 1.05,
+        duration: 2,
+        repeat: -1,
+        yoyo: true,
+        ease: "power2.inOut",
+      });
+
+      // Mouse follower effect
+      const cursor = document.createElement('div');
+      cursor.className = 'custom-cursor';
+      cursor.style.cssText = `
+        position: fixed;
+        width: 20px;
+        height: 20px;
+        background: linear-gradient(45deg, #1dff00, #0a8246);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 9999;
+        mix-blend-mode: difference;
+        transition: transform 0.1s ease;
+      `;
+      document.body.appendChild(cursor);
+
+      const moveCursor = (e: MouseEvent) => {
+        gsap.to(cursor, {
+          x: e.clientX - 10,
+          y: e.clientY - 10,
+          duration: 0.1,
+          ease: "power2.out",
+        });
+      };
+
+      document.addEventListener('mousemove', moveCursor);
+
+      return () => {
+        document.removeEventListener('mousemove', moveCursor);
+        document.body.removeChild(cursor);
+      };
+    }, containerRef);
+    
     return () => {
+      ctx.revert();
       document.documentElement.style.scrollBehavior = 'auto';
     };
   }, []);
@@ -208,9 +503,9 @@ export const LandingPage = (): JSX.Element => {
   };
 
   return (
-    <div className="min-h-screen bg-black overflow-hidden">
+    <div ref={containerRef} className="min-h-screen bg-black overflow-hidden">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-md border-b border-[#ffffff1a]">
+      <nav className="navbar fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-md border-b border-[#ffffff1a]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
             {/* Logo */}
@@ -321,93 +616,38 @@ export const LandingPage = (): JSX.Element => {
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16 sm:pt-20">
         {/* Animated Background */}
         <div className="absolute inset-0">
-          <motion.div 
-            className="absolute top-20 left-10 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-full blur-3xl"
-            animate={{ 
-              y: [-20, 20, -20],
-              scale: [1, 1.1, 1],
-            }}
-            transition={{ 
-              duration: 8, 
-              repeat: Infinity, 
-              ease: "easeInOut" 
-            }}
-          />
-          <motion.div 
-            className="absolute top-40 right-20 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 bg-gradient-to-r from-[#1dff00]/10 to-[#0a8246]/10 rounded-full blur-3xl"
-            animate={{ 
-              y: [20, -20, 20],
-              scale: [1.1, 1, 1.1],
-            }}
-            transition={{ 
-              duration: 10, 
-              repeat: Infinity, 
-              ease: "easeInOut",
-              delay: 2 
-            }}
-          />
-          <motion.div 
-            className="absolute bottom-20 left-1/3 w-40 h-40 sm:w-56 sm:h-56 lg:w-72 lg:h-72 bg-gradient-to-r from-[#1dff00]/15 to-[#0a8246]/15 rounded-full blur-3xl"
-            animate={{ 
-              y: [-15, 15, -15],
-              x: [-10, 10, -10],
-            }}
-            transition={{ 
-              duration: 12, 
-              repeat: Infinity, 
-              ease: "easeInOut",
-              delay: 4 
-            }}
-          />
+          <div className="floating-bg-1 parallax-bg absolute top-20 left-10 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-full blur-3xl" />
+          <div className="floating-bg-2 parallax-bg absolute top-40 right-20 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 bg-gradient-to-r from-[#1dff00]/10 to-[#0a8246]/10 rounded-full blur-3xl" />
+          <div className="floating-bg-3 parallax-bg absolute bottom-20 left-1/3 w-40 h-40 sm:w-56 sm:h-56 lg:w-72 lg:h-72 bg-gradient-to-r from-[#1dff00]/15 to-[#0a8246]/15 rounded-full blur-3xl" />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             {/* Hero Content */}
             <div className="text-center lg:text-left">
-              <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
-                className="mb-6 sm:mb-8"
-              >
+              <div className="hero-title mb-6 sm:mb-8">
                 <div className="inline-flex items-center px-3 py-1 sm:px-4 sm:py-2 bg-[#1dff00]/10 border border-[#1dff00]/30 rounded-full text-[#1dff00] text-xs sm:text-sm font-medium mb-4 sm:mb-6">
                   <Rocket className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                   #1 AI-Powered Job Tracker
                 </div>
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white mb-4 sm:mb-6 leading-tight">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white mb-4 sm:mb-6 leading-tight text-reveal">
                   Land Your
                   <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
                     {" "}Dream Job
                   </span>
                   <br />
-                  <motion.span
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5, duration: 0.8 }}
-                    className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent"
-                  >
+                  <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
                     3x Faster
-                  </motion.span>
+                  </span>
                 </h1>
-              </motion.div>
+              </div>
               
-              <motion.p 
-                className="text-lg sm:text-xl lg:text-2xl text-[#ffffff80] mb-6 sm:mb-8 lg:mb-10 max-w-2xl mx-auto lg:mx-0 leading-relaxed"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
-              >
+              <p className="hero-subtitle text-lg sm:text-xl lg:text-2xl text-[#ffffff80] mb-6 sm:mb-8 lg:mb-10 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
                 Join 50,000+ professionals who've transformed their careers with our AI-powered platform. 
                 Get organized, stay motivated, and accelerate your job search with intelligent insights.
-              </motion.p>
+              </p>
               
-              <motion.div 
-                className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start mb-8 sm:mb-10"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-              >
+              <div className="hero-buttons flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start mb-8 sm:mb-10">
                 <Button
                   size="lg"
                   onClick={() => navigate("/signup")}
@@ -424,15 +664,10 @@ export const LandingPage = (): JSX.Element => {
                   <Play className="w-4 h-4 sm:w-5 sm:h-5 mr-2 group-hover:scale-110 transition-transform" />
                   Watch Demo
                 </Button>
-              </motion.div>
+              </div>
 
               {/* Trust Indicators */}
-              <motion.div
-                className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 sm:gap-8 text-sm text-[#ffffff60]"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.8, duration: 0.6 }}
-              >
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 sm:gap-8 text-sm text-[#ffffff60] stagger-item">
                 <div className="flex items-center space-x-1">
                   <CheckCircle className="w-4 h-4 text-[#1dff00]" />
                   <span>No credit card required</span>
@@ -445,16 +680,11 @@ export const LandingPage = (): JSX.Element => {
                   <CheckCircle className="w-4 h-4 text-[#1dff00]" />
                   <span>Cancel anytime</span>
                 </div>
-              </motion.div>
+              </div>
             </div>
             
             {/* Hero Image/Dashboard Preview */}
-            <motion.div
-              className="relative"
-              initial={{ opacity: 0, scale: 0.8, rotateY: 20 }}
-              animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-              transition={{ duration: 1, delay: 0.6 }}
-            >
+            <div className="hero-dashboard relative">
               <div className="relative">
                 {/* Glowing border effect */}
                 <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-2xl blur-xl opacity-30"></div>
@@ -491,37 +721,27 @@ export const LandingPage = (): JSX.Element => {
                     
                     <div className="h-20 sm:h-24 bg-[#ffffff0a] rounded-lg flex items-end justify-between p-3">
                       {[40, 65, 45, 80, 60, 90, 75].map((height, i) => (
-                        <motion.div
+                        <div
                           key={i}
-                          className="bg-gradient-to-t from-[#1dff00] to-[#0a8246] rounded-sm"
+                          className="bg-gradient-to-t from-[#1dff00] to-[#0a8246] rounded-sm chart-bar"
                           style={{ height: `${height}%`, width: '8px' }}
-                          initial={{ height: 0 }}
-                          animate={{ height: `${height}%` }}
-                          transition={{ delay: 1 + i * 0.1, duration: 0.5 }}
                         />
                       ))}
                     </div>
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Stats Section */}
-      <section className="py-12 sm:py-16 lg:py-20 bg-[#0a0a0a] border-y border-[#ffffff1a]">
+      <section className="stats-section py-12 sm:py-16 lg:py-20 bg-[#0a0a0a] border-y border-[#ffffff1a]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
             {stats.map((stat, index) => (
-              <motion.div
-                key={index}
-                className="text-center"
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                viewport={{ once: true }}
-              >
+              <div key={index} className="text-center reveal-element">
                 <div className="flex items-center justify-center mb-2 sm:mb-3">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-lg flex items-center justify-center text-[#1dff00] mr-2 sm:mr-3">
                     {stat.icon}
@@ -531,23 +751,17 @@ export const LandingPage = (): JSX.Element => {
                   {stat.number}
                 </div>
                 <div className="text-[#ffffff80] text-xs sm:text-sm lg:text-base">{stat.label}</div>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section ref={featuresRef} className="py-16 sm:py-20 lg:py-24">
+      <section ref={featuresRef} className="features-section py-16 sm:py-20 lg:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="text-center mb-12 sm:mb-16 lg:mb-20"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6">
+          <div className="text-center mb-12 sm:mb-16 lg:mb-20 reveal-element">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 text-reveal">
               Everything You Need to
               <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
                 {" "}Succeed
@@ -556,45 +770,32 @@ export const LandingPage = (): JSX.Element => {
             <p className="text-lg sm:text-xl text-[#ffffff80] max-w-3xl mx-auto leading-relaxed">
               Our comprehensive suite of AI-powered tools helps you track, optimize, and accelerate your job search journey.
             </p>
-          </motion.div>
+          </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             {features.map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                viewport={{ once: true }}
-              >
-                <Card className="bg-[#ffffff0d] backdrop-blur-md border-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 hover:transform hover:scale-105 group cursor-pointer h-full">
-                  <CardContent className="p-6 sm:p-8 h-full flex flex-col">
-                    <div className="mb-4 sm:mb-6">
-                      <div className={`w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r ${feature.gradient} rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                        {feature.icon}
-                      </div>
+              <Card key={index} className="feature-card bg-[#ffffff0d] backdrop-blur-md border-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 hover:transform hover:scale-105 group cursor-pointer h-full">
+                <CardContent className="p-6 sm:p-8 h-full flex flex-col">
+                  <div className="mb-4 sm:mb-6">
+                    <div className={`w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r ${feature.gradient} rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                      {feature.icon}
                     </div>
-                    <h3 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">{feature.title}</h3>
-                    <p className="text-[#ffffff80] leading-relaxed flex-grow text-sm sm:text-base">{feature.description}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">{feature.title}</h3>
+                  <p className="text-[#ffffff80] leading-relaxed flex-grow text-sm sm:text-base">{feature.description}</p>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
       </section>
 
       {/* Benefits Section */}
-      <section className="py-16 sm:py-20 lg:py-24 bg-[#0a0a0a]">
+      <section className="benefits-section py-16 sm:py-20 lg:py-24 bg-[#0a0a0a]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-            >
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6 sm:mb-8">
+            <div className="reveal-element">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6 sm:mb-8 text-reveal">
                 Why Choose
                 <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
                   {" "}JobRaker?
@@ -602,14 +803,7 @@ export const LandingPage = (): JSX.Element => {
               </h2>
               <div className="space-y-6 sm:space-y-8">
                 {benefits.map((benefit, index) => (
-                  <motion.div
-                    key={index}
-                    className="flex items-start space-x-4 sm:space-x-6"
-                    initial={{ opacity: 0, x: -30 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.6, delay: index * 0.1 }}
-                    viewport={{ once: true }}
-                  >
+                  <div key={index} className="benefit-item flex items-start space-x-4 sm:space-x-6">
                     <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-xl flex items-center justify-center flex-shrink-0">
                       {benefit.icon}
                     </div>
@@ -622,42 +816,30 @@ export const LandingPage = (): JSX.Element => {
                       </div>
                       <p className="text-[#ffffff80] text-sm sm:text-base leading-relaxed">{benefit.description}</p>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
-            </motion.div>
+            </div>
             
-            <motion.div
-              className="relative"
-              initial={{ opacity: 0, x: 50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-            >
+            <div className="relative reveal-element">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-2xl blur-3xl"></div>
                 <img
                   src="https://images.unsplash.com/photo-1551434678-e076c223a692?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwyfHxjYXJlZXIlMjBzdWNjZXNzfGVufDB8fHxibHVlfDE3NTE1Nzk5OTl8MA&ixlib=rb-4.1.0&q=85"
                   alt="Career Success"
-                  className="relative w-full h-auto rounded-2xl shadow-2xl border border-[#ffffff1a]"
+                  className="relative w-full h-auto rounded-2xl shadow-2xl border border-[#ffffff1a] parallax-bg"
                 />
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-16 sm:py-20 lg:py-24">
+      <section className="testimonials-section py-16 sm:py-20 lg:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="text-center mb-12 sm:mb-16 lg:mb-20"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6">
+          <div className="text-center mb-12 sm:mb-16 lg:mb-20 reveal-element">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 text-reveal">
               Success Stories from
               <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
                 {" "}Our Users
@@ -666,56 +848,42 @@ export const LandingPage = (): JSX.Element => {
             <p className="text-lg sm:text-xl text-[#ffffff80] max-w-3xl mx-auto leading-relaxed">
               Join thousands of professionals who've transformed their careers with JobRaker.
             </p>
-          </motion.div>
+          </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             {testimonials.map((testimonial, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                viewport={{ once: true }}
-              >
-                <Card className="bg-[#ffffff0d] backdrop-blur-md border-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 h-full">
-                  <CardContent className="p-6 sm:p-8 h-full flex flex-col">
-                    <div className="flex items-center mb-4 sm:mb-6">
-                      <img
-                        src={testimonial.image}
-                        alt={testimonial.name}
-                        className="w-12 h-12 sm:w-14 sm:h-14 rounded-full mr-3 sm:mr-4 border-2 border-[#1dff00]"
-                      />
-                      <div>
-                        <h4 className="text-white font-bold text-sm sm:text-base">{testimonial.name}</h4>
-                        <p className="text-[#ffffff80] text-xs sm:text-sm">{testimonial.role} at {testimonial.company}</p>
-                      </div>
+              <Card key={index} className="testimonial-card bg-[#ffffff0d] backdrop-blur-md border-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 h-full">
+                <CardContent className="p-6 sm:p-8 h-full flex flex-col">
+                  <div className="flex items-center mb-4 sm:mb-6">
+                    <img
+                      src={testimonial.image}
+                      alt={testimonial.name}
+                      className="w-12 h-12 sm:w-14 sm:h-14 rounded-full mr-3 sm:mr-4 border-2 border-[#1dff00]"
+                    />
+                    <div>
+                      <h4 className="text-white font-bold text-sm sm:text-base">{testimonial.name}</h4>
+                      <p className="text-[#ffffff80] text-xs sm:text-sm">{testimonial.role} at {testimonial.company}</p>
                     </div>
-                    <Quote className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00] mb-3 sm:mb-4" />
-                    <p className="text-[#ffffff80] leading-relaxed flex-grow text-sm sm:text-base mb-4">{testimonial.content}</p>
-                    <div className="flex text-[#1dff00]">
-                      {[...Array(testimonial.rating)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-current" />
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
+                  </div>
+                  <Quote className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00] mb-3 sm:mb-4" />
+                  <p className="text-[#ffffff80] leading-relaxed flex-grow text-sm sm:text-base mb-4">{testimonial.content}</p>
+                  <div className="flex text-[#1dff00]">
+                    {[...Array(testimonial.rating)].map((_, i) => (
+                      <Star key={i} className="w-4 h-4 fill-current" />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
       </section>
 
       {/* Pricing Section */}
-      <section className="py-16 sm:py-20 lg:py-24 bg-[#0a0a0a]">
+      <section className="pricing-section py-16 sm:py-20 lg:py-24 bg-[#0a0a0a]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="text-center mb-12 sm:mb-16 lg:mb-20"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6">
+          <div className="text-center mb-12 sm:mb-16 lg:mb-20 reveal-element">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 text-reveal">
               Choose Your
               <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
                 {" "}Plan
@@ -724,77 +892,64 @@ export const LandingPage = (): JSX.Element => {
             <p className="text-lg sm:text-xl text-[#ffffff80] max-w-3xl mx-auto leading-relaxed">
               Start free and upgrade as you grow. All plans include our core features.
             </p>
-          </motion.div>
+          </div>
 
           <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
             {pricingPlans.map((plan, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                viewport={{ once: true }}
-              >
-                <Card className={`relative bg-[#ffffff0d] backdrop-blur-md border-[#ffffff1a] transition-all duration-300 h-full ${
-                  plan.popular ? 'border-[#1dff00] scale-105' : 'hover:border-[#1dff00]/50'
-                }`}>
-                  {plan.popular && (
-                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                      <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-white px-3 py-1 rounded-full text-xs font-medium">
-                        Most Popular
-                      </span>
+              <Card key={index} className={`pricing-card relative bg-[#ffffff0d] backdrop-blur-md border-[#ffffff1a] transition-all duration-300 h-full ${
+                plan.popular ? 'border-[#1dff00] scale-105' : 'hover:border-[#1dff00]/50'
+              }`}>
+                {plan.popular && (
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                    <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-white px-3 py-1 rounded-full text-xs font-medium">
+                      Most Popular
+                    </span>
+                  </div>
+                )}
+                <CardContent className="p-6 sm:p-8 h-full flex flex-col">
+                  <div className="text-center mb-6 sm:mb-8">
+                    <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">{plan.name}</h3>
+                    <div className="mb-2">
+                      <span className="text-3xl sm:text-4xl font-bold text-[#1dff00]">{plan.price}</span>
+                      <span className="text-[#ffffff80] text-sm">/{plan.period}</span>
                     </div>
-                  )}
-                  <CardContent className="p-6 sm:p-8 h-full flex flex-col">
-                    <div className="text-center mb-6 sm:mb-8">
-                      <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">{plan.name}</h3>
-                      <div className="mb-2">
-                        <span className="text-3xl sm:text-4xl font-bold text-[#1dff00]">{plan.price}</span>
-                        <span className="text-[#ffffff80] text-sm">/{plan.period}</span>
-                      </div>
-                      <p className="text-[#ffffff80] text-sm">{plan.description}</p>
-                    </div>
-                    
-                    <div className="flex-grow">
-                      <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
-                        {plan.features.map((feature, featureIndex) => (
-                          <li key={featureIndex} className="flex items-center text-sm sm:text-base">
-                            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#1dff00] mr-3 flex-shrink-0" />
-                            <span className="text-[#ffffff80]">{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    
-                    <Button
-                      className={`w-full ${
-                        plan.popular
-                          ? 'bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-white hover:shadow-lg'
-                          : 'border-[#ffffff33] text-white hover:bg-[#ffffff1a]'
-                      } transition-all`}
-                      variant={plan.popular ? 'default' : 'outline'}
-                      onClick={() => navigate("/signup")}
-                    >
-                      {plan.cta}
-                    </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
+                    <p className="text-[#ffffff80] text-sm">{plan.description}</p>
+                  </div>
+                  
+                  <div className="flex-grow">
+                    <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
+                      {plan.features.map((feature, featureIndex) => (
+                        <li key={featureIndex} className="flex items-center text-sm sm:text-base">
+                          <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#1dff00] mr-3 flex-shrink-0" />
+                          <span className="text-[#ffffff80]">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <Button
+                    className={`w-full ${
+                      plan.popular
+                        ? 'bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-white hover:shadow-lg'
+                        : 'border-[#ffffff33] text-white hover:bg-[#ffffff1a]'
+                    } transition-all`}
+                    variant={plan.popular ? 'default' : 'outline'}
+                    onClick={() => navigate("/signup")}
+                  >
+                    {plan.cta}
+                  </Button>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
       </section>
 
       {/* Newsletter Section */}
-      <section className="py-16 sm:py-20 lg:py-24">
+      <section className="newsletter-section py-16 sm:py-20 lg:py-24">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6">
+          <div className="reveal-element">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 text-reveal">
               Stay Updated with
               <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
                 {" "}Career Tips
@@ -825,19 +980,14 @@ export const LandingPage = (): JSX.Element => {
             <p className="text-[#ffffff60] text-xs sm:text-sm mt-3 sm:mt-4">
               No spam. Unsubscribe anytime. We respect your privacy.
             </p>
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* Final CTA Section */}
-      <section className="py-16 sm:py-20 lg:py-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246]">
+      <section className="cta-section py-16 sm:py-20 lg:py-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-          >
+          <div className="cta-pulse">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6">
               Ready to Transform Your Career?
             </h2>
@@ -864,7 +1014,7 @@ export const LandingPage = (): JSX.Element => {
             <p className="text-white/70 text-xs sm:text-sm mt-4 sm:mt-6">
               No credit card required • 14-day free trial • Cancel anytime
             </p>
-          </motion.div>
+          </div>
         </div>
       </section>
 
