@@ -3,18 +3,35 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { BarChart3, MessageSquare, FileText, Briefcase, Users, TrendingUp, Target, Shield, Globe, Zap, Sparkles, ArrowRight, Play, Quote, Star, CheckCircle, Award, Clock, Brain, Rocket, Heart, Menu, X, Bot, Search, Send, Radiation as Automation, Settings, Activity } from "lucide-react";
+import { 
+  Bot, 
+  Send, 
+  Target, 
+  Clock, 
+  Shield, 
+  Zap, 
+  ArrowRight, 
+  Play, 
+  Quote, 
+  Star, 
+  CheckCircle, 
+  Menu, 
+  X, 
+  ChevronDown,
+  Users,
+  TrendingUp,
+  Globe,
+  Activity,
+  Sparkles,
+  Heart,
+  FileText,
+  BarChart3,
+  Settings
+} from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { useState } from "react";
-import { 
-  useScrollReveal, 
-  useParallaxEffect, 
-  useCounterAnimation, 
-  useStaggerAnimation,
-  useTextReveal
-} from "../../hooks/useGSAPAnimations";
 
 // Register GSAP plugins
 gsap.registerPlugin(ScrollTrigger);
@@ -23,19 +40,20 @@ export const LandingPage = (): JSX.Element => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [email, setEmail] = useState("");
+  const [scrollY, setScrollY] = useState(0);
   const heroRef = useRef<HTMLDivElement>(null);
   const featuresRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // GSAP Animations
-  useScrollReveal(".reveal-element");
-  useParallaxEffect(".parallax-bg", 0.3);
-  useCounterAnimation(".counter-50000", 50000);
-  useCounterAnimation(".counter-95", 95);
-  useCounterAnimation(".counter-1200", 1200);
-  useCounterAnimation(".counter-7", 7);
-  useStaggerAnimation(".stagger-item", 0.15);
-  useTextReveal(".text-reveal");
+  // Parallax scroll effect
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const parallaxOffset = scrollY * 0.5;
+  const zoomScale = 1 + scrollY * 0.0002;
 
   useEffect(() => {
     // Smooth scroll behavior
@@ -45,17 +63,28 @@ export const LandingPage = (): JSX.Element => {
       // Hero section animations
       const heroTl = gsap.timeline();
       
-      heroTl.fromTo(".hero-title", {
-        y: 100,
+      heroTl.fromTo(".hero-badge", {
+        y: 30,
         opacity: 0,
         scale: 0.8,
       }, {
         y: 0,
         opacity: 1,
         scale: 1,
+        duration: 0.8,
+        ease: "back.out(1.7)",
+      })
+      .fromTo(".hero-title", {
+        y: 100,
+        opacity: 0,
+        scale: 0.9,
+      }, {
+        y: 0,
+        opacity: 1,
+        scale: 1,
         duration: 1.2,
         ease: "power3.out",
-      })
+      }, "-=0.6")
       .fromTo(".hero-subtitle", {
         y: 50,
         opacity: 0,
@@ -74,26 +103,22 @@ export const LandingPage = (): JSX.Element => {
         duration: 0.8,
         ease: "power2.out",
       }, "-=0.6")
-      .fromTo(".hero-dashboard", {
-        x: 100,
+      .fromTo(".hero-trust", {
+        y: 20,
         opacity: 0,
-        rotationY: 20,
-        scale: 0.8,
       }, {
-        x: 0,
+        y: 0,
         opacity: 1,
-        rotationY: 0,
-        scale: 1,
-        duration: 1.5,
-        ease: "power3.out",
-      }, "-=1");
+        duration: 0.6,
+        ease: "power2.out",
+      }, "-=0.4");
 
       // Floating background elements
       gsap.to(".floating-bg-1", {
         y: -30,
         x: 20,
         rotation: 10,
-        duration: 6,
+        duration: 8,
         repeat: -1,
         yoyo: true,
         ease: "power2.inOut",
@@ -103,22 +128,22 @@ export const LandingPage = (): JSX.Element => {
         y: 20,
         x: -15,
         rotation: -5,
-        duration: 8,
+        duration: 10,
         repeat: -1,
         yoyo: true,
         ease: "power2.inOut",
-        delay: 1,
+        delay: 2,
       });
 
       gsap.to(".floating-bg-3", {
         y: -15,
         x: 10,
         rotation: 8,
-        duration: 10,
+        duration: 12,
         repeat: -1,
         yoyo: true,
         ease: "power2.inOut",
-        delay: 2,
+        delay: 4,
       });
 
       // Navigation scroll effect
@@ -164,26 +189,27 @@ export const LandingPage = (): JSX.Element => {
         }
       });
 
-      // Benefits section with morphing effect
-      gsap.fromTo(".benefit-item", {
-        x: -100,
-        opacity: 0,
-        scale: 0.8,
-      }, {
-        x: 0,
-        opacity: 1,
-        scale: 1,
-        duration: 1.2,
-        stagger: 0.3,
-        ease: "back.out(1.7)",
-        scrollTrigger: {
-          trigger: ".benefits-section",
-          start: "top 75%",
-          toggleActions: "play none none reverse",
-        }
+      // Stats counter animation
+      gsap.utils.toArray(".counter").forEach((counter: any) => {
+        const endValue = parseInt(counter.dataset.count);
+        const obj = { value: 0 };
+        
+        gsap.to(obj, {
+          value: endValue,
+          duration: 2,
+          ease: "power2.out",
+          onUpdate: () => {
+            counter.textContent = Math.round(obj.value).toLocaleString();
+          },
+          scrollTrigger: {
+            trigger: counter,
+            start: "top 80%",
+            toggleActions: "play none none reverse"
+          }
+        });
       });
 
-      // Testimonials carousel effect
+      // Testimonials reveal
       gsap.fromTo(".testimonial-card", {
         y: 80,
         opacity: 0,
@@ -204,52 +230,21 @@ export const LandingPage = (): JSX.Element => {
         }
       });
 
-      // Pricing cards with 3D effect
-      gsap.fromTo(".pricing-card", {
-        y: 100,
+      // Blog cards animation
+      gsap.fromTo(".blog-card", {
+        y: 60,
         opacity: 0,
-        rotationX: 60,
-        transformOrigin: "center bottom",
+        scale: 0.9,
       }, {
         y: 0,
         opacity: 1,
-        rotationX: 0,
-        duration: 1.2,
+        scale: 1,
+        duration: 0.8,
         stagger: 0.15,
-        ease: "power3.out",
+        ease: "power2.out",
         scrollTrigger: {
-          trigger: ".pricing-section",
-          start: "top 70%",
-          toggleActions: "play none none reverse",
-        }
-      });
-
-      // Stats counter animation with morphing background
-      gsap.fromTo(".stats-section", {
-        backgroundColor: "rgba(10, 10, 10, 0)",
-      }, {
-        backgroundColor: "rgba(10, 10, 10, 1)",
-        duration: 1,
-        scrollTrigger: {
-          trigger: ".stats-section",
-          start: "top 80%",
-          end: "bottom 20%",
-          scrub: true,
-        }
-      });
-
-      // Newsletter section with wave effect
-      gsap.fromTo(".newsletter-section", {
-        y: 50,
-        opacity: 0,
-      }, {
-        y: 0,
-        opacity: 1,
-        duration: 1.5,
-        ease: "power3.out",
-        scrollTrigger: {
-          trigger: ".newsletter-section",
-          start: "top 80%",
+          trigger: ".blog-section",
+          start: "top 75%",
           toggleActions: "play none none reverse",
         }
       });
@@ -272,44 +267,13 @@ export const LandingPage = (): JSX.Element => {
 
       // Continuous pulsing animation for CTA
       gsap.to(".cta-pulse", {
-        scale: 1.05,
+        scale: 1.02,
         duration: 2,
         repeat: -1,
         yoyo: true,
         ease: "power2.inOut",
       });
 
-      // Mouse follower effect
-      const cursor = document.createElement('div');
-      cursor.className = 'custom-cursor';
-      cursor.style.cssText = `
-        position: fixed;
-        width: 20px;
-        height: 20px;
-        background: linear-gradient(45deg, #1dff00, #0a8246);
-        border-radius: 50%;
-        pointer-events: none;
-        z-index: 9999;
-        mix-blend-mode: difference;
-        transition: transform 0.1s ease;
-      `;
-      document.body.appendChild(cursor);
-
-      const moveCursor = (e: MouseEvent) => {
-        gsap.to(cursor, {
-          x: e.clientX - 10,
-          y: e.clientY - 10,
-          duration: 0.1,
-          ease: "power2.out",
-        });
-      };
-
-      document.addEventListener('mousemove', moveCursor);
-
-      return () => {
-        document.removeEventListener('mousemove', moveCursor);
-        document.body.removeChild(cursor);
-      };
     }, containerRef);
     
     return () => {
@@ -321,67 +285,31 @@ export const LandingPage = (): JSX.Element => {
   const features = [
     {
       icon: <Bot className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
-      title: "Autonomous Job Search",
-      description: "Our AI continuously scans thousands of job boards and company websites to find opportunities that match your profile 24/7.",
-      gradient: "from-[#1dff00]/20 to-[#0a8246]/20"
+      title: "Autonomous Job Discovery",
+      description: "AI continuously scans thousands of job boards and company websites to find opportunities that match your profile 24/7."
     },
     {
       icon: <Send className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
-      title: "Auto-Apply Technology",
-      description: "Automatically submit tailored applications to relevant positions while you sleep. No manual work required.",
-      gradient: "from-[#1dff00]/20 to-[#0a8246]/20"
+      title: "Intelligent Auto-Apply",
+      description: "Automatically submit tailored applications to relevant positions while you sleep. No manual work required."
     },
     {
-      icon: <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
-      title: "Dynamic Resume Optimization",
-      description: "AI automatically customizes your resume for each application, optimizing keywords and formatting for maximum ATS compatibility.",
-      gradient: "from-[#1dff00]/20 to-[#0a8246]/20"
-    },
-    {
-      icon: <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
-      title: "Smart Analytics Dashboard",
-      description: "Track application success rates, response times, and optimize your job search strategy with real-time insights.",
-      gradient: "from-[#1dff00]/20 to-[#0a8246]/20"
+      icon: <Target className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
+      title: "Smart Targeting",
+      description: "Advanced AI filters ensure applications only go to legitimate, high-quality positions that match your criteria."
     },
     {
       icon: <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
-      title: "Intelligent Filtering",
-      description: "Advanced AI filters ensure applications only go to legitimate, high-quality positions that match your criteria.",
-      gradient: "from-[#1dff00]/20 to-[#0a8246]/20"
-    },
-    {
-      icon: <Activity className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00]" />,
-      title: "Real-Time Monitoring",
-      description: "Get instant notifications about application status, interview requests, and new opportunities as they happen.",
-      gradient: "from-[#1dff00]/20 to-[#0a8246]/20"
+      title: "Quality Assurance",
+      description: "Every application is reviewed by AI for accuracy, relevance, and professional presentation before submission."
     }
   ];
 
-  const benefits = [
-    {
-      icon: <Target className="w-5 h-5 sm:w-6 sm:h-6 text-[#1dff00]" />,
-      title: "10x More Applications",
-      description: "Apply to 100+ relevant jobs per week automatically while maintaining quality",
-      stat: "10x"
-    },
-    {
-      icon: <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-[#1dff00]" />,
-      title: "24/7 Job Hunting",
-      description: "Never miss an opportunity - our AI works around the clock",
-      stat: "24/7"
-    },
-    {
-      icon: <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-[#1dff00]" />,
-      title: "95% Application Accuracy",
-      description: "AI ensures each application is perfectly tailored and error-free",
-      stat: "95%"
-    },
-    {
-      icon: <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-[#1dff00]" />,
-      title: "Zero Manual Work",
-      description: "Completely hands-off job search - just set your preferences and relax",
-      stat: "0%"
-    }
+  const stats = [
+    { number: "50000", label: "Jobs Applied Daily", suffix: "+" },
+    { number: "95", label: "Application Success Rate", suffix: "%" },
+    { number: "1200", label: "Partner Job Boards", suffix: "+" },
+    { number: "7", label: "Avg. Days to Interview", suffix: "" }
   ];
 
   const testimonials = [
@@ -395,86 +323,57 @@ export const LandingPage = (): JSX.Element => {
     },
     {
       name: "Michael Rodriguez",
-      role: "Product Manager",
+      role: "Product Manager", 
       company: "Meta",
       image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
-      content: "The autonomous application system is incredible. While I was working my current job, JobRaker was secretly applying to better positions. Now I'm at Meta!",
+      content: "The autonomous application system is incredible. While I was working my current job, JobRaker was secretly applying to better positions.",
       rating: 5
     },
     {
       name: "Emily Johnson",
       role: "UX Designer",
-      company: "Apple",
+      company: "Apple", 
       image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
-      content: "I was skeptical about automated job applications, but JobRaker's AI is so smart. Every application was perfectly tailored. Got hired at Apple in 3 weeks!",
+      content: "I was skeptical about automated job applications, but JobRaker's AI is so smart. Every application was perfectly tailored.",
       rating: 5
     }
   ];
 
-  const stats = [
-    { number: "50,000+", label: "Jobs Applied Daily", icon: <Send className="w-4 h-4 sm:w-5 sm:h-5" /> },
-    { number: "95%", label: "Application Success Rate", icon: <Target className="w-4 h-4 sm:w-5 sm:h-5" /> },
-    { number: "1,200+", label: "Partner Job Boards", icon: <Globe className="w-4 h-4 sm:w-5 sm:h-5" /> },
-    { number: "7 Days", label: "Avg. Time to Interview", icon: <Clock className="w-4 h-4 sm:w-5 sm:h-5" /> }
+  const blogPosts = [
+    {
+      category: "GUIDE",
+      title: "JobRaker is now generally available. Offering free trials for new users.",
+      description: "After months of development and testing with beta users, JobRaker is now open to everyone for autonomous job applications.",
+      color: "text-blue-400"
+    },
+    {
+      category: "CASE STUDY", 
+      title: "How Sarah Landed Her Dream Job in 2 Weeks Using JobRaker",
+      description: "A detailed case study of how one professional accelerated her job search using autonomous applications.",
+      color: "text-green-400"
+    },
+    {
+      category: "RESEARCH",
+      title: "The Future of Job Applications: AI and Automation in 2025", 
+      description: "Understanding how AI is transforming the job application process and what it means for job seekers.",
+      color: "text-purple-400"
+    },
+    {
+      category: "TIPS",
+      title: "Optimizing Your Resume for AI-Powered Job Matching",
+      description: "Best practices for structuring your resume to maximize success with automated application systems.",
+      color: "text-orange-400"
+    }
   ];
 
-  const pricingPlans = [
-    {
-      name: "Starter",
-      price: "$29",
-      period: "per month",
-      description: "Perfect for active job seekers",
-      features: [
-        "Up to 50 applications/week",
-        "Basic resume optimization",
-        "Email notifications",
-        "Standard job board access",
-        "Application tracking"
-      ],
-      cta: "Start Free Trial",
-      popular: false
-    },
-    {
-      name: "Professional",
-      price: "$59",
-      period: "per month",
-      description: "For serious career changers",
-      features: [
-        "Unlimited applications",
-        "Advanced AI resume tailoring",
-        "Premium job board access",
-        "Real-time notifications",
-        "Interview scheduling assistance",
-        "Salary negotiation insights",
-        "Priority support"
-      ],
-      cta: "Start Free Trial",
-      popular: true
-    },
-    {
-      name: "Executive",
-      price: "$99",
-      period: "per month",
-      description: "For senior-level positions",
-      features: [
-        "Everything in Professional",
-        "Executive job board access",
-        "Personal career consultant",
-        "Custom application strategies",
-        "LinkedIn optimization",
-        "Reference management",
-        "White-glove service"
-      ],
-      cta: "Contact Sales",
-      popular: false
-    }
+  const companyLogos = [
+    "TechCorp", "InnovateLabs", "FutureWorks", "NextGen", "ProTech", "DataFlow"
   ];
 
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Email submitted:", email);
     setEmail("");
-    // Show success message or redirect
   };
 
   const scrollToSection = (sectionRef: React.RefObject<HTMLDivElement>) => {
@@ -482,9 +381,9 @@ export const LandingPage = (): JSX.Element => {
   };
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-black overflow-hidden">
+    <div ref={containerRef} className="min-h-screen bg-gray-50 text-gray-900 overflow-hidden">
       {/* Navigation */}
-      <nav className="navbar fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-md border-b border-[#ffffff1a]">
+      <nav className="navbar fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
             {/* Logo */}
@@ -494,27 +393,27 @@ export const LandingPage = (): JSX.Element => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                 <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <span className="text-white font-bold text-lg sm:text-xl lg:text-2xl">JobRaker</span>
+              <span className="text-gray-900 font-bold text-lg sm:text-xl lg:text-2xl">Jobraker</span>
             </motion.div>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
               <button 
                 onClick={() => scrollToSection(featuresRef)}
-                className="text-[#ffffff80] hover:text-white transition-colors text-sm lg:text-base"
+                className="text-gray-700 hover:text-gray-900 transition-colors text-sm lg:text-base font-medium"
               >
-                How It Works
+                Features
               </button>
-              <button className="text-[#ffffff80] hover:text-white transition-colors text-sm lg:text-base">
+              <button className="text-gray-700 hover:text-gray-900 transition-colors text-sm lg:text-base font-medium">
                 Pricing
               </button>
-              <button className="text-[#ffffff80] hover:text-white transition-colors text-sm lg:text-base">
-                Success Stories
+              <button className="text-gray-700 hover:text-gray-900 transition-colors text-sm lg:text-base font-medium">
+                Blog
               </button>
-              <button className="text-[#ffffff80] hover:text-white transition-colors text-sm lg:text-base">
+              <button className="text-gray-700 hover:text-gray-900 transition-colors text-sm lg:text-base font-medium">
                 Contact
               </button>
             </div>
@@ -522,18 +421,17 @@ export const LandingPage = (): JSX.Element => {
             {/* Desktop CTA Buttons */}
             <div className="hidden md:flex items-center space-x-3 lg:space-x-4">
               <Button
-                variant="ghost"
+                variant="outline"
                 onClick={() => navigate("/signup")}
-                className="text-white hover:text-[#1dff00] transition-colors text-sm lg:text-base"
+                className="text-gray-700 border-gray-300 hover:bg-gray-50 transition-colors text-sm lg:text-base"
               >
-                Sign In
+                Watch Demo
               </Button>
               <Button
                 onClick={() => navigate("/signup")}
-                className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-white hover:shadow-lg transition-all text-sm lg:text-base px-4 lg:px-6"
+                className="bg-gray-900 text-white hover:bg-gray-800 transition-all text-sm lg:text-base px-4 lg:px-6"
               >
-                Start Auto-Applying
-                <ArrowRight className="w-4 h-4 ml-2" />
+                Get Started
               </Button>
             </div>
 
@@ -541,7 +439,7 @@ export const LandingPage = (): JSX.Element => {
             <Button
               variant="ghost"
               size="sm"
-              className="md:hidden text-white"
+              className="md:hidden text-gray-900"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -554,35 +452,34 @@ export const LandingPage = (): JSX.Element => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden border-t border-[#ffffff1a] py-4"
+              className="md:hidden border-t border-gray-200 py-4"
             >
               <div className="flex flex-col space-y-4">
-                <button className="text-[#ffffff80] hover:text-white transition-colors text-left">
-                  How It Works
+                <button className="text-gray-700 hover:text-gray-900 transition-colors text-left">
+                  Features
                 </button>
-                <button className="text-[#ffffff80] hover:text-white transition-colors text-left">
+                <button className="text-gray-700 hover:text-gray-900 transition-colors text-left">
                   Pricing
                 </button>
-                <button className="text-[#ffffff80] hover:text-white transition-colors text-left">
-                  Success Stories
+                <button className="text-gray-700 hover:text-gray-900 transition-colors text-left">
+                  Blog
                 </button>
-                <button className="text-[#ffffff80] hover:text-white transition-colors text-left">
+                <button className="text-gray-700 hover:text-gray-900 transition-colors text-left">
                   Contact
                 </button>
-                <div className="flex flex-col space-y-2 pt-4 border-t border-[#ffffff1a]">
+                <div className="flex flex-col space-y-2 pt-4 border-t border-gray-200">
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     onClick={() => navigate("/signup")}
-                    className="text-white hover:text-[#1dff00] justify-start"
+                    className="text-gray-700 border-gray-300 hover:bg-gray-50 justify-start"
                   >
-                    Sign In
+                    Watch Demo
                   </Button>
                   <Button
                     onClick={() => navigate("/signup")}
-                    className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-white justify-start"
+                    className="bg-gray-900 text-white hover:bg-gray-800 justify-start"
                   >
-                    Start Auto-Applying
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    Get Started
                   </Button>
                 </div>
               </div>
@@ -593,260 +490,155 @@ export const LandingPage = (): JSX.Element => {
 
       {/* Hero Section */}
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16 sm:pt-20">
-        {/* Animated Background */}
+        {/* Parallax Background */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url(https://images.unsplash.com/photo-1451187580459-43490279c0fa?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwxfHxzcGFjZSUyMHRlY2hub2xvZ3l8ZW58MHx8fHx8MTcwNzQ4NzIwMHww&ixlib=rb-4.1.0&q=85)`,
+            transform: `translateY(${parallaxOffset}px) scale(${zoomScale})`,
+            transformOrigin: 'center center'
+          }}
+        />
+        <div className="absolute inset-0 bg-black/20" />
+
+        {/* Floating background elements */}
         <div className="absolute inset-0">
-          <div className="floating-bg-1 parallax-bg absolute top-20 left-10 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-full blur-3xl" />
-          <div className="floating-bg-2 parallax-bg absolute top-40 right-20 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 bg-gradient-to-r from-[#1dff00]/10 to-[#0a8246]/10 rounded-full blur-3xl" />
-          <div className="floating-bg-3 parallax-bg absolute bottom-20 left-1/3 w-40 h-40 sm:w-56 sm:h-56 lg:w-72 lg:h-72 bg-gradient-to-r from-[#1dff00]/15 to-[#0a8246]/15 rounded-full blur-3xl" />
+          <div className="floating-bg-1 absolute top-20 left-10 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-3xl" />
+          <div className="floating-bg-2 absolute top-40 right-20 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-full blur-3xl" />
+          <div className="floating-bg-3 absolute bottom-20 left-1/3 w-40 h-40 sm:w-56 sm:h-56 lg:w-72 lg:h-72 bg-gradient-to-r from-purple-500/15 to-pink-500/15 rounded-full blur-3xl" />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-            {/* Hero Content */}
-            <div className="text-center lg:text-left">
-              <div className="hero-title mb-6 sm:mb-8">
-                <div className="inline-flex items-center px-3 py-1 sm:px-4 sm:py-2 bg-[#1dff00]/10 border border-[#1dff00]/30 rounded-full text-[#1dff00] text-xs sm:text-sm font-medium mb-4 sm:mb-6">
-                  <Bot className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                  #1 Autonomous Job Application Platform
+        <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
+          <div className="hero-badge mb-6 inline-block px-4 py-2 bg-green-500/20 rounded-full border border-green-400/30">
+            <span className="text-green-300 text-sm font-medium">🚀 Now available! Autonomous job applications</span>
+          </div>
+          
+          <h1 className="hero-title text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
+            The autonomous platform to find, apply, and secure your dream job
+          </h1>
+          
+          <p className="hero-subtitle text-lg sm:text-xl md:text-2xl mb-8 text-gray-200 max-w-3xl mx-auto leading-relaxed">
+            Let AI search for jobs and automatically apply for them while you focus on what matters most - preparing for interviews and advancing your career.
+          </p>
+          
+          <div className="hero-buttons flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
+            <Button 
+              size="lg" 
+              onClick={() => navigate("/signup")}
+              className="bg-white text-gray-900 hover:bg-gray-100 px-8 py-4 text-lg font-semibold"
+            >
+              Get Started
+            </Button>
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="border-white text-white hover:bg-white/10 px-8 py-4 text-lg"
+            >
+              <Play className="w-5 h-5 mr-2" />
+              Watch Demo
+            </Button>
+          </div>
+          
+          <div className="hero-trust">
+            <p className="text-sm text-gray-300 mb-4">TRUSTED BY</p>
+            <div className="flex flex-wrap justify-center items-center gap-6 sm:gap-8 opacity-70">
+              {companyLogos.map((logo, index) => (
+                <div key={index} className="text-white font-semibold text-sm sm:text-base">
+                  {logo}
                 </div>
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white mb-4 sm:mb-6 leading-tight text-reveal">
-                  Your AI
-                  <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
-                    {" "}Job Hunter
-                  </span>
-                  <br />
-                  <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
-                    Never Sleeps
-                  </span>
-                </h1>
-              </div>
-              
-              <p className="hero-subtitle text-lg sm:text-xl lg:text-2xl text-[#ffffff80] mb-6 sm:mb-8 lg:mb-10 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                The world's first fully autonomous job application platform. Our AI searches, applies, and optimizes your job hunt 24/7 while you focus on what matters most.
-              </p>
-              
-              <div className="hero-buttons flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start mb-8 sm:mb-10">
-                <Button
-                  size="lg"
-                  onClick={() => navigate("/signup")}
-                  className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-white hover:shadow-2xl transition-all px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold group"
-                >
-                  Start Auto-Applying Now
-                  <Send className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-[#ffffff30] text-white hover:bg-[#ffffff10] px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg group"
-                >
-                  <Play className="w-4 h-4 sm:w-5 sm:h-5 mr-2 group-hover:scale-110 transition-transform" />
-                  See It In Action
-                </Button>
-              </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
+          <ChevronDown className="w-6 h-6 text-white" />
+        </div>
+      </section>
 
-              {/* Trust Indicators */}
-              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 sm:gap-8 text-sm text-[#ffffff60] stagger-item">
-                <div className="flex items-center space-x-1">
-                  <CheckCircle className="w-4 h-4 text-[#1dff00]" />
-                  <span>100% automated</span>
+      {/* Features Section */}
+      <section id="features" ref={featuresRef} className="features-section py-16 sm:py-20 lg:py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+              For ambitious professionals and career-focused individuals
+            </h2>
+            <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              Jobraker is the end-to-end platform for professionals who want to accelerate their career growth through intelligent automation.
+            </p>
+          </div>
+          
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+            {features.map((feature, index) => (
+              <div key={index} className="feature-card text-center p-6 sm:p-8 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-all duration-300 hover:scale-105">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  {feature.icon}
                 </div>
-                <div className="flex items-center space-x-1">
-                  <CheckCircle className="w-4 h-4 text-[#1dff00]" />
-                  <span>14-day free trial</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <CheckCircle className="w-4 h-4 text-[#1dff00]" />
-                  <span>No manual work required</span>
-                </div>
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">{feature.title}</h3>
+                <p className="text-gray-600 text-sm sm:text-base leading-relaxed">{feature.description}</p>
               </div>
-            </div>
-            
-            {/* Hero Image/Dashboard Preview */}
-            <div className="hero-dashboard relative">
-              <div className="relative">
-                {/* Glowing border effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-2xl blur-xl opacity-30"></div>
-                
-                {/* Dashboard mockup */}
-                <div className="relative bg-[#0a0a0a] border border-[#ffffff1a] rounded-2xl p-4 sm:p-6 shadow-2xl">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    {/* Mock dashboard content */}
-                    <div className="flex items-center justify-between">
-                      <div className="text-white font-semibold text-sm sm:text-base">Auto-Applications Today</div>
-                      <div className="text-[#1dff00] text-xl sm:text-2xl font-bold">47</div>
-                    </div>
-                    
-                    <div className="grid grid-cols-3 gap-3 sm:gap-4">
-                      <div className="bg-[#ffffff0a] p-3 rounded-lg text-center">
-                        <div className="text-[#1dff00] text-lg sm:text-xl font-bold">12</div>
-                        <div className="text-[#ffffff60] text-xs">Interviews</div>
-                      </div>
-                      <div className="bg-[#ffffff0a] p-3 rounded-lg text-center">
-                        <div className="text-[#1dff00] text-lg sm:text-xl font-bold">95%</div>
-                        <div className="text-[#ffffff60] text-xs">Success Rate</div>
-                      </div>
-                      <div className="bg-[#ffffff0a] p-3 rounded-lg text-center">
-                        <div className="text-[#1dff00] text-lg sm:text-xl font-bold">3</div>
-                        <div className="text-[#ffffff60] text-xs">Offers</div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-[#ffffff0a] p-3 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-white text-sm">AI Status</span>
-                        <span className="text-[#1dff00] text-xs flex items-center">
-                          <div className="w-2 h-2 bg-[#1dff00] rounded-full mr-1 animate-pulse"></div>
-                          Active
-                        </span>
-                      </div>
-                      <div className="text-[#ffffff80] text-xs">Currently applying to Software Engineer positions...</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Stats Section */}
-      <section className="stats-section py-12 sm:py-16 lg:py-20 bg-[#0a0a0a] border-y border-[#ffffff1a]">
+      <section className="py-16 sm:py-20 lg:py-24 bg-gray-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center reveal-element">
-                <div className="flex items-center justify-center mb-2 sm:mb-3">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-lg flex items-center justify-center text-[#1dff00] mr-2 sm:mr-3">
-                    {stat.icon}
-                  </div>
-                </div>
-                <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1dff00] mb-1 sm:mb-2">
-                  {stat.number}
-                </div>
-                <div className="text-[#ffffff80] text-xs sm:text-sm lg:text-base">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works Section */}
-      <section ref={featuresRef} className="features-section py-16 sm:py-20 lg:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12 sm:mb-16 lg:mb-20 reveal-element">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 text-reveal">
-              How JobRaker
-              <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
-                {" "}Works For You
-              </span>
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6">
+              Precisely engineered for unparalleled success
             </h2>
-            <p className="text-lg sm:text-xl text-[#ffffff80] max-w-3xl mx-auto leading-relaxed">
-              Set it up once, then let our AI handle everything. From job discovery to application submission, we've got you covered.
+            <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
+              Jobraker powers the career growth of ambitious professionals with unmatched performance and reliability.
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {features.map((feature, index) => (
-              <Card key={index} className="feature-card bg-[#ffffff0d] backdrop-blur-md border-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 hover:transform hover:scale-105 group cursor-pointer h-full">
-                <CardContent className="p-6 sm:p-8 h-full flex flex-col">
-                  <div className="mb-4 sm:mb-6">
-                    <div className={`w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r ${feature.gradient} rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                      {feature.icon}
-                    </div>
-                  </div>
-                  <h3 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">{feature.title}</h3>
-                  <p className="text-[#ffffff80] leading-relaxed flex-grow text-sm sm:text-base">{feature.description}</p>
-                </CardContent>
-              </Card>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+            {stats.map((stat, index) => (
+              <div key={index} className="text-center">
+                <div className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2">
+                  <span className="counter" data-count={stat.number}>0</span>
+                  {stat.suffix}
+                </div>
+                <div className="text-gray-400 mb-2 text-sm sm:text-base">{stat.label}</div>
+                <div className="text-xs sm:text-sm text-gray-500">Built for limitless processing power</div>
+              </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Benefits Section */}
-      <section className="benefits-section py-16 sm:py-20 lg:py-24 bg-[#0a0a0a]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            <div className="reveal-element">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6 sm:mb-8 text-reveal">
-                Why Choose
-                <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
-                  {" "}Automation?
-                </span>
-              </h2>
-              <div className="space-y-6 sm:space-y-8">
-                {benefits.map((benefit, index) => (
-                  <div key={index} className="benefit-item flex items-start space-x-4 sm:space-x-6">
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                      {benefit.icon}
-                    </div>
-                    <div className="flex-grow">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg sm:text-xl font-bold text-white">{benefit.title}</h3>
-                        <span className="text-[#1dff00] font-bold text-sm sm:text-base bg-[#1dff00]/10 px-2 py-1 rounded">
-                          {benefit.stat}
-                        </span>
-                      </div>
-                      <p className="text-[#ffffff80] text-sm sm:text-base leading-relaxed">{benefit.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="relative reveal-element">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-2xl blur-3xl"></div>
-                <img
-                  src="https://images.unsplash.com/photo-1485827404703-89b55fcc595e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwxfHxhdXRvbWF0aW9uJTIwcm9ib3R8ZW58MHx8fHx8MTcwNzQ4NzIwMHww&ixlib=rb-4.1.0&q=85"
-                  alt="Automation Technology"
-                  className="relative w-full h-auto rounded-2xl shadow-2xl border border-[#ffffff1a] parallax-bg"
-                />
-              </div>
-            </div>
           </div>
         </div>
       </section>
 
       {/* Testimonials Section */}
-      <section className="testimonials-section py-16 sm:py-20 lg:py-24">
+      <section className="testimonials-section py-16 sm:py-20 lg:py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12 sm:mb-16 lg:mb-20 reveal-element">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 text-reveal">
-              Success Stories from
-              <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
-                {" "}Our Users
-              </span>
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+              Powering career growth for professionals worldwide
             </h2>
-            <p className="text-lg sm:text-xl text-[#ffffff80] max-w-3xl mx-auto leading-relaxed">
-              Real people, real results. See how JobRaker's autonomous platform transformed their careers.
+            <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              From ambitious graduates to seasoned executives, Jobraker helps professionals at every level find and secure their next opportunity.
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mb-12 sm:mb-16">
             {testimonials.map((testimonial, index) => (
-              <Card key={index} className="testimonial-card bg-[#ffffff0d] backdrop-blur-md border-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 h-full">
+              <Card key={index} className="testimonial-card bg-white border border-gray-200 hover:shadow-lg transition-all duration-300 h-full">
                 <CardContent className="p-6 sm:p-8 h-full flex flex-col">
                   <div className="flex items-center mb-4 sm:mb-6">
                     <img
                       src={testimonial.image}
                       alt={testimonial.name}
-                      className="w-12 h-12 sm:w-14 sm:h-14 rounded-full mr-3 sm:mr-4 border-2 border-[#1dff00]"
+                      className="w-12 h-12 sm:w-14 sm:h-14 rounded-full mr-3 sm:mr-4 border-2 border-blue-500"
                     />
                     <div>
-                      <h4 className="text-white font-bold text-sm sm:text-base">{testimonial.name}</h4>
-                      <p className="text-[#ffffff80] text-xs sm:text-sm">{testimonial.role} at {testimonial.company}</p>
+                      <h4 className="text-gray-900 font-bold text-sm sm:text-base">{testimonial.name}</h4>
+                      <p className="text-gray-600 text-xs sm:text-sm">{testimonial.role} at {testimonial.company}</p>
                     </div>
                   </div>
-                  <Quote className="w-6 h-6 sm:w-8 sm:h-8 text-[#1dff00] mb-3 sm:mb-4" />
-                  <p className="text-[#ffffff80] leading-relaxed flex-grow text-sm sm:text-base mb-4">{testimonial.content}</p>
-                  <div className="flex text-[#1dff00]">
+                  <Quote className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500 mb-3 sm:mb-4" />
+                  <p className="text-gray-700 leading-relaxed flex-grow text-sm sm:text-base mb-4">{testimonial.content}</p>
+                  <div className="flex text-yellow-400">
                     {[...Array(testimonial.rating)].map((_, i) => (
                       <Star key={i} className="w-4 h-4 fill-current" />
                     ))}
@@ -855,142 +647,71 @@ export const LandingPage = (): JSX.Element => {
               </Card>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section className="pricing-section py-16 sm:py-20 lg:py-24 bg-[#0a0a0a]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12 sm:mb-16 lg:mb-20 reveal-element">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 text-reveal">
-              Choose Your
-              <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
-                {" "}Automation Level
-              </span>
-            </h2>
-            <p className="text-lg sm:text-xl text-[#ffffff80] max-w-3xl mx-auto leading-relaxed">
-              From basic automation to full-service career management. All plans include our core autonomous application technology.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
-            {pricingPlans.map((plan, index) => (
-              <Card key={index} className={`pricing-card relative bg-[#ffffff0d] backdrop-blur-md border-[#ffffff1a] transition-all duration-300 h-full ${
-                plan.popular ? 'border-[#1dff00] scale-105' : 'hover:border-[#1dff00]/50'
-              }`}>
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-white px-3 py-1 rounded-full text-xs font-medium">
-                      Most Popular
-                    </span>
-                  </div>
-                )}
-                <CardContent className="p-6 sm:p-8 h-full flex flex-col">
-                  <div className="text-center mb-6 sm:mb-8">
-                    <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">{plan.name}</h3>
-                    <div className="mb-2">
-                      <span className="text-3xl sm:text-4xl font-bold text-[#1dff00]">{plan.price}</span>
-                      <span className="text-[#ffffff80] text-sm">/{plan.period}</span>
-                    </div>
-                    <p className="text-[#ffffff80] text-sm">{plan.description}</p>
-                  </div>
-                  
-                  <div className="flex-grow">
-                    <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
-                      {plan.features.map((feature, featureIndex) => (
-                        <li key={featureIndex} className="flex items-center text-sm sm:text-base">
-                          <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#1dff00] mr-3 flex-shrink-0" />
-                          <span className="text-[#ffffff80]">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  <Button
-                    className={`w-full ${
-                      plan.popular
-                        ? 'bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-white hover:shadow-lg'
-                        : 'border-[#ffffff33] text-white hover:bg-[#ffffff1a]'
-                    } transition-all`}
-                    variant={plan.popular ? 'default' : 'outline'}
-                    onClick={() => navigate("/signup")}
-                  >
-                    {plan.cta}
-                  </Button>
-                </CardContent>
-              </Card>
+          
+          <div className="flex justify-center items-center space-x-8 sm:space-x-12 opacity-60">
+            {companyLogos.slice(0, 5).map((logo, index) => (
+              <div key={index} className="text-xl sm:text-2xl font-bold text-gray-400">
+                {logo}
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Newsletter Section */}
-      <section className="newsletter-section py-16 sm:py-20 lg:py-24">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="reveal-element">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 text-reveal">
-              Stay Updated with
-              <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
-                {" "}Automation Insights
-              </span>
-            </h2>
-            <p className="text-lg sm:text-xl text-[#ffffff80] mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed">
-              Get weekly insights on job market automation, AI trends, and career optimization strategies.
+      {/* Blog Section */}
+      <section id="blog" className="blog-section py-16 sm:py-20 lg:py-24 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-6">Career Resources</h2>
+            <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              Find the knowledge to accelerate your career growth and unlock new opportunities across guides, insights, and expert advice.
             </p>
-            
-            <form onSubmit={handleEmailSubmit} className="flex flex-col sm:flex-row gap-3 sm:gap-4 max-w-md mx-auto">
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="flex-grow bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] h-12 sm:h-14 text-sm sm:text-base"
-                required
-              />
-              <Button
-                type="submit"
-                className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-white hover:shadow-lg transition-all px-6 sm:px-8 h-12 sm:h-14 text-sm sm:text-base font-medium"
-              >
-                Subscribe
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </form>
-            
-            <p className="text-[#ffffff60] text-xs sm:text-sm mt-3 sm:mt-4">
-              No spam. Unsubscribe anytime. We respect your privacy.
-            </p>
+          </div>
+          
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+            {blogPosts.map((post, index) => (
+              <div key={index} className="blog-card bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 cursor-pointer">
+                <div className={`text-sm font-medium mb-2 ${post.color}`}>{post.category}</div>
+                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 leading-tight">
+                  {post.title}
+                </h3>
+                <p className="text-gray-600 text-sm leading-relaxed">
+                  {post.description}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Final CTA Section */}
-      <section className="cta-section py-16 sm:py-20 lg:py-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246]">
+      <section className="cta-section py-16 sm:py-20 lg:py-24 bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="cta-pulse">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6">
-              Ready to Automate Your Career?
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-6">
+              Ready to Transform Your Career?
             </h2>
             <p className="text-lg sm:text-xl text-white/90 mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed">
-              Join over 50,000 professionals who've automated their job search and landed better positions faster.
+              Join thousands of professionals who've automated their job search and landed better positions faster.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 size="lg"
                 onClick={() => navigate("/signup")}
-                className="bg-white text-[#0a8246] hover:bg-white/90 transition-all px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-bold group"
+                className="bg-white text-blue-600 hover:bg-gray-100 transition-all px-8 py-4 text-lg font-bold"
               >
-                Start Auto-Applying Today
-                <Send className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                Start Your Free Trial
+                <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                className="border-white text-white hover:bg-white/10 px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg"
+                className="border-white text-white hover:bg-white/10 px-8 py-4 text-lg"
               >
                 Schedule Demo
               </Button>
             </div>
-            <p className="text-white/70 text-xs sm:text-sm mt-4 sm:mt-6">
+            <p className="text-white/70 text-sm mt-6">
               No credit card required • 14-day free trial • Cancel anytime
             </p>
           </div>
@@ -998,54 +719,52 @@ export const LandingPage = (): JSX.Element => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-[#0a0a0a] border-t border-[#ffffff1a] py-12 sm:py-16">
+      <footer className="bg-gray-900 text-white py-12 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8 sm:gap-12 mb-8 sm:mb-12">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-12 mb-8 sm:mb-12">
             {/* Company Info */}
-            <div className="md:col-span-2">
-              <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center">
-                  <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            <div className="lg:col-span-2">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-white font-bold text-lg sm:text-xl">JobRaker</span>
+                <span className="text-white font-bold text-xl">Jobraker</span>
               </div>
-              <p className="text-[#ffffff80] text-sm sm:text-base leading-relaxed max-w-md">
-                The world's first autonomous job application platform. Our AI searches for jobs and applies automatically, 
-                helping professionals land their dream careers without the manual work.
+              <p className="text-gray-400 mb-6 max-w-md leading-relaxed">
+                The autonomous platform for intelligent job applications. Let AI handle your job search while you focus on what matters most.
               </p>
+              <div className="flex space-x-4">
+                <a href="#" className="text-gray-400 hover:text-white transition-colors">Twitter</a>
+                <a href="#" className="text-gray-400 hover:text-white transition-colors">LinkedIn</a>
+                <a href="#" className="text-gray-400 hover:text-white transition-colors">GitHub</a>
+              </div>
             </div>
             
-            {/* Quick Links */}
+            {/* Product Links */}
             <div>
-              <h4 className="text-white font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Platform</h4>
-              <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                <li><a href="#" className="text-[#ffffff80] hover:text-white transition-colors">How It Works</a></li>
-                <li><a href="#" className="text-[#ffffff80] hover:text-white transition-colors">Pricing</a></li>
-                <li><a href="#" className="text-[#ffffff80] hover:text-white transition-colors">Success Stories</a></li>
-                <li><a href="#" className="text-[#ffffff80] hover:text-white transition-colors">API</a></li>
+              <h4 className="font-semibold mb-4 text-white">Product</h4>
+              <ul className="space-y-3 text-gray-400">
+                <li><a href="#" className="hover:text-white transition-colors">Features</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">API</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Documentation</a></li>
               </ul>
             </div>
             
-            {/* Support */}
+            {/* Company Links */}
             <div>
-              <h4 className="text-white font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Support</h4>
-              <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                <li><a href="#" className="text-[#ffffff80] hover:text-white transition-colors">Help Center</a></li>
-                <li><a href="#" className="text-[#ffffff80] hover:text-white transition-colors">Contact Us</a></li>
-                <li><a href="#" className="text-[#ffffff80] hover:text-white transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="text-[#ffffff80] hover:text-white transition-colors">Terms of Service</a></li>
+              <h4 className="font-semibold mb-4 text-white">Company</h4>
+              <ul className="space-y-3 text-gray-400">
+                <li><a href="#" className="hover:text-white transition-colors">About</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
               </ul>
             </div>
           </div>
           
-          <div className="border-t border-[#ffffff1a] pt-6 sm:pt-8 flex flex-col sm:flex-row items-center justify-between">
-            <p className="text-[#ffffff60] text-xs sm:text-sm mb-4 sm:mb-0">
-              © 2024 JobRaker. All rights reserved. Automate your career today.
-            </p>
-            <div className="flex items-center space-x-4 sm:space-x-6">
-              <Bot className="w-4 h-4 text-[#1dff00]" />
-              <span className="text-[#ffffff60] text-xs sm:text-sm">Powered by autonomous AI</span>
-            </div>
+          <div className="border-t border-gray-800 pt-8 text-center text-gray-400">
+            <p>&copy; 2025 Jobraker. All rights reserved.</p>
           </div>
         </div>
       </footer>
