@@ -11,12 +11,12 @@
 .enhanced-input {
   width: 100%;
   background: transparent !important;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: none !important;
   border-radius: 0.75rem;
   padding: 1rem 1.25rem;
   color: #ffffff;
-  font-size: 1rem;
-  font-weight: 500;
+  font-size: 0.875rem;
+  font-weight: 400;
   letter-spacing: 0.025em;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(8px);
@@ -33,14 +33,14 @@
 /* Focus states */
 .enhanced-input:focus {
   outline: none;
-  border-color: #1dff00;
-  box-shadow: 0 0 20px rgba(29, 255, 0, 0.3);
+  border: none !important;
+  box-shadow: none;
   background: rgba(255, 255, 255, 0.05);
 }
 
 /* Hover states */
 .enhanced-input:hover {
-  border-color: rgba(255, 255, 255, 0.4);
+  border: none !important;
   background: rgba(255, 255, 255, 0.02);
 }
 
@@ -49,7 +49,7 @@
 /* Mobile (320px - 480px) */
 @media (max-width: 480px) {
   .enhanced-input {
-    font-size: 1rem;
+    font-size: 0.875rem;
     padding: 0.875rem 1rem;
     height: 3rem;
     border-radius: 0.5rem;
@@ -63,7 +63,7 @@
 /* Small tablets (481px - 768px) */
 @media (min-width: 481px) and (max-width: 768px) {
   .enhanced-input {
-    font-size: 1.125rem;
+    font-size: 1rem;
     padding: 1rem 1.25rem;
     height: 3.5rem;
     border-radius: 0.75rem;
@@ -73,7 +73,7 @@
 /* Large tablets and small desktops (769px - 1024px) */
 @media (min-width: 769px) and (max-width: 1024px) {
   .enhanced-input {
-    font-size: 1.25rem;
+    font-size: 1rem;
     padding: 1.125rem 1.5rem;
     height: 4rem;
     border-radius: 0.875rem;
@@ -83,7 +83,7 @@
 /* Large desktops (1025px+) */
 @media (min-width: 1025px) {
   .enhanced-input {
-    font-size: 1.5rem;
+    font-size: 1.125rem;
     padding: 1.25rem 1.75rem;
     height: 4.5rem;
     border-radius: 1rem;
@@ -93,7 +93,7 @@
 /* Ultra-wide screens (1440px+) */
 @media (min-width: 1440px) {
   .enhanced-input {
-    font-size: 1.75rem;
+    font-size: 1.25rem;
     padding: 1.5rem 2rem;
     height: 5rem;
   }
@@ -105,7 +105,7 @@
   align-items: center;
   position: relative;
   background: transparent !important;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: none !important;
   border-radius: 0.75rem;
   padding: 0 1.25rem;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -114,13 +114,13 @@
 }
 
 .input-with-icon:hover {
-  border-color: rgba(255, 255, 255, 0.4);
+  border: none !important;
   background: rgba(255, 255, 255, 0.02) !important;
 }
 
 .input-with-icon:focus-within {
-  border-color: #1dff00;
-  box-shadow: 0 0 20px rgba(29, 255, 0, 0.3);
+  border: none !important;
+  box-shadow: none;
   background: rgba(255, 255, 255, 0.05) !important;
 }
 
@@ -153,7 +153,7 @@
   }
   
   .input-with-icon input {
-    font-size: 1rem;
+    font-size: 0.875rem;
     margin-left: 0.5rem;
   }
   
@@ -171,7 +171,7 @@
   }
   
   .input-with-icon input {
-    font-size: 1.125rem;
+    font-size: 1rem;
     margin-left: 0.75rem;
   }
   
@@ -189,7 +189,7 @@
   }
   
   .input-with-icon input {
-    font-size: 1.25rem;
+    font-size: 1rem;
     margin-left: 0.75rem;
   }
   
@@ -207,7 +207,7 @@
   }
   
   .input-with-icon input {
-    font-size: 1.5rem;
+    font-size: 1.125rem;
     margin-left: 1rem;
   }
   
@@ -224,7 +224,7 @@
   }
   
   .input-with-icon input {
-    font-size: 1.75rem;
+    font-size: 1.25rem;
     margin-left: 1rem;
   }
   
@@ -236,43 +236,41 @@
 
 /* Error states */
 .input-with-icon.error {
-  border-color: #ef4444;
+  border: none !important;
   background: rgba(239, 68, 68, 0.1) !important;
 }
 
 .input-with-icon.error:focus-within {
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+  box-shadow: none;
 }
 
 /* Success states */
 .input-with-icon.success {
-  border-color: #10b981;
+  border: none !important;
   background: rgba(16, 185, 129, 0.1) !important;
 }
 
 .input-with-icon.success:focus-within {
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  box-shadow: none;
 }
 
 /* Accessibility improvements */
 .enhanced-input:focus-visible,
 .input-with-icon:focus-visible {
-  outline: 2px solid #1dff00;
-  outline-offset: 2px;
+  outline: none;
 }
 
 /* High contrast mode */
 @media (prefers-contrast: high) {
   .enhanced-input,
   .input-with-icon {
-    border-width: 2px;
-    border-color: #ffffff;
+    border: none !important;
   }
   
   .enhanced-input:focus,
   .input-with-icon:focus-within {
-    border-color: #1dff00;
-    box-shadow: 0 0 0 3px rgba(29, 255, 0, 0.5);
+    border: none !important;
+    box-shadow: none;
   }
 }
 
