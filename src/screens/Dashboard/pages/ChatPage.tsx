@@ -13,7 +13,7 @@ interface ChatMessage {
   avatar?: string;
 }
 
-export const ChatPage = (): JSX.Element => {
+const ChatPage = (): JSX.Element => {
   const [newMessage, setNewMessage] = useState("");
 
   const messages: ChatMessage[] = [
@@ -193,3 +193,5 @@ export const ChatPage = (): JSX.Element => {
     </div>
   );
 };
+
+export default ChatPage;
