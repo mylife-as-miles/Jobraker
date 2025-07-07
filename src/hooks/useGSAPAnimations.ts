@@ -1,17 +1,53 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { TextPlugin } from 'gsap/TextPlugin';
 
 // Register GSAP plugins
-gsap.registerPlugin(ScrollTrigger, TextPlugin);
+gsap.registerPlugin(ScrollTrigger);
 
+// Performance optimization: Debounce utility for scroll events
+export const useDebounce = (callback: Function, delay: number) => {
+  const timeoutRef = useRef<NodeJS.Timeout>();
+  
+  return useCallback((...args: any[]) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => callback(...args), delay);
+  }, [callback, delay]);
+};
+
+// Intersection Observer hook for performance optimization
+export const useIntersectionObserver = (options = {}) => {
+  const [isIntersecting, setIsIntersecting] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => {
+      setIsIntersecting(entry.isIntersecting);
+    }, {
+      threshold: 0.1,
+      rootMargin: '50px',
+      ...options
+    });
+
+    if (ref.current) {
+      observer.observe(ref.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, isIntersecting] as const;
+};
+
+// Main GSAP animations hook with performance optimizations
 export const useGSAPAnimations = () => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Set up smooth scrolling with enhanced performance
+      // Performance optimizations
       gsap.config({
         force3D: true,
         nullTargetWarn: false,
@@ -22,14 +58,22 @@ export const useGSAPAnimations = () => {
         perspective: 1000,
         transformStyle: "preserve-3d"
       });
+
+      // Smooth scroll behavior with performance optimization
+      document.documentElement.style.scrollBehavior = 'smooth';
+
     }, containerRef);
 
-    return () => ctx.revert();
+    return () => {
+      ctx.revert();
+      document.documentElement.style.scrollBehavior = 'auto';
+    };
   }, []);
 
   return { containerRef };
 };
 
+// Scroll reveal animation with performance optimization
 export const useScrollReveal = (selector: string, options?: any) => {
   useEffect(() => {
     const elements = gsap.utils.toArray(selector);
@@ -62,26 +106,7 @@ export const useScrollReveal = (selector: string, options?: any) => {
   }, [selector, options]);
 };
 
-export const useParallaxEffect = (selector: string, speed: number = 0.5) => {
-  useEffect(() => {
-    const elements = gsap.utils.toArray(selector);
-    
-    elements.forEach((element: any) => {
-      gsap.to(element, {
-        yPercent: -50 * speed,
-        ease: "none",
-        scrollTrigger: {
-          trigger: element,
-          start: "top bottom",
-          end: "bottom top",
-          scrub: true,
-          invalidateOnRefresh: true,
-        }
-      });
-    });
-  }, [selector, speed]);
-};
-
+// Advanced parallax effect with multiple layers
 export const useAdvancedParallax = (selector: string, config: {
   speed?: number;
   scale?: number;
@@ -114,6 +139,28 @@ export const useAdvancedParallax = (selector: string, config: {
   }, [selector, config]);
 };
 
+// Parallax effect with GPU acceleration
+export const useParallaxEffect = (selector: string, speed: number = 0.5) => {
+  useEffect(() => {
+    const elements = gsap.utils.toArray(selector);
+    
+    elements.forEach((element: any) => {
+      gsap.to(element, {
+        yPercent: -50 * speed,
+        ease: "none",
+        scrollTrigger: {
+          trigger: element,
+          start: "top bottom",
+          end: "bottom top",
+          scrub: true,
+          invalidateOnRefresh: true,
+        }
+      });
+    });
+  }, [selector, speed]);
+};
+
+// Counter animation with performance optimization
 export const useCounterAnimation = (selector: string, endValue: number) => {
   useEffect(() => {
     const elements = gsap.utils.toArray(selector);
@@ -138,6 +185,7 @@ export const useCounterAnimation = (selector: string, endValue: number) => {
   }, [selector, endValue]);
 };
 
+// Stagger animation with performance optimization
 export const useStaggerAnimation = (selector: string, stagger: number = 0.1) => {
   useEffect(() => {
     const elements = gsap.utils.toArray(selector);
@@ -165,6 +213,7 @@ export const useStaggerAnimation = (selector: string, stagger: number = 0.1) => 
   }, [selector, stagger]);
 };
 
+// Text reveal animation with character-by-character effect
 export const useTextReveal = (selector: string) => {
   useEffect(() => {
     const elements = gsap.utils.toArray(selector);
@@ -202,67 +251,7 @@ export const useTextReveal = (selector: string) => {
   }, [selector]);
 };
 
-export const useMorphingBackground = (selector: string) => {
-  useEffect(() => {
-    const elements = gsap.utils.toArray(selector);
-    
-    elements.forEach((element: any) => {
-      const tl = gsap.timeline({
-        repeat: -1,
-        yoyo: true,
-        ease: "power2.inOut"
-      });
-      
-      tl.to(element, {
-        duration: 4,
-        morphSVG: "M0,0 Q50,100 100,0 T200,0 L200,100 L0,100 Z",
-      })
-      .to(element, {
-        duration: 4,
-        morphSVG: "M0,0 Q50,-50 100,0 T200,0 L200,100 L0,100 Z",
-      });
-    });
-  }, [selector]);
-};
-
-export const useMouseFollower = () => {
-  useEffect(() => {
-    const cursor = document.createElement('div');
-    cursor.className = 'mouse-follower';
-    cursor.style.cssText = `
-      position: fixed;
-      width: 20px;
-      height: 20px;
-      background: linear-gradient(45deg, #1dff00, #0a8246);
-      border-radius: 50%;
-      pointer-events: none;
-      z-index: 9999;
-      mix-blend-mode: difference;
-      transition: transform 0.1s ease;
-      will-change: transform;
-    `;
-    document.body.appendChild(cursor);
-
-    const moveCursor = (e: MouseEvent) => {
-      gsap.to(cursor, {
-        x: e.clientX - 10,
-        y: e.clientY - 10,
-        duration: 0.1,
-        ease: "power2.out",
-      });
-    };
-
-    document.addEventListener('mousemove', moveCursor);
-
-    return () => {
-      document.removeEventListener('mousemove', moveCursor);
-      if (document.body.contains(cursor)) {
-        document.body.removeChild(cursor);
-      }
-    };
-  }, []);
-};
-
+// 3D card effect with mouse interaction
 export const use3DCardEffect = (selector: string) => {
   useEffect(() => {
     const cards = gsap.utils.toArray(selector);
@@ -304,4 +293,98 @@ export const use3DCardEffect = (selector: string) => {
       };
     });
   }, [selector]);
+};
+
+// Mouse follower with performance optimization
+export const useMouseFollower = () => {
+  useEffect(() => {
+    const cursor = document.createElement('div');
+    cursor.className = 'mouse-follower';
+    cursor.style.cssText = `
+      position: fixed;
+      width: 20px;
+      height: 20px;
+      background: linear-gradient(45deg, #1dff00, #0a8246);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      mix-blend-mode: difference;
+      transition: transform 0.1s ease;
+      will-change: transform;
+    `;
+    document.body.appendChild(cursor);
+
+    const moveCursor = (e: MouseEvent) => {
+      gsap.to(cursor, {
+        x: e.clientX - 10,
+        y: e.clientY - 10,
+        duration: 0.1,
+        ease: "power2.out",
+      });
+    };
+
+    document.addEventListener('mousemove', moveCursor);
+
+    return () => {
+      document.removeEventListener('mousemove', moveCursor);
+      if (document.body.contains(cursor)) {
+        document.body.removeChild(cursor);
+      }
+    };
+  }, []);
+};
+
+// Morphing background effect
+export const useMorphingBackground = (selector: string) => {
+  useEffect(() => {
+    const elements = gsap.utils.toArray(selector);
+    
+    elements.forEach((element: any) => {
+      const tl = gsap.timeline({
+        repeat: -1,
+        yoyo: true,
+        ease: "power2.inOut"
+      });
+      
+      tl.to(element, {
+        duration: 4,
+        scale: 1.2,
+        rotation: 10,
+      })
+      .to(element, {
+        duration: 4,
+        scale: 0.8,
+        rotation: -10,
+      });
+    });
+  }, [selector]);
+};
+
+// Performance monitoring utility
+export const usePerformanceMonitor = () => {
+  useEffect(() => {
+    let frameCount = 0;
+    let lastTime = performance.now();
+    
+    const measureFPS = () => {
+      frameCount++;
+      const currentTime = performance.now();
+      
+      if (currentTime - lastTime >= 1000) {
+        const fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+        
+        // Log performance warnings if FPS drops below 30
+        if (fps < 30) {
+          console.warn(`Performance warning: FPS dropped to ${fps}`);
+        }
+        
+        frameCount = 0;
+        lastTime = currentTime;
+      }
+      
+      requestAnimationFrame(measureFPS);
+    };
+    
+    requestAnimationFrame(measureFPS);
+  }, []);
 };
