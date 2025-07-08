@@ -49,13 +49,13 @@ export const Onboarding = (): JSX.Element => {
             placeholder="First Name"
             value={formData.firstName}
             onChange={(e) => updateFormData("firstName", e.target.value)}
-            className="w-full bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
+            className="w-full bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-none h-10 sm:h-12 text-sm sm:text-base"
           />
           <Input
             placeholder="Last Name"
             value={formData.lastName}
             onChange={(e) => updateFormData("lastName", e.target.value)}
-            className="w-full bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
+            className="w-full bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-none h-10 sm:h-12 text-sm sm:text-base"
           />
         </div>
       ),
@@ -70,14 +70,14 @@ export const Onboarding = (): JSX.Element => {
             placeholder="Current Job Title"
             value={formData.jobTitle}
             onChange={(e) => updateFormData("jobTitle", e.target.value)}
-            className="w-full bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
+            className="w-full bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-none h-10 sm:h-12 text-sm sm:text-base"
           />
           <Input
             placeholder="Years of Experience"
             type="number"
             value={formData.experience}
             onChange={(e) => updateFormData("experience", e.target.value)}
-            className="w-full bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
+            className="w-full bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-none h-10 sm:h-12 text-sm sm:text-base"
           />
         </div>
       ),
@@ -91,7 +91,7 @@ export const Onboarding = (): JSX.Element => {
           placeholder="City, State, Country"
           value={formData.location}
           onChange={(e) => updateFormData("location", e.target.value)}
-          className="w-full bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
+          className="w-full bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-none h-10 sm:h-12 text-sm sm:text-base"
         />
       ),
     },
