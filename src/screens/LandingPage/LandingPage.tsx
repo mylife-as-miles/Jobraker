@@ -79,7 +79,6 @@ export const LandingPage = (): JSX.Element => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [scrollY, setScrollY] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
   
   // Refs for sections
@@ -90,29 +89,29 @@ export const LandingPage = (): JSX.Element => {
   const pricingRef = useRef<HTMLElement>(null);
   const ctaRef = useRef<HTMLElement>(null);
   
-  // Parallax scroll handling with debounce
-  const debouncedScrollHandler = useDebounce((currentScrollY: number) => {
-    setScrollY(currentScrollY);
-  }, 16); // ~60fps
+  // Framer Motion scroll hooks for smooth parallax
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"]
+  });
+
+  // Smooth parallax transforms using Framer Motion
+  const parallaxBg = useTransform(scrollYProgress, [0, 1], [0, -200]);
+  const parallaxMid = useTransform(scrollYProgress, [0, 1], [0, -150]);
+  const parallaxFront = useTransform(scrollYProgress, [0, 1], [0, -50]);
+  const zoomScale = useTransform(scrollYProgress, [0, 1], [1, 1.1]);
+  const contentOffset = useTransform(scrollYProgress, [0, 1], [0, -100]);
+
+  // Add spring physics for smoother animations
+  const smoothParallaxBg = useSpring(parallaxBg, { stiffness: 100, damping: 30 });
+  const smoothParallaxMid = useSpring(parallaxMid, { stiffness: 100, damping: 30 });
+  const smoothParallaxFront = useSpring(parallaxFront, { stiffness: 100, damping: 30 });
+  const smoothZoomScale = useSpring(zoomScale, { stiffness: 100, damping: 30 });
+  const smoothContentOffset = useSpring(contentOffset, { stiffness: 100, damping: 30 });
 
   useEffect(() => {
-    const handleScroll = () => {
-      debouncedScrollHandler(window.scrollY);
-    };
-
-    // Passive listener for better performance
-    window.addEventListener('scroll', handleScroll, { passive: true });
     setIsLoaded(true);
-
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [debouncedScrollHandler]);
-
-  // Parallax calculations
-  const parallaxBg = scrollY * 0.5;
-  const parallaxMid = scrollY * 0.7;
-  const parallaxFront = scrollY * 0.9;
-  const zoomScale = 1 + scrollY * 0.0001;
-  const contentOffset = scrollY * 0.1;
+  }, []);
 
   // GSAP Animations
   useEffect(() => {
@@ -170,43 +169,6 @@ export const LandingPage = (): JSX.Element => {
         duration: 1.5,
         ease: "power3.out",
       }, "-=1");
-
-      // Parallax layers with GPU acceleration
-      gsap.to(".parallax__bg", {
-        yPercent: -50,
-        scale: 1.2,
-        ease: "none",
-        scrollTrigger: {
-          trigger: heroRef.current,
-          start: "top bottom",
-          end: "bottom top",
-          scrub: 1,
-        }
-      });
-
-      gsap.to(".parallax__mid", {
-        yPercent: -30,
-        scale: 1.1,
-        rotation: 5,
-        ease: "none",
-        scrollTrigger: {
-          trigger: heroRef.current,
-          start: "top bottom",
-          end: "bottom top",
-          scrub: 1.5,
-        }
-      });
-
-      gsap.to(".parallax__front", {
-        yPercent: -10,
-        ease: "none",
-        scrollTrigger: {
-          trigger: heroRef.current,
-          start: "top bottom",
-          end: "bottom top",
-          scrub: 2,
-        }
-      });
 
       // Feature cards with 3D effects
       gsap.fromTo(".feature__card", {
@@ -311,7 +273,7 @@ export const LandingPage = (): JSX.Element => {
         },
       });
 
-      // Floating elements
+      // Floating elements with improved performance
       gsap.to(".floating__element--1", {
         y: -30,
         x: 20,
@@ -667,36 +629,38 @@ export const LandingPage = (): JSX.Element => {
         {/* Parallax Background Layers */}
         <div className="absolute inset-0">
           {/* Background Layer */}
-          <div 
-            className="parallax__bg absolute inset-0 bg-cover bg-center bg-no-repeat will-change-transform"
+          <motion.div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat will-change-transform"
             style={{
               backgroundImage: `url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwxfHxzcGFjZSUyMHRlY2hub2xvZ3l8ZW58MHx8fHx8MTcwNzQ4NzIwMHww&ixlib=rb-4.1.0&q=85')`,
-              transform: `translateY(${parallaxBg}px) scale(${zoomScale})`,
-              transformOrigin: 'center center',
               opacity: 0.1,
+            }}
+            style={{
+              y: smoothParallaxBg,
+              scale: smoothZoomScale,
             }}
             aria-hidden="true"
           />
           
           {/* Middle Parallax Layers */}
-          <div 
-            className="parallax__mid floating__element--1 absolute top-20 left-10 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-full blur-3xl will-change-transform"
+          <motion.div 
+            className="floating__element--1 absolute top-20 left-10 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-full blur-3xl will-change-transform"
             style={{
-              transform: `translateY(${parallaxMid}px) scale(${1 + scrollY * 0.0001})`,
+              y: smoothParallaxMid,
             }}
             aria-hidden="true"
           />
-          <div 
-            className="parallax__mid floating__element--2 absolute top-40 right-20 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 bg-gradient-to-r from-[#1dff00]/10 to-[#0a8246]/10 rounded-full blur-3xl will-change-transform"
+          <motion.div 
+            className="floating__element--2 absolute top-40 right-20 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 bg-gradient-to-r from-[#1dff00]/10 to-[#0a8246]/10 rounded-full blur-3xl will-change-transform"
             style={{
-              transform: `translateY(${parallaxMid * 0.8}px) scale(${1 + scrollY * 0.00015}) rotate(${scrollY * 0.05}deg)`,
+              y: useTransform(scrollYProgress, [0, 1], [0, -120]),
             }}
             aria-hidden="true"
           />
-          <div 
-            className="parallax__front floating__element--3 absolute bottom-20 left-1/3 w-40 h-40 sm:w-56 sm:h-56 lg:w-72 lg:h-72 bg-gradient-to-r from-[#1dff00]/15 to-[#0a8246]/15 rounded-full blur-3xl will-change-transform"
+          <motion.div 
+            className="floating__element--3 absolute bottom-20 left-1/3 w-40 h-40 sm:w-56 sm:h-56 lg:w-72 lg:h-72 bg-gradient-to-r from-[#1dff00]/15 to-[#0a8246]/15 rounded-full blur-3xl will-change-transform"
             style={{
-              transform: `translateY(${parallaxFront}px) scale(${1 + scrollY * 0.0002}) rotate(${-scrollY * 0.03}deg)`,
+              y: smoothParallaxFront,
             }}
             aria-hidden="true"
           />
@@ -705,10 +669,10 @@ export const LandingPage = (): JSX.Element => {
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             {/* Hero Content */}
-            <div 
+            <motion.div 
               className="text-center lg:text-left"
               style={{
-                transform: `translateY(${contentOffset}px)`,
+                y: smoothContentOffset,
               }}
             >
               <div className="hero__title mb-6 sm:mb-8">
@@ -766,7 +730,7 @@ export const LandingPage = (): JSX.Element => {
                   <span>No manual work required</span>
                 </div>
               </div>
-            </div>
+            </motion.div>
             
             {/* Hero Dashboard */}
             <div className="hero__dashboard relative">
