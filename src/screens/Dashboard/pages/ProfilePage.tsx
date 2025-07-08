@@ -33,7 +33,7 @@ interface Skill {
   category: string;
 }
 
-export const ProfilePage = (): JSX.Element => {
+const ProfilePage = (): JSX.Element => {
   const [activeTab] = useState("overview");
   const [isEditing, setIsEditing] = useState(false);
 
@@ -476,3 +476,5 @@ export const ProfilePage = (): JSX.Element => {
     </div>
   );
 };
+
+export default ProfilePage;
