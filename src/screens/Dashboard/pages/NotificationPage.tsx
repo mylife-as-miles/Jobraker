@@ -196,7 +196,7 @@ export const NotificationPage = (): JSX.Element => {
                   onClick={() => setSelectedNotification(notification.id)}
                   className={`p-4 sm:p-5 border-b border-[#ffffff0d] cursor-pointer transition-all duration-300 border-l-4 ${getPriorityColor(notification.priority)} ${
                     selectedNotification === notification.id
-                      ? "bg-[#1dff0015] border-r-2 border-r-[#1dff00]"
+                      ? "bg-white/15 border-r-2 border-r-white"
                       : "hover:bg-[#ffffff0a]"
                   }`}
                   initial={{ opacity: 0, y: 20 }}

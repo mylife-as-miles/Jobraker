@@ -285,7 +285,7 @@ export const JobPage = (): JSX.Element => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-1">
                           <DollarSign className="w-4 h-4 text-[#1dff00]" />
-                          <span className="text-sm sm:text-base text-[#1dff00] font-semibold">{job.salary}</span>
+                          <span className="text-sm sm:text-base text-white font-semibold">{job.salary}</span>
                         </div>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getMatchScoreColor(job.matchScore)}`}>
                           {job.matchScore}% match
@@ -368,7 +368,7 @@ export const JobPage = (): JSX.Element => {
                           <div className="flex items-center space-x-4">
                             <div className="flex items-center space-x-1">
                               <DollarSign className="w-5 h-5 text-[#1dff00]" />
-                              <span className="text-xl font-bold text-[#1dff00]">{job.salary}</span>
+                              <span className="text-xl font-bold text-white">{job.salary}</span>
                             </div>
                             <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getMatchScoreColor(job.matchScore)}`}>
                               {job.matchScore}% match
@@ -397,7 +397,7 @@ export const JobPage = (): JSX.Element => {
                         {/* Description */}
                         <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg transition-all duration-300">
                           <h3 className="text-lg font-bold text-white mb-3 flex items-center">
-                            <Building2 className="w-5 h-5 mr-2 text-[#1dff00]" />
+                            <Building2 className="w-5 h-5 mr-2 text-white" />
                             Job Description
                           </h3>
                           <p className="text-[#ffffff80] leading-relaxed">{job.description}</p>
@@ -406,7 +406,7 @@ export const JobPage = (): JSX.Element => {
                         {/* Requirements */}
                         <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg transition-all duration-300">
                           <h3 className="text-lg font-bold text-white mb-3 flex items-center">
-                            <Star className="w-5 h-5 mr-2 text-[#1dff00]" />
+                            <Star className="w-5 h-5 mr-2 text-white" />
                             Requirements
                           </h3>
                           <ul className="space-y-2">
@@ -428,7 +428,7 @@ export const JobPage = (): JSX.Element => {
                         {/* Benefits */}
                         <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg transition-all duration-300">
                           <h3 className="text-lg font-bold text-white mb-3 flex items-center">
-                            <Users className="w-5 h-5 mr-2 text-[#1dff00]" />
+                            <Users className="w-5 h-5 mr-2 text-white" />
                             Benefits
                           </h3>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
