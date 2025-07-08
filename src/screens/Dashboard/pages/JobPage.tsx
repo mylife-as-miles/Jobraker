@@ -161,7 +161,7 @@ export const JobPage = (): JSX.Element => {
                 placeholder="Search jobs, companies..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+                className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-none hover:border-[#ffffff4d] transition-all duration-300"
               />
             </div>
             
@@ -172,7 +172,7 @@ export const JobPage = (): JSX.Element => {
                 placeholder="Location..."
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
-                className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+                className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-none hover:border-[#ffffff4d] transition-all duration-300"
               />
             </div>
             
