@@ -320,7 +320,7 @@ export const JobrackerSignup = (): JSX.Element => {
                             type="button"
                             variant="link"
                             onClick={() => setShowForgotPassword(true)}
-                            className="text-[#1dff00] p-0 h-auto font-medium hover:text-[#1dff00]/80 transition-colors duration-200 text-xs sm:text-sm"
+                            className="text-white p-0 h-auto font-medium hover:text-white/80 transition-colors duration-200 text-xs sm:text-sm"
                           >
                             Forgot password?
                           </Button>
@@ -366,7 +366,7 @@ export const JobrackerSignup = (): JSX.Element => {
                           type="button"
                           variant="link"
                           onClick={() => setShowForgotPassword(false)}
-                          className="text-[#ffffff80] p-0 h-auto font-medium hover:text-white transition-colors duration-200 text-xs sm:text-sm"
+                          className="text-white p-0 h-auto font-medium hover:text-white/80 transition-colors duration-200 text-xs sm:text-sm"
                         >
                           ← Back to sign in
                         </Button>
@@ -388,7 +388,7 @@ export const JobrackerSignup = (): JSX.Element => {
                           type="button"
                           variant="link"
                           onClick={() => setIsSignUp(!isSignUp)}
-                          className="text-[#1dff00] p-0 h-auto font-medium hover:text-[#1dff00]/80 transition-colors duration-200 text-xs sm:text-sm"
+                          className="text-white p-0 h-auto font-medium hover:text-white/80 transition-colors duration-200 text-xs sm:text-sm"
                         >
                           {isSignUp ? "Sign in here" : "Create account"}
                         </Button>
