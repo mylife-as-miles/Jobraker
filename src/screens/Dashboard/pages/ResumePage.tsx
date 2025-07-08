@@ -58,7 +58,7 @@ export const ResumePage = (): JSX.Element => {
         <div className="mb-6 sm:mb-8 lg:mb-10">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
             <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1dff00] mb-2">Resume Builder</h1>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Resume Builder</h1>
               <p className="text-[#888888] text-sm sm:text-base lg:text-lg max-w-2xl leading-relaxed">
                 Upload your resume to get a tailored resume that increases your chances of getting hired
               </p>
@@ -158,13 +158,13 @@ export const ResumePage = (): JSX.Element => {
                   {/* Resume Info */}
                   <div className="space-y-3 sm:space-y-4 flex-grow">
                     <div>
-                      <h3 className="text-[#1dff00] font-semibold text-sm sm:text-base lg:text-lg mb-1 truncate">{resume.name}</h3>
+                      <h3 className="text-white font-semibold text-sm sm:text-base lg:text-lg mb-1 truncate">{resume.name}</h3>
                       <p className="text-[#888888] text-xs sm:text-sm">{resume.template}</p>
                     </div>
                     
                     <div className="flex items-center justify-between text-xs sm:text-sm">
                       <span className="text-[#666666]">Modified {resume.lastModified}</span>
-                      <span className="text-[#1dff00] font-medium">{resume.applications} apps</span>
+                      <span className="text-white font-medium">{resume.applications} apps</span>
                     </div>
                   </div>
 
@@ -250,7 +250,7 @@ export const ResumePage = (): JSX.Element => {
                     <Edit className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-[#1dff00]" />
                   </motion.div>
                   <div>
-                    <h3 className="text-[#1dff00] font-semibold text-base sm:text-lg lg:text-xl mb-2">Create New Resume</h3>
+                    <h3 className="text-white font-semibold text-base sm:text-lg lg:text-xl mb-2">Create New Resume</h3>
                     <p className="text-[#888888] text-xs sm:text-sm lg:text-base max-w-xs">
                       Start from scratch with our professional templates
                     </p>
@@ -268,7 +268,7 @@ export const ResumePage = (): JSX.Element => {
 
         {/* Templates Section */}
         <div className="mt-12 sm:mt-16 lg:mt-20">
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#1dff00] mb-6 sm:mb-8">Popular Templates</h2>
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-6 sm:mb-8">Popular Templates</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-6">
             {["Modern", "Classic", "Creative", "Minimal", "Professional", "Executive"].map((template, index) => (
               <motion.div
@@ -285,6 +285,7 @@ export const ResumePage = (): JSX.Element => {
                       <span className="text-[#666666] text-xs sm:text-sm">{template}</span>
                     </div>
                     <h4 className="text-[#1dff00] font-medium text-xs sm:text-sm text-center">{template}</h4>
+                    <h4 className="text-white font-medium text-xs sm:text-sm text-center">{template}</h4>
                   </CardContent>
                 </Card>
               </motion.div>

@@ -292,7 +292,7 @@ export const ProfilePage = (): JSX.Element => {
               <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white flex items-center">
-                    <Briefcase className="w-5 h-5 mr-2 text-[#1dff00]" />
+                    <Briefcase className="w-5 h-5 mr-2 text-white" />
                     Experience
                   </h3>
                   <Button 
@@ -317,7 +317,7 @@ export const ProfilePage = (): JSX.Element => {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h4 className="text-white font-semibold">{exp.title}</h4>
-                          <p className="text-[#1dff00] font-medium">{exp.company}</p>
+                          <p className="text-white font-medium">{exp.company}</p>
                           <p className="text-[#ffffff60] text-sm flex items-center">
                             <MapPin className="w-3 h-3 mr-1" />
                             {exp.location}
@@ -362,7 +362,7 @@ export const ProfilePage = (): JSX.Element => {
               <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white flex items-center">
-                    <GraduationCap className="w-5 h-5 mr-2 text-[#1dff00]" />
+                    <GraduationCap className="w-5 h-5 mr-2 text-white" />
                     Education
                   </h3>
                   <Button 
@@ -387,7 +387,7 @@ export const ProfilePage = (): JSX.Element => {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h4 className="text-white font-semibold">{edu.degree}</h4>
-                          <p className="text-[#1dff00] font-medium">{edu.school}</p>
+                          <p className="text-white font-medium">{edu.school}</p>
                           <p className="text-[#ffffff60] text-sm flex items-center">
                             <MapPin className="w-3 h-3 mr-1" />
                             {edu.location}
@@ -434,7 +434,7 @@ export const ProfilePage = (): JSX.Element => {
               <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white flex items-center">
-                    <Award className="w-5 h-5 mr-2 text-[#1dff00]" />
+                    <Award className="w-5 h-5 mr-2 text-white" />
                     Skills
                   </h3>
                   <Button 
