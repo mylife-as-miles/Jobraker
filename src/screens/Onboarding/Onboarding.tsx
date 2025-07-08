@@ -272,7 +272,7 @@ export const Onboarding = (): JSX.Element => {
                 
                 <Button 
                   onClick={nextStep}
-                  className="w-full sm:w-auto bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-white hover:shadow-lg transition-all h-10 sm:h-12 text-sm sm:text-base font-medium order-1 sm:order-2"
+                  className="w-full sm:w-auto bg-gradient-to-r from-white to-[#f0f0f0] text-black hover:shadow-lg transition-all h-10 sm:h-12 text-sm sm:text-base font-medium order-1 sm:order-2"
                 >
                   {currentStep === steps.length - 1 ? "Get Started" : "Next"}
                   <ChevronRight className="ml-1 sm:ml-2 w-4 h-4 sm:w-5 sm:h-5" />
@@ -282,7 +282,7 @@ export const Onboarding = (): JSX.Element => {
               {/* Progress bar */}
               <div className="w-full bg-[#ffffff20] rounded-full h-2 sm:h-3 mt-4 sm:mt-6 overflow-hidden">
                 <motion.div
-                  className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] h-full rounded-full"
+                  className="bg-gradient-to-r from-white to-[#f0f0f0] h-full rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
                   transition={{ duration: 0.5, ease: "easeInOut" }}
@@ -295,7 +295,7 @@ export const Onboarding = (): JSX.Element => {
                   <div
                     key={index}
                     className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all duration-300 ${
-                      index <= currentStep ? "bg-[#1dff00]" : "bg-[#ffffff30]"
+                      index <= currentStep ? "bg-white" : "bg-[#ffffff30]"
                     }`}
                   />
                 ))}
