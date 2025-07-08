@@ -161,7 +161,7 @@ export const SettingsPage = (): JSX.Element => {
                     onClick={() => handleNotificationChange(setting.key, !notifications[setting.key as keyof typeof notifications])}
                     className={`transition-all duration-300 hover:scale-105 ${
                       notifications[setting.key as keyof typeof notifications]
-                        ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+                        ? "bg-white text-black hover:bg-white/90"
                         : "bg-[#ffffff33] text-white hover:bg-[#ffffff4d]"
                     }`}
                   >

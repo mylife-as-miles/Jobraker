@@ -144,6 +144,7 @@ export const Dashboard = (): JSX.Element => {
                 <span className="text-black font-bold text-xs sm:text-sm lg:text-base">JR</span>
               </div>
               <span className="text-[#1dff00] font-semibold text-sm sm:text-lg lg:text-xl">JobRaker</span>
+              <span className="text-white font-semibold text-sm sm:text-lg lg:text-xl">JobRaker</span>
             </div>
             <Button
               variant="ghost"
@@ -169,8 +170,8 @@ export const Dashboard = (): JSX.Element => {
                 }}
                 className={`w-full justify-start transition-all duration-300 text-xs sm:text-sm lg:text-base p-2 sm:p-3 lg:p-4 h-auto hover:scale-105 hover:translate-x-2 ${
                   currentPage === item.id
-                    ? "text-black bg-[#1dff00] border-r-2 border-[#0a8246] shadow-lg"
-                    : "text-[#888888] hover:text-[#1dff00] hover:bg-[#1dff00]/10"
+                    ? "text-black bg-white border-r-2 border-[#f0f0f0] shadow-lg"
+                    : "text-[#888888] hover:text-white hover:bg-white/10"
                 }`}
               >
                 {item.icon}
@@ -186,13 +187,13 @@ export const Dashboard = (): JSX.Element => {
             <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="text-center">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-black/20 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3 hover:scale-110 transition-transform duration-300">
-                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-black" />
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
                 </div>
                 <h3 className="text-black font-bold text-sm sm:text-base lg:text-lg mb-1 sm:mb-2">Go Premium</h3>
                 <p className="text-black/80 text-xs sm:text-sm mb-3 sm:mb-4">Get incredible benefits that put you ahead</p>
                 <Button 
                   size="sm" 
-                  className="bg-black text-[#1dff00] hover:bg-black/90 hover:scale-105 transition-all duration-300 text-xs sm:text-sm w-full"
+                  className="bg-black text-white hover:bg-black/90 hover:scale-105 transition-all duration-300 text-xs sm:text-sm w-full"
                 >
                   <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                   Upgrade
@@ -224,7 +225,7 @@ export const Dashboard = (): JSX.Element => {
                 {getCurrentBreadcrumb().split(' / ').map((crumb, index, array) => (
                   <React.Fragment key={index}>
                     {index > 0 && <BreadcrumbChevron className="w-3 h-3 sm:w-4 sm:h-4 text-[#444444] flex-shrink-0" />}
-                    <span className={`${index === array.length - 1 ? "text-[#1dff00] font-medium" : "text-[#666666]"} truncate`}>
+                    <span className={`${index === array.length - 1 ? "text-white font-medium" : "text-[#666666]"} truncate`}>
                       {crumb}
                     </span>
                   </React.Fragment>
@@ -238,7 +239,7 @@ export const Dashboard = (): JSX.Element => {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="text-[#888888] hover:text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 transition-all duration-300 hidden sm:flex p-1 sm:p-2"
+                className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 hidden sm:flex p-1 sm:p-2"
                 onClick={() => setCurrentPage("settings")}
               >
                 <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -247,7 +248,7 @@ export const Dashboard = (): JSX.Element => {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="text-[#888888] hover:text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 transition-all duration-300 relative p-1 sm:p-2"
+                className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 relative p-1 sm:p-2"
                 onClick={() => setCurrentPage("notifications")}
               >
                 <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -261,14 +262,14 @@ export const Dashboard = (): JSX.Element => {
               <Button
                 variant="ghost"
                 size="sm"
-                className="hidden sm:flex items-center space-x-2 sm:space-x-3 text-[#888888] hover:text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-105 transition-all duration-300 p-1 sm:p-2"
+                className="hidden sm:flex items-center space-x-2 sm:space-x-3 text-[#888888] hover:text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 p-1 sm:p-2"
                 onClick={() => setCurrentPage("profile")}
               >
                 <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full flex items-center justify-center hover:scale-110 transition-transform duration-300">
                   <span className="text-black font-bold text-xs sm:text-sm lg:text-base">U</span>
                 </div>
                 <div className="text-right hidden lg:block">
-                  <p className="text-[#1dff00] font-medium text-xs sm:text-sm">Udochukwu Chimbo</p>
+                  <p className="text-white font-medium text-xs sm:text-sm">Udochukwu Chimbo</p>
                   <p className="text-[#666666] text-xs">chimbouda@gmail.com</p>
                 </div>
               </Button>
@@ -277,7 +278,7 @@ export const Dashboard = (): JSX.Element => {
               <Button
                 variant="ghost"
                 size="sm"
-                className="sm:hidden text-[#888888] hover:text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 transition-all duration-300 p-1"
+                className="sm:hidden text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 p-1"
                 onClick={() => setCurrentPage("profile")}
               >
                 <div className="w-6 h-6 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full flex items-center justify-center">
