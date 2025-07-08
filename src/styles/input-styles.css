@@ -47,9 +47,9 @@
 
 /* Focus state */
 .styled-input:focus {
-  border-color: transparent;
+  border-color: #1dff00;
   background-color: rgba(245, 245, 245, 1);
-  box-shadow: none;
+  box-shadow: 0 0 0 2px rgba(29, 255, 0, 0.2);
 }
 
 /* Error state */
@@ -105,14 +105,15 @@
 }
 
 .styled-input.dark:focus {
-  border-color: transparent;
+  border-color: #1dff00;
   background-color: rgba(255, 255, 255, 0.1);
-  box-shadow: none;
+  box-shadow: 0 0 0 2px rgba(29, 255, 0, 0.3);
 }
 
 /* Accessibility improvements */
 .styled-input:focus-visible {
-  outline: none;
+  outline: 2px solid #1dff00;
+  outline-offset: 2px;
 }
 
 /* High contrast mode */
@@ -123,8 +124,8 @@
   }
   
   .styled-input:focus {
-    border-color: transparent;
-    box-shadow: none;
+    border-color: #1dff00;
+    box-shadow: 0 0 0 3px rgba(29, 255, 0, 0.5);
   }
 }
 

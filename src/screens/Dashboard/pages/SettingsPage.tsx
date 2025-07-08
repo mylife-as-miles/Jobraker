@@ -78,7 +78,7 @@ export const SettingsPage = (): JSX.Element => {
                 <Input
                   value={formData.firstName}
                   onChange={(e) => handleInputChange("firstName", e.target.value)}
-                  className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-none hover:border-[#ffffff4d] transition-all duration-300"
+                  className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
                 />
               </div>
               <div>
@@ -86,7 +86,7 @@ export const SettingsPage = (): JSX.Element => {
                 <Input
                   value={formData.lastName}
                   onChange={(e) => handleInputChange("lastName", e.target.value)}
-                  className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-none hover:border-[#ffffff4d] transition-all duration-300"
+                  className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
                 />
               </div>
               <div>
@@ -95,7 +95,7 @@ export const SettingsPage = (): JSX.Element => {
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
-                  className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-none hover:border-[#ffffff4d] transition-all duration-300"
+                  className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
                 />
               </div>
               <div>
@@ -103,7 +103,7 @@ export const SettingsPage = (): JSX.Element => {
                 <Input
                   value={formData.phone}
                   onChange={(e) => handleInputChange("phone", e.target.value)}
-                  className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-none hover:border-[#ffffff4d] transition-all duration-300"
+                  className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
                 />
               </div>
               <div className="md:col-span-2">
@@ -111,7 +111,7 @@ export const SettingsPage = (): JSX.Element => {
                 <Input
                   value={formData.location}
                   onChange={(e) => handleInputChange("location", e.target.value)}
-                  className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-none hover:border-[#ffffff4d] transition-all duration-300"
+                  className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
                 />
               </div>
             </div>
@@ -187,7 +187,7 @@ export const SettingsPage = (): JSX.Element => {
                         type={showPassword ? "text" : "password"}
                         value={formData.currentPassword}
                         onChange={(e) => handleInputChange("currentPassword", e.target.value)}
-                        className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-none hover:border-[#ffffff4d] pr-10 transition-all duration-300"
+                        className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] pr-10 transition-all duration-300"
                       />
                       <Button
                         type="button"
@@ -206,7 +206,7 @@ export const SettingsPage = (): JSX.Element => {
                       type="password"
                       value={formData.newPassword}
                       onChange={(e) => handleInputChange("newPassword", e.target.value)}
-                      className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-none hover:border-[#ffffff4d] transition-all duration-300"
+                      className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
                     />
                   </div>
                   <div>
@@ -215,7 +215,7 @@ export const SettingsPage = (): JSX.Element => {
                       type="password"
                       value={formData.confirmPassword}
                       onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                      className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-none hover:border-[#ffffff4d] transition-all duration-300"
+                      className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
                     />
                   </div>
                   <Button 

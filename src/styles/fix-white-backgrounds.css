@@ -69,7 +69,8 @@ select.bg-white,
 .bg-white:focus,
 .bg-gray-50:focus,
 .bg-gray-100:focus {
-  outline: none;
+  outline: 2px solid #1dff00;
+  outline-offset: 2px;
   background: rgba(29, 255, 0, 0.1) !important;
 }
 
@@ -147,7 +148,7 @@ select.bg-white,
   .bg-gray-50,
   .bg-gray-100 {
     border-width: 2px !important;
-    border-color: transparent !important;
+    border-color: #1dff00 !important;
   }
 }
 

@@ -218,7 +218,6 @@ export const ApplicationPage = (): JSX.Element => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
-                  className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-none hover:border-[#ffffff4d] transition-all duration-300"
                 />
               </div>
               <Button 

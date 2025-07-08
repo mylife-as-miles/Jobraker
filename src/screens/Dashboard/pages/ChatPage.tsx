@@ -156,7 +156,6 @@ export const ChatPage = (): JSX.Element => {
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
                 className="bg-[#111111] border-[#1dff00]/20 text-white placeholder:text-[#666666] focus:border-[#1dff00] hover:border-[#1dff00]/50 pr-12 sm:pr-14 py-3 sm:py-4 rounded-full text-sm sm:text-base transition-all duration-300"
-                className="bg-[#111111] border-[#1dff00]/20 text-white placeholder:text-[#666666] focus:border-none hover:border-[#1dff00]/50 pr-12 sm:pr-14 py-3 sm:py-4 rounded-full text-sm sm:text-base transition-all duration-300"
               />
               <Button
                 onClick={handleSendMessage}

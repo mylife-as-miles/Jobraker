@@ -108,18 +108,18 @@ export const applyTransparentFixes = (elements: WhiteBackgroundElement[]): void 
         break;
         
       case 'input':
-        element.style.border = 'none';
+        element.style.border = '1px solid rgba(255, 255, 255, 0.3)';
         element.style.color = '#ffffff';
         element.style.transition = 'all 0.3s ease';
         
         // Add focus effect
         element.addEventListener('focus', () => {
-          element.style.borderColor = 'transparent';
-          element.style.boxShadow = 'none';
+          element.style.borderColor = '#1dff00';
+          element.style.boxShadow = '0 0 15px rgba(29, 255, 0, 0.3)';
         });
         
         element.addEventListener('blur', () => {
-          element.style.borderColor = 'transparent';
+          element.style.borderColor = 'rgba(255, 255, 255, 0.3)';
           element.style.boxShadow = 'none';
         });
         break;
