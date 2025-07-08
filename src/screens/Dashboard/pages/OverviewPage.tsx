@@ -75,7 +75,7 @@ export const OverviewPage = (): JSX.Element => {
             >
               <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-2">
-                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-[#1dff00]">Applications</h2>
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Applications</h2>
                   <div className="text-left sm:text-right">
                     <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#1dff00]">0/3</span>
                   </div>
@@ -152,7 +152,7 @@ export const OverviewPage = (): JSX.Element => {
             >
               <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-[#1dff00]">Match Score Average</h2>
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Match Score Average</h2>
                 </div>
 
                 <div className="mb-4 sm:mb-6">
@@ -212,11 +212,11 @@ export const OverviewPage = (): JSX.Element => {
             >
               <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-[#1dff00]">Notification</h2>
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Notification</h2>
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="text-[#1dff00] hover:text-[#1dff00]/80 hover:bg-[#1dff00]/10 hover:scale-105 transition-all duration-300 text-xs sm:text-sm"
+                    className="text-white hover:text-white/80 hover:bg-white/10 hover:scale-105 transition-all duration-300 text-xs sm:text-sm"
                   >
                     See more
                   </Button>
@@ -260,7 +260,7 @@ export const OverviewPage = (): JSX.Element => {
                   >
                     <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
                   </Button>
-                  <h2 className="text-sm sm:text-lg lg:text-xl font-bold text-[#1dff00]">August, 2025</h2>
+                  <h2 className="text-sm sm:text-lg lg:text-xl font-bold text-white">August, 2025</h2>
                   <Button 
                     variant="ghost" 
                     size="sm" 
