@@ -14,6 +14,7 @@
 /* Import targeted white background fixes */
 @import url('./src/styles/fix-white-backgrounds.css');
 @import url('./src/styles/responsive-inputs.css');
+@import url('./src/styles/parallax-optimizations.css');
 
 @layer base {
   :root {
