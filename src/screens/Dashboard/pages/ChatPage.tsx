@@ -51,7 +51,7 @@ export const ChatPage = (): JSX.Element => {
                 <span className="text-black font-bold text-sm sm:text-base">AI</span>
               </div>
               <div>
-                <h2 className="text-[#1dff00] font-semibold text-base sm:text-lg">JobRaker Assistant</h2>
+                <h2 className="text-white font-semibold text-base sm:text-lg">JobRaker Assistant</h2>
                 <p className="text-[#888888] text-xs sm:text-sm">Always here to help</p>
               </div>
             </div>
@@ -76,7 +76,7 @@ export const ChatPage = (): JSX.Element => {
           >
             <div className="max-w-xs sm:max-w-md lg:max-w-lg xl:max-w-xl">
               <motion.div 
-                className="bg-gradient-to-r from-[#111111] to-[#0a0a0a] text-[#1dff00] p-3 sm:p-4 lg:p-5 rounded-2xl border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300"
+                className="bg-gradient-to-r from-[#111111] to-[#0a0a0a] text-white p-3 sm:p-4 lg:p-5 rounded-2xl border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300"
                 whileHover={{ scale: 1.02 }}
               >
                 <p className="text-xs sm:text-sm lg:text-base leading-relaxed">
@@ -155,7 +155,7 @@ export const ChatPage = (): JSX.Element => {
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                className="bg-[#111111] border-[#1dff00]/20 text-[#1dff00] placeholder:text-[#666666] focus:border-[#1dff00] hover:border-[#1dff00]/50 pr-12 sm:pr-14 py-3 sm:py-4 rounded-full text-sm sm:text-base transition-all duration-300"
+                className="bg-[#111111] border-[#1dff00]/20 text-white placeholder:text-[#666666] focus:border-[#1dff00] hover:border-[#1dff00]/50 pr-12 sm:pr-14 py-3 sm:py-4 rounded-full text-sm sm:text-base transition-all duration-300"
               />
               <Button
                 onClick={handleSendMessage}
@@ -182,7 +182,7 @@ export const ChatPage = (): JSX.Element => {
                 key={action}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="px-3 py-1 sm:px-4 sm:py-2 bg-[#111111] text-[#888888] hover:text-[#1dff00] hover:bg-[#1dff00]/10 rounded-full text-xs sm:text-sm border border-[#1dff00]/20 hover:border-[#1dff00]/50 transition-all duration-300"
+                className="px-3 py-1 sm:px-4 sm:py-2 bg-[#111111] text-[#888888] hover:text-white hover:bg-white/10 rounded-full text-xs sm:text-sm border border-[#1dff00]/20 hover:border-[#1dff00]/50 transition-all duration-300"
               >
                 {action}
               </motion.button>
