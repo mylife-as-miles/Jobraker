@@ -62,9 +62,37 @@ export const JobrackerSignup = (): JSX.Element => {
         alert("An error occurred during sign up. Please try again.");
       }
     } else {
-      // Sign in logic will remain the same for now
-      console.log("Sign in completed:", formData);
-      navigate("/dashboard");
+      // Sign in logic
+      try {
+        const response = await fetch(
+          "https://jobraker-backend.onrender.com/api/v1/auth/login/",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: formData.email,
+              password: formData.password,
+            }),
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Sign in successful:", data);
+          localStorage.setItem("accessToken", data.access);
+          localStorage.setItem("refreshToken", data.refresh);
+          navigate("/dashboard");
+        } else {
+          const errorData = await response.json();
+          console.error("Sign in failed:", errorData);
+          alert(`Sign in failed: ${JSON.stringify(errorData)}`);
+        }
+      } catch (error) {
+        console.error("An error occurred during sign in:", error);
+        alert("An error occurred during sign in. Please try again.");
+      }
     }
   };
 
