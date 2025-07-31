@@ -18,17 +18,51 @@ export const JobrackerSignup = (): JSX.Element => {
     confirmPassword: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (showForgotPassword) {
       console.log("Reset password for:", formData.email);
       alert("Password reset link sent to your email!");
       setShowForgotPassword(false);
     } else if (isSignUp) {
-      console.log("Sign up completed:", formData);
-      navigate("/onboarding");
+      if (formData.password !== formData.confirmPassword) {
+        alert("Passwords do not match!");
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          "https://jobraker-backend.onrender.com/api/v1/auth/register/",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: formData.email,
+              password: formData.password,
+              password_confirm: formData.confirmPassword,
+            }),
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Sign up successful:", data);
+          // TODO: Store tokens
+          navigate("/onboarding");
+        } else {
+          const errorData = await response.json();
+          console.error("Sign up failed:", errorData);
+          alert(`Sign up failed: ${JSON.stringify(errorData)}`);
+        }
+      } catch (error) {
+        console.error("An error occurred during sign up:", error);
+        alert("An error occurred during sign up. Please try again.");
+      }
     } else {
+      // Sign in logic will remain the same for now
       console.log("Sign in completed:", formData);
       navigate("/dashboard");
     }
