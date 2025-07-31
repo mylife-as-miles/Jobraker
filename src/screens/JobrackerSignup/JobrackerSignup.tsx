@@ -33,7 +33,7 @@ export const JobrackerSignup = (): JSX.Element => {
 
       try {
         const response = await fetch(
-          "https://jobraker-six.vercel.app/api/v1/auth/register/",
+          "https://jobraker-backend.onrender.com/api/v1/auth/register/",
           {
             method: "POST",
             headers: {
