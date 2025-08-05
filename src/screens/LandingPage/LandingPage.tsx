@@ -634,8 +634,6 @@ export const LandingPage = (): JSX.Element => {
             style={{
               backgroundImage: `url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwxfHxzcGFjZSUyMHRlY2hub2xvZ3l8ZW58MHx8fHx8MTcwNzQ4NzIwMHww&ixlib=rb-4.1.0&q=85')`,
               opacity: 0.1,
-            }}
-            style={{
               y: smoothParallaxBg,
               scale: smoothZoomScale,
             }}
