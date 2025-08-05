@@ -6,6 +6,7 @@ import { JobrackerSignup } from "./screens/JobrackerSignup";
 import { Onboarding } from "./screens/Onboarding";
 import { Analytics } from "./screens/Analytics";
 import { Dashboard } from "./screens/Dashboard";
+import Login from "./screens/Login/Login";
 import { WhiteBackgroundFixer } from "./components/WhiteBackgroundFixer";
 
 function App() {
@@ -20,6 +21,9 @@ function App() {
         
         {/* Step 1: Signup Page */}
         <Route path="/signup" element={<JobrackerSignup />} />
+
+        {/* Login Page */}
+        <Route path="/login" element={<Login />} />
         
         {/* Step 2: Onboarding Page (after signup) */}
         <Route path="/onboarding" element={<Onboarding />} />
