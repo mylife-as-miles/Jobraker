@@ -16,46 +16,20 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(error: Error) {
+  static getDerivedStateFromError(): {hasError: boolean} {
     return { hasError: true };
   }
 
-  componentDidCatch(error: Error, errorInfo: any) {
-    console.error('Application Error:', error, errorInfo);
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Application error:', error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          backgroundColor: '#000',
-          color: '#fff',
-          fontFamily: 'Inter, sans-serif',
-          padding: '20px',
-          textAlign: 'center'
-        }}>
-          <h1 style={{ color: '#1dff00', marginBottom: '20px' }}>JobRaker</h1>
-          <h2>Something went wrong.</h2>
-          <p>Please check the console for more details.</p>
-          <button 
-            onClick={() => window.location.reload()}
-            style={{
-              backgroundColor: '#1dff00',
-              color: '#000',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '5px',
-              marginTop: '20px',
-              cursor: 'pointer'
-            }}
-          >
-            Reload Page
-          </button>
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+          <h1>Something went wrong.</h1>
+          <p>Please refresh the page or contact support.</p>
         </div>
       );
     }
