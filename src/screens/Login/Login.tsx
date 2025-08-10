@@ -1,10 +1,30 @@
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { createClient } from '../../lib/supabaseClient'
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 const supabase = createClient()
 
 const Login = () => {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    let mounted = true
+    supabase.auth.getUser().then(({ data }) => {
+      if (!mounted) return
+      if (data.user) navigate('/dashboard', { replace: true })
+    })
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) navigate('/dashboard', { replace: true })
+    })
+
+    return () => {
+      mounted = false
+      sub.subscription.unsubscribe()
+    }
+  }, [navigate])
   return (
     <div className="min-h-screen w-full bg-black flex items-center justify-center px-4">
       <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg">
