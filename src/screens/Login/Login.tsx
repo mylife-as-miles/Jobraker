@@ -11,13 +11,20 @@ const Login = () => {
 
   useEffect(() => {
     let mounted = true
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (!mounted) return
-      if (data.user) navigate('/dashboard', { replace: true })
+      if (data.user) {
+        // Check onboarding completion
+        const { data: profile } = await supabase.from('profiles').select('id').eq('id', data.user.id).maybeSingle()
+        navigate(profile ? '/dashboard' : '/onboarding', { replace: true })
+      }
     })
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) navigate('/dashboard', { replace: true })
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        const { data: profile } = await supabase.from('profiles').select('id').eq('id', session.user.id).maybeSingle()
+        navigate(profile ? '/dashboard' : '/onboarding', { replace: true })
+      }
     })
 
     return () => {
