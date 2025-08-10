@@ -20,8 +20,9 @@ export const JobrackerSignup = (): JSX.Element => {
     confirmPassword: "",
   });
   const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [verificationPending, setVerificationPending] = useState(false);
 
   // If already authenticated, redirect to dashboard
   useEffect(() => {
@@ -65,8 +66,8 @@ export const JobrackerSignup = (): JSX.Element => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
   setSubmitting(true);
-  setErrorMsg(null);
-  setSuccessMsg(null);
+  setErrorMessage(null);
+  setInfoMessage(null);
 
     try {
       if (showForgotPassword) {
@@ -74,7 +75,7 @@ export const JobrackerSignup = (): JSX.Element => {
           redirectTo: `${window.location.origin}/reset-password`,
         });
         if (error) throw error;
-        setSuccessMsg("Password reset link sent to your email.");
+    setInfoMessage("Password reset link sent. Check your email.");
         setShowForgotPassword(false);
         return;
       }
@@ -96,7 +97,8 @@ export const JobrackerSignup = (): JSX.Element => {
 
         if (data?.user && !data.session) {
           // Email confirmation required
-          setSuccessMsg("Sign up successful. Please check your email to confirm your account.");
+          setVerificationPending(true);
+          setInfoMessage("Sign up successful. Please check your email to confirm your account.");
         } else {
           navigate("/onboarding");
         }
@@ -110,7 +112,26 @@ export const JobrackerSignup = (): JSX.Element => {
       }
     } catch (error: any) {
       console.error("Supabase auth error:", error);
-      setErrorMsg(error?.message || "Authentication failed. Please try again.");
+      setErrorMessage(error?.message || "Authentication failed. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    try {
+      setSubmitting(true);
+      setErrorMessage(null);
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: formData.email,
+        options: { emailRedirectTo: `${window.location.origin}/onboarding` },
+      } as any);
+      if (error) throw error;
+      setInfoMessage('Verification email resent. Please check your inbox.');
+    } catch (err: any) {
+      console.error('Resend verification error:', err);
+      setErrorMessage(err?.message || 'Failed to resend verification email.');
     } finally {
       setSubmitting(false);
     }
@@ -187,6 +208,11 @@ export const JobrackerSignup = (): JSX.Element => {
                 className="flex flex-col items-center justify-center relative space-y-4 sm:space-y-6"
                 variants={itemVariants}
               >
+                {infoMessage || errorMessage ? (
+                  <div className={`w-full rounded-lg border px-4 py-3 text-sm ${errorMessage ? 'border-red-500/40 text-red-300 bg-red-500/10' : 'border-[#1dff00]/40 text-[#caffc2] bg-[#1dff00]/10'}`}>
+                    {errorMessage || infoMessage}
+                  </div>
+                ) : null}
                 {/* Logo and Title - Responsive sizing */}
                 <motion.div
                   className="flex flex-col items-center space-y-2 sm:space-y-3"
@@ -246,7 +272,7 @@ export const JobrackerSignup = (): JSX.Element => {
                 )}
 
                 <AnimatePresence mode="wait">
-                  {!showForgotPassword && (
+                  {!showForgotPassword && !verificationPending && (
                     <motion.div
                       className="flex flex-col items-center relative w-full space-y-3 sm:space-y-4"
                       initial={{ opacity: 0, scale: 0.9 }}
@@ -322,6 +348,7 @@ export const JobrackerSignup = (): JSX.Element => {
                 </AnimatePresence>
 
                 {/* Form - Responsive */}
+                {!verificationPending && (
                 <motion.form
                   onSubmit={handleSubmit}
                   className="flex flex-col items-center relative w-full space-y-3 sm:space-y-4"
@@ -453,6 +480,34 @@ export const JobrackerSignup = (): JSX.Element => {
                     </Button>
                   </motion.div>
                 </motion.form>
+                )}
+
+                {verificationPending && (
+                  <div className="w-full space-y-4">
+                    <p className="text-white/80 text-sm sm:text-base">
+                      We sent a verification link to <span className="text-white font-medium">{formData.email}</span>.
+                      Didn’t get it?
+                    </p>
+                    <div className="flex gap-3">
+                      <Button
+                        type="button"
+                        onClick={handleResendVerification}
+                        disabled={submitting}
+                        className="shadow-[0px_3px_14px_#00000040] bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] text-white font-bold rounded-xl disabled:opacity-60"
+                      >
+                        Resend verification email
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="link"
+                        onClick={() => { setVerificationPending(false); setInfoMessage(null); }}
+                        className="text-[#1dff00] p-0 h-auto font-medium hover:text-[#1dff00]/80"
+                      >
+                        Change email
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Bottom Links - Responsive */}
                 <motion.div
