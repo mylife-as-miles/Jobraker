@@ -82,7 +82,7 @@ export const JobrackerSignup = (): JSX.Element => {
 
       if (isSignUp) {
         if (formData.password !== formData.confirmPassword) {
-          setErrorMsg("Passwords do not match.");
+          setErrorMessage("Passwords do not match.");
           return;
         }
 
@@ -256,20 +256,11 @@ export const JobrackerSignup = (): JSX.Element => {
                 </motion.div>
 
                 {/* Inline messages */}
-                {(errorMsg || successMsg) && (
-                  <div className="w-full">
-                    {errorMsg && (
-                      <div className="w-full text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-2">
-                        {errorMsg}
-                      </div>
-                    )}
-                    {successMsg && (
-                      <div className="w-full text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2 mb-2">
-                        {successMsg}
-                      </div>
-                    )}
+                {infoMessage || errorMessage ? (
+                  <div className={`w-full rounded-lg border px-4 py-3 text-sm mb-2 ${errorMessage ? 'border-red-500/40 text-red-300 bg-red-500/10' : 'border-[#1dff00]/40 text-[#caffc2] bg-[#1dff00]/10'}`}>
+                    {errorMessage || infoMessage}
                   </div>
-                )}
+                ) : null}
 
                 <AnimatePresence mode="wait">
                   {!showForgotPassword && !verificationPending && (
