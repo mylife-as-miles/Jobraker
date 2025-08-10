@@ -14,6 +14,8 @@ const PasswordReset = () => {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -36,22 +38,24 @@ const PasswordReset = () => {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (password.length < 8) {
-      alert('Password must be at least 8 characters')
+      setErrorMsg('Password must be at least 8 characters')
       return
     }
     if (password !== confirm) {
-      alert('Passwords do not match')
+      setErrorMsg('Passwords do not match')
       return
     }
     try {
       setSubmitting(true)
+      setErrorMsg(null)
+      setSuccessMsg(null)
       const { error } = await supabase.auth.updateUser({ password })
       if (error) throw error
-      alert('Password updated. You are now signed in.')
-      navigate('/dashboard')
+      setSuccessMsg('Password updated. Redirecting…')
+      setTimeout(() => navigate('/dashboard'), 800)
     } catch (err: any) {
       console.error('Password update error:', err)
-      alert(err?.message || 'Failed to update password')
+      setErrorMsg(err?.message || 'Failed to update password')
     } finally {
       setSubmitting(false)
     }
@@ -69,6 +73,16 @@ const PasswordReset = () => {
               ) : hasSession ? (
                 <form onSubmit={handleUpdate} className="space-y-4">
                   <h2 className="text-white font-bold text-lg sm:text-xl">Set a new password</h2>
+                  {(errorMsg || successMsg) && (
+                    <div>
+                      {errorMsg && (
+                        <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-2">{errorMsg}</div>
+                      )}
+                      {successMsg && (
+                        <div className="text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2 mb-2">{successMsg}</div>
+                      )}
+                    </div>
+                  )}
                   <div className="space-y-3">
                     <div className="border border-white/20 rounded-xl px-4 py-3">
                       <Input

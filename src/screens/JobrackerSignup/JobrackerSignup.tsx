@@ -1,5 +1,5 @@
 import { LockKeyholeIcon, MailIcon, Eye, EyeOff, ArrowRight, Sparkles } from "lucide-react";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
@@ -20,6 +20,26 @@ export const JobrackerSignup = (): JSX.Element => {
     confirmPassword: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // If already authenticated, redirect to dashboard
+  useEffect(() => {
+    let mounted = true;
+    supabase.auth.getUser().then(({ data }) => {
+      if (!mounted) return;
+      if (data.user) navigate('/dashboard', { replace: true });
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+      if (session?.user) navigate('/dashboard', { replace: true });
+    });
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [navigate, supabase]);
 
   const handleOAuth = useCallback(
     async (provider: "google" | "linkedin_oidc") => {
@@ -44,7 +64,9 @@ export const JobrackerSignup = (): JSX.Element => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
+  setSubmitting(true);
+  setErrorMsg(null);
+  setSuccessMsg(null);
 
     try {
       if (showForgotPassword) {
@@ -52,14 +74,14 @@ export const JobrackerSignup = (): JSX.Element => {
           redirectTo: `${window.location.origin}/reset-password`,
         });
         if (error) throw error;
-        alert("Password reset link sent to your email.");
+        setSuccessMsg("Password reset link sent to your email.");
         setShowForgotPassword(false);
         return;
       }
 
       if (isSignUp) {
         if (formData.password !== formData.confirmPassword) {
-          alert("Passwords do not match!");
+          setErrorMsg("Passwords do not match.");
           return;
         }
 
@@ -74,7 +96,7 @@ export const JobrackerSignup = (): JSX.Element => {
 
         if (data?.user && !data.session) {
           // Email confirmation required
-          alert("Sign up successful. Please check your email to confirm your account.");
+          setSuccessMsg("Sign up successful. Please check your email to confirm your account.");
         } else {
           navigate("/onboarding");
         }
@@ -88,7 +110,7 @@ export const JobrackerSignup = (): JSX.Element => {
       }
     } catch (error: any) {
       console.error("Supabase auth error:", error);
-      alert(error?.message || "Authentication failed. Please try again.");
+      setErrorMsg(error?.message || "Authentication failed. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -206,6 +228,22 @@ export const JobrackerSignup = (): JSX.Element => {
                       : "Sign in to continue your journey"}
                   </motion.p>
                 </motion.div>
+
+                {/* Inline messages */}
+                {(errorMsg || successMsg) && (
+                  <div className="w-full">
+                    {errorMsg && (
+                      <div className="w-full text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-2">
+                        {errorMsg}
+                      </div>
+                    )}
+                    {successMsg && (
+                      <div className="w-full text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2 mb-2">
+                        {successMsg}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <AnimatePresence mode="wait">
                   {!showForgotPassword && (
