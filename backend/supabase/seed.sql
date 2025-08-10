@@ -1,0 +1,3 @@
+-- Seed data for local development (safe to leave empty)
+-- INSERT INTO public.profiles (id, first_name, last_name, job_title) VALUES
+--   ('00000000-0000-0000-0000-000000000001', 'Test', 'User', 'Developer');

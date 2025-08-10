@@ -227,26 +227,31 @@ VITE_ENABLE_REAL_TIME=true
    ```
 
 3. **Set up Database Schema**:
-   ```sql
-   -- Create user profiles table
-   CREATE TABLE profiles (
-     id UUID REFERENCES auth.users(id) PRIMARY KEY,
-     email TEXT UNIQUE NOT NULL,
-     first_name TEXT,
-     last_name TEXT,
-     avatar_url TEXT,
-     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-   );
-   
-   -- Enable Row Level Security
-   ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-   
-   -- Create policies
-   CREATE POLICY "Users can view own profile" 
-     ON profiles FOR SELECT 
-     USING (auth.uid() = id);
-   ```
+  Schema and migrations are generated directly via the Supabase CLI.
+
+  - Author your schema in `backend/supabase/schema.sql`, or create tables in the local DB and diff.
+  - Use these scripts from the repo root:
+
+  ```bash
+  # start local stack
+  npm run supabase:start
+
+  # reset local db (drops & re-applies migrations + seed)
+  npm run supabase:reset
+
+  # generate a migration from current DB state vs schema paths (adds a timestamped file under migrations/)
+  npm run supabase:diff
+
+  # dump the public schema into schema.sql (single source of truth for config.toml)
+  npm run supabase:schema:dump
+
+  # one-shot: generate migration (if any) and dump schema
+  npm run supabase:schema:sync
+  ```
+
+  Notes:
+  - The CLI is configured to read `schema_paths = ["./schema.sql"]` in `backend/supabase/config.toml`.
+  - The seed file is at `backend/supabase/seed.sql` and runs on `db reset`.
 
 ### Tailwind CSS Configuration
 

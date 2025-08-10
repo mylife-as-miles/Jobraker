@@ -11,6 +11,7 @@ import { createClient } from "../../lib/supabaseClient";
 export const JobrackerSignup = (): JSX.Element => {
   const navigate = useNavigate();
   const supabase = useMemo(() => createClient(), []);
+  const siteUrl = (import.meta.env.VITE_SITE_URL as string) || window.location.origin;
   const [isSignUp, setIsSignUp] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -46,10 +47,10 @@ export const JobrackerSignup = (): JSX.Element => {
     async (provider: "google" | "linkedin_oidc") => {
       try {
         setSubmitting(true);
-        const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
           provider,
           options: {
-            redirectTo: `${window.location.origin}/dashboard`,
+      redirectTo: `${siteUrl}/dashboard`,
           },
         });
         if (error) throw error;
@@ -72,7 +73,7 @@ export const JobrackerSignup = (): JSX.Element => {
     try {
       if (showForgotPassword) {
         const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
-          redirectTo: `${window.location.origin}/reset-password`,
+          redirectTo: `${siteUrl}/reset-password`,
         });
         if (error) throw error;
     setInfoMessage("Password reset link sent. Check your email.");
@@ -90,7 +91,7 @@ export const JobrackerSignup = (): JSX.Element => {
           email: formData.email,
           password: formData.password,
           options: {
-      emailRedirectTo: `${window.location.origin}/login`,
+      emailRedirectTo: `${siteUrl}`,
           },
         });
         if (error) throw error;

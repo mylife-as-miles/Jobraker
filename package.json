@@ -6,7 +6,14 @@
   "description": "A job app",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+  "build": "vite build",
+  "supabase:start": "cd backend/supabase && npx supabase start",
+  "supabase:stop": "cd backend/supabase && npx supabase stop",
+  "supabase:status": "cd backend/supabase && npx supabase status",
+  "supabase:reset": "cd backend/supabase && npx supabase db reset --local --yes",
+  "supabase:diff": "bash -lc 'cd backend/supabase && npx supabase db diff -f $(date +%Y%m%d%H%M%S) --local'",
+  "supabase:schema:dump": "cd backend && npx supabase db dump --local --schema public --file ./supabase/schema.sql",
+  "supabase:schema:sync": "bash backend/supabase/scripts/sync-schema.sh"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.0.0",
