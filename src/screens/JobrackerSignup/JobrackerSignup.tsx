@@ -1,14 +1,16 @@
 import { LockKeyholeIcon, MailIcon, Eye, EyeOff, ArrowRight, Sparkles } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Separator } from "../../components/ui/separator";
 import { motion, AnimatePresence } from "framer-motion";
+import { createClient } from "../../lib/supabaseClient";
 
 export const JobrackerSignup = (): JSX.Element => {
   const navigate = useNavigate();
+  const supabase = useMemo(() => createClient(), []);
   const [isSignUp, setIsSignUp] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -17,82 +19,78 @@ export const JobrackerSignup = (): JSX.Element => {
     password: "",
     confirmPassword: "",
   });
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleOAuth = useCallback(
+    async (provider: "google" | "linkedin_oidc") => {
+      try {
+        setSubmitting(true);
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: {
+            redirectTo: `${window.location.origin}/dashboard`,
+          },
+        });
+        if (error) throw error;
+      } catch (err: any) {
+        console.error(`${provider} OAuth error:`, err);
+        alert(err?.message || `Failed to sign in with ${provider}`);
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [supabase]
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
 
-    if (showForgotPassword) {
-      console.log("Reset password for:", formData.email);
-      alert("Password reset link sent to your email!");
-      setShowForgotPassword(false);
-    } else if (isSignUp) {
-      if (formData.password !== formData.confirmPassword) {
-        alert("Passwords do not match!");
+    try {
+      if (showForgotPassword) {
+        const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+        alert("Password reset link sent to your email.");
+        setShowForgotPassword(false);
         return;
       }
 
-      try {
-        const response = await fetch(
-          "https://jobraker-backend.onrender.com/api/v1/auth/register/",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              email: formData.email,
-              password: formData.password,
-              password_confirm: formData.confirmPassword,
-            }),
-          }
-        );
+      if (isSignUp) {
+        if (formData.password !== formData.confirmPassword) {
+          alert("Passwords do not match!");
+          return;
+        }
 
-        if (response.ok) {
-          const data = await response.json();
-          console.log("Sign up successful:", data);
-          // TODO: Store tokens
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/onboarding`,
+          },
+        });
+        if (error) throw error;
+
+        if (data?.user && !data.session) {
+          // Email confirmation required
+          alert("Sign up successful. Please check your email to confirm your account.");
+        } else {
           navigate("/onboarding");
-        } else {
-          const errorData = await response.json();
-          console.error("Sign up failed:", errorData);
-          alert(`Sign up failed: ${JSON.stringify(errorData)}`);
         }
-      } catch (error) {
-        console.error("An error occurred during sign up:", error);
-        alert("An error occurred during sign up. Please try again.");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+        if (error) throw error;
+        navigate("/dashboard");
       }
-    } else {
-      // Sign in logic
-      try {
-        const response = await fetch(
-          "https://jobraker-backend.onrender.com/api/v1/auth/login/",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              email: formData.email,
-              password: formData.password,
-            }),
-          }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log("Sign in successful:", data);
-          localStorage.setItem("accessToken", data.access);
-          localStorage.setItem("refreshToken", data.refresh);
-          navigate("/dashboard");
-        } else {
-          const errorData = await response.json();
-          console.error("Sign in failed:", errorData);
-          alert(`Sign in failed: ${JSON.stringify(errorData)}`);
-        }
-      } catch (error) {
-        console.error("An error occurred during sign in:", error);
-        alert("An error occurred during sign in. Please try again.");
-      }
+    } catch (error: any) {
+      console.error("Supabase auth error:", error);
+      alert(error?.message || "Authentication failed. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -231,6 +229,9 @@ export const JobrackerSignup = (): JSX.Element => {
                           <Button
                             variant="ghost"
                             className="flex w-full items-center justify-center relative bg-[#ffffff26] shadow-[0px_3px_14px_#0000001a] hover:bg-[#ffffff33] border border-[#ffffff15] backdrop-blur-sm transition-all duration-300 h-10 sm:h-12 lg:h-14 text-xs sm:text-sm lg:text-base rounded-lg sm:rounded-xl"
+                            type="button"
+                            disabled={submitting}
+                            onClick={() => handleOAuth("google")}
                           >
                             <img
                               className="relative w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6"
@@ -251,6 +252,9 @@ export const JobrackerSignup = (): JSX.Element => {
                           <Button
                             variant="ghost"
                             className="flex w-full items-center justify-center relative bg-[#ffffff26] shadow-[0px_3px_14px_#0000001a] hover:bg-[#ffffff33] border border-[#ffffff15] backdrop-blur-sm transition-all duration-300 h-10 sm:h-12 lg:h-14 text-xs sm:text-sm lg:text-base rounded-lg sm:rounded-xl"
+                            type="button"
+                            disabled={submitting}
+                            onClick={() => handleOAuth("linkedin_oidc")}
                           >
                             <img
                               className="relative w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6"
@@ -399,7 +403,8 @@ export const JobrackerSignup = (): JSX.Element => {
                   >
                     <Button
                       type="submit"
-                      className="w-full flex items-center justify-center relative shadow-[0px_3px_14px_#00000040] bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] font-bold text-white hover:shadow-[0px_4px_22px_#00000060] transition-all duration-300 h-10 sm:h-12 lg:h-14 text-xs sm:text-sm lg:text-base rounded-lg sm:rounded-xl"
+                      className="w-full flex items-center justify-center relative shadow-[0px_3px_14px_#00000040] bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] font-bold text-white hover:shadow-[0px_4px_22px_#00000060] transition-all duration-300 h-10 sm:h-12 lg:h-14 text-xs sm:text-sm lg:text-base rounded-lg sm:rounded-xl disabled:opacity-60"
+                    disabled={submitting}
                     >
                       {showForgotPassword
                         ? "Send Reset Link"
