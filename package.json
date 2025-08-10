@@ -13,7 +13,12 @@
   "supabase:reset": "cd backend/supabase && npx supabase db reset --local --yes",
   "supabase:diff": "bash -lc 'cd backend/supabase && npx supabase db diff -f $(date +%Y%m%d%H%M%S) --local'",
   "supabase:schema:dump": "cd backend && npx supabase db dump --local --schema public --file ./supabase/schema.sql",
-  "supabase:schema:sync": "bash backend/supabase/scripts/sync-schema.sh"
+  "supabase:schema:sync": "bash backend/supabase/scripts/sync-schema.sh",
+  "supabase:login": "npx supabase login",
+  "supabase:link": "cd backend/supabase && npx supabase link --project-ref $SUPABASE_PROJECT_REF --password $SUPABASE_DB_PASSWORD --yes",
+  "supabase:push": "cd backend/supabase && npx supabase db push --linked --include-all --yes -p $SUPABASE_DB_PASSWORD",
+  "supabase:push:dry": "cd backend/supabase && npx supabase db push --linked --dry-run",
+  "supabase:push:dburl": "cd backend/supabase && npx supabase db push --db-url $SUPABASE_DB_URL --include-all --yes"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.0.0",
