@@ -191,6 +191,7 @@ Create a `.env.local` file in the root directory with the following variables:
 # Supabase Configuration
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_SITE_URL=https://jobraker-six.vercel.app
 
 # Backend API Configuration
 VITE_API_BASE_URL=https://jobraker-backend.onrender.com/api/v1
@@ -249,9 +250,13 @@ VITE_ENABLE_REAL_TIME=true
   npm run supabase:schema:sync
   ```
 
-  Notes:
+   Notes:
   - The CLI is configured to read `schema_paths = ["./schema.sql"]` in `backend/supabase/config.toml`.
   - The seed file is at `backend/supabase/seed.sql` and runs on `db reset`.
+   - Auth redirects and email template (confirmation) are configured for local dev in `backend/supabase/config.toml`:
+     - `site_url` and `additional_redirect_urls` include `https://jobraker-six.vercel.app`
+     - Custom confirmation email template at `backend/supabase/templates/confirm.html`
+   - In production, set these in Supabase Dashboard → Authentication → URL Configuration and Email Templates.
 
 ### Tailwind CSS Configuration
 

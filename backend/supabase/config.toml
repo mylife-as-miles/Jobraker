@@ -196,10 +196,10 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Customize email templates (local dev; mirror in prod Project Settings)
+[auth.email.template.confirmation]
+subject = "Welcome to Jobraker — Confirm your email"
+content_path = "./supabase/templates/confirm.html"
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.
