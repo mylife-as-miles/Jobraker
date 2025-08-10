@@ -23,7 +23,7 @@ export const JobrackerSignup = (): JSX.Element => {
   const [submitting, setSubmitting] = useState(false);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [verificationPending, setVerificationPending] = useState(false);
+  const [verificationPending] = useState(false);
 
   // If already authenticated, redirect to dashboard
   useEffect(() => {
@@ -87,7 +87,7 @@ export const JobrackerSignup = (): JSX.Element => {
           return;
         }
 
-    const { data, error } = await supabase.auth.signUp({
+  const { error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {

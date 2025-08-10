@@ -19,6 +19,8 @@
   "supabase:push": "cd backend/supabase && npx supabase db push --linked --include-all --yes -p $SUPABASE_DB_PASSWORD",
   "supabase:push:dry": "cd backend/supabase && npx supabase db push --linked --dry-run",
   "supabase:push:dburl": "cd backend/supabase && npx supabase db push --db-url $SUPABASE_DB_URL --include-all --yes"
+  ,
+  "supabase:sync:push": "npm run -s supabase:schema:sync && npm run -s supabase:push"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.0.0",
