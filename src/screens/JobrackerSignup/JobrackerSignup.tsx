@@ -118,24 +118,7 @@ export const JobrackerSignup = (): JSX.Element => {
     }
   };
 
-  const handleResendVerification = async () => {
-    try {
-      setSubmitting(true);
-      setErrorMessage(null);
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: formData.email,
-        options: { emailRedirectTo: `${window.location.origin}/onboarding` },
-      } as any);
-      if (error) throw error;
-      setInfoMessage('Verification email resent. Please check your inbox.');
-    } catch (err: any) {
-      console.error('Resend verification error:', err);
-      setErrorMessage(err?.message || 'Failed to resend verification email.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  // Resend verification removed as per request. Keeping minimal state.
 
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.9 },
@@ -474,29 +457,10 @@ export const JobrackerSignup = (): JSX.Element => {
                 )}
 
                 {verificationPending && (
-                  <div className="w-full space-y-4">
+                  <div className="w-full space-y-3">
                     <p className="text-white/80 text-sm sm:text-base">
-                      We sent a verification link to <span className="text-white font-medium">{formData.email}</span>.
-                      Didn’t get it?
+                      We sent a verification link to <span className="text-white font-medium">{formData.email}</span>. Please check your inbox.
                     </p>
-                    <div className="flex gap-3">
-                      <Button
-                        type="button"
-                        onClick={handleResendVerification}
-                        disabled={submitting}
-                        className="shadow-[0px_3px_14px_#00000040] bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] text-white font-bold rounded-xl disabled:opacity-60"
-                      >
-                        Resend verification email
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="link"
-                        onClick={() => { setVerificationPending(false); setInfoMessage(null); }}
-                        className="text-[#1dff00] p-0 h-auto font-medium hover:text-[#1dff00]/80"
-                      >
-                        Change email
-                      </Button>
-                    </div>
                   </div>
                 )}
 
