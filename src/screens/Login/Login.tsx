@@ -11,13 +11,36 @@ const Login = () => {
 
   useEffect(() => {
     let mounted = true
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (!mounted) return
-      if (data.user) navigate('/dashboard', { replace: true })
+      if (data.user) {
+        // If email not verified, keep user on login
+        if (!data.user.email_confirmed_at) return
+        // Check onboarding status in Supabase
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarding_complete')
+          .eq('id', data.user.id)
+          .maybeSingle()
+
+        if (profile?.onboarding_complete) navigate('/dashboard', { replace: true })
+        else navigate('/onboarding', { replace: true })
+      }
     })
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) navigate('/dashboard', { replace: true })
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        // Block until verified
+        if (!session.user.email_confirmed_at) return
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarding_complete')
+          .eq('id', session.user.id)
+          .maybeSingle()
+
+        if (profile?.onboarding_complete) navigate('/dashboard', { replace: true })
+        else navigate('/onboarding', { replace: true })
+      }
     })
 
     return () => {

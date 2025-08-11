@@ -63,21 +63,17 @@ export const JobrackerSignup = (): JSX.Element => {
           return;
         }
 
-        const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/onboarding`,
+      emailRedirectTo: `${window.location.origin}/login`,
           },
         });
         if (error) throw error;
-
-        if (data?.user && !data.session) {
-          // Email confirmation required
-          alert("Sign up successful. Please check your email to confirm your account.");
-        } else {
-          navigate("/onboarding");
-        }
+    // Always require email verification; route to login
+    alert("Sign up successful. Please check your email to verify your account, then sign in.");
+    navigate("/login");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: formData.email,
