@@ -1,5 +1,5 @@
 import { LockKeyholeIcon, MailIcon, Eye, EyeOff, ArrowRight, Sparkles } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
@@ -11,7 +11,6 @@ import { createClient } from "../../lib/supabaseClient";
 export const JobrackerSignup = (): JSX.Element => {
   const navigate = useNavigate();
   const supabase = useMemo(() => createClient(), []);
-  const siteUrl = (import.meta.env.VITE_SITE_URL as string) || window.location.origin;
   const [isSignUp, setIsSignUp] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -21,36 +20,15 @@ export const JobrackerSignup = (): JSX.Element => {
     confirmPassword: "",
   });
   const [submitting, setSubmitting] = useState(false);
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [verificationPending] = useState(false);
-
-  // If already authenticated, redirect to dashboard
-  useEffect(() => {
-    let mounted = true;
-    supabase.auth.getUser().then(({ data }) => {
-      if (!mounted) return;
-      if (data.user) navigate('/dashboard', { replace: true });
-    });
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
-      if (session?.user) navigate('/dashboard', { replace: true });
-    });
-
-    return () => {
-      mounted = false;
-      sub.subscription.unsubscribe();
-    };
-  }, [navigate, supabase]);
 
   const handleOAuth = useCallback(
     async (provider: "google" | "linkedin_oidc") => {
       try {
         setSubmitting(true);
-    const { error } = await supabase.auth.signInWithOAuth({
+        const { error } = await supabase.auth.signInWithOAuth({
           provider,
           options: {
-      redirectTo: `${siteUrl}/dashboard`,
+            redirectTo: `${window.location.origin}/dashboard`,
           },
         });
         if (error) throw error;
@@ -66,38 +44,40 @@ export const JobrackerSignup = (): JSX.Element => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  setSubmitting(true);
-  setErrorMessage(null);
-  setInfoMessage(null);
+    setSubmitting(true);
 
     try {
       if (showForgotPassword) {
         const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
-          redirectTo: `${siteUrl}/reset-password`,
+          redirectTo: `${window.location.origin}/reset-password`,
         });
         if (error) throw error;
-    setInfoMessage("Password reset link sent. Check your email.");
+        alert("Password reset link sent to your email.");
         setShowForgotPassword(false);
         return;
       }
 
       if (isSignUp) {
         if (formData.password !== formData.confirmPassword) {
-          setErrorMessage("Passwords do not match.");
+          alert("Passwords do not match!");
           return;
         }
 
-  const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
-      emailRedirectTo: `${siteUrl}`,
+            emailRedirectTo: `${window.location.origin}/onboarding`,
           },
         });
         if (error) throw error;
 
-  // Proceed directly to onboarding regardless of confirmation state
-  navigate("/onboarding");
+        if (data?.user && !data.session) {
+          // Email confirmation required
+          alert("Sign up successful. Please check your email to confirm your account.");
+        } else {
+          navigate("/onboarding");
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: formData.email,
@@ -108,13 +88,11 @@ export const JobrackerSignup = (): JSX.Element => {
       }
     } catch (error: any) {
       console.error("Supabase auth error:", error);
-      setErrorMessage(error?.message || "Authentication failed. Please try again.");
+      alert(error?.message || "Authentication failed. Please try again.");
     } finally {
       setSubmitting(false);
     }
   };
-
-  // Resend verification removed as per request. Keeping minimal state.
 
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.9 },
@@ -187,11 +165,6 @@ export const JobrackerSignup = (): JSX.Element => {
                 className="flex flex-col items-center justify-center relative space-y-4 sm:space-y-6"
                 variants={itemVariants}
               >
-                {infoMessage || errorMessage ? (
-                  <div className={`w-full rounded-lg border px-4 py-3 text-sm ${errorMessage ? 'border-red-500/40 text-red-300 bg-red-500/10' : 'border-[#1dff00]/40 text-[#caffc2] bg-[#1dff00]/10'}`}>
-                    {errorMessage || infoMessage}
-                  </div>
-                ) : null}
                 {/* Logo and Title - Responsive sizing */}
                 <motion.div
                   className="flex flex-col items-center space-y-2 sm:space-y-3"
@@ -234,15 +207,8 @@ export const JobrackerSignup = (): JSX.Element => {
                   </motion.p>
                 </motion.div>
 
-                {/* Inline messages */}
-                {infoMessage || errorMessage ? (
-                  <div className={`w-full rounded-lg border px-4 py-3 text-sm mb-2 ${errorMessage ? 'border-red-500/40 text-red-300 bg-red-500/10' : 'border-[#1dff00]/40 text-[#caffc2] bg-[#1dff00]/10'}`}>
-                    {errorMessage || infoMessage}
-                  </div>
-                ) : null}
-
                 <AnimatePresence mode="wait">
-                  {!showForgotPassword && !verificationPending && (
+                  {!showForgotPassword && (
                     <motion.div
                       className="flex flex-col items-center relative w-full space-y-3 sm:space-y-4"
                       initial={{ opacity: 0, scale: 0.9 }}
@@ -318,7 +284,6 @@ export const JobrackerSignup = (): JSX.Element => {
                 </AnimatePresence>
 
                 {/* Form - Responsive */}
-                {!verificationPending && (
                 <motion.form
                   onSubmit={handleSubmit}
                   className="flex flex-col items-center relative w-full space-y-3 sm:space-y-4"
@@ -450,15 +415,6 @@ export const JobrackerSignup = (): JSX.Element => {
                     </Button>
                   </motion.div>
                 </motion.form>
-                )}
-
-                {verificationPending && (
-                  <div className="w-full space-y-3">
-                    <p className="text-white/80 text-sm sm:text-base">
-                      We sent a verification link to <span className="text-white font-medium">{formData.email}</span>. Please check your inbox.
-                    </p>
-                  </div>
-                )}
 
                 {/* Bottom Links - Responsive */}
                 <motion.div

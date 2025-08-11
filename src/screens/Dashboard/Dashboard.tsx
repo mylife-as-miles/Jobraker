@@ -137,14 +137,13 @@ export const Dashboard = (): JSX.Element => {
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* Logo - Responsive */}
-        <div className="p-3 sm:p-4 lg:p-6 border-b border-[#1dff00]/20">
+    <div className="p-3 sm:p-4 lg:p-6 border-b border-[#1dff00]/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 sm:space-x-3">
               <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center hover:scale-110 transition-transform duration-300">
                 <span className="text-black font-bold text-xs sm:text-sm lg:text-base">JR</span>
               </div>
-              <span className="text-[#1dff00] font-semibold text-sm sm:text-lg lg:text-xl">JobRaker</span>
-              <span className="text-white font-semibold text-sm sm:text-lg lg:text-xl">JobRaker</span>
+      <span className="font-semibold text-sm sm:text-lg lg:text-xl bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">JobRaker</span>
             </div>
             <Button
               variant="ghost"
@@ -168,10 +167,10 @@ export const Dashboard = (): JSX.Element => {
                   setCurrentPage(item.id);
                   setSidebarOpen(false);
                 }}
-                className={`w-full justify-start transition-all duration-300 text-xs sm:text-sm lg:text-base p-2 sm:p-3 lg:p-4 h-auto hover:scale-105 hover:translate-x-2 ${
+                className={`w-full justify-start rounded-xl transition-colors duration-200 text-xs sm:text-sm lg:text-base px-3 py-2 sm:px-4 sm:py-3 h-auto ${
                   currentPage === item.id
-                    ? "text-black bg-white border-r-2 border-[#f0f0f0] shadow-lg"
-                    : "text-[#888888] hover:text-white hover:bg-white/10"
+                    ? "text-white bg-[#1dff00]/10 border border-[#1dff00]/30 shadow-[0_0_20px_rgba(29,255,0,0.15)]"
+                    : "text-[#a3a3a3] hover:text-white hover:bg-white/10"
                 }`}
               >
                 {item.icon}

@@ -56,8 +56,8 @@ function App() {
         {/* Login Page */}
         <Route path="/login" element={<Login />} />
         
-  {/* Step 2: Onboarding Page (after signup) - accessible without auth */}
-  <Route path="/onboarding" element={<Onboarding />} />
+  {/* Step 2: Onboarding Page (after signup) */}
+  <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
         
   {/* Password reset handler (Supabase recovery flow) */}
   <Route path="/reset-password" element={<PasswordReset />} />

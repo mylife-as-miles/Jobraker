@@ -1,11 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { ChevronLeft, ChevronRight, CheckCircle, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { createClient } from "../../lib/supabaseClient";
 
 interface OnboardingStep {
   id: number;
@@ -16,7 +15,6 @@ interface OnboardingStep {
 
 export const Onboarding = (): JSX.Element => {
   const navigate = useNavigate();
-  const supabase = useMemo(() => createClient(), []);
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
     firstName: "",
@@ -156,36 +154,12 @@ export const Onboarding = (): JSX.Element => {
     }
   ];
 
-  const nextStep = async () => {
+  const nextStep = () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          navigate('/login', { replace: true });
-          return;
-        }
-        const payload = {
-          id: user.id,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          job_title: formData.jobTitle,
-          experience_years: formData.experience ? Number(formData.experience) : null,
-          location: formData.location,
-          goals: formData.goals,
-          updated_at: new Date().toISOString(),
-        };
-        // Upsert profile
-        const { error } = await supabase
-          .from('profiles')
-          .upsert(payload, { onConflict: 'id' });
-        if (error) throw error;
-        navigate("/dashboard");
-      } catch (err) {
-        console.error('Failed to save onboarding:', err);
-        navigate('/dashboard');
-      }
+      console.log("Onboarding data:", formData);
+      navigate("/dashboard");
     }
   };
 
