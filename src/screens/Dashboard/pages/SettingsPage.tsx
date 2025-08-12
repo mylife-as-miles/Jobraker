@@ -9,6 +9,7 @@ import { useNotificationSettings } from "../../../hooks/useNotificationSettings"
 import { useSecuritySettings } from "../../../hooks/useSecuritySettings";
 import { createClient } from "../../../lib/supabaseClient";
 import { useToast } from "../../../components/ui/toast";
+import Modal from "../../../components/ui/modal";
 
 export const SettingsPage = (): JSX.Element => {
   const supabase = useMemo(() => createClient(), []);
@@ -17,7 +18,7 @@ export const SettingsPage = (): JSX.Element => {
   const [showPassword, setShowPassword] = useState(false);
   const { profile, updateProfile, createProfile, refresh: refreshProfile } = useProfileSettings();
   const { settings: notif, updateSettings, createSettings, refresh: refreshNotif } = useNotificationSettings();
-  const { settings: sec, updateSecurity, createSecurity, refresh: refreshSec } = useSecuritySettings();
+  const { settings: sec, updateSecurity, createSecurity, refresh: refreshSec, enrollTotp, verifyTotp, disableTotp } = useSecuritySettings();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -29,6 +30,12 @@ export const SettingsPage = (): JSX.Element => {
     confirmPassword: "",
     avatar_url: "",
   });
+
+  // 2FA modal state
+  const [open2FA, setOpen2FA] = useState(false);
+  const [totpUri, setTotpUri] = useState<string | undefined>();
+  const [totpFactorId, setTotpFactorId] = useState<string | undefined>();
+  const [totpCode, setTotpCode] = useState<string>("");
 
   const initials = useMemo(() => {
     const a = (formData.firstName || '').trim();
@@ -405,8 +412,20 @@ export const SettingsPage = (): JSX.Element => {
                   <Button 
                     variant={sec?.two_factor_enabled ? 'default' : 'outline'}
                     onClick={async () => {
-                      if (!sec) await createSecurity({ two_factor_enabled: true });
-                      else await updateSecurity({ two_factor_enabled: !sec.two_factor_enabled });
+                      try {
+                        if (sec?.two_factor_enabled) {
+                          await disableTotp();
+                          return;
+                        }
+                        if (!sec) await createSecurity({});
+                        const { factorId, uri } = await enrollTotp();
+                        setTotpFactorId(factorId);
+                        setTotpUri(uri);
+                        setTotpCode("");
+                        setOpen2FA(true);
+                      } catch (e: any) {
+                        toastError('2FA setup failed', e.message);
+                      }
                     }}
                     className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
                   >
@@ -611,6 +630,7 @@ export const SettingsPage = (): JSX.Element => {
   };
 
   return (
+    <>
     <div className="min-h-screen bg-black">
       <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 sm:gap-8">
@@ -670,5 +690,74 @@ export const SettingsPage = (): JSX.Element => {
         </div>
       </div>
     </div>
+    {/* 2FA Setup Modal */}
+    <TwoFAModal />
+    </>
   );
+
+  // 2FA Setup Modal
+  function TwoFAModal() {
+    return (
+      <Modal
+        open={open2FA}
+        onClose={() => setOpen2FA(false)}
+        title="Set up Two-Factor Authentication"
+        size="md"
+        side="center"
+      >
+        <div className="space-y-4">
+          <p className="text-[#ffffffb3] text-sm">
+            Scan the QR code in your authenticator app (e.g., Google Authenticator, Authy), then enter the 6-digit code below.
+          </p>
+          {totpUri ? (
+            <div className="flex justify-center">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(totpUri)}`}
+                alt="TOTP QR"
+                className="rounded border border-[#1dff00]/30"
+              />
+            </div>
+          ) : (
+            <div className="text-[#ffffff80] text-sm">Generating QR…</div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-[#ffffff80] mb-1">Authentication code</label>
+            <Input
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="123456"
+              value={totpCode}
+              onChange={(e) => setTotpCode(e.target.value)}
+              className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50"
+              onClick={() => setOpen2FA(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  if (!totpFactorId || !totpCode) return;
+                  await verifyTotp(totpFactorId, totpCode);
+                  setOpen2FA(false);
+                } catch (e: any) {
+                  toastError('Verification failed', e.message);
+                }
+              }}
+              className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+            >
+              Verify & Enable
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
+  // remove stray return (modal is rendered above)
 };

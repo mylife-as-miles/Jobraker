@@ -3,6 +3,7 @@ create table if not exists public.security_settings (
   id uuid primary key references auth.users(id) on delete cascade,
   two_factor_enabled boolean default false,
   sign_in_alerts boolean default true,
+  factor_id text,
   updated_at timestamptz default now()
 );
 

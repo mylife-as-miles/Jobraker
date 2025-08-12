@@ -6,6 +6,7 @@ export interface SecuritySettings {
   id: string;
   two_factor_enabled: boolean;
   sign_in_alerts: boolean;
+  factor_id?: string | null;
   updated_at: string;
 }
 
@@ -109,5 +110,32 @@ export function useSecuritySettings() {
     }
   }, [supabase, userId, success, toastError]);
 
-  return { settings, loading, error, refresh: fetchSettings, updateSecurity, createSecurity } as const;
+  // MFA helpers (TOTP)
+  const enrollTotp = useCallback(async () => {
+    // Create a new TOTP factor; returns id and uri for QR
+    const { data, error } = await (supabase as any).auth.mfa.enroll({ factorType: 'totp' });
+    if (error) throw error;
+    const { id, type, totp } = data?.factor ?? {};
+    const uri = totp?.uri as string | undefined;
+    if (userId) await updateSecurity({ factor_id: id as string });
+    return { factorId: id as string, uri, type } as { factorId: string; uri?: string; type?: string };
+  }, [supabase, updateSecurity, userId]);
+
+  const verifyTotp = useCallback(async (factorId: string, code: string) => {
+    const { error } = await (supabase as any).auth.mfa.challengeAndVerify({ factorId, code });
+    if (error) throw error;
+    await updateSecurity({ two_factor_enabled: true });
+    success('Two-factor authentication enabled');
+  }, [supabase, updateSecurity, success]);
+
+  const disableTotp = useCallback(async () => {
+    if (!settings?.factor_id) { await updateSecurity({ two_factor_enabled: false }); return; }
+    try {
+      await (supabase as any).auth.mfa.unenroll({ factorId: settings.factor_id });
+    } catch { /* ignore if already removed */ }
+    await updateSecurity({ two_factor_enabled: false, factor_id: null });
+    success('Two-factor authentication disabled');
+  }, [supabase, settings?.factor_id, updateSecurity, success]);
+
+  return { settings, loading, error, refresh: fetchSettings, updateSecurity, createSecurity, enrollTotp, verifyTotp, disableTotp } as const;
 }
