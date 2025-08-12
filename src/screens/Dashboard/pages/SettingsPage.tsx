@@ -527,6 +527,7 @@ export const SettingsPage = (): JSX.Element => {
                         if (uid) {
                           await (supabase as any).from('profiles').delete().eq('id', uid);
                           await (supabase as any).from('notification_settings').delete().eq('id', uid);
+                          await (supabase as any).from('security_settings').delete().eq('id', uid);
                         }
                         await supabase.auth.signOut();
                         success('Account deleted');
