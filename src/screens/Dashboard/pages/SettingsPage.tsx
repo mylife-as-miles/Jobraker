@@ -25,7 +25,9 @@ export const SettingsPage = (): JSX.Element => {
   const [showPassword, setShowPassword] = useState(false);
   const { profile, updateProfile, createProfile, refresh: refreshProfile } = useProfileSettings();
   const { settings: notif, updateSettings, createSettings, refresh: refreshNotif } = useNotificationSettings();
-  const { settings: sec, updateSecurity, createSecurity, refresh: refreshSec, enrollTotp, verifyTotp, disableTotp, generateBackupCodes, trustDevice } = useSecuritySettings();
+  const security = useSecuritySettings();
+  const { settings: sec, updateSecurity, createSecurity, refresh: refreshSec, enrollTotp, verifyTotp, disableTotp } = security;
+  const { generateBackupCodes, trustDevice } = security as any;
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
