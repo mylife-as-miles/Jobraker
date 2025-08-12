@@ -1,42 +1,13 @@
+import { useRef } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
-import { Download, Edit, Eye, Plus, Upload, Star, MoreVertical, Copy, Trash2 } from "lucide-react";
+import { Download, Edit, Eye, Plus, Upload, Star, MoreVertical, Copy, Trash2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
-
-interface Resume {
-  id: string;
-  name: string;
-  template: string;
-  lastModified: string;
-  status: "Active" | "Draft" | "Archived";
-  applications: number;
-  thumbnail: string;
-  isFavorite: boolean;
-}
+import { useResumes, type ResumeRecord } from "../../../hooks/useResumes";
 
 export const ResumePage = (): JSX.Element => {
-  const resumes: Resume[] = [
-    {
-      id: "1",
-      name: "E-commerce Resume",
-      template: "Modern Professional",
-      lastModified: "2 hours ago",
-      status: "Active",
-      applications: 15,
-      thumbnail: "/api/placeholder/200/280",
-      isFavorite: true
-    },
-    {
-      id: "2",
-      name: "Technology Resume",
-      template: "Creative Design",
-      lastModified: "1 day ago",
-      status: "Draft",
-      applications: 0,
-      thumbnail: "/api/placeholder/200/280",
-      isFavorite: false
-    }
-  ];
+  const { resumes, loading, error, upload, createEmpty, toggleFavorite, remove, duplicate, view, download } = useResumes();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -64,15 +35,37 @@ export const ResumePage = (): JSX.Element => {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              <Button 
+              <Button
                 className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300 text-sm sm:text-base"
+                onClick={() => createEmpty({})}
+                disabled={loading}
+                aria-label="Create new resume"
+                title="Create new resume"
               >
-                <Plus className="w-4 h-4 mr-2" />
+                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
                 New Resume
               </Button>
-              <Button 
-                variant="outline" 
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="hidden"
+                multiple
+                onChange={async (e) => {
+                  const files = e.target.files;
+                  if (!files || files.length === 0) return;
+                  await upload(Array.from(files));
+                  // reset
+                  e.currentTarget.value = "";
+                }}
+              />
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
                 className="border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10 hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300 text-sm sm:text-base"
+                disabled={loading}
+                aria-label="Import resumes"
+                title="Import resumes"
               >
                 <Upload className="w-4 h-4 mr-2" />
                 Import
@@ -83,8 +76,18 @@ export const ResumePage = (): JSX.Element => {
 
         {/* Resume Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+          {loading && resumes.length === 0 && (
+            <div className="col-span-full flex items-center justify-center py-16 text-[#888888]">
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Loading resumes...
+            </div>
+          )}
+          {!loading && resumes.length === 0 && (
+            <div className="col-span-full text-center text-[#888888] py-16">
+              No resumes yet. Create or import to get started.
+            </div>
+          )}
           {/* Existing Resumes */}
-          {resumes.map((resume, index) => (
+          {resumes.map((resume: ResumeRecord, index) => (
             <motion.div
               key={resume.id}
               initial={{ opacity: 0, y: 20 }}
@@ -100,7 +103,7 @@ export const ResumePage = (): JSX.Element => {
                     <div className="w-full h-40 sm:h-48 lg:h-56 bg-[#222222] rounded-lg border border-[#1dff00]/20 flex items-center justify-center group-hover:border-[#1dff00]/50 transition-all duration-300">
                       {/* Gray placeholder matching screenshot */}
                       <div className="w-full h-full bg-gradient-to-br from-[#222222] to-[#333333] rounded-lg flex items-center justify-center">
-                        <div className="text-[#888888] text-xs sm:text-sm font-medium">Resume Preview</div>
+                        <div className="text-[#888888] text-xs sm:text-sm font-medium">{resume.file_ext?.toUpperCase() || "Resume"} Preview</div>
                       </div>
                     </div>
                     
@@ -109,12 +112,14 @@ export const ResumePage = (): JSX.Element => {
                       variant="ghost"
                       size="sm"
                       className={`absolute top-2 right-2 p-1 rounded-full transition-all duration-300 ${
-                        resume.isFavorite 
+                        resume.is_favorite 
                           ? "text-yellow-400 bg-yellow-400/20 hover:bg-yellow-400/30" 
                           : "text-[#666666] hover:text-yellow-400 hover:bg-yellow-400/20"
                       }`}
+                      onClick={() => toggleFavorite(resume.id, !resume.is_favorite)}
+                      aria-label={resume.is_favorite ? "Unfavorite" : "Favorite"}
                     >
-                      <Star className={`w-3 h-3 sm:w-4 sm:h-4 ${resume.isFavorite ? "fill-current" : ""}`} />
+                      <Star className={`w-3 h-3 sm:w-4 sm:h-4 ${resume.is_favorite ? "fill-current" : ""}`} />
                     </Button>
 
                     {/* Status Badge */}
@@ -124,31 +129,43 @@ export const ResumePage = (): JSX.Element => {
                     
                     {/* Overlay Actions */}
                     <div className="absolute inset-0 bg-black/60 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center space-x-2">
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         className="text-[#1dff00] hover:bg-[#1dff00]/20 hover:scale-110 transition-all duration-300"
+                        onClick={() => view(resume)}
+                        aria-label="View"
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         className="text-[#1dff00] hover:bg-[#1dff00]/20 hover:scale-110 transition-all duration-300"
+                        onClick={() => {
+                          // Placeholder for editor route/modal
+                          alert("Edit coming soon");
+                        }}
+                        aria-label="Edit"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         className="text-[#1dff00] hover:bg-[#1dff00]/20 hover:scale-110 transition-all duration-300"
+                        onClick={() => download(resume)}
+                        aria-label="Download"
                       >
                         <Download className="w-4 h-4" />
                       </Button>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         className="text-[#1dff00] hover:bg-[#1dff00]/20 hover:scale-110 transition-all duration-300"
+                        aria-label="More"
+                        onClick={() => duplicate(resume)}
+                        title="Duplicate"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </Button>
@@ -159,35 +176,40 @@ export const ResumePage = (): JSX.Element => {
                   <div className="space-y-3 sm:space-y-4 flex-grow">
                     <div>
                       <h3 className="text-white font-semibold text-sm sm:text-base lg:text-lg mb-1 truncate">{resume.name}</h3>
-                      <p className="text-[#888888] text-xs sm:text-sm">{resume.template}</p>
+                      <p className="text-[#888888] text-xs sm:text-sm">{resume.template || "Custom"}</p>
                     </div>
                     
                     <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-[#666666]">Modified {resume.lastModified}</span>
+                      <span className="text-[#666666]">Updated {new Date(resume.updated_at).toLocaleString()}</span>
                       <span className="text-white font-medium">{resume.applications} apps</span>
                     </div>
                   </div>
 
                   {/* Action Buttons */}
                   <div className="flex gap-2 mt-4 pt-4 border-t border-[#1dff00]/20">
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       className="flex-1 bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300 text-xs sm:text-sm"
+                      onClick={() => alert("Edit coming soon")}
                     >
                       <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                       Edit
                     </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
+                    <Button
+                      size="sm"
+                      variant="outline"
                       className="border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10 hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                      onClick={() => duplicate(resume)}
+                      aria-label="Duplicate"
                     >
                       <Copy className="w-3 h-3 sm:w-4 sm:h-4" />
                     </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
+                    <Button
+                      size="sm"
+                      variant="outline"
                       className="border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10 hover:border-red-500/50 hover:text-red-400 hover:scale-105 transition-all duration-300"
+                      onClick={() => remove(resume)}
+                      aria-label="Delete"
                     >
                       <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                     </Button>
@@ -205,7 +227,7 @@ export const ResumePage = (): JSX.Element => {
             whileHover={{ scale: 1.02 }}
             className="transition-transform duration-300"
           >
-            <Card className="bg-transparent border-2 border-dashed border-[#1dff00] hover:bg-[#1dff00]/10 hover:border-[#1dff00]/80 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300 group cursor-pointer h-full min-h-[300px] sm:min-h-[350px] lg:min-h-[400px]">
+            <Card onClick={() => fileInputRef.current?.click()} className="bg-transparent border-2 border-dashed border-[#1dff00] hover:bg-[#1dff00]/10 hover:border-[#1dff00]/80 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300 group cursor-pointer h-full min-h-[300px] sm:min-h-[350px] lg:min-h-[400px]">
               <CardContent className="p-4 sm:p-5 lg:p-6 h-full flex flex-col">
                 {/* Upload Area */}
                 <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 sm:space-y-6">
@@ -238,7 +260,7 @@ export const ResumePage = (): JSX.Element => {
             whileHover={{ scale: 1.02 }}
             className="transition-transform duration-300"
           >
-            <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] hover:shadow-xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-300 group cursor-pointer h-full min-h-[300px] sm:min-h-[350px] lg:min-h-[400px]">
+            <Card onClick={() => createEmpty({})} className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] hover:shadow-xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-300 group cursor-pointer h-full min-h-[300px] sm:min-h-[350px] lg:min-h-[400px]">
               <CardContent className="p-4 sm:p-5 lg:p-6 h-full flex flex-col">
                 {/* Create Area */}
                 <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 sm:space-y-6">
@@ -255,7 +277,7 @@ export const ResumePage = (): JSX.Element => {
                       Start from scratch with our professional templates
                     </p>
                   </div>
-                  <Button 
+                  <Button
                     className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300 text-xs sm:text-sm"
                   >
                     Get Started
@@ -292,6 +314,9 @@ export const ResumePage = (): JSX.Element => {
             ))}
           </div>
         </div>
+        {error && (
+          <div className="mt-6 text-red-400 text-sm">{error}</div>
+        )}
       </div>
     </div>
   );
