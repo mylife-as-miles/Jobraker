@@ -14,6 +14,23 @@
     <link href="tailwind.css" rel="stylesheet" />
   </head>
   <body style="margin: 0; padding: 0; background-color: #000;">
+    <script>
+      (function(){
+        try {
+          var theme = localStorage.getItem('appearance_theme') || 'auto';
+          var accent = localStorage.getItem('appearance_accent') || '#1dff00';
+          var reduce = localStorage.getItem('appearance_reduce_motion') === '1';
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (theme === 'dark' || (theme === 'auto' && prefersDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+          document.documentElement.style.setProperty('--accent-color', accent);
+          document.documentElement.style.setProperty('--reduce-motion', reduce ? '1' : '0');
+        } catch (e) {}
+      })();
+    </script>
     <div id="app"></div>
     <script type="module" src="./src/index.tsx"></script>
   </body>

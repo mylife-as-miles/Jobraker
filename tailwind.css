@@ -44,6 +44,7 @@
     --ring: 215 20.2% 65.1%;
 
     --radius: 0.5rem;
+  --accent-color: #1dff00; /* default accent, can be overridden at runtime */
   }
 
   .dark {
@@ -77,6 +78,7 @@
     --ring: 216 34% 17%;
 
     --radius: 0.5rem;
+  --accent-color: #1dff00; /* default accent in dark as well */
   }
 }
 

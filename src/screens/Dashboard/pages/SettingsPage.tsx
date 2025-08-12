@@ -8,6 +8,7 @@ import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
 import { useSecuritySettings } from "../../../hooks/useSecuritySettings";
 import { createClient } from "../../../lib/supabaseClient";
+import { useAppearanceSettings } from "../../../hooks/useAppearanceSettings";
 import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
 // Lazy-load qrcode to avoid bundler resolution issues during build
@@ -26,6 +27,8 @@ export const SettingsPage = (): JSX.Element => {
   const { profile, updateProfile, createProfile, refresh: refreshProfile } = useProfileSettings();
   const { settings: notif, updateSettings, createSettings, refresh: refreshNotif } = useNotificationSettings();
   const security = useSecuritySettings();
+  const appearance = useAppearanceSettings();
+  const appearanceSettings = (appearance as any).settings;
   const {
     settings: sec,
     updateSecurity,
@@ -239,7 +242,7 @@ export const SettingsPage = (): JSX.Element => {
         return (
           <div className="space-y-6">
             <div className="flex items-center space-x-6">
-              <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-r from-[#1dff00] to-[#0a8246] flex items-center justify-center text-black font-bold text-2xl">
+              <div className="w-24 h-24 rounded-full overflow-hidden bg-[color:var(--accent-color)]/20 border border-[color:var(--accent-color)] flex items-center justify-center text-white font-bold text-2xl">
                 {avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -625,8 +628,15 @@ export const SettingsPage = (): JSX.Element => {
                   {["Dark", "Light", "Auto"].map((theme) => (
                     <motion.div
                       key={theme}
+                      onClick={async () => {
+                        const value = theme.toLowerCase() as 'dark' | 'light' | 'auto';
+                        try {
+                          if (!appearanceSettings) await (appearance as any).createSettings({ theme: value });
+                          else await (appearance as any).updateSettings({ theme: value });
+                        } catch (e: any) { toastError('Failed to set theme', e.message); }
+                      }}
                       className={`p-4 rounded-lg border cursor-pointer transition-all duration-300 ${
-                        theme === "Dark"
+                        (appearanceSettings?.theme || 'auto') === theme.toLowerCase()
                           ? "border-[#1dff00] bg-[#1dff0020]"
                           : "border-[#ffffff33] hover:border-[#ffffff4d]"
                       }`}
@@ -652,14 +662,42 @@ export const SettingsPage = (): JSX.Element => {
                   {["#1dff00", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#10b981"].map((color) => (
                     <motion.div
                       key={color}
+                      onClick={async () => {
+                        try {
+                          if (!appearanceSettings) await (appearance as any).createSettings({ accent_color: color });
+                          else await (appearance as any).updateSettings({ accent_color: color });
+                        } catch (e: any) { toastError('Failed to set accent', e.message); }
+                      }}
                       className={`w-8 h-8 rounded cursor-pointer border-2 transition-all duration-300 ${
-                        color === "#1dff00" ? "border-white" : "border-transparent"
+                        (appearanceSettings?.accent_color || '#1dff00').toLowerCase() === color.toLowerCase()
+                          ? "border-white"
+                          : "border-transparent"
                       }`}
                       style={{ backgroundColor: color }}
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                     ></motion.div>
                   ))}
+                </div>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-[#ffffff80] mb-2">Reduced motion</label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        if (!appearanceSettings) await (appearance as any).createSettings({ reduce_motion: true });
+                        else await (appearance as any).updateSettings({ reduce_motion: !(appearanceSettings.reduce_motion ?? false) });
+                      } catch (e: any) { toastError('Failed to update motion preference', e.message); }
+                    }}
+                    className={`transition-all duration-300 hover:scale-105 ${
+                      (appearanceSettings?.reduce_motion ?? false)
+                        ? "bg-white text-black hover:bg-white/90"
+                        : "bg-[#ffffff33] text-white hover:bg-[#ffffff4d]"
+                    }`}
+                  >
+                    {(appearanceSettings?.reduce_motion ?? false) ? 'Reduced motion: On' : 'Reduced motion: Off'}
+                  </Button>
                 </div>
               </CardContent>
             </Card>

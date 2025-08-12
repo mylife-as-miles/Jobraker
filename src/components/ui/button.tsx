@@ -12,7 +12,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-transparent border border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] active:bg-[#1dff00]/20 focus:bg-[#1dff00]/10 focus:border-[#1dff00] backdrop-blur-sm",
+          "bg-transparent border border-[color:oklch(0.86_0.2_145)/0.3] text-[color:var(--accent-color)] hover:bg-[color:var(--accent-color)]/10 hover:border-[color:var(--accent-color)]/60 hover:shadow-[0_0_20px_color-mix(in_oklab,var(--accent-color)_30%,transparent)] active:bg-[color:var(--accent-color)]/20 focus:bg-[color:var(--accent-color)]/10 focus:border-[color:var(--accent-color)] backdrop-blur-sm",
         destructive:
           "bg-transparent border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/60 hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] active:bg-red-500/20 focus:bg-red-500/10 focus:border-red-500 backdrop-blur-sm",
         outline:
@@ -22,9 +22,9 @@ const buttonVariants = cva(
         ghost: 
           "bg-transparent text-[#ffffff]/80 hover:bg-[#ffffff]/10 hover:text-[#ffffff] active:bg-[#ffffff]/20 focus:bg-[#ffffff]/10 backdrop-blur-sm",
         link: 
-          "bg-transparent text-[#1dff00] underline-offset-4 hover:underline hover:text-[#1dff00]/80 active:text-[#1dff00]/60 focus:text-[#1dff00] focus:underline",
+          "bg-transparent text-[color:var(--accent-color)] underline-offset-4 hover:underline hover:text-[color:var(--accent-color)]/80 active:text-[color:var(--accent-color)]/60 focus:text-[color:var(--accent-color)] focus:underline",
         premium:
-          "bg-transparent border border-[#1dff00]/50 text-black hover:bg-[#1dff00]/90 hover:border-[#1dff00] hover:shadow-[0_0_25px_rgba(29,255,0,0.4)] active:bg-[#1dff00]/80 focus:bg-[#1dff00]/90 focus:border-[#1dff00] backdrop-blur-sm relative overflow-hidden",
+          "bg-transparent border border-[color:var(--accent-color)]/50 text-black hover:bg-[color:var(--accent-color)]/90 hover:border-[color:var(--accent-color)] hover:shadow-[0_0_25px_color-mix(in_oklab,var(--accent-color)_40%,transparent)] active:bg-[color:var(--accent-color)]/80 focus:bg-[color:var(--accent-color)]/90 focus:border-[color:var(--accent-color)] backdrop-blur-sm relative overflow-hidden",
         success:
           "bg-transparent border border-green-500/30 text-green-400 hover:bg-green-500/10 hover:border-green-500/60 hover:shadow-[0_0_20px_rgba(34,197,94,0.3)] active:bg-green-500/20 focus:bg-green-500/10 focus:border-green-500 backdrop-blur-sm",
         warning:
