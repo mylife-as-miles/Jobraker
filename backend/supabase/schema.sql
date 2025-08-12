@@ -1,0 +1,2 @@
+-- This file is managed by Supabase CLI dumps (npm run supabase:schema:dump)
+-- It reflects the current public schema after migrations are applied locally.
