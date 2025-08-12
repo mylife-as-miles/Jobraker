@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
 import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award, Building2, GraduationCap, Briefcase } from "lucide-react";
+import { useProfileSettings } from "../../../hooks/useProfileSettings";
+import { createClient } from "../../../lib/supabaseClient";
 
 interface Experience {
   id: string;
@@ -36,19 +38,38 @@ interface Skill {
 const ProfilePage = (): JSX.Element => {
   const [activeTab] = useState("overview");
   const [isEditing, setIsEditing] = useState(false);
+  const { profile } = useProfileSettings();
+  const supabase = useMemo(() => createClient(), []);
+  const [email, setEmail] = useState<string>("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-  const profileData = {
-    firstName: "Udochukwu",
-    lastName: "Chimbo",
-    title: "Senior Software Engineer",
-    location: "San Francisco, CA",
-    email: "chimbouda@gmail.com",
-    phone: "+1 (555) 123-4567",
-    bio: "Passionate software engineer with 5+ years of experience building scalable web applications. Expertise in React, Node.js, and cloud technologies. Always eager to learn new technologies and solve complex problems.",
-    website: "https://udochimbo.dev",
-    linkedin: "https://linkedin.com/in/udochimbo",
-    github: "https://github.com/udochimbo"
-  };
+  // hydrate auth email
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const em = (data as any)?.user?.email ?? "";
+      setEmail(em);
+    })();
+  }, [supabase]);
+
+  // resolve signed avatar URL from private storage
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      const path = (profile as any)?.avatar_url as string | undefined;
+      if (!path) { if (active) setAvatarUrl(null); return; }
+      try {
+        const { data, error } = await (supabase as any).storage.from('avatars').createSignedUrl(path, 60 * 10);
+        if (error) throw error;
+        if (active) setAvatarUrl(data?.signedUrl || null);
+      } catch {
+        if (active) setAvatarUrl(null);
+      }
+    };
+    load();
+    const id = setInterval(load, 1000 * 60 * 8);
+    return () => { active = false; clearInterval(id); };
+  }, [supabase, profile?.avatar_url]);
 
   const experiences: Experience[] = [
     {
@@ -143,8 +164,20 @@ const ProfilePage = (): JSX.Element => {
               <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <div className="text-center">
                   <div className="relative inline-block mb-4">
-                    <div className="w-24 h-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full flex items-center justify-center text-black font-bold text-2xl">
-                      UC
+                    <div className="w-24 h-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full flex items-center justify-center text-black font-bold text-2xl overflow-hidden">
+                      {avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>
+                          {useMemo(() => {
+                            const a = (profile?.first_name || '').trim();
+                            const b = (profile?.last_name || '').trim();
+                            const initials = `${a.charAt(0) || ''}${b.charAt(0) || ''}` || (email.charAt(0) || 'U');
+                            return initials.toUpperCase();
+                          }, [profile?.first_name, profile?.last_name, email])}
+                        </span>
+                      )}
                     </div>
                     <Button
                       size="sm"
@@ -155,22 +188,22 @@ const ProfilePage = (): JSX.Element => {
                   </div>
                   
                   <h2 className="text-xl font-bold text-white mb-1">
-                    {profileData.firstName} {profileData.lastName}
+                    {(profile?.first_name || '').trim() || 'Your'} {(profile?.last_name || '').trim() || 'Name'}
                   </h2>
-                  <p className="text-[#ffffff80] mb-2">{profileData.title}</p>
+                  <p className="text-[#ffffff80] mb-2">{profile?.job_title || 'Add a job title'}</p>
                   <p className="text-[#ffffff60] text-sm mb-4 flex items-center justify-center">
                     <MapPin className="w-4 h-4 mr-1" />
-                    {profileData.location}
+                    {profile?.location || 'Add location'}
                   </p>
                   
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center justify-center text-[#ffffff80] hover:text-white transition-colors duration-300">
                       <Mail className="w-4 h-4 mr-2" />
-                      <span>{profileData.email}</span>
+                      <span>{email || 'your@email'}</span>
                     </div>
                     <div className="flex items-center justify-center text-[#ffffff80] hover:text-white transition-colors duration-300">
                       <Phone className="w-4 h-4 mr-2" />
-                      <span>{profileData.phone}</span>
+                      <span>{(profile as any)?.phone || 'Add phone'}</span>
                     </div>
                   </div>
                   
@@ -276,7 +309,13 @@ const ProfilePage = (): JSX.Element => {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-[#ffffff80] leading-relaxed">{profileData.bio}</p>
+                  <p className="text-[#ffffff80] leading-relaxed">
+                    {profile?.job_title ? (
+                      <>Working as <span className="text-white font-medium">{profile.job_title}</span>{profile?.experience_years ? <> with <span className="text-white font-medium">{profile.experience_years}</span> years experience</> : null}{profile?.location ? <> in <span className="text-white font-medium">{profile.location}</span></> : null}.</n>
+                    ) : (
+                      <>Update your profile in Settings to personalize this page.</>
+                    )}
+                  </p>
                 )}
               </Card>
             </motion.div>
