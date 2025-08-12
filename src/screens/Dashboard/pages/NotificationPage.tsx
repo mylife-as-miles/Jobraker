@@ -12,7 +12,7 @@ export const NotificationPage = (): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNotification, setSelectedNotification] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
-  const { items, loading, markRead, markAllRead, remove } = useNotifications(30);
+  const { items, loading, hasMore, loadMore, markRead, markAllRead, bulkMarkRead, bulkRemove, toggleStar } = useNotifications(30);
   const notifications = useMemo(() => items.map(n => {
     const bg = n.type === 'company' ? '#000000' : n.type === 'application' ? '#4285f4' : n.type === 'interview' ? '#1dff00' : '#1dff00';
     const icon = n.type === 'interview'
@@ -35,6 +35,8 @@ export const NotificationPage = (): JSX.Element => {
       detailedContent: n.message || undefined,
     };
   }), [items]);
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const filteredNotifications = notifications.filter(notification => {
     const matchesSearch = notification.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -72,7 +74,11 @@ export const NotificationPage = (): JSX.Element => {
           <div className="flex gap-2 sm:gap-3">
             <Button 
               variant="outline" 
-              onClick={() => markAllRead()}
+              onClick={async () => {
+                if (selectedIds.length) await bulkMarkRead(selectedIds, true);
+                else await markAllRead();
+                setSelectedIds([]);
+              }}
               className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
             >
               Mark All Read
@@ -154,6 +160,16 @@ export const NotificationPage = (): JSX.Element => {
                   whileHover={{ x: 4, scale: 1.01 }}
                 >
                   <div className="flex items-start space-x-3">
+                    {/* Select checkbox */}
+                    <input
+                      type="checkbox"
+                      className="mt-1 accent-[color:var(--accent-color)]"
+                      checked={selectedIds.includes(notification.id)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        setSelectedIds(prev => e.target.checked ? [...prev, notification.id] : prev.filter(id => id !== notification.id));
+                      }}
+                    />
                     {/* Icon */}
                     <div className="flex-shrink-0">
                       {notification.icon}
@@ -172,7 +188,7 @@ export const NotificationPage = (): JSX.Element => {
                             className="text-[#ffffff60] hover:text-yellow-400 hover:scale-110 transition-all duration-300 p-1"
                             onClick={(e) => {
                               e.stopPropagation();
-                              // Toggle star
+                              toggleStar(notification.id);
                             }}
                           >
                             <Star className={`w-3 h-3 ${notification.isStarred ? "fill-current text-yellow-400" : ""}`} />
@@ -195,6 +211,15 @@ export const NotificationPage = (): JSX.Element => {
                   </div>
                 </motion.div>
               ))}
+              {hasMore && (
+                <div className="p-3">
+                  <Button
+                    variant="ghost"
+                    onClick={() => loadMore()}
+                    className="w-full text-[#1dff00] hover:bg-[#1dff00]/10"
+                  >Load more</Button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -241,7 +266,7 @@ export const NotificationPage = (): JSX.Element => {
                   </div>
                 </div>
 
-                {/* Content */}
+                {selectedNotificationData ? (
                 <div className="flex-1 p-6 bg-[#0a0a0a] rounded-b-2xl overflow-y-auto">
                   {selectedNotificationData.hasDetailedContent ? (
                     <div className="space-y-6">
@@ -272,7 +297,7 @@ export const NotificationPage = (): JSX.Element => {
                         </Button>
                         <Button 
                           variant="outline" 
-                          className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                              bulkRemove([selectedNotification]);
                         >
                           Mark as Read
                         </Button>
@@ -294,6 +319,22 @@ export const NotificationPage = (): JSX.Element => {
             ) : (
               <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-8 text-center h-full flex items-center justify-center">
                 <div>
+                          <div className="pt-2">
+                            <a
+                              href={"#"}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                const item = items.find(i => i.id === selectedNotification);
+                                if (item?.action_url) window.open(item.action_url, '_blank');
+                              }}
+                              className="text-[#1dff00] hover:underline"
+                            >
+                              {(() => {
+                                const item = items.find(i => i.id === selectedNotification);
+                                return item?.action_url ? 'Open related link' : '';
+                              })()}
+                            </a>
+                          </div>
                   <Bell className="w-16 h-16 text-[#ffffff40] mx-auto mb-4" />
                   <h3 className="text-xl font-medium text-white mb-2">Select a notification</h3>
                   <p className="text-[#ffffff60]">Choose a notification from the list to view details</p>
