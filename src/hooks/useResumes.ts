@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "../lib/supabaseClient";
+import { useToast } from "../components/ui/toast";
 
 export type ResumeStatus = "Active" | "Draft" | "Archived";
 
@@ -22,6 +23,7 @@ type UploadInput = File | { file: File; template?: string };
 
 export function useResumes() {
   const supabase = useMemo(() => createClient(), []);
+  const { success, error: toastError, info } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [resumes, setResumes] = useState<ResumeRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,11 +62,13 @@ export function useResumes() {
       if (error) throw error;
       setResumes(data || []);
     } catch (e: any) {
-      setError(e.message || "Failed to load resumes");
+      const msg = e.message || "Failed to load resumes";
+      setError(msg);
+      toastError("Failed to load resumes", msg);
     } finally {
       setLoading(false);
     }
-  }, [supabase, userId]);
+  }, [supabase, userId, toastError]);
 
   useEffect(() => {
     if (userId) list();
@@ -130,13 +134,16 @@ export function useResumes() {
           const url = URL.createObjectURL(file);
           objectUrlMap.current.set(rec.id, url);
           setResumes((prev) => [rec, ...prev]);
+          success("Resume uploaded", `${rec.name}.${rec.file_ext ?? ""}`);
         } catch (e: any) {
-          setError(e.message || "Upload failed");
+          const msg = e.message || "Upload failed";
+          setError(msg);
+          toastError("Upload failed", msg);
         }
       }
       return results;
     },
-    [supabase, userId]
+    [supabase, userId, success, toastError]
   );
 
   const createEmpty = useCallback(
@@ -161,13 +168,16 @@ export function useResumes() {
           .single();
         if (error) throw error;
         setResumes((p) => [data, ...p]);
+        success("Resume created", name);
         return data as ResumeRecord;
       } catch (e: any) {
-        setError(e.message || "Failed to create resume");
+        const msg = e.message || "Failed to create resume";
+        setError(msg);
+        toastError("Failed to create resume", msg);
         return null;
       }
     },
-    [supabase, userId]
+    [supabase, userId, success, toastError]
   );
 
   const toggleFavorite = useCallback(async (id: string, value: boolean) => {
@@ -178,12 +188,15 @@ export function useResumes() {
         .update({ is_favorite: value })
         .eq("id", id);
       if (error) throw error;
+      info(value ? "Marked as favorite" : "Removed favorite");
     } catch (e: any) {
-      setError(e.message || "Failed to update favorite");
+      const msg = e.message || "Failed to update favorite";
+      setError(msg);
+      toastError("Favorite update failed", msg);
       // revert
       setResumes((p) => p.map((r) => (r.id === id ? { ...r, is_favorite: !value } : r)));
     }
-  }, [supabase]);
+  }, [supabase, info, toastError]);
 
   const rename = useCallback(async (id: string, name: string) => {
     try {
@@ -193,11 +206,14 @@ export function useResumes() {
         .update({ name })
         .eq("id", id);
       if (error) throw error;
+      success("Renamed", name);
     } catch (e: any) {
-      setError(e.message || "Failed to rename");
+      const msg = e.message || "Failed to rename";
+      setError(msg);
+      toastError("Rename failed", msg);
       await list();
     }
-  }, [supabase, list]);
+  }, [supabase, list, success, toastError]);
 
   const remove = useCallback(async (rec: ResumeRecord) => {
     try {
@@ -213,11 +229,14 @@ export function useResumes() {
       const cached = objectUrlMap.current.get(rec.id);
       if (cached) URL.revokeObjectURL(cached);
       objectUrlMap.current.delete(rec.id);
+      success("Deleted", rec.name);
     } catch (e: any) {
-      setError(e.message || "Failed to delete");
+      const msg = e.message || "Failed to delete";
+      setError(msg);
+      toastError("Delete failed", msg);
       await list();
     }
-  }, [supabase, list]);
+  }, [supabase, list, success, toastError]);
 
   const duplicate = useCallback(async (rec: ResumeRecord) => {
     try {
@@ -246,10 +265,13 @@ export function useResumes() {
         .single();
       if (error) throw error;
       setResumes((p) => [data as ResumeRecord, ...p]);
+      success("Duplicated", rec.name);
     } catch (e: any) {
-      setError(e.message || "Failed to duplicate");
+      const msg = e.message || "Failed to duplicate";
+      setError(msg);
+      toastError("Duplicate failed", msg);
     }
-  }, [supabase, userId]);
+  }, [supabase, userId, success, toastError]);
 
   const view = useCallback(async (rec: ResumeRecord) => {
     const local = objectUrlMap.current.get(rec.id);
@@ -267,7 +289,8 @@ export function useResumes() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  }, [getSignedUrl]);
+    info("Download started", `${rec.name}.${rec.file_ext ?? ""}`);
+  }, [getSignedUrl, info]);
 
   return {
     resumes,
@@ -287,8 +310,11 @@ export function useResumes() {
         setResumes((p) => p.map((r) => (r.id === id ? { ...r, ...patch } : r)));
         const { error } = await (supabase as any).from("resumes").update(patch).eq("id", id);
         if (error) throw error;
+        success("Saved changes");
       } catch (e: any) {
-        setError(e.message || "Failed to update resume");
+        const msg = e.message || "Failed to update resume";
+        setError(msg);
+        toastError("Update failed", msg);
         await list();
       }
     },
@@ -305,8 +331,11 @@ export function useResumes() {
         if (upErr) throw upErr;
         await (supabase as any).from("resumes").update({ file_path: path, file_ext: ext, size: file.size }).eq("id", id);
         setResumes((p) => p.map((r) => (r.id === id ? { ...r, file_path: path, file_ext: ext, size: file.size } : r)));
+        success("File replaced", `${rec.name}.${ext ?? ""}`);
       } catch (e: any) {
-        setError(e.message || "Failed to replace file");
+        const msg = e.message || "Failed to replace file";
+        setError(msg);
+        toastError("Replace failed", msg);
       }
     },
   } as const;

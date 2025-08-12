@@ -10,6 +10,7 @@ import { Dashboard } from "./screens/Dashboard";
 import Login from "./screens/Login/Login";
 import { WhiteBackgroundFixer } from "./components/WhiteBackgroundFixer";
 import { RequireAuth } from "./components/RequireAuth";
+import { ToastProvider } from "./components/ui/toast";
 
 // Error boundary component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
@@ -56,17 +57,17 @@ function App() {
         {/* Login Page */}
         <Route path="/login" element={<Login />} />
         
-  {/* Step 2: Onboarding Page (after signup) */}
-  <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
+        {/* Step 2: Onboarding Page (after signup) */}
+        <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
         
-  {/* Password reset handler (Supabase recovery flow) */}
-  <Route path="/reset-password" element={<PasswordReset />} />
+        {/* Password reset handler (Supabase recovery flow) */}
+        <Route path="/reset-password" element={<PasswordReset />} />
 
-  {/* Step 3: Dashboard Page (after onboarding completion) - Now serves as main container */}
-  <Route path="/dashboard/*" element={<RequireAuth><Dashboard /></RequireAuth>} />
+        {/* Step 3: Dashboard Page (after onboarding completion) - Now serves as main container */}
+        <Route path="/dashboard/*" element={<RequireAuth><Dashboard /></RequireAuth>} />
         
-  {/* Standalone Analytics Page (for backward compatibility) */}
-  <Route path="/analytics" element={<RequireAuth><Analytics /></RequireAuth>} />
+        {/* Standalone Analytics Page (for backward compatibility) */}
+        <Route path="/analytics" element={<RequireAuth><Analytics /></RequireAuth>} />
         
         {/* Catch all - redirect to landing page */}
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -94,7 +95,9 @@ if (!rootElement) {
     root.render(
       <StrictMode>
         <ErrorBoundary>
-          <App />
+          <ToastProvider>
+            <App />
+          </ToastProvider>
         </ErrorBoundary>
       </StrictMode>
     );
