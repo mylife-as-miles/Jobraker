@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { 
@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { AnalyticsContent } from "../../components/analytics/AnalyticsContent";
+import { useProfileSettings } from "../../hooks/useProfileSettings";
+import { createClient } from "../../lib/supabaseClient";
 
 // Import sub-page components
 import { OverviewPage } from "./pages/OverviewPage";
@@ -50,6 +52,42 @@ interface NavigationItem {
 export const Dashboard = (): JSX.Element => {
   const [currentPage, setCurrentPage] = useState<DashboardPage>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { profile } = useProfileSettings();
+  const supabase = useMemo(() => createClient(), []);
+  const [email, setEmail] = useState<string>("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const initials = useMemo(() => {
+    const a = (profile?.first_name || '').trim();
+    const b = (profile?.last_name || '').trim();
+    const i = `${a.charAt(0) || ''}${b.charAt(0) || ''}` || (email.charAt(0) || 'U');
+    return i.toUpperCase();
+  }, [profile?.first_name, profile?.last_name, email]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const em = (data as any)?.user?.email ?? "";
+      setEmail(em);
+    })();
+  }, [supabase]);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      const path = (profile as any)?.avatar_url as string | undefined;
+      if (!path) { if (active) setAvatarUrl(null); return; }
+      try {
+        const { data, error } = await (supabase as any).storage.from('avatars').createSignedUrl(path, 60 * 10);
+        if (error) throw error;
+        if (active) setAvatarUrl(data?.signedUrl || null);
+      } catch {
+        if (active) setAvatarUrl(null);
+      }
+    };
+    load();
+    const id = setInterval(load, 1000 * 60 * 8);
+    return () => { active = false; clearInterval(id); };
+  }, [supabase, (profile as any)?.avatar_url]);
 
   const navigationItems: NavigationItem[] = [
     {
@@ -264,12 +302,17 @@ export const Dashboard = (): JSX.Element => {
                 className="hidden sm:flex items-center space-x-2 sm:space-x-3 text-[#888888] hover:text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 p-1 sm:p-2"
                 onClick={() => setCurrentPage("profile")}
               >
-                <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full flex items-center justify-center hover:scale-110 transition-transform duration-300">
-                  <span className="text-black font-bold text-xs sm:text-sm lg:text-base">U</span>
+                <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300">
+                  {avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-black font-bold text-xs sm:text-sm lg:text-base">{initials}</span>
+                  )}
                 </div>
                 <div className="text-right hidden lg:block">
-                  <p className="text-white font-medium text-xs sm:text-sm">Udochukwu Chimbo</p>
-                  <p className="text-[#666666] text-xs">chimbouda@gmail.com</p>
+                  <p className="text-white font-medium text-xs sm:text-sm">{`${(profile?.first_name || '').trim()} ${(profile?.last_name || '').trim()}`.trim() || 'Your Name'}</p>
+                  <p className="text-[#666666] text-xs">{email || 'your@email'}</p>
                 </div>
               </Button>
               
@@ -280,8 +323,13 @@ export const Dashboard = (): JSX.Element => {
                 className="sm:hidden text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 p-1"
                 onClick={() => setCurrentPage("profile")}
               >
-                <div className="w-6 h-6 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full flex items-center justify-center">
-                  <span className="text-black font-bold text-xs">U</span>
+                <div className="w-6 h-6 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center">
+                  {avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-black font-bold text-xs">{initials}</span>
+                  )}
                 </div>
               </Button>
             </div>
