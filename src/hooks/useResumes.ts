@@ -318,9 +318,7 @@ export function useResumes() {
           });
         }
       )
-      .subscribe((status: any) => {
-        // Optional: could toast on connect errors; keep silent for now
-      });
+  .subscribe();
 
     return () => {
       try { (supabase as any).removeChannel(channel); } catch {}
