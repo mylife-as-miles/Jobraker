@@ -16,7 +16,9 @@ export interface NotificationRow {
 }
 
 export function useNotifications(limit: number = 10) {
-  const supabase = useMemo(() => createClient(), []);
+  is_starred?: boolean;
+  action_url?: string | null;
+  created_at: string;
   const { error: toastError } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [items, setItems] = useState<NotificationRow[]>([]);
@@ -26,6 +28,7 @@ export function useNotifications(limit: number = 10) {
   // resolve user id
   useEffect(() => {
     let mounted = true;
+  const [hasMore, setHasMore] = useState(true);
     (async () => {
       try {
         const { data } = await supabase.auth.getUser();
@@ -39,7 +42,9 @@ export function useNotifications(limit: number = 10) {
   }, [supabase]);
 
   const fetchItems = useCallback(async () => {
-    if (!userId) return;
+      const rows = (data || []) as NotificationRow[];
+      setItems(rows);
+      setHasMore(rows.length === limit);
     setLoading(true);
     setError(null);
     try {
@@ -55,7 +60,11 @@ export function useNotifications(limit: number = 10) {
       setError(e.message || 'Failed to load notifications');
       setItems([]);
     } finally { setLoading(false); }
-  }, [supabase, userId, limit]);
+          setItems(prev => {
+            const exists = prev.some(n => n.id === payload.new.id);
+            const next = exists ? prev.map(n => n.id === payload.new.id ? payload.new : n) : [payload.new, ...prev];
+            return next;
+          });
 
   useEffect(() => { if (userId) fetchItems(); }, [userId, fetchItems]);
 
@@ -83,6 +92,15 @@ export function useNotifications(limit: number = 10) {
     try {
       const { data, error } = await supabase.from('notifications').insert(row as any).select('*').single();
       if (error) throw error;
+  const bulkRemove = useCallback(async (ids: string[]) => {
+    try {
+      if (!ids.length) return;
+      const { error } = await supabase.from('notifications').delete().in('id', ids);
+      if (error) throw error;
+      setItems(prev => prev.filter(n => !ids.includes(n.id)));
+    } catch (e: any) { toastError('Delete failed', e.message); throw e; }
+  }, [supabase, toastError]);
+
       setItems(prev => [data as any, ...prev].slice(0, limit));
       return data as any as NotificationRow;
     } catch (e: any) { toastError('Create failed', e.message); throw e; }
@@ -91,6 +109,49 @@ export function useNotifications(limit: number = 10) {
   const markRead = useCallback(async (id: string, read: boolean = true) => {
     try {
       const { data, error } = await supabase.from('notifications').update({ read }).eq('id', id).select('*').single();
+
+  const bulkMarkRead = useCallback(async (ids: string[], read: boolean) => {
+    try {
+      if (!ids.length) return;
+      const { error } = await supabase.from('notifications').update({ read }).in('id', ids);
+      if (error) throw error;
+      setItems(prev => prev.map(n => ids.includes(n.id) ? { ...n, read } : n));
+    } catch (e: any) { toastError('Update failed', e.message); throw e; }
+  }, [supabase, toastError]);
+
+  const bulkStar = useCallback(async (ids: string[], is_starred: boolean) => {
+    try {
+      if (!ids.length) return;
+      const { error } = await supabase.from('notifications').update({ is_starred }).in('id', ids);
+      if (error) throw error;
+      setItems(prev => prev.map(n => ids.includes(n.id) ? { ...n, is_starred } : n));
+    } catch (e: any) { toastError('Update failed', e.message); throw e; }
+  }, [supabase, toastError]);
+
+  const toggleStar = useCallback(async (id: string) => {
+    const current = items.find(n => n.id === id);
+    if (!current) return;
+    await bulkStar([id], !(current.is_starred ?? false));
+  }, [items, bulkStar]);
+
+  const loadMore = useCallback(async () => {
+    if (!userId || !hasMore) return;
+    try {
+      const from = items.length;
+      const to = from + limit - 1;
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+      if (error) throw error;
+      const rows = (data || []) as NotificationRow[];
+      setItems(prev => [...prev, ...rows]);
+      setHasMore(rows.length === limit);
+    } catch (e: any) { toastError('Load more failed', e.message); }
+  }, [supabase, userId, items.length, limit, hasMore, toastError]);
+
       if (error) throw error;
       setItems(prev => prev.map(n => n.id === id ? (data as any) : n));
     } catch (e: any) { toastError('Update failed', e.message); throw e; }
