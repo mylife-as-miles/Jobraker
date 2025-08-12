@@ -1,13 +1,21 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Download, Edit, Eye, Plus, Upload, Star, MoreVertical, Copy, Trash2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useResumes, type ResumeRecord } from "../../../hooks/useResumes";
+import Modal from "../../../components/ui/modal";
+import ConfirmDialog from "../../../components/ui/confirm-dialog";
 
 export const ResumePage = (): JSX.Element => {
-  const { resumes, loading, error, upload, createEmpty, toggleFavorite, remove, duplicate, view, download } = useResumes();
+  const { resumes, loading, error, upload, createEmpty, toggleFavorite, remove, duplicate, view, download, rename, update, replaceFile } = useResumes();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [renameId, setRenameId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState<string>("");
+  const [toDelete, setToDelete] = useState<ResumeRecord | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editing, setEditing] = useState<ResumeRecord | null>(null);
+  const editorFileInput = useRef<HTMLInputElement | null>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -73,6 +81,64 @@ export const ResumePage = (): JSX.Element => {
             </div>
           </div>
         </div>
+        {/* Confirm Delete (global) */}
+        <ConfirmDialog
+          open={!!toDelete}
+          onCancel={() => setToDelete(null)}
+          onConfirm={async () => { if (toDelete) { await remove(toDelete); setToDelete(null); } }}
+          title="Delete resume?"
+          message={<span>“{toDelete?.name}” will be permanently deleted.</span>}
+          confirmText="Delete"
+        />
+
+        {/* Editor Drawer (global) */}
+        <Modal open={editorOpen} onClose={() => setEditorOpen(false)} title={editing ? `Edit: ${editing.name}` : "Edit Resume"} side="right">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-[#aaa]">Status</div>
+              <select
+                className="bg-transparent border border-[#1dff00]/30 rounded px-2 py-1 text-sm text-white"
+                value={editing?.status || "Draft"}
+                onChange={(e) => editing && update(editing.id, { status: e.target.value as any })}
+              >
+                <option value="Active">Active</option>
+                <option value="Draft">Draft</option>
+                <option value="Archived">Archived</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-[#aaa]">Template</div>
+              <input
+                className="w-full bg-transparent border border-[#1dff00]/30 rounded px-3 py-2 text-sm text-white"
+                value={editing?.template || ""}
+                onChange={(e) => editing && update(editing.id, { template: e.target.value })}
+                placeholder="Template name"
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-[#aaa]">Replace file</div>
+              <input ref={editorFileInput} type="file" className="hidden" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (f && editing) await replaceFile(editing.id, f);
+                if (editorFileInput.current) editorFileInput.current.value = "";
+              }} />
+              <Button onClick={() => editorFileInput.current?.click()} className="text-xs">Upload new file</Button>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-[#aaa]">Applications count</div>
+              <input
+                type="number"
+                min={0}
+                className="w-full bg-transparent border border-[#1dff00]/30 rounded px-3 py-2 text-sm text-white"
+                value={editing?.applications ?? 0}
+                onChange={(e) => editing && update(editing.id, { applications: Number(e.target.value) })}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="secondary" onClick={() => setEditorOpen(false)}>Close</Button>
+            </div>
+          </div>
+        </Modal>
 
         {/* Resume Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
@@ -175,7 +241,36 @@ export const ResumePage = (): JSX.Element => {
                   {/* Resume Info */}
                   <div className="space-y-3 sm:space-y-4 flex-grow">
                     <div>
-                      <h3 className="text-white font-semibold text-sm sm:text-base lg:text-lg mb-1 truncate">{resume.name}</h3>
+                      {renameId === resume.id ? (
+                        <input
+                          className="w-full bg-transparent text-white font-semibold text-sm sm:text-base lg:text-lg mb-1 border-b border-[#1dff00]/40 focus:border-[#1dff00] outline-none"
+                          value={renameValue}
+                          autoFocus
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onBlur={() => {
+                            if (renameValue && renameValue !== resume.name) rename(resume.id, renameValue);
+                            setRenameId(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              (e.target as HTMLInputElement).blur();
+                            } else if (e.key === "Escape") {
+                              setRenameId(null);
+                            }
+                          }}
+                        />
+                      ) : (
+                        <h3
+                          className="text-white font-semibold text-sm sm:text-base lg:text-lg mb-1 truncate cursor-text"
+                          onClick={() => {
+                            setRenameId(resume.id);
+                            setRenameValue(resume.name);
+                          }}
+                          title="Click to rename"
+                        >
+                          {resume.name}
+                        </h3>
+                      )}
                       <p className="text-[#888888] text-xs sm:text-sm">{resume.template || "Custom"}</p>
                     </div>
                     
@@ -190,7 +285,7 @@ export const ResumePage = (): JSX.Element => {
                     <Button
                       size="sm"
                       className="flex-1 bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300 text-xs sm:text-sm"
-                      onClick={() => alert("Edit coming soon")}
+                      onClick={() => { setEditing(resume); setEditorOpen(true); }}
                     >
                       <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                       Edit
@@ -208,7 +303,7 @@ export const ResumePage = (): JSX.Element => {
                       size="sm"
                       variant="outline"
                       className="border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10 hover:border-red-500/50 hover:text-red-400 hover:scale-105 transition-all duration-300"
-                      onClick={() => remove(resume)}
+                      onClick={() => setToDelete(resume)}
                       aria-label="Delete"
                     >
                       <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />

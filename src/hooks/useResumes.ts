@@ -282,5 +282,32 @@ export function useResumes() {
     duplicate,
     view,
     download,
+    update: async (id: string, patch: Partial<ResumeRecord>) => {
+      try {
+        setResumes((p) => p.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+        const { error } = await (supabase as any).from("resumes").update(patch).eq("id", id);
+        if (error) throw error;
+      } catch (e: any) {
+        setError(e.message || "Failed to update resume");
+        await list();
+      }
+    },
+    replaceFile: async (id: string, file: File) => {
+      try {
+        const rec = resumes.find((r) => r.id === id);
+        if (!rec || !userId) return;
+        const ext = file.name.split(".").pop()?.toLowerCase() || null;
+        const path = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext ?? "bin"}`;
+        if (rec.file_path) {
+          await (supabase as any).storage.from("resumes").remove([rec.file_path]);
+        }
+        const { error: upErr } = await (supabase as any).storage.from("resumes").upload(path, file, { upsert: false, contentType: file.type || undefined });
+        if (upErr) throw upErr;
+        await (supabase as any).from("resumes").update({ file_path: path, file_ext: ext, size: file.size }).eq("id", id);
+        setResumes((p) => p.map((r) => (r.id === id ? { ...r, file_path: path, file_ext: ext, size: file.size } : r)));
+      } catch (e: any) {
+        setError(e.message || "Failed to replace file");
+      }
+    },
   } as const;
 }
