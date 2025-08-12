@@ -104,5 +104,14 @@ export function useNotifications(limit: number = 10) {
     } catch (e: any) { toastError('Delete failed', e.message); throw e; }
   }, [supabase, toastError]);
 
-  return { items, loading, error, refresh: fetchItems, add, markRead, remove } as const;
+  const markAllRead = useCallback(async () => {
+    try {
+      if (!userId) return;
+      const { error } = await supabase.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false);
+      if (error) throw error;
+      setItems(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (e: any) { toastError('Update failed', e.message); throw e; }
+  }, [supabase, userId, toastError]);
+
+  return { items, loading, error, refresh: fetchItems, add, markRead, markAllRead, remove } as const;
 }

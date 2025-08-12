@@ -1,103 +1,40 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { Bell, Calendar, AlertCircle, Search, MoreVertical, Trash2, Archive, Star } from "lucide-react";
+import { Bell, Calendar, AlertCircle, Search, MoreVertical, Trash2, Archive, Star, Inbox } from "lucide-react";
+import { useNotifications } from "../../../hooks/useNotifications";
 
-interface Notification {
-  id: string;
-  type: "interview" | "application" | "system" | "company" | "reminder" | "message";
-  title: string;
-  message: string;
-  timestamp: string;
-  isRead: boolean;
-  isStarred: boolean;
-  priority: "low" | "medium" | "high";
-  actionUrl?: string;
-  icon: React.ReactNode;
-  company?: string;
-  hasDetailedContent?: boolean;
-  detailedContent?: string;
-}
+// Using realtime notifications; no local mock interface
 
 export const NotificationPage = (): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedNotification, setSelectedNotification] = useState<string | null>("2");
+  const [selectedNotification, setSelectedNotification] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
-
-  const notifications: Notification[] = [
-    {
-      id: "1",
-      type: "application",
-      title: "Your application to Google is now in the interview stage.",
-      message: "2mins ago",
-      timestamp: "2mins ago",
-      isRead: false,
+  const { items, loading, markRead, markAllRead, remove } = useNotifications(30);
+  const notifications = useMemo(() => items.map(n => {
+    const bg = n.type === 'company' ? '#000000' : n.type === 'application' ? '#4285f4' : n.type === 'interview' ? '#1dff00' : '#1dff00';
+    const icon = n.type === 'interview'
+      ? <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: bg }}><Calendar className="w-4 h-4 text-black" /></div>
+      : n.type === 'system'
+      ? <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: bg }}><AlertCircle className="w-4 h-4 text-black" /></div>
+      : <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: bg }}>{(n.company || 'N').charAt(0).toUpperCase()}</div>;
+    return {
+      id: n.id,
+      type: n.type,
+      title: n.title,
+      message: n.message || '',
+      timestamp: new Date(n.created_at).toLocaleString(),
+      isRead: n.read,
       isStarred: false,
-      priority: "high",
-      icon: <div className="w-8 h-8 bg-[#4285f4] rounded-full flex items-center justify-center text-white font-bold text-sm">G</div>,
-      company: "Google"
-    },
-    {
-      id: "2",
-      type: "interview",
-      title: "You have an interview on the 16th of August.",
-      message: "Just now",
-      timestamp: "Just now",
-      isRead: false,
-      isStarred: false,
-      priority: "high",
-      icon: <div className="w-8 h-8 bg-[#1dff00] rounded-full flex items-center justify-center"><Calendar className="w-4 h-4 text-black" /></div>,
-      hasDetailedContent: true,
-      detailedContent: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam eu turpis molestie, dictum est a, mattis tellus. Sed dignissim, metus nec fringilla accumsan, risus sem sollicitudin lacus, ut interdum tellus elit sed risus. Maecenas eget condimentum velit, sit amet feugiat lectus. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Praesent auctor purus luctus enim egestas, ac scelerisque ante pulvinar. Donec ut rhoncus ex. Suspendisse ac rhoncus nisl, eu tempor urna. Curabitur vel bibendum lorem. Morbi convallis convallis diam sit amet lacinia. Aliquam in elementum tellus."
-    },
-    {
-      id: "3",
-      type: "system",
-      title: "You have run out of applications; automatic application paused.",
-      message: "Yesterday",
-      timestamp: "Yesterday",
-      isRead: true,
-      isStarred: false,
-      priority: "medium",
-      icon: <div className="w-8 h-8 bg-[#1dff00] rounded-full flex items-center justify-center"><AlertCircle className="w-4 h-4 text-black" /></div>
-    },
-    {
-      id: "4",
-      type: "company",
-      title: "JobRaker just applied to a position at Apple Inc.",
-      message: "Just now",
-      timestamp: "Just now",
-      isRead: true,
-      isStarred: false,
-      priority: "low",
-      icon: <div className="w-8 h-8 bg-[#000000] rounded-full flex items-center justify-center text-white font-bold text-sm">🍎</div>,
-      company: "Apple"
-    },
-    {
-      id: "5",
-      type: "system",
-      title: "You have run out of applications; automatic application paused.",
-      message: "Yesterday",
-      timestamp: "Yesterday",
-      isRead: true,
-      isStarred: false,
-      priority: "medium",
-      icon: <div className="w-8 h-8 bg-[#1dff00] rounded-full flex items-center justify-center"><AlertCircle className="w-4 h-4 text-black" /></div>
-    },
-    {
-      id: "6",
-      type: "interview",
-      title: "You have an interview on the 16th of August.",
-      message: "Just now",
-      timestamp: "Just now",
-      isRead: true,
-      isStarred: false,
-      priority: "high",
-      icon: <div className="w-8 h-8 bg-[#1dff00] rounded-full flex items-center justify-center"><Calendar className="w-4 h-4 text-black" /></div>
-    }
-  ];
+      priority: 'medium' as const,
+      icon,
+      company: n.company || undefined,
+      hasDetailedContent: !!n.message,
+      detailedContent: n.message || undefined,
+    };
+  }), [items]);
 
   const filteredNotifications = notifications.filter(notification => {
     const matchesSearch = notification.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -135,6 +72,7 @@ export const NotificationPage = (): JSX.Element => {
           <div className="flex gap-2 sm:gap-3">
             <Button 
               variant="outline" 
+              onClick={() => markAllRead()}
               className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
             >
               Mark All Read
@@ -190,6 +128,17 @@ export const NotificationPage = (): JSX.Element => {
 
             {/* Notifications List */}
             <div className="flex-1 overflow-y-auto">
+              {filteredNotifications.length === 0 && !loading && (
+                <div className="p-8 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="mx-auto w-14 h-14 rounded-full bg-[#1dff00]/10 flex items-center justify-center mb-3">
+                      <Inbox className="w-7 h-7 text-[#1dff00]" />
+                    </div>
+                    <p className="text-white font-medium">No notifications</p>
+                    <p className="text-xs text-[#888]">You’ll see updates from your job search here.</p>
+                  </div>
+                </div>
+              )}
               {filteredNotifications.map((notification, index) => (
                 <motion.div
                   key={notification.id}
@@ -272,6 +221,7 @@ export const NotificationPage = (): JSX.Element => {
                         variant="ghost"
                         size="sm"
                         className="text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300"
+                        onClick={() => selectedNotification && markRead(selectedNotification, true)}
                       >
                         <Archive className="w-4 h-4" />
                       </Button>
@@ -279,6 +229,11 @@ export const NotificationPage = (): JSX.Element => {
                         variant="ghost"
                         size="sm"
                         className="text-[#ffffff60] hover:text-red-400 hover:scale-110 transition-all duration-300"
+                        onClick={() => {
+                          if (!selectedNotification) return;
+                          remove(selectedNotification);
+                          setSelectedNotification(null);
+                        }}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>

@@ -128,10 +128,32 @@ export const SettingsPage = (): JSX.Element => {
   };
 
   const handleNotificationChange = async (setting: string, value: boolean) => {
-    if (!notif) {
-      await createSettings({ [setting as any]: value });
-    } else {
-      await updateSettings({ [setting as any]: value, updated_at: new Date().toISOString() } as any);
+    try {
+      if (setting === 'push_notifications' && value) {
+        if (typeof window === 'undefined' || !('Notification' in window)) {
+          toastError('Push not supported', 'This browser does not support notifications');
+          return;
+        }
+        if (Notification.permission === 'denied') {
+          toastError('Notifications blocked', 'Allow notifications in your browser settings');
+          return;
+        }
+        if (Notification.permission === 'default') {
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            toastError('Permission required', 'Enable notifications to turn this on');
+            return;
+          }
+        }
+      }
+
+      if (!notif) {
+        await createSettings({ [setting as any]: value });
+      } else {
+        await updateSettings({ [setting as any]: value } as any);
+      }
+    } catch (e: any) {
+      toastError('Update failed', e.message);
     }
   };
 
