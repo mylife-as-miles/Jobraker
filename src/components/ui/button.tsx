@@ -4,7 +4,10 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "../../lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 relative overflow-hidden group",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background relative overflow-hidden group disabled:pointer-events-none disabled:opacity-50 \
+   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 \
+   transition-shadow duration-200 ease-out transform-gpu motion-reduce:transition-none \
+   hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.98]",
   {
     variants: {
       variant: {
@@ -60,14 +63,16 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         {...props}
       >
-        {/* Ripple effect overlay */}
-        <span className="absolute inset-0 opacity-0 group-active:opacity-100 bg-gradient-to-r from-transparent via-[#ffffff]/20 to-transparent transition-opacity duration-150 pointer-events-none" />
-        
+        {/* Radial hover highlight */}
+        <span className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" aria-hidden>
+          <span className="absolute -inset-10 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.08),rgba(255,255,255,0)_60%)] group-active:opacity-0" />
+        </span>
+        {/* Ripple line flash on active */}
+        <span className="absolute inset-0 opacity-0 group-active:opacity-100 bg-gradient-to-r from-transparent via-[#ffffff]/15 to-transparent transition-opacity duration-150 pointer-events-none" aria-hidden />
         {/* Shimmer effect for premium variant */}
         {variant === "premium" && (
-          <span className="absolute inset-0 bg-gradient-to-r from-transparent via-[#1dff00]/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
+          <span className="absolute inset-0 bg-gradient-to-r from-transparent via-[#1dff00]/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" aria-hidden />
         )}
-        
         {children}
       </Comp>
     )
