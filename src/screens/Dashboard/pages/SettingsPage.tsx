@@ -110,10 +110,12 @@ export const SettingsPage = (): JSX.Element => {
         const { data: user } = await supabase.auth.getUser();
         const uid = (user as any)?.user?.id;
         if (!uid) return;
-        const path = `${uid}/avatar_${Date.now()}.png`;
-        const { error: upErr } = await (supabase as any).storage.from('resumes').upload(path, file, { upsert: false, contentType: file.type || undefined });
+  const ext = file.name.split('.').pop() || 'png';
+  const path = `${uid}/avatar_${Date.now()}.${ext}`;
+  const { error: upErr } = await (supabase as any).storage.from('avatars').upload(path, file, { upsert: false, contentType: file.type || undefined });
         if (upErr) throw upErr;
-        const publicUrl = (await (supabase as any).storage.from('resumes').createSignedUrl(path, 60 * 60))?.data?.signedUrl || '';
+  const { data: pub } = (supabase as any).storage.from('avatars').getPublicUrl(path);
+  const publicUrl = pub?.publicUrl || '';
         setFormData((p) => ({ ...p, avatar_url: publicUrl }));
         await updateProfile({ avatar_url: publicUrl } as any);
         success('Avatar updated');
