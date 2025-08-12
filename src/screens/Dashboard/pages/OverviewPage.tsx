@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { motion } from "framer-motion";
-import { Building2, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Building2, AlertCircle, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
+import { useNotifications } from "../../../hooks/useNotifications";
 
 interface Notification {
   id: string;
@@ -16,43 +17,30 @@ interface Notification {
 
 export const OverviewPage = (): JSX.Element => {
   const [selectedPeriod, setSelectedPeriod] = useState("1 Month");
-
-  const mockNotifications: Notification[] = [
-    {
-      id: "1",
-      type: "interview",
-      title: "You have an interview on August 16.",
-      message: "Just now",
-      time: "Just now",
-      icon: <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#0077b5] rounded-full flex items-center justify-center"><Building2 className="w-3 h-3 sm:w-4 sm:h-4 text-[#1dff00]" /></div>
-    },
-    {
-      id: "2",
-      type: "application",
-      title: "Your application to Google is now in the interview stage.",
-      message: "2mins ago",
-      time: "2mins ago",
-      icon: <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#4285f4] rounded-full flex items-center justify-center text-[#1dff00] font-bold text-xs sm:text-sm">G</div>,
-      company: "Google"
-    },
-    {
-      id: "3",
-      type: "system",
-      title: "You have run out of applications; automatic application paused.",
-      message: "Yesterday",
-      time: "Yesterday",
-      icon: <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#ff6b6b] rounded-full flex items-center justify-center"><AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-[#1dff00]" /></div>
-    },
-    {
-      id: "4",
-      type: "company",
-      title: "JobRaker just applied to a position at Apple Inc.",
-      message: "Just now",
-      time: "Just now",
-      icon: <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#000000] rounded-full flex items-center justify-center text-[#1dff00] font-bold text-xs sm:text-sm">A</div>,
-      company: "Apple"
-    }
-  ];
+  const { items: notifItems, loading: notifLoading } = useNotifications(6);
+  const mappedNotifs = useMemo(() => {
+    return notifItems.map(n => ({
+      id: n.id,
+      type: n.type as any,
+      title: n.title,
+      message: n.message || '',
+      time: new Date(n.created_at).toLocaleString(),
+      icon: (
+        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center"
+             style={{ backgroundColor: n.type === 'company' ? '#000' : n.type === 'application' ? '#4285f4' : n.type === 'interview' ? '#0077b5' : '#ff6b6b' }}>
+          {n.type === 'company' ? (
+            <span className="text-[#1dff00] font-bold text-xs sm:text-sm">{(n.company || 'C').charAt(0).toUpperCase()}</span>
+          ) : n.type === 'application' ? (
+            <span className="text-[#1dff00] font-bold text-xs sm:text-sm">{(n.company || 'A').charAt(0).toUpperCase()}</span>
+          ) : n.type === 'interview' ? (
+            <Building2 className="w-3 h-3 sm:w-4 sm:h-4 text-[#1dff00]" />
+          ) : (
+            <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-[#1dff00]" />
+          )}
+        </div>
+      )
+    }));
+  }, [notifItems]);
 
   // Calendar data for August 2025
   const calendarDays = Array.from({ length: 31 }, (_, i) => i + 1);
@@ -223,7 +211,18 @@ export const OverviewPage = (): JSX.Element => {
                 </div>
 
                 <div className="space-y-3 sm:space-y-4">
-                  {mockNotifications.map((notification, index) => (
+                  {mappedNotifs.length === 0 && !notifLoading && (
+                    <div className="flex items-center justify-center p-8 border border-dashed border-[#1dff00]/30 rounded-xl bg-[#0b0b0b]">
+                      <div className="text-center">
+                        <div className="mx-auto w-12 h-12 rounded-full bg-[#1dff00]/10 flex items-center justify-center mb-3">
+                          <Inbox className="w-6 h-6 text-[#1dff00]" />
+                        </div>
+                        <p className="text-white font-medium">You’re all caught up</p>
+                        <p className="text-xs text-[#888]">No notifications yet. Activity will show up here.</p>
+                      </div>
+                    </div>
+                  )}
+                  {mappedNotifs.map((notification, index) => (
                     <motion.div
                       key={notification.id}
                       initial={{ opacity: 0, x: 20 }}
