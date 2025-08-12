@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../../components/ui/button";
-import { Card, CardContent } from "../../../components/ui/card";
-import { Input } from "../../../components/ui/input";
+import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
-import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award, Building2, GraduationCap, Briefcase } from "lucide-react";
+import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award, GraduationCap, Briefcase } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { createClient } from "../../../lib/supabaseClient";
 
@@ -36,12 +35,17 @@ interface Skill {
 }
 
 const ProfilePage = (): JSX.Element => {
-  const [activeTab] = useState("overview");
   const [isEditing, setIsEditing] = useState(false);
   const { profile } = useProfileSettings();
   const supabase = useMemo(() => createClient(), []);
   const [email, setEmail] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const initials = useMemo(() => {
+    const a = (profile?.first_name || '').trim();
+    const b = (profile?.last_name || '').trim();
+    const i = `${a.charAt(0) || ''}${b.charAt(0) || ''}` || (email.charAt(0) || 'U');
+    return i.toUpperCase();
+  }, [profile?.first_name, profile?.last_name, email]);
 
   // hydrate auth email
   useEffect(() => {
@@ -69,7 +73,7 @@ const ProfilePage = (): JSX.Element => {
     load();
     const id = setInterval(load, 1000 * 60 * 8);
     return () => { active = false; clearInterval(id); };
-  }, [supabase, profile?.avatar_url]);
+  }, [supabase, (profile as any)?.avatar_url]);
 
   const experiences: Experience[] = [
     {
@@ -169,14 +173,7 @@ const ProfilePage = (): JSX.Element => {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                       ) : (
-                        <span>
-                          {useMemo(() => {
-                            const a = (profile?.first_name || '').trim();
-                            const b = (profile?.last_name || '').trim();
-                            const initials = `${a.charAt(0) || ''}${b.charAt(0) || ''}` || (email.charAt(0) || 'U');
-                            return initials.toUpperCase();
-                          }, [profile?.first_name, profile?.last_name, email])}
-                        </span>
+                        <span>{initials}</span>
                       )}
                     </div>
                     <Button
@@ -288,7 +285,7 @@ const ProfilePage = (): JSX.Element => {
                     <textarea
                       className="w-full p-3 bg-[#ffffff1a] border border-[#ffffff33] rounded-lg text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300 resize-none"
                       rows={4}
-                      defaultValue={profileData.bio}
+                      defaultValue={profile?.job_title ? `Working as ${profile.job_title}${profile?.experience_years ? ` with ${profile.experience_years} years experience` : ''}${profile?.location ? ` in ${profile.location}` : ''}.` : ''}
                     />
                     <div className="flex space-x-2">
                       <Button 
@@ -311,7 +308,16 @@ const ProfilePage = (): JSX.Element => {
                 ) : (
                   <p className="text-[#ffffff80] leading-relaxed">
                     {profile?.job_title ? (
-                      <>Working as <span className="text-white font-medium">{profile.job_title}</span>{profile?.experience_years ? <> with <span className="text-white font-medium">{profile.experience_years}</span> years experience</> : null}{profile?.location ? <> in <span className="text-white font-medium">{profile.location}</span></> : null}.</n>
+                      <>
+                        Working as <span className="text-white font-medium">{profile.job_title}</span>
+                        {profile?.experience_years ? (
+                          <> with <span className="text-white font-medium">{profile.experience_years}</span> years experience</>
+                        ) : null}
+                        {profile?.location ? (
+                          <> in <span className="text-white font-medium">{profile.location}</span></>
+                        ) : null}
+                        .
+                      </>
                     ) : (
                       <>Update your profile in Settings to personalize this page.</>
                     )}
