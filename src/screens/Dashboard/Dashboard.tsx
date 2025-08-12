@@ -244,8 +244,8 @@ export const Dashboard = (): JSX.Element => {
       {/* Main Content - Responsive */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header - Responsive */}
-        <header className="bg-[#0a0a0a] border-b border-[#1dff00]/20 p-3 sm:p-4 lg:p-6">
-          <div className="flex items-center justify-between">
+        <header className="sticky top-0 z-40 bg-[#0a0a0a]/95 backdrop-blur border-b border-[#1dff00]/20 p-2 sm:p-3 lg:p-4">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
               <Button
                 variant="ghost"
@@ -256,13 +256,18 @@ export const Dashboard = (): JSX.Element => {
                 <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
               
-              {/* Breadcrumb Navigation - Responsive */}
-              <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm lg:text-base min-w-0">
+              {/* Current page (xs) */}
+              <span className="sm:hidden text-white font-medium text-sm truncate">
+                {getCurrentBreadcrumb().split(' / ').slice(-1)[0]}
+              </span>
+
+              {/* Breadcrumb Navigation (sm+) */}
+              <div className="hidden sm:flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm lg:text-base min-w-0 whitespace-nowrap overflow-hidden">
                 <Home className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-[#666666] flex-shrink-0" />
                 {getCurrentBreadcrumb().split(' / ').map((crumb, index, array) => (
                   <React.Fragment key={index}>
                     {index > 0 && <BreadcrumbChevron className="w-3 h-3 sm:w-4 sm:h-4 text-[#444444] flex-shrink-0" />}
-                    <span className={`${index === array.length - 1 ? "text-white font-medium" : "text-[#666666]"} truncate`}>
+                    <span className={`${index === array.length - 1 ? "text-white font-medium" : "text-[#666666]"} truncate max-w-[14rem] md:max-w-[22rem]` }>
                       {crumb}
                     </span>
                   </React.Fragment>
@@ -271,7 +276,7 @@ export const Dashboard = (): JSX.Element => {
             </div>
             
             {/* Header Actions - Responsive */}
-            <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0">
+            <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0 whitespace-nowrap">
               {/* Quick Actions */}
               <Button 
                 variant="ghost" 
@@ -289,7 +294,7 @@ export const Dashboard = (): JSX.Element => {
                 onClick={() => setCurrentPage("notifications")}
               >
                 <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 bg-[#1dff00] rounded-full text-black text-xs font-bold flex items-center justify-center animate-pulse">
+                <span className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 bg-[#1dff00] rounded-full text-black text-[10px] font-bold flex items-center justify-center animate-pulse">
                   <span className="hidden sm:inline text-xs">3</span>
                   <span className="sm:hidden">•</span>
                 </span>
@@ -310,9 +315,9 @@ export const Dashboard = (): JSX.Element => {
                     <span className="text-black font-bold text-xs sm:text-sm lg:text-base">{initials}</span>
                   )}
                 </div>
-                <div className="text-right hidden lg:block">
-                  <p className="text-white font-medium text-xs sm:text-sm">{`${(profile?.first_name || '').trim()} ${(profile?.last_name || '').trim()}`.trim() || 'Your Name'}</p>
-                  <p className="text-[#666666] text-xs">{email || 'your@email'}</p>
+                <div className="text-right hidden lg:block max-w-[200px] overflow-hidden">
+                  <p className="text-white font-medium text-xs sm:text-sm truncate">{`${(profile?.first_name || '').trim()} ${(profile?.last_name || '').trim()}`.trim() || 'Your Name'}</p>
+                  <p className="text-[#666666] text-xs truncate">{email || 'your@email'}</p>
                 </div>
               </Button>
               
