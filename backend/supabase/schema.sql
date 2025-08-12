@@ -78,6 +78,33 @@ CREATE TABLE IF NOT EXISTS "public"."resumes" (
 ALTER TABLE "public"."resumes" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."security_backup_codes" (
+    "id" bigint NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "code_hash" "text" NOT NULL,
+    "used" boolean DEFAULT false NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."security_backup_codes" OWNER TO "postgres";
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."security_backup_codes_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."security_backup_codes_id_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."security_backup_codes_id_seq" OWNED BY "public"."security_backup_codes"."id";
+
+
+
 CREATE TABLE IF NOT EXISTS "public"."security_settings" (
     "id" "uuid" NOT NULL,
     "two_factor_enabled" boolean DEFAULT false,
@@ -88,6 +115,42 @@ CREATE TABLE IF NOT EXISTS "public"."security_settings" (
 
 
 ALTER TABLE "public"."security_settings" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."security_trusted_devices" (
+    "id" bigint NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "device_id" "text" NOT NULL,
+    "device_name" "text",
+    "last_seen_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."security_trusted_devices" OWNER TO "postgres";
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."security_trusted_devices_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."security_trusted_devices_id_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."security_trusted_devices_id_seq" OWNED BY "public"."security_trusted_devices"."id";
+
+
+
+ALTER TABLE ONLY "public"."security_backup_codes" ALTER COLUMN "id" SET DEFAULT "nextval"('"public"."security_backup_codes_id_seq"'::"regclass");
+
+
+
+ALTER TABLE ONLY "public"."security_trusted_devices" ALTER COLUMN "id" SET DEFAULT "nextval"('"public"."security_trusted_devices_id_seq"'::"regclass");
+
 
 
 ALTER TABLE ONLY "public"."notification_settings"
@@ -105,8 +168,28 @@ ALTER TABLE ONLY "public"."resumes"
 
 
 
+ALTER TABLE ONLY "public"."security_backup_codes"
+    ADD CONSTRAINT "security_backup_codes_code_hash_key" UNIQUE ("code_hash");
+
+
+
+ALTER TABLE ONLY "public"."security_backup_codes"
+    ADD CONSTRAINT "security_backup_codes_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."security_settings"
     ADD CONSTRAINT "security_settings_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."security_trusted_devices"
+    ADD CONSTRAINT "security_trusted_devices_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."security_trusted_devices"
+    ADD CONSTRAINT "security_trusted_devices_user_id_device_id_key" UNIQUE ("user_id", "device_id");
 
 
 
@@ -129,8 +212,26 @@ ALTER TABLE ONLY "public"."resumes"
 
 
 
+ALTER TABLE ONLY "public"."security_backup_codes"
+    ADD CONSTRAINT "security_backup_codes_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
 ALTER TABLE ONLY "public"."security_settings"
     ADD CONSTRAINT "security_settings_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."security_trusted_devices"
+    ADD CONSTRAINT "security_trusted_devices_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+CREATE POLICY "Delete own backup codes" ON "public"."security_backup_codes" FOR DELETE USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Delete own devices" ON "public"."security_trusted_devices" FOR DELETE USING (("auth"."uid"() = "user_id"));
 
 
 
@@ -143,6 +244,14 @@ CREATE POLICY "Delete own resumes" ON "public"."resumes" FOR DELETE USING (("aut
 
 
 CREATE POLICY "Delete own security settings" ON "public"."security_settings" FOR DELETE USING (("auth"."uid"() = "id"));
+
+
+
+CREATE POLICY "Insert own backup codes" ON "public"."security_backup_codes" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Insert own devices" ON "public"."security_trusted_devices" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
 
 
 
@@ -162,6 +271,14 @@ CREATE POLICY "Insert own security settings" ON "public"."security_settings" FOR
 
 
 
+CREATE POLICY "Read own backup codes" ON "public"."security_backup_codes" FOR SELECT USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Read own devices" ON "public"."security_trusted_devices" FOR SELECT USING (("auth"."uid"() = "user_id"));
+
+
+
 CREATE POLICY "Read own notification settings" ON "public"."notification_settings" FOR SELECT USING (("auth"."uid"() = "id"));
 
 
@@ -175,6 +292,14 @@ CREATE POLICY "Read own security settings" ON "public"."security_settings" FOR S
 
 
 CREATE POLICY "Select own resumes" ON "public"."resumes" FOR SELECT USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Update own backup codes" ON "public"."security_backup_codes" FOR UPDATE USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Update own devices" ON "public"."security_trusted_devices" FOR UPDATE USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
 
 
 
@@ -203,7 +328,13 @@ ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."resumes" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."security_backup_codes" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."security_settings" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."security_trusted_devices" ENABLE ROW LEVEL SECURITY;
 
 
 GRANT USAGE ON SCHEMA "public" TO "postgres";
@@ -231,9 +362,33 @@ GRANT ALL ON TABLE "public"."resumes" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."security_backup_codes" TO "anon";
+GRANT ALL ON TABLE "public"."security_backup_codes" TO "authenticated";
+GRANT ALL ON TABLE "public"."security_backup_codes" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."security_backup_codes_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."security_backup_codes_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."security_backup_codes_id_seq" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."security_settings" TO "anon";
 GRANT ALL ON TABLE "public"."security_settings" TO "authenticated";
 GRANT ALL ON TABLE "public"."security_settings" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."security_trusted_devices" TO "anon";
+GRANT ALL ON TABLE "public"."security_trusted_devices" TO "authenticated";
+GRANT ALL ON TABLE "public"."security_trusted_devices" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."security_trusted_devices_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."security_trusted_devices_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."security_trusted_devices_id_seq" TO "service_role";
 
 
 
