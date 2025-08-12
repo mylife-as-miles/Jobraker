@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
+import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
 import { useSecuritySettings } from "../../../hooks/useSecuritySettings";
 import { createClient } from "../../../lib/supabaseClient";
 import { useAppearanceSettings } from "../../../hooks/useAppearanceSettings";
@@ -26,6 +27,7 @@ export const SettingsPage = (): JSX.Element => {
   const [showPassword, setShowPassword] = useState(false);
   const { profile, updateProfile, createProfile, refresh: refreshProfile } = useProfileSettings();
   const { settings: notif, updateSettings, createSettings, refresh: refreshNotif } = useNotificationSettings();
+  const { settings: privacy, createSettings: createPrivacy, updateSettings: updatePrivacy, refresh: refreshPrivacy } = usePrivacySettings();
   const security = useSecuritySettings();
   const appearance = useAppearanceSettings();
   const appearanceSettings = (appearance as any).settings;
@@ -157,6 +159,7 @@ export const SettingsPage = (): JSX.Element => {
   const handleResetForm = async () => {
     await refreshProfile();
     await refreshNotif();
+  await refreshPrivacy();
     success("Form reset");
   };
 
@@ -165,17 +168,19 @@ export const SettingsPage = (): JSX.Element => {
       const { data: u } = await supabase.auth.getUser();
       const uid = (u as any)?.user?.id;
       if (!uid) return toastError('Not signed in', 'Please sign in again');
-      const [{ data: prof }, { data: notifData }, { data: resumes }] = await Promise.all([
+      const [{ data: prof }, { data: notifData }, { data: resumes }, { data: privacyData }] = await Promise.all([
         (supabase as any).from('profiles').select('*').eq('id', uid).maybeSingle(),
         (supabase as any).from('notification_settings').select('*').eq('id', uid).maybeSingle(),
         (supabase as any).from('resumes').select('*').eq('user_id', uid).order('updated_at', { ascending: false }),
+        (supabase as any).from('privacy_settings').select('*').eq('id', uid).maybeSingle(),
       ]);
 
       const payload = {
         exported_at: new Date().toISOString(),
         user: { id: uid, email: (u as any)?.user?.email },
         profile: prof || null,
-        notification_settings: notifData || null,
+  notification_settings: notifData || null,
+  privacy_settings: privacyData || null,
         resumes: resumes || [],
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -711,6 +716,57 @@ export const SettingsPage = (): JSX.Element => {
               <CardContent className="p-4">
                 <h3 className="text-white font-medium mb-4">Data & Privacy</h3>
                 <div className="space-y-4">
+                  {/* Privacy toggles */}
+                  {[{
+                    key: 'is_profile_public',
+                    label: 'Public profile',
+                    desc: 'Allow your profile to be visible to others.'
+                  },{
+                    key: 'show_email',
+                    label: 'Show email',
+                    desc: 'Display your email address on your profile.'
+                  },{
+                    key: 'allow_search_indexing',
+                    label: 'Search engine indexing',
+                    desc: 'Allow search engines to index your public profile.'
+                  },{
+                    key: 'share_analytics',
+                    label: 'Share anonymized analytics',
+                    desc: 'Help improve the product by sharing anonymized usage data.'
+                  },{
+                    key: 'personalized_ads',
+                    label: 'Personalized ads',
+                    desc: 'Use your data to personalize ads.'
+                  },{
+                    key: 'resume_default_public',
+                    label: 'New resumes are public by default',
+                    desc: 'When enabled, newly created resumes are public unless you change them.'
+                  }].map((row: any) => (
+                    <motion.div key={row.key} className="flex items-center justify-between p-3 bg-[#ffffff0d] rounded border border-[#ffffff1a] hover:border-[#1dff00]/30 transition-all duration-300" whileHover={{ scale: 1.01 }}>
+                      <div>
+                        <p className="text-white font-medium">{row.label}</p>
+                        <p className="text-sm text-[#ffffff80]">{row.desc}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            if (!privacy) await createPrivacy({ [row.key]: true } as any);
+                            else await updatePrivacy({ [row.key]: !(privacy as any)[row.key] } as any);
+                          } catch (e: any) { toastError('Failed to update privacy', e.message); }
+                        }}
+                        className={`transition-all duration-300 hover:scale-105 ${
+                          ((privacy as any)?.[row.key] ?? false)
+                            ? 'bg-white text-black hover:bg-white/90'
+                            : 'bg-[#ffffff33] text-white hover:bg-[#ffffff4d]'
+                        }`}
+                      >
+                        {((privacy as any)?.[row.key] ?? false) ? 'Enabled' : 'Disabled'}
+                      </Button>
+                    </motion.div>
+                  ))}
+
                   <Button 
                     variant="outline" 
                     onClick={handleExportData}
@@ -739,6 +795,7 @@ export const SettingsPage = (): JSX.Element => {
                           await (supabase as any).from('security_settings').delete().eq('id', uid);
                           await (supabase as any).from('security_backup_codes').delete().eq('user_id', uid);
                           await (supabase as any).from('security_trusted_devices').delete().eq('user_id', uid);
+                          await (supabase as any).from('privacy_settings').delete().eq('id', uid);
                         }
                         await supabase.auth.signOut();
                         success('Account deleted');
