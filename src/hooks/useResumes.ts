@@ -292,6 +292,41 @@ export function useResumes() {
     info("Download started", `${rec.name}.${rec.file_ext ?? ""}`);
   }, [getSignedUrl, info]);
 
+  useEffect(() => {
+    if (!userId) return;
+    // Subscribe to realtime changes for this user's resumes
+    const channel = (supabase as any)
+      .channel(`resumes:${userId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'resumes', filter: `user_id=eq.${userId}` },
+        (payload: any) => {
+          const { eventType, new: newRow, old: oldRow } = payload;
+          setResumes((prev) => {
+            switch (eventType) {
+              case 'INSERT':
+                // Avoid duplicates
+                if (prev.find((r) => r.id === newRow.id)) return prev;
+                return [newRow as ResumeRecord, ...prev];
+              case 'UPDATE':
+                return prev.map((r) => (r.id === newRow.id ? { ...r, ...newRow } : r));
+              case 'DELETE':
+                return prev.filter((r) => r.id !== (oldRow?.id ?? newRow?.id));
+              default:
+                return prev;
+            }
+          });
+        }
+      )
+      .subscribe((status: any) => {
+        // Optional: could toast on connect errors; keep silent for now
+      });
+
+    return () => {
+      try { (supabase as any).removeChannel(channel); } catch {}
+    };
+  }, [supabase, userId]);
+
   return {
     resumes,
     loading,

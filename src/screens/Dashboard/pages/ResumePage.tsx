@@ -247,10 +247,7 @@ export const ResumePage = (): JSX.Element => {
                         size="sm"
                         variant="ghost"
                         className="text-[#1dff00] hover:bg-[#1dff00]/20 hover:scale-110 transition-all duration-300"
-                        onClick={() => {
-                          // Placeholder for editor route/modal
-                          alert("Edit coming soon");
-                        }}
+                        onClick={() => { setEditing(resume); setEditorOpen(true); }}
                         aria-label="Edit"
                       >
                         <Edit className="w-4 h-4" />
@@ -424,6 +421,10 @@ export const ResumePage = (): JSX.Element => {
                   </div>
                   <Button
                     className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300 text-xs sm:text-sm"
+                    onClick={async () => {
+                      const created = await createEmpty({});
+                      if (created) { setEditing(created); setEditorOpen(true); }
+                    }}
                   >
                     Get Started
                   </Button>
