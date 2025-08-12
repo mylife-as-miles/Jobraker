@@ -6,16 +6,20 @@ import { motion } from "framer-motion";
 import { useResumes, type ResumeRecord } from "../../../hooks/useResumes";
 import Modal from "../../../components/ui/modal";
 import ConfirmDialog from "../../../components/ui/confirm-dialog";
+import { useToast } from "../../../components/ui/toast-provider";
 
 export const ResumePage = (): JSX.Element => {
   const { resumes, loading, error, upload, createEmpty, toggleFavorite, remove, duplicate, view, download, rename, update, replaceFile } = useResumes();
+  const { addToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState<string>("");
   const [toDelete, setToDelete] = useState<ResumeRecord | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<ResumeRecord | null>(null);
+  const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
   const editorFileInput = useRef<HTMLInputElement | null>(null);
+  const pendingFileRef = useRef<File | null>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -45,7 +49,11 @@ export const ResumePage = (): JSX.Element => {
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <Button
                 className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300 text-sm sm:text-base"
-                onClick={() => createEmpty({})}
+                onClick={async () => {
+                  const res = await createEmpty({});
+                  if (res) addToast({ title: "Resume created", variant: "success" });
+                  else addToast({ title: "Failed to create resume", variant: "destructive" });
+                }}
                 disabled={loading}
                 aria-label="Create new resume"
                 title="Create new resume"
@@ -62,7 +70,8 @@ export const ResumePage = (): JSX.Element => {
                 onChange={async (e) => {
                   const files = e.target.files;
                   if (!files || files.length === 0) return;
-                  await upload(Array.from(files));
+                  const result = await upload(Array.from(files));
+                  addToast({ title: result && result.length > 0 ? `Imported ${result.length} file(s)` : "Import failed", variant: result && result.length > 0 ? "success" : "destructive" });
                   // reset
                   e.currentTarget.value = "";
                 }}
@@ -85,10 +94,27 @@ export const ResumePage = (): JSX.Element => {
         <ConfirmDialog
           open={!!toDelete}
           onCancel={() => setToDelete(null)}
-          onConfirm={async () => { if (toDelete) { await remove(toDelete); setToDelete(null); } }}
+          onConfirm={async () => { if (toDelete) { await remove(toDelete); addToast({ title: "Resume deleted", variant: "success" }); setToDelete(null); } }}
           title="Delete resume?"
           message={<span>“{toDelete?.name}” will be permanently deleted.</span>}
           confirmText="Delete"
+        />
+        {/* Confirm Replace File */}
+        <ConfirmDialog
+          open={confirmReplaceOpen}
+          onCancel={() => { setConfirmReplaceOpen(false); pendingFileRef.current = null; }}
+          onConfirm={async () => {
+            const f = pendingFileRef.current;
+            if (f && editing) {
+              await replaceFile(editing.id, f);
+              addToast({ title: "File replaced", variant: "success" });
+            }
+            setConfirmReplaceOpen(false);
+            pendingFileRef.current = null;
+          }}
+          title="Replace file?"
+          message={<span>This will replace the current file for “{editing?.name}”.</span>}
+          confirmText="Replace"
         />
 
         {/* Editor Drawer (global) */}
@@ -99,7 +125,12 @@ export const ResumePage = (): JSX.Element => {
               <select
                 className="bg-transparent border border-[#1dff00]/30 rounded px-2 py-1 text-sm text-white"
                 value={editing?.status || "Draft"}
-                onChange={(e) => editing && update(editing.id, { status: e.target.value as any })}
+                onChange={async (e) => {
+                  if (editing) {
+                    await update(editing.id, { status: e.target.value as any });
+                    addToast({ title: "Status updated", variant: "success" });
+                  }
+                }}
               >
                 <option value="Active">Active</option>
                 <option value="Draft">Draft</option>
@@ -111,7 +142,12 @@ export const ResumePage = (): JSX.Element => {
               <input
                 className="w-full bg-transparent border border-[#1dff00]/30 rounded px-3 py-2 text-sm text-white"
                 value={editing?.template || ""}
-                onChange={(e) => editing && update(editing.id, { template: e.target.value })}
+                onChange={async (e) => {
+                  if (editing) {
+                    await update(editing.id, { template: e.target.value });
+                    addToast({ title: "Template updated", variant: "success" });
+                  }
+                }}
                 placeholder="Template name"
               />
             </div>
@@ -119,7 +155,10 @@ export const ResumePage = (): JSX.Element => {
               <div className="text-sm text-[#aaa]">Replace file</div>
               <input ref={editorFileInput} type="file" className="hidden" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={async (e) => {
                 const f = e.target.files?.[0];
-                if (f && editing) await replaceFile(editing.id, f);
+                if (f) {
+                  pendingFileRef.current = f;
+                  setConfirmReplaceOpen(true);
+                }
                 if (editorFileInput.current) editorFileInput.current.value = "";
               }} />
               <Button onClick={() => editorFileInput.current?.click()} className="text-xs">Upload new file</Button>
@@ -131,7 +170,12 @@ export const ResumePage = (): JSX.Element => {
                 min={0}
                 className="w-full bg-transparent border border-[#1dff00]/30 rounded px-3 py-2 text-sm text-white"
                 value={editing?.applications ?? 0}
-                onChange={(e) => editing && update(editing.id, { applications: Number(e.target.value) })}
+                onChange={async (e) => {
+                  if (editing) {
+                    await update(editing.id, { applications: Number(e.target.value) });
+                    addToast({ title: "Applications updated", variant: "success" });
+                  }
+                }}
               />
             </div>
             <div className="flex gap-2 justify-end">
@@ -208,10 +252,7 @@ export const ResumePage = (): JSX.Element => {
                         size="sm"
                         variant="ghost"
                         className="text-[#1dff00] hover:bg-[#1dff00]/20 hover:scale-110 transition-all duration-300"
-                        onClick={() => {
-                          // Placeholder for editor route/modal
-                          alert("Edit coming soon");
-                        }}
+                        onClick={() => { setEditing(resume); setEditorOpen(true); }}
                         aria-label="Edit"
                       >
                         <Edit className="w-4 h-4" />
@@ -220,7 +261,7 @@ export const ResumePage = (): JSX.Element => {
                         size="sm"
                         variant="ghost"
                         className="text-[#1dff00] hover:bg-[#1dff00]/20 hover:scale-110 transition-all duration-300"
-                        onClick={() => download(resume)}
+                        onClick={async () => { await download(resume); addToast({ title: "Download started", variant: "info" }); }}
                         aria-label="Download"
                       >
                         <Download className="w-4 h-4" />
@@ -230,7 +271,7 @@ export const ResumePage = (): JSX.Element => {
                         variant="ghost"
                         className="text-[#1dff00] hover:bg-[#1dff00]/20 hover:scale-110 transition-all duration-300"
                         aria-label="More"
-                        onClick={() => duplicate(resume)}
+                        onClick={async () => { await duplicate(resume); addToast({ title: "Resume duplicated", variant: "success" }); }}
                         title="Duplicate"
                       >
                         <MoreVertical className="w-4 h-4" />
@@ -294,7 +335,7 @@ export const ResumePage = (): JSX.Element => {
                       size="sm"
                       variant="outline"
                       className="border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10 hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
-                      onClick={() => duplicate(resume)}
+                      onClick={async () => { await duplicate(resume); addToast({ title: "Resume duplicated", variant: "success" }); }}
                       aria-label="Duplicate"
                     >
                       <Copy className="w-3 h-3 sm:w-4 sm:h-4" />
