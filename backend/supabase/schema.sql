@@ -82,7 +82,8 @@ CREATE TABLE IF NOT EXISTS "public"."security_settings" (
     "id" "uuid" NOT NULL,
     "two_factor_enabled" boolean DEFAULT false,
     "sign_in_alerts" boolean DEFAULT true,
-    "updated_at" timestamp with time zone DEFAULT "now"()
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    "factor_id" "text"
 );
 
 
