@@ -343,6 +343,7 @@ export const SettingsPage = (): JSX.Element => {
       case "security":
         return (
           <div className="space-y-6">
+            {/* Change Password */}
             <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
               <CardContent className="p-4">
                 <h3 className="text-white font-medium mb-4">Change Password</h3>
@@ -383,47 +384,68 @@ export const SettingsPage = (): JSX.Element => {
                       value={formData.confirmPassword}
                       onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
                       className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
-                    <p className="text-[#ffffff80] mb-4">Add an extra layer of security to your account</p>
-                    <div className="flex items-center gap-3">
-                      <Button 
-                        variant={sec?.two_factor_enabled ? 'default' : 'outline'}
-                        onClick={async () => {
-                          if (!sec) await createSecurity({ two_factor_enabled: true });
-                          else await updateSecurity({ two_factor_enabled: !sec.two_factor_enabled });
-                        }}
-                        className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
-                      >
-                        {sec?.two_factor_enabled ? 'Disable 2FA' : 'Enable 2FA'}
-                      </Button>
-                      <span className="text-sm text-[#ffffff80]">Status: {sec?.two_factor_enabled ? 'Enabled' : 'Disabled'}</span>
-                    </div>
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleChangePassword}
+                    className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                  >
+                    Update Password
                   </Button>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Two-Factor Authentication */}
             <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
               <CardContent className="p-4">
                 <h3 className="text-white font-medium mb-4">Two-Factor Authentication</h3>
                 <p className="text-[#ffffff80] mb-4">Add an extra layer of security to your account</p>
-                <Button 
-                  variant="outline" 
-                  className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
-                >
-                  Enable 2FA
-                </Button>
-                        <Button 
-                          variant="ghost" size="sm"
-                          onClick={async () => {
-                            if (!sec) await createSecurity({ sign_in_alerts: true });
-                            else await updateSecurity({ sign_in_alerts: !sec.sign_in_alerts });
-                          }}
-                          className={`transition-all duration-300 hover:scale-105 ${(sec?.sign_in_alerts ?? true) ? 'bg-white text-black hover:bg-white/90' : 'bg-[#ffffff33] text-white hover:bg-[#ffffff4d]'}`}
-                        >
-                          {(sec?.sign_in_alerts ?? true) ? 'Enabled' : 'Disabled'}
-                        </Button>
+                <div className="flex items-center gap-3">
+                  <Button 
+                    variant={sec?.two_factor_enabled ? 'default' : 'outline'}
+                    onClick={async () => {
+                      if (!sec) await createSecurity({ two_factor_enabled: true });
+                      else await updateSecurity({ two_factor_enabled: !sec.two_factor_enabled });
+                    }}
+                    className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                  >
+                    {sec?.two_factor_enabled ? 'Disable 2FA' : 'Enable 2FA'}
+                  </Button>
+                  <span className="text-sm text-[#ffffff80]">Status: {sec?.two_factor_enabled ? 'Enabled' : 'Disabled'}</span>
+                </div>
+              </CardContent>
             </Card>
 
+            {/* Sign-in Alerts */}
+            <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
+              <CardContent className="p-4">
+                <h3 className="text-white font-medium mb-4">Sign-in Alerts</h3>
+                <div className="space-y-3">
+                  <motion.div 
+                    className="flex items-center justify-between p-3 bg-[#ffffff0d] rounded border border-[#ffffff1a] hover:border-[#1dff00]/30 transition-all duration-300"
+                    whileHover={{ scale: 1.01 }}
+                  >
+                    <div>
+                      <p className="text-white font-medium">Email alerts</p>
+                      <p className="text-sm text-[#ffffff80]">Notify me when a new device signs in</p>
+                    </div>
+                    <Button 
+                      variant="ghost" size="sm"
+                      onClick={async () => {
+                        if (!sec) await createSecurity({ sign_in_alerts: true });
+                        else await updateSecurity({ sign_in_alerts: !sec.sign_in_alerts });
+                      }}
+                      className={`transition-all duration-300 hover:scale-105 ${(sec?.sign_in_alerts ?? true) ? 'bg-white text-black hover:bg-white/90' : 'bg-[#ffffff33] text-white hover:bg-[#ffffff4d]'}`}
+                    >
+                      {(sec?.sign_in_alerts ?? true) ? 'Enabled' : 'Disabled'}
+                    </Button>
+                  </motion.div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Active Sessions (placeholder) */}
             <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
               <CardContent className="p-4">
                 <h3 className="text-white font-medium mb-4">Active Sessions</h3>
@@ -434,7 +456,7 @@ export const SettingsPage = (): JSX.Element => {
                   >
                     <div>
                       <p className="text-white font-medium">Current Session</p>
-                      <p className="text-sm text-[#ffffff80]">Chrome on macOS • San Francisco, CA</p>
+                      <p className="text-sm text-[#ffffff80]">Your current browser</p>
                     </div>
                     <span className="text-xs text-[#1dff00] bg-[#1dff0020] px-2 py-1 rounded">Active</span>
                   </motion.div>
