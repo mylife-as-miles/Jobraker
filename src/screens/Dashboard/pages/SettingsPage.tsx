@@ -10,6 +10,13 @@ import { useSecuritySettings } from "../../../hooks/useSecuritySettings";
 import { createClient } from "../../../lib/supabaseClient";
 import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
+// Lazy-load qrcode to avoid bundler resolution issues during build
+let QRCodeLib: any | null = null;
+async function getQRCode() {
+  if (QRCodeLib) return QRCodeLib;
+  QRCodeLib = await import('qrcode');
+  return QRCodeLib;
+}
 
 export const SettingsPage = (): JSX.Element => {
   const supabase = useMemo(() => createClient(), []);
@@ -18,7 +25,7 @@ export const SettingsPage = (): JSX.Element => {
   const [showPassword, setShowPassword] = useState(false);
   const { profile, updateProfile, createProfile, refresh: refreshProfile } = useProfileSettings();
   const { settings: notif, updateSettings, createSettings, refresh: refreshNotif } = useNotificationSettings();
-  const { settings: sec, updateSecurity, createSecurity, refresh: refreshSec, enrollTotp, verifyTotp, disableTotp } = useSecuritySettings();
+  const { settings: sec, updateSecurity, createSecurity, refresh: refreshSec, enrollTotp, verifyTotp, disableTotp, generateBackupCodes, trustDevice } = useSecuritySettings();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -34,8 +41,10 @@ export const SettingsPage = (): JSX.Element => {
   // 2FA modal state
   const [open2FA, setOpen2FA] = useState(false);
   const [totpUri, setTotpUri] = useState<string | undefined>();
+  const [qrDataUrl, setQrDataUrl] = useState<string | undefined>();
   const [totpFactorId, setTotpFactorId] = useState<string | undefined>();
   const [totpCode, setTotpCode] = useState<string>("");
+  const [verifyBusy, setVerifyBusy] = useState(false);
 
   const initials = useMemo(() => {
     const a = (formData.firstName || '').trim();
@@ -421,6 +430,9 @@ export const SettingsPage = (): JSX.Element => {
                         const { factorId, uri } = await enrollTotp();
                         setTotpFactorId(factorId);
                         setTotpUri(uri);
+                        if (uri) {
+                          try { const QR = await getQRCode(); setQrDataUrl(await QR.toDataURL(uri)); } catch { setQrDataUrl(undefined); }
+                        }
                         setTotpCode("");
                         setOpen2FA(true);
                       } catch (e: any) {
@@ -461,6 +473,55 @@ export const SettingsPage = (): JSX.Element => {
                     </Button>
                   </motion.div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Backup Codes */}
+            <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-white font-medium">Backup Codes</h3>
+                  <Button
+                    variant="outline"
+                    className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50"
+                    onClick={async () => {
+                      try {
+                        const codes = await generateBackupCodes(10);
+                        const blob = new Blob([codes.join('\n')], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url; a.download = 'jobraker-backup-codes.txt'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+                        success('Backup codes downloaded');
+                      } catch (e: any) {
+                        toastError('Failed to generate codes', e.message);
+                      }
+                    }}
+                  >Generate</Button>
+                </div>
+                <p className="text-[#ffffff80] text-sm mb-3">Store these one-time use codes in a safe place. Each can be used once.</p>
+              </CardContent>
+            </Card>
+
+            {/* Trusted Devices */}
+            <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-white font-medium">Trusted Devices</h3>
+                  <Button
+                    variant="outline"
+                    className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50"
+                    onClick={async () => {
+                      try {
+                        const deviceId = crypto.getRandomValues(new Uint32Array(4)).join('-');
+                        await trustDevice(deviceId, navigator.userAgent);
+                        success('Current device trusted');
+                      } catch (e: any) {
+                        toastError('Failed to trust device', e.message);
+                      }
+                    }}
+                  >Trust This Device</Button>
+                </div>
+                <p className="text-[#ffffff80] text-sm mb-3">Trusted devices skip some security prompts. Revoke lost or old devices.</p>
               </CardContent>
             </Card>
 
@@ -709,13 +770,9 @@ export const SettingsPage = (): JSX.Element => {
           <p className="text-[#ffffffb3] text-sm">
             Scan the QR code in your authenticator app (e.g., Google Authenticator, Authy), then enter the 6-digit code below.
           </p>
-          {totpUri ? (
+      {qrDataUrl ? (
             <div className="flex justify-center">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(totpUri)}`}
-                alt="TOTP QR"
-                className="rounded border border-[#1dff00]/30"
-              />
+        <img src={qrDataUrl} alt="TOTP QR" className="rounded border border-[#1dff00]/30" />
             </div>
           ) : (
             <div className="text-[#ffffff80] text-sm">Generating QR…</div>
@@ -742,12 +799,13 @@ export const SettingsPage = (): JSX.Element => {
             <Button
               onClick={async () => {
                 try {
-                  if (!totpFactorId || !totpCode) return;
+                  if (!totpFactorId || !totpCode || verifyBusy) return;
+                  setVerifyBusy(true);
                   await verifyTotp(totpFactorId, totpCode);
                   setOpen2FA(false);
                 } catch (e: any) {
                   toastError('Verification failed', e.message);
-                }
+                } finally { setVerifyBusy(false); }
               }}
               className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
             >

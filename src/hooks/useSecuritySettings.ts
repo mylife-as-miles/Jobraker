@@ -17,6 +17,8 @@ export function useSecuritySettings() {
   const [settings, setSettings] = useState<SecuritySettings | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [backupCodes, setBackupCodes] = useState<Array<{ id: number; user_id: string; used: boolean }>>([]);
+  const [devices, setDevices] = useState<Array<{ id: number; device_id: string; device_name: string | null; last_seen_at: string }>>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -109,6 +111,101 @@ export function useSecuritySettings() {
       setLoading(false);
     }
   }, [supabase, userId, success, toastError]);
+
+  // Backup codes
+  const listBackupCodes = useCallback(async () => {
+    if (!userId) return;
+    const { data, error } = await (supabase as any)
+      .from('security_backup_codes')
+      .select('id,user_id,used')
+      .eq('user_id', userId)
+      .order('id', { ascending: true });
+    if (error) throw error;
+    setBackupCodes(data || []);
+  }, [supabase, userId]);
+
+  const generateBackupCodes = useCallback(async (count = 10) => {
+    if (!userId) return [] as string[];
+    // Generate codes client-side, store hashes server-side
+    // For simplicity, store plain code hashes using SHA-256 here
+    const codes: string[] = Array.from({ length: count }).map(() =>
+      Math.random().toString(36).slice(2, 10).toUpperCase()
+    );
+    const encoder = new TextEncoder();
+    const hashes = await Promise.all(codes.map(async (c) => {
+      const buf = await crypto.subtle.digest('SHA-256', encoder.encode(c));
+      const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+      return { user_id: userId, code_hash: hex };
+    }));
+    const { error } = await (supabase as any).from('security_backup_codes').insert(hashes);
+    if (error) throw error;
+    await listBackupCodes();
+    success('Backup codes generated');
+    return codes;
+  }, [supabase, userId, listBackupCodes, success]);
+
+  const markBackupCodeUsed = useCallback(async (code: string) => {
+    if (!userId) return false;
+    const encoder = new TextEncoder();
+    const buf = await crypto.subtle.digest('SHA-256', encoder.encode(code));
+    const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    const { error } = await (supabase as any)
+      .from('security_backup_codes')
+      .update({ used: true })
+      .eq('user_id', userId)
+      .eq('code_hash', hex);
+    if (error) throw error;
+    await listBackupCodes();
+    return true;
+  }, [supabase, userId, listBackupCodes]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const ch = (supabase as any)
+      .channel(`backup_codes:${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'security_backup_codes', filter: `user_id=eq.${userId}` }, () => listBackupCodes())
+      .subscribe();
+    listBackupCodes();
+    return () => { try { (supabase as any).removeChannel(ch); } catch {} };
+  }, [supabase, userId, listBackupCodes]);
+
+  // Trusted devices
+  const listDevices = useCallback(async () => {
+    if (!userId) return;
+    const { data, error } = await (supabase as any)
+      .from('security_trusted_devices')
+      .select('id,device_id,device_name,last_seen_at')
+      .eq('user_id', userId)
+      .order('last_seen_at', { ascending: false });
+    if (error) throw error;
+    setDevices(data || []);
+  }, [supabase, userId]);
+
+  const trustDevice = useCallback(async (deviceId: string, deviceName?: string) => {
+    if (!userId) return;
+    const { error } = await (supabase as any).from('security_trusted_devices').upsert({
+      user_id: userId, device_id: deviceId, device_name: deviceName ?? null, last_seen_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,device_id' });
+    if (error) throw error;
+    await listDevices();
+  }, [supabase, userId, listDevices]);
+
+  const revokeDevice = useCallback(async (deviceId: string) => {
+    if (!userId) return;
+    const { error } = await (supabase as any).from('security_trusted_devices').delete().eq('user_id', userId).eq('device_id', deviceId);
+    if (error) throw error;
+    await listDevices();
+  }, [supabase, userId, listDevices]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const ch = (supabase as any)
+      .channel(`trusted_devices:${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'security_trusted_devices', filter: `user_id=eq.${userId}` }, () => listDevices())
+      .subscribe();
+    listDevices();
+    return () => { try { (supabase as any).removeChannel(ch); } catch {} };
+  }, [supabase, userId, listDevices]);
 
   // MFA helpers (TOTP)
   const enrollTotp = useCallback(async () => {
