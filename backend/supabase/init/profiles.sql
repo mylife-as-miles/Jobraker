@@ -6,6 +6,8 @@ create table if not exists public.profiles (
   job_title text,
   experience_years int,
   location text,
+  phone text,
+  avatar_url text,
   goals text[] default '{}',
   updated_at timestamptz default now()
 );

@@ -26,6 +26,21 @@ SET default_tablespace = '';
 SET default_table_access_method = "heap";
 
 
+CREATE TABLE IF NOT EXISTS "public"."notification_settings" (
+    "id" "uuid" NOT NULL,
+    "email_notifications" boolean DEFAULT true,
+    "push_notifications" boolean DEFAULT true,
+    "job_alerts" boolean DEFAULT true,
+    "application_updates" boolean DEFAULT true,
+    "weekly_digest" boolean DEFAULT false,
+    "marketing_emails" boolean DEFAULT false,
+    "updated_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."notification_settings" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "id" "uuid" NOT NULL,
     "first_name" "text",
@@ -61,6 +76,11 @@ CREATE TABLE IF NOT EXISTS "public"."resumes" (
 ALTER TABLE "public"."resumes" OWNER TO "postgres";
 
 
+ALTER TABLE ONLY "public"."notification_settings"
+    ADD CONSTRAINT "notification_settings_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."profiles"
     ADD CONSTRAINT "profiles_pkey" PRIMARY KEY ("id");
 
@@ -75,6 +95,11 @@ CREATE INDEX "resumes_user_updated_idx" ON "public"."resumes" USING "btree" ("us
 
 
 
+ALTER TABLE ONLY "public"."notification_settings"
+    ADD CONSTRAINT "notification_settings_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
 ALTER TABLE ONLY "public"."profiles"
     ADD CONSTRAINT "profiles_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
@@ -85,7 +110,15 @@ ALTER TABLE ONLY "public"."resumes"
 
 
 
+CREATE POLICY "Delete own notification settings" ON "public"."notification_settings" FOR DELETE USING (("auth"."uid"() = "id"));
+
+
+
 CREATE POLICY "Delete own resumes" ON "public"."resumes" FOR DELETE USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Insert own notification settings" ON "public"."notification_settings" FOR INSERT WITH CHECK (("auth"."uid"() = "id"));
 
 
 
@@ -97,11 +130,19 @@ CREATE POLICY "Insert own resumes" ON "public"."resumes" FOR INSERT WITH CHECK (
 
 
 
+CREATE POLICY "Read own notification settings" ON "public"."notification_settings" FOR SELECT USING (("auth"."uid"() = "id"));
+
+
+
 CREATE POLICY "Read own profile" ON "public"."profiles" FOR SELECT USING (("auth"."uid"() = "id"));
 
 
 
 CREATE POLICY "Select own resumes" ON "public"."resumes" FOR SELECT USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Update own notification settings" ON "public"."notification_settings" FOR UPDATE USING (("auth"."uid"() = "id")) WITH CHECK (("auth"."uid"() = "id"));
 
 
 
@@ -111,6 +152,9 @@ CREATE POLICY "Update own profile" ON "public"."profiles" FOR UPDATE USING (("au
 
 CREATE POLICY "Update own resumes" ON "public"."resumes" FOR UPDATE USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
 
+
+
+ALTER TABLE "public"."notification_settings" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
@@ -123,6 +167,12 @@ GRANT USAGE ON SCHEMA "public" TO "postgres";
 GRANT USAGE ON SCHEMA "public" TO "anon";
 GRANT USAGE ON SCHEMA "public" TO "authenticated";
 GRANT USAGE ON SCHEMA "public" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."notification_settings" TO "anon";
+GRANT ALL ON TABLE "public"."notification_settings" TO "authenticated";
+GRANT ALL ON TABLE "public"."notification_settings" TO "service_role";
 
 
 

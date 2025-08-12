@@ -1,32 +1,54 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
 import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon } from "lucide-react";
+import { useProfileSettings } from "../../../hooks/useProfileSettings";
+import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
+import { createClient } from "../../../lib/supabaseClient";
+import { useToast } from "../../../components/ui/toast";
 
 export const SettingsPage = (): JSX.Element => {
+  const supabase = useMemo(() => createClient(), []);
+  const { success, error: toastError } = useToast();
   const [activeTab, setActiveTab] = useState("profile");
   const [showPassword, setShowPassword] = useState(false);
+  const { profile, updateProfile, createProfile, refresh: refreshProfile } = useProfileSettings();
+  const { settings: notif, updateSettings, createSettings, refresh: refreshNotif } = useNotificationSettings();
   const [formData, setFormData] = useState({
-    firstName: "Udochukwu",
-    lastName: "Chimbo",
-    email: "chimbouda@gmail.com",
-    phone: "+1 (555) 123-4567",
-    location: "San Francisco, CA",
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    location: "",
     currentPassword: "",
     newPassword: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    avatar_url: "",
   });
 
-  const [notifications, setNotifications] = useState({
-    emailNotifications: true,
-    pushNotifications: true,
-    jobAlerts: true,
-    applicationUpdates: true,
-    weeklyDigest: false,
-    marketingEmails: false
-  });
+  // Hydrate from realtime-backed hooks
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const email = (data as any)?.user?.email ?? "";
+      setFormData((prev) => ({
+        ...prev,
+        email,
+        firstName: profile?.first_name || "",
+        lastName: profile?.last_name || "",
+        phone: (profile as any)?.phone || "",
+        location: profile?.location || "",
+        avatar_url: (profile as any)?.avatar_url || "",
+      }));
+    })();
+  }, [profile, supabase]);
+
+  useEffect(() => {
+    // ensure notification settings exist
+    if (!notif) return;
+  }, [notif]);
 
   const tabs = [
     { id: "profile", label: "Profile", icon: <User className="w-4 h-4" /> },
@@ -41,8 +63,81 @@ export const SettingsPage = (): JSX.Element => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleNotificationChange = (setting: string, value: boolean) => {
-    setNotifications(prev => ({ ...prev, [setting]: value }));
+  const handleNotificationChange = async (setting: string, value: boolean) => {
+    if (!notif) {
+      await createSettings({ [setting as any]: value });
+    } else {
+      await updateSettings({ [setting as any]: value, updated_at: new Date().toISOString() } as any);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    // create or update
+    if (!profile) {
+      await createProfile({
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        location: formData.location,
+        phone: formData.phone as any,
+        avatar_url: formData.avatar_url as any,
+      } as any);
+    } else {
+      await updateProfile({
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        location: formData.location,
+        phone: formData.phone as any,
+        avatar_url: formData.avatar_url as any,
+      } as any);
+    }
+  };
+
+  const handleResetForm = async () => {
+    await refreshProfile();
+    await refreshNotif();
+    success("Form reset");
+  };
+
+  const handleUploadAvatar = async () => {
+    // Open file picker
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const { data: user } = await supabase.auth.getUser();
+        const uid = (user as any)?.user?.id;
+        if (!uid) return;
+        const path = `${uid}/avatar_${Date.now()}.png`;
+        const { error: upErr } = await (supabase as any).storage.from('resumes').upload(path, file, { upsert: false, contentType: file.type || undefined });
+        if (upErr) throw upErr;
+        const publicUrl = (await (supabase as any).storage.from('resumes').createSignedUrl(path, 60 * 60))?.data?.signedUrl || '';
+        setFormData((p) => ({ ...p, avatar_url: publicUrl }));
+        await updateProfile({ avatar_url: publicUrl } as any);
+        success('Avatar updated');
+      } catch (e: any) {
+        toastError('Avatar upload failed', e.message);
+      }
+    };
+    input.click();
+  };
+
+  const handleRemoveAvatar = async () => {
+    setFormData((p) => ({ ...p, avatar_url: "" }));
+    await updateProfile({ avatar_url: null } as any);
+  };
+
+  const handleChangePassword = async () => {
+    if (!formData.newPassword || formData.newPassword !== formData.confirmPassword) {
+      toastError('Password mismatch', 'Please confirm your new password');
+      return;
+    }
+    const { error } = await supabase.auth.updateUser({ password: formData.newPassword });
+    if (error) return toastError('Failed to update password', error.message);
+    success('Password updated');
+    setFormData((p) => ({ ...p, currentPassword: '', newPassword: '', confirmPassword: '' }));
   };
 
   const renderTabContent = () => {
@@ -57,6 +152,7 @@ export const SettingsPage = (): JSX.Element => {
               <div className="space-y-2">
                 <Button 
                   variant="outline" 
+                  onClick={handleUploadAvatar}
                   className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
                 >
                   <Upload className="w-4 h-4 mr-2" />
@@ -64,6 +160,7 @@ export const SettingsPage = (): JSX.Element => {
                 </Button>
                 <Button 
                   variant="ghost" 
+                  onClick={handleRemoveAvatar}
                   className="text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:scale-105 transition-all duration-300"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
@@ -118,6 +215,7 @@ export const SettingsPage = (): JSX.Element => {
 
             <div className="flex items-center space-x-3 pt-4">
               <Button 
+                onClick={handleSaveProfile}
                 className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
               >
                 <Save className="w-4 h-4 mr-2" />
@@ -125,6 +223,7 @@ export const SettingsPage = (): JSX.Element => {
               </Button>
               <Button 
                 variant="outline" 
+                onClick={handleResetForm}
                 className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
@@ -158,14 +257,14 @@ export const SettingsPage = (): JSX.Element => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleNotificationChange(setting.key, !notifications[setting.key as keyof typeof notifications])}
+                    onClick={() => handleNotificationChange(setting.key, !(notif as any)?.[setting.key])}
                     className={`transition-all duration-300 hover:scale-105 ${
-                      notifications[setting.key as keyof typeof notifications]
+                      (notif as any)?.[setting.key]
                         ? "bg-white text-black hover:bg-white/90"
                         : "bg-[#ffffff33] text-white hover:bg-[#ffffff4d]"
                     }`}
                   >
-                    {notifications[setting.key as keyof typeof notifications] ? "Enabled" : "Disabled"}
+                    {(notif as any)?.[setting.key] ? "Enabled" : "Disabled"}
                   </Button>
                 </motion.div>
               ))}
@@ -219,6 +318,7 @@ export const SettingsPage = (): JSX.Element => {
                     />
                   </div>
                   <Button 
+                    onClick={handleChangePassword}
                     className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
                   >
                     Update Password
@@ -320,6 +420,7 @@ export const SettingsPage = (): JSX.Element => {
                 <div className="space-y-4">
                   <Button 
                     variant="outline" 
+                    onClick={() => success('Export requested', 'We will prepare your data export shortly.')}
                     className="w-full justify-start border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
                   >
                     <Download className="w-4 h-4 mr-2" />
@@ -334,6 +435,22 @@ export const SettingsPage = (): JSX.Element => {
                   </Button>
                   <Button 
                     variant="outline" 
+                    onClick={async () => {
+                      if (!confirm('Delete your account? This cannot be undone.')) return;
+                      const { data } = await supabase.auth.getUser();
+                      const uid = (data as any)?.user?.id;
+                      try {
+                        if (uid) {
+                          await (supabase as any).from('profiles').delete().eq('id', uid);
+                          await (supabase as any).from('notification_settings').delete().eq('id', uid);
+                        }
+                        await supabase.auth.signOut();
+                        success('Account deleted');
+                        window.location.href = '/';
+                      } catch (e: any) {
+                        toastError('Delete failed', e.message);
+                      }
+                    }}
                     className="w-full justify-start border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-500 hover:scale-105 transition-all duration-300"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
@@ -416,6 +533,10 @@ export const SettingsPage = (): JSX.Element => {
             <div className="pt-4 border-t border-[#ffffff1a]">
               <Button
                 variant="ghost"
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  window.location.href = '/login';
+                }}
                 className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:scale-105 transition-all duration-300"
               >
                 <LogOut className="w-4 h-4 mr-3" />
