@@ -234,5 +234,26 @@ export function useSecuritySettings() {
     success('Two-factor authentication disabled');
   }, [supabase, settings?.factor_id, updateSecurity, success]);
 
-  return { settings, loading, error, refresh: fetchSettings, updateSecurity, createSecurity, enrollTotp, verifyTotp, disableTotp } as const;
+  return {
+    settings,
+    loading,
+    error,
+    refresh: fetchSettings,
+    updateSecurity,
+    createSecurity,
+    // MFA
+    enrollTotp,
+    verifyTotp,
+    disableTotp,
+    // Backup codes
+    backupCodes,
+    listBackupCodes,
+    generateBackupCodes,
+    markBackupCodeUsed,
+    // Trusted devices
+    devices,
+    listDevices,
+    trustDevice,
+    revokeDevice,
+  } as const;
 }
