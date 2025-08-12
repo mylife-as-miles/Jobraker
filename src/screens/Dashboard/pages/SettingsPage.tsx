@@ -344,12 +344,12 @@ export const SettingsPage = (): JSX.Element => {
           <div className="space-y-6">
             <div className="space-y-4">
               {[
-                { key: "emailNotifications", label: "Email Notifications", description: "Receive notifications via email" },
-                { key: "pushNotifications", label: "Push Notifications", description: "Receive push notifications in browser" },
-                { key: "jobAlerts", label: "Job Alerts", description: "Get notified about new job opportunities" },
-                { key: "applicationUpdates", label: "Application Updates", description: "Updates on your job applications" },
-                { key: "weeklyDigest", label: "Weekly Digest", description: "Weekly summary of your activity" },
-                { key: "marketingEmails", label: "Marketing Emails", description: "Promotional emails and updates" }
+                { key: "email_notifications", label: "Email Notifications", description: "Receive notifications via email" },
+                { key: "push_notifications", label: "Push Notifications", description: "Receive push notifications in browser" },
+                { key: "job_alerts", label: "Job Alerts", description: "Get notified about new job opportunities" },
+                { key: "application_updates", label: "Application Updates", description: "Updates on your job applications" },
+                { key: "weekly_digest", label: "Weekly Digest", description: "Weekly summary of your activity" },
+                { key: "marketing_emails", label: "Marketing Emails", description: "Promotional emails and updates" }
               ].map((setting) => (
                 <motion.div 
                   key={setting.key} 
