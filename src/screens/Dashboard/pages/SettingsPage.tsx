@@ -26,8 +26,21 @@ export const SettingsPage = (): JSX.Element => {
   const { profile, updateProfile, createProfile, refresh: refreshProfile } = useProfileSettings();
   const { settings: notif, updateSettings, createSettings, refresh: refreshNotif } = useNotificationSettings();
   const security = useSecuritySettings();
-  const { settings: sec, updateSecurity, createSecurity, refresh: refreshSec, enrollTotp, verifyTotp, disableTotp } = security;
-  const { generateBackupCodes, trustDevice } = security as any;
+  const {
+    settings: sec,
+    updateSecurity,
+    createSecurity,
+    refresh: refreshSec,
+    enrollTotp,
+    verifyTotp,
+    disableTotp,
+    // extras
+    backupCodes,
+    generateBackupCodes,
+    devices,
+    trustDevice,
+    revokeDevice,
+  } = security as any;
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -42,7 +55,6 @@ export const SettingsPage = (): JSX.Element => {
 
   // 2FA modal state
   const [open2FA, setOpen2FA] = useState(false);
-  const [totpUri, setTotpUri] = useState<string | undefined>();
   const [qrDataUrl, setQrDataUrl] = useState<string | undefined>();
   const [totpFactorId, setTotpFactorId] = useState<string | undefined>();
   const [totpCode, setTotpCode] = useState<string>("");
@@ -431,7 +443,6 @@ export const SettingsPage = (): JSX.Element => {
                         if (!sec) await createSecurity({});
                         const { factorId, uri } = await enrollTotp();
                         setTotpFactorId(factorId);
-                        setTotpUri(uri);
                         if (uri) {
                           try { const QR = await getQRCode(); setQrDataUrl(await QR.toDataURL(uri)); } catch { setQrDataUrl(undefined); }
                         }
@@ -501,6 +512,30 @@ export const SettingsPage = (): JSX.Element => {
                   >Generate</Button>
                 </div>
                 <p className="text-[#ffffff80] text-sm mb-3">Store these one-time use codes in a safe place. Each can be used once.</p>
+                <div className="mt-3 border border-[#ffffff1a] rounded-md overflow-hidden">
+                  <div className="grid grid-cols-3 text-xs text-[#ffffffb3] bg-[#ffffff08] py-2 px-3">
+                    <div>ID</div>
+                    <div>Status</div>
+                    <div>Note</div>
+                  </div>
+                  <div className="divide-y divide-[#ffffff14]">
+                    {backupCodes && backupCodes.length > 0 ? (
+                      backupCodes.map((bc: any) => (
+                        <div key={bc.id} className="grid grid-cols-3 items-center text-sm py-2 px-3">
+                          <div className="text-[#ffffffcc]">{bc.id}</div>
+                          <div>
+                            <span className={`text-xs px-2 py-1 rounded ${bc.used ? 'text-red-300 bg-red-500/10' : 'text-[#1dff00] bg-[#1dff0020]' }`}>
+                              {bc.used ? 'Used' : 'Unused'}
+                            </span>
+                          </div>
+                          <div className="text-[#ffffff80]">Plaintext shown only on generation</div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-[#ffffff80] py-3 px-3">No backup codes yet. Generate to create a new set.</div>
+                    )}
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
@@ -524,6 +559,38 @@ export const SettingsPage = (): JSX.Element => {
                   >Trust This Device</Button>
                 </div>
                 <p className="text-[#ffffff80] text-sm mb-3">Trusted devices skip some security prompts. Revoke lost or old devices.</p>
+                <div className="mt-3 border border-[#ffffff1a] rounded-md overflow-hidden">
+                  <div className="grid grid-cols-4 text-xs text-[#ffffffb3] bg-[#ffffff08] py-2 px-3">
+                    <div>Device</div>
+                    <div>Device ID</div>
+                    <div>Last seen</div>
+                    <div className="text-right">Actions</div>
+                  </div>
+                  <div className="divide-y divide-[#ffffff14]">
+                    {devices && devices.length > 0 ? (
+                      devices.map((d: any) => (
+                        <div key={d.device_id} className="grid grid-cols-4 items-center text-sm py-2 px-3">
+                          <div className="truncate text-[#ffffffcc]" title={d.device_name || d.device_id}>{d.device_name || 'Unnamed device'}</div>
+                          <div className="truncate text-[#ffffff80]" title={d.device_id}>{String(d.device_id).slice(0, 10)}…</div>
+                          <div className="text-[#ffffff80]">{new Date(d.last_seen_at).toLocaleString()}</div>
+                          <div className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                              onClick={async () => {
+                                if (!confirm('Revoke this device?')) return;
+                                try { await revokeDevice(d.device_id); } catch (e: any) { toastError('Failed to revoke', e.message); }
+                              }}
+                            >Revoke</Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-[#ffffff80] py-3 px-3">No trusted devices yet.</div>
+                    )}
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
@@ -632,6 +699,8 @@ export const SettingsPage = (): JSX.Element => {
                           await (supabase as any).from('profiles').delete().eq('id', uid);
                           await (supabase as any).from('notification_settings').delete().eq('id', uid);
                           await (supabase as any).from('security_settings').delete().eq('id', uid);
+                          await (supabase as any).from('security_backup_codes').delete().eq('user_id', uid);
+                          await (supabase as any).from('security_trusted_devices').delete().eq('user_id', uid);
                         }
                         await supabase.auth.signOut();
                         success('Account deleted');
