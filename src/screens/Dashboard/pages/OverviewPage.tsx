@@ -1,19 +1,11 @@
 import { useMemo, useState } from "react";
 import { Button } from "../../../components/ui/button";
-import { Card, CardContent } from "../../../components/ui/card";
+import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
 import { Building2, AlertCircle, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { useNotifications } from "../../../hooks/useNotifications";
 
-interface Notification {
-  id: string;
-  type: "interview" | "application" | "system" | "company";
-  title: string;
-  message: string;
-  time: string;
-  icon: React.ReactNode;
-  company?: string;
-}
+// Using realtime notifications; no local interface needed here
 
 export const OverviewPage = (): JSX.Element => {
   const [selectedPeriod, setSelectedPeriod] = useState("1 Month");
