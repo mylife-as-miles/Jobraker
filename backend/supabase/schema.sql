@@ -78,6 +78,17 @@ CREATE TABLE IF NOT EXISTS "public"."resumes" (
 ALTER TABLE "public"."resumes" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."security_settings" (
+    "id" "uuid" NOT NULL,
+    "two_factor_enabled" boolean DEFAULT false,
+    "sign_in_alerts" boolean DEFAULT true,
+    "updated_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."security_settings" OWNER TO "postgres";
+
+
 ALTER TABLE ONLY "public"."notification_settings"
     ADD CONSTRAINT "notification_settings_pkey" PRIMARY KEY ("id");
 
@@ -90,6 +101,11 @@ ALTER TABLE ONLY "public"."profiles"
 
 ALTER TABLE ONLY "public"."resumes"
     ADD CONSTRAINT "resumes_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."security_settings"
+    ADD CONSTRAINT "security_settings_pkey" PRIMARY KEY ("id");
 
 
 
@@ -112,11 +128,20 @@ ALTER TABLE ONLY "public"."resumes"
 
 
 
+ALTER TABLE ONLY "public"."security_settings"
+    ADD CONSTRAINT "security_settings_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
 CREATE POLICY "Delete own notification settings" ON "public"."notification_settings" FOR DELETE USING (("auth"."uid"() = "id"));
 
 
 
 CREATE POLICY "Delete own resumes" ON "public"."resumes" FOR DELETE USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Delete own security settings" ON "public"."security_settings" FOR DELETE USING (("auth"."uid"() = "id"));
 
 
 
@@ -132,11 +157,19 @@ CREATE POLICY "Insert own resumes" ON "public"."resumes" FOR INSERT WITH CHECK (
 
 
 
+CREATE POLICY "Insert own security settings" ON "public"."security_settings" FOR INSERT WITH CHECK (("auth"."uid"() = "id"));
+
+
+
 CREATE POLICY "Read own notification settings" ON "public"."notification_settings" FOR SELECT USING (("auth"."uid"() = "id"));
 
 
 
 CREATE POLICY "Read own profile" ON "public"."profiles" FOR SELECT USING (("auth"."uid"() = "id"));
+
+
+
+CREATE POLICY "Read own security settings" ON "public"."security_settings" FOR SELECT USING (("auth"."uid"() = "id"));
 
 
 
@@ -156,6 +189,10 @@ CREATE POLICY "Update own resumes" ON "public"."resumes" FOR UPDATE USING (("aut
 
 
 
+CREATE POLICY "Update own security settings" ON "public"."security_settings" FOR UPDATE USING (("auth"."uid"() = "id")) WITH CHECK (("auth"."uid"() = "id"));
+
+
+
 ALTER TABLE "public"."notification_settings" ENABLE ROW LEVEL SECURITY;
 
 
@@ -163,6 +200,9 @@ ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."resumes" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."security_settings" ENABLE ROW LEVEL SECURITY;
 
 
 GRANT USAGE ON SCHEMA "public" TO "postgres";
@@ -187,6 +227,12 @@ GRANT ALL ON TABLE "public"."profiles" TO "service_role";
 GRANT ALL ON TABLE "public"."resumes" TO "anon";
 GRANT ALL ON TABLE "public"."resumes" TO "authenticated";
 GRANT ALL ON TABLE "public"."resumes" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."security_settings" TO "anon";
+GRANT ALL ON TABLE "public"."security_settings" TO "authenticated";
+GRANT ALL ON TABLE "public"."security_settings" TO "service_role";
 
 
 
