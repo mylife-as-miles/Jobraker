@@ -85,27 +85,24 @@ export const NotificationPage = (): JSX.Element => {
               Mark All Read
             </Button>
             <Button 
-              variant="outline" 
-              className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
-            >
-              <Archive className="w-4 h-4 mr-2" />
-              Archive
-            </Button>
-            <Button
               variant="outline"
               disabled={!selectedIds.length}
               onClick={async () => {
                 if (!selectedIds.length) return;
                 await bulkRemove(selectedIds);
                 setSelectedIds([]);
-                if (selectedNotification && !items.find(i => i.id === selectedNotification)) {
-                  setSelectedNotification(null);
-                }
               }}
-              className="border-[#ffffff33] text-white hover:bg-[#ff1d1d1a] hover:border-red-400/50 hover:scale-105 transition-all duration-300 disabled:opacity-50"
+              className="border-[#ffffff33] text-red-400 hover:text-white hover:bg-red-500/20 hover:border-red-400/50 hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Delete Selected
+            </Button>
+            <Button 
+              variant="outline" 
+              className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+            >
+              <Archive className="w-4 h-4 mr-2" />
+              Archive
             </Button>
           </div>
         </div>
