@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
+import { useSecuritySettings } from "../../../hooks/useSecuritySettings";
 import { createClient } from "../../../lib/supabaseClient";
 import { useToast } from "../../../components/ui/toast";
 
@@ -16,6 +17,7 @@ export const SettingsPage = (): JSX.Element => {
   const [showPassword, setShowPassword] = useState(false);
   const { profile, updateProfile, createProfile, refresh: refreshProfile } = useProfileSettings();
   const { settings: notif, updateSettings, createSettings, refresh: refreshNotif } = useNotificationSettings();
+  const { settings: sec, updateSecurity, createSecurity, refresh: refreshSec } = useSecuritySettings();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -73,9 +75,9 @@ export const SettingsPage = (): JSX.Element => {
   }, [profile, supabase]);
 
   useEffect(() => {
-    // ensure notification settings exist
-    if (!notif) return;
-  }, [notif]);
+    // ensure settings exist lazily on first toggle
+    void refreshSec();
+  }, [refreshSec]);
 
   const tabs = [
     { id: "profile", label: "Profile", icon: <User className="w-4 h-4" /> },
@@ -381,13 +383,20 @@ export const SettingsPage = (): JSX.Element => {
                       value={formData.confirmPassword}
                       onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
                       className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
-                    />
-                  </div>
-                  <Button 
-                    onClick={handleChangePassword}
-                    className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
-                  >
-                    Update Password
+                    <p className="text-[#ffffff80] mb-4">Add an extra layer of security to your account</p>
+                    <div className="flex items-center gap-3">
+                      <Button 
+                        variant={sec?.two_factor_enabled ? 'default' : 'outline'}
+                        onClick={async () => {
+                          if (!sec) await createSecurity({ two_factor_enabled: true });
+                          else await updateSecurity({ two_factor_enabled: !sec.two_factor_enabled });
+                        }}
+                        className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                      >
+                        {sec?.two_factor_enabled ? 'Disable 2FA' : 'Enable 2FA'}
+                      </Button>
+                      <span className="text-sm text-[#ffffff80]">Status: {sec?.two_factor_enabled ? 'Enabled' : 'Disabled'}</span>
+                    </div>
                   </Button>
                 </div>
               </CardContent>
@@ -403,7 +412,16 @@ export const SettingsPage = (): JSX.Element => {
                 >
                   Enable 2FA
                 </Button>
-              </CardContent>
+                        <Button 
+                          variant="ghost" size="sm"
+                          onClick={async () => {
+                            if (!sec) await createSecurity({ sign_in_alerts: true });
+                            else await updateSecurity({ sign_in_alerts: !sec.sign_in_alerts });
+                          }}
+                          className={`transition-all duration-300 hover:scale-105 ${(sec?.sign_in_alerts ?? true) ? 'bg-white text-black hover:bg-white/90' : 'bg-[#ffffff33] text-white hover:bg-[#ffffff4d]'}`}
+                        >
+                          {(sec?.sign_in_alerts ?? true) ? 'Enabled' : 'Disabled'}
+                        </Button>
             </Card>
 
             <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
