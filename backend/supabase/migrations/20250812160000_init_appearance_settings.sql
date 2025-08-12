@@ -21,3 +21,6 @@ create policy if not exists "Update own appearance"
   on public.appearance_settings for update
   using (auth.uid() = id)
   with check (auth.uid() = id);
+
+-- Enable realtime
+alter publication supabase_realtime add table public.appearance_settings;
