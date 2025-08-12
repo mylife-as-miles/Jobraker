@@ -26,6 +26,8 @@ export function useNotifications(limit: number = 10) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
+  // Feature capability flags (in case migration not applied yet)
+  const [supportsStar, setSupportsStar] = useState(true);
 
   // Resolve user id
   useEffect(() => {
@@ -128,7 +130,18 @@ export function useNotifications(limit: number = 10) {
       const { error } = await supabase.from('notifications').update({ is_starred }).in('id', ids);
       if (error) throw error;
       setItems(prev => prev.map(n => ids.includes(n.id) ? { ...n, is_starred } : n));
-    } catch (e: any) { toastError('Update failed', e.message); throw e; }
+    } catch (e: any) {
+      const msg = String(e?.message || '');
+      const code = e?.code;
+      // Handle missing column error (migration not applied yet)
+      if (code === '42703' || /column \"?is_starred\"? does not exist/i.test(msg)) {
+        setSupportsStar(false);
+        toastError('Star feature unavailable', 'Update your database to enable starring notifications.');
+        return;
+      }
+      toastError('Update failed', e.message);
+      throw e;
+    }
   }, [supabase, toastError]);
 
   const toggleStar = useCallback(async (id: string) => {
@@ -177,6 +190,7 @@ export function useNotifications(limit: number = 10) {
     loading,
     error,
     hasMore,
+  supportsStar,
     loadMore,
     refresh: fetchItems,
     add,

@@ -12,7 +12,7 @@ export const NotificationPage = (): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNotification, setSelectedNotification] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
-  const { items, loading, hasMore, loadMore, markRead, markAllRead, bulkMarkRead, bulkRemove, toggleStar, remove } = useNotifications(30);
+  const { items, loading, hasMore, loadMore, markRead, markAllRead, bulkMarkRead, bulkRemove, toggleStar, remove, supportsStar } = useNotifications(30);
   const notifications = useMemo(() => items.map(n => {
     const bg = n.type === 'company' ? '#000000' : n.type === 'application' ? '#4285f4' : n.type === 'interview' ? '#1dff00' : '#1dff00';
     const icon = n.type === 'interview'
@@ -199,10 +199,12 @@ export const NotificationPage = (): JSX.Element => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-[#ffffff60] hover:text-yellow-400 hover:scale-110 transition-all duration-300 p-1"
+                            disabled={!supportsStar}
+                            title={supportsStar ? '' : 'Starring requires a DB migration. Please update.'}
+                            className={`text-[#ffffff60] hover:text-yellow-400 hover:scale-110 transition-all duration-300 p-1 ${!supportsStar ? 'opacity-50 cursor-not-allowed' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
-                              toggleStar(notification.id);
+                              if (supportsStar) toggleStar(notification.id);
                             }}
                           >
                             <Star className={`w-3 h-3 ${notification.isStarred ? "fill-current text-yellow-400" : ""}`} />
