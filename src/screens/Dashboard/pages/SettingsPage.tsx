@@ -36,6 +36,25 @@ export const SettingsPage = (): JSX.Element => {
     return (email.charAt(0) || 'U').toUpperCase();
   }, [formData.firstName, formData.lastName, formData.email]);
 
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      const path = formData.avatar_url;
+      if (!path) { setAvatarUrl(null); return; }
+      try {
+        const { data, error } = await (supabase as any).storage.from('avatars').createSignedUrl(path, 60 * 10);
+        if (error) throw error;
+        if (active) setAvatarUrl(data?.signedUrl || null);
+      } catch {
+        if (active) setAvatarUrl(null);
+      }
+    };
+    load();
+    const id = setInterval(load, 1000 * 60 * 8); // refresh before expiry
+    return () => { active = false; clearInterval(id); };
+  }, [supabase, formData.avatar_url]);
+
   // Hydrate from realtime-backed hooks
   useEffect(() => {
     (async () => {
@@ -155,10 +174,9 @@ export const SettingsPage = (): JSX.Element => {
   const path = `${uid}/avatar_${Date.now()}.${ext}`;
   const { error: upErr } = await (supabase as any).storage.from('avatars').upload(path, file, { upsert: false, contentType: file.type || undefined });
         if (upErr) throw upErr;
-  const { data: pub } = (supabase as any).storage.from('avatars').getPublicUrl(path);
-  const publicUrl = pub?.publicUrl || '';
-        setFormData((p) => ({ ...p, avatar_url: publicUrl }));
-        await updateProfile({ avatar_url: publicUrl } as any);
+  // Store storage path; we'll resolve via signed URL when rendering
+  setFormData((p) => ({ ...p, avatar_url: path }));
+  await updateProfile({ avatar_url: path } as any);
         success('Avatar updated');
       } catch (e: any) {
         toastError('Avatar upload failed', e.message);
@@ -190,9 +208,9 @@ export const SettingsPage = (): JSX.Element => {
           <div className="space-y-6">
             <div className="flex items-center space-x-6">
               <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-r from-[#1dff00] to-[#0a8246] flex items-center justify-center text-black font-bold text-2xl">
-                {formData.avatar_url ? (
+                {avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={formData.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   <span>{initials}</span>
                 )}

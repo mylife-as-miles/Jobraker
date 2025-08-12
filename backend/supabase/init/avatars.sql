@@ -1,6 +1,6 @@
 -- Create public avatars bucket and policies
 insert into storage.buckets (id, name, public)
-values ('avatars', 'avatars', true)
+values ('avatars', 'avatars', false)
 on conflict (id) do nothing;
 
 -- Reset and create policies
@@ -8,10 +8,13 @@ drop policy if exists "Public read avatars" on storage.objects;
 drop policy if exists "User scoped write avatars" on storage.objects;
 drop policy if exists "User scoped update avatars" on storage.objects;
 drop policy if exists "User scoped delete avatars" on storage.objects;
+drop policy if exists "User scoped read avatars" on storage.objects;
 
-create policy "Public read avatars"
+create policy "User scoped read avatars"
   on storage.objects for select
-  using (bucket_id = 'avatars');
+  using (
+    bucket_id = 'avatars' and (name like (auth.uid()::text || '/%'))
+  );
 
 create policy "User scoped write avatars"
   on storage.objects for insert
