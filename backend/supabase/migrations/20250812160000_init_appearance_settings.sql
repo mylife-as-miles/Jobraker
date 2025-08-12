@@ -9,15 +9,19 @@ create table if not exists public.appearance_settings (
 
 alter table public.appearance_settings enable row level security;
 
-create policy if not exists "Read own appearance"
+drop policy if exists "Read own appearance" on public.appearance_settings;
+drop policy if exists "Insert own appearance" on public.appearance_settings;
+drop policy if exists "Update own appearance" on public.appearance_settings;
+
+create policy "Read own appearance"
   on public.appearance_settings for select
   using (auth.uid() = id);
 
-create policy if not exists "Insert own appearance"
+create policy "Insert own appearance"
   on public.appearance_settings for insert
   with check (auth.uid() = id);
 
-create policy if not exists "Update own appearance"
+create policy "Update own appearance"
   on public.appearance_settings for update
   using (auth.uid() = id)
   with check (auth.uid() = id);
