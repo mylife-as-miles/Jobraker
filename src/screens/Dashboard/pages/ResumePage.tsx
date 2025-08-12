@@ -17,9 +17,9 @@ export const ResumePage = (): JSX.Element => {
   const [toDelete, setToDelete] = useState<ResumeRecord | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<ResumeRecord | null>(null);
-  const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
   const editorFileInput = useRef<HTMLInputElement | null>(null);
-  const pendingFileRef = useRef<File | null>(null);
+  const [pendingReplaceFile, setPendingReplaceFile] = useState<File | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -99,21 +99,19 @@ export const ResumePage = (): JSX.Element => {
           message={<span>“{toDelete?.name}” will be permanently deleted.</span>}
           confirmText="Delete"
         />
-        {/* Confirm Replace File */}
+        {/* Confirm Replace File (global) */}
         <ConfirmDialog
-          open={confirmReplaceOpen}
-          onCancel={() => { setConfirmReplaceOpen(false); pendingFileRef.current = null; }}
+          open={!!pendingReplaceFile}
+          onCancel={() => setPendingReplaceFile(null)}
           onConfirm={async () => {
-            const f = pendingFileRef.current;
-            if (f && editing) {
-              await replaceFile(editing.id, f);
+            if (pendingReplaceFile && editing) {
+              await replaceFile(editing.id, pendingReplaceFile);
               addToast({ title: "File replaced", variant: "success" });
             }
-            setConfirmReplaceOpen(false);
-            pendingFileRef.current = null;
+            setPendingReplaceFile(null);
           }}
-          title="Replace file?"
-          message={<span>This will replace the current file for “{editing?.name}”.</span>}
+          title="Replace resume file?"
+          message={<span>This will replace the current file for “{editing?.name}” with “{pendingReplaceFile?.name}”.</span>}
           confirmText="Replace"
         />
 
@@ -155,10 +153,7 @@ export const ResumePage = (): JSX.Element => {
               <div className="text-sm text-[#aaa]">Replace file</div>
               <input ref={editorFileInput} type="file" className="hidden" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={async (e) => {
                 const f = e.target.files?.[0];
-                if (f) {
-                  pendingFileRef.current = f;
-                  setConfirmReplaceOpen(true);
-                }
+                if (f) setPendingReplaceFile(f);
                 if (editorFileInput.current) editorFileInput.current.value = "";
               }} />
               <Button onClick={() => editorFileInput.current?.click()} className="text-xs">Upload new file</Button>
@@ -252,7 +247,10 @@ export const ResumePage = (): JSX.Element => {
                         size="sm"
                         variant="ghost"
                         className="text-[#1dff00] hover:bg-[#1dff00]/20 hover:scale-110 transition-all duration-300"
-                        onClick={() => { setEditing(resume); setEditorOpen(true); }}
+                        onClick={() => {
+                          // Placeholder for editor route/modal
+                          alert("Edit coming soon");
+                        }}
                         aria-label="Edit"
                       >
                         <Edit className="w-4 h-4" />
@@ -261,7 +259,7 @@ export const ResumePage = (): JSX.Element => {
                         size="sm"
                         variant="ghost"
                         className="text-[#1dff00] hover:bg-[#1dff00]/20 hover:scale-110 transition-all duration-300"
-                        onClick={async () => { await download(resume); addToast({ title: "Download started", variant: "info" }); }}
+                        onClick={() => download(resume)}
                         aria-label="Download"
                       >
                         <Download className="w-4 h-4" />
@@ -271,7 +269,7 @@ export const ResumePage = (): JSX.Element => {
                         variant="ghost"
                         className="text-[#1dff00] hover:bg-[#1dff00]/20 hover:scale-110 transition-all duration-300"
                         aria-label="More"
-                        onClick={async () => { await duplicate(resume); addToast({ title: "Resume duplicated", variant: "success" }); }}
+                        onClick={() => duplicate(resume)}
                         title="Duplicate"
                       >
                         <MoreVertical className="w-4 h-4" />
@@ -335,7 +333,7 @@ export const ResumePage = (): JSX.Element => {
                       size="sm"
                       variant="outline"
                       className="border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10 hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
-                      onClick={async () => { await duplicate(resume); addToast({ title: "Resume duplicated", variant: "success" }); }}
+                      onClick={() => duplicate(resume)}
                       aria-label="Duplicate"
                     >
                       <Copy className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -363,7 +361,18 @@ export const ResumePage = (): JSX.Element => {
             whileHover={{ scale: 1.02 }}
             className="transition-transform duration-300"
           >
-            <Card onClick={() => fileInputRef.current?.click()} className="bg-transparent border-2 border-dashed border-[#1dff00] hover:bg-[#1dff00]/10 hover:border-[#1dff00]/80 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300 group cursor-pointer h-full min-h-[300px] sm:min-h-[350px] lg:min-h-[400px]">
+            <Card
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={async (e) => {
+                e.preventDefault();
+                setIsDragOver(false);
+                const files = Array.from(e.dataTransfer.files || []);
+                if (files.length) await upload(files);
+              }}
+              className={`bg-transparent border-2 border-dashed ${isDragOver ? 'border-[#1dff00]/80 bg-[#1dff00]/10' : 'border-[#1dff00]'} hover:bg-[#1dff00]/10 hover:border-[#1dff00]/80 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300 group cursor-pointer h-full min-h-[300px] sm:min-h-[350px] lg:min-h-[400px]`}
+            >
               <CardContent className="p-4 sm:p-5 lg:p-6 h-full flex flex-col">
                 {/* Upload Area */}
                 <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 sm:space-y-6">
