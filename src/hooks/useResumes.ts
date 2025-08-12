@@ -308,8 +308,17 @@ export function useResumes() {
                 // Avoid duplicates
                 if (prev.find((r) => r.id === newRow.id)) return prev;
                 return [newRow as ResumeRecord, ...prev];
-              case 'UPDATE':
-                return prev.map((r) => (r.id === newRow.id ? { ...r, ...newRow } : r));
+              case 'UPDATE': {
+                const updated = prev.map((r) => (r.id === newRow.id ? { ...r, ...newRow } : r));
+                // Move updated item to top to reflect latest activity
+                const idx = updated.findIndex((r) => r.id === newRow.id);
+                if (idx > 0) {
+                  const rec = updated[idx];
+                  updated.splice(idx, 1);
+                  return [rec, ...updated];
+                }
+                return updated;
+              }
               case 'DELETE':
                 return prev.filter((r) => r.id !== (oldRow?.id ?? newRow?.id));
               default:

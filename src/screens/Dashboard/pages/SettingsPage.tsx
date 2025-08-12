@@ -28,6 +28,14 @@ export const SettingsPage = (): JSX.Element => {
     avatar_url: "",
   });
 
+  const initials = useMemo(() => {
+    const a = (formData.firstName || '').trim();
+    const b = (formData.lastName || '').trim();
+    if (a || b) return `${a.charAt(0) || ''}${b.charAt(0) || ''}`.toUpperCase() || 'U';
+    const email = formData.email || '';
+    return (email.charAt(0) || 'U').toUpperCase();
+  }, [formData.firstName, formData.lastName, formData.email]);
+
   // Hydrate from realtime-backed hooks
   useEffect(() => {
     (async () => {
@@ -98,6 +106,39 @@ export const SettingsPage = (): JSX.Element => {
     success("Form reset");
   };
 
+  const handleExportData = async () => {
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const uid = (u as any)?.user?.id;
+      if (!uid) return toastError('Not signed in', 'Please sign in again');
+      const [{ data: prof }, { data: notifData }, { data: resumes }] = await Promise.all([
+        (supabase as any).from('profiles').select('*').eq('id', uid).maybeSingle(),
+        (supabase as any).from('notification_settings').select('*').eq('id', uid).maybeSingle(),
+        (supabase as any).from('resumes').select('*').eq('user_id', uid).order('updated_at', { ascending: false }),
+      ]);
+
+      const payload = {
+        exported_at: new Date().toISOString(),
+        user: { id: uid, email: (u as any)?.user?.email },
+        profile: prof || null,
+        notification_settings: notifData || null,
+        resumes: resumes || [],
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `jobraker-export-${uid}-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      success('Export started');
+    } catch (e: any) {
+      toastError('Export failed', e.message);
+    }
+  };
+
   const handleUploadAvatar = async () => {
     // Open file picker
     const input = document.createElement('input');
@@ -148,8 +189,13 @@ export const SettingsPage = (): JSX.Element => {
         return (
           <div className="space-y-6">
             <div className="flex items-center space-x-6">
-              <div className="w-24 h-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full flex items-center justify-center text-black font-bold text-2xl">
-                UC
+              <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-r from-[#1dff00] to-[#0a8246] flex items-center justify-center text-black font-bold text-2xl">
+                {formData.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={formData.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{initials}</span>
+                )}
               </div>
               <div className="space-y-2">
                 <Button 
@@ -422,7 +468,7 @@ export const SettingsPage = (): JSX.Element => {
                 <div className="space-y-4">
                   <Button 
                     variant="outline" 
-                    onClick={() => success('Export requested', 'We will prepare your data export shortly.')}
+                    onClick={handleExportData}
                     className="w-full justify-start border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
                   >
                     <Download className="w-4 h-4 mr-2" />

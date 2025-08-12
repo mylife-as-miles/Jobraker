@@ -49,7 +49,9 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "experience_years" integer,
     "location" "text",
     "goals" "text"[] DEFAULT '{}'::"text"[],
-    "updated_at" timestamp with time zone DEFAULT "now"()
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    "phone" "text",
+    "avatar_url" "text"
 );
 
 
