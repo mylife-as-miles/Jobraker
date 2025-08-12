@@ -12,7 +12,7 @@ export const NotificationPage = (): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNotification, setSelectedNotification] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
-  const { items, loading, hasMore, loadMore, markRead, markAllRead, bulkMarkRead, bulkRemove, toggleStar } = useNotifications(30);
+  const { items, loading, hasMore, loadMore, markRead, markAllRead, bulkMarkRead, bulkRemove, toggleStar, remove } = useNotifications(30);
   const notifications = useMemo(() => items.map(n => {
     const bg = n.type === 'company' ? '#000000' : n.type === 'application' ? '#4285f4' : n.type === 'interview' ? '#1dff00' : '#1dff00';
     const icon = n.type === 'interview'
@@ -27,7 +27,8 @@ export const NotificationPage = (): JSX.Element => {
       message: n.message || '',
       timestamp: new Date(n.created_at).toLocaleString(),
       isRead: n.read,
-      isStarred: false,
+  isStarred: !!n.is_starred,
+  action_url: n.action_url,
       priority: 'medium' as const,
       icon,
       company: n.company || undefined,
@@ -38,7 +39,7 @@ export const NotificationPage = (): JSX.Element => {
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const filteredNotifications = notifications.filter(notification => {
+  const filteredNotifications = notifications.filter((notification: any) => {
     const matchesSearch = notification.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          notification.message.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = filter === "all" || 
@@ -89,6 +90,22 @@ export const NotificationPage = (): JSX.Element => {
             >
               <Archive className="w-4 h-4 mr-2" />
               Archive
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!selectedIds.length}
+              onClick={async () => {
+                if (!selectedIds.length) return;
+                await bulkRemove(selectedIds);
+                setSelectedIds([]);
+                if (selectedNotification && !items.find(i => i.id === selectedNotification)) {
+                  setSelectedNotification(null);
+                }
+              }}
+              className="border-[#ffffff33] text-white hover:bg-[#ff1d1d1a] hover:border-red-400/50 hover:scale-105 transition-all duration-300 disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Selected
             </Button>
           </div>
         </div>
@@ -238,7 +255,7 @@ export const NotificationPage = (): JSX.Element => {
                         {selectedNotificationData.title}
                       </h1>
                       <p className="text-sm text-[#ffffff60]">
-                        9:00AM, 01-08-2025
+                        {selectedNotificationData.timestamp}
                       </p>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -266,7 +283,7 @@ export const NotificationPage = (): JSX.Element => {
                   </div>
                 </div>
 
-                {selectedNotificationData ? (
+                {/* Content */}
                 <div className="flex-1 p-6 bg-[#0a0a0a] rounded-b-2xl overflow-y-auto">
                   {selectedNotificationData.hasDetailedContent ? (
                     <div className="space-y-6">
@@ -276,28 +293,23 @@ export const NotificationPage = (): JSX.Element => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.5 }}
                       >
-                        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam eu turpis molestie, dictum est a, mattis tellus. Sed dignissim, metus nec fringilla accumsan, risus sem sollicitudin lacus, ut interdum tellus elit sed risus. Maecenas eget condimentum velit, sit amet feugiat lectus. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Praesent auctor purus luctus enim egestas, ac scelerisque ante pulvinar. Donec ut rhoncus ex. Suspendisse ac rhoncus nisl, eu tempor urna. Curabitur vel bibendum lorem. Morbi convallis convallis diam sit amet lacinia. Aliquam in elementum tellus.
-                      </motion.p>
-                      
-                      <motion.p 
-                        className="text-[#ffffff80] leading-relaxed"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.2 }}
-                      >
-                        Curabitur tempor quis eros tempus lacinia. Nam bibendum pellentesque quam a convallis. Sed ut vulputate nisl. Integer in felis sed leo vestibulum venenatis. Suspendisse quis arcu sem. Aenean feugiat ex eu vestibulum vestibulum. Morbi a eleifend magna. Nam metus lacus, porttitor eu mauris a, blandit ultrices nibh. Mauris sit amet magna non ligula vestibulum eleifend. Nulla varius volutpat turpis sed lacinia. Nam eget mi in purus lobortis eleifend. Sed nec ante dictum sem condimentum ullamcorper quis venenatis nisl. Proin vitae facilibus nisl, ac posuere leo.
+                        {selectedNotificationData.detailedContent}
                       </motion.p>
 
                       {/* Action buttons */}
                       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-[#ffffff1a]">
                         <Button 
                           className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                          onClick={() => {
+                            const item = items.find(i => i.id === selectedNotification);
+                            if (item?.action_url) window.open(item.action_url, '_blank');
+                          }}
                         >
-                          Take Action
+                          Open Link
                         </Button>
                         <Button 
-                          variant="outline" 
-                              bulkRemove([selectedNotification]);
+                          variant="outline"
+                          onClick={() => selectedNotification && markRead(selectedNotification, true)}
                         >
                           Mark as Read
                         </Button>
@@ -319,22 +331,6 @@ export const NotificationPage = (): JSX.Element => {
             ) : (
               <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-8 text-center h-full flex items-center justify-center">
                 <div>
-                          <div className="pt-2">
-                            <a
-                              href={"#"}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                const item = items.find(i => i.id === selectedNotification);
-                                if (item?.action_url) window.open(item.action_url, '_blank');
-                              }}
-                              className="text-[#1dff00] hover:underline"
-                            >
-                              {(() => {
-                                const item = items.find(i => i.id === selectedNotification);
-                                return item?.action_url ? 'Open related link' : '';
-                              })()}
-                            </a>
-                          </div>
                   <Bell className="w-16 h-16 text-[#ffffff40] mx-auto mb-4" />
                   <h3 className="text-xl font-medium text-white mb-2">Select a notification</h3>
                   <p className="text-[#ffffff60]">Choose a notification from the list to view details</p>
