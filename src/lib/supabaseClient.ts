@@ -15,6 +15,12 @@ export function createClient() {
         signInWithPassword: () => Promise.resolve({ data: null, error: null }),
         signUp: () => Promise.resolve({ data: null, error: null }),
         signOut: () => Promise.resolve({ error: null }),
+        onAuthStateChange: (_event: any, _cb?: any) => ({
+          data: {
+            subscription: { unsubscribe: () => void 0 },
+          },
+          error: null,
+        }),
       },
       from: () => ({
         select: () => Promise.resolve({ data: [], error: null }),
