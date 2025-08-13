@@ -4,13 +4,10 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LandingPage } from "./screens/LandingPage";
 import { JobrackerSignup } from "./screens/JobrackerSignup";
 import { Onboarding } from "./screens/Onboarding";
-import { PasswordReset } from "./screens/PasswordReset";
 import { Analytics } from "./screens/Analytics";
 import { Dashboard } from "./screens/Dashboard";
 import Login from "./screens/Login/Login";
 import { WhiteBackgroundFixer } from "./components/WhiteBackgroundFixer";
-import { RequireAuth } from "./components/RequireAuth";
-import { ToastProvider } from "./components/ui/toast";
 
 // Error boundary component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
@@ -58,16 +55,13 @@ function App() {
         <Route path="/login" element={<Login />} />
         
         {/* Step 2: Onboarding Page (after signup) */}
-        <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
+        <Route path="/onboarding" element={<Onboarding />} />
         
-        {/* Password reset handler (Supabase recovery flow) */}
-        <Route path="/reset-password" element={<PasswordReset />} />
-
         {/* Step 3: Dashboard Page (after onboarding completion) - Now serves as main container */}
-        <Route path="/dashboard/*" element={<RequireAuth><Dashboard /></RequireAuth>} />
+        <Route path="/dashboard/*" element={<Dashboard />} />
         
         {/* Standalone Analytics Page (for backward compatibility) */}
-        <Route path="/analytics" element={<RequireAuth><Analytics /></RequireAuth>} />
+        <Route path="/analytics" element={<Analytics />} />
         
         {/* Catch all - redirect to landing page */}
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -95,9 +89,7 @@ if (!rootElement) {
     root.render(
       <StrictMode>
         <ErrorBoundary>
-          <ToastProvider>
-            <App />
-          </ToastProvider>
+          <App />
         </ErrorBoundary>
       </StrictMode>
     );
