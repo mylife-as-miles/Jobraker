@@ -97,29 +97,22 @@ export const OverviewPage = (): JSX.Element => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-2">
                   <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Applications</h2>
                   <div className="text-left sm:text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
-                      className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-1 sm:p-2 transition-all duration-300"
-                    >
-                      <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </Button>
-                    <h2 className="text-sm sm:text-lg lg:text-xl font-bold text-white">{monthLabel}</h2>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
-                      className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-1 sm:p-2 transition-all duration-300"
-                    >
-                      <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </Button>
-                          : "text-[#888888] hover:text-[#1dff00] hover:bg-[#1dff00]/10"
-
-                  {/* Live current time */}
-                  <div className="text-center text-[10px] sm:text-xs text-[#888888] mb-3">
-                    Current time: <span className="text-[#1dff00] font-medium">{timeLabel}</span>
+                    <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#1dff00]">0/3</span>
                   </div>
+                </div>
+
+                {/* Period Selector */}
+                <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
+                  {["Today", "1 Week", "1 Month"].map((period) => (
+                    <Button
+                      key={period}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedPeriod(period)}
+                      className={`text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${
+                        selectedPeriod === period
+                          ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+                          : "text-[#888888] hover:text-[#1dff00] hover:bg-[#1dff00]/10"
                       }`}
                     >
                       {period}
@@ -131,24 +124,42 @@ export const OverviewPage = (): JSX.Element => {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-8 space-y-4 sm:space-y-0 mb-4 sm:mb-6">
                   <motion.div 
                     className="text-center sm:text-left"
-                  <div className="grid grid-cols-7 gap-1">
-                    {monthGrid.map(({ date, inCurrentMonth }, idx) => (
-                      <motion.div
-                        key={`${date.toISOString()}-${idx}`}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.97 }}
-                        className={`relative text-center text-xs py-1 sm:py-2 rounded-lg transition-all duration-200 cursor-pointer ${
-                          isToday(date) && inCurrentMonth
-                            ? 'bg-[#1dff00] text-black font-bold shadow-lg'
-                            : inCurrentMonth
-                            ? 'text-[#888888] hover:bg-[#1dff00]/10 hover:text-[#1dff00]'
-                            : 'text-[#333333] hover:bg-[#1dff00]/10'
-                        }`}
-                      >
-                        {date.getDate()}
-                      </motion.div>
-                    ))}
-                  </div>
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1dff00] mb-1">58</div>
+                    <div className="text-xs sm:text-sm text-[#888888]">Applications</div>
+                  </motion.div>
+                  <motion.div 
+                    className="text-center sm:text-left"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1dff00] mb-1">15</div>
+                    <div className="text-xs sm:text-sm text-[#888888]">Interviews</div>
+                  </motion.div>
+                </div>
+
+                {/* Chart Area */}
+                <div className="h-16 sm:h-20 lg:h-24 relative">
+                  <svg className="w-full h-full" viewBox="0 0 400 100">
+                    <defs>
+                      <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#1dff00" stopOpacity="0.8" />
+                        <stop offset="100%" stopColor="#0a8246" stopOpacity="0.8" />
+                      </linearGradient>
+                    </defs>
+                    <path
+                      d="M 0 60 Q 100 40 200 50 T 400 30"
+                      stroke="url(#lineGradient)"
+                      strokeWidth="3"
+                      fill="none"
+                      className="drop-shadow-lg"
+                    />
+                    <circle cx="400" cy="30" r="4" fill="#1dff00" className="drop-shadow-lg" />
+                  </svg>
+                </div>
+              </Card>
             </motion.div>
 
             {/* Match Score Card */}
@@ -272,22 +283,29 @@ export const OverviewPage = (): JSX.Element => {
               className="transition-transform duration-300"
             >
               <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
-                <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                <div className="flex items-center justify-between mb-2 sm:mb-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
                     className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-1 sm:p-2 transition-all duration-300"
                   >
                     <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
                   </Button>
-                  <h2 className="text-sm sm:text-lg lg:text-xl font-bold text-white">August, 2025</h2>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <h2 className="text-sm sm:text-lg lg:text-xl font-bold text-white">{monthLabel}</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
                     className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-1 sm:p-2 transition-all duration-300"
                   >
                     <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
                   </Button>
+                </div>
+
+                {/* Live current time */}
+                <div className="text-center text-[10px] sm:text-xs text-[#888888] mb-3">
+                  Current time: <span className="text-[#1dff00] font-medium">{timeLabel}</span>
                 </div>
 
                 {/* Calendar Header */}
@@ -301,39 +319,21 @@ export const OverviewPage = (): JSX.Element => {
 
                 {/* Calendar Days */}
                 <div className="grid grid-cols-7 gap-1">
-                  {/* Previous month days */}
-                  {[27, 28, 29, 30, 31].map((day) => (
-                    <div key={`prev-${day}`} className="text-center text-xs text-[#333333] py-1 sm:py-2 hover:bg-[#1dff00]/10 rounded transition-colors duration-200">
-                      {day}
-                    </div>
-                  ))}
-                  
-                  {/* Current month days */}
-                  {calendarDays.map((day) => (
+                  {monthGrid.map(({ date, inCurrentMonth }, idx) => (
                     <motion.div
-                      key={day}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.95 }}
-                      className={`text-center text-xs py-1 sm:py-2 rounded-lg transition-all duration-200 cursor-pointer ${
-                        day === today
+                      key={`${date.toISOString()}-${idx}`}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.97 }}
+                      className={`relative text-center text-xs py-1 sm:py-2 rounded-lg transition-all duration-200 cursor-pointer ${
+                        isToday(date) && inCurrentMonth
                           ? 'bg-[#1dff00] text-black font-bold shadow-lg'
-                          : day === 20 || day === 21
-                          ? 'text-[#1dff00] font-medium relative hover:bg-[#1dff00]/10'
-                          : 'text-[#888888] hover:bg-[#1dff00]/10 hover:text-[#1dff00]'
+                          : inCurrentMonth
+                          ? 'text-[#888888] hover:bg-[#1dff00]/10 hover:text-[#1dff00]'
+                          : 'text-[#333333] hover:bg-[#1dff00]/10'
                       }`}
                     >
-                      {day}
-                      {(day === 20 || day === 21) && (
-                        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-[#1dff00] rounded-full"></div>
-                      )}
+                      {date.getDate()}
                     </motion.div>
-                  ))}
-                  
-                  {/* Next month days */}
-                  {[1, 2].map((day) => (
-                    <div key={`next-${day}`} className="text-center text-xs text-[#333333] py-1 sm:py-2 hover:bg-[#1dff00]/10 rounded transition-colors duration-200">
-                      {day}
-                    </div>
                   ))}
                 </div>
               </Card>
