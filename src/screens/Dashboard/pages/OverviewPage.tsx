@@ -284,23 +284,35 @@ export const OverviewPage = (): JSX.Element => {
             >
               <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
                 <div className="flex items-center justify-between mb-2 sm:mb-4">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
-                    className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-1 sm:p-2 transition-all duration-300"
-                  >
-                    <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
-                  </Button>
+                  <div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+                      className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-1 sm:p-2 transition-all duration-300"
+                    >
+                      <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </Button>
+                  </div>
                   <h2 className="text-sm sm:text-lg lg:text-xl font-bold text-white">{monthLabel}</h2>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
-                    className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-1 sm:p-2 transition-all duration-300"
-                  >
-                    <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
-                  </Button>
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setViewDate(new Date(now.getFullYear(), now.getMonth(), 1))}
+                      className="text-white border border-white/10 hover:border-[#1dff00]/40 hover:bg-white/5 hover:text-[#1dff00] transition-all duration-300 px-2 py-1"
+                    >
+                      Today
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+                      className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-1 sm:p-2 transition-all duration-300"
+                    >
+                      <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Live current time */}
