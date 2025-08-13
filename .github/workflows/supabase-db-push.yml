@@ -1,0 +1,28 @@
+name: Supabase DB Push
+
+on:
+	workflow_dispatch:
+
+permissions:
+	contents: read
+
+jobs:
+	push:
+		runs-on: ubuntu-latest
+		steps:
+			- name: Checkout
+				uses: actions/checkout@v4
+
+			- name: Setup Supabase CLI
+				uses: supabase/setup-cli@v1
+
+			- name: Push migrations to Supabase
+				working-directory: backend/supabase
+				env:
+					SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+				run: |
+					if [ -z "$SUPABASE_DB_URL" ]; then
+						echo "SUPABASE_DB_URL is not set. Add it in GitHub repo settings > Secrets and variables > Actions." >&2
+						exit 1
+					fi
+					supabase db push --db-url "$SUPABASE_DB_URL" --include-all --yes
