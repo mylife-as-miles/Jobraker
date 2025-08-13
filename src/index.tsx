@@ -10,6 +10,8 @@ import Login from "./screens/Login/Login";
 import { WhiteBackgroundFixer } from "./components/WhiteBackgroundFixer";
 import { PublicOnly } from "./components/PublicOnly";
 import { RequireAuth } from "./components/RequireAuth";
+import { ToastProvider } from "./components/ui/toast-provider";
+import { ROUTES } from "./routes";
 
 // Error boundary component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
@@ -43,31 +45,34 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
 function App() {
   return (
     <BrowserRouter>
-      {/* Auto-fix white backgrounds across the app */}
-      <WhiteBackgroundFixer autoFix={true} showDebugInfo={false} />
-      
-      <Routes>
+      {/* Global providers */}
+      <ToastProvider>
+        {/* Auto-fix white backgrounds across the app */}
+        <WhiteBackgroundFixer autoFix={true} showDebugInfo={false} />
+        
+        <Routes>
         {/* Default route shows landing page */}
-  <Route path="/" element={<PublicOnly><LandingPage /></PublicOnly>} />
+          <Route path={ROUTES.ROOT} element={<PublicOnly><LandingPage /></PublicOnly>} />
         
         {/* Step 1: Signup Page */}
-  <Route path="/signup" element={<PublicOnly><JobrackerSignup /></PublicOnly>} />
+          <Route path={ROUTES.SIGNUP} element={<PublicOnly><JobrackerSignup /></PublicOnly>} />
 
         {/* Login Page */}
-  <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
+          <Route path={ROUTES.LOGIN} element={<PublicOnly><Login /></PublicOnly>} />
         
         {/* Step 2: Onboarding Page (after signup) */}
-  <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
+          <Route path={ROUTES.ONBOARDING} element={<RequireAuth><Onboarding /></RequireAuth>} />
         
         {/* Step 3: Dashboard Page (after onboarding completion) - Now serves as main container */}
-  <Route path="/dashboard/*" element={<RequireAuth><Dashboard /></RequireAuth>} />
+          <Route path={ROUTES.DASHBOARD_WILDCARD} element={<RequireAuth><Dashboard /></RequireAuth>} />
         
         {/* Standalone Analytics Page (for backward compatibility) */}
-        <Route path="/analytics" element={<Analytics />} />
+          <Route path={ROUTES.ANALYTICS} element={<Analytics />} />
         
         {/* Catch all - redirect to landing page */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to={ROUTES.ROOT} replace />} />
+        </Routes>
+      </ToastProvider>
     </BrowserRouter>
   );
 }

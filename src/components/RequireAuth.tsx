@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ROUTES } from '../routes'
 import { createClient } from '../lib/supabaseClient'
 
 type Props = { children: React.ReactNode }
@@ -15,15 +16,15 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
       const { data } = await supabase.auth.getUser()
       if (!mounted) return
       if (!data.user) {
-        navigate('/login', { replace: true })
+        navigate(ROUTES.LOGIN, { replace: true })
       } else {
         setChecking(false)
       }
     }
     check()
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session?.user) navigate('/login', { replace: true })
+    const { data: sub } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+      if (!session?.user) navigate(ROUTES.LOGIN, { replace: true })
     })
 
     return () => {
@@ -32,6 +33,12 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
     }
   }, [navigate, supabase])
 
-  if (checking) return null
+  if (checking) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-black">
+        <div className="w-6 h-6 border-2 border-white/20 border-t-[#1dff00] rounded-full animate-spin" />
+      </div>
+    )
+  }
   return <>{children}</>
 }
