@@ -40,7 +40,7 @@ export const ChatPage = (): JSX.Element => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-black min-h-screen">
+    <div className="h-full flex flex-col bg-black min-h-screen overflow-hidden">
       {/* Main Chat Content */}
       <div className="flex-1 flex flex-col w-full max-w-7xl mx-auto">
         {/* Chat Header */}
@@ -65,8 +65,8 @@ export const ChatPage = (): JSX.Element => {
           </div>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 bg-black">
+  {/* Messages */}
+  <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 bg-black pb-28 sm:pb-32">
           {/* System Message 1 */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -136,8 +136,8 @@ export const ChatPage = (): JSX.Element => {
           </motion.div>
         </div>
 
-        {/* Message Input */}
-        <div className="p-4 sm:p-6 lg:p-8 bg-[#0a0a0a] border-t border-[#1dff00]/20">
+  {/* Message Input (sticky at bottom) */}
+  <div className="sticky bottom-0 p-4 sm:p-6 lg:p-8 bg-[#0a0a0a] border-t border-[#1dff00]/20 z-10">
           <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
             {/* Attachment button */}
             <Button
