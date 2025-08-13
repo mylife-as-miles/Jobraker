@@ -67,7 +67,7 @@ function App() {
           <Route path={ROUTES.DASHBOARD_WILDCARD} element={<RequireAuth><Dashboard /></RequireAuth>} />
         
         {/* Standalone Analytics Page (for backward compatibility) */}
-          <Route path={ROUTES.ANALYTICS} element={<Analytics />} />
+          <Route path={ROUTES.ANALYTICS} element={<RequireAuth><Analytics /></RequireAuth>} />
         
         {/* Catch all - redirect to landing page */}
           <Route path="*" element={<Navigate to={ROUTES.ROOT} replace />} />
