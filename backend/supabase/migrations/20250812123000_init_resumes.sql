@@ -2,7 +2,6 @@
 insert into storage.buckets (id, name, public)
 select 'resumes', 'resumes', false
 where not exists (select 1 from storage.buckets where id = 'resumes');
-
 -- Resumes table
 create table if not exists public.resumes (
   id uuid primary key default gen_random_uuid(),
@@ -18,38 +17,31 @@ create table if not exists public.resumes (
   size bigint,
   updated_at timestamptz not null default now()
 );
-
 -- RLS
 alter table public.resumes enable row level security;
-
 do $$ begin
   create policy "Select own resumes"
     on public.resumes for select
     using (auth.uid() = user_id);
 exception when duplicate_object then null; end $$;
-
 do $$ begin
   create policy "Insert own resumes"
     on public.resumes for insert
     with check (auth.uid() = user_id);
 exception when duplicate_object then null; end $$;
-
 do $$ begin
   create policy "Update own resumes"
     on public.resumes for update
     using (auth.uid() = user_id)
     with check (auth.uid() = user_id);
 exception when duplicate_object then null; end $$;
-
 do $$ begin
   create policy "Delete own resumes"
     on public.resumes for delete
     using (auth.uid() = user_id);
 exception when duplicate_object then null; end $$;
-
 -- Helpful index
 create index if not exists resumes_user_updated_idx on public.resumes(user_id, updated_at desc);
-
 -- Storage object policies for resumes bucket
 
 do $$ begin
