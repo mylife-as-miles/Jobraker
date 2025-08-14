@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
-import { Download, Edit, Eye, Plus, Star, Copy, Trash2, Loader2 } from "lucide-react";
+import { Download, Eye, Plus, Star, Copy, Trash2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useResumes, type ResumeRecord } from "../../../hooks/useResumes";
 import ConfirmDialog from "../../../components/ui/confirm-dialog";
