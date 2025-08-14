@@ -1,7 +1,4 @@
-/// <reference types='vitest' />
-
-import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
-import react from "@vitejs/plugin-react-swc";
+import react from "@vitejs/plugin-react";
 import { defineConfig, searchForWorkspaceRoot } from "vite";
 
 export default defineConfig({
@@ -20,11 +17,11 @@ export default defineConfig({
     fs: { allow: [searchForWorkspaceRoot(process.cwd())] },
   },
 
-  plugins: [react(), nxViteTsPaths()],
+  plugins: [react()],
 
   resolve: {
     alias: {
-      "@/artboard/": `${searchForWorkspaceRoot(process.cwd())}/apps/artboard/src/`,
+  "@/artboard/": `${searchForWorkspaceRoot(process.cwd())}/src/resume-builder/artboard/src/`,
     },
   },
 });

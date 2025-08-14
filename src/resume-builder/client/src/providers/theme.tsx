@@ -1,10 +1,12 @@
-import { useTheme } from "@reactive-resume/hooks";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 type Props = { children: React.ReactNode };
 
 export const ThemeProvider = ({ children }: Props) => {
-  const { isDarkMode } = useTheme();
+  // Fallback: infer dark mode from document class if external hook isn't available
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() =>
+    document.documentElement.classList.contains("dark"),
+  );
 
   useEffect(() => {
     if (isDarkMode) {
@@ -13,6 +15,15 @@ export const ThemeProvider = ({ children }: Props) => {
       document.documentElement.classList.remove("dark");
     }
   }, [isDarkMode]);
+
+  // Keep local state synced with document class changes
+  useEffect(() => {
+    const mo = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains("dark"));
+    });
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => mo.disconnect();
+  }, []);
 
   // Listen for theme updates from parent (embedded mode)
   useEffect(() => {
