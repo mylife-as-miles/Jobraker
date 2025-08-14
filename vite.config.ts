@@ -15,6 +15,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@reactive-resume/schema": path.resolve(__dirname, "src/lib/reactive-resume-schema.ts"),
+      "@reactive-resume/utils": path.resolve(__dirname, "src/lib/reactive-resume-utils.ts"),
+      "@reactive-resume/hooks": path.resolve(__dirname, "src/lib/reactive-resume-hooks.ts"),
     },
   },
 });
