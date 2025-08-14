@@ -1,8 +1,65 @@
+name: supabase-push
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - backend/supabase/**
+      - .github/workflows/supabase-push.yml
+
+jobs:
+  push-migrations:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Supabase CLI
+        run: npm i -g supabase@^2
+
+      - name: Supabase login
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase login --token "$SUPABASE_ACCESS_TOKEN"
+
+      - name: Link project
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        working-directory: backend/supabase
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD" --yes
+
+      - name: Push migrations (dry-run)
+        working-directory: backend/supabase
+        run: supabase db push --linked --dry-run
+
+      - name: Push migrations
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        working-directory: backend/supabase
+        run: supabase db push --linked --include-all --yes -p "$SUPABASE_DB_PASSWORD"
 name: Supabase Push
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
     paths:
       - 'backend/supabase/**'
       - '.github/workflows/supabase-push.yml'
@@ -29,14 +86,14 @@ jobs:
       - name: Supabase login
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase login --token "$SUPABASE_ACCESS_TOKEN"
+        run: supabase login --token "${SUPABASE_ACCESS_TOKEN}"
 
       - name: Link project
         env:
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         working-directory: backend/supabase
-        run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD" --yes
+        run: supabase link --project-ref "${SUPABASE_PROJECT_REF}" --password "${SUPABASE_DB_PASSWORD}" --yes
 
       - name: Push migrations (dry-run)
         working-directory: backend/supabase
@@ -46,4 +103,4 @@ jobs:
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         working-directory: backend/supabase
-        run: supabase db push --linked --include-all --yes -p "$SUPABASE_DB_PASSWORD"
+        run: supabase db push --linked --include-all --yes -p "${SUPABASE_DB_PASSWORD}"

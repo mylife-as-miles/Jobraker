@@ -1,6 +1,7 @@
 import { createBrowserClient } from '@supabase/ssr'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
-export function createClient() {
+export function createClient(): SupabaseClient {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -8,12 +9,14 @@ export function createClient() {
   if (!supabaseUrl || !supabaseAnonKey) {
     console.warn('Supabase environment variables not found. Some features may not work.');
     // Return a mock client for development/demo purposes
-    return {
+    const mock = {
       auth: {
         getUser: () => Promise.resolve({ data: { user: null }, error: null }),
         signInWithOAuth: () => Promise.resolve({ data: null, error: null }),
         signInWithPassword: () => Promise.resolve({ data: null, error: null }),
         signUp: () => Promise.resolve({ data: null, error: null }),
+        resetPasswordForEmail: (_email: string, _options?: any) =>
+          Promise.resolve({ data: null, error: null }),
         signOut: () => Promise.resolve({ error: null }),
         onAuthStateChange: (_event: any, _cb?: any) => ({
           data: {
@@ -32,7 +35,8 @@ export function createClient() {
         on: () => ({ subscribe: () => ({}) }),
         subscribe: () => ({}),
       }),
-    };
+    } as unknown as SupabaseClient;
+    return mock;
   }
 
   return createBrowserClient(supabaseUrl, supabaseAnonKey);
