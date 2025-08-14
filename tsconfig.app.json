@@ -20,7 +20,18 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+    "paths": {
+      "@reactive-resume/schema": [
+        "./src/lib/reactive-resume-schema.ts"
+      ],
+      "@reactive-resume/utils": [
+        "./src/lib/reactive-resume-utils.ts"
+      ],
+      "@reactive-resume/hooks": [
+        "./src/lib/reactive-resume-hooks.ts"
+      ]
+    }
   },
   "include": [
     "src"

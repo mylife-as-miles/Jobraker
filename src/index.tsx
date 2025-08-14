@@ -11,6 +11,10 @@ import { WhiteBackgroundFixer } from "./components/WhiteBackgroundFixer";
 import { PublicOnly } from "./components/PublicOnly";
 import { RequireAuth } from "./components/RequireAuth";
 import { ToastProvider } from "./components/ui/toast-provider";
+import { ArtboardPage } from "./pages/artboard";
+import { BuilderLayout } from "./pages/builder";
+import { PreviewLayout } from "./pages/preview";
+import { Providers } from "./providers";
 import { ROUTES } from "./routes";
 
 // Error boundary component
@@ -69,6 +73,14 @@ function App() {
         {/* Standalone Analytics Page (for backward compatibility) */}
           <Route path={ROUTES.ANALYTICS} element={<RequireAuth><Analytics /></RequireAuth>} />
         
+        {/* Artboard routes */}
+        <Route element={<RequireAuth><Providers/></RequireAuth>}>
+            <Route path={ROUTES.ARTBOARD} element={<ArtboardPage/>}>
+                <Route path="builder" element={<BuilderLayout/>}/>
+                <Route path="preview" element={<PreviewLayout/>}/>
+            </Route>
+        </Route>
+
         {/* Catch all - redirect to landing page */}
           <Route path="*" element={<Navigate to={ROUTES.ROOT} replace />} />
         </Routes>
