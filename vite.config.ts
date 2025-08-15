@@ -18,6 +18,11 @@ export default defineConfig({
       "@reactive-resume/schema": path.resolve(__dirname, "src/lib/reactive-resume-schema.ts"),
       "@reactive-resume/utils": path.resolve(__dirname, "src/lib/reactive-resume-utils.ts"),
       "@reactive-resume/hooks": path.resolve(__dirname, "src/lib/reactive-resume-hooks.ts"),
+  "@reactive-resume/ui": path.resolve(__dirname, "src/lib/reactive-resume-ui.tsx"),
+  "@reactive-resume/dto": path.resolve(__dirname, "src/lib/reactive-resume-dto.ts"),
+  "@reactive-resume/parser": path.resolve(__dirname, "src/lib/reactive-resume-parser.ts"),
+  "@lingui/macro": path.resolve(__dirname, "src/lib/mocks/lingui-macro.ts"),
+  "@lingui/core": path.resolve(__dirname, "src/lib/mocks/lingui-core.ts"),
     },
   },
 });

@@ -16,6 +16,13 @@ import { BuilderLayout } from "./pages/builder";
 import { PreviewLayout } from "./pages/preview";
 import { Providers } from "./providers";
 import { ROUTES } from "./routes";
+// Client pages imported from merged client app
+import { PublicResumePage } from "./client/pages/public/page";
+import { DashboardLayout as ClientDashboardLayout } from "./client/pages/dashboard/layout";
+import { ResumesPage } from "./client/pages/dashboard/resumes/page";
+import { SettingsPage } from "./client/pages/dashboard/settings/page";
+import { BuilderPage } from "./client/pages/builder/page";
+import { Providers as ClientProviders } from "./client/providers";
 
 // Error boundary component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
@@ -79,6 +86,33 @@ function App() {
                 <Route path="builder" element={<BuilderLayout/>}/>
                 <Route path="preview" element={<PreviewLayout/>}/>
             </Route>
+        </Route>
+
+        {/* Client public resume routes (/:username/:slug) */}
+        <Route element={<ClientProviders />}>
+          <Route path=":username">
+            <Route path=":slug" element={<PublicResumePage />} />
+          </Route>
+        </Route>
+
+        {/* Optionally expose client HomePage at root if desired (keep behind PublicOnly) */}
+        {/* <Route path="/client" element={<PublicOnly><HomePage /></PublicOnly>} /> */}
+
+        {/* Client dashboard routes under /dashboard/client to avoid collision with main */}
+        <Route element={<RequireAuth><ClientProviders /></RequireAuth>}>
+          <Route path="/dashboard/client" element={<ClientDashboardLayout />}>
+            <Route path="resumes" element={<ResumesPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route index element={<Navigate replace to="resumes" />} />
+          </Route>
+        </Route>
+
+        {/* Client builder route (protected) */}
+        <Route element={<RequireAuth><ClientProviders /></RequireAuth>}>
+          <Route path={ROUTES.BUILDER} element={<ClientDashboardLayout />}>
+            <Route path=":id" element={<BuilderPage />} />
+            <Route index element={<Navigate replace to="/dashboard/client/resumes" />} />
+          </Route>
         </Route>
 
         {/* Catch all - redirect to landing page */}

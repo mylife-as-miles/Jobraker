@@ -7,6 +7,7 @@ export const ROUTES = {
   DASHBOARD_WILDCARD: '/dashboard/*',
   ANALYTICS: '/analytics',
   ARTBOARD: '/artboard',
+  BUILDER: '/builder',
 } as const;
 
 export type RouteKey = keyof typeof ROUTES;
