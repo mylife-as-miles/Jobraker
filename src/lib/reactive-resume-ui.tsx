@@ -54,6 +54,17 @@ export const RichInput: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElemen
   <textarea {...props} className={(props.className ?? "") + " rounded border px-2 py-1 min-h-[80px]"} />
 );
 
+export const Slider: React.FC<{ value?: number[]; min?: number; max?: number; step?: number; onValueChange?: (v: number[]) => void }> = ({ value = [0], min = 0, max = 100, step = 1, onValueChange }) => (
+  <input
+    type="range"
+    min={min}
+    max={max}
+    step={step}
+    value={value[0]}
+    onChange={(e) => onValueChange?.([e.target.valueAsNumber])}
+  />
+);
+
 export const Label: React.FC<React.LabelHTMLAttributes<HTMLLabelElement>> = ({ children, ...props }) => (
   <label {...props} className={(props.className ?? "") + " text-sm"}>{children}</label>
 );
