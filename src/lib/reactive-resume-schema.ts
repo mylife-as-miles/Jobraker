@@ -45,6 +45,7 @@ export const defaultCertification = {} as any;
 export const defaultEducation = {} as any;
 export const defaultExperience = {} as any;
 export const defaultInterest = {} as any;
+export const interestSchema = { safeParse: (_v: any) => ({ success: true }) } as any;
 export const defaultLanguage = {} as any;
 export const defaultProfile = {} as any;
 export const defaultProject = {} as any;
