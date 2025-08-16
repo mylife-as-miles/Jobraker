@@ -1,4 +1,5 @@
 // Minimal DTO placeholders to match types used by the client app
+import { z } from "zod";
 export type UserDto = {
   id: string;
   name?: string | null;
@@ -34,3 +35,8 @@ export type UpdateUserDto = {
 export const updateUserSchema = {
   // Placeholder mock; validation is handled by zod in the page
 } as any;
+
+// Minimal schema used by the create/duplicate resume dialog
+export const createResumeSchema = z.object({
+  title: z.string().min(1),
+});
