@@ -154,4 +154,23 @@ export const ToastTitle: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ chi
 export const ToastDescription: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div className="text-sm opacity-80">{children}</div>;
 export const ToastClose: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = (props) => <button {...props}>×</button>;
 
+// Alert primitive
+export const Alert: React.FC<{ variant?: string } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => (
+  <div {...props} className={(props.className ?? "") + " rounded border p-3"}>{children}</div>
+);
+
+// Dropdown menu primitives
+export const DropdownMenu: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const DropdownMenuTrigger: React.FC<{ asChild?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ asChild, children, ...props }) => asChild ? <>{children}</> : <button {...props}>{children}</button>;
+export const DropdownMenuContent: React.FC<{ side?: string; align?: string } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const DropdownMenuItem: React.FC<React.HTMLAttributes<HTMLDivElement> & { onClick?: () => void } > = ({ children, onClick, ...props }) => <div {...props} onClick={onClick}>{children}</div>;
+export const DropdownMenuSeparator: React.FC<React.HTMLAttributes<HTMLHRElement>> = (props) => <hr {...props} />;
+
+// Context menu primitives
+export const ContextMenu: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const ContextMenuTrigger: React.FC<{ asChild?: boolean } & React.HTMLAttributes<HTMLDivElement>> = ({ asChild, children, ...props }) => asChild ? <>{children}</> : <div {...props}>{children}</div>;
+export const ContextMenuContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const ContextMenuItem: React.FC<React.HTMLAttributes<HTMLDivElement> & { onClick?: () => void } > = ({ children, onClick, ...props }) => <div {...props} onClick={onClick}>{children}</div>;
+export const ContextMenuSeparator: React.FC<React.HTMLAttributes<HTMLHRElement>> = (props) => <hr {...props} />;
+
 export default {} as any;
