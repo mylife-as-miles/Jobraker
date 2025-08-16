@@ -22,6 +22,7 @@
     "supabase:sync:push": "npm run -s supabase:schema:sync && npm run -s supabase:push"
   },
   "dependencies": {
+  "@paralleldrive/cuid2": "^2.2.2",
   "@hookform/resolvers": "^3.3.4",
   "@lingui/core": "^4.11.3",
   "@lingui/macro": "^4.11.3",
@@ -43,7 +44,8 @@
     "clsx": "2.1.1",
     "framer-motion": "^10.16.16",
     "gsap": "^3.13.0",
-    "lodash.get": "^4.4.2",
+  "lodash.get": "^4.4.2",
+  "lodash.set": "^4.3.2",
     "lucide-react": "^0.453.0",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",

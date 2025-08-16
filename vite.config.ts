@@ -24,6 +24,7 @@ export default defineConfig({
   "@lingui/macro": path.resolve(__dirname, "src/lib/mocks/lingui-macro.ts"),
   "@lingui/core": path.resolve(__dirname, "src/lib/mocks/lingui-core.ts"),
   "@lingui/react": path.resolve(__dirname, "src/lib/mocks/lingui-react.tsx"),
+  "@lingui/detect-locale": path.resolve(__dirname, "src/lib/mocks/lingui-detect-locale.ts"),
     },
   },
 });
