@@ -54,5 +54,5 @@ export const ThemeProvider = ({ children }: Props) => {
     return () => window.removeEventListener("message", handler);
   }, []);
 
-  return children;
+  return <>{children}</>;
 };

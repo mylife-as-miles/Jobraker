@@ -54,6 +54,21 @@
       ],
       "@lingui/detect-locale": [
         "./src/lib/mocks/lingui-detect-locale.ts"
+      ],
+      "qrcode.react": [
+        "./src/lib/mocks/qrcode-react.tsx"
+      ],
+      "@radix-ui/react-visually-hidden": [
+        "./src/lib/mocks/radix-visually-hidden.tsx"
+      ],
+      "@sindresorhus/slugify": [
+        "./src/lib/mocks/slugify.ts"
+      ],
+      "react-parallax-tilt": [
+        "./src/lib/mocks/react-parallax-tilt.tsx"
+      ],
+      "openai": [
+        "./src/lib/mocks/openai.ts"
       ]
     }
   },

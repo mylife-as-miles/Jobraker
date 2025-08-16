@@ -13,6 +13,13 @@ export type ResumeDto = {
   id: string;
   title: string;
   data: any;
+  locked?: boolean;
+};
+
+export type UpdateResumeDto = {
+  id: string;
+  title?: string;
+  data?: any;
 };
 
 // Minimal user update DTO/schema used by client settings

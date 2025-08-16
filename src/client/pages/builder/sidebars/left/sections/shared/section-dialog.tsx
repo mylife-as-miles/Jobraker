@@ -22,7 +22,6 @@ import {
   Form,
   ScrollArea,
 } from "@reactive-resume/ui";
-import { produce } from "immer";
 import get from "lodash.get";
 import { useEffect } from "react";
 import type { UseFormReturn } from "react-hook-form";
@@ -70,12 +69,7 @@ export const SectionDialog = <T extends SectionItem>({
         values.keywords.push(pendingKeyword);
       }
 
-      setValue(
-        `sections.${id}.items`,
-        produce(section.items, (draft: T[]): void => {
-          draft.push({ ...values, id: createId() });
-        }),
-      );
+  setValue(`sections.${id}.items`, [...section.items, { ...values, id: createId() }]);
     }
 
     if (isUpdate) {
@@ -87,11 +81,7 @@ export const SectionDialog = <T extends SectionItem>({
 
       setValue(
         `sections.${id}.items`,
-        produce(section.items, (draft: T[]): void => {
-          const index = draft.findIndex((item) => item.id === payload.item?.id);
-          if (index === -1) return;
-          draft[index] = values;
-        }),
+        (section.items as T[]).map((item: T) => (item.id === (payload.item as T | undefined)?.id ? (values as T) : (item as T))),
       );
     }
 
@@ -100,11 +90,7 @@ export const SectionDialog = <T extends SectionItem>({
 
       setValue(
         `sections.${id}.items`,
-        produce(section.items, (draft: T[]): void => {
-          const index = draft.findIndex((item) => item.id === payload.item?.id);
-          if (index === -1) return;
-          draft.splice(index, 1);
-        }),
+        (section.items as T[]).filter((item: T) => item.id !== (payload.item as T | undefined)?.id),
       );
     }
 

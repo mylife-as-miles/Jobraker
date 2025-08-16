@@ -84,6 +84,14 @@ export const templatesList = [
   { id: "classic", name: "Classic" },
 ];
 
+export const getInitials = (name?: string | null) => {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
+  return (first + last).toUpperCase() || "?";
+};
+
 // Mock layout helper used by store
 export const removeItemInLayout = (sectionId: string, layout: any[][][]) => {
   for (const page of layout) {
@@ -93,3 +101,43 @@ export const removeItemInLayout = (sectionId: string, layout: any[][][]) => {
     }
   }
 };
+
+// Minimal error message enum used by translate-error
+export enum ErrorMessage {
+  InvalidCredentials = "InvalidCredentials",
+  UserAlreadyExists = "UserAlreadyExists",
+  SecretsNotFound = "SecretsNotFound",
+  OAuthUser = "OAuthUser",
+  InvalidResetToken = "InvalidResetToken",
+  InvalidVerificationToken = "InvalidVerificationToken",
+  EmailAlreadyVerified = "EmailAlreadyVerified",
+  TwoFactorNotEnabled = "TwoFactorNotEnabled",
+  TwoFactorAlreadyEnabled = "TwoFactorAlreadyEnabled",
+  InvalidTwoFactorCode = "InvalidTwoFactorCode",
+  InvalidTwoFactorBackupCode = "InvalidTwoFactorBackupCode",
+  InvalidBrowserConnection = "InvalidBrowserConnection",
+  ResumeSlugAlreadyExists = "ResumeSlugAlreadyExists",
+  ResumeNotFound = "ResumeNotFound",
+  ResumeLocked = "ResumeLocked",
+  ResumePrinterError = "ResumePrinterError",
+  ResumePreviewError = "ResumePreviewError",
+  SomethingWentWrong = "SomethingWentWrong",
+}
+
+// Recursively walk an object/array and convert ISO strings to Date for the given keys
+export function deepSearchAndParseDates(input: any, keys: string[] = []): any {
+  if (Array.isArray(input)) return input.map((v) => deepSearchAndParseDates(v, keys));
+  if (input && typeof input === "object") {
+    const out: any = Array.isArray(input) ? [] : {};
+    for (const [k, v] of Object.entries(input)) {
+      if (v && typeof v === "string" && keys.includes(k)) {
+        const d = new Date(v);
+        out[k] = isNaN(d.getTime()) ? v : d;
+      } else {
+        out[k] = deepSearchAndParseDates(v as any, keys);
+      }
+    }
+    return out;
+  }
+  return input;
+}

@@ -25,6 +25,11 @@ export default defineConfig({
   "@lingui/core": path.resolve(__dirname, "src/lib/mocks/lingui-core.ts"),
   "@lingui/react": path.resolve(__dirname, "src/lib/mocks/lingui-react.tsx"),
   "@lingui/detect-locale": path.resolve(__dirname, "src/lib/mocks/lingui-detect-locale.ts"),
+  "qrcode.react": path.resolve(__dirname, "src/lib/mocks/qrcode-react.tsx"),
+  "@radix-ui/react-visually-hidden": path.resolve(__dirname, "src/lib/mocks/radix-visually-hidden.tsx"),
+  "@sindresorhus/slugify": path.resolve(__dirname, "src/lib/mocks/slugify.ts"),
+  "react-parallax-tilt": path.resolve(__dirname, "src/lib/mocks/react-parallax-tilt.tsx"),
+  "openai": path.resolve(__dirname, "src/lib/mocks/openai.ts"),
     },
   },
 });

@@ -6,19 +6,11 @@ import { dayjsLocales } from "./dayjs";
 export const defaultLocale = "en-US";
 
 export async function dynamicActivate(locale: string) {
-  try {
-    const { messages } = await import(`../locales/${locale}/messages.po`);
+  // In this integration, we skip loading .po files and activate with empty messages
+  i18n.loadAndActivate({ locale, messages: {} as Record<string, string> });
 
-    if (messages) {
-      i18n.loadAndActivate({ locale, messages });
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (dayjsLocales[locale]) {
-      dayjs.locale(await dayjsLocales[locale]());
-    }
-  } catch {
-    // eslint-disable-next-line lingui/no-unlocalized-strings
-    throw new Error(`Failed to load messages for locale: ${locale}`);
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  if (dayjsLocales[locale]) {
+    dayjs.locale(await dayjsLocales[locale]());
   }
 }

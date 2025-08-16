@@ -1,9 +1,9 @@
 import { t } from "@lingui/macro";
 import { CircleNotch, FilePdf } from "@phosphor-icons/react";
-import type { ResumeDto } from "@reactive-resume/dto";
 import { Button } from "@reactive-resume/ui";
 import { pageSizeMap } from "@reactive-resume/utils";
 import { useCallback, useEffect, useRef } from "react";
+import type { ResumeDto } from "@reactive-resume/dto";
 import { Helmet } from "react-helmet-async";
 import type { LoaderFunction } from "react-router-dom";
 import { Link, redirect, useLoaderData } from "react-router-dom";
@@ -23,7 +23,7 @@ export const PublicResumePage = () => {
 
   const { printResume, loading } = usePrintResume();
 
-  const { id, title, data: resume } = useLoaderData();
+  const { id, title, data: resume } = useLoaderData() as ResumeDto;
   const format = resume.metadata.page.format as keyof typeof pageSizeMap;
 
   const updateResumeInFrame = useCallback(() => {
@@ -100,7 +100,11 @@ export const PublicResumePage = () => {
       <div className="fixed bottom-5 right-5 z-0 hidden sm:block print:hidden">
         <div className="flex flex-col items-center gap-y-2">
           <Button size="icon" variant="ghost" onClick={onDownloadPdf}>
-            {loading ? <CircleNotch size={20} className="animate-spin" /> : <FilePdf size={20} />}
+            {loading ? (
+              <CircleNotch width={20} height={20} className="animate-spin" />
+            ) : (
+              <FilePdf width={20} height={20} />
+            )}
           </Button>
 
           <ThemeSwitch />

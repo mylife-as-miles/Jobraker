@@ -35,6 +35,15 @@ export const DialogDescription: React.FC<React.HTMLAttributes<HTMLParagraphEleme
 export const DialogFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
 export const DialogHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
 export const DialogTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({ children }) => <h3>{children}</h3>;
+// Alias AlertDialog components to Dialog primitives for compatibility
+export const AlertDialog = Dialog;
+export const AlertDialogContent = DialogContent;
+export const AlertDialogDescription = DialogDescription;
+export const AlertDialogFooter = DialogFooter;
+export const AlertDialogHeader = DialogHeader;
+export const AlertDialogTitle = DialogTitle;
+export const AlertDialogAction: React.FC<ButtonProps> = (props) => <Button {...props} />;
+export const AlertDialogCancel: React.FC<ButtonProps> = (props) => <Button {...props} />;
 
 export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>((props, ref) => (
   <input ref={ref} {...props} className={(props.className ?? "") + " rounded border px-2 py-1"} />
@@ -128,7 +137,8 @@ export const PopoverContent: React.FC<{ align?: string } & React.HTMLAttributes<
 
 // Resizable panels primitives (no-op wrappers)
 export const PanelGroup: React.FC<{ direction?: "horizontal" | "vertical" } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
-export const Panel: React.FC<{ minSize?: number; maxSize?: number; defaultSize?: number; onResize?: (size: number) => void } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+type DivWithoutOnResize = Omit<React.HTMLAttributes<HTMLDivElement>, "onResize">;
+export const Panel: React.FC<{ minSize?: number; maxSize?: number; defaultSize?: number; onResize?: (size: number) => void } & DivWithoutOnResize> = ({ children, ...props }) => <div {...(props as any)}>{children}</div>;
 export const PanelResizeHandle: React.FC<{ isDragging?: boolean; onDragging?: (dragging: boolean) => void } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
 
 // Toast primitives used by Toaster
