@@ -12,11 +12,10 @@ import {
 } from "@reactive-resume/ui";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
-import { useCounter } from "usehooks-ts";
+import { useState } from "react";
 import { z } from "zod";
 
 import { useToast } from "@/client/hooks/use-toast";
-import { useLogout } from "@/client/services/auth";
 import { useDeleteUser } from "@/client/services/user";
 
 const formSchema = z.object({
@@ -28,8 +27,7 @@ type FormValues = z.infer<typeof formSchema>;
 export const DangerZoneSettings = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { logout } = useLogout();
-  const { count, increment } = useCounter(0);
+  const [count, setCount] = useState(0);
   const { deleteUser, loading } = useDeleteUser();
 
   const form = useForm<FormValues>({
@@ -41,18 +39,19 @@ export const DangerZoneSettings = () => {
 
   const onDelete = async () => {
     // On the first click, increment the counter
-    increment();
+    setCount((c) => c + 1);
 
     // On the second click, delete the account
     if (count === 1) {
-      await Promise.all([deleteUser(), logout()]);
+      await deleteUser();
+      // Main Supabase auth will clear session elsewhere if needed
 
       toast({
         variant: "success",
         title: t`Your account and all your data has been deleted successfully. Goodbye!`,
       });
 
-      void navigate("/");
+  void navigate("/");
     }
   };
 

@@ -4,7 +4,7 @@ import { Button, KeyboardShortcut, Separator } from "@reactive-resume/ui";
 import { cn } from "@reactive-resume/utils";
 import { motion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router";
-import useKeyboardShortcut from "use-keyboard-shortcut";
+import { useEffect } from "react";
 
 import { Copyright } from "@/client/components/copyright";
 import { Icon } from "@/client/components/icon";
@@ -70,15 +70,21 @@ export const Sidebar = ({ setOpen }: SidebarProps) => {
   const { user } = useUser();
   const navigate = useNavigate();
 
-  useKeyboardShortcut(["shift", "r"], () => {
-    void navigate("/dashboard/resumes");
-    setOpen?.(false);
-  });
-
-  useKeyboardShortcut(["shift", "s"], () => {
-    void navigate("/dashboard/settings");
-    setOpen?.(false);
-  });
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.shiftKey && (e.key === "R" || e.key === "r")) {
+        e.preventDefault();
+        void navigate("/dashboard/resumes");
+        setOpen?.(false);
+      } else if (e.shiftKey && (e.key === "S" || e.key === "s")) {
+        e.preventDefault();
+        void navigate("/dashboard/settings");
+        setOpen?.(false);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [navigate, setOpen]);
 
   const sidebarItems: SidebarItem[] = [
     {
