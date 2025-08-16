@@ -207,6 +207,12 @@ export const ToastClose: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>>
 export const Alert: React.FC<{ variant?: string } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => (
   <div {...props} className={(props.className ?? "") + " rounded border p-3"}>{children}</div>
 );
+export const AlertTitle: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => (
+  <div {...props} className={(props.className ?? "") + " font-semibold"}>{children}</div>
+);
+export const AlertDescription: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => (
+  <div {...props} className={(props.className ?? "") + " text-sm opacity-80"}>{children}</div>
+);
 
 // Dropdown menu primitives
 export const DropdownMenu: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
