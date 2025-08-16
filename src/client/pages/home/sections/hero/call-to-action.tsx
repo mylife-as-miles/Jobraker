@@ -1,7 +1,7 @@
 import { t } from "@lingui/macro";
 import { Book, SignOut } from "@phosphor-icons/react";
 import { Button } from "@reactive-resume/ui";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 
 import { useLogout } from "@/client/services/auth";
 import { useAuthStore } from "@/client/stores/auth";

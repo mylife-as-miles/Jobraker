@@ -52,10 +52,10 @@ export const AccountSettings = () => {
     if (!user) return;
 
     form.reset({
-      picture: user.picture ?? "",
-      name: user.name,
-      username: user.username,
-      email: user.email,
+  picture: user.picture ?? "",
+  name: user.name ?? "",
+  username: user.username ?? "",
+  email: user.email ?? "",
     });
   };
 

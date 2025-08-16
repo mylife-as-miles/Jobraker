@@ -14,7 +14,7 @@ import {
   ScrollArea,
 } from "@reactive-resume/ui";
 import { cn } from "@reactive-resume/utils";
-import fuzzy from "fuzzy";
+// Simple contains-based filter as a stand-in for fuzzy matching
 import { useMemo, useState } from "react";
 
 import { useLanguages } from "../services/resume/translation";
@@ -29,9 +29,10 @@ export const LocaleCombobox = ({ value, onValueChange }: Props) => {
   const [search, setSearch] = useState("");
 
   const options = useMemo(() => {
-    return fuzzy.filter(search, languages, {
-      extract: (lang) => `${lang.name} ${lang.locale}`,
-    });
+    const q = (search || "").toLowerCase();
+    return languages
+      .filter((lang) => `${lang.name} ${lang.locale}`.toLowerCase().includes(q))
+      .map((original) => ({ original }));
   }, [search, languages]);
 
   return (

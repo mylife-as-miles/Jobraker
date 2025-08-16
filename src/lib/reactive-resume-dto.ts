@@ -3,6 +3,10 @@ export type UserDto = {
   id: string;
   name?: string | null;
   email?: string | null;
+  username?: string | null;
+  picture?: string | null;
+  emailVerified?: boolean | null;
+  twoFactorEnabled?: boolean | null;
 };
 
 export type ResumeDto = {
@@ -14,9 +18,10 @@ export type ResumeDto = {
 // Minimal user update DTO/schema used by client settings
 export type UpdateUserDto = {
   picture?: string | null;
-  name: string;
-  username: string;
-  email: string;
+  name?: string;
+  username?: string;
+  email?: string;
+  locale?: string;
 };
 
 export const updateUserSchema = {

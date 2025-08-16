@@ -11,7 +11,7 @@ import {
   VisuallyHidden,
 } from "@reactive-resume/ui";
 import { cn } from "@reactive-resume/utils";
-import { Outlet } from "react-router";
+import { Outlet } from "react-router-dom";
 
 import { useBuilderStore } from "@/client/stores/builder";
 

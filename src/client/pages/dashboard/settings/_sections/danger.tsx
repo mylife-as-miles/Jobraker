@@ -11,7 +11,7 @@ import {
   Input,
 } from "@reactive-resume/ui";
 import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { z } from "zod";
 

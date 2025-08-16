@@ -1,7 +1,7 @@
 import { TooltipProvider } from "@reactive-resume/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from "react-helmet-async";
-import { Outlet } from "react-router";
+import { Outlet } from "react-router-dom";
 
 import { helmetContext } from "../constants/helmet";
 import { queryClient } from "../libs/query-client";

@@ -2,12 +2,15 @@
 // Replace with your own design system components as needed.
 import React from "react";
 
-export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string };
-export const Button: React.FC<ButtonProps> = ({ children, ...props }) => (
-  <button {...props} className={(props.className ?? "") + " inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded border"}>
-    {children}
-  </button>
-);
+export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string; asChild?: boolean };
+export const Button: React.FC<ButtonProps> = ({ children, asChild, ...props }) => {
+  if (asChild) return <>{children}</>;
+  return (
+    <button {...props} className={(props.className ?? "") + " inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded border"}>
+      {children}
+    </button>
+  );
+};
 
 export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => (
   <div {...props} className={(props.className ?? "") + " rounded border p-3 bg-white/5"}>{children}</div>
@@ -21,8 +24,8 @@ export const Separator: React.FC<React.HTMLAttributes<HTMLDivElement>> = (props)
   <hr className={(props.className ?? "") + " my-2 border-gray-300/40"} />
 );
 
-export function KeyboardShortcut({ combo }: { combo: string }) {
-  return <kbd className="rounded border px-2 py-0.5 text-xs opacity-70">{combo}</kbd>;
+export function KeyboardShortcut({ combo, children, className }: { combo?: string; children?: React.ReactNode; className?: string }) {
+  return <kbd className={(className ?? "") + " rounded border px-2 py-0.5 text-xs opacity-70"}>{children ?? combo}</kbd>;
 }
 
 // Dialog/toast/select inputs simplified stubs; extend as needed by pages you enable
@@ -54,6 +57,7 @@ export const TabsTrigger: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>
 export const TabsContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
 
 export const TooltipProvider: React.FC<React.PropsWithChildren> = ({ children }) => <>{children}</>;
+export const Tooltip: React.FC<{ content?: React.ReactNode } & React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <>{children}</>;
 export const Sheet: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
 export const SheetContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
 export const SheetTrigger: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, ...props }) => <button {...props}>{children}</button>;
@@ -61,7 +65,11 @@ export const SheetClose: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>>
 
 // Loosely-typed form primitives to avoid TS issues in consuming code
 export const Form: any = ({ children, ...props }: any) => <form {...props}>{children}</form>;
-export const FormField: any = ({ children }: any) => <div>{children}</div>;
+// Provide a typed render prop so callback param isn't implicitly any
+export const FormField: React.FC<{ name?: string; control?: any; render?: (args: any) => React.ReactNode; children?: React.ReactNode }> = (props) => {
+  // don't execute render at runtime in this stub; just render children
+  return <div>{props.children}</div>;
+};
 export const FormItem: any = ({ children }: any) => <div>{children}</div>;
 export const FormLabel: any = Label as any;
 export const FormControl: any = ({ children }: any) => <div>{children}</div>;
@@ -85,6 +93,34 @@ export const AccordionContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = 
 );
 
 export const buttonVariants = (_opts?: any) => "btn";
+
+// Toggle primitive
+export const Toggle: React.FC<{ pressed?: boolean; onPressedChange?: (p: boolean) => void } & React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ pressed, onPressedChange, children, ...props }) => (
+  <button
+    aria-pressed={pressed}
+    onClick={() => onPressedChange?.(!pressed)}
+    {...props}
+  >
+    {children}
+  </button>
+);
+
+// Command palette primitives
+export const Command: React.FC<{ shouldFilter?: boolean } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const CommandInput: React.FC<{ value?: string; onValueChange?: (v: string) => void; placeholder?: string }> = ({ value, onValueChange, placeholder }) => (
+  <input value={value} onChange={(e) => onValueChange?.(e.target.value)} placeholder={placeholder} />
+);
+export const CommandList: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const CommandEmpty: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const CommandGroup: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const CommandItem: React.FC<{ value?: string; disabled?: boolean; onSelect?: (v: string) => void } & React.LiHTMLAttributes<HTMLLIElement>> = ({ value = "", disabled, onSelect, children, ...props }) => (
+  <li {...props} onClick={() => !disabled && onSelect?.(value)}>{children}</li>
+);
+
+// Popover primitives
+export const Popover: React.FC<{ open?: boolean; onOpenChange?: (o: boolean) => void } & React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
+export const PopoverTrigger: React.FC<{ asChild?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ asChild, children, ...props }) => asChild ? <>{children}</> : <button {...props}>{children}</button>;
+export const PopoverContent: React.FC<{ align?: string } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
 
 // Toast primitives used by Toaster
 export type ToastProps = React.HTMLAttributes<HTMLDivElement> & { open?: boolean; onOpenChange?: (open: boolean) => void };

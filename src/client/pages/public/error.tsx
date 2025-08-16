@@ -1,6 +1,6 @@
 import { t } from "@lingui/macro";
 import { Button } from "@reactive-resume/ui";
-import { Link, useRouteError } from "react-router";
+import { Link, useRouteError } from "react-router-dom";
 
 import { LocaleProvider } from "@/client/providers/locale";
 

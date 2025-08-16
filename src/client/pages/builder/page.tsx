@@ -2,8 +2,8 @@ import { t } from "@lingui/macro";
 import type { ResumeDto } from "@reactive-resume/dto";
 import { useCallback, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
-import type { LoaderFunction } from "react-router";
-import { redirect } from "react-router";
+import type { LoaderFunction } from "react-router-dom";
+import { redirect } from "react-router-dom";
 
 import { queryClient } from "@/client/libs/query-client";
 import { findResumeById } from "@/client/services/resume";
