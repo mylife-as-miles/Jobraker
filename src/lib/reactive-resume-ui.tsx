@@ -59,25 +59,40 @@ export const SheetContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ c
 export const SheetTrigger: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, ...props }) => <button {...props}>{children}</button>;
 export const SheetClose: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, ...props }) => <button {...props}>{children}</button>;
 
-export const Form: React.FC<React.FormHTMLAttributes<HTMLFormElement>> = ({ children, ...props }) => <form {...props}>{children}</form>;
-export const FormField: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
-export const FormItem: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
-export const FormLabel = Label;
-export const FormControl: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
-export const FormDescription: React.FC<React.HTMLAttributes<HTMLParagraphElement>> = ({ children }) => <p>{children}</p>;
-export const FormMessage: React.FC<React.HTMLAttributes<HTMLParagraphElement>> = ({ children }) => <p>{children}</p>;
+// Loosely-typed form primitives to avoid TS issues in consuming code
+export const Form: any = ({ children, ...props }: any) => <form {...props}>{children}</form>;
+export const FormField: any = ({ children }: any) => <div>{children}</div>;
+export const FormItem: any = ({ children }: any) => <div>{children}</div>;
+export const FormLabel: any = Label as any;
+export const FormControl: any = ({ children }: any) => <div>{children}</div>;
+export const FormDescription: any = ({ children }: any) => <p>{children}</p>;
+export const FormMessage: any = ({ children }: any) => <p>{children}</p>;
 
 export const Avatar: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
 export const AvatarImage: React.FC<React.ImgHTMLAttributes<HTMLImageElement>> = (props) => <img {...props} />;
 export const AvatarFallback: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ children }) => <span>{children}</span>;
 export const Badge: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ children }) => <span>{children}</span>;
+// Simple accordion primitives
+export const Accordion: React.FC<React.HTMLAttributes<HTMLDivElement> & { type?: string; defaultValue?: string[] | string }> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const AccordionItem: React.FC<React.HTMLAttributes<HTMLDivElement> & { value?: string }> = ({ children, ...props }) => (
+  <div {...props}>{children}</div>
+);
+export const AccordionTrigger: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, ...props }) => (
+  <button {...props}>{children}</button>
+);
+export const AccordionContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => (
+  <div {...props}>{children}</div>
+);
 
-export const buttonVariants = () => "btn";
+export const buttonVariants = (_opts?: any) => "btn";
 
 // Toast primitives used by Toaster
+export type ToastProps = React.HTMLAttributes<HTMLDivElement> & { open?: boolean; onOpenChange?: (open: boolean) => void };
+export type ToastActionElement = React.ReactNode;
+
 export const ToastProvider: React.FC<React.PropsWithChildren> = ({ children }) => <>{children}</>;
 export const ToastViewport: React.FC<React.HTMLAttributes<HTMLDivElement>> = (props) => <div {...props} />;
-export const Toast: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => (
+export const Toast: React.FC<ToastProps> = ({ children, ...props }) => (
   <div {...props} className={(props.className ?? "") + " fixed bottom-4 right-4 rounded bg-black/80 text-white p-3"}>{children}</div>
 );
 export const ToastTitle: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div className="font-semibold">{children}</div>;

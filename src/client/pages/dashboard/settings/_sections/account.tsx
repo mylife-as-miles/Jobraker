@@ -22,7 +22,6 @@ import { useForm } from "react-hook-form";
 
 import { UserAvatar } from "@/client/components/user-avatar";
 import { useToast } from "@/client/hooks/use-toast";
-import { useResendVerificationEmail } from "@/client/services/auth";
 import { useUploadImage } from "@/client/services/storage";
 import { useUpdateUser, useUser } from "@/client/services/user";
 
@@ -31,7 +30,7 @@ export const AccountSettings = () => {
   const { toast } = useToast();
   const { updateUser, loading } = useUpdateUser();
   const { uploadImage, loading: isUploading } = useUploadImage();
-  const { resendVerificationEmail } = useResendVerificationEmail();
+  // Auth email verification flows removed; button will be hidden when unverified or can instruct user via main app
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -92,9 +91,7 @@ export const AccountSettings = () => {
   };
 
   const onResendVerificationEmail = async () => {
-    const data = await resendVerificationEmail();
-
-    toast({ variant: "success", title: data.message });
+    toast({ variant: "info", title: t`Email verification is managed by your account provider.` });
   };
 
   if (!user) return null;

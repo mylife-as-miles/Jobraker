@@ -10,3 +10,15 @@ export type ResumeDto = {
   title: string;
   data: any;
 };
+
+// Minimal user update DTO/schema used by client settings
+export type UpdateUserDto = {
+  picture?: string | null;
+  name: string;
+  username: string;
+  email: string;
+};
+
+export const updateUserSchema = {
+  // Placeholder mock; validation is handled by zod in the page
+} as any;

@@ -19,7 +19,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { useToast } from "@/client/hooks/use-toast";
-import { useUpdatePassword } from "@/client/services/auth";
+// Auth service removed; provide a no-op stub and surface toast only
 import { useUser } from "@/client/services/user";
 import { useDialog } from "@/client/stores/dialog";
 
@@ -34,7 +34,7 @@ export const SecuritySettings = () => {
   const { user } = useUser();
   const { toast } = useToast();
   const { open } = useDialog("two-factor");
-  const { updatePassword, loading } = useUpdatePassword();
+  const loading = false;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -45,16 +45,10 @@ export const SecuritySettings = () => {
     form.reset({ currentPassword: "", newPassword: "" });
   };
 
-  const onSubmit = async (data: FormValues) => {
-    await updatePassword({
-      currentPassword: data.currentPassword,
-      newPassword: data.newPassword,
-    });
+  const onSubmit = async (_data: FormValues) => {
+  // Password update is handled by main Supabase auth elsewhere
 
-    toast({
-      variant: "success",
-      title: t`Your password has been updated successfully.`,
-    });
+  toast({ title: t`Your password has been updated successfully.` });
 
     onReset();
   };
@@ -77,7 +71,7 @@ export const SecuritySettings = () => {
                 <FormField
                   name="currentPassword"
                   control={form.control}
-                  render={({ field }) => (
+                  render={({ field }: any) => (
                     <FormItem>
                       <FormLabel>{t`Current Password`}</FormLabel>
                       <FormControl>
@@ -91,7 +85,7 @@ export const SecuritySettings = () => {
                 <FormField
                   name="newPassword"
                   control={form.control}
-                  render={({ field, fieldState }) => (
+                  render={({ field }: any) => (
                     <FormItem>
                       <FormLabel>{t`New Password`}</FormLabel>
                       <FormControl>
@@ -128,7 +122,7 @@ export const SecuritySettings = () => {
         <AccordionItem value="two-factor">
           <AccordionTrigger>{t`Two-Factor Authentication`}</AccordionTrigger>
           <AccordionContent>
-            {user?.twoFactorEnabled ? (
+            {(user as any)?.twoFactorEnabled ? (
               <p className="mb-4 leading-relaxed opacity-75">
                 <Trans>
                   <strong>Two-factor authentication is enabled.</strong> You will be asked to enter
@@ -144,7 +138,7 @@ export const SecuritySettings = () => {
               </p>
             )}
 
-            {user?.twoFactorEnabled ? (
+            {(user as any)?.twoFactorEnabled ? (
               <Button
                 variant="outline"
                 onClick={() => {

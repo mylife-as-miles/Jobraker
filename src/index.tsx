@@ -98,12 +98,11 @@ function App() {
         {/* Optionally expose client HomePage at root if desired (keep behind PublicOnly) */}
         {/* <Route path="/client" element={<PublicOnly><HomePage /></PublicOnly>} /> */}
 
-        {/* Client dashboard routes under /dashboard/client to avoid collision with main */}
+        {/* Client dashboard routes unified under /dashboard to simplify structure */}
         <Route element={<RequireAuth><ClientProviders /></RequireAuth>}>
-          <Route path="/dashboard/client" element={<ClientDashboardLayout />}>
+          <Route path="/dashboard" element={<ClientDashboardLayout />}>
             <Route path="resumes" element={<ResumesPage />} />
             <Route path="settings" element={<SettingsPage />} />
-            <Route index element={<Navigate replace to="resumes" />} />
           </Route>
         </Route>
 
@@ -111,9 +110,12 @@ function App() {
         <Route element={<RequireAuth><ClientProviders /></RequireAuth>}>
           <Route path={ROUTES.BUILDER} element={<ClientDashboardLayout />}>
             <Route path=":id" element={<BuilderPage />} />
-            <Route index element={<Navigate replace to="/dashboard/client/resumes" />} />
+            <Route index element={<Navigate replace to="/dashboard/resumes" />} />
           </Route>
         </Route>
+
+  {/* Legacy redirect from old client dashboard path */}
+  <Route path="/dashboard/client/*" element={<Navigate replace to="/dashboard/resumes" />} />
 
         {/* Catch all - redirect to landing page */}
           <Route path="*" element={<Navigate to={ROUTES.ROOT} replace />} />
