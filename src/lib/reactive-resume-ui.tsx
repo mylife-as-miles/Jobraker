@@ -173,4 +173,19 @@ export const ContextMenuContent: React.FC<React.HTMLAttributes<HTMLDivElement>> 
 export const ContextMenuItem: React.FC<React.HTMLAttributes<HTMLDivElement> & { onClick?: () => void } > = ({ children, onClick, ...props }) => <div {...props} onClick={onClick}>{children}</div>;
 export const ContextMenuSeparator: React.FC<React.HTMLAttributes<HTMLHRElement>> = (props) => <hr {...props} />;
 
+// Simple Combobox primitive
+export const Combobox: React.FC<{
+  value?: string;
+  options?: { label: string; value: string }[];
+  onValueChange?: (v: string) => void;
+}> = ({ value, options = [], onValueChange }) => (
+  <select value={value} onChange={(e) => onValueChange?.(e.target.value)} className="w-full rounded border px-2 py-1">
+    {options.map((opt) => (
+      <option key={opt.value} value={opt.value}>
+        {opt.label}
+      </option>
+    ))}
+  </select>
+);
+
 export default {} as any;
