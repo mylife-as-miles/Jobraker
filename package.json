@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+  "lint": "echo 'lint not configured' && exit 0",
     "supabase:start": "cd backend/supabase && npx supabase start",
     "supabase:stop": "cd backend/supabase && npx supabase stop",
     "supabase:status": "cd backend/supabase && npx supabase status",
