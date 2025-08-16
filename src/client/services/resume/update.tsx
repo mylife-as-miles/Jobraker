@@ -1,7 +1,14 @@
 import type { ResumeDto, UpdateResumeDto } from "@reactive-resume/dto";
 import { useMutation } from "@tanstack/react-query";
 import type { AxiosResponse } from "axios";
-import debounce from "lodash.debounce";
+// Tiny debounce helper to avoid extra dependency
+const debounce = <F extends (...args: any[]) => any>(fn: F, wait = 500) => {
+  let t: any;
+  return (...args: Parameters<F>) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), wait);
+  };
+};
 
 import { axios } from "@/client/libs/axios";
 import { queryClient } from "@/client/libs/query-client";

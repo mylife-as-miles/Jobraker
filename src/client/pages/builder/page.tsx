@@ -82,8 +82,7 @@ export const builderLoader: LoaderFunction<ResumeDto> = async ({ params }) => {
       queryFn: () => findResumeById({ id }),
     });
 
-    useResumeStore.setState({ resume });
-    useResumeStore.temporal.getState().clear();
+  useResumeStore.setState({ resume });
 
     return resume;
   } catch {

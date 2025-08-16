@@ -16,7 +16,7 @@ export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children,
   <div {...props} className={(props.className ?? "") + " rounded border p-3 bg-white/5"}>{children}</div>
 );
 
-export const ScrollArea: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => (
+export const ScrollArea: React.FC<React.HTMLAttributes<HTMLDivElement> & { orientation?: "vertical" | "horizontal" }> = ({ children, ...props }) => (
   <div {...props} style={{ overflow: "auto", ...(props as any).style }}>{children}</div>
 );
 
@@ -58,10 +58,14 @@ export const TabsContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ ch
 
 export const TooltipProvider: React.FC<React.PropsWithChildren> = ({ children }) => <>{children}</>;
 export const Tooltip: React.FC<{ content?: React.ReactNode } & React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <>{children}</>;
-export const Sheet: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
-export const SheetContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
+export const Sheet: React.FC<React.HTMLAttributes<HTMLDivElement> & { open?: boolean; onOpenChange?: (o: boolean) => void }> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const SheetContent: React.FC<React.HTMLAttributes<HTMLDivElement> & { side?: string; showClose?: boolean; onOpenAutoFocus?: (e: any) => void }> = ({ children, ...props }) => <div {...props}>{children}</div>;
 export const SheetTrigger: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, ...props }) => <button {...props}>{children}</button>;
 export const SheetClose: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, ...props }) => <button {...props}>{children}</button>;
+export const SheetHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const SheetTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({ children, ...props }) => <h3 {...props}>{children}</h3>;
+export const SheetDescription: React.FC<React.HTMLAttributes<HTMLParagraphElement>> = ({ children, ...props }) => <p {...props}>{children}</p>;
+export const VisuallyHidden: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(1px, 1px, 1px, 1px)" }}>{children}</div>;
 
 // Loosely-typed form primitives to avoid TS issues in consuming code
 export const Form: any = ({ children, ...props }: any) => <form {...props}>{children}</form>;
@@ -121,6 +125,11 @@ export const CommandItem: React.FC<{ value?: string; disabled?: boolean; onSelec
 export const Popover: React.FC<{ open?: boolean; onOpenChange?: (o: boolean) => void } & React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
 export const PopoverTrigger: React.FC<{ asChild?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ asChild, children, ...props }) => asChild ? <>{children}</> : <button {...props}>{children}</button>;
 export const PopoverContent: React.FC<{ align?: string } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+
+// Resizable panels primitives (no-op wrappers)
+export const PanelGroup: React.FC<{ direction?: "horizontal" | "vertical" } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const Panel: React.FC<{ minSize?: number; maxSize?: number; defaultSize?: number; onResize?: (size: number) => void } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const PanelResizeHandle: React.FC<{ isDragging?: boolean; onDragging?: (dragging: boolean) => void } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
 
 // Toast primitives used by Toaster
 export type ToastProps = React.HTMLAttributes<HTMLDivElement> & { open?: boolean; onOpenChange?: (open: boolean) => void };

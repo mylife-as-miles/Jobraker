@@ -83,3 +83,13 @@ export const templatesList = [
   { id: "modern", name: "Modern" },
   { id: "classic", name: "Classic" },
 ];
+
+// Mock layout helper used by store
+export const removeItemInLayout = (sectionId: string, layout: any[][][]) => {
+  for (const page of layout) {
+    for (const col of page) {
+      const idx = col.indexOf(sectionId);
+      if (idx !== -1) col.splice(idx, 1);
+    }
+  }
+};

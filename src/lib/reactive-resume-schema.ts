@@ -15,3 +15,10 @@ export type SectionWithItem<T> = any;
 export type Skill = any;
 export type URL = any;
 export type Volunteer = any;
+
+// Minimal mocks used by client store
+export const defaultSection: any = {
+	id: "",
+	name: "",
+	items: [],
+};
