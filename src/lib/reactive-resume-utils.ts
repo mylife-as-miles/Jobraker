@@ -66,3 +66,20 @@ export const pageSizeMap = {
     "height": 266.7
   }
 }
+
+// Additional helpers referenced by client UI
+export const generateRandomName = () => {
+  const adjectives = ["Agile", "Brave", "Calm", "Daring", "Eager", "Fuzzy"];
+  const nouns = ["Resume", "CV", "Profile", "Document", "Portfolio"];
+  return `${adjectives[Math.floor(Math.random()*adjectives.length)]} ${nouns[Math.floor(Math.random()*nouns.length)]}`;
+};
+
+export const sortByDate = <T extends { updatedAt?: Date | string }>(items: T[]) =>
+  [...items].sort((a, b) => new Date(b.updatedAt as any).getTime() - new Date(a.updatedAt as any).getTime());
+
+export const languages = ["en-US"] as const;
+
+export const templatesList = [
+  { id: "modern", name: "Modern" },
+  { id: "classic", name: "Classic" },
+];

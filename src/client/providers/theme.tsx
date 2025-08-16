@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 type Props = { children: React.ReactNode };
 
-export const ThemeProvider = ({ children }: Props) => {
+export const ThemeProvider: React.FC<Props> = ({ children }: Props) => {
   // Fallback: infer dark mode from document class if external hook isn't available
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() =>
     document.documentElement.classList.contains("dark"),
@@ -54,5 +54,5 @@ export const ThemeProvider = ({ children }: Props) => {
     return () => window.removeEventListener("message", handler);
   }, []);
 
-  return children;
+  return <>{children}</>;
 };

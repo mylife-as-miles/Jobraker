@@ -30,6 +30,21 @@
       ],
       "@reactive-resume/hooks": [
         "./src/lib/reactive-resume-hooks.ts"
+      ],
+      "@reactive-resume/ui": [
+        "./src/lib/reactive-resume-ui.tsx"
+      ],
+      "@reactive-resume/dto": [
+        "./src/lib/reactive-resume-dto.ts"
+      ],
+      "@reactive-resume/parser": [
+        "./src/lib/reactive-resume-parser.ts"
+      ],
+      "@lingui/macro": [
+        "./src/lib/mocks/lingui-macro.ts"
+      ],
+      "@lingui/core": [
+        "./src/lib/mocks/lingui-core.ts"
       ]
     }
   },

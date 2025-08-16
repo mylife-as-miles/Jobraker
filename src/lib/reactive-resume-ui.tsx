@@ -74,4 +74,14 @@ export const Badge: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ childre
 
 export const buttonVariants = () => "btn";
 
+// Toast primitives used by Toaster
+export const ToastProvider: React.FC<React.PropsWithChildren> = ({ children }) => <>{children}</>;
+export const ToastViewport: React.FC<React.HTMLAttributes<HTMLDivElement>> = (props) => <div {...props} />;
+export const Toast: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => (
+  <div {...props} className={(props.className ?? "") + " fixed bottom-4 right-4 rounded bg-black/80 text-white p-3"}>{children}</div>
+);
+export const ToastTitle: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div className="font-semibold">{children}</div>;
+export const ToastDescription: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div className="text-sm opacity-80">{children}</div>;
+export const ToastClose: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = (props) => <button {...props}>×</button>;
+
 export default {} as any;

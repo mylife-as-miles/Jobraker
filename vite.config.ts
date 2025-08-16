@@ -23,6 +23,7 @@ export default defineConfig({
   "@reactive-resume/parser": path.resolve(__dirname, "src/lib/reactive-resume-parser.ts"),
   "@lingui/macro": path.resolve(__dirname, "src/lib/mocks/lingui-macro.ts"),
   "@lingui/core": path.resolve(__dirname, "src/lib/mocks/lingui-core.ts"),
+  "@lingui/react": path.resolve(__dirname, "src/lib/mocks/lingui-react.tsx"),
     },
   },
 });
