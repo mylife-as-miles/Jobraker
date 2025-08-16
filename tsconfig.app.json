@@ -76,6 +76,7 @@
     "src"
   ],
   "exclude": [
-    "src/resume-builder/**"
+  // Legacy client subtree merged into main app and not compiled
+  "src/resume-builder/**"
   ]
 }
