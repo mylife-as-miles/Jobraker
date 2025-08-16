@@ -50,6 +50,10 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
 ));
 Input.displayName = "Input";
 
+export const RichInput: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement>> = (props) => (
+  <textarea {...props} className={(props.className ?? "") + " rounded border px-2 py-1 min-h-[80px]"} />
+);
+
 export const Label: React.FC<React.LabelHTMLAttributes<HTMLLabelElement>> = ({ children, ...props }) => (
   <label {...props} className={(props.className ?? "") + " text-sm"}>{children}</label>
 );
@@ -93,6 +97,40 @@ export const Avatar: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ childre
 export const AvatarImage: React.FC<React.ImgHTMLAttributes<HTMLImageElement>> = (props) => <img {...props} />;
 export const AvatarFallback: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ children }) => <span>{children}</span>;
 export const Badge: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ children }) => <span>{children}</span>;
+export const BadgeInput: React.FC<{ values?: string[]; onValuesChange?: (v: string[]) => void; placeholder?: string }> = ({ values = [], onValuesChange, placeholder }) => {
+  const [input, setInput] = React.useState("");
+  const removeAt = (i: number) => onValuesChange?.(values.filter((_, idx) => idx !== i));
+  const add = () => {
+    const v = input.trim();
+    if (!v) return;
+    onValuesChange?.([...values, v]);
+    setInput("");
+  };
+  return (
+    <div className="flex flex-wrap gap-1 border rounded p-1">
+      {values.map((v, i) => (
+        <span key={`${v}-${i}`} className="px-1 py-0.5 bg-secondary rounded">
+          {v}
+          <button className="ml-1" onClick={() => removeAt(i)} aria-label="Remove">
+            ×
+          </button>
+        </span>
+      ))}
+      <input
+        value={input}
+        placeholder={placeholder}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            add();
+          }
+        }}
+        className="flex-1 outline-none px-1"
+      />
+    </div>
+  );
+};
 // Simple accordion primitives
 export const Accordion: React.FC<React.HTMLAttributes<HTMLDivElement> & { type?: string; defaultValue?: string[] | string }> = ({ children, ...props }) => <div {...props}>{children}</div>;
 export const AccordionItem: React.FC<React.HTMLAttributes<HTMLDivElement> & { value?: string }> = ({ children, ...props }) => (
