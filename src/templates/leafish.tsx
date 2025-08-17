@@ -13,7 +13,11 @@ import type {
   Skill,
   URL,
 } from "@reactive-resume/schema";
-import { Education, Experience, Volunteer } from "@reactive-resume/schema";
+import type {
+  Education as EducationItem,
+  Experience as ExperienceItem,
+  Volunteer as VolunteerItem,
+} from "@reactive-resume/schema";
 import { cn, hexToRgb, isEmptyString, isUrl, sanitize } from "@reactive-resume/utils";
 import get from "lodash.get";
 import React, { Fragment } from "react";
@@ -33,7 +37,11 @@ const Header = () => {
     <div>
       <div
         className="p-custom flex items-center space-x-8"
-        style={{ backgroundColor: hexToRgb(primaryColor, 0.2) }}
+        style={{
+          backgroundColor: hexToRgb(primaryColor)
+            ? `rgb(${hexToRgb(primaryColor)} / 0.2)`
+            : undefined,
+        }}
       >
         <div className="space-y-3">
           <div>
@@ -51,7 +59,14 @@ const Header = () => {
         <Picture />
       </div>
 
-      <div className="p-custom space-y-3" style={{ backgroundColor: hexToRgb(primaryColor, 0.4) }}>
+      <div
+        className="p-custom space-y-3"
+        style={{
+          backgroundColor: hexToRgb(primaryColor)
+            ? `rgb(${hexToRgb(primaryColor)} / 0.4)`
+            : undefined,
+        }}
+      >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm">
           {basics.location && (
             <div className="flex items-center gap-x-1.5">
@@ -76,7 +91,7 @@ const Header = () => {
             </div>
           )}
           <Link url={basics.url} />
-          {basics.customFields.map((item) => (
+          {basics.customFields.map((item: any) => (
             <div key={item.id} className="flex items-center gap-x-1.5">
               <i className={cn(`ph ph-bold ph-${item.icon}`, "text-primary")} />
               {isUrl(item.value) ? (
@@ -93,8 +108,8 @@ const Header = () => {
         {profiles.visible && profiles.items.length > 0 && (
           <div className="flex items-center gap-x-3 gap-y-0.5">
             {profiles.items
-              .filter((item) => item.visible)
-              .map((item) => (
+              .filter((item: any) => item.visible)
+              .map((item: any) => (
                 <div key={item.id} className="flex items-center gap-x-2">
                   <Link
                     url={item.url}
@@ -204,8 +219,8 @@ const Section = <T,>({
         style={{ gridTemplateColumns: `repeat(${section.columns}, 1fr)` }}
       >
         {section.items
-          .filter((item) => item.visible)
-          .map((item) => {
+          .filter((item: any) => item.visible)
+          .map((item: any) => {
             const url = (urlKey && get(item, urlKey)) as URL | undefined;
             const level = (levelKey && get(item, levelKey, 0)) as number | undefined;
             const summary = (summaryKey && get(item, summaryKey, "")) as string | undefined;
@@ -241,7 +256,7 @@ const Experience = () => {
   const section = useArtboardStore((state) => state.resume.sections.experience);
 
   return (
-    <Section<Experience> section={section} urlKey="url" summaryKey="summary">
+    <Section<ExperienceItem> section={section} urlKey="url" summaryKey="summary">
       {(item) => (
         <div>
           <LinkedEntity
@@ -263,7 +278,7 @@ const Education = () => {
   const section = useArtboardStore((state) => state.resume.sections.education);
 
   return (
-    <Section<Education> section={section} urlKey="url" summaryKey="summary">
+    <Section<EducationItem> section={section} urlKey="url" summaryKey="summary">
       {(item) => (
         <div>
           <LinkedEntity
@@ -364,7 +379,7 @@ const Volunteer = () => {
   const section = useArtboardStore((state) => state.resume.sections.volunteer);
 
   return (
-    <Section<Volunteer> section={section} urlKey="url" summaryKey="summary">
+    <Section<VolunteerItem> section={section} urlKey="url" summaryKey="summary">
       {(item) => (
         <div>
           <LinkedEntity

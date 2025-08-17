@@ -14,7 +14,11 @@ import type {
   Skill,
   URL,
 } from "@reactive-resume/schema";
-import { Education, Experience, Volunteer } from "@reactive-resume/schema";
+import type {
+  Education as EducationItem,
+  Experience as ExperienceItem,
+  Volunteer as VolunteerItem,
+} from "@reactive-resume/schema";
 import { cn, isEmptyString, isUrl, linearTransform, sanitize } from "@reactive-resume/utils";
 import get from "lodash.get";
 import React, { Fragment } from "react";
@@ -60,7 +64,7 @@ const Header = () => {
           </div>
         )}
         <Link url={basics.url} />
-        {basics.customFields.map((item) => (
+  {basics.customFields.map((item: any) => (
           <div key={item.id} className="flex items-center gap-x-1.5">
             <i className={cn(`ph ph-bold ph-${item.icon}`, "text-primary")} />
             {isUrl(item.value) ? (
@@ -205,8 +209,8 @@ const Section = <T,>({
         style={{ gridTemplateColumns: `repeat(${section.columns}, 1fr)` }}
       >
         {section.items
-          .filter((item) => item.visible)
-          .map((item) => {
+          .filter((item: any) => item.visible)
+          .map((item: any) => {
             const url = (urlKey && get(item, urlKey)) as URL | undefined;
             const level = (levelKey && get(item, levelKey, 0)) as number | undefined;
             const summary = (summaryKey && get(item, summaryKey, "")) as string | undefined;
@@ -270,7 +274,7 @@ const Experience = () => {
   const section = useArtboardStore((state) => state.resume.sections.experience);
 
   return (
-    <Section<Experience> section={section} urlKey="url" summaryKey="summary">
+    <Section<ExperienceItem> section={section} urlKey="url" summaryKey="summary">
       {(item) => (
         <div>
           <LinkedEntity
@@ -292,7 +296,7 @@ const Education = () => {
   const section = useArtboardStore((state) => state.resume.sections.education);
 
   return (
-    <Section<Education> section={section} urlKey="url" summaryKey="summary">
+    <Section<EducationItem> section={section} urlKey="url" summaryKey="summary">
       {(item) => (
         <div>
           <LinkedEntity
@@ -393,7 +397,7 @@ const Volunteer = () => {
   const section = useArtboardStore((state) => state.resume.sections.volunteer);
 
   return (
-    <Section<Volunteer> section={section} urlKey="url" summaryKey="summary">
+    <Section<VolunteerItem> section={section} urlKey="url" summaryKey="summary">
       {(item) => (
         <div>
           <LinkedEntity
@@ -558,7 +562,7 @@ export const Azurill = ({ columns, isFirstPage = false }: TemplateProps) => {
 
       <div className="grid grid-cols-3 gap-x-4">
         <div className="sidebar group space-y-4">
-          {sidebar.map((section) => (
+          {sidebar.map((section: SectionKey) => (
             <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
           ))}
         </div>
@@ -566,7 +570,7 @@ export const Azurill = ({ columns, isFirstPage = false }: TemplateProps) => {
         <div
           className={cn("main group space-y-4", sidebar.length > 0 ? "col-span-2" : "col-span-3")}
         >
-          {main.map((section) => (
+          {main.map((section: SectionKey) => (
             <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
           ))}
         </div>

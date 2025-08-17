@@ -14,7 +14,11 @@ import type {
   Skill,
   URL,
 } from "@reactive-resume/schema";
-import { Education, Experience, Volunteer } from "@reactive-resume/schema";
+import type {
+  Education as EducationItem,
+  Experience as ExperienceItem,
+  Volunteer as VolunteerItem,
+} from "@reactive-resume/schema";
 import {
   cn,
   hexToRgb,
@@ -68,7 +72,7 @@ const Header = () => {
             </div>
           )}
           <Link url={basics.url} />
-          {basics.customFields.map((item) => (
+          {basics.customFields.map((item: any) => (
             <div key={item.id} className="flex items-center gap-x-1.5">
               <i className={cn(`ph ph-bold ph-${item.icon} text-primary`)} />
               {isUrl(item.value) ? (
@@ -113,7 +117,11 @@ const Rating = ({ level }: RatingProps) => {
     <div className="relative">
       <div
         className="h-2.5 w-full rounded-sm"
-        style={{ backgroundColor: hexToRgb(primaryColor, 0.4) }}
+        style={{
+          backgroundColor: hexToRgb(primaryColor)
+            ? `rgb(${hexToRgb(primaryColor)} / 0.4)`
+            : undefined,
+        }}
       />
       <div
         className="absolute inset-y-0 left-0 h-2.5 w-full rounded-sm bg-primary"
@@ -205,8 +213,8 @@ const Section = <T,>({
         style={{ gridTemplateColumns: `repeat(${section.columns}, 1fr)` }}
       >
         {section.items
-          .filter((item) => item.visible)
-          .map((item) => {
+          .filter((item: any) => item.visible)
+          .map((item: any) => {
             const url = (urlKey && get(item, urlKey)) as URL | undefined;
             const level = (levelKey && get(item, levelKey, 0)) as number | undefined;
             const summary = (summaryKey && get(item, summaryKey, "")) as string | undefined;
@@ -243,7 +251,7 @@ const Experience = () => {
   const section = useArtboardStore((state) => state.resume.sections.experience);
 
   return (
-    <Section<Experience> section={section} urlKey="url" summaryKey="summary">
+    <Section<ExperienceItem> section={section} urlKey="url" summaryKey="summary">
       {(item) => (
         <div className="flex items-start justify-between group-[.sidebar]:flex-col group-[.sidebar]:items-start">
           <div className="text-left">
@@ -270,7 +278,7 @@ const Education = () => {
   const section = useArtboardStore((state) => state.resume.sections.education);
 
   return (
-    <Section<Education> section={section} urlKey="url" summaryKey="summary">
+    <Section<EducationItem> section={section} urlKey="url" summaryKey="summary">
       {(item) => (
         <div className="flex items-start justify-between group-[.sidebar]:flex-col group-[.sidebar]:items-start">
           <div className="text-left">
@@ -414,7 +422,7 @@ const Volunteer = () => {
   const section = useArtboardStore((state) => state.resume.sections.volunteer);
 
   return (
-    <Section<Volunteer> section={section} urlKey="url" summaryKey="summary">
+    <Section<VolunteerItem> section={section} urlKey="url" summaryKey="summary">
       {(item) => (
         <div className="flex items-start justify-between group-[.sidebar]:flex-col group-[.sidebar]:items-start">
           <div className="text-left">
@@ -588,11 +596,15 @@ export const Glalie = ({ columns, isFirstPage = false }: TemplateProps) => {
     <div className="grid min-h-[inherit] grid-cols-3">
       <div
         className={cn("sidebar p-custom group space-y-4", sidebar.length === 0 && "hidden")}
-        style={{ backgroundColor: hexToRgb(primaryColor, 0.2) }}
+        style={{
+          backgroundColor: hexToRgb(primaryColor)
+            ? `rgb(${hexToRgb(primaryColor)} / 0.2)`
+            : undefined,
+        }}
       >
         {isFirstPage && <Header />}
 
-        {sidebar.map((section) => (
+  {sidebar.map((section: SectionKey) => (
           <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
         ))}
       </div>
@@ -603,7 +615,7 @@ export const Glalie = ({ columns, isFirstPage = false }: TemplateProps) => {
           sidebar.length > 0 ? "col-span-2" : "col-span-3",
         )}
       >
-        {main.map((section) => (
+  {main.map((section: SectionKey) => (
           <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
         ))}
       </div>
