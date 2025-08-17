@@ -1,5 +1,6 @@
 import { t } from "@lingui/macro";
 import { FadersHorizontal, ReadCvLogo } from "@phosphor-icons/react";
+import { Plus } from "@phosphor-icons/react";
 import { Button, KeyboardShortcut, Separator } from "@reactive-resume/ui";
 import { cn } from "@reactive-resume/utils";
 import { motion } from "framer-motion";
@@ -87,6 +88,12 @@ export const Sidebar = ({ setOpen }: SidebarProps) => {
   }, [navigate, setOpen]);
 
   const sidebarItems: SidebarItem[] = [
+    {
+      path: "/dashboard/resumes/new",
+      name: t`New Resume`,
+      shortcut: "⇧N",
+      icon: <Plus />,
+    },
     {
       path: "/dashboard/resumes",
       name: t`Resumes`,

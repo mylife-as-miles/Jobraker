@@ -20,6 +20,7 @@ import { ROUTES } from "./routes";
 import { PublicResumePage } from "./client/pages/public/page";
 import { DashboardLayout as ClientDashboardLayout } from "./client/pages/dashboard/layout";
 import { ResumesPage } from "./client/pages/dashboard/resumes/page";
+import NewResumeRedirect from "./client/pages/dashboard/resumes/new";
 import { SettingsPage } from "./client/pages/dashboard/settings/page";
 import { BuilderPage } from "./client/pages/builder/page";
 import { Providers as ClientProviders } from "./client/providers";
@@ -102,6 +103,7 @@ function App() {
         <Route element={<RequireAuth><ClientProviders /></RequireAuth>}>
           <Route path="/dashboard" element={<ClientDashboardLayout />}>
             <Route path="resumes" element={<ResumesPage />} />
+            <Route path="resumes/new" element={<NewResumeRedirect />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
         </Route>
