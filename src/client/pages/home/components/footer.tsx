@@ -1,6 +1,7 @@
 import { t } from "@lingui/macro";
 import { Separator } from "@reactive-resume/ui";
 import { Link } from "react-router-dom";
+import { ROUTES } from "@/routes";
 
 import { Copyright } from "@/client/components/copyright";
 import { LocaleSwitch } from "@/client/components/locale-switch";
@@ -45,7 +46,7 @@ export const Footer = () => (
           </a>
 
           <Link
-            to="/meta/privacy-policy"
+            to={ROUTES.PRIVACY}
             className="block text-sm font-medium"
           >{t`Privacy Policy`}</Link>
         </div>

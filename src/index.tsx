@@ -6,6 +6,7 @@ import { JobrackerSignup } from "./screens/JobrackerSignup";
 import { Onboarding } from "./screens/Onboarding";
 import { Analytics } from "./screens/Analytics";
 import { Dashboard } from "./screens/Dashboard";
+import { PrivacyPolicy } from "./screens/PrivacyPolicy";
 import Login from "./screens/Login/Login";
 import { WhiteBackgroundFixer } from "./components/WhiteBackgroundFixer";
 import { PublicOnly } from "./components/PublicOnly";
@@ -66,7 +67,7 @@ function App() {
         {/* Default route shows landing page */}
           <Route path={ROUTES.ROOT} element={<PublicOnly><LandingPage /></PublicOnly>} />
         
-        {/* Step 1: Signup Page */}
+  {/* Step 1: Signup Page */}
           <Route path={ROUTES.SIGNUP} element={<PublicOnly><JobrackerSignup /></PublicOnly>} />
 
         {/* Login Page */}
@@ -78,8 +79,11 @@ function App() {
         {/* Step 3: Dashboard Page (after onboarding completion) - Now serves as main container */}
           <Route path={ROUTES.DASHBOARD_WILDCARD} element={<RequireAuth><Dashboard /></RequireAuth>} />
         
-        {/* Standalone Analytics Page (for backward compatibility) */}
+  {/* Standalone Analytics Page (for backward compatibility) */}
           <Route path={ROUTES.ANALYTICS} element={<RequireAuth><Analytics /></RequireAuth>} />
+
+  {/* Privacy Policy */}
+  <Route path={ROUTES.PRIVACY} element={<PublicOnly><PrivacyPolicy /></PublicOnly>} />
         
         {/* Artboard routes */}
         <Route element={<RequireAuth><Providers/></RequireAuth>}>
