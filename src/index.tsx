@@ -5,7 +5,6 @@ import { LandingPage } from "./screens/LandingPage";
 import { JobrackerSignup } from "./screens/JobrackerSignup";
 import { Onboarding } from "./screens/Onboarding";
 import { Analytics } from "./screens/Analytics";
-import { Dashboard } from "./screens/Dashboard";
 import { PrivacyPolicy } from "./screens/PrivacyPolicy";
 import Login from "./screens/Login/Login";
 import { WhiteBackgroundFixer } from "./components/WhiteBackgroundFixer";
@@ -80,8 +79,8 @@ function App() {
         {/* Step 2: Onboarding Page (after signup) */}
           <Route path={ROUTES.ONBOARDING} element={<RequireAuth><Onboarding /></RequireAuth>} />
         
-        {/* Step 3: Dashboard Page (after onboarding completion) - Now serves as main container */}
-          <Route path={ROUTES.DASHBOARD_WILDCARD} element={<RequireAuth><Dashboard /></RequireAuth>} />
+        {/* Step 3: Dashboard Page (legacy) - removed in favor of unified client dashboard under /dashboard */}
+          {/** Legacy <Dashboard /> route removed to prevent shadowing client dashboard routes */}
         
   {/* Standalone Analytics Page (for backward compatibility) */}
           <Route path={ROUTES.ANALYTICS} element={<RequireAuth><Analytics /></RequireAuth>} />
