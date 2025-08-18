@@ -1,44 +1,53 @@
-import { useEffect, useRef, useState } from "react";
+import { Providers as ClientProviders } from "@/client/providers";
+import { BuilderPage } from "@/client/pages/builder/page";
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { queryClient } from "@/client/libs/query-client";
+import { findResumeById } from "@/client/services/resume";
+import { useResumeStore } from "@/client/stores/resume";
 
 export const ResumePage = (): JSX.Element => {
-  const [src] = useState<string>("http://localhost:5173/dashboard/resumes");
-  const [loaded, setLoaded] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Optionally, add postMessage theme sync here if needed
-  }, []);
+    let active = true;
+    const load = async () => {
+      if (!id) return;
+      try {
+        setLoading(true);
+        const resume = await queryClient.fetchQuery({
+          queryKey: ["resume", { id }],
+          queryFn: () => findResumeById({ id }),
+        });
+        if (!active) return;
+        useResumeStore.setState({ resume });
+      } catch (e) {
+        console.error("Failed to load resume", e);
+        if (active) navigate("/dashboard", { replace: true });
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [id, navigate]);
 
   return (
     <div className="h-full w-full flex flex-col">
-      <div className="flex items-center justify-between p-3 sm:p-4 border-b border-border/50 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <h1 className="text-lg sm:text-xl font-semibold">Resume Builder</h1>
-        <div className="flex items-center gap-2 text-xs sm:text-sm">
-          <a
-            href={src}
-            target="_blank"
-            rel="noreferrer"
-            className="text-primary underline underline-offset-4"
-          >
-            Open in new tab
-          </a>
-        </div>
+      <div className="flex items-center justify-between p-3 sm:p-4 border-b border-[#1dff00]/20 bg-[#0a0a0a]/80 backdrop-blur supports-[backdrop-filter]:bg-[#0a0a0a]/60">
+        <h1 className="text-lg sm:text-xl font-semibold text-white">Resume Builder</h1>
       </div>
-
-      <div className="relative flex-1 min-h-[60vh]">
-        {!loaded && (
-          <div className="absolute inset-0 grid place-items-center text-muted-foreground text-sm">
-            Loading resume builder…
-          </div>
+      <div className="flex-1 min-h-[60vh]">
+        {loading && (
+          <div className="p-4 text-sm text-[#a3a3a3]">Loading…</div>
         )}
-        <iframe
-          title="Resume Builder"
-          src={src}
-          ref={iframeRef}
-          className="h-full w-full border-0"
-          onLoad={() => setLoaded(true)}
-          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation-by-user-activation"
-        />
+        <ClientProviders>
+          <BuilderPage />
+        </ClientProviders>
       </div>
     </div>
   );

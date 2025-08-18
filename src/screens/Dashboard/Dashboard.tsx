@@ -16,6 +16,7 @@ import {
   ChevronRight as BreadcrumbChevron,
   Briefcase
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { AnalyticsContent } from "../../components/analytics/AnalyticsContent";
 import { useProfileSettings } from "../../hooks/useProfileSettings";
@@ -50,7 +51,8 @@ interface NavigationItem {
 }
 
 export const Dashboard = (): JSX.Element => {
-  const [currentPage, setCurrentPage] = useState<DashboardPage>("overview");
+  const [currentPage, setCurrentPage] = useState<DashboardPage>("resume");
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { profile } = useProfileSettings();
   const supabase = useMemo(() => createClient(), []);
@@ -198,11 +200,12 @@ export const Dashboard = (): JSX.Element => {
         <nav className="flex-1 p-2 sm:p-3 lg:p-4 overflow-y-auto">
           <div className="space-y-1 sm:space-y-2">
             {navigationItems.map((item) => (
-              <Button
+        <Button
                 key={item.id}
                 variant="ghost"
                 onClick={() => {
-                  setCurrentPage(item.id);
+          setCurrentPage(item.id);
+          if (item.id === 'resume') navigate('/dashboard/resume-builder');
                   setSidebarOpen(false);
                 }}
                 className={`w-full justify-start rounded-xl transition-colors duration-200 text-xs sm:text-sm lg:text-base px-3 py-2 sm:px-4 sm:py-3 h-auto ${

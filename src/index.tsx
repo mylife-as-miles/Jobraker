@@ -20,12 +20,8 @@ import { Providers } from "./providers";
 import { ROUTES } from "./routes";
 // Client pages imported from merged client app
 import { PublicResumePage } from "./client/pages/public/page";
-import { DashboardLayout as ClientDashboardLayout } from "./client/pages/dashboard/layout";
-import { ResumesPage } from "./client/pages/dashboard/resumes/page";
-import NewResumeRedirect from "./client/pages/dashboard/resumes/new";
-import { SettingsPage } from "./client/pages/dashboard/settings/page";
-import { BuilderPage } from "./client/pages/builder/page";
 import { Providers as ClientProviders } from "./client/providers";
+import { Dashboard } from "./screens/Dashboard";
 
 // Error boundary component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
@@ -107,26 +103,15 @@ function App() {
         {/* Optionally expose client HomePage at root if desired (keep behind PublicOnly) */}
         {/* <Route path="/client" element={<PublicOnly><HomePage /></PublicOnly>} /> */}
 
-        {/* Client dashboard routes unified under /dashboard to simplify structure */}
-        <Route element={<RequireAuth><ClientProviders /></RequireAuth>}>
-          <Route path="/dashboard" element={<ClientDashboardLayout />}>
-            <Route index element={<Navigate replace to="/dashboard/resumes" />} />
-            <Route path="resumes" element={<ResumesPage />} />
-            <Route path="resumes/new" element={<NewResumeRedirect />} />
-            <Route path="settings" element={<SettingsPage />} />
-          </Route>
-        </Route>
+  {/* Main application dashboard under /dashboard (renders builder by default) */}
+  <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+  <Route path="/dashboard/resume-builder" element={<RequireAuth><Dashboard /></RequireAuth>} />
+  <Route path="/dashboard/resume-builder/:id" element={<RequireAuth><Dashboard /></RequireAuth>} />
 
-        {/* Client builder route (protected) */}
-        <Route element={<RequireAuth><ClientProviders /></RequireAuth>}>
-          <Route path={ROUTES.BUILDER} element={<ClientDashboardLayout />}>
-            <Route path=":id" element={<BuilderPage />} />
-            <Route index element={<Navigate replace to="/dashboard/resumes" />} />
-          </Route>
-        </Route>
+  {/* Remove legacy client builder/dashboard nested routes to avoid shadowing */}
 
   {/* Legacy redirect from old client dashboard path */}
-  <Route path="/dashboard/client/*" element={<Navigate replace to="/dashboard/resumes" />} />
+  <Route path="/dashboard/client/*" element={<Navigate replace to="/dashboard" />} />
 
         {/* Catch all - redirect to landing page */}
           <Route path="*" element={<Navigate to={ROUTES.ROOT} replace />} />
