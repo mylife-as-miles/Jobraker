@@ -1,6 +1,6 @@
 import { t } from "@lingui/macro";
 import { List, SquaresFour } from "@phosphor-icons/react";
-import { ScrollArea, Tabs, TabsContent, TabsList, TabsTrigger } from "@reactive-resume/ui";
+import { ScrollArea, Tabs, TabsList, TabsTrigger } from "@reactive-resume/ui";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { Helmet } from "react-helmet-async";
@@ -47,16 +47,8 @@ export const ResumesPage = () => {
           </TabsList>
         </div>
 
-        <ScrollArea
-          allowOverflow
-          className="h-[calc(100vh-140px)] overflow-visible lg:h-[calc(100vh-88px)]"
-        >
-          <TabsContent value="grid">
-            <GridView />
-          </TabsContent>
-          <TabsContent value="list">
-            <ListView />
-          </TabsContent>
+        <ScrollArea allowOverflow className="h-[calc(100vh-140px)] overflow-visible lg:h-[calc(100vh-88px)]">
+          {layout === "grid" ? <GridView /> : <ListView />}
         </ScrollArea>
       </Tabs>
     </>
