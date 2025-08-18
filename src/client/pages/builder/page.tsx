@@ -57,9 +57,7 @@ export const BuilderPage = () => {
   return (
     <>
       <Helmet>
-        <title>
-          {title} - {t`Reactive Resume`}
-        </title>
+  <title>{`${title ?? ""} - ${t`Reactive Resume`}`}</title>
       </Helmet>
 
       <iframe
