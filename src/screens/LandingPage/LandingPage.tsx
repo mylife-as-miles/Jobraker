@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState, useLayoutEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, useScroll, useTransform, useSpring } from "framer-motion";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { motion } from "framer-motion";
 import {
   Bot,
   Send,
@@ -27,287 +25,39 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 
-// Register GSAP plugins
-gsap.registerPlugin(ScrollTrigger);
-
-// (removed unused debounce utility)
-
-// Intersection Observer hook for performance
-const useIntersectionObserver = (options = {}) => {
-  const [isIntersecting, setIsIntersecting] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+// Lightweight in-view hook (no GSAP/parallax)
+function useInView<T extends HTMLElement = HTMLDivElement>(options?: IntersectionObserverInit) {
+  const ref = useRef<T | null>(null);
+  const [inView, setInView] = useState(false);
 
   useEffect(() => {
+    const el = ref.current as Element | null;
+    if (!el) return;
     const observer = new IntersectionObserver(([entry]) => {
-      setIsIntersecting(entry.isIntersecting);
-    }, {
-      threshold: 0.1,
-      rootMargin: '50px',
-      ...options
-    });
-
-    if (ref.current) {
-      observer.observe(ref.current);
-    }
-
+      setInView(entry.isIntersecting);
+    }, options ?? { threshold: 0.1, rootMargin: "50px" });
+    observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [options]);
 
-  return [ref, isIntersecting] as const;
-};
+  return [ref, inView] as const;
+}
 
-export const LandingPage = (): JSX.Element => {
-  // Scope container for GSAP to avoid double-inits and ensure cleanup
-  const pageRef = useRef<HTMLDivElement>(null);
+export const LandingPage = () => {
   const navigate = useNavigate();
+
+  // Layout refs for scroll-to-section
+  const pageRef = useRef<HTMLDivElement | null>(null);
+  const heroRef = useRef<HTMLElement | null>(null);
+  const featuresRef = useRef<HTMLElement | null>(null);
+  const benefitsRef = useRef<HTMLElement | null>(null);
+  const testimonialsRef = useRef<HTMLElement | null>(null);
+  const pricingRef = useRef<HTMLElement | null>(null);
+  const ctaRef = useRef<HTMLElement | null>(null);
+
+  // UI state
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [isLoaded, setIsLoaded] = useState(false);
-  
-  // Refs for sections
-  const heroRef = useRef<HTMLElement>(null);
-  const featuresRef = useRef<HTMLElement>(null);
-  const benefitsRef = useRef<HTMLElement>(null);
-  const testimonialsRef = useRef<HTMLElement>(null);
-  const pricingRef = useRef<HTMLElement>(null);
-  const ctaRef = useRef<HTMLElement>(null);
-  
-  // Framer Motion scroll hooks for smooth parallax
-  const { scrollYProgress } = useScroll({
-    target: heroRef,
-    offset: ["start start", "end start"]
-  });
-
-  // Smooth parallax transforms using Framer Motion
-  const parallaxBg = useTransform(scrollYProgress, [0, 1], [0, -200]);
-  const parallaxMid = useTransform(scrollYProgress, [0, 1], [0, -150]);
-  const parallaxFront = useTransform(scrollYProgress, [0, 1], [0, -50]);
-  const zoomScale = useTransform(scrollYProgress, [0, 1], [1, 1.1]);
-  const contentOffset = useTransform(scrollYProgress, [0, 1], [0, -100]);
-
-  // Add spring physics for smoother animations
-  const smoothParallaxBg = useSpring(parallaxBg, { stiffness: 100, damping: 30 });
-  const smoothParallaxMid = useSpring(parallaxMid, { stiffness: 100, damping: 30 });
-  const smoothParallaxFront = useSpring(parallaxFront, { stiffness: 100, damping: 30 });
-  const smoothZoomScale = useSpring(zoomScale, { stiffness: 100, damping: 30 });
-  const smoothContentOffset = useSpring(contentOffset, { stiffness: 100, damping: 30 });
-
-  useEffect(() => {
-    setIsLoaded(true);
-  }, []);
-
-  // GSAP Animations (layout effect ensures DOM is measured before animating)
-  useLayoutEffect(() => {
-    if (!isLoaded) return;
-    // Respect reduced motion
-    if (typeof window !== "undefined" && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return;
-    }
-
-    const ctx = gsap.context(() => {
-      // Set up performance optimizations
-      gsap.config({
-        force3D: true,
-        nullTargetWarn: false,
-      });
-      // Stabilize ScrollTrigger measurements
-      ScrollTrigger.config({ ignoreMobileResize: true });
-
-      // Hero animations with stagger
-      const heroTl = gsap.timeline();
-      
-      heroTl.fromTo(".hero__title", {
-        y: 100,
-        opacity: 0,
-        scale: 0.8,
-      }, {
-        y: 0,
-        opacity: 1,
-        scale: 1,
-        duration: 1.2,
-        ease: "power3.out",
-      })
-      .fromTo(".hero__subtitle", {
-        y: 50,
-        opacity: 0,
-      }, {
-        y: 0,
-        opacity: 1,
-        duration: 1,
-        ease: "power2.out",
-      }, "-=0.8")
-      .fromTo(".hero__cta", {
-        y: 30,
-        opacity: 0,
-      }, {
-        y: 0,
-        opacity: 1,
-        duration: 0.8,
-        ease: "power2.out",
-      }, "-=0.6")
-      .fromTo(".hero__dashboard", {
-        x: 100,
-        opacity: 0,
-        rotationY: 20,
-        scale: 0.8,
-      }, {
-        x: 0,
-        opacity: 1,
-        rotationY: 0,
-        scale: 1,
-        duration: 1.5,
-        ease: "power3.out",
-      }, "-=1");
-
-      // Feature cards with 3D effects
-    gsap.fromTo(".feature__card", {
-        y: 100,
-        opacity: 0,
-        scale: 0.8,
-        rotationX: 45,
-      }, {
-        y: 0,
-        opacity: 1,
-        scale: 1,
-        rotationX: 0,
-        duration: 1,
-        stagger: 0.2,
-        ease: "power3.out",
-        scrollTrigger: {
-      trigger: featuresRef.current,
-          start: "top 70%",
-          toggleActions: "play none none reverse",
-      once: false,
-        }
-      });
-
-      // Benefits section with slide-in
-    gsap.fromTo(".benefit__item", {
-        x: -100,
-        opacity: 0,
-        scale: 0.8,
-      }, {
-        x: 0,
-        opacity: 1,
-        scale: 1,
-        duration: 1.2,
-        stagger: 0.3,
-        ease: "back.out(1.7)",
-        scrollTrigger: {
-          trigger: benefitsRef.current,
-          start: "top 75%",
-          toggleActions: "play none none reverse",
-      once: false,
-        }
-      });
-
-      // Testimonials with 3D carousel effect
-    gsap.fromTo(".testimonial__card", {
-        y: 80,
-        opacity: 0,
-        rotationY: 45,
-        scale: 0.9,
-      }, {
-        y: 0,
-        opacity: 1,
-        rotationY: 0,
-        scale: 1,
-        duration: 1,
-        stagger: 0.2,
-        ease: "power3.out",
-        scrollTrigger: {
-          trigger: testimonialsRef.current,
-          start: "top 70%",
-          toggleActions: "play none none reverse",
-      once: false,
-        }
-      });
-
-      // Pricing cards with depth
-    gsap.fromTo(".pricing__card", {
-        y: 100,
-        opacity: 0,
-        rotationX: 60,
-        transformOrigin: "center bottom",
-      }, {
-        y: 0,
-        opacity: 1,
-        rotationX: 0,
-        duration: 1.2,
-        stagger: 0.15,
-        ease: "power3.out",
-        scrollTrigger: {
-          trigger: pricingRef.current,
-          start: "top 70%",
-          toggleActions: "play none none reverse",
-      once: false,
-        }
-      });
-
-      // Navigation hide/show on scroll
-  ScrollTrigger.create({
-        trigger: "body",
-        start: "top -80",
-        end: "bottom bottom",
-        onUpdate: (self) => {
-          if (self.direction === 1) {
-            gsap.to(".navbar", {
-              y: -100,
-              duration: 0.3,
-              ease: "power2.out",
-            });
-          } else {
-            gsap.to(".navbar", {
-              y: 0,
-              duration: 0.3,
-              ease: "power2.out",
-            });
-          }
-        },
-      });
-
-      // Floating elements with improved performance
-      gsap.to(".floating__element--1", {
-        y: -30,
-        x: 20,
-        rotation: 10,
-        scale: 1.1,
-        duration: 6,
-        repeat: -1,
-        yoyo: true,
-        ease: "power2.inOut",
-      });
-
-      gsap.to(".floating__element--2", {
-        y: 20,
-        x: -15,
-        rotation: -5,
-        scale: 0.9,
-        duration: 8,
-        repeat: -1,
-        yoyo: true,
-        ease: "power2.inOut",
-        delay: 1,
-      });
-
-      gsap.to(".floating__element--3", {
-        y: -15,
-        x: 10,
-        rotation: 8,
-        scale: 1.05,
-        duration: 10,
-        repeat: -1,
-        yoyo: true,
-        ease: "power2.inOut",
-        delay: 2,
-      });
-
-      // Refresh after setup to ensure correct positions
-      requestAnimationFrame(() => ScrollTrigger.refresh());
-    }, pageRef);
-
-    return () => ctx.revert();
-  }, [isLoaded]);
 
   // Feature data
   const features = [
@@ -473,10 +223,10 @@ export const LandingPage = (): JSX.Element => {
   };
 
   // Intersection Observer hooks for performance
-  const [featuresInViewRef, featuresInView] = useIntersectionObserver();
-  const [benefitsInViewRef, benefitsInView] = useIntersectionObserver();
-  const [testimonialsInViewRef, testimonialsInView] = useIntersectionObserver();
-  const [pricingInViewRef, pricingInView] = useIntersectionObserver();
+  const [featuresInViewRef, featuresInView] = useInView();
+  const [benefitsInViewRef, benefitsInView] = useInView();
+  const [testimonialsInViewRef, testimonialsInView] = useInView();
+  const [pricingInViewRef, pricingInView] = useInView();
 
   return (
     <div ref={pageRef} className="min-h-screen bg-black overflow-hidden">
@@ -620,41 +370,30 @@ export const LandingPage = (): JSX.Element => {
       </nav>
 
       {/* Hero Section with Advanced Parallax */}
-      <section ref={heroRef} className="hero relative min-h-screen flex items-center justify-center overflow-hidden pt-16 sm:pt-20" role="banner">
+  <section ref={heroRef} className="hero relative min-h-screen flex items-center justify-center overflow-hidden pt-16 sm:pt-20" role="banner">
         {/* Parallax Background Layers */}
         <div className="absolute inset-0">
           {/* Background Layer */}
-          <motion.div 
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat will-change-transform"
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
             style={{
               backgroundImage: `url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwxfHxzcGFjZSUyMHRlY2hub2xvZ3l8ZW58MHx8fHx8MTcwNzQ4NzIwMHww&ixlib=rb-4.1.0&q=85')`,
               opacity: 0.1,
-              y: smoothParallaxBg,
-              scale: smoothZoomScale,
             }}
             aria-hidden="true"
           />
           
           {/* Middle Parallax Layers */}
-          <motion.div 
-            className="floating__element--1 absolute top-20 left-10 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-full blur-3xl will-change-transform"
-            style={{
-              y: smoothParallaxMid,
-            }}
+          <div 
+            className="absolute top-20 left-10 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-full blur-3xl"
             aria-hidden="true"
           />
-          <motion.div 
-            className="floating__element--2 absolute top-40 right-20 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 bg-gradient-to-r from-[#1dff00]/10 to-[#0a8246]/10 rounded-full blur-3xl will-change-transform"
-            style={{
-              y: useTransform(scrollYProgress, [0, 1], [0, -120]),
-            }}
+          <div 
+            className="absolute top-40 right-20 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 bg-gradient-to-r from-[#1dff00]/10 to-[#0a8246]/10 rounded-full blur-3xl"
             aria-hidden="true"
           />
-          <motion.div 
-            className="floating__element--3 absolute bottom-20 left-1/3 w-40 h-40 sm:w-56 sm:h-56 lg:w-72 lg:h-72 bg-gradient-to-r from-[#1dff00]/15 to-[#0a8246]/15 rounded-full blur-3xl will-change-transform"
-            style={{
-              y: smoothParallaxFront,
-            }}
+          <div 
+            className="absolute bottom-20 left-1/3 w-40 h-40 sm:w-56 sm:h-56 lg:w-72 lg:h-72 bg-gradient-to-r from-[#1dff00]/15 to-[#0a8246]/15 rounded-full blur-3xl"
             aria-hidden="true"
           />
         </div>
@@ -662,12 +401,7 @@ export const LandingPage = (): JSX.Element => {
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             {/* Hero Content */}
-            <motion.div 
-              className="text-center lg:text-left"
-              style={{
-                y: smoothContentOffset,
-              }}
-            >
+            <div className="text-center lg:text-left">
               <div className="hero__title mb-6 sm:mb-8">
                 <div className="inline-flex items-center px-3 py-1 sm:px-4 sm:py-2 bg-[#1dff00]/10 border border-[#1dff00]/30 rounded-full text-[#1dff00] text-xs sm:text-sm font-medium mb-4 sm:mb-6">
                   <Bot className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
@@ -723,7 +457,7 @@ export const LandingPage = (): JSX.Element => {
                   <span>No manual work required</span>
                 </div>
               </div>
-            </motion.div>
+            </div>
             
             {/* Hero Dashboard */}
             <div className="hero__dashboard relative">
@@ -837,7 +571,7 @@ export const LandingPage = (): JSX.Element => {
       </section>
 
       {/* Benefits Section */}
-      <section ref={benefitsRef} className="py-16 sm:py-20 lg:py-24 bg-[#0a0a0a]" role="region" aria-labelledby="benefits-heading">
+  <section ref={benefitsRef} className="py-16 sm:py-20 lg:py-24 bg-[#0a0a0a]" role="region" aria-labelledby="benefits-heading">
         <div ref={benefitsInViewRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             <div>
