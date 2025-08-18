@@ -8,10 +8,12 @@ import { Separator } from "../../components/ui/separator";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
 import { validatePassword } from "../../utils/password";
+import { useToast } from "../../components/ui/toast-provider";
 
 export const JobrackerSignup = (): JSX.Element => {
   const navigate = useNavigate();
   const supabase = useMemo(() => createClient(), []);
+  const { success, error: toastError } = useToast();
   const [isSignUp, setIsSignUp] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -36,12 +38,12 @@ export const JobrackerSignup = (): JSX.Element => {
         if (error) throw error;
       } catch (err: any) {
         console.error(`${provider} OAuth error:`, err);
-        alert(err?.message || `Failed to sign in with ${provider}`);
+    toastError("Sign in failed", err?.message || `Failed to sign in with ${provider}`);
       } finally {
         setSubmitting(false);
       }
     },
-    [supabase]
+  [supabase, toastError]
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,18 +56,18 @@ export const JobrackerSignup = (): JSX.Element => {
           redirectTo: `${window.location.origin}/reset-password`,
         });
         if (error) throw error;
-        alert("Password reset link sent to your email.");
+        success("Reset link sent", "Please check your email to continue resetting your password.", 5000);
         setShowForgotPassword(false);
         return;
       }
 
       if (isSignUp) {
         if (formData.password !== formData.confirmPassword) {
-          alert("Passwords do not match!");
+          toastError("Passwords do not match", "Please confirm your password.");
           return;
         }
         if (!passwordCheck.valid) {
-          alert("Please choose a stronger password that meets all requirements.");
+          toastError("Weak password", "Please meet all password requirements before continuing.");
           return;
         }
 
@@ -78,7 +80,7 @@ export const JobrackerSignup = (): JSX.Element => {
         });
         if (error) throw error;
     // Always require email verification; route to login
-    alert("Sign up successful. Please check your email to verify your account, then sign in.");
+    success("Sign up successful", "Please check your email to verify your account, then sign in.", 6000);
     navigate("/login");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -90,7 +92,7 @@ export const JobrackerSignup = (): JSX.Element => {
       }
     } catch (error: any) {
       console.error("Supabase auth error:", error);
-      alert(error?.message || "Authentication failed. Please try again.");
+      toastError("Authentication failed", error?.message || "Please try again.");
     } finally {
       setSubmitting(false);
     }
