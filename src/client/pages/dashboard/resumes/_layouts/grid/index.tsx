@@ -10,6 +10,7 @@ import { ResumeCard } from "./_components/resume-card";
 
 export const GridView = () => {
   const { resumes, loading } = useResumes();
+  const items = Array.isArray(resumes) ? resumes : [];
 
   return (
     <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
@@ -35,9 +36,9 @@ export const GridView = () => {
           </div>
         ))}
 
-      {resumes && (
+    {items.length > 0 && (
         <AnimatePresence>
-          {resumes
+      {items
             .sort((a, b) => sortByDate(a, b, "updatedAt"))
             .map((resume, index) => (
               <motion.div

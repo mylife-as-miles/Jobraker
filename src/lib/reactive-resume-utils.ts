@@ -77,10 +77,10 @@ export const generateRandomName = () => {
 // Flexible date sorter:
 // - As a comparator: sortByDate(a, b, "updatedAt") → number
 // - As an array helper: sortByDate(items) → items sorted by updatedAt desc
-export function sortByDate<T extends Record<string, any>>(a: T, b: T, key: keyof T & string): number;
+export function sortByDate<T extends Record<string, any>>(a: T, b: T, key: string): number;
 export function sortByDate<T extends { updatedAt?: Date | string }>(items: T[]): T[];
 export function sortByDate<T extends Record<string, any>>(
-  ...args: [T, T, keyof T & string] | [Array<{ updatedAt?: Date | string }>]
+  ...args: [T, T, string] | [Array<{ updatedAt?: Date | string }>]
 ): number | Array<{ updatedAt?: Date | string }> {
   // Array mode: sort items by updatedAt desc
   if (Array.isArray(args[0])) {
@@ -95,9 +95,9 @@ export function sortByDate<T extends Record<string, any>>(
   }
 
   // Comparator mode: given objects a, b and a date key, return desc order
-  const [a, b, key] = args as [T, T, keyof T & string];
-  const at = new Date((a?.[key] as any)).getTime();
-  const bt = new Date((b?.[key] as any)).getTime();
+  const [a, b, key] = args as [T, T, string];
+  const at = new Date(((a as any)?.[key] ?? (a as any)?.updatedAt) as any).getTime();
+  const bt = new Date(((b as any)?.[key] ?? (b as any)?.updatedAt) as any).getTime();
   const asafe = Number.isFinite(at) ? at : 0;
   const bsafe = Number.isFinite(bt) ? bt : 0;
   return bsafe - asafe;

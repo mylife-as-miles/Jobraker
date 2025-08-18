@@ -10,6 +10,7 @@ import { ResumeListItem } from "./_components/resume-item";
 
 export const ListView = () => {
   const { resumes, loading } = useResumes();
+  const items = Array.isArray(resumes) ? resumes : [];
 
   return (
     <div className="grid gap-y-2">
@@ -35,9 +36,9 @@ export const ListView = () => {
           </div>
         ))}
 
-      {resumes && (
+    {items.length > 0 && (
         <AnimatePresence>
-          {resumes
+      {items
             .sort((a, b) => sortByDate(a, b, "updatedAt"))
             .map((resume, index) => (
               <motion.div
