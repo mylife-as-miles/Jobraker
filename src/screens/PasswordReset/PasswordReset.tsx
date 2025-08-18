@@ -5,6 +5,8 @@ import { Card, CardContent } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Button } from '../../components/ui/button'
 import { motion } from 'framer-motion'
+import { validatePassword } from '../../utils/password'
+import { CheckCircle2, XCircle } from 'lucide-react'
 
 const PasswordReset = () => {
   const navigate = useNavigate()
@@ -14,6 +16,7 @@ const PasswordReset = () => {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const check = useMemo(() => validatePassword(password), [password])
 
   useEffect(() => {
     let active = true
@@ -35,8 +38,8 @@ const PasswordReset = () => {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (password.length < 8) {
-      alert('Password must be at least 8 characters')
+    if (!check.valid) {
+      alert('Please choose a stronger password that meets all requirements.')
       return
     }
     if (password !== confirm) {
@@ -92,11 +95,36 @@ const PasswordReset = () => {
                         onChange={(e) => setConfirm(e.target.value)}
                       />
                     </div>
+                    <div className="space-y-2 text-xs sm:text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/80">Strength</span>
+                        <span className={`font-semibold ${check.score >= 4 ? 'text-[#1dff00]' : check.score >= 3 ? 'text-yellow-300' : 'text-red-400'}`}>{check.strength}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-white/80">
+                        {[
+                          { ok: check.lengthOk, label: '8+ characters' },
+                          { ok: check.hasUpper, label: 'Uppercase letter' },
+                          { ok: check.hasLower, label: 'Lowercase letter' },
+                          { ok: check.hasNumber, label: 'Number' },
+                          { ok: check.hasSymbol, label: 'Symbol' },
+                          { ok: check.noSpaces, label: 'No spaces' },
+                        ].map((r, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            {r.ok ? (
+                              <CheckCircle2 className="w-4 h-4 text-[#1dff00]" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-red-400" />
+                            )}
+                            <span className={r.ok ? 'text-white/90' : 'text-white/60'}>{r.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                   <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                     <Button
                       type="submit"
-                      disabled={submitting}
+                      disabled={submitting || !check.valid || password !== confirm}
                       className="w-full shadow-[0px_3px_14px_#00000040] bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] text-white font-bold rounded-xl disabled:opacity-60"
                     >
                       Update Password

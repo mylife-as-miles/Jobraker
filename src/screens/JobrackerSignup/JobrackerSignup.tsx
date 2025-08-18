@@ -1,4 +1,4 @@
-import { LockKeyholeIcon, MailIcon, Eye, EyeOff, ArrowRight, Sparkles } from "lucide-react";
+import { LockKeyholeIcon, MailIcon, Eye, EyeOff, ArrowRight, Sparkles, CheckCircle2, XCircle } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
@@ -7,6 +7,7 @@ import { Input } from "../../components/ui/input";
 import { Separator } from "../../components/ui/separator";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
+import { validatePassword } from "../../utils/password";
 
 export const JobrackerSignup = (): JSX.Element => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export const JobrackerSignup = (): JSX.Element => {
     confirmPassword: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const passwordCheck = useMemo(() => validatePassword(formData.password, formData.email), [formData.password, formData.email]);
 
   const handleOAuth = useCallback(
     async (provider: "google" | "linkedin_oidc") => {
@@ -60,6 +62,10 @@ export const JobrackerSignup = (): JSX.Element => {
       if (isSignUp) {
         if (formData.password !== formData.confirmPassword) {
           alert("Passwords do not match!");
+          return;
+        }
+        if (!passwordCheck.valid) {
+          alert("Please choose a stronger password that meets all requirements.");
           return;
         }
 
@@ -375,6 +381,40 @@ export const JobrackerSignup = (): JSX.Element => {
                               required
                             />
                           </div>
+                          {/* Password rules & strength */}
+                          <div className="mt-3 space-y-2 text-xs sm:text-sm">
+                            <div className="flex items-center justify-between">
+                              <span className="text-white/80">Strength</span>
+                              <span className={`font-semibold ${passwordCheck.score >= 4 ? "text-[#1dff00]" : passwordCheck.score >= 3 ? "text-yellow-300" : "text-red-400"}`}>
+                                {passwordCheck.strength}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-white/80">
+                              {[
+                                { ok: passwordCheck.lengthOk, label: "8+ characters" },
+                                { ok: passwordCheck.hasUpper, label: "Uppercase letter" },
+                                { ok: passwordCheck.hasLower, label: "Lowercase letter" },
+                                { ok: passwordCheck.hasNumber, label: "Number" },
+                                { ok: passwordCheck.hasSymbol, label: "Symbol" },
+                                { ok: passwordCheck.noSpaces, label: "No spaces" },
+                              ].map((r, i) => (
+                                <div key={i} className="flex items-center gap-2">
+                                  {r.ok ? (
+                                    <CheckCircle2 className="w-4 h-4 text-[#1dff00]" />
+                                  ) : (
+                                    <XCircle className="w-4 h-4 text-red-400" />
+                                  )}
+                                  <span className={r.ok ? "text-white/90" : "text-white/60"}>{r.label}</span>
+                                </div>
+                              ))}
+                            </div>
+                            {!passwordCheck.notEmail && (
+                              <div className="flex items-center gap-2 text-red-400">
+                                <XCircle className="w-4 h-4" />
+                                <span>Don’t use your email in your password</span>
+                              </div>
+                            )}
+                          </div>
                         </motion.div>
                       )}
 
@@ -408,7 +448,7 @@ export const JobrackerSignup = (): JSX.Element => {
                     <Button
                       type="submit"
                       className="w-full flex items-center justify-center relative shadow-[0px_3px_14px_#00000040] bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] font-bold text-white hover:shadow-[0px_4px_22px_#00000060] transition-all duration-300 h-10 sm:h-12 lg:h-14 text-xs sm:text-sm lg:text-base rounded-lg sm:rounded-xl disabled:opacity-60"
-                    disabled={submitting}
+                    disabled={submitting || (isSignUp && !passwordCheck.valid)}
                     >
                       {showForgotPassword
                         ? "Send Reset Link"
