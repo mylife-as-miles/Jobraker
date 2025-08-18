@@ -45,6 +45,8 @@
 
     --radius: 0.5rem;
   --accent-color: #1dff00; /* default accent, can be overridden at runtime */
+  /* Neon brand color (HSL) for Tailwind consumption */
+  --brand: 112 100% 50%;
   }
 
   .dark {
@@ -79,6 +81,7 @@
 
     --radius: 0.5rem;
   --accent-color: #1dff00; /* default accent in dark as well */
+  --brand: 112 100% 50%;
   }
 }
 
@@ -90,5 +93,18 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  /* Glassy card surface with subtle border and blur */
+  .card-surface {
+    @apply bg-white/5 dark:bg-black/30 backdrop-blur-sm border border-white/10 dark:border-white/5 rounded-xl shadow-sm;
+  }
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-[0_0_24px_rgba(29,255,0,0.25)] hover:border-brand/40 hover:-translate-y-0.5;
+  }
+  .brand-glow {
+    box-shadow: 0 0 24px rgba(29, 255, 0, 0.25);
   }
 }
