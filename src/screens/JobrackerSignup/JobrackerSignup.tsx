@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
 import { validatePassword } from "../../utils/password";
 import { useToast } from "../../components/ui/toast-provider";
+import Modal from "../../components/ui/modal";
 
 export const JobrackerSignup = (): JSX.Element => {
   const navigate = useNavigate();
@@ -17,6 +18,8 @@ export const JobrackerSignup = (): JSX.Element => {
   const [isSignUp, setIsSignUp] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [resending, setResending] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -80,8 +83,9 @@ export const JobrackerSignup = (): JSX.Element => {
         });
         if (error) throw error;
     // Always require email verification; route to login
-    success("Sign up successful", "Please check your email to verify your account, then sign in.", 6000);
-    navigate("/login");
+  // Show centered success modal with actions
+  success("Sign up successful", "We sent a verification link to your email.");
+  setShowVerifyModal(true);
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: formData.email,
@@ -95,6 +99,26 @@ export const JobrackerSignup = (): JSX.Element => {
       toastError("Authentication failed", error?.message || "Please try again.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    try {
+      setResending(true);
+      const authAny = (supabase as any).auth;
+      if (authAny && typeof authAny.resend === "function") {
+        const { error } = await authAny.resend({
+          type: "signup",
+          email: formData.email,
+          options: { emailRedirectTo: `${window.location.origin}/login` },
+        });
+        if (error) throw error;
+      }
+      success("Verification email resent");
+    } catch (e: any) {
+      toastError("Resend failed", e?.message || "Please try again later.");
+    } finally {
+      setResending(false);
     }
   };
 
@@ -514,6 +538,51 @@ export const JobrackerSignup = (): JSX.Element => {
           </Card>
         </motion.div>
       </div>
+
+      {/* Signup Verify Modal */}
+      <Modal
+        open={showVerifyModal}
+        onClose={() => setShowVerifyModal(false)}
+        title="Verify your email"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-white/80 text-sm">
+            We sent a verification link to <span className="text-white font-medium">{formData.email || "your email"}</span>.
+            Please check your inbox and click the link to activate your account.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <Button
+              className="flex-1 bg-white/10 hover:bg-white/20 text-white"
+              onClick={() => {
+                // Try to open default mail client
+                window.location.href = "mailto:";
+              }}
+            >
+              Open email app
+            </Button>
+            <Button
+              variant="ghost"
+              className="flex-1 border border-[#1dff00]/30 hover:bg-white/10 text-white"
+              disabled={resending}
+              onClick={handleResendVerification}
+            >
+              {resending ? "Resending..." : "Resend link"}
+            </Button>
+          </div>
+          <div className="pt-2">
+            <Button
+              className="w-full bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] text-white"
+              onClick={() => {
+                setShowVerifyModal(false);
+                navigate("/login");
+              }}
+            >
+              Go to login
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
