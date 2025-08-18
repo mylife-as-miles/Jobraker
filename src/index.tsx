@@ -158,7 +158,7 @@ if (!rootElement) {
         </ErrorBoundary>
       </StrictMode>
     );
-    console.log('JobRaker app rendered successfully');
+  console.log('JobRaker app rendered successfully', { version: (globalThis as any).appVersion, commit: (globalThis as any).commitHash });
   } catch (error) {
     console.error('Failed to render app:', error);
     rootElement.innerHTML = '<div style="color: red; padding: 20px;">Failed to render JobRaker app. Check console for details.</div>';

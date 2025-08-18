@@ -10,6 +10,7 @@ export default defineConfig({
   define: {
     // Inject a global appVersion for client usage (e.g., in footer)
     appVersion: JSON.stringify(process.env.npm_package_version || "0.0.0"),
+  commitHash: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_SHA || ""),
   },
   css: {
     postcss: {
