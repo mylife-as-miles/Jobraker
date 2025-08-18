@@ -9,6 +9,7 @@ import { Dashboard } from "./screens/Dashboard";
 import { PrivacyPolicy } from "./screens/PrivacyPolicy";
 import Login from "./screens/Login/Login";
 import { WhiteBackgroundFixer } from "./components/WhiteBackgroundFixer";
+import PasswordReset from "./screens/PasswordReset/PasswordReset";
 import { PublicOnly } from "./components/PublicOnly";
 import { RequireAuth } from "./components/RequireAuth";
 import { ToastProvider } from "./components/ui/toast-provider";
@@ -72,6 +73,9 @@ function App() {
 
         {/* Login Page */}
           <Route path={ROUTES.LOGIN} element={<PublicOnly><Login /></PublicOnly>} />
+
+        {/* Password Reset (Supabase email link target) */}
+          <Route path="/reset-password" element={<PublicOnly><PasswordReset /></PublicOnly>} />
         
         {/* Step 2: Onboarding Page (after signup) */}
           <Route path={ROUTES.ONBOARDING} element={<RequireAuth><Onboarding /></RequireAuth>} />
