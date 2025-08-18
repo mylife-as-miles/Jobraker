@@ -7,6 +7,10 @@ import path from "path";
 export default defineConfig({
   plugins: [react()],
   base: "./",
+  define: {
+    // Inject a global appVersion for client usage (e.g., in footer)
+    appVersion: JSON.stringify(process.env.npm_package_version || "0.0.0"),
+  },
   css: {
     postcss: {
       plugins: [tailwind()],
