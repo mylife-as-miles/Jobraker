@@ -74,7 +74,9 @@ const PasswordReset = () => {
                       <Input
                         type="password"
                         placeholder="New password"
-                        className="bg-transparent text-white placeholder:text-white/60 border-0 focus-visible:ring-0"
+                        variant="transparent"
+                        inputSize="lg"
+                        className="bg-transparent text-white placeholder:text-white/70 border-0 focus-visible:ring-0"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                       />
@@ -83,7 +85,9 @@ const PasswordReset = () => {
                       <Input
                         type="password"
                         placeholder="Confirm new password"
-                        className="bg-transparent text-white placeholder:text-white/60 border-0 focus-visible:ring-0"
+                        variant="transparent"
+                        inputSize="lg"
+                        className="bg-transparent text-white placeholder:text-white/70 border-0 focus-visible:ring-0"
                         value={confirm}
                         onChange={(e) => setConfirm(e.target.value)}
                       />

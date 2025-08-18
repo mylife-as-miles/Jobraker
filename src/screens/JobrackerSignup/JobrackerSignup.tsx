@@ -294,7 +294,9 @@ export const JobrackerSignup = (): JSX.Element => {
                       exit={{ opacity: 0, x: -20 }}
                       transition={{ duration: 0.3 }}
                     >
-                      {/* Email Field - Responsive */}
+                      {/* Email Field - Responsive */
+                      // Standardize using transparent variant and lg size for consistency
+                      }
                       <motion.div
                         className="w-full"
                         whileFocus={{ scale: 1.01 }}
@@ -303,7 +305,9 @@ export const JobrackerSignup = (): JSX.Element => {
                         <div className="flex w-full items-center relative bg-transparent border border-solid border-[#ffffff33] shadow-[0px_2px_14px_#0000000d] backdrop-blur-sm hover:border-[#ffffff4d] focus-within:border-[#1dff00] transition-all duration-300 h-12 sm:h-14 md:h-16 lg:h-18 px-4 sm:px-5 md:px-6 rounded-lg sm:rounded-xl">
                           <MailIcon className="text-white flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5" />
                           <Input
-                            className="border-none bg-transparent text-white tracking-wide placeholder:text-[#ffffff99] focus-visible:ring-0 p-0 h-auto ml-3 sm:ml-4 text-base sm:text-lg md:text-xl lg:text-2xl font-medium"
+                            variant="transparent"
+                            inputSize="lg"
+                            className="border-0 bg-transparent text-white tracking-wide placeholder:text-white/70 focus-visible:ring-0 p-0 h-auto ml-3 sm:ml-4"
                             type="email"
                             placeholder="Email address"
                             value={formData.email}
@@ -323,7 +327,9 @@ export const JobrackerSignup = (): JSX.Element => {
                           <div className="flex w-full items-center relative bg-transparent border border-solid border-[#ffffff33] shadow-[0px_2px_14px_#0000000d] backdrop-blur-sm hover:border-[#ffffff4d] focus-within:border-[#1dff00] transition-all duration-300 h-12 sm:h-14 md:h-16 lg:h-18 px-4 sm:px-5 md:px-6 rounded-lg sm:rounded-xl">
                             <LockKeyholeIcon className="text-white flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5" />
                             <Input
-                              className="border-none bg-transparent text-white tracking-wide placeholder:text-[#ffffff99] focus-visible:ring-0 p-0 h-auto flex-1 ml-3 sm:ml-4 text-base sm:text-lg md:text-xl lg:text-2xl font-medium"
+                              variant="transparent"
+                              inputSize="lg"
+                              className="border-0 bg-transparent text-white tracking-wide placeholder:text-white/70 focus-visible:ring-0 p-0 h-auto flex-1 ml-3 sm:ml-4"
                               type={showPassword ? "text" : "password"}
                               placeholder="Password"
                               value={formData.password}
@@ -359,7 +365,9 @@ export const JobrackerSignup = (): JSX.Element => {
                           <div className="flex w-full items-center relative bg-transparent border border-solid border-[#ffffff33] shadow-[0px_2px_14px_#0000000d] backdrop-blur-sm hover:border-[#ffffff4d] focus-within:border-[#1dff00] transition-all duration-300 h-12 sm:h-14 md:h-16 lg:h-18 px-4 sm:px-5 md:px-6 rounded-lg sm:rounded-xl">
                             <LockKeyholeIcon className="text-white flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5" />
                             <Input
-                              className="border-none bg-transparent text-white tracking-wide placeholder:text-[#ffffff99] focus-visible:ring-0 p-0 h-auto ml-3 sm:ml-4 text-base sm:text-lg md:text-xl lg:text-2xl font-medium"
+                              variant="transparent"
+                              inputSize="lg"
+                              className="border-0 bg-transparent text-white tracking-wide placeholder:text-white/70 focus-visible:ring-0 p-0 h-auto ml-3 sm:ml-4"
                               type="password"
                               placeholder="Confirm Password"
                               value={formData.confirmPassword}

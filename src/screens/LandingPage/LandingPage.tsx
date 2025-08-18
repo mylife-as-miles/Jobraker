@@ -755,7 +755,9 @@ export const LandingPage = () => {
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="flex-grow bg-[#0a0a0a] border-[#1dff00]/30 text-[#1dff00] placeholder:text-[#666666] focus:border-[#1dff00] hover:border-[#1dff00]/50 h-12 sm:h-14 text-sm sm:text-base focus:ring-2 focus:ring-[#1dff00] focus:ring-offset-2 focus:ring-offset-black"
+                variant="transparent"
+                inputSize="lg"
+                className="flex-grow text-white placeholder:text-white/70"
                 required
                 aria-label="Email address for newsletter subscription"
               />

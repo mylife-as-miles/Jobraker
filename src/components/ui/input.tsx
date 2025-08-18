@@ -9,12 +9,12 @@ export interface InputProps
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, variant = "transparent", inputSize = "lg", ...props }, ref) => {
-    const baseClasses = "flex w-full rounded-md border ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-300"
+    const baseClasses = "flex w-full rounded-lg border file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1dff00] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-300"
     
     const variantClasses = {
-      default: "bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d]",
-      transparent: "bg-transparent border-[#ffffff]/20 text-white placeholder:text-[#ffffff99] backdrop-blur-sm hover:border-[#ffffff]/40 focus:border-[#1dff00] focus:shadow-[0_0_15px_rgba(29,255,0,0.3)] focus:text-[#1dff00]",
-      outlined: "bg-transparent border-[#1dff00]/30 text-white placeholder:text-[#ffffff80] hover:border-[#1dff00]/50 focus:border-[#1dff00] focus:shadow-[0_0_20px_rgba(29,255,0,0.2)]"
+      default: "bg-white/10 border-white/20 text-white placeholder:text-white/70 hover:border-white/40 focus:border-[#1dff00]",
+      transparent: "bg-transparent border-white/20 text-white placeholder:text-white/70 backdrop-blur-sm hover:border-white/40 focus:border-[#1dff00] focus:shadow-[0_0_15px_rgba(29,255,0,0.25)]",
+      outlined: "bg-transparent border-[#1dff00]/30 text-white placeholder:text-white/70 hover:border-[#1dff00]/50 focus:border-[#1dff00] focus:shadow-[0_0_20px_rgba(29,255,0,0.2)]"
     }
     
     const sizeClasses = {
@@ -31,7 +31,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           baseClasses,
           variantClasses[variant],
           sizeClasses[inputSize],
-          "font-medium tracking-wide leading-relaxed",
+          "font-medium tracking-wide leading-relaxed placeholder:opacity-80",
+          // Invalid state (when aria-invalid is set by form libs or manually)
+          "aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus-visible:ring-red-500",
           // Responsive text sizing
           inputSize === "lg" && "text-base sm:text-lg md:text-xl lg:text-2xl",
           inputSize === "xl" && "text-lg sm:text-xl md:text-2xl lg:text-3xl",
