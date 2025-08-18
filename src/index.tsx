@@ -110,6 +110,7 @@ function App() {
         {/* Client dashboard routes unified under /dashboard to simplify structure */}
         <Route element={<RequireAuth><ClientProviders /></RequireAuth>}>
           <Route path="/dashboard" element={<ClientDashboardLayout />}>
+            <Route index element={<Navigate replace to="/dashboard/resumes" />} />
             <Route path="resumes" element={<ResumesPage />} />
             <Route path="resumes/new" element={<NewResumeRedirect />} />
             <Route path="settings" element={<SettingsPage />} />
