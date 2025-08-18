@@ -16,7 +16,7 @@ export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children,
   <div {...props} className={(props.className ?? "") + " rounded border p-3 bg-white/5"}>{children}</div>
 );
 
-export const ScrollArea: React.FC<React.HTMLAttributes<HTMLDivElement> & { orientation?: "vertical" | "horizontal" }> = ({ children, ...props }) => (
+export const ScrollArea: React.FC<React.HTMLAttributes<HTMLDivElement> & { orientation?: "vertical" | "horizontal"; allowOverflow?: boolean }> = ({ children, ...props }) => (
   <div {...props} style={{ overflow: "auto", ...(props as any).style }}>{children}</div>
 );
 
@@ -75,10 +75,34 @@ export const SelectItem: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ chi
 export const SelectTrigger: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
 export const SelectValue: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ children }) => <span>{children}</span>;
 
-export const Tabs: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
-export const TabsList: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
-export const TabsTrigger: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, ...props }) => <button {...props}>{children}</button>;
-export const TabsContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
+// Minimal Tabs implementation with internal context
+const TabsContext = React.createContext<{ value?: string; setValue?: (v: string) => void }>({});
+export const Tabs: React.FC<React.HTMLAttributes<HTMLDivElement> & { value?: string; onValueChange?: (v: string) => void }> = ({ children, value, onValueChange, ...props }) => {
+  const [current, setCurrent] = React.useState<string | undefined>(value);
+  React.useEffect(() => { setCurrent(value); }, [value]);
+  const setValue = (v: string) => { setCurrent(v); onValueChange?.(v); };
+  return (
+    <TabsContext.Provider value={{ value: current, setValue }}>
+      <div {...props}>{children}</div>
+    </TabsContext.Provider>
+  );
+};
+export const TabsList: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const TabsTrigger: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { value: string }> = ({ children, value, onClick, ...props }) => {
+  const ctx = React.useContext(TabsContext);
+  return (
+    <button {...props} onClick={(e) => { onClick?.(e); ctx.setValue?.(value); }}>
+      {children}
+    </button>
+  );
+};
+export const TabsContent: React.FC<React.HTMLAttributes<HTMLDivElement> & { value: string }> = ({ children, value, ...props }) => {
+  const ctx = React.useContext(TabsContext);
+  const hidden = ctx.value !== undefined && ctx.value !== value;
+  return (
+    <div {...props} style={{ display: hidden ? "none" : undefined, ...(props as any).style }}>{children}</div>
+  );
+};
 
 export const TooltipProvider: React.FC<React.PropsWithChildren> = ({ children }) => <>{children}</>;
 export const Tooltip: React.FC<{ content?: React.ReactNode } & React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <>{children}</>;

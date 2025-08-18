@@ -23,21 +23,19 @@ export const ResumesPage = () => {
 
       <Tabs
         value={layout}
-        className="space-y-4"
-        onValueChange={(value) => {
-          setLayout(value as Layout);
-        }}
+        className="space-y-6"
+        onValueChange={(value) => setLayout(value as Layout)}
       >
         <div className="flex items-center justify-between">
           <motion.h1
-            initial={{ opacity: 0, x: -50 }}
+            initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
-            className="text-4xl font-bold tracking-tight"
+            className="text-3xl font-semibold tracking-tight"
           >
             {t`Resumes`}
           </motion.h1>
 
-          <TabsList>
+          <TabsList className="card-surface border-brand/20">
             <TabsTrigger value="grid" className="size-8 p-0 sm:h-8 sm:w-auto sm:px-4">
               <SquaresFour />
               <span className="ml-2 hidden sm:block">{t`Grid`}</span>
