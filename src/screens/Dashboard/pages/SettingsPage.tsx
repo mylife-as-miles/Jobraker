@@ -12,6 +12,8 @@ import { createClient } from "../../../lib/supabaseClient";
 import { useAppearanceSettings } from "../../../hooks/useAppearanceSettings";
 import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
+import { validatePassword } from "../../../utils/password";
+import { CheckCircle2, XCircle } from "lucide-react";
 // Lazy-load qrcode to avoid bundler resolution issues during build
 let QRCodeLib: any | null = null;
 async function getQRCode() {
@@ -64,6 +66,7 @@ export const SettingsPage = (): JSX.Element => {
   const [totpFactorId, setTotpFactorId] = useState<string | undefined>();
   const [totpCode, setTotpCode] = useState<string>("");
   const [verifyBusy, setVerifyBusy] = useState(false);
+  const passwordCheck = useMemo(() => validatePassword(formData.newPassword, formData.email), [formData.newPassword, formData.email]);
 
   const initials = useMemo(() => {
     const a = (formData.firstName || '').trim();
@@ -257,6 +260,10 @@ export const SettingsPage = (): JSX.Element => {
       toastError('Password mismatch', 'Please confirm your new password');
       return;
     }
+    if (!passwordCheck.valid) {
+      toastError('Weak password', 'Please choose a stronger password that meets the requirements.');
+      return;
+    }
     const { error } = await supabase.auth.updateUser({ password: formData.newPassword });
     if (error) return toastError('Failed to update password', error.message);
     success('Password updated');
@@ -434,6 +441,7 @@ export const SettingsPage = (): JSX.Element => {
                       type="password"
                       value={formData.newPassword}
                       onChange={(e) => handleInputChange("newPassword", e.target.value)}
+                      aria-invalid={!!formData.newPassword && !passwordCheck.valid}
                       className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
                     />
                   </div>
@@ -446,9 +454,36 @@ export const SettingsPage = (): JSX.Element => {
                       className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
                     />
                   </div>
+                  {/* Password rules & strength */}
+                  <div className="space-y-2 text-xs sm:text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#ffffffb3]">Strength</span>
+                      <span className={`font-semibold ${passwordCheck.score >= 4 ? 'text-[#1dff00]' : passwordCheck.score >= 3 ? 'text-yellow-300' : 'text-red-400'}`}>{passwordCheck.strength}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-white/80">
+                      {[
+                        { ok: passwordCheck.lengthOk, label: '8+ characters' },
+                        { ok: passwordCheck.hasUpper, label: 'Uppercase letter' },
+                        { ok: passwordCheck.hasLower, label: 'Lowercase letter' },
+                        { ok: passwordCheck.hasNumber, label: 'Number' },
+                        { ok: passwordCheck.hasSymbol, label: 'Symbol' },
+                        { ok: passwordCheck.noSpaces, label: 'No spaces' },
+                      ].map((r, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          {r.ok ? (
+                            <CheckCircle2 className="w-4 h-4 text-[#1dff00]" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-red-400" />
+                          )}
+                          <span className={r.ok ? 'text-white/90' : 'text-white/60'}>{r.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                   <Button 
                     onClick={handleChangePassword}
-                    className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                    disabled={!passwordCheck.valid || formData.newPassword !== formData.confirmPassword}
+                    className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300 disabled:opacity-60"
                   >
                     Update Password
                   </Button>
