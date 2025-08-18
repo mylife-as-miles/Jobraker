@@ -71,9 +71,7 @@ export const PublicResumePage = () => {
   return (
     <div>
       <Helmet>
-        <title>
-          {title} - {t`Reactive Resume`}
-        </title>
+  <title>{`${title} - ${t`Reactive Resume`}`}</title>
       </Helmet>
 
       <div

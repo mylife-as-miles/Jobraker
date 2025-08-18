@@ -108,6 +108,9 @@ function App() {
 
   {/* Remove legacy client builder/dashboard nested routes to avoid shadowing */}
 
+  {/* Legacy redirect from old client builder path */}
+  <Route path="/dashboard/resume-builder/*" element={<Navigate replace to="/dashboard" />} />
+
   {/* Legacy redirect from old client dashboard path */}
   <Route path="/dashboard/client/*" element={<Navigate replace to="/dashboard" />} />
 
