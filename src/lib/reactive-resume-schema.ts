@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export type Award = any;
 export type Certification = any;
 export type CustomSection = any;
@@ -25,7 +27,8 @@ export const defaultSection: any = {
 };
 
 // Minimal defaults and zod-like schema stubs for builder dialogs
-export const idSchema = { safeParse: (v: any) => ({ success: typeof v === "string" && v.length > 0 }) } as any;
+// Use a real Zod schema so callers can chain .optional(), .nullable(), etc.
+export const idSchema = z.string().min(1);
 export const basicsSchema = { safeParse: (_v: any) => ({ success: true }) } as any;
 export const educationSchema = { safeParse: (_v: any) => ({ success: true }) } as any;
 export const experienceSchema = { safeParse: (_v: any) => ({ success: true }) } as any;
@@ -58,6 +61,16 @@ export const defaultCustomSection = {} as any;
 export type ResumeData = any;
 export const defaultMetadata = { layout: [[["profiles"]]] } as any;
 export const sampleResume = {} as any;
+
+// Minimal default sections used by builder UI (only what's accessed)
+export const defaultSections: Record<string, any> = {
+	summary: {
+		name: "Summary",
+		visible: true,
+		content: "",
+		columns: 1,
+	},
+};
 
 // Minimal URL schema/type for builder URLInput
 export const urlSchema = {
