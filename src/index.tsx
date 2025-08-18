@@ -105,8 +105,6 @@ function App() {
 
   {/* Main application dashboard under /dashboard (renders builder by default) */}
   <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
-  <Route path="/dashboard/resume-builder" element={<RequireAuth><Dashboard /></RequireAuth>} />
-  <Route path="/dashboard/resume-builder/:id" element={<RequireAuth><Dashboard /></RequireAuth>} />
 
   {/* Remove legacy client builder/dashboard nested routes to avoid shadowing */}
 
