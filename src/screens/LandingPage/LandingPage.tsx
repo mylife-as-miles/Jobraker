@@ -1,36 +1,27 @@
-import { useEffect, useRef, useState, useCallback, useLayoutEffect } from "react";
+import { useEffect, useRef, useState, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { 
-  Bot, 
-  Send, 
-  FileText, 
-  BarChart3, 
-  Shield, 
-  Activity, 
-  Target, 
-  Clock, 
-  Brain, 
-  Zap, 
-  ArrowRight, 
-  Play, 
-  Quote, 
-  Star, 
-  CheckCircle, 
-  Menu, 
+import {
+  Bot,
+  Send,
+  FileText,
+  BarChart3,
+  Shield,
+  Activity,
+  Target,
+  Clock,
+  Brain,
+  Zap,
+  ArrowRight,
+  Play,
+  Quote,
+  Star,
+  CheckCircle,
+  Menu,
   X,
-  Search,
   Globe,
-  Award,
-  Heart,
-  Rocket,
-  Settings,
-  Building2,
-  Users,
-  TrendingUp,
-  Sparkles
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
@@ -39,17 +30,7 @@ import { Input } from "../../components/ui/input";
 // Register GSAP plugins
 gsap.registerPlugin(ScrollTrigger);
 
-// Performance optimization: Debounce utility
-const useDebounce = (callback: Function, delay: number) => {
-  const timeoutRef = useRef<NodeJS.Timeout>();
-  
-  return useCallback((...args: any[]) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = setTimeout(() => callback(...args), delay);
-  }, [callback, delay]);
-};
+// (removed unused debounce utility)
 
 // Intersection Observer hook for performance
 const useIntersectionObserver = (options = {}) => {
