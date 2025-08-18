@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 import { gsap } from "gsap";
@@ -76,6 +76,8 @@ const useIntersectionObserver = (options = {}) => {
 };
 
 export const LandingPage = (): JSX.Element => {
+  // Scope container for GSAP to avoid double-inits and ensure cleanup
+  const pageRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -113,9 +115,13 @@ export const LandingPage = (): JSX.Element => {
     setIsLoaded(true);
   }, []);
 
-  // GSAP Animations
-  useEffect(() => {
+  // GSAP Animations (layout effect ensures DOM is measured before animating)
+  useLayoutEffect(() => {
     if (!isLoaded) return;
+    // Respect reduced motion
+    if (typeof window !== "undefined" && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
 
     const ctx = gsap.context(() => {
       // Set up performance optimizations
@@ -123,6 +129,8 @@ export const LandingPage = (): JSX.Element => {
         force3D: true,
         nullTargetWarn: false,
       });
+      // Stabilize ScrollTrigger measurements
+      ScrollTrigger.config({ ignoreMobileResize: true });
 
       // Hero animations with stagger
       const heroTl = gsap.timeline();
@@ -171,7 +179,7 @@ export const LandingPage = (): JSX.Element => {
       }, "-=1");
 
       // Feature cards with 3D effects
-      gsap.fromTo(".feature__card", {
+    gsap.fromTo(".feature__card", {
         y: 100,
         opacity: 0,
         scale: 0.8,
@@ -185,14 +193,15 @@ export const LandingPage = (): JSX.Element => {
         stagger: 0.2,
         ease: "power3.out",
         scrollTrigger: {
-          trigger: featuresRef.current,
+      trigger: featuresRef.current,
           start: "top 70%",
           toggleActions: "play none none reverse",
+      once: false,
         }
       });
 
       // Benefits section with slide-in
-      gsap.fromTo(".benefit__item", {
+    gsap.fromTo(".benefit__item", {
         x: -100,
         opacity: 0,
         scale: 0.8,
@@ -207,11 +216,12 @@ export const LandingPage = (): JSX.Element => {
           trigger: benefitsRef.current,
           start: "top 75%",
           toggleActions: "play none none reverse",
+      once: false,
         }
       });
 
       // Testimonials with 3D carousel effect
-      gsap.fromTo(".testimonial__card", {
+    gsap.fromTo(".testimonial__card", {
         y: 80,
         opacity: 0,
         rotationY: 45,
@@ -228,11 +238,12 @@ export const LandingPage = (): JSX.Element => {
           trigger: testimonialsRef.current,
           start: "top 70%",
           toggleActions: "play none none reverse",
+      once: false,
         }
       });
 
       // Pricing cards with depth
-      gsap.fromTo(".pricing__card", {
+    gsap.fromTo(".pricing__card", {
         y: 100,
         opacity: 0,
         rotationX: 60,
@@ -248,11 +259,12 @@ export const LandingPage = (): JSX.Element => {
           trigger: pricingRef.current,
           start: "top 70%",
           toggleActions: "play none none reverse",
+      once: false,
         }
       });
 
       // Navigation hide/show on scroll
-      ScrollTrigger.create({
+  ScrollTrigger.create({
         trigger: "body",
         start: "top -80",
         end: "bottom bottom",
@@ -309,8 +321,10 @@ export const LandingPage = (): JSX.Element => {
         delay: 2,
       });
 
-    });
-    
+      // Refresh after setup to ensure correct positions
+      requestAnimationFrame(() => ScrollTrigger.refresh());
+    }, pageRef);
+
     return () => ctx.revert();
   }, [isLoaded]);
 
@@ -484,7 +498,7 @@ export const LandingPage = (): JSX.Element => {
   const [pricingInViewRef, pricingInView] = useIntersectionObserver();
 
   return (
-    <div className="min-h-screen bg-black overflow-hidden">
+    <div ref={pageRef} className="min-h-screen bg-black overflow-hidden">
       {/* Navigation */}
       <nav className="navbar fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-md border-b border-[#1dff00]/20" role="navigation" aria-label="Main navigation">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
