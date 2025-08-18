@@ -122,6 +122,36 @@ export const JobrackerSignup = (): JSX.Element => {
     }
   };
 
+  const openEmailApp = () => {
+    const email = formData.email || "";
+    const domain = email.split("@")[1]?.toLowerCase();
+    const providerUrl = (() => {
+      switch (domain) {
+        case "gmail.com":
+          return "https://mail.google.com/";
+        case "outlook.com":
+        case "hotmail.com":
+        case "live.com":
+        case "msn.com":
+          return "https://outlook.live.com/mail/";
+        case "yahoo.com":
+          return "https://mail.yahoo.com/";
+        case "icloud.com":
+          return "https://www.icloud.com/mail/";
+        case "proton.me":
+        case "protonmail.com":
+          return "https://mail.proton.me/";
+        default:
+          return null;
+      }
+    })();
+    if (providerUrl) {
+      window.open(providerUrl, "_blank", "noopener,noreferrer");
+    } else {
+      window.location.href = "mailto:";
+    }
+  };
+
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.9 },
     visible: {
@@ -554,10 +584,7 @@ export const JobrackerSignup = (): JSX.Element => {
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             <Button
               className="flex-1 bg-white/10 hover:bg-white/20 text-white"
-              onClick={() => {
-                // Try to open default mail client
-                window.location.href = "mailto:";
-              }}
+              onClick={openEmailApp}
             >
               Open email app
             </Button>
