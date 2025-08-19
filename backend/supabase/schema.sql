@@ -456,10 +456,10 @@ CREATE INDEX IF NOT EXISTS "applications_user_updated_idx" ON "public"."applicat
 ALTER TABLE "public"."applications" ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies
-CREATE POLICY IF NOT EXISTS "Select own applications" ON "public"."applications" FOR SELECT USING ((auth.uid() = user_id));
-CREATE POLICY IF NOT EXISTS "Insert own applications" ON "public"."applications" FOR INSERT WITH CHECK ((auth.uid() = user_id));
-CREATE POLICY IF NOT EXISTS "Update own applications" ON "public"."applications" FOR UPDATE USING ((auth.uid() = user_id)) WITH CHECK ((auth.uid() = user_id));
-CREATE POLICY IF NOT EXISTS "Delete own applications" ON "public"."applications" FOR DELETE USING ((auth.uid() = user_id));
+CREATE POLICY "Select own applications" ON "public"."applications" FOR SELECT USING ((auth.uid() = user_id));
+CREATE POLICY "Insert own applications" ON "public"."applications" FOR INSERT WITH CHECK ((auth.uid() = user_id));
+CREATE POLICY "Update own applications" ON "public"."applications" FOR UPDATE USING ((auth.uid() = user_id)) WITH CHECK ((auth.uid() = user_id));
+CREATE POLICY "Delete own applications" ON "public"."applications" FOR DELETE USING ((auth.uid() = user_id));
 
 GRANT ALL ON TABLE "public"."applications" TO "anon";
 GRANT ALL ON TABLE "public"."applications" TO "authenticated";
