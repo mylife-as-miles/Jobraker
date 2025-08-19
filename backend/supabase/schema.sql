@@ -423,3 +423,44 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 
 
 RESET ALL;
+
+-- Applications tracking table
+CREATE TABLE IF NOT EXISTS "public"."applications" (
+    "id" uuid DEFAULT gen_random_uuid() NOT NULL,
+    "user_id" uuid NOT NULL,
+    "job_title" text NOT NULL,
+    "company" text NOT NULL,
+    "location" text DEFAULT ''::text,
+    "applied_date" timestamp with time zone DEFAULT now() NOT NULL,
+    "status" text DEFAULT 'Applied'::text NOT NULL,
+    "salary" text,
+    "notes" text,
+    "next_step" text,
+    "interview_date" timestamp with time zone,
+    "logo" text,
+    "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT "applications_status_check" CHECK (("status" = ANY (ARRAY['Applied'::text,'Interview'::text,'Offer'::text,'Rejected'::text,'Withdrawn'::text])))
+);
+
+ALTER TABLE "public"."applications" OWNER TO "postgres";
+
+ALTER TABLE ONLY "public"."applications"
+    ADD CONSTRAINT "applications_pkey" PRIMARY KEY ("id");
+
+ALTER TABLE ONLY "public"."applications"
+    ADD CONSTRAINT "applications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+CREATE INDEX IF NOT EXISTS "applications_user_updated_idx" ON "public"."applications" USING btree ("user_id", "updated_at" DESC);
+
+ALTER TABLE "public"."applications" ENABLE ROW LEVEL SECURITY;
+
+-- RLS policies
+CREATE POLICY IF NOT EXISTS "Select own applications" ON "public"."applications" FOR SELECT USING ((auth.uid() = user_id));
+CREATE POLICY IF NOT EXISTS "Insert own applications" ON "public"."applications" FOR INSERT WITH CHECK ((auth.uid() = user_id));
+CREATE POLICY IF NOT EXISTS "Update own applications" ON "public"."applications" FOR UPDATE USING ((auth.uid() = user_id)) WITH CHECK ((auth.uid() = user_id));
+CREATE POLICY IF NOT EXISTS "Delete own applications" ON "public"."applications" FOR DELETE USING ((auth.uid() = user_id));
+
+GRANT ALL ON TABLE "public"."applications" TO "anon";
+GRANT ALL ON TABLE "public"."applications" TO "authenticated";
+GRANT ALL ON TABLE "public"."applications" TO "service_role";

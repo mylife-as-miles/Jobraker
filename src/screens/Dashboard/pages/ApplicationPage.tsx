@@ -20,89 +20,15 @@ import {
   Filter
 } from "lucide-react";
 import { motion } from "framer-motion";
-
-interface Application {
-  id: string;
-  jobTitle: string;
-  company: string;
-  location: string;
-  appliedDate: string;
-  status: "Applied" | "Interview" | "Offer" | "Rejected" | "Withdrawn";
-  salary: string;
-  notes: string;
-  nextStep: string;
-  interviewDate?: string;
-  logo: string;
-}
+import { useApplications, type ApplicationRecord, type ApplicationStatus } from "../../../hooks/useApplications";
 
 export const ApplicationPage = (): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [selectedApplication, setSelectedApplication] = useState<string | null>(null);
-
-  const applications: Application[] = [
-    {
-      id: "1",
-      jobTitle: "Senior Software Engineer",
-      company: "Google",
-      location: "Mountain View, CA",
-      appliedDate: "2024-01-15",
-      status: "Interview",
-      salary: "$150,000 - $200,000",
-      notes: "Technical interview scheduled for next week. Prepare system design questions.",
-      nextStep: "Technical Interview - Jan 22, 2024",
-      interviewDate: "2024-01-22",
-      logo: "G"
-    },
-    {
-      id: "2",
-      jobTitle: "Frontend Developer",
-      company: "Microsoft",
-      location: "Seattle, WA",
-      appliedDate: "2024-01-12",
-      status: "Applied",
-      salary: "$120,000 - $160,000",
-      notes: "Application submitted through company website. Waiting for response.",
-      nextStep: "Waiting for initial response",
-      logo: "M"
-    },
-    {
-      id: "3",
-      jobTitle: "Full Stack Developer",
-      company: "Meta",
-      location: "Menlo Park, CA",
-      appliedDate: "2024-01-10",
-      status: "Offer",
-      salary: "$130,000 - $180,000",
-      notes: "Received offer! Need to respond by January 25th.",
-      nextStep: "Respond to offer by Jan 25",
-      logo: "F"
-    },
-    {
-      id: "4",
-      jobTitle: "iOS Developer",
-      company: "Apple",
-      location: "Cupertino, CA",
-      appliedDate: "2024-01-08",
-      status: "Rejected",
-      salary: "$140,000 - $190,000",
-      notes: "Position filled by internal candidate. Good feedback on technical skills.",
-      nextStep: "Look for similar positions",
-      logo: "A"
-    },
-    {
-      id: "5",
-      jobTitle: "Backend Engineer",
-      company: "Netflix",
-      location: "Los Gatos, CA",
-      appliedDate: "2024-01-05",
-      status: "Interview",
-      salary: "$135,000 - $175,000",
-      notes: "Phone screening completed. Waiting for technical round scheduling.",
-      nextStep: "Technical round scheduling",
-      logo: "N"
-    }
-  ];
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState<{ id?: string; job_title: string; company: string; location: string; applied_date: string; status: ApplicationStatus; salary: string; notes: string; next_step: string; interview_date: string; logo: string }>({ job_title: "", company: "", location: "", applied_date: "", status: "Applied", salary: "", notes: "", next_step: "", interview_date: "", logo: "" });
+  const { applications, loading, create, update, remove, exportCSV } = useApplications();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -139,7 +65,7 @@ export const ApplicationPage = (): JSX.Element => {
   };
 
   const filteredApplications = applications.filter(app => {
-    const matchesSearch = app.jobTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = app.job_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          app.company.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = selectedStatus === "All" || app.status === selectedStatus;
     return matchesSearch && matchesStatus;
@@ -166,6 +92,10 @@ export const ApplicationPage = (): JSX.Element => {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             <Button 
               className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300 text-sm"
+              onClick={() => {
+                setFormData({ job_title: "", company: "", location: "", applied_date: new Date().toISOString().slice(0,10), status: "Applied", salary: "", notes: "", next_step: "", interview_date: "", logo: "" });
+                setShowForm(true);
+              }}
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Application
@@ -173,6 +103,7 @@ export const ApplicationPage = (): JSX.Element => {
             <Button 
               variant="outline" 
               className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300 text-sm"
+              onClick={() => exportCSV()}
             >
               <Download className="w-4 h-4 mr-2" />
               Export
@@ -249,27 +180,41 @@ export const ApplicationPage = (): JSX.Element => {
           </div>
         </Card>
 
+        {/* Empty State */}
+        {filteredApplications.length === 0 && !loading && (
+          <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-8 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <Plus className="w-6 h-6 text-[#1dff00]" />
+              <h3 className="text-white text-lg font-semibold">No applications yet</h3>
+              <p className="text-[#ffffff80] text-sm">Start tracking your job hunt by adding your first application.</p>
+              <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => setShowForm(true)}>
+                <Plus className="w-4 h-4 mr-2" /> Add Application
+              </Button>
+            </div>
+          </Card>
+        )}
+
         {/* Applications List */}
         <div className="space-y-4">
-          {filteredApplications.map((application, index) => (
+          {filteredApplications.map((application: ApplicationRecord, index) => (
             <motion.div
               key={application.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: index * 0.1 }}
-              onClick={() => setSelectedApplication(application.id)}
               whileHover={{ scale: 1.01, x: 4 }}
               className="transition-transform duration-300"
+              onClick={() => setSelectedApplication(application.id)}
             >
               <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] hover:shadow-lg hover:border-[#1dff00]/50 transition-all duration-300 cursor-pointer">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
                       <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg flex-shrink-0">
-                        {application.logo}
+                        {application.logo || (application.company?.[0] ?? "")}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-semibold text-sm sm:text-base lg:text-lg truncate">{application.jobTitle}</h3>
+                        <h3 className="text-white font-semibold text-sm sm:text-base lg:text-lg truncate">{application.job_title}</h3>
                         <p className="text-[#ffffff80] text-xs sm:text-sm">{application.company}</p>
                         <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 text-xs text-[#ffffff60]">
                           <div className="flex items-center space-x-1">
@@ -278,7 +223,7 @@ export const ApplicationPage = (): JSX.Element => {
                           </div>
                           <div className="flex items-center space-x-1">
                             <Calendar className="w-3 h-3" />
-                            <span>{new Date(application.appliedDate).toLocaleDateString()}</span>
+                            <span>{new Date(application.applied_date).toLocaleDateString()}</span>
                           </div>
                         </div>
                       </div>
@@ -286,7 +231,7 @@ export const ApplicationPage = (): JSX.Element => {
                     
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
                       <div className="flex items-center justify-between w-full sm:w-auto sm:flex-col sm:items-end gap-2">
-                        <span className="text-[#1dff00] font-semibold text-sm sm:text-base">{application.salary}</span>
+                        <span className="text-[#1dff00] font-semibold text-sm sm:text-base">{application.salary ?? ""}</span>
                         <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(application.status)}`}>
                           {getStatusIcon(application.status)}
                           <span>{application.status}</span>
@@ -298,7 +243,7 @@ export const ApplicationPage = (): JSX.Element => {
                           variant="ghost" 
                           size="sm" 
                           className="text-[#ffffff60] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300 p-1 sm:p-2"
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e) => { e.stopPropagation(); setSelectedApplication(application.id); }}
                         >
                           <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
                         </Button>
@@ -306,9 +251,17 @@ export const ApplicationPage = (): JSX.Element => {
                           variant="ghost" 
                           size="sm" 
                           className="text-[#ffffff60] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300 p-1 sm:p-2"
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e) => { e.stopPropagation(); setFormData({ id: application.id, job_title: application.job_title, company: application.company, location: application.location, applied_date: application.applied_date.slice(0,10), status: application.status as ApplicationStatus, salary: application.salary ?? "", notes: application.notes ?? "", next_step: application.next_step ?? "", interview_date: application.interview_date ? application.interview_date.slice(0,10) : "", logo: application.logo ?? "" }); setShowForm(true); }}
                         >
                           <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-[#ffffff60] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300 p-1 sm:p-2"
+                          onClick={(e) => { e.stopPropagation(); remove(application.id); }}
+                        >
+                          <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
@@ -323,7 +276,7 @@ export const ApplicationPage = (): JSX.Element => {
                   </div>
                   
                   <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-[#ffffff1a]">
-                    <p className="text-[#ffffff80] text-xs sm:text-sm leading-relaxed truncate">{application.nextStep}</p>
+                    <p className="text-[#ffffff80] text-xs sm:text-sm leading-relaxed truncate">{application.next_step ?? ""}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -340,7 +293,7 @@ export const ApplicationPage = (): JSX.Element => {
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
             onClick={() => setSelectedApplication(null)}
           >
-            <Card 
+            <Card
               className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] max-w-2xl w-full max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
@@ -355,10 +308,10 @@ export const ApplicationPage = (): JSX.Element => {
                       <div className="flex items-start justify-between">
                         <div className="flex items-center space-x-4 flex-1 min-w-0">
                           <div className="w-16 h-16 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-xl flex-shrink-0">
-                            {app.logo}
+                            {app.logo || (app.company?.[0] ?? "")}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <h2 className="text-xl font-bold text-white">{app.jobTitle}</h2>
+                            <h2 className="text-xl font-bold text-white">{app.job_title}</h2>
                             <p className="text-[#ffffff80]">{app.company}</p>
                             <p className="text-[#ffffff60] text-sm">{app.location}</p>
                           </div>
@@ -384,28 +337,29 @@ export const ApplicationPage = (): JSX.Element => {
                         </div>
                         <div>
                           <label className="text-[#ffffff80] text-sm">Applied Date</label>
-                          <p className="text-white mt-1">{new Date(app.appliedDate).toLocaleDateString()}</p>
+                          <p className="text-white mt-1">{new Date(app.applied_date).toLocaleDateString()}</p>
                         </div>
                         <div>
                           <label className="text-[#ffffff80] text-sm">Salary Range</label>
-                          <p className="text-[#1dff00] font-medium mt-1">{app.salary}</p>
+                          <p className="text-[#1dff00] font-medium mt-1">{app.salary ?? ""}</p>
                         </div>
                         <div>
                           <label className="text-[#ffffff80] text-sm">Next Step</label>
-                          <p className="text-white mt-1">{app.nextStep}</p>
+                          <p className="text-white mt-1">{app.next_step ?? ""}</p>
                         </div>
                       </div>
                       
                       {/* Notes */}
                       <div>
                         <label className="text-[#ffffff80] text-sm">Notes</label>
-                        <p className="text-white mt-1 leading-relaxed">{app.notes}</p>
+                        <p className="text-white mt-1 leading-relaxed">{app.notes ?? ""}</p>
                       </div>
                       
                       {/* Actions */}
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-4 border-t border-[#ffffff1a]">
                         <Button 
                           className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                          onClick={() => { setFormData({ id: app.id, job_title: app.job_title, company: app.company, location: app.location, applied_date: app.applied_date.slice(0,10), status: app.status as ApplicationStatus, salary: app.salary ?? "", notes: app.notes ?? "", next_step: app.next_step ?? "", interview_date: app.interview_date ? app.interview_date.slice(0,10) : "", logo: app.logo ?? "" }); setShowForm(true); setSelectedApplication(null); }}
                         >
                           <Edit className="w-4 h-4 mr-2" />
                           Edit Application
@@ -420,6 +374,7 @@ export const ApplicationPage = (): JSX.Element => {
                         <Button 
                           variant="outline" 
                           className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-500 hover:scale-105 transition-all duration-300"
+                          onClick={() => { remove(app.id); setSelectedApplication(null); }}
                         >
                           <Trash2 className="w-4 h-4 mr-2" />
                           Delete
@@ -428,6 +383,67 @@ export const ApplicationPage = (): JSX.Element => {
                     </div>
                   );
                 })()}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Add/Edit Modal */}
+        {showForm && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.97 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowForm(false)}
+          >
+            <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] w-full max-w-xl" onClick={(e) => e.stopPropagation()}>
+              <CardContent className="p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input placeholder="Job title" value={formData.job_title} onChange={(e) => setFormData((p) => ({ ...p, job_title: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Company" value={formData.company} onChange={(e) => setFormData((p) => ({ ...p, company: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Location" value={formData.location} onChange={(e) => setFormData((p) => ({ ...p, location: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input type="date" placeholder="Applied date" value={formData.applied_date} onChange={(e) => setFormData((p) => ({ ...p, applied_date: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Status (Applied/Interview/Offer/Rejected/Withdrawn)" value={formData.status} onChange={(e) => setFormData((p) => ({ ...p, status: e.target.value as ApplicationStatus }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Salary" value={formData.salary} onChange={(e) => setFormData((p) => ({ ...p, salary: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Next step" value={formData.next_step} onChange={(e) => setFormData((p) => ({ ...p, next_step: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input type="date" placeholder="Interview date" value={formData.interview_date} onChange={(e) => setFormData((p) => ({ ...p, interview_date: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Logo letter (optional)" value={formData.logo} onChange={(e) => setFormData((p) => ({ ...p, logo: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Notes" value={formData.notes} onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))} className="sm:col-span-2 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={() => setShowForm(false)}>Cancel</Button>
+                  <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={async () => {
+                    if (formData.id) {
+                      await update(formData.id, {
+                        job_title: formData.job_title,
+                        company: formData.company,
+                        location: formData.location,
+                        applied_date: new Date(formData.applied_date).toISOString(),
+                        status: formData.status,
+                        salary: formData.salary || null,
+                        notes: formData.notes || null,
+                        next_step: formData.next_step || null,
+                        interview_date: formData.interview_date ? new Date(formData.interview_date).toISOString() : null,
+                        logo: formData.logo || null,
+                      });
+                    } else {
+                      await create({
+                        job_title: formData.job_title,
+                        company: formData.company,
+                        location: formData.location,
+                        applied_date: new Date(formData.applied_date).toISOString(),
+                        status: formData.status,
+                        salary: formData.salary || undefined,
+                        notes: formData.notes || undefined,
+                        next_step: formData.next_step || undefined,
+                        interview_date: formData.interview_date ? new Date(formData.interview_date).toISOString() : undefined,
+                        logo: formData.logo || undefined,
+                      });
+                    }
+                    setShowForm(false);
+                  }}>{formData.id ? "Save" : "Add"}</Button>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
