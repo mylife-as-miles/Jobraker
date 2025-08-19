@@ -29,10 +29,9 @@ export const PublicResumePage = () => {
   const updateResumeInFrame = useCallback(() => {
     const message = { type: "SET_RESUME", payload: resume };
 
-    // Use setTimeout to defer posting the message until after paint (setImmediate is not available in browsers)
-    setTimeout(() => {
+    setImmediate(() => {
       frameRef.current?.contentWindow?.postMessage(message, "*");
-    }, 0);
+    });
   }, [frameRef.current, resume]);
 
   useEffect(() => {
@@ -71,7 +70,9 @@ export const PublicResumePage = () => {
   return (
     <div>
       <Helmet>
-  <title>{`${title} - ${t`Reactive Resume`}`}</title>
+        <title>
+          {title} - {t`Reactive Resume`}
+        </title>
       </Helmet>
 
       <div

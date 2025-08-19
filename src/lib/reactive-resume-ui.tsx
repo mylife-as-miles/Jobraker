@@ -2,23 +2,11 @@
 // Replace with your own design system components as needed.
 import React from "react";
 
-function cx(...classes: Array<string | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
-
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string; asChild?: boolean };
 export const Button: React.FC<ButtonProps> = ({ children, asChild, ...props }) => {
-  const base = "inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded border";
-  if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children as React.ReactElement, {
-      ...(children as any).props,
-      ...props,
-      className: cx((children as any).props?.className, base, props.className),
-    });
-  }
   if (asChild) return <>{children}</>;
   return (
-    <button {...props} className={cx(base, props.className)}>
+    <button {...props} className={(props.className ?? "") + " inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded border"}>
       {children}
     </button>
   );
@@ -28,7 +16,7 @@ export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children,
   <div {...props} className={(props.className ?? "") + " rounded border p-3 bg-white/5"}>{children}</div>
 );
 
-export const ScrollArea: React.FC<React.HTMLAttributes<HTMLDivElement> & { orientation?: "vertical" | "horizontal"; allowOverflow?: boolean }> = ({ children, ...props }) => (
+export const ScrollArea: React.FC<React.HTMLAttributes<HTMLDivElement> & { orientation?: "vertical" | "horizontal" }> = ({ children, ...props }) => (
   <div {...props} style={{ overflow: "auto", ...(props as any).style }}>{children}</div>
 );
 
@@ -87,48 +75,16 @@ export const SelectItem: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ chi
 export const SelectTrigger: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
 export const SelectValue: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ children }) => <span>{children}</span>;
 
-// Minimal Tabs implementation with internal context
-const TabsContext = React.createContext<{ value?: string; setValue?: (v: string) => void }>({});
-export const Tabs: React.FC<React.HTMLAttributes<HTMLDivElement> & { value?: string; onValueChange?: (v: string) => void }> = ({ children, value, onValueChange, ...props }) => {
-  const [current, setCurrent] = React.useState<string | undefined>(value);
-  React.useEffect(() => { setCurrent(value); }, [value]);
-  const setValue = (v: string) => { setCurrent(v); onValueChange?.(v); };
-  return (
-    <TabsContext.Provider value={{ value: current, setValue }}>
-      <div {...props}>{children}</div>
-    </TabsContext.Provider>
-  );
-};
-export const TabsList: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
-export const TabsTrigger: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { value: string }> = ({ children, value, onClick, ...props }) => {
-  const ctx = React.useContext(TabsContext);
-  return (
-    <button {...props} onClick={(e) => { onClick?.(e); ctx.setValue?.(value); }}>
-      {children}
-    </button>
-  );
-};
-export const TabsContent: React.FC<React.HTMLAttributes<HTMLDivElement> & { value: string }> = ({ children, value, ...props }) => {
-  const ctx = React.useContext(TabsContext);
-  const hidden = ctx.value !== undefined && ctx.value !== value;
-  return (
-    <div {...props} style={{ display: hidden ? "none" : undefined, ...(props as any).style }}>{children}</div>
-  );
-};
+export const Tabs: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
+export const TabsList: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
+export const TabsTrigger: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, ...props }) => <button {...props}>{children}</button>;
+export const TabsContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
 
 export const TooltipProvider: React.FC<React.PropsWithChildren> = ({ children }) => <>{children}</>;
 export const Tooltip: React.FC<{ content?: React.ReactNode } & React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <>{children}</>;
 export const Sheet: React.FC<React.HTMLAttributes<HTMLDivElement> & { open?: boolean; onOpenChange?: (o: boolean) => void }> = ({ children, ...props }) => <div {...props}>{children}</div>;
 export const SheetContent: React.FC<React.HTMLAttributes<HTMLDivElement> & { side?: string; showClose?: boolean; onOpenAutoFocus?: (e: any) => void }> = ({ children, ...props }) => <div {...props}>{children}</div>;
-export const SheetTrigger: React.FC<{ asChild?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ asChild, children, ...props }) => {
-  if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children as React.ReactElement, {
-      ...(children as any).props,
-      ...props,
-    });
-  }
-  return <button {...props}>{children}</button>;
-};
+export const SheetTrigger: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, ...props }) => <button {...props}>{children}</button>;
 export const SheetClose: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, ...props }) => <button {...props}>{children}</button>;
 export const SheetHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
 export const SheetTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({ children, ...props }) => <h3 {...props}>{children}</h3>;
@@ -225,17 +181,12 @@ export const CommandItem: React.FC<{ value?: string; disabled?: boolean; onSelec
 
 // Popover primitives
 export const Popover: React.FC<{ open?: boolean; onOpenChange?: (o: boolean) => void } & React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
-export const PopoverTrigger: React.FC<{ asChild?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ asChild, children, ...props }) => {
-  if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children as React.ReactElement, { ...(children as any).props, ...props });
-  }
-  return <button {...props}>{children}</button>;
-};
+export const PopoverTrigger: React.FC<{ asChild?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ asChild, children, ...props }) => asChild ? <>{children}</> : <button {...props}>{children}</button>;
 export const PopoverContent: React.FC<{ align?: string } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
 
 // Resizable panels primitives (no-op wrappers)
 export const PanelGroup: React.FC<{ direction?: "horizontal" | "vertical" } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
- type DivWithoutOnResize = Omit<React.HTMLAttributes<HTMLDivElement>, "onResize">;
+type DivWithoutOnResize = Omit<React.HTMLAttributes<HTMLDivElement>, "onResize">;
 export const Panel: React.FC<{ minSize?: number; maxSize?: number; defaultSize?: number; onResize?: (size: number) => void } & DivWithoutOnResize> = ({ children, ...props }) => <div {...(props as any)}>{children}</div>;
 export const PanelResizeHandle: React.FC<{ isDragging?: boolean; onDragging?: (dragging: boolean) => void } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
 
@@ -265,24 +216,14 @@ export const AlertDescription: React.FC<React.HTMLAttributes<HTMLDivElement>> = 
 
 // Dropdown menu primitives
 export const DropdownMenu: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
-export const DropdownMenuTrigger: React.FC<{ asChild?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ asChild, children, ...props }) => {
-  if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children as React.ReactElement, { ...(children as any).props, ...props });
-  }
-  return <button {...props}>{children}</button>;
-};
+export const DropdownMenuTrigger: React.FC<{ asChild?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ asChild, children, ...props }) => asChild ? <>{children}</> : <button {...props}>{children}</button>;
 export const DropdownMenuContent: React.FC<{ side?: string; align?: string } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
 export const DropdownMenuItem: React.FC<React.HTMLAttributes<HTMLDivElement> & { onClick?: () => void } > = ({ children, onClick, ...props }) => <div {...props} onClick={onClick}>{children}</div>;
 export const DropdownMenuSeparator: React.FC<React.HTMLAttributes<HTMLHRElement>> = (props) => <hr {...props} />;
 
 // Context menu primitives
 export const ContextMenu: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
-export const ContextMenuTrigger: React.FC<{ asChild?: boolean } & React.HTMLAttributes<HTMLDivElement>> = ({ asChild, children, ...props }) => {
-  if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children as React.ReactElement, { ...(children as any).props, ...props });
-  }
-  return <div {...props}>{children}</div>;
-};
+export const ContextMenuTrigger: React.FC<{ asChild?: boolean } & React.HTMLAttributes<HTMLDivElement>> = ({ asChild, children, ...props }) => asChild ? <>{children}</> : <div {...props}>{children}</div>;
 export const ContextMenuContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
 export const ContextMenuItem: React.FC<React.HTMLAttributes<HTMLDivElement> & { onClick?: () => void } > = ({ children, onClick, ...props }) => <div {...props} onClick={onClick}>{children}</div>;
 export const ContextMenuSeparator: React.FC<React.HTMLAttributes<HTMLHRElement>> = (props) => <hr {...props} />;

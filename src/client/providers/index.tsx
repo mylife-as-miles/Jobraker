@@ -12,14 +12,14 @@ import { Toaster } from "./toaster";
 
 const fallbackClient = new QueryClient();
 
-export const Providers: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+export const Providers = () => (
   <LocaleProvider>
     <HelmetProvider context={helmetContext}>
       <QueryClientProvider client={queryClient ?? fallbackClient}>
         <ThemeProvider>
           <TooltipProvider>
             <DialogProvider>
-              {children ?? <Outlet />}
+              <Outlet />
 
               <Toaster />
             </DialogProvider>

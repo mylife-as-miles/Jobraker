@@ -1,15 +1,14 @@
 import React, { StrictMode } from "react";
-import "../tailwind.css";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LandingPage } from "./screens/LandingPage";
 import { JobrackerSignup } from "./screens/JobrackerSignup";
 import { Onboarding } from "./screens/Onboarding";
 import { Analytics } from "./screens/Analytics";
+import { Dashboard } from "./screens/Dashboard";
 import { PrivacyPolicy } from "./screens/PrivacyPolicy";
 import Login from "./screens/Login/Login";
 import { WhiteBackgroundFixer } from "./components/WhiteBackgroundFixer";
-import PasswordReset from "./screens/PasswordReset/PasswordReset";
 import { PublicOnly } from "./components/PublicOnly";
 import { RequireAuth } from "./components/RequireAuth";
 import { ToastProvider } from "./components/ui/toast-provider";
@@ -20,9 +19,12 @@ import { Providers } from "./providers";
 import { ROUTES } from "./routes";
 // Client pages imported from merged client app
 import { PublicResumePage } from "./client/pages/public/page";
+import { DashboardLayout as ClientDashboardLayout } from "./client/pages/dashboard/layout";
+import { ResumesPage } from "./client/pages/dashboard/resumes/page";
+import NewResumeRedirect from "./client/pages/dashboard/resumes/new";
+import { SettingsPage } from "./client/pages/dashboard/settings/page";
+import { BuilderPage } from "./client/pages/builder/page";
 import { Providers as ClientProviders } from "./client/providers";
-import { Dashboard } from "./screens/Dashboard";
-import { PricingPage } from "./screens/Pricing";
 
 // Error boundary component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
@@ -70,18 +72,12 @@ function App() {
 
         {/* Login Page */}
           <Route path={ROUTES.LOGIN} element={<PublicOnly><Login /></PublicOnly>} />
-
-        {/* Pricing Page */}
-          <Route path={ROUTES.PRICING} element={<PublicOnly><PricingPage /></PublicOnly>} />
-
-        {/* Password Reset (Supabase email link target) */}
-          <Route path="/reset-password" element={<PublicOnly><PasswordReset /></PublicOnly>} />
         
         {/* Step 2: Onboarding Page (after signup) */}
           <Route path={ROUTES.ONBOARDING} element={<RequireAuth><Onboarding /></RequireAuth>} />
         
-        {/* Step 3: Dashboard Page (legacy) - removed in favor of unified client dashboard under /dashboard */}
-          {/** Legacy <Dashboard /> route removed to prevent shadowing client dashboard routes */}
+        {/* Step 3: Dashboard Page (after onboarding completion) - Now serves as main container */}
+          <Route path={ROUTES.DASHBOARD_WILDCARD} element={<RequireAuth><Dashboard /></RequireAuth>} />
         
   {/* Standalone Analytics Page (for backward compatibility) */}
           <Route path={ROUTES.ANALYTICS} element={<RequireAuth><Analytics /></RequireAuth>} />
@@ -107,16 +103,25 @@ function App() {
         {/* Optionally expose client HomePage at root if desired (keep behind PublicOnly) */}
         {/* <Route path="/client" element={<PublicOnly><HomePage /></PublicOnly>} /> */}
 
-  {/* Main application dashboard under /dashboard (renders builder by default) */}
-  <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+        {/* Client dashboard routes unified under /dashboard to simplify structure */}
+        <Route element={<RequireAuth><ClientProviders /></RequireAuth>}>
+          <Route path="/dashboard" element={<ClientDashboardLayout />}>
+            <Route path="resumes" element={<ResumesPage />} />
+            <Route path="resumes/new" element={<NewResumeRedirect />} />
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
+        </Route>
 
-  {/* Remove legacy client builder/dashboard nested routes to avoid shadowing */}
-
-  {/* Legacy redirect from old client builder path */}
-  <Route path="/dashboard/resume-builder/*" element={<Navigate replace to="/dashboard" />} />
+        {/* Client builder route (protected) */}
+        <Route element={<RequireAuth><ClientProviders /></RequireAuth>}>
+          <Route path={ROUTES.BUILDER} element={<ClientDashboardLayout />}>
+            <Route path=":id" element={<BuilderPage />} />
+            <Route index element={<Navigate replace to="/dashboard/resumes" />} />
+          </Route>
+        </Route>
 
   {/* Legacy redirect from old client dashboard path */}
-  <Route path="/dashboard/client/*" element={<Navigate replace to="/dashboard" />} />
+  <Route path="/dashboard/client/*" element={<Navigate replace to="/dashboard/resumes" />} />
 
         {/* Catch all - redirect to landing page */}
           <Route path="*" element={<Navigate to={ROUTES.ROOT} replace />} />
@@ -149,7 +154,7 @@ if (!rootElement) {
         </ErrorBoundary>
       </StrictMode>
     );
-  console.log('JobRaker app rendered successfully', { version: (globalThis as any).appVersion, commit: (globalThis as any).commitHash });
+    console.log('JobRaker app rendered successfully');
   } catch (error) {
     console.error('Failed to render app:', error);
     rootElement.innerHTML = '<div style="color: red; padding: 20px;">Failed to render JobRaker app. Check console for details.</div>';

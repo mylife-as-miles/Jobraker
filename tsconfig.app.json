@@ -77,8 +77,6 @@
   ],
   "exclude": [
   // Legacy client subtree merged into main app and not compiled
-  "src/resume-builder/**",
-  // Exclude removed client dashboard subtree
-  "src/client/pages/dashboard/**"
+  "src/resume-builder/**"
   ]
 }
