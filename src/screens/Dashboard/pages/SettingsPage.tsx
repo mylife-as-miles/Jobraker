@@ -885,6 +885,7 @@ export const SettingsPage = (): JSX.Element => {
                   </div>
                   <Button 
                     className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                    onClick={() => { window.location.href = '/pricing'; }}
                   >
                     Upgrade to Premium
                   </Button>

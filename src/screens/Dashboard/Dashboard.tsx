@@ -231,6 +231,7 @@ export const Dashboard = (): JSX.Element => {
                 <Button 
                   size="sm" 
                   className="bg-black text-white hover:bg-black/90 hover:scale-105 transition-all duration-300 text-xs sm:text-sm w-full"
+                  onClick={() => { window.location.href = '/pricing'; }}
                 >
                   <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                   Upgrade

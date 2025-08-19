@@ -22,6 +22,7 @@ import { ROUTES } from "./routes";
 import { PublicResumePage } from "./client/pages/public/page";
 import { Providers as ClientProviders } from "./client/providers";
 import { Dashboard } from "./screens/Dashboard";
+import { PricingPage } from "./screens/Pricing";
 
 // Error boundary component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
@@ -69,6 +70,9 @@ function App() {
 
         {/* Login Page */}
           <Route path={ROUTES.LOGIN} element={<PublicOnly><Login /></PublicOnly>} />
+
+        {/* Pricing Page */}
+          <Route path={ROUTES.PRICING} element={<PublicOnly><PricingPage /></PublicOnly>} />
 
         {/* Password Reset (Supabase email link target) */}
           <Route path="/reset-password" element={<PublicOnly><PasswordReset /></PublicOnly>} />

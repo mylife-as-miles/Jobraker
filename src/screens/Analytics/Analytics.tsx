@@ -85,6 +85,13 @@ export const Analytics = (): JSX.Element => {
                 </div>
                 <h3 className="text-white font-bold text-lg mb-2">Go Premium</h3>
                 <p className="text-white/80 text-sm mb-4">Get incredible benefits that put you ahead</p>
+                <Button 
+                  size="sm"
+                  onClick={() => { window.location.href = '/pricing'; }}
+                  className="bg-black text-white hover:bg-black/90 hover:scale-105 transition-all duration-300"
+                >
+                  View Pricing
+                </Button>
               </div>
             </CardContent>
           </Card>
