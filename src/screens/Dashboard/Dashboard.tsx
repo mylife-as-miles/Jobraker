@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { 
@@ -17,45 +18,24 @@ import {
   Briefcase
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { AnalyticsContent } from "../../components/analytics/AnalyticsContent";
 import { useProfileSettings } from "../../hooks/useProfileSettings";
 import { createClient } from "../../lib/supabaseClient";
 
-// Import sub-page components
-import { OverviewPage } from "./pages/OverviewPage";
-import { ChatPage } from "./pages/ChatPage";
-import { ResumePage } from "./pages/ResumePage";
-import { JobPage } from "./pages/JobPage";
-import { ApplicationPage } from "./pages/ApplicationPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { NotificationPage } from "./pages/NotificationPage";
-import ProfilePage from "./pages/ProfilePage";
-
-type DashboardPage = 
-  | "overview" 
-  | "analytics" 
-  | "chat" 
-  | "resume" 
-  | "jobs" 
-  | "application" 
-  | "settings" 
-  | "notifications" 
-  | "profile";
-
 interface NavigationItem {
-  id: DashboardPage;
+  id: string;
   label: string;
   icon: React.ReactNode;
   path: string;
 }
 
 export const Dashboard = (): JSX.Element => {
-  const [currentPage, setCurrentPage] = useState<DashboardPage>("resume");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { profile } = useProfileSettings();
   const supabase = useMemo(() => createClient(), []);
   const [email, setEmail] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const location = useLocation();
+
   const initials = useMemo(() => {
     const a = (profile?.first_name || '').trim();
     const b = (profile?.last_name || '').trim();
@@ -94,68 +74,44 @@ export const Dashboard = (): JSX.Element => {
       id: "overview",
       label: "Dashboard",
       icon: <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />,
-      path: "Dashboard"
+      path: "/dashboard/overview"
     },
     {
       id: "chat",
       label: "Chat",
       icon: <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />,
-      path: "Dashboard / Chat"
+      path: "/dashboard/chat"
     },
     {
       id: "resume",
       label: "Resume",
       icon: <FileText className="w-4 h-4 sm:w-5 sm:h-5" />,
-      path: "Dashboard / Resume"
+      path: "/dashboard/resume"
     },
     {
       id: "jobs",
       label: "Jobs",
       icon: <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" />,
-      path: "Dashboard / Jobs"
+      path: "/dashboard/jobs"
     },
     {
       id: "application",
       label: "Application",
       icon: <Users className="w-4 h-4 sm:w-5 sm:h-5" />,
-      path: "Dashboard / Application"
+      path: "/dashboard/application"
     },
     {
       id: "analytics",
       label: "Analytics",
       icon: <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />,
-      path: "Dashboard / Analytics"
+      path: "/dashboard/analytics"
     }
   ];
 
   const getCurrentBreadcrumb = () => {
-    const currentItem = navigationItems.find(item => item.id === currentPage);
-    return currentItem?.path || "Dashboard";
-  };
-
-  const renderPageContent = () => {
-    switch (currentPage) {
-      case "overview":
-        return <OverviewPage />;
-      case "analytics":
-        return <AnalyticsContent />;
-      case "chat":
-        return <ChatPage />;
-      case "resume":
-        return <ResumePage />;
-      case "jobs":
-        return <JobPage />;
-      case "application":
-        return <ApplicationPage />;
-      case "settings":
-        return <SettingsPage />;
-      case "notifications":
-        return <NotificationPage />;
-      case "profile":
-        return <ProfilePage />;
-      default:
-        return <OverviewPage />;
-    }
+    const currentPath = location.pathname;
+    const currentItem = navigationItems.find(item => item.path === currentPath);
+    return currentItem ? `Dashboard / ${currentItem.label}`: "Dashboard";
   };
 
   return (
@@ -198,22 +154,21 @@ export const Dashboard = (): JSX.Element => {
         <nav className="flex-1 p-2 sm:p-3 lg:p-4 overflow-y-auto">
           <div className="space-y-1 sm:space-y-2">
             {navigationItems.map((item) => (
-        <Button
+              <NavLink
                 key={item.id}
-                variant="ghost"
-                onClick={() => {
-                  setCurrentPage(item.id);
-                  setSidebarOpen(false);
-                }}
-                className={`w-full justify-start rounded-xl transition-colors duration-200 text-xs sm:text-sm lg:text-base px-3 py-2 sm:px-4 sm:py-3 h-auto ${
-                  currentPage === item.id
-                    ? "text-white bg-[#1dff00]/10 border border-[#1dff00]/30 shadow-[0_0_20px_rgba(29,255,0,0.15)]"
-                    : "text-[#a3a3a3] hover:text-white hover:bg-white/10"
-                }`}
+                to={item.path}
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `w-full justify-start rounded-xl transition-colors duration-200 text-xs sm:text-sm lg:text-base px-3 py-2 sm:px-4 sm:py-3 h-auto flex items-center ${
+                    isActive
+                      ? "text-white bg-[#1dff00]/10 border border-[#1dff00]/30 shadow-[0_0_20px_rgba(29,255,0,0.15)]"
+                      : "text-[#a3a3a3] hover:text-white hover:bg-white/10"
+                  }`
+                }
               >
                 {item.icon}
                 <span className="ml-2 sm:ml-3 lg:ml-4">{item.label}</span>
-              </Button>
+              </NavLink>
             ))}
           </div>
         </nav>
@@ -279,65 +234,69 @@ export const Dashboard = (): JSX.Element => {
             {/* Header Actions - Responsive */}
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0 whitespace-nowrap">
               {/* Quick Actions */}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 hidden sm:flex p-1 sm:p-2"
-                onClick={() => setCurrentPage("settings")}
-              >
-                <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
-              </Button>
+              <NavLink to="/dashboard/settings">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 hidden sm:flex p-1 sm:p-2"
+                >
+                  <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
+                </Button>
+              </NavLink>
               
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 relative p-1 sm:p-2"
-                onClick={() => setCurrentPage("notifications")}
-              >
-                <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 bg-[#1dff00] rounded-full text-black text-[10px] font-bold flex items-center justify-center animate-pulse">
-                  <span className="hidden sm:inline text-xs">3</span>
-                  <span className="sm:hidden">•</span>
-                </span>
-              </Button>
+              <NavLink to="/dashboard/notifications">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 relative p-1 sm:p-2"
+                >
+                  <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 bg-[#1dff00] rounded-full text-black text-[10px] font-bold flex items-center justify-center animate-pulse">
+                    <span className="hidden sm:inline text-xs">3</span>
+                    <span className="sm:hidden">•</span>
+                  </span>
+                </Button>
+              </NavLink>
               
               {/* Profile Button - Responsive */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="hidden sm:flex items-center space-x-2 sm:space-x-3 text-[#888888] hover:text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 p-1 sm:p-2"
-                onClick={() => setCurrentPage("profile")}
-              >
-                <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300">
-                  {avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-black font-bold text-xs sm:text-sm lg:text-base">{initials}</span>
-                  )}
-                </div>
-                <div className="text-right hidden lg:block max-w-[200px] overflow-hidden">
-                  <p className="text-white font-medium text-xs sm:text-sm truncate">{`${(profile?.first_name || '').trim()} ${(profile?.last_name || '').trim()}`.trim() || 'Your Name'}</p>
-                  <p className="text-[#666666] text-xs truncate">{email || 'your@email'}</p>
-                </div>
-              </Button>
+              <NavLink to="/dashboard/profile">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden sm:flex items-center space-x-2 sm:space-x-3 text-[#888888] hover:text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 p-1 sm:p-2"
+                >
+                  <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300">
+                    {avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-black font-bold text-xs sm:text-sm lg:text-base">{initials}</span>
+                    )}
+                  </div>
+                  <div className="text-right hidden lg:block max-w-[200px] overflow-hidden">
+                    <p className="text-white font-medium text-xs sm:text-sm truncate">{`${(profile?.first_name || '').trim()} ${(profile?.last_name || '').trim()}`.trim() || 'Your Name'}</p>
+                    <p className="text-[#666666] text-xs truncate">{email || 'your@email'}</p>
+                  </div>
+                </Button>
+              </NavLink>
               
               {/* Mobile profile button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="sm:hidden text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 p-1"
-                onClick={() => setCurrentPage("profile")}
-              >
-                <div className="w-6 h-6 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center">
-                  {avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-black font-bold text-xs">{initials}</span>
-                  )}
-                </div>
-              </Button>
+              <NavLink to="/dashboard/profile">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="sm:hidden text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 p-1"
+                >
+                  <div className="w-6 h-6 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center">
+                    {avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-black font-bold text-xs">{initials}</span>
+                    )}
+                  </div>
+                </Button>
+              </NavLink>
             </div>
           </div>
         </header>
@@ -345,14 +304,14 @@ export const Dashboard = (): JSX.Element => {
         {/* Page Content - Responsive */}
         <div className="flex-1 overflow-auto">
           <motion.div
-            key={currentPage}
+            key={location.pathname}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
             className="h-full"
           >
-            {renderPageContent()}
+            <Outlet />
           </motion.div>
         </div>
       </div>

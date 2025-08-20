@@ -2,15 +2,21 @@ import { createBrowserRouter, createRoutesFromElements, Navigate, Route } from "
 
 import { BuilderLayout } from "../pages/builder/layout";
 import { builderLoader, BuilderPage } from "../pages/builder/page";
-import { DashboardLayout } from "../pages/dashboard/layout";
-import { ResumesPage } from "../pages/dashboard/resumes/page";
-import { SettingsPage } from "../pages/dashboard/settings/page";
 import { HomeLayout } from "../pages/home/layout";
 import { HomePage } from "../pages/home/page";
 import { ErrorPage } from "../pages/public/error";
 import { publicLoader, PublicResumePage } from "../pages/public/page";
 import { Providers } from "../providers";
-// Auth-related routes and guards removed; main app handles auth (Supabase)
+import { Dashboard } from "../../screens/Dashboard";
+import { ApplicationPage } from "../../screens/Dashboard/pages/ApplicationPage";
+import { ChatPage } from "../../screens/Dashboard/pages/ChatPage";
+import { JobPage } from "../../screens/Dashboard/pages/JobPage";
+import { NotificationPage } from "../../screens/Dashboard/pages/NotificationPage";
+import { OverviewPage } from "../../screens/Dashboard/pages/OverviewPage";
+import { ProfilePage } from "../../screens/Dashboard/pages/ProfilePage";
+import { ResumePage } from "../../screens/Dashboard/pages/ResumePage";
+import { SettingsPage } from "../../screens/Dashboard/pages/SettingsPage";
+import { AnalyticsContent } from "../../components/analytics/AnalyticsContent";
 
 export const routes = createRoutesFromElements(
   <Route element={<Providers />}>
@@ -19,15 +25,17 @@ export const routes = createRoutesFromElements(
         <Route path="/" element={<HomePage />} />
       </Route>
 
-  {/* Auth routes removed; handled by main app */}
-
-      <Route path="dashboard">
-        <Route element={<DashboardLayout />}>
-          <Route path="resumes" element={<ResumesPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-
-          <Route index element={<Navigate replace to="/dashboard/resumes" />} />
-        </Route>
+      <Route path="/dashboard" element={<Dashboard />}>
+        <Route index element={<Navigate replace to="/dashboard/resume" />} />
+        <Route path="overview" element={<OverviewPage />} />
+        <Route path="analytics" element={<AnalyticsContent />} />
+        <Route path="chat" element={<ChatPage />} />
+        <Route path="resume" element={<ResumePage />} />
+        <Route path="jobs" element={<JobPage />} />
+        <Route path="application" element={<ApplicationPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="notifications" element={<NotificationPage />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
 
       <Route path="builder">

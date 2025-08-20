@@ -19,7 +19,6 @@ import { Providers } from "./providers";
 import { ROUTES } from "./routes";
 // Client pages imported from merged client app
 import { PublicResumePage } from "./client/pages/public/page";
-import { DashboardLayout as ClientDashboardLayout } from "./client/pages/dashboard/layout";
 import { ResumesPage } from "./client/pages/dashboard/resumes/page";
 import NewResumeRedirect from "./client/pages/dashboard/resumes/new";
 import { SettingsPage } from "./client/pages/dashboard/settings/page";
@@ -103,18 +102,9 @@ function App() {
         {/* Optionally expose client HomePage at root if desired (keep behind PublicOnly) */}
         {/* <Route path="/client" element={<PublicOnly><HomePage /></PublicOnly>} /> */}
 
-        {/* Client dashboard routes unified under /dashboard to simplify structure */}
-        <Route element={<RequireAuth><ClientProviders /></RequireAuth>}>
-          <Route path="/dashboard" element={<ClientDashboardLayout />}>
-            <Route path="resumes" element={<ResumesPage />} />
-            <Route path="resumes/new" element={<NewResumeRedirect />} />
-            <Route path="settings" element={<SettingsPage />} />
-          </Route>
-        </Route>
-
         {/* Client builder route (protected) */}
         <Route element={<RequireAuth><ClientProviders /></RequireAuth>}>
-          <Route path={ROUTES.BUILDER} element={<ClientDashboardLayout />}>
+          <Route path={ROUTES.BUILDER} element={<BuilderPage />}>
             <Route path=":id" element={<BuilderPage />} />
             <Route index element={<Navigate replace to="/dashboard/resumes" />} />
           </Route>
