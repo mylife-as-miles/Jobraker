@@ -104,7 +104,7 @@ export function MatchScoreAnalytics() {
           >
             {metrics.matchScore}%
           </motion.div>
-          <p className="text-sm text-white/70 leading-relaxed">Ratio of jobs found to jobs successfully applied</p>
+          <p className="text-sm text-white/70 leading-relaxed">An average of how well your profile matches available jobs.</p>
         </div>
 
         <div className="flex-1 min-h-0">
