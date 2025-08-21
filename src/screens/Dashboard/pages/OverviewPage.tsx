@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import MatchScoreAnalytics from "../../../components/analytics/MatchScoreAnalytics";
+import { MatchScoreAnalytics } from "../../../components/analytics/MatchScoreAnalytics";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
