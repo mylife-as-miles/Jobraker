@@ -3,8 +3,12 @@ import { createBrowserRouter, createRoutesFromElements, Navigate, Route } from "
 import { BuilderLayout } from "../pages/builder/layout";
 import { builderLoader, BuilderPage } from "../pages/builder/page";
 import { DashboardLayout } from "../pages/dashboard/layout";
-import { ResumesPage } from "../pages/dashboard/resumes/page";
-import { SettingsPage } from "../pages/dashboard/settings/page";
+import { ApplicationPage } from "../../screens/Dashboard/pages/ApplicationPage";
+import { JobPage } from "../../screens/Dashboard/pages/JobPage";
+import { OverviewPage } from "../../screens/Dashboard/pages/OverviewPage";
+import { ProfilePage } from "../../screens/Dashboard/pages/ProfilePage";
+import { ResumePage } from "../../screens/Dashboard/pages/ResumePage";
+import { SettingsPage } from "../../screens/Dashboard/pages/SettingsPage";
 import { HomeLayout } from "../pages/home/layout";
 import { HomePage } from "../pages/home/page";
 import { ErrorPage } from "../pages/public/error";
@@ -23,10 +27,14 @@ export const routes = createRoutesFromElements(
 
       <Route path="dashboard">
         <Route element={<DashboardLayout />}>
-          <Route path="resumes" element={<ResumesPage />} />
+          <Route path="overview" element={<OverviewPage />} />
+          <Route path="applications" element={<ApplicationPage />} />
+          <Route path="resumes" element={<ResumePage />} />
+          <Route path="jobs" element={<JobPage />} />
+          <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<SettingsPage />} />
 
-          <Route index element={<Navigate replace to="/dashboard/resumes" />} />
+          <Route index element={<Navigate replace to="/dashboard/applications" />} />
         </Route>
       </Route>
 
@@ -34,7 +42,7 @@ export const routes = createRoutesFromElements(
         <Route element={<BuilderLayout />}>
           <Route path=":id" loader={builderLoader} element={<BuilderPage />} />
 
-          <Route index element={<Navigate replace to="/dashboard/resumes" />} />
+          <Route index element={<Navigate replace to="/dashboard/applications" />} />
         </Route>
       </Route>
 
