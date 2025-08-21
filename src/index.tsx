@@ -19,7 +19,7 @@ import { Providers } from "./providers";
 import { ROUTES } from "./routes";
 // Client pages imported from merged client app
 import { PublicResumePage } from "./client/pages/public/page";
-import { DashboardLayout as ClientDashboardLayout } from "./client/pages/dashboard/layout";
+import { Dashboard as ClientDashboardLayout } from "./screens/Dashboard";
 import { ResumesPage } from "./client/pages/dashboard/resumes/page";
 import NewResumeRedirect from "./client/pages/dashboard/resumes/new";
 import { SettingsPage } from "./client/pages/dashboard/settings/page";
