@@ -19,6 +19,7 @@ export interface ApplicationRecord {
   logo: string | null;
   created_at: string;
   updated_at: string;
+  match_score?: number;
 }
 
 type CreateInput = Partial<Omit<ApplicationRecord, "id" | "user_id" | "created_at" | "updated_at">> & {
@@ -61,7 +62,12 @@ export function useApplications() {
         .eq("user_id", userId)
         .order("updated_at", { ascending: false });
       if (error) throw error;
-      setApplications((data ?? []) as ApplicationRecord[]);
+      // HACK: Add mock match score for demo purposes
+      const applicationsWithScores = ((data ?? []) as ApplicationRecord[]).map(app => ({
+        ...app,
+        match_score: Math.floor(Math.random() * (98 - 70 + 1) + 70) // Random score between 70-98
+      }));
+      setApplications(applicationsWithScores);
     } catch (e: any) {
       const msg = e.message || "Failed to load applications";
       setError(msg);

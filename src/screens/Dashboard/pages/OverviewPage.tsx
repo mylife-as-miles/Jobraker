@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import MatchScoreAnalytics from "../../../components/analytics/MatchScoreAnalytics";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
@@ -162,7 +163,7 @@ export const OverviewPage = (): JSX.Element => {
               </Card>
             </motion.div>
 
-            {/* Match Score Card */}
+            {/* Match Score Analytics Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -171,51 +172,10 @@ export const OverviewPage = (): JSX.Element => {
               className="transition-transform duration-300"
             >
               <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
-                <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Match Score Average</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Recent Match Scores</h2>
                 </div>
-
-                <div className="mb-4 sm:mb-6">
-                  <motion.div 
-                    className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-black text-[#1dff00] mb-2 drop-shadow-lg"
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    56%
-                  </motion.div>
-                  <p className="text-xs sm:text-sm lg:text-base text-[#888888] leading-relaxed">Ratio of jobs found to jobs successfully applied</p>
-                </div>
-
-                {/* Bar Chart */}
-                <div className="flex items-end justify-between h-24 sm:h-28 lg:h-32 xl:h-36 space-x-2 sm:space-x-4">
-                  <motion.div 
-                    className="flex flex-col items-center space-y-1 sm:space-y-2 flex-1"
-                    whileHover={{ scale: 1.1 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    <div className="w-full max-w-[40px] sm:max-w-[48px] lg:max-w-[56px] bg-gradient-to-t from-[#3B82F6] to-[#60A5FA] rounded-t-lg hover:shadow-lg transition-shadow duration-300" style={{ height: '60px' }}></div>
-                    <div className="text-xs sm:text-sm font-bold text-[#1dff00]">104</div>
-                    <div className="text-xs text-[#666666] text-center leading-tight">Jobs found</div>
-                  </motion.div>
-                  <motion.div 
-                    className="flex flex-col items-center space-y-1 sm:space-y-2 flex-1"
-                    whileHover={{ scale: 1.1 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    <div className="w-full max-w-[40px] sm:max-w-[48px] lg:max-w-[56px] bg-gradient-to-t from-[#1dff00] to-[#4ade80] rounded-t-lg hover:shadow-lg transition-shadow duration-300" style={{ height: '35px' }}></div>
-                    <div className="text-xs sm:text-sm font-bold text-[#1dff00]">58</div>
-                    <div className="text-xs text-[#666666] text-center leading-tight">Applications</div>
-                  </motion.div>
-                  <motion.div 
-                    className="flex flex-col items-center space-y-1 sm:space-y-2 flex-1"
-                    whileHover={{ scale: 1.1 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    <div className="w-full max-w-[40px] sm:max-w-[48px] lg:max-w-[56px] bg-gradient-to-t from-[#F59E0B] to-[#FCD34D] rounded-t-lg hover:shadow-lg transition-shadow duration-300" style={{ height: '10px' }}></div>
-                    <div className="text-xs sm:text-sm font-bold text-[#1dff00]">15</div>
-                    <div className="text-xs text-[#666666] text-center leading-tight">Interviews</div>
-                  </motion.div>
-                </div>
+                <MatchScoreAnalytics />
               </Card>
             </motion.div>
           </div>

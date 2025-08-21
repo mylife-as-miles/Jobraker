@@ -1,4 +1,5 @@
 import { useState } from "react";
+import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
@@ -70,6 +71,9 @@ export const ApplicationPage = (): JSX.Element => {
     const matchesStatus = selectedStatus === "All" || app.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
+
+  // Sort by match score descending
+  filteredApplications.sort((a, b) => (b.match_score ?? 0) - (a.match_score ?? 0));
 
   const stats = {
     total: applications.length,
@@ -231,11 +235,14 @@ export const ApplicationPage = (): JSX.Element => {
                     
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
                       <div className="flex items-center justify-between w-full sm:w-auto sm:flex-col sm:items-end gap-2">
-                        <span className="text-[#1dff00] font-semibold text-sm sm:text-base">{application.salary ?? ""}</span>
-                        <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(application.status)}`}>
-                          {getStatusIcon(application.status)}
-                          <span>{application.status}</span>
+                        <div className="flex items-center gap-2">
+                           <MatchScoreBadge score={application.match_score ?? 0} />
+                           <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(application.status)}`}>
+                            {getStatusIcon(application.status)}
+                            <span>{application.status}</span>
+                          </div>
                         </div>
+                        <span className="text-[#1dff00] font-semibold text-sm sm:text-base">{application.salary ?? ""}</span>
                       </div>
                       
                       <div className="flex items-center space-x-1 sm:space-x-2">
