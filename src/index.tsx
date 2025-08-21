@@ -22,7 +22,7 @@ import { PublicResumePage } from "./client/pages/public/page";
 import { Dashboard as ClientDashboardLayout } from "./screens/Dashboard";
 import { ResumesPage } from "./client/pages/dashboard/resumes/page";
 import NewResumeRedirect from "./client/pages/dashboard/resumes/new";
-import { SettingsPage } from "./client/pages/dashboard/settings/page";
+import { SettingsPage } from "./screens/Dashboard/pages/SettingsPage";
 import { BuilderPage } from "./client/pages/builder/page";
 import { Providers as ClientProviders } from "./client/providers";
 
