@@ -18,6 +18,8 @@ import {
   Users
 } from "lucide-react";
 import { motion } from "framer-motion";
+import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
+import MatchScoreBreakdown from "../../../components/jobs/MatchScoreBreakdown";
 
 interface Job {
   id: string;
@@ -34,13 +36,15 @@ interface Job {
   isApplied: boolean;
   matchScore: number;
   logo: string;
+  matchedSkills: string[];
+  missingSkills: string[];
 }
 
 export const JobPage = (): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedType, setSelectedType] = useState("All");
-  const [selectedJob, setSelectedJob] = useState<string | null>(null);
+  const [selectedJob, setSelectedJob] = useState<string | null>("1");
 
   const jobs: Job[] = [
     {
@@ -57,7 +61,9 @@ export const JobPage = (): JSX.Element => {
       isBookmarked: true,
       isApplied: false,
       matchScore: 95,
-      logo: "G"
+      logo: "G",
+      matchedSkills: ["React/TypeScript", "Node.js", "System Design"],
+      missingSkills: ["Kubernetes", "GCP"]
     },
     {
       id: "2",
@@ -73,7 +79,9 @@ export const JobPage = (): JSX.Element => {
       isBookmarked: false,
       isApplied: true,
       matchScore: 88,
-      logo: "M"
+      logo: "M",
+      matchedSkills: ["React", "JavaScript", "CSS"],
+      missingSkills: ["Figma"]
     },
     {
       id: "3",
@@ -89,7 +97,9 @@ export const JobPage = (): JSX.Element => {
       isBookmarked: true,
       isApplied: false,
       matchScore: 92,
-      logo: "F"
+      logo: "F",
+      matchedSkills: ["React", "Python", "GraphQL"],
+      missingSkills: ["AWS"]
     },
     {
       id: "4",
@@ -105,15 +115,11 @@ export const JobPage = (): JSX.Element => {
       isBookmarked: false,
       isApplied: false,
       matchScore: 78,
-      logo: "A"
+      logo: "A",
+      matchedSkills: ["Swift", "iOS SDK"],
+      missingSkills: ["SwiftUI", "Objective-C"]
     }
   ];
-
-  const getMatchScoreColor = (score: number) => {
-    if (score >= 90) return "text-green-400 bg-green-400/20 border-green-400/30";
-    if (score >= 75) return "text-yellow-400 bg-yellow-400/20 border-yellow-400/30";
-    return "text-red-400 bg-red-400/20 border-red-400/30";
-  };
 
   const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -287,9 +293,7 @@ export const JobPage = (): JSX.Element => {
                           <DollarSign className="w-4 h-4 text-[#1dff00]" />
                           <span className="text-sm sm:text-base text-white font-semibold">{job.salary}</span>
                         </div>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getMatchScoreColor(job.matchScore)}`}>
-                          {job.matchScore}% match
-                        </span>
+                          <MatchScoreBadge score={job.matchScore} />
                       </div>
                       
                       <div className="flex items-center space-x-2">
@@ -370,9 +374,7 @@ export const JobPage = (): JSX.Element => {
                               <DollarSign className="w-5 h-5 text-[#1dff00]" />
                               <span className="text-xl font-bold text-white">{job.salary}</span>
                             </div>
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getMatchScoreColor(job.matchScore)}`}>
-                              {job.matchScore}% match
-                            </span>
+                            <MatchScoreBadge score={job.matchScore} size="md" />
                           </div>
                           
                           <div className="flex items-center space-x-3 w-full sm:w-auto">
@@ -394,6 +396,8 @@ export const JobPage = (): JSX.Element => {
 
                       {/* Job Content */}
                       <div className="space-y-6">
+                        <MatchScoreBreakdown matched={job.matchedSkills} missing={job.missingSkills} />
+
                         {/* Description */}
                         <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg transition-all duration-300">
                           <h3 className="text-lg font-bold text-white mb-3 flex items-center">
