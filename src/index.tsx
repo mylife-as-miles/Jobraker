@@ -17,14 +17,6 @@ import { BuilderLayout } from "./pages/builder";
 import { PreviewLayout } from "./pages/preview";
 import { Providers } from "./providers";
 import { ROUTES } from "./routes";
-// Client pages imported from merged client app
-import { PublicResumePage } from "./client/pages/public/page";
-import { Dashboard as ClientDashboardLayout } from "./screens/Dashboard";
-import { ResumesPage } from "./client/pages/dashboard/resumes/page";
-import NewResumeRedirect from "./client/pages/dashboard/resumes/new";
-import { SettingsPage } from "./screens/Dashboard/pages/SettingsPage";
-import { BuilderPage } from "./client/pages/builder/page";
-import { Providers as ClientProviders } from "./client/providers";
 
 // Error boundary component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
@@ -93,35 +85,6 @@ function App() {
             </Route>
         </Route>
 
-        {/* Client public resume routes (/:username/:slug) */}
-        <Route element={<ClientProviders />}>
-          <Route path=":username">
-            <Route path=":slug" element={<PublicResumePage />} />
-          </Route>
-        </Route>
-
-        {/* Optionally expose client HomePage at root if desired (keep behind PublicOnly) */}
-        {/* <Route path="/client" element={<PublicOnly><HomePage /></PublicOnly>} /> */}
-
-        {/* Client dashboard routes unified under /dashboard to simplify structure */}
-        <Route element={<RequireAuth><ClientProviders /></RequireAuth>}>
-          <Route path="/dashboard" element={<ClientDashboardLayout />}>
-            <Route path="resumes" element={<ResumesPage />} />
-            <Route path="resumes/new" element={<NewResumeRedirect />} />
-            <Route path="settings" element={<SettingsPage />} />
-          </Route>
-        </Route>
-
-        {/* Client builder route (protected) */}
-        <Route element={<RequireAuth><ClientProviders /></RequireAuth>}>
-          <Route path={ROUTES.BUILDER} element={<ClientDashboardLayout />}>
-            <Route path=":id" element={<BuilderPage />} />
-            <Route index element={<Navigate replace to="/dashboard/resumes" />} />
-          </Route>
-        </Route>
-
-  {/* Legacy redirect from old client dashboard path */}
-  <Route path="/dashboard/client/*" element={<Navigate replace to="/dashboard/resumes" />} />
 
         {/* Catch all - redirect to landing page */}
           <Route path="*" element={<Navigate to={ROUTES.ROOT} replace />} />
