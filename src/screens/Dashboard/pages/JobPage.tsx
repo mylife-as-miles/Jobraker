@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
@@ -15,18 +15,21 @@ import {
   Star,
   Building2,
   DollarSign,
-  Users
+  Users,
+  Upload
 } from "lucide-react";
 import { motion } from "framer-motion";
 import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
 import MatchScoreBreakdown from "../../../components/jobs/MatchScoreBreakdown";
+import { createClient } from "../../../lib/supabaseClient";
+import { CandidateProfile } from "../../../../supabase/functions/_shared/types";
 
 interface Job {
   id: string;
   title: string;
   company: string;
   location: string;
-  type: "Full-time" | "Part-time" | "Contract" | "Remote";
+  type: "Full-time" | "Part-time" | "Contract" | "Remote" | "Hybrid" | "On-site";
   salary: string;
   postedDate: string;
   description: string;
@@ -38,88 +41,83 @@ interface Job {
   logo: string;
   matchedSkills: string[];
   missingSkills: string[];
+  experience_level: string;
+  source_url: string;
 }
+
+const supabase = createClient();
 
 export const JobPage = (): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedType, setSelectedType] = useState("All");
-  const [selectedJob, setSelectedJob] = useState<string | null>("1");
+  const [selectedJob, setSelectedJob] = useState<string | null>(null);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [candidateProfile, setCandidateProfile] = useState<CandidateProfile | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const jobs: Job[] = [
-    {
-      id: "1",
-      title: "Senior Software Engineer",
-      company: "Google",
-      location: "Mountain View, CA",
-      type: "Full-time",
-      salary: "$150,000 - $200,000",
-      postedDate: "2 days ago",
-      description: "We're looking for a Senior Software Engineer to join our team and help build the next generation of our products.",
-      requirements: ["5+ years of experience", "React/TypeScript", "Node.js", "System Design"],
-      benefits: ["Health Insurance", "401k", "Stock Options", "Remote Work"],
-      isBookmarked: true,
-      isApplied: false,
-      matchScore: 95,
-      logo: "G",
-      matchedSkills: ["React/TypeScript", "Node.js", "System Design"],
-      missingSkills: ["Kubernetes", "GCP"]
-    },
-    {
-      id: "2",
-      title: "Frontend Developer",
-      company: "Microsoft",
-      location: "Seattle, WA",
-      type: "Full-time",
-      salary: "$120,000 - $160,000",
-      postedDate: "1 day ago",
-      description: "Join our frontend team to create amazing user experiences for millions of users worldwide.",
-      requirements: ["3+ years of experience", "React", "JavaScript", "CSS"],
-      benefits: ["Health Insurance", "Flexible Hours", "Learning Budget"],
-      isBookmarked: false,
-      isApplied: true,
-      matchScore: 88,
-      logo: "M",
-      matchedSkills: ["React", "JavaScript", "CSS"],
-      missingSkills: ["Figma"]
-    },
-    {
-      id: "3",
-      title: "Full Stack Developer",
-      company: "Meta",
-      location: "Menlo Park, CA",
-      type: "Remote",
-      salary: "$130,000 - $180,000",
-      postedDate: "3 days ago",
-      description: "Build scalable applications that connect billions of people around the world.",
-      requirements: ["4+ years of experience", "React", "Python", "GraphQL"],
-      benefits: ["Health Insurance", "Stock Options", "Gym Membership"],
-      isBookmarked: true,
-      isApplied: false,
-      matchScore: 92,
-      logo: "F",
-      matchedSkills: ["React", "Python", "GraphQL"],
-      missingSkills: ["AWS"]
-    },
-    {
-      id: "4",
-      title: "iOS Developer",
-      company: "Apple",
-      location: "Cupertino, CA",
-      type: "Full-time",
-      salary: "$140,000 - $190,000",
-      postedDate: "1 week ago",
-      description: "Create innovative iOS applications that delight millions of users.",
-      requirements: ["Swift", "iOS SDK", "3+ years experience", "App Store"],
-      benefits: ["Health Insurance", "Employee Discounts", "Stock Purchase Plan"],
-      isBookmarked: false,
-      isApplied: false,
-      matchScore: 78,
-      logo: "A",
-      matchedSkills: ["Swift", "iOS SDK"],
-      missingSkills: ["SwiftUI", "Objective-C"]
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const resumeText = await file.text();
+      const { data, error } = await supabase.functions.invoke('process-and-match', {
+        body: { resumeText },
+      });
+
+      if (error) throw error;
+
+      const { matchedJobs, candidateProfile } = data;
+      setCandidateProfile(candidateProfile);
+
+      const newJobs = matchedJobs.map((job: any) => {
+        const matchedSkills = candidateProfile.coreSkills.filter((skill: string) =>
+          job.required_skills?.some((req: string) => req.toLowerCase().includes(skill.toLowerCase()))
+        );
+        const missingSkills = job.required_skills?.filter((req: string) =>
+          !candidateProfile.coreSkills.some((skill: string) => req.toLowerCase().includes(skill.toLowerCase()))
+        ) || [];
+
+        return {
+          id: job.id,
+          title: job.job_title,
+          company: job.company_name,
+          location: job.location,
+          type: job.work_type || "N/A",
+          salary: "N/A",
+          postedDate: "N/A",
+          description: job.full_job_description,
+          requirements: job.required_skills || [],
+          benefits: [],
+          isBookmarked: false,
+          isApplied: false,
+          matchScore: Math.round(job.similarity * 100),
+          logo: job.company_name?.[0]?.toUpperCase() || '?',
+          matchedSkills: matchedSkills,
+          missingSkills: missingSkills,
+          experience_level: job.experience_level || "N/A",
+          source_url: job.source_url
+        };
+      });
+
+      setJobs(newJobs);
+      if (newJobs.length > 0) {
+        setSelectedJob(newJobs[0].id);
+      } else {
+        setSelectedJob(null);
+      }
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
