@@ -16,7 +16,7 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
       const { data } = await supabase.auth.getUser()
       if (!mounted) return
       if (data.user) {
-        navigate(ROUTES.DASHBOARD, { replace: true })
+        navigate(`${ROUTES.DASHBOARD}/overview`, { replace: true })
       } else {
         setChecking(false)
       }
@@ -24,7 +24,7 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
     check()
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-      if (session?.user) navigate(ROUTES.DASHBOARD, { replace: true })
+      if (session?.user) navigate(`${ROUTES.DASHBOARD}/overview`, { replace: true })
     })
 
     return () => {
