@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { 
@@ -50,7 +51,27 @@ interface NavigationItem {
 }
 
 export const Dashboard = (): JSX.Element => {
-  const [currentPage, setCurrentPage] = useState<DashboardPage>("resume");
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const pages: DashboardPage[] = [
+    "overview",
+    "analytics",
+    "chat",
+    "resume",
+    "jobs",
+    "application",
+    "settings",
+    "notifications",
+    "profile",
+  ];
+
+  const getCurrentPageFromPath = () => {
+    const path = location.pathname.split("/")[2] as DashboardPage;
+    return pages.includes(path) ? path : "overview";
+  };
+
+  const [currentPage, setCurrentPage] = useState<DashboardPage>(getCurrentPageFromPath());
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { profile } = useProfileSettings();
   const supabase = useMemo(() => createClient(), []);
@@ -88,6 +109,10 @@ export const Dashboard = (): JSX.Element => {
     const id = setInterval(load, 1000 * 60 * 8);
     return () => { active = false; clearInterval(id); };
   }, [supabase, (profile as any)?.avatar_url]);
+
+  useEffect(() => {
+    setCurrentPage(getCurrentPageFromPath());
+  }, [location.pathname]);
 
   const navigationItems: NavigationItem[] = [
     {
@@ -202,7 +227,7 @@ export const Dashboard = (): JSX.Element => {
                 key={item.id}
                 variant="ghost"
                 onClick={() => {
-                  setCurrentPage(item.id);
+                  navigate(`/dashboard/${item.id}`);
                   setSidebarOpen(false);
                 }}
                 className={`w-full justify-start rounded-xl transition-colors duration-200 text-xs sm:text-sm lg:text-base px-3 py-2 sm:px-4 sm:py-3 h-auto ${
@@ -283,7 +308,7 @@ export const Dashboard = (): JSX.Element => {
                 variant="ghost" 
                 size="sm" 
                 className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 hidden sm:flex p-1 sm:p-2"
-                onClick={() => setCurrentPage("settings")}
+                onClick={() => navigate("/dashboard/settings")}
               >
                 <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
@@ -292,7 +317,7 @@ export const Dashboard = (): JSX.Element => {
                 variant="ghost" 
                 size="sm" 
                 className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 relative p-1 sm:p-2"
-                onClick={() => setCurrentPage("notifications")}
+                onClick={() => navigate("/dashboard/notifications")}
               >
                 <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 bg-[#1dff00] rounded-full text-black text-[10px] font-bold flex items-center justify-center animate-pulse">
@@ -306,7 +331,7 @@ export const Dashboard = (): JSX.Element => {
                 variant="ghost"
                 size="sm"
                 className="hidden sm:flex items-center space-x-2 sm:space-x-3 text-[#888888] hover:text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 p-1 sm:p-2"
-                onClick={() => setCurrentPage("profile")}
+                onClick={() => navigate("/dashboard/profile")}
               >
                 <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300">
                   {avatarUrl ? (
@@ -327,7 +352,7 @@ export const Dashboard = (): JSX.Element => {
                 variant="ghost"
                 size="sm"
                 className="sm:hidden text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 p-1"
-                onClick={() => setCurrentPage("profile")}
+                onClick={() => navigate("/dashboard/profile")}
               >
                 <div className="w-6 h-6 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center">
                   {avatarUrl ? (
