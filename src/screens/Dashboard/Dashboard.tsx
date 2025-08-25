@@ -25,7 +25,15 @@ import { createClient } from "../../lib/supabaseClient";
 // Import sub-page components
 import { OverviewPage } from "./pages/OverviewPage";
 import { ChatPage } from "./pages/ChatPage";
-import { ResumePage } from "./pages/ResumePage";
+import { ResumesPage } from "../../client/pages/dashboard/resumes/page";
+import { TooltipProvider } from "@reactive-resume/ui";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { HelmetProvider } from "react-helmet-async";
+import { helmetContext } from "../../client/constants/helmet";
+import { queryClient } from "../../client/libs/query-client";
+import { DialogProvider } from "../../client/providers/dialog";
+import { LocaleProvider } from "../../client/providers/locale";
+import { ThemeProvider } from "../../client/providers/theme";
 import { JobPage } from "./pages/JobPage";
 import { ApplicationPage } from "./pages/ApplicationPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -159,6 +167,8 @@ export const Dashboard = (): JSX.Element => {
   };
 
   const renderPageContent = () => {
+    const fallbackClient = new QueryClient();
+
     switch (currentPage) {
       case "overview":
         return <OverviewPage />;
@@ -167,7 +177,21 @@ export const Dashboard = (): JSX.Element => {
       case "chat":
         return <ChatPage />;
       case "resume":
-        return <ResumePage />;
+        return (
+          <LocaleProvider>
+            <HelmetProvider context={helmetContext}>
+              <QueryClientProvider client={queryClient ?? fallbackClient}>
+                <ThemeProvider>
+                  <TooltipProvider>
+                    <DialogProvider>
+                      <ResumesPage />
+                    </DialogProvider>
+                  </TooltipProvider>
+                </ThemeProvider>
+              </QueryClientProvider>
+            </HelmetProvider>
+          </LocaleProvider>
+        );
       case "jobs":
         return <JobPage />;
       case "application":
