@@ -14,15 +14,45 @@ export const NotificationPage = (): JSX.Element => {
   const [filter, setFilter] = useState("all");
   const { items, loading, hasMore, loadMore, markRead, markAllRead, bulkMarkRead, bulkRemove, toggleStar, remove, supportsStar } = useNotifications(30);
   const notifications = useMemo(() => items.map(n => {
-    const bg = n.type === 'company' ? '#000000' : n.type === 'application' ? '#4285f4' : n.type === 'interview' ? '#1dff00' : '#1dff00';
-    const icon = n.type === 'interview'
-      ? <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: bg }}><Calendar className="w-4 h-4 text-black" /></div>
-      : n.type === 'system'
-      ? <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: bg }}><AlertCircle className="w-4 h-4 text-black" /></div>
-      : <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: bg }}>{(n.company || 'N').charAt(0).toUpperCase()}</div>;
+    const getNotificationAppearance = (
+      type: string,
+      company?: string,
+    ): { bgColor: string; icon: React.ReactNode } => {
+      switch (type) {
+        case "interview":
+          return {
+            bgColor: "#1dff00",
+            icon: <Calendar className="w-4 h-4 text-black" />,
+          };
+        case "system":
+          return {
+            bgColor: "#1dff00",
+            icon: <AlertCircle className="w-4 h-4 text-black" />,
+          };
+        case "company":
+          return {
+            bgColor: "#000000",
+            icon: <span className="text-white font-bold text-sm">{(company || "N").charAt(0).toUpperCase()}</span>,
+          };
+        case "application":
+          return {
+            bgColor: "#4285f4",
+            icon: <span className="text-white font-bold text-sm">{(company || "N").charAt(0).toUpperCase()}</span>,
+          };
+        default:
+          return {
+            bgColor: "#1dff00",
+            icon: <Bell className="w-4 h-4 text-black" />,
+          };
+      }
+    };
+
+    const { bgColor, icon } = getNotificationAppearance(n.type, n.company);
+
     return {
       id: n.id,
       type: n.type,
+      icon: <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: bgColor }}>{icon}</div>,
       title: n.title,
       message: n.message || '',
       timestamp: new Date(n.created_at).toLocaleString(),
@@ -30,7 +60,6 @@ export const NotificationPage = (): JSX.Element => {
   isStarred: !!n.is_starred,
   action_url: n.action_url,
       priority: 'medium' as const,
-      icon,
       company: n.company || undefined,
       hasDetailedContent: !!n.message,
       detailedContent: n.message || undefined,
