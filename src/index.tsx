@@ -1,5 +1,6 @@
 import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import "../tailwind.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LandingPage } from "./screens/LandingPage";
 import { JobrackerSignup } from "./screens/JobrackerSignup";
