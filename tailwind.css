@@ -102,9 +102,9 @@
     @apply bg-white/5 dark:bg-black/30 backdrop-blur-sm border border-white/10 dark:border-white/5 rounded-xl shadow-sm;
   }
   .card-hover {
-    @apply transition-all duration-300 hover:shadow-[0_0_24px_rgba(29,255,0,0.25)] hover:border-brand/40 hover:-translate-y-0.5;
+    @apply transition-all duration-300 hover:shadow-[0_0_12px_rgba(29,255,0,0.15)] hover:border-brand/40 hover:-translate-y-0.5;
   }
   .brand-glow {
-    box-shadow: 0 0 24px rgba(29, 255, 0, 0.25);
+    box-shadow: 0 0 12px rgba(29, 255, 0, 0.15);
   }
 }
