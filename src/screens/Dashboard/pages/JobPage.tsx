@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
@@ -15,21 +15,18 @@ import {
   Star,
   Building2,
   DollarSign,
-  Users,
-  Upload
+  Users
 } from "lucide-react";
 import { motion } from "framer-motion";
-import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
-import MatchScoreBreakdown from "../../../components/jobs/MatchScoreBreakdown";
 import { createClient } from "../../../lib/supabaseClient";
-import { CandidateProfile } from "../../../../supabase/functions/_shared/types";
+import { JobListing } from "../../../../supabase/functions/_shared/types";
 
-interface Job {
+interface Job extends JobListing {
   id: string;
   title: string;
   company: string;
   location: string;
-  type: "Full-time" | "Part-time" | "Contract" | "Remote" | "Hybrid" | "On-site";
+  type: "Full-time" | "Part-time" | "Contract" | "Remote" | "Hybrid" | "On-site" | "N/A";
   salary: string;
   postedDate: string;
   description: string;
@@ -37,74 +34,73 @@ interface Job {
   benefits: string[];
   isBookmarked: boolean;
   isApplied: boolean;
-  matchScore: number;
   logo: string;
-  matchedSkills: string[];
-  missingSkills: string[];
-  experience_level: string;
-  source_url: string;
 }
 
 const supabase = createClient();
 
+// A simple debounce hook
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+  return debouncedValue;
+};
+
 export const JobPage = (): JSX.Element => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedLocation, setSelectedLocation] = useState("");
+  const [searchQuery, setSearchQuery] = useState("Software Engineer");
+  const [selectedLocation, setSelectedLocation] = useState("Remote");
   const [selectedType, setSelectedType] = useState("All");
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [candidateProfile, setCandidateProfile] = useState<CandidateProfile | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  const debouncedSelectedLocation = useDebounce(selectedLocation, 500);
+
+  const performSearch = useCallback(async () => {
+    if (!debouncedSearchQuery) {
+      setJobs([]);
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      const resumeText = await file.text();
       const { data, error } = await supabase.functions.invoke('process-and-match', {
-        body: { resumeText },
+        body: {
+          searchQuery: debouncedSearchQuery,
+          location: debouncedSelectedLocation
+        },
       });
 
       if (error) throw error;
 
-      const { matchedJobs, candidateProfile } = data;
-      setCandidateProfile(candidateProfile);
+      const { matchedJobs } = data;
 
-      const newJobs = matchedJobs.map((job: any) => {
-        const matchedSkills = candidateProfile.coreSkills.filter((skill: string) =>
-          job.required_skills?.some((req: string) => req.toLowerCase().includes(skill.toLowerCase()))
-        );
-        const missingSkills = job.required_skills?.filter((req: string) =>
-          !candidateProfile.coreSkills.some((skill: string) => req.toLowerCase().includes(skill.toLowerCase()))
-        ) || [];
-
-        return {
-          id: job.id,
-          title: job.job_title,
-          company: job.company_name,
-          location: job.location,
-          type: job.work_type || "N/A",
-          salary: "N/A",
-          postedDate: "N/A",
-          description: job.full_job_description,
-          requirements: job.required_skills || [],
-          benefits: [],
+      const newJobs = matchedJobs.map((job: JobListing) => ({
+          ...job,
+          id: job.sourceUrl || `${job.jobTitle}-${job.companyName}`, // Use sourceUrl as ID
+          title: job.jobTitle,
+          company: job.companyName,
+          type: job.workType || "N/A",
+          salary: "N/A", // Not provided by scrape
+          postedDate: "N/A", // Not provided by scrape
+          description: job.fullJobDescription,
+          requirements: job.requiredSkills || [],
+          benefits: [], // Not provided by scrape
           isBookmarked: false,
           isApplied: false,
-          matchScore: Math.round(job.similarity * 100),
-          logo: job.company_name?.[0]?.toUpperCase() || '?',
-          matchedSkills: matchedSkills,
-          missingSkills: missingSkills,
-          experience_level: job.experience_level || "N/A",
-          source_url: job.source_url
-        };
-      });
+          logo: job.companyName?.[0]?.toUpperCase() || '?',
+        }));
 
       setJobs(newJobs);
       if (newJobs.length > 0) {
@@ -117,14 +113,15 @@ export const JobPage = (): JSX.Element => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearchQuery, debouncedSelectedLocation]);
+
+  useEffect(() => {
+    performSearch();
+  }, [performSearch]);
 
   const filteredJobs = jobs.filter(job => {
-    const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         job.company.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesLocation = !selectedLocation || job.location.toLowerCase().includes(selectedLocation.toLowerCase());
     const matchesType = selectedType === "All" || job.type === selectedType;
-    return matchesSearch && matchesLocation && matchesType;
+    return matchesType;
   });
 
   return (
@@ -207,7 +204,7 @@ export const JobPage = (): JSX.Element => {
           <div className="space-y-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg sm:text-xl font-semibold text-white">
-                {filteredJobs.length} Jobs Found
+                {loading ? "Searching..." : `${filteredJobs.length} Jobs Found`}
               </h2>
               <div className="flex items-center space-x-2 text-sm text-[#ffffff80]">
                 <span>Sort by:</span>
@@ -217,7 +214,10 @@ export const JobPage = (): JSX.Element => {
               </div>
             </div>
 
-            {filteredJobs.map((job, index) => (
+            {loading && <p className="text-white">Loading jobs...</p>}
+            {error && <p className="text-red-500">{error}</p>}
+
+            {!loading && !error && filteredJobs.map((job, index) => (
               <motion.div
                 key={job.id}
                 onClick={() => setSelectedJob(job.id)}
@@ -291,7 +291,6 @@ export const JobPage = (): JSX.Element => {
                           <DollarSign className="w-4 h-4 text-[#1dff00]" />
                           <span className="text-sm sm:text-base text-white font-semibold">{job.salary}</span>
                         </div>
-                          <MatchScoreBadge score={job.matchScore} />
                       </div>
                       
                       <div className="flex items-center space-x-2">
@@ -372,7 +371,6 @@ export const JobPage = (): JSX.Element => {
                               <DollarSign className="w-5 h-5 text-[#1dff00]" />
                               <span className="text-xl font-bold text-white">{job.salary}</span>
                             </div>
-                            <MatchScoreBadge score={job.matchScore} size="md" />
                           </div>
                           
                           <div className="flex items-center space-x-3 w-full sm:w-auto">
@@ -394,8 +392,6 @@ export const JobPage = (): JSX.Element => {
 
                       {/* Job Content */}
                       <div className="space-y-6">
-                        <MatchScoreBreakdown matched={job.matchedSkills} missing={job.missingSkills} />
-
                         {/* Description */}
                         <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg transition-all duration-300">
                           <h3 className="text-lg font-bold text-white mb-3 flex items-center">

@@ -18,43 +18,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { resumeText } = await req.json();
-    if (!resumeText) throw new Error("Resume text is required.");
+    const { searchQuery, location } = await req.json();
+    if (!searchQuery) throw new Error("Search query is required.");
 
-    // --- Step 1: Parse Resume Text into a Structured Profile ---
-    const profileSchema = {
-      "type": "object",
-      "properties": {
-        "fullName": { "type": "string" },
-        "location": { "type": "string" },
-        "yearsOfExperience": { "type": "number" },
-        "coreSkills": { "type": "array", "items": { "type": "string" } },
-        "workExperience": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "jobTitle": { "type": "string" },
-              "company": { "type": "string" },
-              "responsibilities": { "type": "string" }
-            },
-            "required": ["jobTitle", "company", "responsibilities"]
-          }
-        }
-      },
-      "required": ["fullName", "location", "yearsOfExperience", "coreSkills", "workExperience"]
-    };
-    const { data: candidateProfile } = await firecrawl.extract({
-      url: `data:text/plain;base64,${btoa(resumeText)}`,
-      extractionSchema: profileSchema,
-    }) as { data: CandidateProfile };
-
-    // --- Step 2: Crawl and Scrape for New Jobs ---
-    const primaryJobTitle = candidateProfile.workExperience[0]?.jobTitle || "Software Engineer";
-    const searchUrl = `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(primaryJobTitle)}&location=Remote`;
+    // --- Step 1: Crawl and Scrape for New Jobs ---
+    const searchUrl = `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location || 'Remote')}`;
 
     const crawlResult = await firecrawl.crawl({ url: searchUrl, crawlerOptions: { limit: 15, includes: ['/jobs/view/'] } });
     const jobUrls = crawlResult.map(item => item.url).filter(Boolean);
+
+    let scrapedJobs: JobListing[] = [];
 
     if (jobUrls.length > 0) {
         const jobSchema = {
@@ -72,11 +45,12 @@ Deno.serve(async (req) => {
         };
         const scrapeResults = await firecrawl.scrape(jobUrls, { pageOptions: { extractionSchema: jobSchema } });
 
-        const jobsToEmbed = scrapeResults
+        scrapedJobs = scrapeResults
             .filter(res => res.success && res.data)
             .map(res => ({ ...res.data, sourceUrl: res.url })) as JobListing[];
 
-        for (const job of jobsToEmbed) {
+        // We can still embed and save these jobs for future use, but we won't use them for matching in this request.
+        for (const job of scrapedJobs) {
             const output = await extractor(job.fullJobDescription, { pooling: 'mean', normalize: true });
             await supabaseAdmin.from('job_listings').upsert({
                 job_title: job.jobTitle,
@@ -92,25 +66,10 @@ Deno.serve(async (req) => {
         }
     }
 
-    // --- Step 3: Create a Query Embedding from the User's Profile ---
-    const experienceSummary = candidateProfile.workExperience
-      .map(exp => `${exp.jobTitle} at ${exp.company}. ${exp.responsibilities}`)
-      .join(' ');
-    const query = `${candidateProfile.coreSkills.join(', ')}. ${experienceSummary}`;
-    const queryOutput = await extractor(query, { pooling: 'mean', normalize: true });
-    const queryEmbedding = Array.from(queryOutput.data);
-
-    // --- Step 4: Find Matching Jobs using Vector Search ---
-    const { data: matchedJobs, error } = await supabaseAdmin.rpc('match_jobs', {
-      query_embedding: queryEmbedding,
-      match_threshold: 0.5, // Adjust as needed
-      match_count: 50,
-    });
-
-    if (error) throw error;
-
-    // --- Step 5: Return the results ---
-    return new Response(JSON.stringify({ matchedJobs, candidateProfile }), {
+    // --- Step 2: Return the results ---
+    // The new implementation directly returns the scraped jobs.
+    // The `matchedJobs` key is kept for consistency with the old API, but it's not from a matching algorithm anymore.
+    return new Response(JSON.stringify({ matchedJobs: scrapedJobs }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
