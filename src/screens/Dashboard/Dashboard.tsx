@@ -254,8 +254,7 @@ export const Dashboard = (): JSX.Element => {
                 key={item.id}
                 variant="ghost"
                 onClick={() => {
-                  const path = item.id === 'resume' ? '/dashboard/resumes' : `/dashboard/${item.id}`;
-                  navigate(path);
+                  navigate(`/dashboard/${item.id}`);
                   setSidebarOpen(false);
                 }}
                 className={`w-full justify-start rounded-xl transition-colors duration-200 text-xs sm:text-sm lg:text-base px-3 py-2 sm:px-4 sm:py-3 h-auto ${
