@@ -40,7 +40,7 @@ export function InsightCard() {
     ctx.lineCap = "round"
     ctx.lineJoin = "round"
     ctx.shadowColor = "#1dff00"
-    ctx.shadowBlur = 25
+    ctx.shadowBlur = 10
     ctx.shadowOffsetX = 0
     ctx.shadowOffsetY = 0
 
@@ -59,7 +59,7 @@ export function InsightCard() {
     // Draw main line with enhanced glow
     ctx.strokeStyle = "#1dff00"
     ctx.lineWidth = 3
-    ctx.shadowBlur = 15
+    ctx.shadowBlur = 8
 
     ctx.beginPath()
     ctx.moveTo(points[0].x, points[0].y)
@@ -102,7 +102,7 @@ export function InsightCard() {
       ctx.arc(point.x, point.y, index === points.length - 1 ? 6 : 4, 0, 2 * Math.PI)
       ctx.fillStyle = index === points.length - 1 ? "#ffffff" : "#1dff00"
       ctx.shadowColor = "#1dff00"
-      ctx.shadowBlur = index === points.length - 1 ? 15 : 10
+      ctx.shadowBlur = index === points.length - 1 ? 8 : 5
       ctx.fill()
       ctx.shadowBlur = 0
     })
@@ -125,7 +125,7 @@ export function InsightCard() {
       transition={{ duration: 0.6 }}
       className="h-full"
     >
-      <Card className="relative overflow-hidden bg-gradient-to-br from-[#1dff00] via-[#16d918] via-[#0f8c2e] to-[#000000] border-none p-4 sm:p-6 rounded-2xl shadow-2xl hover:shadow-[0_0_40px_rgba(29,255,0,0.3)] transition-all duration-500 group h-full flex flex-col">
+      <Card className="relative overflow-hidden bg-gradient-to-br from-[#1dff00] via-[#16d918] via-[#0f8c2e] to-[#000000] border-none p-4 sm:p-6 rounded-2xl shadow-2xl hover:shadow-[0_0_20px_rgba(29,255,0,0.2)] transition-all duration-500 group h-full flex flex-col">
         {/* Animated background pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.2)_0%,transparent_50%)]"></div>
