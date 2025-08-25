@@ -174,7 +174,7 @@ export const ApplicationPage = (): JSX.Element => {
                   className={`text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${
                     selectedStatus === status
                       ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-                      : "text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]"
+                      : "text-white hover:text-white hover:bg-[#ffffff1a]"
                   }`}
                 >
                   {status}
