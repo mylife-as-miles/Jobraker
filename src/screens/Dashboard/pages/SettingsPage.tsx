@@ -393,7 +393,7 @@ export const SettingsPage = (): JSX.Element => {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleNotificationChange(setting.key, !(notif as any)?.[setting.key])}
-                    className={`transition-all duration-300 hover:scale-105 ${
+                    className={`transition-all duration-300 hover:scale-105 justify-center ${
                       (notif as any)?.[setting.key]
                         ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
                         : "bg-[#ffffff33] text-white hover:bg-[#ffffff4d]"
@@ -545,7 +545,7 @@ export const SettingsPage = (): JSX.Element => {
                         if (!sec) await createSecurity({ sign_in_alerts: true });
                         else await updateSecurity({ sign_in_alerts: !sec.sign_in_alerts });
                       }}
-                      className={`transition-all duration-300 hover:scale-105 ${(sec?.sign_in_alerts ?? true) ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90' : 'bg-[#ffffff33] text-white hover:bg-[#ffffff4d]'}`}
+                      className={`transition-all duration-300 hover:scale-105 justify-center ${(sec?.sign_in_alerts ?? true) ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90' : 'bg-[#ffffff33] text-white hover:bg-[#ffffff4d]'}`}
                     >
                       {(sec?.sign_in_alerts ?? true) ? 'Enabled' : 'Disabled'}
                     </Button>
@@ -752,7 +752,7 @@ export const SettingsPage = (): JSX.Element => {
                         else await (appearance as any).updateSettings({ reduce_motion: !(appearanceSettings.reduce_motion ?? false) });
                       } catch (e: any) { toastError('Failed to update motion preference', e.message); }
                     }}
-                    className={`transition-all duration-300 hover:scale-105 ${
+                    className={`transition-all duration-300 hover:scale-105 justify-center ${
                       (appearanceSettings?.reduce_motion ?? false)
                         ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
                         : "bg-[#ffffff33] text-white hover:bg-[#ffffff4d]"
@@ -813,7 +813,7 @@ export const SettingsPage = (): JSX.Element => {
                             else await updatePrivacy({ [row.key]: !(privacy as any)[row.key] } as any);
                           } catch (e: any) { toastError('Failed to update privacy', e.message); }
                         }}
-                        className={`transition-all duration-300 hover:scale-105 ${
+                        className={`transition-all duration-300 hover:scale-105 justify-center ${
                           ((privacy as any)?.[row.key] ?? false)
                             ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
                             : "bg-[#ffffff33] text-white hover:bg-[#ffffff4d]"
