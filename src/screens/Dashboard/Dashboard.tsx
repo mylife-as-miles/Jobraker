@@ -11,7 +11,6 @@ import {
   FileText,
   BarChart3,
   Settings,
-  User,
   Menu,
   X,
   Home,
@@ -67,13 +66,13 @@ export const Dashboard = (): JSX.Element => {
     "profile",
   ];
 
-  const getCurrentPageFromPath = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const currentPage = useMemo(() => {
     const path = location.pathname.split("/")[2] as DashboardPage;
     return pages.includes(path) ? path : "overview";
-  };
+  }, [location.pathname]);
 
-  const [currentPage, setCurrentPage] = useState<DashboardPage>(getCurrentPageFromPath());
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { profile } = useProfileSettings();
   const supabase = useMemo(() => createClient(), []);
   const [email, setEmail] = useState<string>("");
@@ -110,10 +109,6 @@ export const Dashboard = (): JSX.Element => {
     const id = setInterval(load, 1000 * 60 * 8);
     return () => { active = false; clearInterval(id); };
   }, [supabase, (profile as any)?.avatar_url]);
-
-  useEffect(() => {
-    setCurrentPage(getCurrentPageFromPath());
-  }, [location.pathname]);
 
   const navigationItems: NavigationItem[] = [
     {
@@ -153,16 +148,10 @@ export const Dashboard = (): JSX.Element => {
       path: "Dashboard / Analytics"
     },
     {
-      id: "profile",
-      label: "Profile",
-      icon: <User className="w-4 h-4 sm:w-5 sm:h-5" />,
-      path: "Dashboard / Profile"
-    },
-    {
-      id: "settings",
-      label: "Settings",
-      icon: <Settings className="w-4 h-4 sm:w-5 sm:h-5" />,
-      path: "Dashboard / Settings"
+      id: "notifications",
+      label: "Notifications",
+      icon: <Bell className="w-4 h-4 sm:w-5 sm:h-5" />,
+      path: "Dashboard / Notifications"
     }
   ];
 
