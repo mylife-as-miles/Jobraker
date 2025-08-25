@@ -7,7 +7,7 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 export const Button: React.FC<ButtonProps> = ({ variant = "solid", size = "md", className = "", children, ...props }) => {
-  const base = "inline-flex items-center justify-center rounded-md font-medium transition-all duration-200";
+  const base = "inline-flex items-center rounded-md font-medium transition-all duration-200";
   const sizeClasses = {
     sm: "px-2 py-1 text-sm",
     md: "px-4 py-2 text-sm",

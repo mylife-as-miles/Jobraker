@@ -91,7 +91,7 @@ export const Analytics = (): JSX.Element => {
                 <Button 
                   size="sm"
                   onClick={() => { window.location.href = '/pricing'; }}
-                  className="bg-black text-white hover:bg-black/90 hover:scale-105 transition-all duration-300"
+                  className="bg-black text-white hover:bg-black/90 hover:scale-105 transition-all duration-300 justify-center"
                 >
                   View Pricing
                 </Button>
