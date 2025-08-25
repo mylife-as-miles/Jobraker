@@ -46,7 +46,7 @@ export const Analytics = (): JSX.Element => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4">
+        <nav className="p-4">
           <div className="space-y-2">
             <Button variant="ghost" className="w-full justify-start text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]">
               <BarChart3 className="w-5 h-5 mr-3" />
@@ -74,6 +74,9 @@ export const Analytics = (): JSX.Element => {
             </Button>
           </div>
         </nav>
+
+        {/* Spacer */}
+        <div className="flex-1" />
 
         {/* Premium Card */}
         <div className="p-4">
