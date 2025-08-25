@@ -9,7 +9,6 @@ import { Analytics } from "./screens/Analytics";
 import { Dashboard } from "./screens/Dashboard";
 import { PrivacyPolicy } from "./screens/PrivacyPolicy";
 import Login from "./screens/Login/Login";
-import { WhiteBackgroundFixer } from "./components/WhiteBackgroundFixer";
 import { PublicOnly } from "./components/PublicOnly";
 import { RequireAuth } from "./components/RequireAuth";
 import { ToastProvider } from "./components/ui/toast-provider";
@@ -53,8 +52,6 @@ function App() {
     <BrowserRouter>
       {/* Global providers */}
       <ToastProvider>
-        {/* Auto-fix white backgrounds across the app */}
-        <WhiteBackgroundFixer autoFix={true} showDebugInfo={false} />
         
         <Routes>
         {/* Default route shows landing page */}
