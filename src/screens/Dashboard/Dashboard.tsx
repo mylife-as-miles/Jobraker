@@ -25,15 +25,7 @@ import { createClient } from "../../lib/supabaseClient";
 // Import sub-page components
 import { OverviewPage } from "./pages/OverviewPage";
 import { ChatPage } from "./pages/ChatPage";
-import { ResumesPage } from "../../client/pages/dashboard/resumes/page";
-import { TooltipProvider } from "@reactive-resume/ui";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HelmetProvider } from "react-helmet-async";
-import { helmetContext } from "../../client/constants/helmet";
-import { queryClient } from "../../client/libs/query-client";
-import { DialogProvider } from "../../client/providers/dialog";
-import { LocaleProvider } from "../../client/providers/locale";
-import { ThemeProvider } from "../../client/providers/theme";
+import { ResumePage } from "./pages/ResumePage";
 import { JobPage } from "./pages/JobPage";
 import { ApplicationPage } from "./pages/ApplicationPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -167,8 +159,6 @@ export const Dashboard = (): JSX.Element => {
   };
 
   const renderPageContent = () => {
-    const fallbackClient = new QueryClient();
-
     switch (currentPage) {
       case "overview":
         return <OverviewPage />;
@@ -177,21 +167,7 @@ export const Dashboard = (): JSX.Element => {
       case "chat":
         return <ChatPage />;
       case "resume":
-        return (
-          <LocaleProvider>
-            <HelmetProvider context={helmetContext}>
-              <QueryClientProvider client={queryClient ?? fallbackClient}>
-                <ThemeProvider>
-                  <TooltipProvider>
-                    <DialogProvider>
-                      <ResumesPage />
-                    </DialogProvider>
-                  </TooltipProvider>
-                </ThemeProvider>
-              </QueryClientProvider>
-            </HelmetProvider>
-          </LocaleProvider>
-        );
+        return <ResumePage />;
       case "jobs":
         return <JobPage />;
       case "application":
@@ -251,7 +227,8 @@ export const Dashboard = (): JSX.Element => {
                 key={item.id}
                 variant="ghost"
                 onClick={() => {
-                  navigate(`/dashboard/${item.id}`);
+                  const path = item.id === 'resume' ? '/dashboard/resumes' : `/dashboard/${item.id}`;
+                  navigate(path);
                   setSidebarOpen(false);
                 }}
                 className={`w-full justify-start rounded-xl transition-colors duration-200 text-xs sm:text-sm lg:text-base px-3 py-2 sm:px-4 sm:py-3 h-auto ${
