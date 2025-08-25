@@ -11,6 +11,7 @@ import {
   FileText,
   BarChart3,
   Settings,
+  User,
   Menu,
   X,
   Home,
@@ -39,11 +40,12 @@ type DashboardPage =
   | "resume" 
   | "jobs" 
   | "application" 
-  | "settings" 
-  | "notifications" 
-  | "profile";
+  | "settings"
+  | "notifications"
+  | "profile"
+  | "pricing";
 
-interface NavigationItem {
+interface PageLink {
   id: DashboardPage;
   label: string;
   icon: React.ReactNode;
@@ -64,6 +66,7 @@ export const Dashboard = (): JSX.Element => {
     "settings",
     "notifications",
     "profile",
+    "pricing",
   ];
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -110,7 +113,7 @@ export const Dashboard = (): JSX.Element => {
     return () => { active = false; clearInterval(id); };
   }, [supabase, (profile as any)?.avatar_url]);
 
-  const navigationItems: NavigationItem[] = [
+  const allDashboardPages: PageLink[] = [
     {
       id: "overview",
       label: "Dashboard",
@@ -152,11 +155,33 @@ export const Dashboard = (): JSX.Element => {
       label: "Notifications",
       icon: <Bell className="w-4 h-4 sm:w-5 sm:h-5" />,
       path: "Dashboard / Notifications"
+    },
+    {
+      id: "profile",
+      label: "Profile",
+      icon: <User className="w-4 h-4 sm:w-5 sm:h-5" />,
+      path: "Dashboard / Profile"
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      icon: <Settings className="w-4 h-4 sm:w-5 sm:h-5" />,
+      path: "Dashboard / Settings"
+    },
+    {
+      id: "pricing",
+      label: "Pricing",
+      icon: <Plus className="w-4 h-4 sm:w-5 sm:h-5" />,
+      path: "Dashboard / Pricing"
     }
   ];
 
+  const navigationItems = allDashboardPages.filter(
+    (page) => !["profile", "settings", "notifications", "pricing"].includes(page.id)
+  );
+
   const getCurrentBreadcrumb = () => {
-    const currentItem = navigationItems.find(item => item.id === currentPage);
+    const currentItem = allDashboardPages.find(item => item.id === currentPage);
     return currentItem?.path || "Dashboard";
   };
 
