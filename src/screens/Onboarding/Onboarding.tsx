@@ -319,7 +319,7 @@ export const Onboarding = (): JSX.Element => {
                   <div
                     key={index}
                     className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all duration-300 ${
-                      index <= currentStep ? "bg-white" : "bg-[#ffffff30]"
+                      index <= currentStep ? "bg-[#1dff00]" : "bg-[#ffffff30]"
                     }`}
                   />
                 ))}

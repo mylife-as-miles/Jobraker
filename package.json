@@ -39,6 +39,7 @@
     "axios": "^1.6.8",
     "axios-auth-refresh": "^3.3.6",
     "class-variance-authority": "^0.7.0",
+    "classnames": "^2.5.1",
     "clsx": "2.1.1",
     "dayjs": "^1.11.13",
     "framer-motion": "^10.16.16",

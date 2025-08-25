@@ -395,7 +395,7 @@ export const SettingsPage = (): JSX.Element => {
                     onClick={() => handleNotificationChange(setting.key, !(notif as any)?.[setting.key])}
                     className={`transition-all duration-300 hover:scale-105 ${
                       (notif as any)?.[setting.key]
-                        ? "bg-white text-black hover:bg-white/90"
+                        ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
                         : "bg-[#ffffff33] text-white hover:bg-[#ffffff4d]"
                     }`}
                   >
@@ -545,7 +545,7 @@ export const SettingsPage = (): JSX.Element => {
                         if (!sec) await createSecurity({ sign_in_alerts: true });
                         else await updateSecurity({ sign_in_alerts: !sec.sign_in_alerts });
                       }}
-                      className={`transition-all duration-300 hover:scale-105 ${(sec?.sign_in_alerts ?? true) ? 'bg-white text-black hover:bg-white/90' : 'bg-[#ffffff33] text-white hover:bg-[#ffffff4d]'}`}
+                      className={`transition-all duration-300 hover:scale-105 ${(sec?.sign_in_alerts ?? true) ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90' : 'bg-[#ffffff33] text-white hover:bg-[#ffffff4d]'}`}
                     >
                       {(sec?.sign_in_alerts ?? true) ? 'Enabled' : 'Disabled'}
                     </Button>
@@ -754,7 +754,7 @@ export const SettingsPage = (): JSX.Element => {
                     }}
                     className={`transition-all duration-300 hover:scale-105 ${
                       (appearanceSettings?.reduce_motion ?? false)
-                        ? "bg-white text-black hover:bg-white/90"
+                        ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
                         : "bg-[#ffffff33] text-white hover:bg-[#ffffff4d]"
                     }`}
                   >
@@ -815,8 +815,8 @@ export const SettingsPage = (): JSX.Element => {
                         }}
                         className={`transition-all duration-300 hover:scale-105 ${
                           ((privacy as any)?.[row.key] ?? false)
-                            ? 'bg-white text-black hover:bg-white/90'
-                            : 'bg-[#ffffff33] text-white hover:bg-[#ffffff4d]'
+                            ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+                            : "bg-[#ffffff33] text-white hover:bg-[#ffffff4d]"
                         }`}
                       >
                         {((privacy as any)?.[row.key] ?? false) ? 'Enabled' : 'Disabled'}
