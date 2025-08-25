@@ -113,7 +113,7 @@ export const OverviewPage = (): JSX.Element => {
                       className={`text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${
                         selectedPeriod === period
                           ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-                          : "text-[#888888] hover:text-[#1dff00] hover:bg-[#1dff00]/10"
+                          : "text-white hover:text-[#1dff00] hover:bg-[#1dff00]/10"
                       }`}
                     >
                       {period}
