@@ -26,7 +26,7 @@ import { createClient } from "../../lib/supabaseClient";
 // Import sub-page components
 import { OverviewPage } from "./pages/OverviewPage";
 import { ChatPage } from "./pages/ChatPage";
-import { ResumesPage } from "../../client/pages/dashboard/resumes/page";
+import { ResumePage } from "./pages/ResumePage";
 import { JobPage } from "./pages/JobPage";
 import { ApplicationPage } from "./pages/ApplicationPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -194,7 +194,7 @@ export const Dashboard = (): JSX.Element => {
       case "chat":
         return <ChatPage />;
       case "resume":
-        return <ResumesPage />;
+        return <ResumePage />;
       case "jobs":
         return <JobPage />;
       case "application":
@@ -254,7 +254,8 @@ export const Dashboard = (): JSX.Element => {
                 key={item.id}
                 variant="ghost"
                 onClick={() => {
-                  navigate(`/dashboard/${item.id}`);
+                  const path = item.id === 'resume' ? '/dashboard/resumes' : `/dashboard/${item.id}`;
+                  navigate(path);
                   setSidebarOpen(false);
                 }}
                 className={`w-full justify-start rounded-xl transition-colors duration-200 text-xs sm:text-sm lg:text-base px-3 py-2 sm:px-4 sm:py-3 h-auto ${
