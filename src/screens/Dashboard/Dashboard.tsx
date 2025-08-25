@@ -11,6 +11,7 @@ import {
   FileText,
   BarChart3,
   Settings,
+  User,
   Menu,
   X,
   Home,
@@ -150,6 +151,18 @@ export const Dashboard = (): JSX.Element => {
       label: "Analytics",
       icon: <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />,
       path: "Dashboard / Analytics"
+    },
+    {
+      id: "profile",
+      label: "Profile",
+      icon: <User className="w-4 h-4 sm:w-5 sm:h-5" />,
+      path: "Dashboard / Profile"
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      icon: <Settings className="w-4 h-4 sm:w-5 sm:h-5" />,
+      path: "Dashboard / Settings"
     }
   ];
 
