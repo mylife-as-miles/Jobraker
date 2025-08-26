@@ -22,10 +22,10 @@ export const ImportResumeCard = () => {
       const data = JSON.parse(text);
       const title = (data?.title as string) || file.name.replace(/\.[^.]+$/, "");
       const slug = slugify(title);
-      const res = await createResume({ title, slug, visibility: "private" as const });
+  const res = await createResume({ title, slug, visibility: "private" as const });
       // Attach imported data if present
       // Optional: could call an update here if needed to store full data
-      navigate(`/builder/${res.id}`);
+  navigate(`/builder/${res.id}`, { state: { resume: res } });
       toast({ variant: "success", title: t`Imported`, description: t`Your resume was created.` });
     } catch (error) {
       console.error("Import failed:", error);

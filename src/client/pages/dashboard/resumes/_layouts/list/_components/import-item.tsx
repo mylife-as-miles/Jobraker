@@ -20,8 +20,8 @@ export const ImportResumeListItem = () => {
       const data = JSON.parse(text);
       const title = (data?.title as string) || file.name.replace(/\.[^.]+$/, "");
       const slug = slugify(title);
-      const res = await createResume({ title, slug, visibility: "private" as const });
-      navigate(`/builder/${res.id}`);
+  const res = await createResume({ title, slug, visibility: "private" as const });
+  navigate(`/builder/${res.id}`, { state: { resume: res } });
   toast({ variant: "success", title: t`Imported`, description: t`Your resume was created.` });
     } catch {
   toast({ variant: "error", title: t`Import failed`, description: t`Please select a valid resume JSON.` });
