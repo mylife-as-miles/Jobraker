@@ -13,10 +13,10 @@ export const authLoader: LoaderFunction<UserDto> = async ({ request }) => {
 
   const { success } = authResponseSchema.pick({ status: true }).safeParse({ status });
 
-  if (!success) return redirect("/auth/login");
+  if (!success) return redirect("/signIn");
 
   if (status === "2fa_required") {
-    return redirect("/auth/verify-otp");
+    return redirect("/dashboard");
   }
 
   const user = await queryClient.fetchQuery({
@@ -25,7 +25,7 @@ export const authLoader: LoaderFunction<UserDto> = async ({ request }) => {
   });
 
   if (!user) {
-    return redirect("/auth/login");
+    return redirect("/signIn");
   }
 
   if (status === "authenticated") {

@@ -46,7 +46,7 @@ const handleAuthError = () => refreshToken(axiosForRefresh);
 // Interceptor to handle expired refresh token errors
 const handleRefreshError = async () => {
   await queryClient.invalidateQueries({ queryKey: USER_KEY });
-  redirect("/auth/login");
+  redirect("/signIn");
 };
 
 // Intercept responses to check for 401 and 403 errors, refresh token and retry the request
