@@ -27,6 +27,8 @@ import { createClient } from "../../lib/supabaseClient";
 import { OverviewPage } from "./pages/OverviewPage";
 import { ChatPage } from "./pages/ChatPage";
 import { ResumesPage } from "@/client/pages/dashboard/resumes/page";
+import NewResumeRedirect from "@/client/pages/dashboard/resumes/new";
+import { ImportResumePage } from "@/client/pages/dashboard/resumes/import";
 import { JobPage } from "./pages/JobPage";
 import { ApplicationPage } from "./pages/ApplicationPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -84,6 +86,10 @@ export const Dashboard = (): JSX.Element => {
     const segment = (location.pathname.split("/")[2] || "").toLowerCase();
     const normalized = segment === "resumes" ? "resume" : (segment as DashboardPage);
     return pages.includes(normalized) ? normalized : "overview";
+  }, [location.pathname]);
+  const resumeSubRoute = useMemo(() => {
+    const parts = location.pathname.split("/");
+    return (parts[3] || "").toLowerCase(); // e.g., /dashboard/resumes/new -> "new"
   }, [location.pathname]);
 
   const { profile } = useProfileSettings();
@@ -211,7 +217,13 @@ export const Dashboard = (): JSX.Element => {
                 <ThemeProvider>
                   <TooltipProvider>
                     <DialogProvider>
-                      <ResumesPage />
+                      {resumeSubRoute === "new" ? (
+                        <NewResumeRedirect />
+                      ) : resumeSubRoute === "import" ? (
+                        <ImportResumePage />
+                      ) : (
+                        <ResumesPage />
+                      )}
                     </DialogProvider>
                   </TooltipProvider>
                 </ThemeProvider>
