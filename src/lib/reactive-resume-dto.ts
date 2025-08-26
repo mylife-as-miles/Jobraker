@@ -17,6 +17,8 @@ export type ResumeDto = {
   locked?: boolean;
   slug?: string;
   visibility?: "public" | "private";
+  updatedAt?: string | Date;
+  createdAt?: string | Date;
 };
 
 export type UpdateResumeDto = {

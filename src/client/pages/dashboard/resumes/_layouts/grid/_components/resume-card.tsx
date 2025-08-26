@@ -1,11 +1,11 @@
 import { t } from "@lingui/macro";
 import {
   CopySimple,
-  FolderOpen,
   Lock,
-  LockOpen,
   PencilSimple,
   TrashSimple,
+  ArrowSquareOut,
+  LockKeyOpen,
 } from "@phosphor-icons/react";
 import type { ResumeDto } from "@reactive-resume/dto";
 import {
@@ -34,7 +34,7 @@ export const ResumeCard = ({ resume }: Props) => {
   const { open: lockOpen } = useDialog<ResumeDto>("lock");
 
   const template = resume.data.metadata.template;
-  const lastUpdated = dayjs().to(resume.updatedAt);
+  const lastUpdated = dayjs().to(resume.updatedAt ?? resume.createdAt ?? new Date());
 
   const onOpen = () => {
     void navigate(`/builder/${resume.id}`);
@@ -68,7 +68,7 @@ export const ResumeCard = ({ resume }: Props) => {
                 exit={{ opacity: 0 }}
                 className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm"
               >
-                <Lock size={42} />
+                <Lock width={42} height={42} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -93,7 +93,7 @@ export const ResumeCard = ({ resume }: Props) => {
 
       <DropdownMenuContent>
         <DropdownMenuItem onClick={onOpen}>
-          <FolderOpen size={14} className="mr-2" />
+          <ArrowSquareOut width={14} height={14} className="mr-2" />
           {t`Open`}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onUpdate}>
@@ -104,14 +104,14 @@ export const ResumeCard = ({ resume }: Props) => {
           <CopySimple size={14} className="mr-2" />
           {t`Duplicate`}
         </DropdownMenuItem>
-        {resume.locked ? (
+    {resume.locked ? (
           <DropdownMenuItem onClick={onLockChange}>
-            <LockOpen size={14} className="mr-2" />
+      <LockKeyOpen width={14} height={14} className="mr-2" />
             {t`Unlock`}
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem onClick={onLockChange}>
-            <Lock size={14} className="mr-2" />
+      <Lock width={14} height={14} className="mr-2" />
             {t`Lock`}
           </DropdownMenuItem>
         )}
