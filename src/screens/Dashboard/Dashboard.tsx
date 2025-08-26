@@ -26,7 +26,7 @@ import { createClient } from "../../lib/supabaseClient";
 // Import sub-page components
 import { OverviewPage } from "./pages/OverviewPage";
 import { ChatPage } from "./pages/ChatPage";
-import { ResumePage } from "./pages/ResumePage";
+import { ResumesPage } from "@/client/pages/dashboard/resumes/page";
 import { JobPage } from "./pages/JobPage";
 import { ApplicationPage } from "./pages/ApplicationPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -194,7 +194,7 @@ export const Dashboard = (): JSX.Element => {
       case "chat":
         return <ChatPage />;
       case "resume":
-        return <ResumePage />;
+        return <ResumesPage />;
       case "jobs":
         return <JobPage />;
       case "application":
