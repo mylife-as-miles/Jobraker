@@ -5,7 +5,7 @@ import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
 import { Building2, AlertCircle, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { useNotifications } from "../../../hooks/useNotifications";
-import { SplitLineAreaChart } from "./SplitLineAreaChart";
+// SplitLineAreaChart removed; chart moved to Application section
 
 // Using realtime notifications; no local interface needed here
 
@@ -142,8 +142,7 @@ export const OverviewPage = (): JSX.Element => {
                   </motion.div>
                 </div>
 
-                {/* Chart Area */}
-                <SplitLineAreaChart />
+                {/* Chart area removed; see Application section for chart */}
               </Card>
             </motion.div>
 
