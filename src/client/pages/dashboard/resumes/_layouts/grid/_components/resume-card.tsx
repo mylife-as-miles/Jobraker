@@ -1,12 +1,5 @@
 import { t } from "@lingui/macro";
-import {
-  CopySimple,
-  Lock,
-  PencilSimple,
-  TrashSimple,
-  ArrowSquareOut,
-  LockKeyOpen,
-} from "@phosphor-icons/react";
+import { CopySimple, Lock, PencilSimple, TrashSimple } from "@phosphor-icons/react";
 import type { ResumeDto } from "@reactive-resume/dto";
 import {
   DropdownMenu,
@@ -18,7 +11,7 @@ import {
 import { cn } from "@reactive-resume/utils";
 import dayjs from "dayjs";
 import { AnimatePresence, motion } from "framer-motion";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 
 import { useDialog } from "@/client/stores/dialog";
 
@@ -58,8 +51,8 @@ export const ResumeCard = ({ resume }: Props) => {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="text-left">
-  <BaseCard className="cursor-context-menu space-y-0" onDoubleClick={onOpen} onClick={onOpen}>
+    <DropdownMenuTrigger className="text-left">
+  <BaseCard className="cursor-context-menu space-y-0" onDoubleClick={onOpen}>
           <AnimatePresence>
             {resume.locked && (
               <motion.div
@@ -92,21 +85,18 @@ export const ResumeCard = ({ resume }: Props) => {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent>
-        <DropdownMenuItem onClick={onOpen}>
-          <ArrowSquareOut width={14} height={14} className="mr-2" />
-          {t`Open`}
-        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onOpen}>{t`Open`}</DropdownMenuItem>
         <DropdownMenuItem onClick={onUpdate}>
-          <PencilSimple size={14} className="mr-2" />
+          <PencilSimple width={14} height={14} className="mr-2" />
           {t`Rename`}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onDuplicate}>
-          <CopySimple size={14} className="mr-2" />
+          <CopySimple width={14} height={14} className="mr-2" />
           {t`Duplicate`}
         </DropdownMenuItem>
     {resume.locked ? (
           <DropdownMenuItem onClick={onLockChange}>
-      <LockKeyOpen width={14} height={14} className="mr-2" />
+      <Lock width={14} height={14} className="mr-2" />
             {t`Unlock`}
           </DropdownMenuItem>
         ) : (
@@ -117,7 +107,7 @@ export const ResumeCard = ({ resume }: Props) => {
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem className="text-error" onClick={onDelete}>
-          <TrashSimple size={14} className="mr-2" />
+          <TrashSimple width={14} height={14} className="mr-2" />
           {t`Delete`}
         </DropdownMenuItem>
       </DropdownMenuContent>

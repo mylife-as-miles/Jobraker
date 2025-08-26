@@ -4,6 +4,7 @@ import { BuilderLayout } from "../pages/builder/layout";
 import { builderLoader, BuilderPage } from "../pages/builder/page";
 import { DashboardLayout } from "../pages/dashboard/layout";
 import { ImportResumePage } from "../pages/dashboard/resumes/import";
+import NewResumeRedirect from "../pages/dashboard/resumes/new";
 import { ResumesPage } from "../pages/dashboard/resumes/page";
 import { SettingsPage } from "../pages/dashboard/settings/page";
 import { HomeLayout } from "../pages/home/layout";
@@ -25,6 +26,7 @@ export const routes = createRoutesFromElements(
       <Route path="dashboard">
         <Route element={<DashboardLayout />}>
           <Route path="resumes" element={<ResumesPage />} />
+          <Route path="resumes/new" element={<NewResumeRedirect />} />
           <Route path="resumes/import" element={<ImportResumePage />} />
           <Route path="settings" element={<SettingsPage />} />
 

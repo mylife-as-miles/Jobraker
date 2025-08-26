@@ -1,4 +1,3 @@
-import { t } from "@lingui/macro";
 import type { ResumeDto } from "@reactive-resume/dto";
 import { useCallback, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
