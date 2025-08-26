@@ -14,10 +14,10 @@ export const ResumesPage = () => {
   const [layout, setLayout] = useState<Layout>("grid");
 
   return (
-    <>
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
       <Helmet>
         <title>
-          {t`Resumes`} - {t`Reactive Resume`}
+          {t`Resumes`} - JobRaker
         </title>
       </Helmet>
 
@@ -30,27 +30,40 @@ export const ResumesPage = () => {
           <motion.h1
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
-            className="text-3xl font-semibold tracking-tight"
+            className="text-2xl sm:text-3xl font-semibold tracking-tight text-white"
           >
             {t`Resumes`}
           </motion.h1>
 
-          <TabsList className="card-surface border-brand/20">
-            <TabsTrigger value="grid" className="size-8 p-0 sm:h-8 sm:w-auto sm:px-4">
-              <SquaresFour />
-              <span className="ml-2 hidden sm:block">{t`Grid`}</span>
+          <TabsList className="bg-[#0a0a0a]/80 border border-[#1dff00]/20 rounded-xl p-1 backdrop-blur-[20px] flex items-center">
+            <TabsTrigger
+              value="grid"
+              onClick={() => setLayout("grid")}
+              className={`inline-flex items-center gap-2 rounded-lg px-3 h-8 text-xs sm:text-sm transition-all duration-200
+                ${layout === "grid" ? "bg-[#1dff00] text-black shadow" : "text-white/80 hover:text-white hover:bg-white/10"}`}
+            >
+              <SquaresFour className="h-4 w-4" />
+              <span className="hidden sm:block">{t`Grid`}</span>
             </TabsTrigger>
-            <TabsTrigger value="list" className="size-8 p-0 sm:h-8 sm:w-auto sm:px-4">
-              <List />
-              <span className="ml-2 hidden sm:block">{t`List`}</span>
+            <TabsTrigger
+              value="list"
+              onClick={() => setLayout("list")}
+              className={`inline-flex items-center gap-2 rounded-lg px-3 h-8 text-xs sm:text-sm transition-all duration-200
+                ${layout === "list" ? "bg-[#1dff00] text-black shadow" : "text-white/80 hover:text-white hover:bg-white/10"}`}
+            >
+              <List className="h-4 w-4" />
+              <span className="hidden sm:block">{t`List`}</span>
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <ScrollArea allowOverflow className="h-[calc(100vh-140px)] overflow-visible lg:h-[calc(100vh-88px)]">
+        <ScrollArea
+          allowOverflow
+          className="h-[calc(100vh-160px)] lg:h-[calc(100vh-120px)] overflow-visible"
+        >
           {layout === "grid" ? <GridView /> : <ListView />}
         </ScrollArea>
       </Tabs>
-    </>
+    </div>
   );
 };
