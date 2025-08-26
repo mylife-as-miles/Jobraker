@@ -1,7 +1,7 @@
 import { t } from "@lingui/macro";
 import { Helmet } from "react-helmet-async";
 import { Button, Card, Input } from "@reactive-resume/ui";
-import { Upload } from "@phosphor-icons/react";
+import { ArrowSquareUp } from "@phosphor-icons/react";
 
 export const ImportResumePage = () => {
   return (
@@ -20,7 +20,7 @@ export const ImportResumePage = () => {
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <Input type="file" accept=".pdf,.json" className="bg-black/30 border-white/10 text-white" />
               <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90">
-                <Upload size={16} className="mr-2" />
+                <ArrowSquareUp width={16} height={16} className="mr-2" />
                 {t`Import`}
               </Button>
             </div>

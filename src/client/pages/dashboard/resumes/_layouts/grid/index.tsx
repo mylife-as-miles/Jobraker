@@ -1,4 +1,4 @@
-import { sortByDate } from "@reactive-resume/utils";
+import { sortByDate } from "@/lib/reactive-resume-utils";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { useResumes } from "@/client/services/resume";
@@ -38,8 +38,7 @@ export const GridView = () => {
 
     {items.length > 0 && (
         <AnimatePresence>
-      {items
-            .sort((a, b) => sortByDate(a, b, "updatedAt"))
+  {sortByDate(items)
             .map((resume, index) => (
               <motion.div
                 key={resume.id}
