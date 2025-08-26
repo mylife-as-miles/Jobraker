@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useRef } from "react";
 import { useCreateResume } from "@/client/services/resume";
 import slugify from "@sindresorhus/slugify";
+import { toast } from "@/client/hooks/use-toast";
 
 export const ImportResumeCard = () => {
   const navigate = useNavigate();
@@ -25,8 +26,10 @@ export const ImportResumeCard = () => {
       // Attach imported data if present
       // Optional: could call an update here if needed to store full data
       navigate(`/builder/${res.id}`);
-    } catch {
-      // Silent fail; you could toast an error if desired
+      toast({ variant: "success", title: t`Imported`, description: t`Your resume was created.` });
+    } catch (error) {
+      console.error("Import failed:", error);
+      toast({ variant: "error", title: t`Import failed`, description: t`Please select a valid resume JSON.` });
     } finally {
       e.target.value = "";
     }

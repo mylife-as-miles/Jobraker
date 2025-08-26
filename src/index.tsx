@@ -15,6 +15,7 @@ import { ArtboardPage } from "./pages/artboard";
 import { BuilderLayout } from "./pages/builder";
 import { PreviewLayout } from "./pages/preview";
 import { Providers } from "./providers";
+import { ClientBuilderRoute } from "@/client/pages/builder/route-bridge";
 import { ROUTES } from "./routes";
 
 // Error boundary component
@@ -80,6 +81,11 @@ function App() {
                 <Route path="builder" element={<BuilderLayout/>}/>
                 <Route path="preview" element={<PreviewLayout/>}/>
             </Route>
+        </Route>
+
+        {/* Client builder route bridge for direct navigations */}
+        <Route element={<RequireAuth><Providers/></RequireAuth>}>
+          <Route path="/builder/:id" element={<ClientBuilderRoute/>} />
         </Route>
 
 

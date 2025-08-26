@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { useCreateResume } from "@/client/services/resume";
 import slugify from "@sindresorhus/slugify";
 import { useNavigate } from "react-router-dom";
+import { toast } from "@/client/hooks/use-toast";
 
 export const ImportResumeListItem = () => {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -21,8 +22,9 @@ export const ImportResumeListItem = () => {
       const slug = slugify(title);
       const res = await createResume({ title, slug, visibility: "private" as const });
       navigate(`/builder/${res.id}`);
+  toast({ variant: "success", title: t`Imported`, description: t`Your resume was created.` });
     } catch {
-      // swallow
+  toast({ variant: "error", title: t`Import failed`, description: t`Please select a valid resume JSON.` });
     } finally {
       e.target.value = "";
     }
