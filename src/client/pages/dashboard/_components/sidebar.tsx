@@ -95,6 +95,12 @@ export const Sidebar = ({ setOpen }: SidebarProps) => {
       icon: <Plus />,
     },
     {
+      path: "/dashboard/resumes/import",
+      name: t`Import Resume`,
+      shortcut: "⇧I",
+      icon: <Plus />,
+    },
+    {
       path: "/dashboard/resumes",
       name: t`Resumes`,
       shortcut: "⇧R",
