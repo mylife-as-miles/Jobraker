@@ -1,17 +1,17 @@
 import { createBrowserRouter, createRoutesFromElements, Navigate, Route } from "react-router-dom";
 
-import { BuilderLayout } from "../pages/builder/layout";
-import { builderLoader, BuilderPage } from "../pages/builder/page";
-import { DashboardLayout } from "../pages/dashboard/layout";
-import { ImportResumePage } from "../pages/dashboard/resumes/import";
-import NewResumeRedirect from "../pages/dashboard/resumes/new";
-import { ResumesPage } from "../pages/dashboard/resumes/page";
-import { SettingsPage } from "../pages/dashboard/settings/page";
-import { HomeLayout } from "../pages/home/layout";
-import { HomePage } from "../pages/home/page";
-import { ErrorPage } from "../pages/public/error";
-import { publicLoader, PublicResumePage } from "../pages/public/page";
-import { Providers } from "../providers";
+import { BuilderLayout } from "@/client/pages/builder/layout";
+import { builderLoader, BuilderPage } from "@/client/pages/builder/page";
+import { DashboardLayout } from "@/client/pages/dashboard/layout";
+import { ImportResumePage } from "@/client/pages/dashboard/resumes/import";
+import NewResumeRedirect from "@/client/pages/dashboard/resumes/new";
+import { ResumesPage } from "@/client/pages/dashboard/resumes/page";
+import { SettingsPage } from "@/client/pages/dashboard/settings/page";
+import { HomeLayout } from "@/client/pages/home/layout";
+import { HomePage } from "@/client/pages/home/page";
+import { ErrorPage } from "@/client/pages/public/error";
+import { publicLoader, PublicResumePage } from "@/client/pages/public/page";
+import { Providers } from "@/client/providers";
 // Auth-related routes and guards removed; main app handles auth (Supabase)
 
 export const routes = createRoutesFromElements(
