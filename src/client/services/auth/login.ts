@@ -28,7 +28,8 @@ export const useLogin = () => {
     mutationFn: login,
     onSuccess: (data) => {
       if (data.status === "2fa_required") {
-        void navigate("/auth/verify-otp");
+        // route removed; send to dashboard or a 2FA placeholder if added later
+        void navigate("/dashboard");
         return;
       }
 

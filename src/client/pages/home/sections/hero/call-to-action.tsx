@@ -2,6 +2,7 @@ import { t } from "@lingui/macro";
 import { Book, SignOut } from "@phosphor-icons/react";
 import { Button } from "@reactive-resume/ui";
 import { Link } from "react-router-dom";
+import { ROUTES } from "../../../../../routes";
 
 import { useLogout } from "@/client/services/auth";
 import { useAuthStore } from "@/client/stores/auth";
@@ -29,7 +30,7 @@ export const HeroCTA = () => {
   return (
     <>
       <Button asChild size="lg">
-        <Link to="/auth/login">{t`Get Started`}</Link>
+        <Link to={ROUTES.SIGNIN}>{t`Get Started`}</Link>
       </Button>
 
       <Button asChild size="lg" variant="link">
