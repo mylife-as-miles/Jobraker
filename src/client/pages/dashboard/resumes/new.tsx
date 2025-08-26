@@ -13,8 +13,8 @@ export default function NewResumeRedirect() {
     const go = async () => {
       const title = generateRandomName();
       const slug = slugify(title);
-      const res = await createResume({ title, slug, visibility: "private" });
-      navigate(`/builder/${res.id}`, { replace: true });
+  const res = await createResume({ title, slug, visibility: "private" });
+  navigate(`/builder/${res.id}`, { replace: true, state: { resume: res } });
     };
 
     void go();

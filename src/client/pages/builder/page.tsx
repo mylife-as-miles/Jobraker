@@ -14,7 +14,7 @@ export const BuilderPage = () => {
   const setFrameRef = useBuilderStore((state) => state.frame.setRef);
 
   const resume = useResumeStore((state) => state.resume);
-  const title = useResumeStore((state) => state.resume.title);
+  const title = useResumeStore((state) => state.resume?.title || "Builder");
 
   const syncResumeToArtboard = useCallback(() => {
     setImmediate(() => {
@@ -51,6 +51,15 @@ export const BuilderPage = () => {
 
   // Send resume data to iframe on change of resume data
   useEffect(syncResumeToArtboard, [resume.data]);
+
+  // Minimal guard to avoid blank page before store is hydrated
+  if (!resume || !resume.id) {
+    return (
+      <div className="text-white flex items-center justify-center h-screen">
+        Loading builder...
+      </div>
+    );
+  }
 
   return (
     <>
