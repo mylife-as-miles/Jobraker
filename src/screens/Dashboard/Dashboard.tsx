@@ -28,7 +28,6 @@ import { OverviewPage } from "./pages/OverviewPage";
 import { ChatPage } from "./pages/ChatPage";
 import { ResumesPage } from "@/client/pages/dashboard/resumes/page";
 import NewResumeRedirect from "@/client/pages/dashboard/resumes/new";
-import { ImportResumePage } from "@/client/pages/dashboard/resumes/import";
 import { JobPage } from "./pages/JobPage";
 import { ApplicationPage } from "./pages/ApplicationPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -219,8 +218,6 @@ export const Dashboard = (): JSX.Element => {
                     <DialogProvider>
                       {resumeSubRoute === "new" ? (
                         <NewResumeRedirect />
-                      ) : resumeSubRoute === "import" ? (
-                        <ImportResumePage />
                       ) : (
                         <ResumesPage />
                       )}

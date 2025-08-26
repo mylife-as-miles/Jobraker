@@ -3,7 +3,6 @@ import { createBrowserRouter, createRoutesFromElements, Navigate, Route } from "
 import { BuilderLayout } from "@/client/pages/builder/layout";
 import { builderLoader, BuilderPage } from "@/client/pages/builder/page";
 import { DashboardLayout } from "@/client/pages/dashboard/layout";
-import { ImportResumePage } from "@/client/pages/dashboard/resumes/import";
 import NewResumeRedirect from "@/client/pages/dashboard/resumes/new";
 import { ResumesPage } from "@/client/pages/dashboard/resumes/page";
 import { SettingsPage } from "@/client/pages/dashboard/settings/page";
@@ -27,7 +26,6 @@ export const routes = createRoutesFromElements(
         <Route element={<DashboardLayout />}>
           <Route path="resumes" element={<ResumesPage />} />
           <Route path="resumes/new" element={<NewResumeRedirect />} />
-          <Route path="resumes/import" element={<ImportResumePage />} />
           <Route path="settings" element={<SettingsPage />} />
 
           <Route index element={<Navigate replace to="/dashboard/resumes" />} />
