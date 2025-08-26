@@ -1,7 +1,7 @@
 export const ROUTES = {
   ROOT: '/',
-  LOGIN: '/login',
   SIGNUP: '/signup',
+  SIGNIN: '/signIn',
   ONBOARDING: '/onboarding',
   DASHBOARD: '/dashboard',
   DASHBOARD_WILDCARD: '/dashboard/*',

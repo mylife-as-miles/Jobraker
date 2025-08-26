@@ -8,7 +8,6 @@ import { Onboarding } from "./screens/Onboarding";
 import { Analytics } from "./screens/Analytics";
 import { Dashboard } from "./screens/Dashboard";
 import { PrivacyPolicy } from "./screens/PrivacyPolicy";
-import Login from "./screens/Login/Login";
 import { PublicOnly } from "./components/PublicOnly";
 import { RequireAuth } from "./components/RequireAuth";
 import { ToastProvider } from "./components/ui/toast-provider";
@@ -60,8 +59,8 @@ function App() {
   {/* Step 1: Signup Page */}
           <Route path={ROUTES.SIGNUP} element={<PublicOnly><JobrackerSignup /></PublicOnly>} />
 
-        {/* Login Page */}
-          <Route path={ROUTES.LOGIN} element={<PublicOnly><Login /></PublicOnly>} />
+        {/* Sign In Page */}
+          <Route path={ROUTES.SIGNIN} element={<PublicOnly><JobrackerSignup /></PublicOnly>} />
         
         {/* Step 2: Onboarding Page (after signup) */}
           <Route path={ROUTES.ONBOARDING} element={<RequireAuth><Onboarding /></RequireAuth>} />
