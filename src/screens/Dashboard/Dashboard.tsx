@@ -72,8 +72,9 @@ export const Dashboard = (): JSX.Element => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const currentPage = useMemo(() => {
-    const path = location.pathname.split("/")[2] as DashboardPage;
-    return pages.includes(path) ? path : "overview";
+    const segment = (location.pathname.split("/")[2] || "").toLowerCase();
+    const normalized = segment === "resumes" ? "resume" : (segment as DashboardPage);
+    return pages.includes(normalized) ? normalized : "overview";
   }, [location.pathname]);
 
   const { profile } = useProfileSettings();
