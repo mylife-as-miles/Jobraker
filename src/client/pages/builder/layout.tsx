@@ -49,13 +49,13 @@ export const BuilderLayout = () => {
 
   if (isDesktop) {
     return (
-      <div className="relative size-full overflow-hidden">
+  <div className="relative size-full overflow-hidden bg-black">
         <PanelGroup direction="horizontal">
           <Panel
             minSize={25}
             maxSize={45}
             defaultSize={30}
-            className={cn("z-10 bg-background", !leftHandle.isDragging && "transition-[flex]")}
+    className={cn("z-10 bg-gradient-to-b from-[#0a0a0a] to-[#0a0a0a] border-r border-[#1dff00]/10", !leftHandle.isDragging && "transition-[flex]")}
             onResize={leftSetSize}
           >
             <LeftSidebar />
@@ -64,7 +64,7 @@ export const BuilderLayout = () => {
             isDragging={leftHandle.isDragging}
             onDragging={leftHandle.setDragging}
           />
-          <Panel>
+          <Panel className="bg-black">
             <OutletSlot />
           </Panel>
           <PanelResizeHandle
@@ -75,7 +75,7 @@ export const BuilderLayout = () => {
             minSize={25}
             maxSize={45}
             defaultSize={30}
-            className={cn("z-10 bg-background", !rightHandle.isDragging && "transition-[flex]")}
+            className={cn("z-10 bg-gradient-to-b from-[#0a0a0a] to-[#0a0a0a] border-l border-[#1dff00]/10", !rightHandle.isDragging && "transition-[flex]")}
             onResize={rightSetSize}
           >
             <RightSidebar />

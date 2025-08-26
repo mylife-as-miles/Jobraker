@@ -13,7 +13,7 @@ export const GridView = () => {
   const items = Array.isArray(resumes) ? resumes : [];
 
   return (
-    <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+  <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
       <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }}>
         <CreateResumeCard />
       </motion.div>

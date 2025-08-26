@@ -57,7 +57,7 @@ export const BuilderPage = () => {
     <>
       <Helmet>
         <title>
-          {title} - {t`Reactive Resume`}
+          {title} - JobRaker
         </title>
       </Helmet>
 

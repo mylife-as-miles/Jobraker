@@ -35,7 +35,7 @@ export const ResumesPage = () => {
             {t`Resumes`}
           </motion.h1>
 
-          <TabsList className="bg-[#0a0a0a]/80 border border-[#1dff00]/20 rounded-xl p-1 backdrop-blur-[20px] flex items-center">
+          <TabsList className="bg-[#0a0a0a]/80 border border-[#1dff00]/20 rounded-xl p-1 backdrop-blur-[20px] flex items-center shadow-[0_0_24px_-12px_rgba(29,255,0,0.4)]">
             <TabsTrigger
               value="grid"
               onClick={() => setLayout("grid")}
@@ -59,7 +59,7 @@ export const ResumesPage = () => {
 
         <ScrollArea
           allowOverflow
-          className="h-[calc(100vh-160px)] lg:h-[calc(100vh-120px)] overflow-visible"
+          className="h-[calc(100vh-150px)] lg:h-[calc(100vh-110px)] overflow-visible border-t border-[#1dff00]/10"
         >
           {layout === "grid" ? <GridView /> : <ListView />}
         </ScrollArea>

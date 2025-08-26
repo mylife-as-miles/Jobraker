@@ -59,14 +59,14 @@ export const ResumeCard = ({ resume }: Props) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="text-left">
-  <BaseCard className="cursor-context-menu space-y-0 hover:border-brand/50 hover:brand-glow">
+  <BaseCard className="cursor-context-menu space-y-0" onDoubleClick={onOpen} onClick={onOpen}>
           <AnimatePresence>
             {resume.locked && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 flex items-center justify-center bg-background/75 backdrop-blur-sm"
+                className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm"
               >
                 <Lock size={42} />
               </motion.div>
@@ -76,7 +76,7 @@ export const ResumeCard = ({ resume }: Props) => {
           <div
             className={cn(
               "absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end space-y-0.5 p-4 pt-12",
-              "bg-gradient-to-t from-background/80 to-transparent",
+              "bg-gradient-to-t from-black/80 to-transparent",
             )}
           >
             <h4 className="line-clamp-2 font-medium">{resume.title}</h4>
