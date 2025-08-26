@@ -1,5 +1,4 @@
 "use client"
-import { TrendingUp } from "lucide-react"
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 import { motion } from "framer-motion"
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "../../../components/ui/chart"
@@ -38,7 +37,7 @@ export function SplitLineAreaChart() {
       )}
 
       <ChartContainer
-        onMouseMove={(e) => setMousePos({ x: e.clientX,  y: e.clientY })}
+        onMouseMove={(e: React.MouseEvent) => setMousePos({ x: e.clientX,  y: e.clientY })}
         onMouseEnter={() => setIsInside(true)}
         onMouseLeave={() => { setIsInside(false); setHoverIndex(null); }}
         config={chartConfig}
@@ -47,16 +46,16 @@ export function SplitLineAreaChart() {
         style={{
           // Ensure gradient stops resolve to a color
           // Tailwind variable fallback if not provided elsewhere
-          ...(typeof document !== "undefined"
-            ? ({ "--color-mobile": getComputedStyle(document.documentElement).getPropertyValue("--color-mobile") || "#22c55e" } as React.CSSProperties)
-            : ({ "--color-mobile": "#22c55e" } as React.CSSProperties)),
-        }}
+          "--color-mobile": typeof document !== "undefined"
+            ? getComputedStyle(document.documentElement).getPropertyValue("--color-mobile") || "#22c55e"
+            : "#22c55e",
+        } as React.CSSProperties}
       >
         <AreaChart
           accessibilityLayer
           data={chartData}
           margin={{ left: 12, right: 12, top: 12 }}
-          onMouseMove={(state) => {
+          onMouseMove={(state: any) => {
             if (state && state.activeTooltipIndex != null) setHoverIndex(state.activeTooltipIndex)
           }}
           onMouseLeave={() => setHoverIndex(null)}
@@ -67,7 +66,7 @@ export function SplitLineAreaChart() {
             tickLine={false}
             axisLine={false}
             tickMargin={8}
-            tickFormatter={(value) => value.slice(0, 3)}
+            tickFormatter={(value: string) => value.slice(0, 3)}
           />
           <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
 

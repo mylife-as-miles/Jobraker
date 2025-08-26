@@ -119,17 +119,24 @@ const ChartTooltipContent = React.forwardRef<
       hideIndicator?: boolean
     }
 >(
-  (
-    {
-      active,
-      payload,
-      label,
-      className,
-      indicator = "dot",
-      hideLabel = false,
-      hideIndicator = false,
-    },
-    ref
+  ({
+    active,
+    payload,
+    label,
+    className,
+    indicator = "dot",
+    hideLabel = false,
+    hideIndicator = false,
+  }: {
+    active?: boolean
+    payload?: any[]
+    label?: string
+    className?: string
+    indicator?: "line" | "dot" | "dashed"
+    hideLabel?: boolean
+    hideIndicator?: boolean
+  },
+  ref: React.Ref<HTMLDivElement>
   ) => {
     const { config } = useChart()
 
@@ -145,7 +152,7 @@ const ChartTooltipContent = React.forwardRef<
           <div className="font-medium">{label}</div>
         ) : null}
         <div className="grid gap-1.5">
-          {payload.map((item, index) => {
+          {payload?.map((item: any, index: number) => {
             const key = `${item.dataKey}`
             const itemConfig = config[key]
             const indicatorColor = item.color
@@ -246,7 +253,12 @@ const ChartLegendContent = React.forwardRef<
   React.ComponentProps<"div"> &
     Pick<LegendProps, "payload"> &
     VariantProps<typeof ChartLegend>
->(({ className, payload, align, direction }, ref) => {
+>(({ className, payload, align, direction }: {
+  className?: string
+  payload?: any[]
+  align?: "center" | "left" | "right" | null
+  direction?: "horizontal" | "vertical" | null
+}, ref: React.Ref<HTMLDivElement>) => {
   const { config } = useChart()
 
   if (!payload || payload.length === 0) {
@@ -264,7 +276,7 @@ const ChartLegendContent = React.forwardRef<
         })
       )}
     >
-      {payload.map((item, index) => {
+      {payload?.map((item: any, index: number) => {
         const key = `${item.value}`
         const itemConfig = config[key]
         const color = item.color
@@ -281,9 +293,7 @@ const ChartLegendContent = React.forwardRef<
               }}
             />
             <div className="flex items-center gap-1">
-              {itemConfig?.icon ? (
-                <itemConfig.icon className="h-4 w-4" />
-              ) : null}
+              {itemConfig?.icon && React.createElement(itemConfig.icon as any, { className: "h-4 w-4" })}
               <div className="whitespace-nowrap">
                 {itemConfig?.label || item.value}
               </div>
