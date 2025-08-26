@@ -2,7 +2,6 @@
 import { TrendingUp } from "lucide-react"
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 import { motion } from "framer-motion"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../../components/ui/card"
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "../../../components/ui/chart"
 import { useState } from "react"
 
@@ -30,7 +29,7 @@ export function SplitLineAreaChart() {
   const splitOffset = hoverIndex != null ? (hoverIndex / (chartData.length - 1)) * 100 : 100
 
   return (
-    <div className="relative">
+    <div className="relative h-16 sm:h-20 lg:h-24 w-full">
       {isInside && (
         <div
           className="pointer-events-none fixed z-50 w-24 h-24 rounded-full bg-green-600 opacity-60 blur-3xl"
@@ -44,7 +43,7 @@ export function SplitLineAreaChart() {
         onMouseLeave={() => { setIsInside(false); setHoverIndex(null); }}
         config={chartConfig}
         data={chartData}
-        className="h-16 sm:h-20 lg:h-24 w-full"
+        className="h-full w-full"
       >
         <AreaChart
           accessibilityLayer
