@@ -6,7 +6,8 @@ import path from "path";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: "./",
+  // Use absolute base so assets resolve from root on deep routes (Vercel)
+  base: "/",
   css: {
     postcss: {
       plugins: [tailwind()],
