@@ -1,26 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { tv, type VariantProps } from "tailwind-variants"
-import { cva } from "class-variance-authority"
-
+import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "../../lib/utils"
-import {
-  Area,
-  Bar,
-  Line,
-  Pie,
-  Radar,
-  RadialBar,
-  type AreaProps,
-  type BarProps,
-  type LegendProps,
-  type LineProps,
-  type PieProps,
-  type RadarProps,
-  type RadialBarProps,
-  type TooltipProps,
-} from "recharts"
+import { Tooltip, type LegendProps, type TooltipProps } from "recharts"
 
 const THEMES = {
   light: {
@@ -67,29 +50,14 @@ const THEMES = {
   },
 }
 
-const ChartContext = React.createContext<
-  | {
-      config: {
-        [k in string]: {
-          label?: React.ReactNode
-          icon?: React.ComponentType
-        } & (
-          | {
-              color?: string
-              theme?: never
-            }
-          | {
-              color?: never
-              theme: {
-                [k in keyof typeof THEMES]: string
-              }
-            }
-        )
-      }
-      data: any[]
-    }
-  | undefined
->(undefined)
+type ChartContextValue = {
+  config: ChartConfig
+  data: any[]
+}
+
+const ChartContext = React.createContext<ChartContextValue | undefined>(
+  undefined
+)
 
 function useChart() {
   const context = React.useContext(ChartContext)
@@ -102,47 +70,11 @@ function useChart() {
 const ChartContainer = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
-    config: {
-      [k in string]: {
-        label?: React.ReactNode
-        icon?: React.ComponentType
-      } & (
-        | {
-            color?: string
-            theme?: never
-          }
-        | {
-            color?: never
-            theme: {
-              [k in keyof typeof THEMES]: string
-            }
-          }
-      )
-    }
+    config: ChartConfig
     data: any[]
-    children: React.ComponentProps<"div">["children"]
+    children: React.ReactNode
   }
 >(({ config, data, children, className, ...props }, ref) => {
-  const [activeTheme, setActiveTheme] = React.useState<keyof typeof THEMES>(
-    "light"
-  )
-  const [activeChart, setActiveChart] = React.useState(
-    Object.keys(config)[0]
-  )
-
-  React.useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)")
-    const listener = (event: MediaQueryListEvent) => {
-      setActiveTheme(event.matches ? "dark" : "light")
-    }
-
-    media.addEventListener("change", listener)
-
-    return () => {
-      media.removeEventListener("change", listener)
-    }
-  }, [])
-
   return (
     <ChartContext.Provider
       value={{
@@ -163,9 +95,9 @@ const ChartContainer = React.forwardRef<
     </ChartContext.Provider>
   )
 })
-ChartContainer.displayName = "Chart"
+ChartContainer.displayName = "ChartContainer"
 
-const ChartTooltip = cva("recharts-tooltip-wrapper", {
+const ChartTooltipClass = cva("recharts-tooltip-wrapper", {
   variants: {
     variant: {
       default:
@@ -181,7 +113,7 @@ const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> &
     Omit<TooltipProps<any, any>, "content"> &
-    VariantProps<typeof ChartTooltip> & {
+  VariantProps<typeof ChartTooltipClass> & {
       indicator?: "line" | "dot" | "dashed"
       hideLabel?: boolean
       hideIndicator?: boolean
@@ -208,10 +140,7 @@ const ChartTooltipContent = React.forwardRef<
     const nestLabel = payload.length === 1 && indicator !== "dot"
 
     return (
-      <div
-        ref={ref}
-        className={cn(ChartTooltip({ variant: "default", className }))}
-      >
+  <div ref={ref} className={cn(ChartTooltipClass({ variant: "default", className }))}>
         {!hideLabel ? (
           <div className="font-medium">{label}</div>
         ) : null}
@@ -220,6 +149,12 @@ const ChartTooltipContent = React.forwardRef<
             const key = `${item.dataKey}`
             const itemConfig = config[key]
             const indicatorColor = item.color
+            const numeric =
+              typeof item.value === "number"
+                ? item.value
+                : Number.isFinite(Number(item.value))
+                ? Number(item.value)
+                : null
 
             return (
               <div
@@ -243,8 +178,8 @@ const ChartTooltipContent = React.forwardRef<
                     )}
                     style={
                       {
-                        "--color-bg": indicatorColor,
-                        "--color-border": indicatorColor,
+                        "--color-bg": indicatorColor as any,
+                        "--color-border": indicatorColor as any,
                       } as React.CSSProperties
                     }
                   />
@@ -264,7 +199,9 @@ const ChartTooltipContent = React.forwardRef<
                     <span className="text-muted-foreground">{item.name}</span>
                   </div>
                   <span className="font-mono font-medium tabular-nums text-foreground">
-                    {item.value.toLocaleString()}
+                    {numeric !== null
+                      ? numeric.toLocaleString()
+                      : String(item.value ?? "")}
                   </span>
                 </div>
               </div>
@@ -276,6 +213,11 @@ const ChartTooltipContent = React.forwardRef<
   }
 )
 ChartTooltipContent.displayName = "ChartTooltipContent"
+
+// Wrapper around Recharts Tooltip so consumers can use <ChartTooltip />
+const ChartTooltip = (props: TooltipProps<any, any>) => (
+  <Tooltip {...props} wrapperStyle={{ pointerEvents: "none" }} />
+)
 
 const ChartLegend = cva("recharts-legend-wrapper", {
   variants: {

@@ -44,6 +44,13 @@ export function SplitLineAreaChart() {
         config={chartConfig}
         data={chartData}
         className="h-full w-full"
+        style={{
+          // Ensure gradient stops resolve to a color
+          // Tailwind variable fallback if not provided elsewhere
+          ...(typeof document !== "undefined"
+            ? ({ "--color-mobile": getComputedStyle(document.documentElement).getPropertyValue("--color-mobile") || "#22c55e" } as React.CSSProperties)
+            : ({ "--color-mobile": "#22c55e" } as React.CSSProperties)),
+        }}
       >
         <AreaChart
           accessibilityLayer
