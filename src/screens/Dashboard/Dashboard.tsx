@@ -32,6 +32,15 @@ import { ApplicationPage } from "./pages/ApplicationPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { NotificationPage } from "./pages/NotificationPage";
 import ProfilePage from "./pages/ProfilePage";
+// Client app providers to support ResumesPage (react-query, helmet, locale, theme, etc.)
+import { HelmetProvider } from "react-helmet-async";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { TooltipProvider } from "@reactive-resume/ui";
+import { LocaleProvider } from "@/client/providers/locale";
+import { ThemeProvider } from "@/client/providers/theme";
+import { DialogProvider } from "@/client/providers/dialog";
+import { helmetContext } from "@/client/constants/helmet";
+import { queryClient } from "@/client/libs/query-client";
 
 type DashboardPage = 
   | "overview" 
@@ -195,7 +204,21 @@ export const Dashboard = (): JSX.Element => {
       case "chat":
         return <ChatPage />;
       case "resume":
-        return <ResumesPage />;
+        return (
+          <LocaleProvider>
+            <HelmetProvider context={helmetContext}>
+              <QueryClientProvider client={queryClient}>
+                <ThemeProvider>
+                  <TooltipProvider>
+                    <DialogProvider>
+                      <ResumesPage />
+                    </DialogProvider>
+                  </TooltipProvider>
+                </ThemeProvider>
+              </QueryClientProvider>
+            </HelmetProvider>
+          </LocaleProvider>
+        );
       case "jobs":
         return <JobPage />;
       case "application":
