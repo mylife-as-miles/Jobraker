@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --chart-1: hsl(120 100% 50%);
+    --chart-2: hsl(120 100% 45%);
+    --chart-3: hsl(120 100% 40%);
+    --chart-4: hsl(120 100% 35%);
+    --chart-5: hsl(120 100% 30%);
+  }
+
+  .dark {
+    --chart-1: hsl(120 100% 50%);
+    --chart-2: hsl(120 100% 45%);
+    --chart-3: hsl(120 100% 40%);
+    --chart-4: hsl(120 100% 35%);
+    --chart-5: hsl(120 100% 30%);
+  }
+}
+
 * {
   font-variant-ligatures: none;
 

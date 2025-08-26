@@ -5,6 +5,7 @@ import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
 import { Building2, AlertCircle, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { useNotifications } from "../../../hooks/useNotifications";
+import { SplitLineAreaChart } from "./SplitLineAreaChart";
 
 // Using realtime notifications; no local interface needed here
 
@@ -142,24 +143,7 @@ export const OverviewPage = (): JSX.Element => {
                 </div>
 
                 {/* Chart Area */}
-                <div className="h-16 sm:h-20 lg:h-24 relative">
-                  <svg className="w-full h-full" viewBox="0 0 400 100">
-                    <defs>
-                      <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#1dff00" stopOpacity="0.8" />
-                        <stop offset="100%" stopColor="#0a8246" stopOpacity="0.8" />
-                      </linearGradient>
-                    </defs>
-                    <path
-                      d="M 0 60 Q 100 40 200 50 T 400 30"
-                      stroke="url(#lineGradient)"
-                      strokeWidth="3"
-                      fill="none"
-                      className="drop-shadow-lg"
-                    />
-                    <circle cx="400" cy="30" r="4" fill="#1dff00" className="drop-shadow-lg" />
-                  </svg>
-                </div>
+                <SplitLineAreaChart />
               </Card>
             </motion.div>
 
