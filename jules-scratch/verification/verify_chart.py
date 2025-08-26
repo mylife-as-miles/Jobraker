@@ -6,44 +6,26 @@ def run():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         try:
-            # --- Registration ---
-            page.goto("http://localhost:5174/login", wait_until="domcontentloaded")
-
-            # Click on the "Sign up" link
-            page.get_by_role("link", name="Sign up").click()
+            page.goto("https://jobraker-six.vercel.app/SignIn")
 
             # Wait for the email input field to be visible
             page.wait_for_selector('input[type="email"]', timeout=10000)
 
-            # Fill in the registration form
-            timestamp = int(time.time())
-            email = f"testuser{timestamp}@example.com"
-            password = "password123"
-            page.locator('input[type="email"]').fill(email)
-            page.locator('input[type="password"]').fill(password)
-            page.locator('button[type="submit"]').click()
-
-            # --- Email Verification ---
-            page.goto("http://localhost:54324")
-            page.wait_for_selector(f'td:has-text("{email}")')
-            page.locator(f'td:has-text("{email}")').first.click()
-            page.frame_locator("iframe").locator('a:has-text("Confirm your mail")').click()
-
-            # --- Login ---
-            page.goto("http://localhost:5174/login", wait_until="domcontentloaded")
-
             # Fill in the login form
-            page.wait_for_selector('input[type="email"]', timeout=10000)
-            page.locator('input[type="email"]').fill(email)
-            page.locator('input[type="password"]').fill(password)
-            page.locator('button[type="submit"]').click()
+            page.locator('input[type="email"]').fill("siscomilesinfo@gmail.com")
+            page.locator('button[type="submit"]').click() # Assuming there's a continue button
+
+            # Wait for navigation to the pricing page
+            page.wait_for_url("**/pricing**", timeout=15000)
+
+            # Select the starter plan
+            page.locator('button:has-text("Get Started")').first.click()
 
             # Wait for navigation to the dashboard
             page.wait_for_url("**/dashboard/**", timeout=15000)
 
             # Take a screenshot of the dashboard
             page.screenshot(path="jules-scratch/verification/dashboard-page.png")
-            print("Successfully took screenshot of dashboard page.")
 
         except TimeoutError as e:
             print(f"Timeout error: {e}")
