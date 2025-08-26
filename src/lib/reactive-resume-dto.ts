@@ -44,3 +44,54 @@ export const updateUserSchema = {
 export const createResumeSchema = z.object({
   title: z.string().min(1),
 });
+
+// Minimal auth DTOs used in client services
+export type LoginDto = {
+  identifier: string;
+  password: string;
+};
+
+export type RegisterDto = {
+  name: string;
+  username: string;
+  email: string;
+  password: string;
+  locale?: string;
+};
+
+export type ResetPasswordDto = { token: string; password: string };
+export type ForgotPasswordDto = { email: string };
+export type UpdatePasswordDto = { currentPassword: string; newPassword: string };
+
+export type TwoFactorDto = { code: string };
+export type TwoFactorBackupDto = { code: string };
+
+export type AuthProvidersDto = Array<"github" | "google" | "openid" | "email">;
+
+export type MessageDto = { message: string };
+
+export type AuthResponseDto =
+  | { status: "authenticated"; user: UserDto }
+  | { status: "2fa_required" };
+
+export const authResponseSchema = {
+  pick: (_: { status: true }) => ({ safeParse: (v: any) => ({ success: typeof v.status === "string" }) }),
+} as any;
+
+// Minimal misc DTOs used by services
+export type FeatureDto = {
+  isSignupsDisabled: boolean;
+  isEmailAuthDisabled: boolean;
+};
+
+export type UrlDto = { url: string };
+export type StatisticsDto = { views: number; downloads: number };
+export type ContributorDto = { id: string; name: string };
+export type ImportResumeDto = { title: string; data: any };
+export type CreateResumeDto = {
+  title: string;
+  slug?: string;
+  data?: any;
+  visibility?: "public" | "private";
+};
+export type DeleteResumeDto = { id: string };
