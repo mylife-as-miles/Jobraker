@@ -21,7 +21,7 @@ import {
   Filter,
   TrendingUp,
 } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, XAxis, ResponsiveContainer } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "../../../components/ui/chart";
 import { motion } from "framer-motion";
 import { useApplications, type ApplicationRecord, type ApplicationStatus } from "../../../hooks/useApplications";
@@ -507,6 +507,7 @@ function SplitLineAreaChart({ chartData, chartConfig }: { chartData: { month: st
         </CardHeader>
         <CardContent>
           <ChartContainer
+            className="h-80"
             data={chartData}
             config={chartConfig}
             onMouseMove={(e: React.MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY })}
@@ -516,46 +517,48 @@ function SplitLineAreaChart({ chartData, chartConfig }: { chartData: { month: st
               setHoverIndex(null);
             }}
           >
-            <AreaChart
-              accessibilityLayer
-              data={chartData}
-              margin={{ left: 12, right: 12, top: 12 }}
-              onMouseMove={(state: any) => {
-                if (state && state.activeTooltipIndex != null) setHoverIndex(state.activeTooltipIndex as number);
-              }}
-              onMouseLeave={() => setHoverIndex(null)}
-            >
-              <CartesianGrid vertical={false} />
-              <XAxis
-                dataKey="month"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                tickFormatter={(value: string) => value.slice(0, 3)}
-              />
-              <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                accessibilityLayer
+                data={chartData}
+                margin={{ left: 12, right: 12, top: 12 }}
+                onMouseMove={(state: any) => {
+                  if (state && state.activeTooltipIndex != null) setHoverIndex(state.activeTooltipIndex as number);
+                }}
+                onMouseLeave={() => setHoverIndex(null)}
+              >
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tickFormatter={(value: string) => value.slice(0, 3)}
+                />
+                <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
 
-              <defs>
-                <linearGradient id="fillMobile" x1="0" y1="0" x2="1" y2="0">
-                  <motion.stop offset="0%" stopColor="var(--foreground)" stopOpacity={0.8} />
-                  <motion.stop
-                    stopColor="var(--foreground)"
-                    stopOpacity={0.8}
-                    animate={{ offset: `${splitOffset}%` }}
-                    transition={{ duration: 0.4, ease: "easeInOut" }}
-                  />
-                  <motion.stop
-                    stopColor="var(--foreground)"
-                    stopOpacity={0.1}
-                    animate={{ offset: `${splitOffset + 0.1}%` }}
-                    transition={{ duration: 0.4, ease: "easeInOut" }}
-                  />
-                  <stop offset="95%" stopColor="var(--background)" stopOpacity={0.1} />
-                </linearGradient>
-              </defs>
+                <defs>
+                  <linearGradient id="fillMobile" x1="0" y1="0" x2="1" y2="0">
+                    <motion.stop offset="0%" stopColor="#1dff00" stopOpacity={0.8} />
+                    <motion.stop
+                      stopColor="#1dff00"
+                      stopOpacity={0.8}
+                      animate={{ offset: `${splitOffset}%` }}
+                      transition={{ duration: 0.4, ease: "easeInOut" }}
+                    />
+                    <motion.stop
+                      stopColor="#1dff00"
+                      stopOpacity={0.1}
+                      animate={{ offset: `${splitOffset + 0.1}%` }}
+                      transition={{ duration: 0.4, ease: "easeInOut" }}
+                    />
+                    <stop offset="95%" stopColor="#000000" stopOpacity={0.1} />
+                  </linearGradient>
+                </defs>
 
-              <Area dataKey="mobile" type="natural" fill="url(#fillMobile)" stroke="url(#fillMobile)" fillOpacity={0.4} />
-            </AreaChart>
+                <Area dataKey="mobile" type="natural" fill="url(#fillMobile)" stroke="#1dff00" strokeWidth={2} dot={false} fillOpacity={0.35} />
+              </AreaChart>
+            </ResponsiveContainer>
           </ChartContainer>
         </CardContent>
         <CardFooter>
