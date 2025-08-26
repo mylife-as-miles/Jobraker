@@ -16,9 +16,14 @@ export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children,
   <div {...props} className={(props.className ?? "") + " rounded border p-3 bg-white/5"}>{children}</div>
 );
 
-export const ScrollArea: React.FC<React.HTMLAttributes<HTMLDivElement> & { orientation?: "vertical" | "horizontal" }> = ({ children, ...props }) => (
-  <div {...props} style={{ overflow: "auto", ...(props as any).style }}>{children}</div>
-);
+export const ScrollArea: React.FC<
+  React.HTMLAttributes<HTMLDivElement> & { orientation?: "vertical" | "horizontal"; allowOverflow?: boolean }
+> = ({ children, style, orientation, allowOverflow, ...rest }) => {
+  // ignore orientation/allowOverflow in this stub
+  return (
+    <div {...rest} style={{ overflow: "auto", ...(style as any) }}>{children}</div>
+  );
+};
 
 export const Separator: React.FC<React.HTMLAttributes<HTMLDivElement>> = (props) => (
   <hr className={(props.className ?? "") + " my-2 border-gray-300/40"} />
@@ -75,7 +80,12 @@ export const SelectItem: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ chi
 export const SelectTrigger: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
 export const SelectValue: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ children }) => <span>{children}</span>;
 
-export const Tabs: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
+export const Tabs: React.FC<
+  React.HTMLAttributes<HTMLDivElement> & { value?: string; defaultValue?: string; onValueChange?: (v: string) => void }
+> = ({ children, value, defaultValue, onValueChange, ...rest }) => (
+  // This is a no-op container in the stub; props are accepted for type-compat
+  <div {...rest}>{children}</div>
+);
 export const TabsList: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
 export const TabsTrigger: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, ...props }) => <button {...props}>{children}</button>;
 export const TabsContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
