@@ -11,7 +11,7 @@ export const ResumesPage = () => {
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
       <Helmet>
         <title>
-          {t`Resumes`} - JobRaker
+          {t`Resume Builder`} - JobRaker
         </title>
       </Helmet>
 
@@ -22,7 +22,7 @@ export const ResumesPage = () => {
             animate={{ opacity: 1, x: 0 }}
             className="text-2xl sm:text-3xl font-semibold tracking-tight text-white"
           >
-            {t`Resumes`}
+            {t`Resume Builder`}
           </motion.h1>
         </div>
 
