@@ -1,4 +1,5 @@
 "use client"
+import React from "react"
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 import { motion } from "framer-motion"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "../../../components/ui/chart"
@@ -22,6 +23,7 @@ type Props = {
   tickFormatter?: (value: string) => string
   stacked?: boolean
   showLegend?: boolean
+  onVisibleChange?: (keys: string[]) => void
 }
 
 export function SplitLineAreaChart({
@@ -32,11 +34,13 @@ export function SplitLineAreaChart({
   tickFormatter,
   stacked = false,
   showLegend = false,
+  onVisibleChange,
 }: Props) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [isInside, setIsInside] = useState(false)
   const [visible, setVisible] = useState<Set<string>>(() => new Set(series.map(s => s.key)))
+  const effectiveStacked = stacked && visible.size > 1
 
   const n = Math.max(1, (data?.length || 0) - 1)
   const splitOffset = hoverIndex != null ? (hoverIndex / n) * 100 : 100
@@ -51,6 +55,17 @@ export function SplitLineAreaChart({
     })
     return cfg as ChartConfig
   }, [series])
+
+  // Notify parent about visible series change
+  React.useEffect(() => {
+    // call if provided
+    // avoid recreating array unnecessarily
+    // sort for stable order
+    const arr = Array.from(visible)
+    arr.sort()
+    ;(typeof onVisibleChange === 'function') && onVisibleChange(arr)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible])
 
   return (
     <div className={`relative ${className}`}>
@@ -164,7 +179,7 @@ export function SplitLineAreaChart({
                 stroke={color as string}
                 fillOpacity={0.35}
                 dot={false}
-        stackId={stacked ? "a" : undefined}
+        stackId={effectiveStacked ? "a" : undefined}
         hide={!visible.has(s.key)}
               />
             )

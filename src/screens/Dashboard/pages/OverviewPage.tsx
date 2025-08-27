@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { MatchScoreAnalytics } from "../../../components/analytics/MatchScoreAnalytics";
+import { Switch } from "../../../components/ui/switch";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
@@ -13,7 +14,9 @@ import { SplitLineAreaChart } from "./SplitLineAreaChart";
 
 export const OverviewPage = (): JSX.Element => {
   const [selectedPeriod, setSelectedPeriod] = useState("1 Month");
-  const [stacked, setStacked] = useState(true);
+  const [stacked, setStacked] = useState(false);
+  const [stackedTouched, setStackedTouched] = useState(false);
+  const [visibleSeries, setVisibleSeries] = useState<string[]>([]);
   const { items: notifItems, loading: notifLoading } = useNotifications(6);
   const { applications } = useApplications();
   const mappedNotifs = useMemo(() => {
@@ -60,6 +63,12 @@ export const OverviewPage = (): JSX.Element => {
   const timeLabel = useMemo(() =>
     now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
   [now]);
+
+  // Smart default for stacked: Today/1 Week -> stacked; 1 Month -> overlap (unless user toggled)
+  useEffect(() => {
+    if (stackedTouched) return;
+    setStacked(selectedPeriod !== "1 Month");
+  }, [selectedPeriod, stackedTouched]);
 
   // Build real series based on selected period with status-specific keys
   const { seriesData, seriesMeta, appliedCount, interviewCount, totals } = useMemo(() => {
@@ -230,18 +239,14 @@ export const OverviewPage = (): JSX.Element => {
                     </Button>
                   ))}
 
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setStacked((s) => !s)}
-                    className={`ml-auto text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${
-                      stacked ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90' : 'text-white hover:text-[#1dff00] hover:bg-[#1dff00]/10'
-                    }`}
-                    aria-pressed={stacked}
-                    title="Toggle stacked areas"
-                  >
-                    {stacked ? 'Stacked' : 'Overlap'}
-                  </Button>
+          <div className="ml-auto flex items-center gap-2 text-xs sm:text-sm text-[#888]">
+                    <span>Stacked</span>
+                    <Switch
+            checked={stacked && visibleSeries.length > 1}
+            onCheckedChange={(v: boolean) => { setStackedTouched(true); setStacked(!!v); }}
+            disabled={visibleSeries.length <= 1}
+                    />
+                  </div>
                 </div>
 
                 {/* Stats */}
@@ -272,6 +277,7 @@ export const OverviewPage = (): JSX.Element => {
           series={seriesMeta}
                     stacked={stacked}
           showLegend
+                    onVisibleChange={setVisibleSeries}
                     tickFormatter={(v) => String(v).slice(0, 3)}
                   />
                 </div>
