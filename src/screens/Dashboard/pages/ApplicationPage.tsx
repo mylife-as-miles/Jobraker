@@ -1,7 +1,7 @@
 import { useState } from "react";
 import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
 import { Button } from "../../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "../../../components/ui/card";
+import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { 
   Search, 
@@ -19,10 +19,9 @@ import {
   Download,
   Share,
   Filter,
-  TrendingUp,
+  
 } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, XAxis, ResponsiveContainer } from "recharts";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "../../../components/ui/chart";
+ 
 import { motion } from "framer-motion";
 import { useApplications, type ApplicationRecord, type ApplicationStatus } from "../../../hooks/useApplications";
 
@@ -86,20 +85,7 @@ export const ApplicationPage = (): JSX.Element => {
     rejected: applications.filter(app => app.status === "Rejected").length
   };
 
-  // Chart data/config for the area chart section
-  const chartData = [
-    { month: "January", desktop: 186, mobile: 80 },
-    { month: "February", desktop: 305, mobile: 200 },
-    { month: "March", desktop: 237, mobile: 120 },
-    { month: "April", desktop: 73, mobile: 190 },
-    { month: "May", desktop: 209, mobile: 130 },
-    { month: "June", desktop: 214, mobile: 140 },
-  ];
-
-  const chartConfig: ChartConfig = {
-    desktop: { label: "Desktop", color: "var(--chart-1)" },
-    mobile: { label: "Mobile", color: "var(--foreground)" },
-  };
+  // Chart moved to Overview Applications card
 
   return (
     <div className="min-h-screen bg-black">
@@ -160,10 +146,7 @@ export const ApplicationPage = (): JSX.Element => {
           ))}
         </div>
 
-        {/* Chart: Split Line Area (hover reveal) */}
-        <div className="mb-6 sm:mb-8">
-          <SplitLineAreaChart chartData={chartData} chartConfig={chartConfig} />
-        </div>
+  {/* Chart moved to Overview Applications card */}
 
         {/* Search and Filters */}
         <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 mb-6 sm:mb-8">
@@ -482,96 +465,3 @@ export const ApplicationPage = (): JSX.Element => {
     </div>
   );
 };
-
-// Inline SplitLineAreaChart component adapted to project imports/theme
-function SplitLineAreaChart({ chartData, chartConfig }: { chartData: { month: string; desktop: number; mobile: number }[]; chartConfig: ChartConfig }) {
-  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [isInside, setIsInside] = useState(false);
-
-  const splitOffset = hoverIndex != null ? (hoverIndex / (chartData.length - 1)) * 100 : 100;
-
-  return (
-    <div className="relative">
-      {isInside && (
-        <div
-          className="pointer-events-none fixed z-50 w-24 h-24 rounded-full bg-yellow-600 opacity-60 blur-3xl"
-          style={{ left: mousePos.x - 48, top: mousePos.y - 48 }}
-        />
-      )}
-
-      <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px]">
-        <CardHeader>
-          <CardTitle>Area Chart</CardTitle>
-          <CardDescription>Hover to reveal chart fill up to that point</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer
-            className="h-80"
-            data={chartData}
-            config={chartConfig}
-            onMouseMove={(e: React.MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY })}
-            onMouseEnter={() => setIsInside(true)}
-            onMouseLeave={() => {
-              setIsInside(false);
-              setHoverIndex(null);
-            }}
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                accessibilityLayer
-                data={chartData}
-                margin={{ left: 12, right: 12, top: 12 }}
-                onMouseMove={(state: any) => {
-                  if (state && state.activeTooltipIndex != null) setHoverIndex(state.activeTooltipIndex as number);
-                }}
-                onMouseLeave={() => setHoverIndex(null)}
-              >
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  tickFormatter={(value: string) => value.slice(0, 3)}
-                />
-                <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-
-                <defs>
-                  <linearGradient id="fillMobile" x1="0" y1="0" x2="1" y2="0">
-                    <motion.stop offset="0%" stopColor="#1dff00" stopOpacity={0.8} />
-                    <motion.stop
-                      stopColor="#1dff00"
-                      stopOpacity={0.8}
-                      animate={{ offset: `${splitOffset}%` }}
-                      transition={{ duration: 0.4, ease: "easeInOut" }}
-                    />
-                    <motion.stop
-                      stopColor="#1dff00"
-                      stopOpacity={0.1}
-                      animate={{ offset: `${splitOffset + 0.1}%` }}
-                      transition={{ duration: 0.4, ease: "easeInOut" }}
-                    />
-                    <stop offset="95%" stopColor="#000000" stopOpacity={0.1} />
-                  </linearGradient>
-                </defs>
-
-                <Area dataKey="mobile" type="natural" fill="url(#fillMobile)" stroke="#1dff00" strokeWidth={2} dot={false} fillOpacity={0.35} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </CardContent>
-        <CardFooter>
-          <div className="flex w-full items-start gap-2 text-sm">
-            <div className="grid gap-2">
-              <div className="flex items-center gap-2 leading-none font-medium">
-                Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
-              </div>
-              <div className="text-muted-foreground flex items-center gap-2 leading-none">January - June 2024</div>
-            </div>
-          </div>
-        </CardFooter>
-      </Card>
-    </div>
-  );
-}
