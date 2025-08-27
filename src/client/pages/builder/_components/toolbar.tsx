@@ -1,18 +1,19 @@
 import { t } from "@lingui/macro";
-// Icons replaced with simple text placeholders in this stub UI
-const ArrowClockwise = () => <span>↻</span>;
-const ArrowCounterClockwise = () => <span>↺</span>;
-const ArrowsOutCardinal = () => <span>⤢</span>;
-const CircleNotch = (props: any) => <span {...props}>◌</span>;
-const ClockClockwise = () => <span>⟲</span>;
-const CubeFocus = () => <span>⊞</span>;
-const FilePdf = () => <span>PDF</span>;
-const Hash = () => <span>#</span>;
-const LineSegment = () => <span>─</span>;
-const LinkSimple = () => <span>🔗</span>;
-const MagnifyingGlass = () => <span>🔍</span>;
-const MagnifyingGlassMinus = () => <span>➖</span>;
-const MagnifyingGlassPlus = () => <span>➕</span>;
+import {
+  Undo2 as ArrowCounterClockwise,
+  Redo2 as ArrowClockwise,
+  Scan as ArrowsOutCardinal,
+  Loader2 as CircleNotch,
+  RotateCcw as ClockClockwise,
+  Focus as CubeFocus,
+  FileDown as FilePdf,
+  Hash,
+  Minus as LineSegment,
+  Link as LinkSimple,
+  Search as MagnifyingGlass,
+  ZoomOut as MagnifyingGlassMinus,
+  ZoomIn as MagnifyingGlassPlus,
+} from "lucide-react";
 import { Button, Separator, Toggle, Tooltip } from "@reactive-resume/ui";
 import { motion } from "framer-motion";
 import { useState } from "react";
