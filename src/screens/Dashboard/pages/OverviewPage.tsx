@@ -60,38 +60,108 @@ export const OverviewPage = (): JSX.Element => {
     now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
   [now]);
 
-  // Build monthly application counts from real data
-  const monthlySeries = useMemo(() => {
-    // Decide window size based on selectedPeriod
-    const monthsBack = selectedPeriod === "Today" ? 1 : selectedPeriod === "1 Week" ? 3 : 6;
-    const end = new Date(now.getFullYear(), now.getMonth(), 1);
-    const start = new Date(end.getFullYear(), end.getMonth() - (monthsBack - 1), 1);
+  // Build real series based on selected period with status-specific keys
+  const { seriesData, seriesMeta, appliedCount, interviewCount } = useMemo(() => {
+    const period = selectedPeriod
 
-    // Map for counts by yyyy-mm
-    const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const labels: { date: Date; label: string }[] = [];
-    for (let i = 0; i < monthsBack; i++) {
-      const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
-      labels.push({
-        date: d,
-        label: d.toLocaleString(undefined, { month: 'short' }),
-      });
-    }
+    type Bucket = { key: string; label: string; start: Date; end: Date }
+    const buckets: Bucket[] = []
 
-  const counts = new Map<string, number>(labels.map(l => [key(l.date), 0]));
-    for (const app of applications) {
-      const d = new Date(app.applied_date);
-      // Only count within [start, end + 1 month)
-      const afterStart = d >= start;
-      const beforeEnd = d < new Date(end.getFullYear(), end.getMonth() + 1, 1);
-      if (afterStart && beforeEnd) {
-        const k = key(new Date(d.getFullYear(), d.getMonth(), 1));
-        counts.set(k, (counts.get(k) || 0) + 1);
+    if (period === "Today") {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
+      for (let h = 0; h < 24; h++) {
+        const s = new Date(start.getTime())
+        s.setHours(h)
+        const e = new Date(s.getTime())
+        e.setHours(h + 1)
+        buckets.push({
+          key: `${s.getFullYear()}-${s.getMonth()}-${s.getDate()}-${h}`,
+          label: `${h.toString().padStart(2, '0')}:00`,
+          start: s,
+          end: e,
+        })
+      }
+    } else if (period === "1 Week") {
+      const start = new Date(now)
+      start.setDate(start.getDate() - 6)
+      start.setHours(0, 0, 0, 0)
+      for (let i = 0; i < 7; i++) {
+        const s = new Date(start.getTime())
+        s.setDate(start.getDate() + i)
+        const e = new Date(s.getTime())
+        e.setDate(s.getDate() + 1)
+        buckets.push({
+          key: `${s.getFullYear()}-${s.getMonth()}-${s.getDate()}`,
+          label: s.toLocaleDateString(undefined, { weekday: 'short' }),
+          start: s,
+          end: e,
+        })
+      }
+    } else {
+      // 1 Month: last 6 months for trend
+      const end = new Date(now.getFullYear(), now.getMonth(), 1)
+      const start = new Date(end.getFullYear(), end.getMonth() - 5, 1)
+      for (let i = 0; i < 6; i++) {
+        const s = new Date(start.getFullYear(), start.getMonth() + i, 1)
+        const e = new Date(s.getFullYear(), s.getMonth() + 1, 1)
+        buckets.push({
+          key: `${s.getFullYear()}-${s.getMonth()}`,
+          label: s.toLocaleString(undefined, { month: 'short' }),
+          start: s,
+          end: e,
+        })
       }
     }
 
-    return labels.map(l => ({ label: l.label, value: counts.get(key(l.date)) || 0 }));
-  }, [applications, now, selectedPeriod]);
+    // Initialize counts per status
+    const statuses = ["Applied", "Interview", "Offer", "Rejected"] as const
+    const data = buckets.map(b => {
+      const point: Record<string, string | number> = { label: b.label }
+      statuses.forEach(s => { point[s] = 0 })
+      return point
+    })
+
+    let applied = 0
+    let interviews = 0
+    for (const app of applications) {
+      const d = new Date(app.applied_date)
+      if (period === "Today") {
+        const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+        if (d < dayStart || d >= dayEnd) continue
+      } else if (period === "1 Week") {
+        const weekStart = new Date(now)
+        weekStart.setDate(weekStart.getDate() - 6)
+        weekStart.setHours(0, 0, 0, 0)
+        const weekEnd = new Date(now)
+        weekEnd.setHours(23, 59, 59, 999)
+        if (d < weekStart || d > weekEnd) continue
+      } else {
+        const sixMonthsStart = new Date(now.getFullYear(), now.getMonth() - 5, 1)
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+        if (d < sixMonthsStart || d >= monthEnd) continue
+      }
+
+      // Aggregate bucket
+      const idx = buckets.findIndex(b => d >= b.start && d < b.end)
+      if (idx >= 0) {
+        const s = (app.status as string) || "Applied"
+        if (s in data[idx]) data[idx][s] = (data[idx][s] as number) + 1
+        else data[idx]["Applied"] = (data[idx]["Applied"] as number) + 1
+      }
+
+      if (app.status === "Applied") applied++
+      if (app.status === "Interview") interviews++
+    }
+
+    const series = statuses.map((s, i) => ({
+      key: s,
+      label: s,
+      color: i === 0 ? "var(--chart-1)" : i === 1 ? "var(--chart-2)" : i === 2 ? "var(--chart-3)" : "var(--chart-4)",
+    }))
+
+    return { seriesData: data, seriesMeta: series, appliedCount: applied, interviewCount: interviews }
+  }, [applications, now, selectedPeriod])
 
   // Build a 6x7 calendar grid (42 cells)
   const monthGrid = useMemo(() => {
@@ -135,7 +205,7 @@ export const OverviewPage = (): JSX.Element => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-2">
                   <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Applications</h2>
                   <div className="text-left sm:text-right">
-                    <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#1dff00]">0/3</span>
+                    <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#1dff00]">{appliedCount}/{interviewCount}</span>
                   </div>
                 </div>
 
@@ -178,13 +248,12 @@ export const OverviewPage = (): JSX.Element => {
                   </motion.div>
                 </div>
 
-                {/* Applications Chart (real data) */}
+                {/* Applications Chart (real data, status series) */}
                 <div className="mt-2 sm:mt-4">
                   <SplitLineAreaChart
-                    data={monthlySeries}
+                    data={seriesData}
                     xKey="label"
-                    yKey="value"
-                    color="#1dff00"
+                    series={seriesMeta}
                     tickFormatter={(v) => String(v).slice(0, 3)}
                   />
                 </div>

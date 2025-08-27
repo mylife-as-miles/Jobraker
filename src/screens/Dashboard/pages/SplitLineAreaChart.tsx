@@ -8,11 +8,16 @@ export const description = "An area chart with gradient fill that animates revea
 
 type GenericPoint = Record<string, string | number>
 
+type Series = {
+  key: string
+  label?: string
+  color?: string
+}
+
 type Props = {
   data: GenericPoint[]
   xKey?: string
-  yKey?: string
-  color?: string
+  series?: Series[]
   className?: string
   tickFormatter?: (value: string) => string
 }
@@ -20,8 +25,7 @@ type Props = {
 export function SplitLineAreaChart({
   data,
   xKey = "label",
-  yKey = "value",
-  color = "#22c55e",
+  series = [{ key: "value", label: "Series", color: "var(--chart-1)" }],
   className = "h-16 sm:h-20 lg:h-24 w-full",
   tickFormatter,
 }: Props) {
@@ -31,18 +35,28 @@ export function SplitLineAreaChart({
 
   const n = Math.max(1, (data?.length || 0) - 1)
   const splitOffset = hoverIndex != null ? (hoverIndex / n) * 100 : 100
-  const gradientId = useMemo(() => `fill_${yKey}` as const, [yKey])
 
-  const chartConfig: ChartConfig = useMemo(() => ({
-    [yKey]: { label: "Applications", color: "var(--chart-1)" },
-  }) as ChartConfig, [yKey])
+  const chartConfig: ChartConfig = useMemo(() => {
+    const cfg: Record<string, { label: string; color: string }> = {}
+    series.forEach((s, idx) => {
+      cfg[s.key] = {
+        label: s.label ?? s.key,
+        color: s.color ?? `var(--chart-${(idx % 5) + 1})`,
+      }
+    })
+    return cfg as ChartConfig
+  }, [series])
 
   return (
     <div className={`relative ${className}`}>
       {isInside && (
         <div
           className="pointer-events-none fixed z-50 w-24 h-24 rounded-full opacity-60 blur-3xl"
-          style={{ left: mousePos.x - 48, top: mousePos.y - 48, backgroundColor: color }}
+          style={{
+            left: mousePos.x - 48,
+            top: mousePos.y - 48,
+            backgroundColor: (series[0]?.color ?? "var(--chart-1)") as string,
+          }}
         />
       )}
 
@@ -77,25 +91,45 @@ export function SplitLineAreaChart({
           <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
 
           <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
-              <motion.stop offset="0%" stopColor={color} stopOpacity={0.8} />
-              <motion.stop
-                stopColor={color}
-                stopOpacity={0.8}
-                animate={{ offset: `${splitOffset}%` }}
-                transition={{ duration: 0.4, ease: "easeInOut" }}
-              />
-              <motion.stop
-                stopColor={color}
-                stopOpacity={0.1}
-                animate={{ offset: `${splitOffset + 0.1}%` }}
-                transition={{ duration: 0.4, ease: "easeInOut" }}
-              />
-              <stop offset="95%" stopColor="#000000" stopOpacity={0.1} />
-            </linearGradient>
+            {series.map((s, idx) => {
+              const color = s.color ?? `var(--chart-${(idx % 5) + 1})`
+              const gradientId = `fill_${s.key}`
+              return (
+                <linearGradient key={gradientId} id={gradientId} x1="0" y1="0" x2="1" y2="0">
+                  <motion.stop offset="0%" stopColor={color as string} stopOpacity={0.8} />
+                  <motion.stop
+                    stopColor={color as string}
+                    stopOpacity={0.8}
+                    animate={{ offset: `${splitOffset}%` }}
+                    transition={{ duration: 0.4, ease: "easeInOut" }}
+                  />
+                  <motion.stop
+                    stopColor={color as string}
+                    stopOpacity={0.1}
+                    animate={{ offset: `${splitOffset + 0.1}%` }}
+                    transition={{ duration: 0.4, ease: "easeInOut" }}
+                  />
+                  <stop offset="95%" stopColor="#000000" stopOpacity={0.1} />
+                </linearGradient>
+              )
+            })}
           </defs>
 
-          <Area dataKey={yKey} type="natural" fill={`url(#${gradientId})`} stroke={color} fillOpacity={0.4} />
+          {series.map((s, idx) => {
+            const color = s.color ?? `var(--chart-${(idx % 5) + 1})`
+            const gradientId = `fill_${s.key}`
+            return (
+              <Area
+                key={s.key}
+                dataKey={s.key}
+                type="natural"
+                fill={`url(#${gradientId})`}
+                stroke={color as string}
+                fillOpacity={0.35}
+                dot={false}
+              />
+            )
+          })}
         </AreaChart>
       </ChartContainer>
     </div>
