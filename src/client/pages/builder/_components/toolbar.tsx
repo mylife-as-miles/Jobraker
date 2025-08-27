@@ -1,26 +1,24 @@
 import { t } from "@lingui/macro";
-import {
-  ArrowClockwise,
-  ArrowCounterClockwise,
-  ArrowsOutCardinal,
-  CircleNotch,
-  ClockClockwise,
-  CubeFocus,
-  FilePdf,
-  Hash,
-  LineSegment,
-  LinkSimple,
-  MagnifyingGlass,
-  MagnifyingGlassMinus,
-  MagnifyingGlassPlus,
-} from "@phosphor-icons/react";
+// Icons replaced with simple text placeholders in this stub UI
+const ArrowClockwise = () => <span>↻</span>;
+const ArrowCounterClockwise = () => <span>↺</span>;
+const ArrowsOutCardinal = () => <span>⤢</span>;
+const CircleNotch = (props: any) => <span {...props}>◌</span>;
+const ClockClockwise = () => <span>⟲</span>;
+const CubeFocus = () => <span>⊞</span>;
+const FilePdf = () => <span>PDF</span>;
+const Hash = () => <span>#</span>;
+const LineSegment = () => <span>─</span>;
+const LinkSimple = () => <span>🔗</span>;
+const MagnifyingGlass = () => <span>🔍</span>;
+const MagnifyingGlassMinus = () => <span>➖</span>;
+const MagnifyingGlassPlus = () => <span>➕</span>;
 import { Button, Separator, Toggle, Tooltip } from "@reactive-resume/ui";
 import { motion } from "framer-motion";
 import { useState } from "react";
 
 import { useToast } from "@/client/hooks/use-toast";
 import { usePrintResume } from "@/client/services/resume";
-import { useBuilderStore } from "@/client/stores/builder";
 import { useResumeStore, useTemporalResumeStore } from "@/client/stores/resume";
 
 const openInNewTab = (url: string) => {
@@ -36,7 +34,6 @@ export const BuilderToolbar = () => {
   const setValue = useResumeStore((state) => state.setValue);
   const undo = useTemporalResumeStore((state) => state.undo);
   const redo = useTemporalResumeStore((state) => state.redo);
-  const frameRef = useBuilderStore((state) => state.frame.ref);
 
   const id = useResumeStore((state) => state.resume.id);
   const isPublic = useResumeStore((state) => state.resume.visibility === "public");
@@ -61,13 +58,13 @@ export const BuilderToolbar = () => {
     });
   };
 
-  const onZoomIn = () => frameRef?.contentWindow?.postMessage({ type: "ZOOM_IN" }, "*");
-  const onZoomOut = () => frameRef?.contentWindow?.postMessage({ type: "ZOOM_OUT" }, "*");
-  const onResetView = () => frameRef?.contentWindow?.postMessage({ type: "RESET_VIEW" }, "*");
-  const onCenterView = () => frameRef?.contentWindow?.postMessage({ type: "CENTER_VIEW" }, "*");
+  const onZoomIn = () => window.dispatchEvent(new CustomEvent("ARTBOARD_CMD", { detail: { type: "ZOOM_IN" } }));
+  const onZoomOut = () => window.dispatchEvent(new CustomEvent("ARTBOARD_CMD", { detail: { type: "ZOOM_OUT" } }));
+  const onResetView = () => window.dispatchEvent(new CustomEvent("ARTBOARD_CMD", { detail: { type: "RESET_VIEW" } }));
+  const onCenterView = () => window.dispatchEvent(new CustomEvent("ARTBOARD_CMD", { detail: { type: "CENTER_VIEW" } }));
   const onTogglePanMode = () => {
     setPanMode(!panMode);
-    frameRef?.contentWindow?.postMessage({ type: "TOGGLE_PAN_MODE", panMode: !panMode }, "*");
+  window.dispatchEvent(new CustomEvent("ARTBOARD_CMD", { detail: { type: "TOGGLE_PAN_MODE", panMode: !panMode } }));
   };
 
   return (
@@ -99,7 +96,7 @@ export const BuilderToolbar = () => {
           </Button>
         </Tooltip>
 
-        <Separator orientation="vertical" className="h-9" />
+  <Separator className="h-9" />
 
         <Tooltip content={panMode ? t`Scroll to Pan` : t`Scroll to Zoom`}>
           <Toggle className="rounded-none" pressed={panMode} onPressedChange={onTogglePanMode}>
@@ -107,7 +104,7 @@ export const BuilderToolbar = () => {
           </Toggle>
         </Tooltip>
 
-        <Separator orientation="vertical" className="h-9" />
+  <Separator className="h-9" />
 
         <Tooltip content={t`Zoom In`}>
           <Button size="icon" variant="ghost" className="rounded-none" onClick={onZoomIn}>
@@ -133,7 +130,7 @@ export const BuilderToolbar = () => {
           </Button>
         </Tooltip>
 
-        <Separator orientation="vertical" className="h-9" />
+  <Separator className="h-9" />
 
         <Tooltip content={t`Toggle Page Break Line`}>
           <Toggle
@@ -159,7 +156,7 @@ export const BuilderToolbar = () => {
           </Toggle>
         </Tooltip>
 
-        <Separator orientation="vertical" className="h-9" />
+  <Separator className="h-9" />
 
         <Tooltip content={t`Copy Link to Resume`}>
           <Button

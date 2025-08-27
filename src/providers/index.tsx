@@ -7,9 +7,8 @@ import { helmetContext } from "../constants/helmet";
 import { useArtboardStore } from "../store/artboard";
 
 export const Providers = () => {
-  const resume = useArtboardStore((state) => state.resume);
   const setResume = useArtboardStore((state) => state.setResume);
-  const location = useLocation();
+  useLocation(); // ensure router context; value not used
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -30,10 +29,7 @@ export const Providers = () => {
     if (resumeData) setResume(JSON.parse(resumeData));
   }, []);
 
-  // Only gate rendering on artboard routes where resume is required immediately
-  const isArtboard = location.pathname.startsWith("/artboard");
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (isArtboard && !resume) return null;
+  // Do not gate rendering here; downstream pages will guard on missing resume.
 
   return (
     <HelmetProvider context={helmetContext}>

@@ -7,14 +7,18 @@ import { useArtboardStore } from "../store/artboard";
 import { getTemplate } from "../templates";
 
 export const PreviewLayout = () => {
-  const layout = useArtboardStore((state) => state.resume.metadata.layout);
-  const template = useArtboardStore((state) => state.resume.metadata.template as Template);
+  const layout = useArtboardStore((state) => state.resume?.metadata?.layout);
+  const template = useArtboardStore((state) => state.resume?.metadata?.template as Template);
 
-  const Template = useMemo(() => getTemplate(template), [template]);
+  const Template = useMemo(() => (template ? getTemplate(template) : null), [template]);
+
+  if (!layout || !Template) {
+    return null;
+  }
 
   return (
     <>
-      {layout.map((columns, pageIndex) => (
+      {layout.map((columns: any, pageIndex: number) => (
         <Page key={pageIndex} mode="preview" pageNumber={pageIndex + 1}>
           <Template isFirstPage={pageIndex === 0} columns={columns as SectionKey[][]} />
         </Page>

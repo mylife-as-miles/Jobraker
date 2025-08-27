@@ -67,6 +67,9 @@ export const pageSizeMap = {
   }
 }
 
+// Export a type for supported page formats
+export type PageFormat = keyof typeof pageSizeMap;
+
 // Additional helpers referenced by client UI
 export const generateRandomName = () => {
   const adjectives = ["Agile", "Brave", "Calm", "Daring", "Eager", "Fuzzy"];
@@ -83,6 +86,21 @@ export const templatesList = [
   { id: "modern", name: "Modern" },
   { id: "classic", name: "Classic" },
 ];
+
+// Template identifiers used across artboard/builder
+export type Template =
+  | "azurill"
+  | "bronzor"
+  | "chikorita"
+  | "ditto"
+  | "gengar"
+  | "glalie"
+  | "kakuna"
+  | "leafish"
+  | "nosepass"
+  | "onyx"
+  | "pikachu"
+  | "rhyhorn";
 
 export const getInitials = (name?: string | null) => {
   if (!name) return "?";
