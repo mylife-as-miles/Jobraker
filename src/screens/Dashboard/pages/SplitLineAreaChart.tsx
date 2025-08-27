@@ -1,6 +1,6 @@
 "use client"
 import React from "react"
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
+import { Area, AreaChart, CartesianGrid, XAxis, ResponsiveContainer } from "recharts"
 import { motion } from "framer-motion"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "../../../components/ui/chart"
 import { useMemo, useState } from "react"
@@ -24,6 +24,7 @@ type Props = {
   stacked?: boolean
   showLegend?: boolean
   onVisibleChange?: (keys: string[]) => void
+  defaultVisible?: string[]
 }
 
 export function SplitLineAreaChart({
@@ -35,11 +36,19 @@ export function SplitLineAreaChart({
   stacked = false,
   showLegend = false,
   onVisibleChange,
+  defaultVisible,
 }: Props) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [isInside, setIsInside] = useState(false)
-  const [visible, setVisible] = useState<Set<string>>(() => new Set(series.map(s => s.key)))
+  const [visible, setVisible] = useState<Set<string>>(() => {
+    const keys = series.map(s => s.key)
+    if (defaultVisible && defaultVisible.length) {
+      const allowed = new Set(keys)
+      return new Set(defaultVisible.filter(k => allowed.has(k)))
+    }
+    return new Set(keys)
+  })
   const effectiveStacked = stacked && visible.size > 1
 
   const n = Math.max(1, (data?.length || 0) - 1)
@@ -66,6 +75,18 @@ export function SplitLineAreaChart({
     ;(typeof onVisibleChange === 'function') && onVisibleChange(arr)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible])
+
+  // Sync visibility when defaultVisible or series change
+  React.useEffect(() => {
+    const keys = new Set(series.map(s => s.key))
+    if (defaultVisible && defaultVisible.length) {
+      const next = new Set(defaultVisible.filter(k => keys.has(k)))
+      setVisible(next)
+    } else {
+      setVisible(keys)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultVisible, series.map(s => s.key).join("|")])
 
   return (
     <div className={`relative ${className}`}>
@@ -123,68 +144,70 @@ export function SplitLineAreaChart({
         data={data}
         className="h-full w-full"
       >
-        <AreaChart
-          accessibilityLayer
-          data={data}
-          margin={{ left: 12, right: 12, top: 12 }}
-          onMouseMove={(state: any) => {
-            if (state && state.activeTooltipIndex != null) setHoverIndex(state.activeTooltipIndex)
-          }}
-          onMouseLeave={() => setHoverIndex(null)}
-        >
-          <CartesianGrid vertical={false} />
-          <XAxis
-            dataKey={xKey}
-            tickLine={false}
-            axisLine={false}
-            tickMargin={8}
-            tickFormatter={(value: string) => (tickFormatter ? tickFormatter(value) : String(value))}
-          />
-          <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart
+            accessibilityLayer
+            data={data}
+            margin={{ left: 12, right: 12, top: 12 }}
+            onMouseMove={(state: any) => {
+              if (state && state.activeTooltipIndex != null) setHoverIndex(state.activeTooltipIndex)
+            }}
+            onMouseLeave={() => setHoverIndex(null)}
+          >
+            <CartesianGrid vertical={false} />
+            <XAxis
+              dataKey={xKey}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              tickFormatter={(value: string) => (tickFormatter ? tickFormatter(value) : String(value))}
+            />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
 
-          <defs>
+            <defs>
+              {series.map((s, idx) => {
+                const color = s.color ?? `var(--chart-${(idx % 5) + 1})`
+                const gradientId = `fill_${s.key}`
+                return (
+                  <linearGradient key={gradientId} id={gradientId} x1="0" y1="0" x2="1" y2="0">
+                    <motion.stop offset="0%" stopColor={color as string} stopOpacity={0.8} />
+                    <motion.stop
+                      stopColor={color as string}
+                      stopOpacity={0.8}
+                      animate={{ offset: `${splitOffset}%` }}
+                      transition={{ duration: 0.4, ease: "easeInOut" }}
+                    />
+                    <motion.stop
+                      stopColor={color as string}
+                      stopOpacity={0.1}
+                      animate={{ offset: `${splitOffset + 0.1}%` }}
+                      transition={{ duration: 0.4, ease: "easeInOut" }}
+                    />
+                    <stop offset="95%" stopColor="#000000" stopOpacity={0.1} />
+                  </linearGradient>
+                )
+              })}
+            </defs>
+
             {series.map((s, idx) => {
               const color = s.color ?? `var(--chart-${(idx % 5) + 1})`
               const gradientId = `fill_${s.key}`
               return (
-                <linearGradient key={gradientId} id={gradientId} x1="0" y1="0" x2="1" y2="0">
-                  <motion.stop offset="0%" stopColor={color as string} stopOpacity={0.8} />
-                  <motion.stop
-                    stopColor={color as string}
-                    stopOpacity={0.8}
-                    animate={{ offset: `${splitOffset}%` }}
-                    transition={{ duration: 0.4, ease: "easeInOut" }}
-                  />
-                  <motion.stop
-                    stopColor={color as string}
-                    stopOpacity={0.1}
-                    animate={{ offset: `${splitOffset + 0.1}%` }}
-                    transition={{ duration: 0.4, ease: "easeInOut" }}
-                  />
-                  <stop offset="95%" stopColor="#000000" stopOpacity={0.1} />
-                </linearGradient>
+                <Area
+                  key={s.key}
+                  dataKey={s.key}
+                  type="natural"
+                  fill={`url(#${gradientId})`}
+                  stroke={color as string}
+                  fillOpacity={0.35}
+                  dot={false}
+                  stackId={effectiveStacked ? "a" : undefined}
+                  hide={!visible.has(s.key)}
+                />
               )
             })}
-          </defs>
-
-      {series.map((s, idx) => {
-            const color = s.color ?? `var(--chart-${(idx % 5) + 1})`
-            const gradientId = `fill_${s.key}`
-            return (
-              <Area
-                key={s.key}
-                dataKey={s.key}
-                type="natural"
-                fill={`url(#${gradientId})`}
-                stroke={color as string}
-                fillOpacity={0.35}
-                dot={false}
-        stackId={effectiveStacked ? "a" : undefined}
-        hide={!visible.has(s.key)}
-              />
-            )
-          })}
-        </AreaChart>
+          </AreaChart>
+        </ResponsiveContainer>
       </ChartContainer>
     </div>
   )

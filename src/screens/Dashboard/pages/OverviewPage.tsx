@@ -70,6 +70,29 @@ export const OverviewPage = (): JSX.Element => {
     setStacked(selectedPeriod !== "1 Month");
   }, [selectedPeriod, stackedTouched]);
 
+  // Load persisted UI state
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("overview_apps_chart_ui")
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (typeof parsed.stacked === 'boolean') {
+        setStacked(parsed.stacked)
+        setStackedTouched(true)
+      }
+      if (Array.isArray(parsed.visible) && parsed.visible.every((v: any) => typeof v === 'string')) {
+        setVisibleSeries(parsed.visible)
+      }
+    } catch {}
+  }, [])
+
+  // Persist on change
+  useEffect(() => {
+    try {
+      localStorage.setItem("overview_apps_chart_ui", JSON.stringify({ stacked, visible: visibleSeries }))
+    } catch {}
+  }, [stacked, visibleSeries])
+
   // Build real series based on selected period with status-specific keys
   const { seriesData, seriesMeta, appliedCount, interviewCount, totals } = useMemo(() => {
     const period = selectedPeriod
@@ -270,7 +293,7 @@ export const OverviewPage = (): JSX.Element => {
                 </div>
 
                 {/* Applications Chart (real data, status series) */}
-        <div className="mt-2 sm:mt-4">
+                <div className="mt-2 sm:mt-4 min-h-[16rem]">
                   <SplitLineAreaChart
                     data={seriesData}
                     xKey="label"
@@ -278,6 +301,7 @@ export const OverviewPage = (): JSX.Element => {
                     stacked={stacked}
           showLegend
                     onVisibleChange={setVisibleSeries}
+                    defaultVisible={visibleSeries}
                     tickFormatter={(v) => String(v).slice(0, 3)}
                   />
                 </div>
