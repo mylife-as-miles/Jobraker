@@ -20,18 +20,23 @@ type Props = {
   series?: Series[]
   className?: string
   tickFormatter?: (value: string) => string
+  stacked?: boolean
+  showLegend?: boolean
 }
 
 export function SplitLineAreaChart({
   data,
   xKey = "label",
   series = [{ key: "value", label: "Series", color: "var(--chart-1)" }],
-  className = "h-16 sm:h-20 lg:h-24 w-full",
+  className = "h-56 sm:h-64 lg:h-72 w-full",
   tickFormatter,
+  stacked = false,
+  showLegend = false,
 }: Props) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [isInside, setIsInside] = useState(false)
+  const [visible, setVisible] = useState<Set<string>>(() => new Set(series.map(s => s.key)))
 
   const n = Math.max(1, (data?.length || 0) - 1)
   const splitOffset = hoverIndex != null ? (hoverIndex / n) * 100 : 100
@@ -49,6 +54,38 @@ export function SplitLineAreaChart({
 
   return (
     <div className={`relative ${className}`}>
+      {showLegend && (
+        <div className="absolute top-0 left-0 right-0 z-10 flex flex-wrap items-center gap-2 px-2 pt-2">
+          {series.map((s, idx) => {
+            const color = s.color ?? `var(--chart-${(idx % 5) + 1})`
+            const active = visible.has(s.key)
+            return (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => {
+                  setVisible(prev => {
+                    const next = new Set(prev)
+                    if (next.has(s.key)) next.delete(s.key)
+                    else next.add(s.key)
+                    return next
+                  })
+                }}
+                className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs transition-colors ${
+                  active ? "border-white/20 text-white" : "border-white/10 text-white/50"
+                }`}
+                aria-pressed={active}
+              >
+                <span
+                  className="inline-block h-2 w-2 rounded"
+                  style={{ backgroundColor: color as string }}
+                />
+                <span>{s.label ?? s.key}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
       {isInside && (
         <div
           className="pointer-events-none fixed z-50 w-24 h-24 rounded-full opacity-60 blur-3xl"
@@ -115,7 +152,7 @@ export function SplitLineAreaChart({
             })}
           </defs>
 
-          {series.map((s, idx) => {
+      {series.map((s, idx) => {
             const color = s.color ?? `var(--chart-${(idx % 5) + 1})`
             const gradientId = `fill_${s.key}`
             return (
@@ -127,6 +164,8 @@ export function SplitLineAreaChart({
                 stroke={color as string}
                 fillOpacity={0.35}
                 dot={false}
+        stackId={stacked ? "a" : undefined}
+        hide={!visible.has(s.key)}
               />
             )
           })}

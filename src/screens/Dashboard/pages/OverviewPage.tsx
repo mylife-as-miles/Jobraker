@@ -13,6 +13,7 @@ import { SplitLineAreaChart } from "./SplitLineAreaChart";
 
 export const OverviewPage = (): JSX.Element => {
   const [selectedPeriod, setSelectedPeriod] = useState("1 Month");
+  const [stacked, setStacked] = useState(true);
   const { items: notifItems, loading: notifLoading } = useNotifications(6);
   const { applications } = useApplications();
   const mappedNotifs = useMemo(() => {
@@ -61,7 +62,7 @@ export const OverviewPage = (): JSX.Element => {
   [now]);
 
   // Build real series based on selected period with status-specific keys
-  const { seriesData, seriesMeta, appliedCount, interviewCount } = useMemo(() => {
+  const { seriesData, seriesMeta, appliedCount, interviewCount, totals } = useMemo(() => {
     const period = selectedPeriod
 
     type Bucket = { key: string; label: string; start: Date; end: Date }
@@ -123,6 +124,7 @@ export const OverviewPage = (): JSX.Element => {
 
     let applied = 0
     let interviews = 0
+    let totalInWindow = 0
     for (const app of applications) {
       const d = new Date(app.applied_date)
       if (period === "Today") {
@@ -152,6 +154,7 @@ export const OverviewPage = (): JSX.Element => {
 
       if (app.status === "Applied") applied++
       if (app.status === "Interview") interviews++
+      totalInWindow++
     }
 
     const series = statuses.map((s, i) => ({
@@ -160,7 +163,7 @@ export const OverviewPage = (): JSX.Element => {
       color: i === 0 ? "var(--chart-1)" : i === 1 ? "var(--chart-2)" : i === 2 ? "var(--chart-3)" : "var(--chart-4)",
     }))
 
-    return { seriesData: data, seriesMeta: series, appliedCount: applied, interviewCount: interviews }
+  return { seriesData: data, seriesMeta: series, appliedCount: applied, interviewCount: interviews, totals: { totalInWindow } }
   }, [applications, now, selectedPeriod])
 
   // Build a 6x7 calendar grid (42 cells)
@@ -209,8 +212,8 @@ export const OverviewPage = (): JSX.Element => {
                   </div>
                 </div>
 
-                {/* Period Selector */}
-                <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
+                {/* Period Selector + Stacked Toggle */}
+                <div className="flex flex-wrap items-center gap-2 mb-4 sm:mb-6">
                   {["Today", "1 Week", "1 Month"].map((period) => (
                     <Button
                       key={period}
@@ -226,16 +229,29 @@ export const OverviewPage = (): JSX.Element => {
                       {period}
                     </Button>
                   ))}
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setStacked((s) => !s)}
+                    className={`ml-auto text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${
+                      stacked ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90' : 'text-white hover:text-[#1dff00] hover:bg-[#1dff00]/10'
+                    }`}
+                    aria-pressed={stacked}
+                    title="Toggle stacked areas"
+                  >
+                    {stacked ? 'Stacked' : 'Overlap'}
+                  </Button>
                 </div>
 
                 {/* Stats */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-8 space-y-4 sm:space-y-0 mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-8 space-y-4 sm:space-y-0 mb-4 sm:mb-6">
                   <motion.div 
                     className="text-center sm:text-left"
                     whileHover={{ scale: 1.05 }}
                     transition={{ type: "spring", stiffness: 300 }}
                   >
-                    <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1dff00] mb-1">58</div>
+          <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1dff00] mb-1">{totals.totalInWindow}</div>
                     <div className="text-xs sm:text-sm text-[#888888]">Applications</div>
                   </motion.div>
                   <motion.div 
@@ -243,17 +259,19 @@ export const OverviewPage = (): JSX.Element => {
                     whileHover={{ scale: 1.05 }}
                     transition={{ type: "spring", stiffness: 300 }}
                   >
-                    <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1dff00] mb-1">15</div>
+          <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1dff00] mb-1">{interviewCount}</div>
                     <div className="text-xs sm:text-sm text-[#888888]">Interviews</div>
                   </motion.div>
                 </div>
 
                 {/* Applications Chart (real data, status series) */}
-                <div className="mt-2 sm:mt-4">
+        <div className="mt-2 sm:mt-4">
                   <SplitLineAreaChart
                     data={seriesData}
                     xKey="label"
-                    series={seriesMeta}
+          series={seriesMeta}
+                    stacked={stacked}
+          showLegend
                     tickFormatter={(v) => String(v).slice(0, 3)}
                   />
                 </div>
