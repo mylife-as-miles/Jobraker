@@ -1,29 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
+
+import { useAppearanceSettings } from "@/hooks/useAppearanceSettings";
 
 type Props = { children: React.ReactNode };
 
 export const ThemeProvider: React.FC<Props> = ({ children }: Props) => {
-  // Fallback: infer dark mode from document class if external hook isn't available
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() =>
-    document.documentElement.classList.contains("dark"),
-  );
-
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [isDarkMode]);
-
-  // Keep local state synced with document class changes
-  useEffect(() => {
-    const mo = new MutationObserver(() => {
-      setIsDarkMode(document.documentElement.classList.contains("dark"));
-    });
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    return () => mo.disconnect();
-  }, []);
+  useAppearanceSettings();
 
   // Listen for theme updates from parent (embedded mode)
   useEffect(() => {
