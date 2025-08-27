@@ -15,14 +15,16 @@ export const BuilderPage = () => {
 
   const resume = useResumeStore((state) => state.resume);
   const title = useResumeStore((state) => state.resume?.title || "Builder");
+  const data = useResumeStore((state) => state.resume?.data);
 
   const syncResumeToArtboard = useCallback(() => {
-    setImmediate(() => {
-      if (!frameRef?.contentWindow) return;
-      const message = { type: "SET_RESUME", payload: resume.data };
+    // Defer posting to next macrotask to ensure iframe is ready
+    setTimeout(() => {
+      if (!frameRef?.contentWindow || !data) return;
+      const message = { type: "SET_RESUME", payload: data };
       frameRef.contentWindow.postMessage(message, "*");
-    });
-  }, [frameRef?.contentWindow, resume.data]);
+    }, 0);
+  }, [frameRef?.contentWindow, data]);
 
   // Send resume data to iframe on initial load
   useEffect(() => {
@@ -33,24 +35,27 @@ export const BuilderPage = () => {
     return () => {
       frameRef.removeEventListener("load", syncResumeToArtboard);
     };
-  }, [frameRef]);
+  }, [frameRef, syncResumeToArtboard]);
 
   // Persistently check if iframe has loaded using setInterval
   useEffect(() => {
+    if (!frameRef || !data) return;
     const interval = setInterval(() => {
-      if (frameRef?.contentWindow?.document.readyState === "complete") {
-        syncResumeToArtboard();
-        clearInterval(interval);
+      try {
+        if (frameRef?.contentWindow?.document.readyState === "complete") {
+          syncResumeToArtboard();
+          clearInterval(interval);
+        }
+      } catch {
+        // ignore cross-origin or timing issues and retry until ready
       }
-    }, 100);
+    }, 150);
 
-    return () => {
-      clearInterval(interval);
-    };
-  }, [frameRef]);
+    return () => clearInterval(interval);
+  }, [frameRef, data, syncResumeToArtboard]);
 
   // Send resume data to iframe on change of resume data
-  useEffect(syncResumeToArtboard, [resume.data]);
+  useEffect(syncResumeToArtboard, [data]);
 
   // Minimal guard to avoid blank page before store is hydrated
   if (!resume || !resume.id) {

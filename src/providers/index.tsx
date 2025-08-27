@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { HelmetProvider } from "react-helmet-async";
 import { Outlet } from "react-router";
+import { useLocation } from "react-router-dom";
 
 import { helmetContext } from "../constants/helmet";
 import { useArtboardStore } from "../store/artboard";
@@ -8,6 +9,7 @@ import { useArtboardStore } from "../store/artboard";
 export const Providers = () => {
   const resume = useArtboardStore((state) => state.resume);
   const setResume = useArtboardStore((state) => state.setResume);
+  const location = useLocation();
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -28,8 +30,10 @@ export const Providers = () => {
     if (resumeData) setResume(JSON.parse(resumeData));
   }, []);
 
+  // Only gate rendering on artboard routes where resume is required immediately
+  const isArtboard = location.pathname.startsWith("/artboard");
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (!resume) return null;
+  if (isArtboard && !resume) return null;
 
   return (
     <HelmetProvider context={helmetContext}>
