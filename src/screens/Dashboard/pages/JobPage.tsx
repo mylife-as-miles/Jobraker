@@ -35,6 +35,7 @@ interface Job extends JobListing {
   isBookmarked: boolean;
   isApplied: boolean;
   logo: string;
+  source?: string;
 }
 
 const supabase = createClient();
@@ -84,30 +85,49 @@ export const JobPage = (): JSX.Element => {
 
       if (error) throw error;
 
-      const { matchedJobs } = data;
+      let { matchedJobs } = data || { matchedJobs: [] };
 
-      const newJobs = matchedJobs.map((job: JobListing) => ({
-          ...job,
-          id: job.sourceUrl || `${job.jobTitle}-${job.companyName}`, // Use sourceUrl as ID
-          title: job.jobTitle,
-          company: job.companyName,
-          type: job.workType || "N/A",
-          salary: "N/A", // Not provided by scrape
-          postedDate: "N/A", // Not provided by scrape
-          description: job.fullJobDescription,
-          requirements: job.requiredSkills || [],
-          benefits: [], // Not provided by scrape
-          isBookmarked: false,
-          isApplied: false,
-          logo: job.companyName?.[0]?.toUpperCase() || '?',
-        }));
+      // If scraping returned nothing, fallback to DB-backed function
+      if (!Array.isArray(matchedJobs) || matchedJobs.length === 0) {
+        const fallback = await supabase.functions.invoke('get-jobs', {
+          body: { q: debouncedSearchQuery, location: debouncedSelectedLocation, type: selectedType === 'All' ? '' : selectedType }
+        });
+        if (!fallback.error) {
+          const rows = fallback.data?.jobs || [];
+          matchedJobs = rows.map((r: any) => ({
+            jobTitle: r.job_title,
+            companyName: r.company_name,
+            location: r.location,
+            workType: r.work_type,
+            experienceLevel: r.experience_level,
+            requiredSkills: r.required_skills,
+            fullJobDescription: r.full_job_description,
+            sourceUrl: r.source_url,
+            _source: r.source || 'db',
+          }));
+        }
+      }
+
+      const newJobs = (matchedJobs as (JobListing & { _source?: string })[]).map((job) => ({
+        ...job,
+        id: job.sourceUrl || `${job.jobTitle}-${job.companyName}`,
+        title: job.jobTitle,
+        company: job.companyName,
+        type: (job as any).workType || "N/A",
+        salary: "N/A",
+        postedDate: "N/A",
+        description: job.fullJobDescription,
+        requirements: job.requiredSkills || [],
+        benefits: [],
+        isBookmarked: false,
+        isApplied: false,
+        logo: job.companyName?.[0]?.toUpperCase() || '?',
+        // marker for UI badge
+        source: (job as any)._source,
+      }));
 
       setJobs(newJobs);
-      if (newJobs.length > 0) {
-        setSelectedJob(newJobs[0].id);
-      } else {
-        setSelectedJob(null);
-      }
+      setSelectedJob(newJobs[0]?.id ?? null);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -291,6 +311,9 @@ export const JobPage = (): JSX.Element => {
                           <DollarSign className="w-4 h-4 text-[#1dff00]" />
                           <span className="text-sm sm:text-base text-white font-semibold">{job.salary}</span>
                         </div>
+                        {"source" in job && (job as any).source && (
+                          <span className="ml-2 px-2 py-0.5 rounded text-[10px] uppercase tracking-wide border border-[#ffffff33] text-[#ffffffb3] bg-[#ffffff14]">{(job as any).source}</span>
+                        )}
                       </div>
                       
                       <div className="flex items-center space-x-2">

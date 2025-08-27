@@ -464,3 +464,48 @@ CREATE POLICY "Delete own applications" ON "public"."applications" FOR DELETE US
 GRANT ALL ON TABLE "public"."applications" TO "anon";
 GRANT ALL ON TABLE "public"."applications" TO "authenticated";
 GRANT ALL ON TABLE "public"."applications" TO "service_role";
+
+-- Normalized job listings table for cron + matching
+CREATE TABLE IF NOT EXISTS "public"."job_listings" (
+    "id" uuid DEFAULT gen_random_uuid() NOT NULL,
+    "job_title" text NOT NULL,
+    "company_name" text NOT NULL,
+    "location" text,
+    "work_type" text,
+    "experience_level" text,
+    "required_skills" text[] DEFAULT '{}'::text[],
+    "full_job_description" text NOT NULL,
+    "description_embedding" double precision[],
+    "source_url" text NOT NULL,
+    "source" text,
+    "external_id" text,
+    "posted_at" timestamp with time zone,
+    "tags" text[],
+    "salary_min" integer,
+    "salary_max" integer,
+    "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+ALTER TABLE "public"."job_listings" OWNER TO "postgres";
+
+ALTER TABLE ONLY "public"."job_listings"
+    ADD CONSTRAINT "job_listings_pkey" PRIMARY KEY ("id");
+
+-- Enforce uniqueness per source document
+CREATE UNIQUE INDEX IF NOT EXISTS "job_listings_source_url_key" ON "public"."job_listings" USING btree ("source_url");
+
+-- Helpful indexes
+CREATE INDEX IF NOT EXISTS "job_listings_title_company_idx" ON "public"."job_listings" USING btree ("job_title", "company_name");
+CREATE INDEX IF NOT EXISTS "job_listings_location_idx" ON "public"."job_listings" USING btree ("location");
+CREATE INDEX IF NOT EXISTS "job_listings_posted_at_idx" ON "public"."job_listings" USING btree ("posted_at" DESC);
+
+-- RLS and grants (mirroring other tables policy style)
+ALTER TABLE "public"."job_listings" ENABLE ROW LEVEL SECURITY;
+
+-- For now allow read to everyone and writes via service role and edge functions
+CREATE POLICY IF NOT EXISTS "Read job listings" ON "public"."job_listings" FOR SELECT USING (true);
+
+GRANT ALL ON TABLE "public"."job_listings" TO "anon";
+GRANT ALL ON TABLE "public"."job_listings" TO "authenticated";
+GRANT ALL ON TABLE "public"."job_listings" TO "service_role";

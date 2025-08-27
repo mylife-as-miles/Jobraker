@@ -320,6 +320,9 @@ deno_version = 1
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Example: schedule jobs-cron every 6 hours by setting an env var in project settings
+# JOBS_CRON_EXPR = "0 */6 * * *"
+
 [analytics]
 enabled = true
 port = 54327
