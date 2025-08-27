@@ -5,6 +5,7 @@ import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
 import { Building2, AlertCircle, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { useNotifications } from "../../../hooks/useNotifications";
+import { useApplications } from "../../../hooks/useApplications";
 import { SplitLineAreaChart } from "./SplitLineAreaChart";
 // SplitLineAreaChart removed; chart moved to Application section
 
@@ -13,6 +14,7 @@ import { SplitLineAreaChart } from "./SplitLineAreaChart";
 export const OverviewPage = (): JSX.Element => {
   const [selectedPeriod, setSelectedPeriod] = useState("1 Month");
   const { items: notifItems, loading: notifLoading } = useNotifications(6);
+  const { applications } = useApplications();
   const mappedNotifs = useMemo(() => {
     return notifItems.map(n => ({
       id: n.id,
@@ -57,6 +59,39 @@ export const OverviewPage = (): JSX.Element => {
   const timeLabel = useMemo(() =>
     now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
   [now]);
+
+  // Build monthly application counts from real data
+  const monthlySeries = useMemo(() => {
+    // Decide window size based on selectedPeriod
+    const monthsBack = selectedPeriod === "Today" ? 1 : selectedPeriod === "1 Week" ? 3 : 6;
+    const end = new Date(now.getFullYear(), now.getMonth(), 1);
+    const start = new Date(end.getFullYear(), end.getMonth() - (monthsBack - 1), 1);
+
+    // Map for counts by yyyy-mm
+    const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const labels: { date: Date; label: string }[] = [];
+    for (let i = 0; i < monthsBack; i++) {
+      const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+      labels.push({
+        date: d,
+        label: d.toLocaleString(undefined, { month: 'short' }),
+      });
+    }
+
+  const counts = new Map<string, number>(labels.map(l => [key(l.date), 0]));
+    for (const app of applications) {
+      const d = new Date(app.applied_date);
+      // Only count within [start, end + 1 month)
+      const afterStart = d >= start;
+      const beforeEnd = d < new Date(end.getFullYear(), end.getMonth() + 1, 1);
+      if (afterStart && beforeEnd) {
+        const k = key(new Date(d.getFullYear(), d.getMonth(), 1));
+        counts.set(k, (counts.get(k) || 0) + 1);
+      }
+    }
+
+    return labels.map(l => ({ label: l.label, value: counts.get(key(l.date)) || 0 }));
+  }, [applications, now, selectedPeriod]);
 
   // Build a 6x7 calendar grid (42 cells)
   const monthGrid = useMemo(() => {
@@ -143,9 +178,15 @@ export const OverviewPage = (): JSX.Element => {
                   </motion.div>
                 </div>
 
-                {/* Applications Chart */}
+                {/* Applications Chart (real data) */}
                 <div className="mt-2 sm:mt-4">
-                  <SplitLineAreaChart />
+                  <SplitLineAreaChart
+                    data={monthlySeries}
+                    xKey="label"
+                    yKey="value"
+                    color="#1dff00"
+                    tickFormatter={(v) => String(v).slice(0, 3)}
+                  />
                 </div>
               </Card>
             </motion.div>
