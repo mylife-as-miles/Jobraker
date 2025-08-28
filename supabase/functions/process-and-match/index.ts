@@ -3,8 +3,7 @@ import FirecrawlApp from 'npm:@mendable/firecrawl-js@0.0.28';
 import { corsHeaders, CandidateProfile, JobListing } from '../_shared/types.ts';
 import { pipeline } from 'npm:@xenova/transformers';
 
-// Initialize clients and models
-const firecrawl = new FirecrawlApp({ apiKey: Deno.env.get('FIRECRAWL_API_KEY')! });
+// Initialize clients and models (model is heavy, keep at module scope)
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -18,6 +17,12 @@ Deno.serve(async (req) => {
   }
 
   try {
+  // Prefer API key passed from a trusted proxy (e.g., Vercel serverless) to avoid storing in Supabase
+  const headerKey = req.headers.get('x-firecrawl-api-key') || req.headers.get('X-FIRECRAWL-API-KEY');
+  const apiKey = headerKey || Deno.env.get('FIRECRAWL_API_KEY');
+  if (!apiKey) throw new Error('FIRECRAWL_API_KEY not provided');
+  const firecrawl = new FirecrawlApp({ apiKey });
+
     const { searchQuery, location } = await req.json();
     if (!searchQuery) throw new Error("Search query is required.");
 
