@@ -39,5 +39,26 @@ export function createClient(): SupabaseClient {
     return mock;
   }
 
-  return createBrowserClient(supabaseUrl, supabaseAnonKey);
+  const client = createBrowserClient(supabaseUrl, supabaseAnonKey);
+
+  // Avoid noisy 403s: if there is no session, don’t call /auth/v1/user
+  try {
+    const authAny = (client as any).auth;
+    const originalGetUser = authAny.getUser.bind(authAny);
+    authAny.getUser = async (...args: any[]) => {
+      try {
+        const { data: { session } } = await client.auth.getSession();
+        if (!session?.access_token) {
+          return { data: { user: null }, error: null };
+        }
+      } catch {
+        // fall through to original call if session check fails
+      }
+      return originalGetUser(...args);
+    };
+  } catch {
+    // non-fatal; keep default behavior
+  }
+
+  return client;
 }
