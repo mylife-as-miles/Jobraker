@@ -22,14 +22,31 @@ Configure sources via a JSON array stored in `JOB_SOURCES`. Supported source typ
 - `remoteok` (remote jobs)
 - `arbeitnow` (jobs board; supports `query`)
 - `json` (custom JSON feed; requires `url`)
+- `deepresearch` (Firecrawl deep research; supports `query`, `workType`[], `location`, `salaryRange`, `experienceLevel`, `maxResults`) — requires `FIRECRAWL_API_KEY` secret
 
-Example:
+Examples:
 ```json
 [
   { "type": "remotive", "query": "software engineer" },
   { "type": "remoteok" },
   { "type": "arbeitnow", "query": "typescript" },
   { "type": "json", "url": "https://your.cdn.example/jobs.json" }
+]
+```
+
+Deep research example:
+
+```json
+[
+  {
+    "type": "deepresearch",
+    "query": "senior full-stack engineer react node",
+    "workType": ["Remote", "Hybrid"],
+    "location": "United States",
+    "salaryRange": "120k-200k",
+    "experienceLevel": "senior",
+    "maxResults": 20
+  }
 ]
 ```
 
@@ -77,6 +94,10 @@ The `jobs-cron` function upserts to `public.job_listings` with fields:
 - For custom JSON feeds:
   - Confirm your feed items include at least `title`, `company`, and `url`.
 
+- For `deepresearch`:
+  - Set the `FIRECRAWL_API_KEY` secret in Supabase → Functions → Environment Variables.
+  - Rate limits or timeouts can reduce results; adjust `maxResults` and try narrower queries.
+
 ## 7) UI behavior
 - The Job Search page first tries live scraping via `process-and-match`.
 - If no results, it falls back to `get-jobs` (DB), and shows a small `Source` badge derived from the stored `source`.
@@ -105,3 +126,5 @@ You can set it via CLI:
 ```
 supabase secrets set FIRECRAWL_API_KEY="<your-firecrawl-api-key>" --project-ref <your-project-ref>
 ```
+
+Note: `jobs-cron` will use `FIRECRAWL_API_KEY` when a `deepresearch` source is configured.

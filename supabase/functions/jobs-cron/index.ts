@@ -6,6 +6,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { importPKCS8, SignJWT } from "npm:jose@5.2.4";
+import FirecrawlApp from "npm:@mendable/firecrawl-js@0.0.28";
 
 type Job = {
   external_id: string;
@@ -94,7 +95,7 @@ async function fetchFromSources(): Promise<Job[]> {
     // default single source
     return await fetchRemotive("software engineer");
   }
-  let sources: { type: string; url?: string; query?: string }[] = [];
+  let sources: { type: string; url?: string; query?: string; workType?: string[]; location?: string; salaryRange?: string; experienceLevel?: string; maxResults?: number }[] = [];
   try { sources = JSON.parse(envSources); } catch { /* ignore */ }
   const results: Job[] = [];
   for (const s of sources) {
@@ -105,6 +106,15 @@ async function fetchFromSources(): Promise<Job[]> {
         results.push(...await fetchRemoteOK());
       } else if (s.type === "arbeitnow") {
         results.push(...await fetchArbeitNow(s.query || "software"));
+      } else if (s.type === "deepresearch") {
+        results.push(...await fetchDeepResearchJobs({
+          query: s.query || "software engineer",
+          workType: s.workType || [],
+          location: s.location || "",
+          salaryRange: s.salaryRange || "",
+          experienceLevel: s.experienceLevel || "",
+          maxResults: s.maxResults || 15,
+        }));
       } else if (s.type === "json" && s.url) {
         const r = await fetch(s.url, { headers: { accept: "application/json" } });
         if (r.ok) {
@@ -132,6 +142,135 @@ async function fetchFromSources(): Promise<Job[]> {
     }
   }
   return results;
+}
+
+// Inspired by user-provided Firecrawl deep research logic
+function isJobListingUrl(url: string): boolean {
+  if (!url) return false;
+  // Exclude obvious non-job or salary/search pages
+  const redFlags = [
+    /salary/i,
+    /average/i,
+    /statistics/i,
+    /calculator/i,
+    /how-much/i,
+    /glassdoor\.com\/Salaries/i,
+    /indeed\.com\/career/i,
+    /payscale\.com/i,
+    /\?q=/i,
+    /search\?/i,
+    /linkedin\.com\/jobs/i, // exclude LinkedIn jobs entirely
+  ];
+  for (const pattern of redFlags) if (pattern.test(url)) return false;
+
+  // Positive signals
+  const jobIdPatterns = [
+    /\/job[s]?\//i,
+    /\/position[s]?\//i,
+    /\/career[s]?\//i,
+    /\/viewjob/i,
+    /\/job-posting/i,
+    /\/jobdetail/i,
+  ];
+  const companyJobSites = [
+    "workatastartup.com/companies",
+    "workatastartup.com/jobs",
+    "careers.google.com",
+    "amazon.jobs",
+    "careers.microsoft.com",
+    "apple.com/careers",
+    "careers.twitter.com",
+    "facebook.com/careers",
+    "weworkremotely.com/remote-jobs",
+  ];
+  const hasPattern = jobIdPatterns.some((p) => p.test(url));
+  const isCompanySite = companyJobSites.some((site) => url.includes(site));
+  const isIndeedJob = url.includes("indeed.com") && (url.includes("/job/") || url.includes("/viewjob"));
+  return hasPattern || isCompanySite || isIndeedJob;
+}
+
+function parseSalaryRangeToMinMax(input?: string): { min: number | null; max: number | null } {
+  if (!input) return { min: null, max: null };
+  const cleaned = input.replace(/[,\s]/g, "");
+  const m = cleaned.match(/\$?(\d{2,6})(?:[-–to]+\$?(\d{2,6}))?/i);
+  if (!m) return { min: null, max: null };
+  const min = parseInt(m[1], 10);
+  const max = m[2] ? parseInt(m[2], 10) : null;
+  return { min: isFinite(min) ? min : null, max: isFinite(Number(max)) ? Number(max) : null };
+}
+
+type DeepResearchConfig = {
+  query: string;
+  workType?: string[];
+  location?: string;
+  salaryRange?: string;
+  experienceLevel?: string;
+  maxResults?: number;
+};
+
+async function fetchDeepResearchJobs(cfg: DeepResearchConfig): Promise<Job[]> {
+  const apiKey = Deno.env.get('FIRECRAWL_API_KEY');
+  if (!apiKey) {
+    console.warn('Skipping deepresearch source: FIRECRAWL_API_KEY not set');
+    return [];
+  }
+  const firecrawl = new FirecrawlApp({ apiKey });
+
+  // Build filter criteria string similar to inspiration
+  let filterCriteria = '';
+  if (cfg.workType && cfg.workType.length) filterCriteria += `\nWork Type: ${cfg.workType.join(' or ')}`;
+  if (cfg.location) filterCriteria += `\nLocation: ${cfg.location}`;
+  if (cfg.salaryRange) filterCriteria += `\nSalary Range: ${cfg.salaryRange}`;
+  if (cfg.experienceLevel) filterCriteria += `\nExperience Level: ${cfg.experienceLevel}`;
+
+  const deepQuery = `Find and return current, individual job postings that match this search: ${cfg.query}.\nStrict Rules:\n• Only return jobs posted within the last 90 days.\n• Only include direct individual job postings (not job search result pages).\n• Exclude LinkedIn job links completely.\n• Ignore pages about salary info or generic career advice.\n${filterCriteria ? `\nUse these filters to narrow results:${filterCriteria}` : ''}`;
+
+  const params = { maxDepth: 4, timeLimit: 120, maxUrls: cfg.maxResults || 15 } as any;
+
+  try {
+    const results = await firecrawl.deepResearch(deepQuery, params);
+    const data = (results && (results as any).data) || {};
+    const sources = Array.isArray(data.sources) ? data.sources : [];
+
+    const jobs: Job[] = [];
+    for (const src of sources) {
+      const url = src?.url || '';
+      const title = src?.title || '';
+      const snippet = src?.snippet || src?.content || '';
+      if (!isJobListingUrl(url)) continue;
+
+      // Heuristic company extraction from title
+      let company = src?.companyName || src?.company || '';
+      if (!company && title) {
+        const m1 = title.match(/\bat\s+([A-Za-z0-9.\s]+?)(?:\s+\||$)/i);
+        if (m1?.[1]) company = m1[1].trim();
+      }
+      const loc = src?.location || (snippet.match(/\b(Remote|Hybrid|On-site)\b/i)?.[1] || null);
+      const posted = src?.postedDate || null;
+      const salaryText = src?.salaryRange || src?.salary || '';
+      const { min: salary_min, max: salary_max } = parseSalaryRangeToMinMax(salaryText);
+      const work_type = (cfg.workType && cfg.workType[0]) || (loc && /remote/i.test(String(loc)) ? 'Remote' : null);
+
+      jobs.push({
+        external_id: url,
+        title: title || 'Job',
+        company: company || 'Unknown',
+        location: loc,
+        url,
+        source: 'deepresearch',
+        posted_at: posted ? new Date(posted).toISOString() : new Date().toISOString(),
+        description: snippet || null,
+        tags: null,
+        salary_min,
+        salary_max,
+        work_type,
+      });
+    }
+    return jobs;
+  } catch (e) {
+    console.error('Deep research fetch error', e);
+    return [];
+  }
 }
 
 async function upsertIntoSupabase(jobs: Job[]) {
