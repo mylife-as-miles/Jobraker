@@ -6,8 +6,8 @@ import { pipeline } from 'npm:@xenova/transformers';
 
 // Initialize clients and models (model is heavy, keep at module scope)
 const supabaseAdmin = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  Deno.env.get('SUPABASE_URL') || 'https://yquhsllwrwfvrwolqywh.supabase.co',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY')!
 );
 // The model will be downloaded on the first run
 const extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');

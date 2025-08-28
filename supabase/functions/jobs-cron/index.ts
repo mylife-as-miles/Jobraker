@@ -91,12 +91,22 @@ async function fetchArbeitNow(query = "software"): Promise<Job[]> {
 
 async function fetchFromSources(): Promise<Job[]> {
   const envSources = Deno.env.get("JOB_SOURCES");
-  if (!envSources) {
-    // default single source
-    return await fetchRemotive("software engineer");
+  // Default to user's requested config if env is not set or fails to parse
+  let sources: { type: string; url?: string; query?: string; workType?: string[]; location?: string; salaryRange?: string; experienceLevel?: string; maxResults?: number }[] = [
+    { type: "remotive", query: "software engineer" },
+    {
+      type: "deepresearch",
+      query: "senior full-stack engineer react node",
+      workType: ["Remote", "Hybrid"],
+      location: "United States",
+      salaryRange: "120k-200k",
+      experienceLevel: "senior",
+      maxResults: 20,
+    }
+  ];
+  if (envSources) {
+    try { sources = JSON.parse(envSources); } catch { /* keep defaults */ }
   }
-  let sources: { type: string; url?: string; query?: string; workType?: string[]; location?: string; salaryRange?: string; experienceLevel?: string; maxResults?: number }[] = [];
-  try { sources = JSON.parse(envSources); } catch { /* ignore */ }
   const results: Job[] = [];
   for (const s of sources) {
     try {
@@ -274,7 +284,7 @@ async function fetchDeepResearchJobs(cfg: DeepResearchConfig): Promise<Job[]> {
 }
 
 async function upsertIntoSupabase(jobs: Job[]) {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "https://yquhsllwrwfvrwolqywh.supabase.co";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceKey) throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
   const supabase = createClient(supabaseUrl, serviceKey);
@@ -292,7 +302,8 @@ async function upsertIntoSupabase(jobs: Job[]) {
       location: j.location,
       source_url: j.url,
       posted_at: j.posted_at,
-      full_job_description: j.description ?? null,
+      // job_listings.full_job_description is NOT NULL, ensure a fallback string
+      full_job_description: (j.description && String(j.description).trim()) || "",
       work_type: j.work_type ?? (j.source === "remotive" || j.source === "remoteok" ? "Remote" : null),
       tags: j.tags ?? null,
       salary_min: j.salary_min ?? null,
