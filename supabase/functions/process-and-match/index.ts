@@ -7,7 +7,7 @@ const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL') || 'https://yquhsllwrwfvrwolqywh.supabase.co',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY')!
 );
-let extractor: any | null = null;
+// No heavy ML in this edge function to avoid cold-start and memory errors
 
 async function firecrawlFetch(path: string, apiKey: string, body: any) {
   const url = `https://api.firecrawl.dev${path}`;
@@ -32,11 +32,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-  // Ensure heavy modules are initialized only for non-OPTIONS requests
-  if (!extractor) {
-    const { pipeline } = await import('npm:@xenova/transformers');
-    extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-  }
+  // No heavy initialization required for OPTIONS/POST
   // Prefer API key passed from a trusted proxy (e.g., Vercel serverless) to avoid storing in Supabase
   const headerKey = req.headers.get('x-firecrawl-api-key') || req.headers.get('X-FIRECRAWL-API-KEY');
   const apiKey = headerKey || Deno.env.get('FIRECRAWL_API_KEY');
@@ -98,26 +94,23 @@ Strict rules:
         .filter((res: any) => res?.success && res?.data)
         .map((res: any) => ({ ...res.data, sourceUrl: res.url })) as JobListing[];
 
-      // Embed and upsert for future queries
+      // Upsert minimal fields compatible with job_listings schema
       for (const job of scrapedJobs) {
         try {
-          const output = await extractor(job.fullJobDescription, { pooling: 'mean', normalize: true });
           await supabaseAdmin.from('job_listings').upsert(
             {
               job_title: job.jobTitle,
               company_name: job.companyName,
               location: job.location,
               work_type: job.workType,
-              experience_level: job.experienceLevel,
-              required_skills: job.requiredSkills,
-              full_job_description: job.fullJobDescription,
-              description_embedding: Array.from(output.data),
+              full_job_description: job.fullJobDescription || '',
               source_url: job.sourceUrl,
+              posted_at: new Date().toISOString(),
             },
             { onConflict: 'source_url' }
           );
         } catch (_) {
-          // Continue on best-effort basis
+          // best-effort; skip failed upserts
         }
       }
     }
@@ -129,9 +122,11 @@ Strict rules:
     });
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    // Graceful fallback: return 200 with empty results so the UI isn’t blocked
+    const msg = (error && (error as any).message) ? String((error as any).message) : 'Unknown error';
+    return new Response(JSON.stringify({ matchedJobs: [], note: msg }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
+      status: 200,
     });
   }
 });
