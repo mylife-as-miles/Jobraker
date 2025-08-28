@@ -45,6 +45,17 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  // Parse request early to allow fallback usage
+  let searchQuery: string | undefined;
+  let location: string | undefined;
+  try {
+    const body = await req.json();
+    searchQuery = body?.searchQuery;
+    location = body?.location;
+  } catch (_) {
+    // ignore; will handle as missing in logic
+  }
+
   try {
   // No heavy initialization required for OPTIONS/POST
   // Prefer API key passed from a trusted proxy (e.g., Vercel serverless) to avoid storing in Supabase
@@ -52,7 +63,6 @@ Deno.serve(async (req) => {
   const apiKey = headerKey || Deno.env.get('FIRECRAWL_API_KEY');
   if (!apiKey) throw new Error('FIRECRAWL_API_KEY not provided');
 
-    const { searchQuery, location } = await req.json();
     if (!searchQuery) throw new Error("Search query is required.");
 
     // --- Step 1: Use deepResearch (avoids LinkedIn restrictions) ---
@@ -136,11 +146,42 @@ Strict rules:
     });
 
   } catch (error) {
-    // Graceful fallback: return 200 with empty results so the UI isn’t blocked
-    const msg = (error && (error as any).message) ? String((error as any).message) : 'Unknown error';
-    return new Response(JSON.stringify({ matchedJobs: [], note: msg }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
+    // Fallback: query local job_listings to return something useful
+    try {
+      const q = (searchQuery || '').trim();
+      const loc = (location || '').trim();
+      let query = supabaseAdmin
+        .from('job_listings')
+        .select('job_title, company_name, location, work_type, full_job_description, source_url, posted_at')
+        .order('posted_at', { ascending: false, nullsFirst: false })
+        .limit(15);
+      if (q) {
+        // Match on title or description
+        query = query.ilike('job_title', `%${q}%`);
+      }
+      if (loc) {
+        query = query.ilike('location', `%${loc}%`);
+      }
+      const { data } = await query;
+      const fallbackJobs = (data || []).map((r: any) => ({
+        jobTitle: r.job_title,
+        companyName: r.company_name,
+        location: r.location,
+        workType: r.work_type,
+        fullJobDescription: r.full_job_description,
+        sourceUrl: r.source_url,
+      }));
+      const msg = (error && (error as any).message) ? String((error as any).message) : 'Unknown error';
+      return new Response(JSON.stringify({ matchedJobs: fallbackJobs, note: `fallback: ${msg}` }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    } catch (e2) {
+      const msg = (error && (error as any).message) ? String((error as any).message) : 'Unknown error';
+      return new Response(JSON.stringify({ matchedJobs: [], note: msg }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
   }
 });
