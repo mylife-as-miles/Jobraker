@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import FirecrawlApp from 'npm:@mendable/firecrawl-js@0.0.28';
 import { corsHeaders, CandidateProfile, JobListing } from '../_shared/types.ts';
