@@ -26,6 +26,20 @@ async function firecrawlFetch(path: string, apiKey: string, body: any) {
   return res.json();
 }
 
+async function withRetry<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 500): Promise<T> {
+  let lastErr: any;
+  for (let i = 0; i < attempts; i++) {
+    try { return await fn(); } catch (e) {
+      lastErr = e;
+      if (i < attempts - 1) {
+        const delay = baseDelayMs * Math.pow(2, i);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -51,7 +65,7 @@ Strict rules:
 • Prefer company career pages or reputable boards.
 `;
     const params: any = { maxDepth: 3, timeLimit: 90, maxUrls: 12 };
-    const dr = await firecrawlFetch('/v1/deep-research', apiKey, { query: prompt, ...params });
+  const dr = await withRetry(() => firecrawlFetch('/v1/deep-research', apiKey, { query: prompt, ...params }), 3, 600);
     const sources = Array.isArray(dr?.data?.sources) ? dr.data.sources : [];
 
     // Filter plausible job listing URLs
@@ -81,9 +95,9 @@ Strict rules:
       } as const;
       // Scrape sequentially to avoid provider rate limits
       const scrapeResults: any[] = [];
-      for (const u of jobUrls) {
+    for (const u of jobUrls) {
         try {
-          const s = await firecrawlFetch('/v1/scrape', apiKey, { url: u, pageOptions: { extractionSchema: jobSchema } });
+      const s = await withRetry(() => firecrawlFetch('/v1/scrape', apiKey, { url: u, pageOptions: { extractionSchema: jobSchema } }), 2, 500);
           // normalize to { success, data, url }
           if (s?.success && s?.data) scrapeResults.push({ success: true, data: s.data, url: u });
         } catch (_) {
