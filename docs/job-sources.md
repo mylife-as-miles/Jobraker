@@ -84,3 +84,17 @@ The `jobs-cron` function upserts to `public.job_listings` with fields:
 ---
 
 Need help? Open an issue or ping us on Discord.
+
+---
+
+Related secrets
+
+If you use the `process-and-match` function (live scraping/extraction), set this secret in your Supabase project:
+
+- `FIRECRAWL_API_KEY` — your Firecrawl API key.
+
+You can set it via CLI:
+
+```
+supabase secrets set FIRECRAWL_API_KEY="<your-firecrawl-api-key>" --project-ref <your-project-ref>
+```
