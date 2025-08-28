@@ -5,8 +5,7 @@
 // - Optionally mirror to Firebase Firestore via REST using a service account
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { importPKCS8, SignJWT } from "npm:jose@5.2.4";
-import FirecrawlApp from "npm:@mendable/firecrawl-js@0.0.28";
+import { importPKCS8, SignJWT } from "https://esm.sh/jose@5.2.4";
 
 type Job = {
   external_id: string;
@@ -224,7 +223,6 @@ async function fetchDeepResearchJobs(cfg: DeepResearchConfig): Promise<Job[]> {
     console.warn('Skipping deepresearch source: FIRECRAWL_API_KEY not set');
     return [];
   }
-  const firecrawl = new FirecrawlApp({ apiKey });
 
   // Build filter criteria string similar to inspiration
   let filterCriteria = '';
@@ -235,11 +233,20 @@ async function fetchDeepResearchJobs(cfg: DeepResearchConfig): Promise<Job[]> {
 
   const deepQuery = `Find and return current, individual job postings that match this search: ${cfg.query}.\nStrict Rules:\n• Only return jobs posted within the last 90 days.\n• Only include direct individual job postings (not job search result pages).\n• Exclude LinkedIn job links completely.\n• Ignore pages about salary info or generic career advice.\n${filterCriteria ? `\nUse these filters to narrow results:${filterCriteria}` : ''}`;
 
-  const params = { maxDepth: 4, timeLimit: 120, maxUrls: cfg.maxResults || 15 } as any;
+  const body = { query: deepQuery, maxDepth: 4, timeLimit: 120, maxUrls: cfg.maxResults || 15 } as any;
 
   try {
-    const results = await firecrawl.deepResearch(deepQuery, params);
-    const data = (results && (results as any).data) || {};
+    const res = await fetch('https://api.firecrawl.dev/v1/deep-research', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`firecrawl deep-research ${res.status}: ${txt}`);
+    }
+    const json = await res.json();
+    const data = (json && (json as any).data) || {};
     const sources = Array.isArray(data.sources) ? data.sources : [];
 
     const jobs: Job[] = [];
@@ -249,7 +256,6 @@ async function fetchDeepResearchJobs(cfg: DeepResearchConfig): Promise<Job[]> {
       const snippet = src?.snippet || src?.content || '';
       if (!isJobListingUrl(url)) continue;
 
-      // Heuristic company extraction from title
       let company = src?.companyName || src?.company || '';
       if (!company && title) {
         const m1 = title.match(/\bat\s+([A-Za-z0-9.\s]+?)(?:\s+\||$)/i);
