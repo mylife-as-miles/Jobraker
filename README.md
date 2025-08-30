@@ -211,6 +211,28 @@ VITE_ENABLE_NOTIFICATIONS=true
 VITE_ENABLE_REAL_TIME=true
 ```
 
+### Backend Functions Configuration
+
+In addition to the frontend application, this project includes backend services using Supabase Edge Functions (e.g., for cron jobs that fetch job listings). These functions have their own environment variables.
+
+A separate example file is provided at `supabase/functions/.env.example`. To configure the backend, you should copy this file to `.env` within the same directory (`supabase/functions/.env`) and set the variables. These variables must also be set in your Supabase project's settings under "Edge Functions".
+
+```bash
+# Navigate to the functions directory
+cd supabase/functions
+
+# Copy the environment template
+cp .env.example .env
+```
+
+The `.env` file will contain variables such as:
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `FIRECRAWL_API_KEY` (optional, for enhanced job searching)
+- `JOBS_CRON_EXPR` (optional, for scheduling jobs)
+
+See the `.env.example` file for a full list and detailed comments.
+
 ### Supabase Setup
 
 1. **Create a Supabase Project**:
