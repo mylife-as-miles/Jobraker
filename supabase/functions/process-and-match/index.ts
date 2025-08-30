@@ -48,13 +48,42 @@ Deno.serve(async (req) => {
   // Parse request early to allow fallback usage
   let searchQuery: string | undefined;
   let location: string | undefined;
+  let typesFromBody: string[] | undefined;
   try {
     const body = await req.json();
     searchQuery = body?.searchQuery;
     location = body?.location;
+    if (Array.isArray(body?.type)) typesFromBody = body.type as string[];
+    else if (typeof body?.type === 'string') typesFromBody = String(body.type).split(',').map((s: string) => s.trim()).filter(Boolean);
   } catch (_) {
     // ignore; will handle as missing in logic
   }
+
+  // Parse URL query params: ?q=...&location=...&type=Remote,Hybrid
+  const url = new URL(req.url);
+  const qpQ = url.searchParams.get('q') || url.searchParams.get('query');
+  const qpLocation = url.searchParams.get('location');
+  const qpTypes: string[] = [];
+  const typeParams = url.searchParams.getAll('type');
+  for (const t of typeParams) {
+    for (const part of t.split(',')) {
+      const v = part.trim();
+      if (v) qpTypes.push(v);
+    }
+  }
+
+  // Normalize effective inputs
+  const effectiveQuery = (searchQuery ?? qpQ ?? '').trim();
+  const effectiveLocation = (location ?? qpLocation ?? '').trim();
+  const effectiveTypesRaw = (typesFromBody && typesFromBody.length ? typesFromBody : qpTypes);
+  const normalizeType = (s: string) => {
+    const v = s.toLowerCase();
+    if (v === 'remote') return 'Remote';
+    if (v === 'hybrid') return 'Hybrid';
+    if (v === 'on-site' || v === 'onsite' || v === 'on_site' || v === 'on site') return 'On-site';
+    return s; // leave as-is
+  };
+  const effectiveTypes = Array.from(new Set(effectiveTypesRaw.map(normalizeType)));
 
   try {
   // No heavy initialization required for OPTIONS/POST
@@ -63,16 +92,17 @@ Deno.serve(async (req) => {
   const apiKey = headerKey || Deno.env.get('FIRECRAWL_API_KEY');
   if (!apiKey) throw new Error('FIRECRAWL_API_KEY not provided');
 
-    if (!searchQuery) throw new Error("Search query is required.");
+    if (!effectiveQuery) throw new Error("Search query is required.");
 
     // --- Step 1: Use deepResearch (avoids LinkedIn restrictions) ---
     // Build a targeted prompt and parameters
-    const locText = location ? ` in ${location}` : '';
-    const prompt = `Find current, individual job postings for: ${searchQuery}${locText}.
+  const locText = effectiveLocation ? ` in ${effectiveLocation}` : '';
+  const typeText = effectiveTypes.length ? `\n• Prefer work type: ${effectiveTypes.join(', ')}` : '';
+  const prompt = `Find current, individual job postings for: ${effectiveQuery}${locText}.
 Strict rules:
 • Return only direct job posting pages (no search result pages).
 • Exclude linkedin.com entirely and salary/average/calculator pages.
-• Prefer company career pages or reputable boards.
+• Prefer company career pages or reputable boards.${typeText}
 `;
     const params: any = { maxDepth: 3, timeLimit: 90, maxUrls: 12 };
   const dr = await withRetry(() => firecrawlFetch('/v1/deep-research', apiKey, { query: prompt, ...params }), 3, 600);
@@ -146,10 +176,16 @@ Strict rules:
     });
 
   } catch (error) {
+    // Log detailed provider error to Supabase Logs only
+    try {
+      const msg = (error && (error as any).message) ? String((error as any).message) : 'Unknown error';
+      console.error('process-and-match firecrawl_error', msg);
+    } catch {}
+
     // Fallback: query local job_listings to return something useful
     try {
-      const q = (searchQuery || '').trim();
-      const loc = (location || '').trim();
+      const q = effectiveQuery;
+      const loc = effectiveLocation;
       let query = supabaseAdmin
         .from('job_listings')
         .select('job_title, company_name, location, work_type, full_job_description, source_url, posted_at')
@@ -162,6 +198,9 @@ Strict rules:
       if (loc) {
         query = query.ilike('location', `%${loc}%`);
       }
+      if (effectiveTypes.length) {
+        query = (query as any).in('work_type', effectiveTypes);
+      }
       const { data } = await query;
       const fallbackJobs = (data || []).map((r: any) => ({
         jobTitle: r.job_title,
@@ -171,14 +210,12 @@ Strict rules:
         fullJobDescription: r.full_job_description,
         sourceUrl: r.source_url,
       }));
-      const msg = (error && (error as any).message) ? String((error as any).message) : 'Unknown error';
-      return new Response(JSON.stringify({ matchedJobs: fallbackJobs, note: `fallback: ${msg}` }), {
+      return new Response(JSON.stringify({ matchedJobs: fallbackJobs, note: 'fallback: provider_unavailable' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     } catch (e2) {
-      const msg = (error && (error as any).message) ? String((error as any).message) : 'Unknown error';
-      return new Response(JSON.stringify({ matchedJobs: [], note: msg }), {
+      return new Response(JSON.stringify({ matchedJobs: [], note: 'fallback: provider_unavailable' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
