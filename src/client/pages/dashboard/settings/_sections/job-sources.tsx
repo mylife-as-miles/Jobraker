@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '../../../../../lib/supabaseClient';
 import { Switch } from '../../../../../components/ui/switch';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../../../components/ui/card';
+import { Button } from '../../../../../components/ui/button';
 
 export const JobSourceSettings = () => {
   const supabase = createClient();
@@ -64,46 +66,55 @@ export const JobSourceSettings = () => {
   };
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold">Job Sources</h2>
-      <p className="text-sm text-muted-foreground">Control where live job search pulls from.</p>
-      <div className="flex items-center justify-between py-2">
-        <span>Include LinkedIn</span>
-        <Switch checked={includeLinkedIn} onCheckedChange={setIncludeLinkedIn} disabled={loading} />
-      </div>
-      <div className="flex items-center justify-between py-2">
-        <span>Include Indeed</span>
-        <Switch checked={includeIndeed} onCheckedChange={setIncludeIndeed} disabled={loading} />
-      </div>
-      <div className="flex items-center justify-between py-2">
-        <span>Include Search/Listing Pages</span>
-        <Switch checked={includeSearch} onCheckedChange={setIncludeSearch} disabled={loading} />
-      </div>
-      <div className="py-2 space-y-2">
-        <div className="font-medium">Enabled Sources</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {allSources.map(s => (
-            <label key={s.id} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={enabledSources.includes(s.id)}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setEnabledSources(prev => checked ? Array.from(new Set([...prev, s.id])) : prev.filter(x => x !== s.id));
-                }}
-                disabled={loading}
-              />
-              <span>{s.label}</span>
-            </label>
-          ))}
+    <Card>
+      <CardHeader>
+        <CardTitle>Job Sources</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">Control where live job search pulls from.</p>
+
+        <div className="flex items-center justify-between py-2">
+          <span>Include LinkedIn</span>
+          <Switch checked={includeLinkedIn} onCheckedChange={setIncludeLinkedIn} disabled={loading} />
         </div>
-      </div>
-      <div className="py-2 space-y-1">
-        <div className="font-medium">Allowed Domains</div>
-        <p className="text-sm text-muted-foreground">Comma-separated list to prefer/limit when scraping (e.g., careers.google.com, amazon.jobs)</p>
-        <input className="w-full rounded border bg-background p-2" value={allowedDomains} onChange={(e) => setAllowedDomains(e.target.value)} placeholder="example.com, jobs.example.org" />
-      </div>
-      <button className="btn btn-primary" onClick={save} disabled={saving || loading}>Save</button>
-    </div>
+        <div className="flex items-center justify-between py-2">
+          <span>Include Indeed</span>
+          <Switch checked={includeIndeed} onCheckedChange={setIncludeIndeed} disabled={loading} />
+        </div>
+        <div className="flex items-center justify-between py-2">
+          <span>Include Search/Listing Pages</span>
+          <Switch checked={includeSearch} onCheckedChange={setIncludeSearch} disabled={loading} />
+        </div>
+
+        <div className="py-2 space-y-2">
+          <div className="font-medium">Enabled Sources</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {allSources.map(s => (
+              <label key={s.id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-[hsl(var(--ring))]"
+                  checked={enabledSources.includes(s.id)}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setEnabledSources(prev => checked ? Array.from(new Set([...prev, s.id])) : prev.filter(x => x !== s.id));
+                  }}
+                  disabled={loading}
+                />
+                <span>{s.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="py-2 space-y-1">
+          <div className="font-medium">Allowed Domains</div>
+          <p className="text-sm text-muted-foreground">Comma-separated list to prefer/limit when scraping (e.g., careers.google.com, amazon.jobs)</p>
+          <input className="w-full rounded-md border border-input bg-background p-2 text-foreground placeholder:text-foreground/60" value={allowedDomains} onChange={(e) => setAllowedDomains(e.target.value)} placeholder="example.com, jobs.example.org" />
+        </div>
+
+        <Button variant="primary" onClick={save} disabled={saving || loading}>Save</Button>
+      </CardContent>
+    </Card>
   );
 };

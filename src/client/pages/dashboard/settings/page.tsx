@@ -14,7 +14,7 @@ export const SettingsPage = () => {
         </title>
       </Helmet>
 
-      <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white">{t`Settings`}</h1>
+  <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">{t`Settings`}</h1>
 
       <div className="grid gap-6">
         <AccountSettings />
