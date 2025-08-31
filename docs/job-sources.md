@@ -102,6 +102,31 @@ The `jobs-cron` function upserts to `public.job_listings` with fields:
 - The Job Search page first tries live scraping via `process-and-match`.
 - If no results, it falls back to `get-jobs` (DB), and shows a small `Source` badge derived from the stored `source`.
 
+### Include LinkedIn and search listing pages
+By default, live search now allows LinkedIn links and search/listing pages and attempts to extract multiple jobs from them.
+
+- You can control this per-request by sending flags to `process-and-match`:
+  - `includeLinkedIn`: boolean (default: true)
+  - `includeSearch`: boolean (default: true)
+
+Example body:
+```
+{
+  "searchQuery": "software engineer",
+  "location": "Remote",
+  "includeLinkedIn": true,
+  "includeSearch": true
+}
+```
+
+For the scheduled `jobs-cron` deep research ingestion, you can control similar behavior via environment variables:
+
+- `INCLUDE_LINKEDIN` = `true|false` (default: true)
+- `INCLUDE_SEARCH` = `true|false` (default: true)
+
+### Salary amount and time duration
+When present in the page content, the system parses salary ranges and infers a period (hour/day/week/month/year) and currency. Parsed numeric ranges populate `salary_min`/`salary_max` in the database; inferred `salary_period`/`salary_currency` are exposed in live responses when available.
+
 ---
 
 Need help? Open an issue or ping us on Discord.

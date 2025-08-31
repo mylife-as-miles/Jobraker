@@ -154,6 +154,17 @@ async function fetchFromSources(): Promise<Job[]> {
 }
 
 // Inspired by user-provided Firecrawl deep research logic
+const INCLUDE_LINKEDIN = (() => {
+  try {
+    return ['1','true','yes','on'].includes(String(Deno.env.get('INCLUDE_LINKEDIN') ?? 'true').toLowerCase());
+  } catch { return true; }
+})();
+const INCLUDE_SEARCH = (() => {
+  try {
+    return ['1','true','yes','on'].includes(String(Deno.env.get('INCLUDE_SEARCH') ?? 'true').toLowerCase());
+  } catch { return true; }
+})();
+
 function isJobListingUrl(url: string): boolean {
   if (!url) return false;
   // Exclude obvious non-job or salary/search pages
@@ -166,9 +177,9 @@ function isJobListingUrl(url: string): boolean {
     /glassdoor\.com\/Salaries/i,
     /indeed\.com\/career/i,
     /payscale\.com/i,
-    /\?q=/i,
-    /search\?/i,
-    /linkedin\.com\/jobs/i, // exclude LinkedIn jobs entirely
+    INCLUDE_SEARCH ? /$a/ : /\?q=/i,
+    INCLUDE_SEARCH ? /$a/ : /search\?/i,
+    INCLUDE_LINKEDIN ? /$a/ : /linkedin\.com\/jobs/i, // optionally exclude LinkedIn
   ];
   for (const pattern of redFlags) if (pattern.test(url)) return false;
 
@@ -194,8 +205,13 @@ function isJobListingUrl(url: string): boolean {
   ];
   const hasPattern = jobIdPatterns.some((p) => p.test(url));
   const isCompanySite = companyJobSites.some((site) => url.includes(site));
-  const isIndeedJob = url.includes("indeed.com") && (url.includes("/job/") || url.includes("/viewjob"));
-  return hasPattern || isCompanySite || isIndeedJob;
+  const isIndeedJob = url.includes("indeed.com") && (url.includes("/job/") || url.includes("/viewjob") || (INCLUDE_SEARCH && /\bjobs\b|search|\?q=/.test(url)));
+  if (hasPattern || isCompanySite || isIndeedJob) return true;
+  if (INCLUDE_SEARCH) {
+    const searchSignals = [/search\//i, /\?q=/i, /\?search=/i, /\bjobs\b/i];
+    if (searchSignals.some((r) => r.test(url))) return true;
+  }
+  return false;
 }
 
 function parseSalaryRangeToMinMax(input?: string): { min: number | null; max: number | null } {
@@ -266,6 +282,18 @@ async function fetchDeepResearchJobs(cfg: DeepResearchConfig): Promise<Job[]> {
       const salaryText = src?.salaryRange || src?.salary || '';
       const { min: salary_min, max: salary_max } = parseSalaryRangeToMinMax(salaryText);
       const work_type = (cfg.workType && cfg.workType[0]) || (loc && /remote/i.test(String(loc)) ? 'Remote' : null);
+      // infer salary period/currency from snippet text
+      const inferMeta = (text?: string) => {
+        const t = String(text || '').toLowerCase();
+        const periodRe = /(per\s+)?(hour|hr|day|week|wk|month|mo|year|yr|annum)/i;
+        const currencyRe = /([$€£]|usd|eur|gbp)/i;
+        const p = t.match(periodRe)?.[2] || '';
+        const c = (text || '').match(currencyRe)?.[1] || '';
+        const normP = (v: string) => v === 'hr' ? 'hour' : v === 'wk' ? 'week' : v === 'mo' ? 'month' : v === 'yr' ? 'year' : v;
+        const normC = (v: string) => ({'$':'USD','USD':'USD','€':'EUR','EUR':'EUR','£':'GBP','GBP':'GBP'} as any)[v] || undefined;
+        return { period: normP(p), currency: normC(c) } as { period?: string; currency?: string };
+      };
+      const meta = inferMeta(salaryText || snippet || title);
 
       jobs.push({
         external_id: url,
@@ -280,6 +308,9 @@ async function fetchDeepResearchJobs(cfg: DeepResearchConfig): Promise<Job[]> {
         salary_min,
         salary_max,
         work_type,
+        // meta not persisted to DB but available in payload if needed downstream
+        ...(meta.period ? { salary_period: meta.period } : {}),
+        ...(meta.currency ? { salary_currency: meta.currency } : {}),
       });
     }
     return jobs;

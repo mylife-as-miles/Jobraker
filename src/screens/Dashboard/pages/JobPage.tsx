@@ -180,6 +180,9 @@ export const JobPage = (): JSX.Element => {
           location: debouncedSelectedLocation,
           // pass work type when selected
           type: selectedType === 'All' ? undefined : selectedType,
+          // new flags to expand sources
+          includeLinkedIn: true,
+          includeSearch: true,
         },
       });
 
@@ -224,15 +227,17 @@ export const JobPage = (): JSX.Element => {
         }
       }
 
-      const newJobs = (matchedJobs as (JobListing & { _source?: string; salary_min?: number | null; salary_max?: number | null; requirements?: string[]; benefits?: string[]; })[]).map((job) => ({
+      const newJobs = (matchedJobs as (JobListing & { _source?: string; salary_min?: number | null; salary_max?: number | null; salary_period?: string | null; salary_currency?: string | null; requirements?: string[]; benefits?: string[]; })[]).map((job) => ({
         ...job,
         id: job.sourceUrl || `${job.jobTitle}-${job.companyName}`,
         title: job.jobTitle,
         company: job.companyName,
         type: (job as any).workType || "N/A",
-        salary: typeof (job as any).salary_min === 'number' || typeof (job as any).salary_max === 'number'
-          ? `$${(job as any).salary_min ?? ''}${(job as any).salary_min && (job as any).salary_max ? ' - ' : ''}${(job as any).salary_max ?? ''}`
-          : "N/A",
+        salary: (typeof (job as any).salary_min === 'number' || typeof (job as any).salary_max === 'number')
+          ? `$${(job as any).salary_min ?? ''}${(job as any).salary_min && (job as any).salary_max ? ' - ' : ''}${(job as any).salary_max ?? ''}${(job as any).salary_period ? ` / ${(job as any).salary_period}` : ''}`
+          : ((job as any).salary_period && ((job as any).salary_min || (job as any).salary_max))
+            ? `$${(job as any).salary_min ?? (job as any).salary_max ?? ''} / ${(job as any).salary_period}`
+            : "N/A",
   postedDate: (job as any)._posted_at ? new Date((job as any)._posted_at).toLocaleDateString() : "N/A",
   rawPostedAt: (job as any)._posted_at ? new Date((job as any)._posted_at).getTime() : null,
         description: job.fullJobDescription,

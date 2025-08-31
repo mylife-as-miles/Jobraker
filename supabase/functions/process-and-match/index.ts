@@ -71,6 +71,8 @@ Deno.serve(async (req) => {
       if (v) qpTypes.push(v);
     }
   }
+  const qpIncludeLinkedIn = url.searchParams.get('includeLinkedIn');
+  const qpIncludeSearch = url.searchParams.get('includeSearch');
 
   // Normalize effective inputs
   const effectiveQuery = (searchQuery ?? qpQ ?? '').trim();
@@ -84,6 +86,16 @@ Deno.serve(async (req) => {
     return s; // leave as-is
   };
   const effectiveTypes = Array.from(new Set(effectiveTypesRaw.map(normalizeType)));
+  // Feature flags (can be sent in body or query): includeLinkedIn, includeSearch
+  let includeLinkedIn = true; // default allow LinkedIn
+  let includeSearchListings = true; // default allow search/listing pages
+  try {
+    const body = await req.json();
+    includeLinkedIn = Boolean(body?.includeLinkedIn ?? includeLinkedIn);
+    includeSearchListings = Boolean(body?.includeSearch ?? includeSearchListings);
+  } catch (_) {}
+  if (qpIncludeLinkedIn != null) includeLinkedIn = ['1','true','yes','on'].includes(qpIncludeLinkedIn.toLowerCase());
+  if (qpIncludeSearch != null) includeSearchListings = ['1','true','yes','on'].includes(qpIncludeSearch.toLowerCase());
 
   try {
   // No heavy initialization required for OPTIONS/POST
@@ -94,29 +106,51 @@ Deno.serve(async (req) => {
 
     if (!effectiveQuery) throw new Error("Search query is required.");
 
-    // --- Step 1: Use deepResearch (avoids LinkedIn restrictions) ---
+    // --- Step 1: Use deepResearch ---
     // Build a targeted prompt and parameters
   const locText = effectiveLocation ? ` in ${effectiveLocation}` : '';
   const typeText = effectiveTypes.length ? `\n• Prefer work type: ${effectiveTypes.join(', ')}` : '';
-  const prompt = `Find current, individual job postings for: ${effectiveQuery}${locText}.
+  const prompt = `Find current job opportunities for: ${effectiveQuery}${locText}.
 Strict rules:
-• Return only direct job posting pages (no search result pages).
-• Exclude linkedin.com entirely and salary/average/calculator pages.
+${includeSearchListings ? '• You may include job search/listing pages if they contain multiple recent postings.\n' : '• Return only direct job posting pages (no search result pages).\n'}
+${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.com entirely.\n'}
+• Exclude salary/average/calculator pages and generic advice pages.
 • Prefer company career pages or reputable boards.${typeText}
 `;
     const params: any = { maxDepth: 3, timeLimit: 90, maxUrls: 12 };
   const dr = await withRetry(() => firecrawlFetch('/v1/deep-research', apiKey, { query: prompt, ...params }), 3, 600);
     const sources = Array.isArray(dr?.data?.sources) ? dr.data.sources : [];
 
-    // Filter plausible job listing URLs
+    // Filter plausible job listing URLs (with optional allowance for LinkedIn/search pages)
     const isJobListingUrl = (url: string) => {
       if (!url) return false;
-      const deny = [/linkedin\.com/i, /salary/i, /average/i, /calculator/i, /statistics/i, /glassdoor\.com\/Salaries/i, /payscale\.com/i, /\?q=/i, /search\?/i];
+      const deny = [
+        includeLinkedIn ? /$a/ : /linkedin\.com/i,
+        /salary/i, /average/i, /calculator/i, /statistics/i, /glassdoor\.com\/Salaries/i, /payscale\.com/i,
+        includeSearchListings ? /$a/ : /\?q=/i,
+        includeSearchListings ? /$a/ : /search\?/i
+      ];
       if (deny.some((r) => r.test(url))) return false;
-      const allow = [/\/job\//i, /\/jobs\//i, /\/careers?\//i, /\/jobdetail/i, /\/job-posting/i, /\/viewjob/i, /workatastartup\.com\/(jobs|companies)/i, /amazon\.jobs/i, /careers\./i];
-      return allow.some((r) => r.test(url));
+      const allow = [
+        /\/job\//i, /\/jobs\//i, /\/careers?\//i, /\/jobdetail/i, /\/job-posting/i, /\/viewjob/i,
+        /workatastartup\.com\/(jobs|companies)/i, /amazon\.jobs/i, /careers\./i,
+      ];
+      const looksLikeListing = allow.some((r) => r.test(url));
+      if (looksLikeListing) return true;
+      if (includeSearchListings) {
+        // permit search/listing pages that are common on boards
+        const searchSignals = [/search\//i, /\?q=/i, /\?search=/i, /\bjobs\b/i];
+        return searchSignals.some((r) => r.test(url));
+      }
+      return false;
     };
-    const jobUrls: string[] = sources.map((s: any) => s?.url).filter((u: any) => typeof u === 'string' && isJobListingUrl(u));
+    const allUrls: string[] = sources.map((s: any) => s?.url).filter((u: any) => typeof u === 'string' && isJobListingUrl(u));
+    const jobUrls: string[] = [];
+    const searchUrls: string[] = [];
+    for (const u of allUrls) {
+      if (/\?q=|search\//i.test(u)) searchUrls.push(u);
+      else jobUrls.push(u);
+    }
 
     let scrapedJobs: JobListing[] = [];
     if (jobUrls.length) {
@@ -145,9 +179,38 @@ Strict rules:
           fullJobDescription: { type: 'string' },
           // Additional fields to populate UI when available
           salaryRange: { type: 'string' },
+          salaryPeriod: { type: 'string', enum: ['hour', 'day', 'week', 'month', 'year'] },
+          salaryCurrency: { type: 'string' },
+          employmentType: { type: 'string' },
+          contractDuration: { type: 'string' },
           postedDate: { type: 'string' },
         },
         required: ['jobTitle', 'companyName', 'location', 'fullJobDescription'],
+      } as const;
+      // Schema for search/listing pages extracting multiple cards
+      const listingSchema = {
+        type: 'object',
+        properties: {
+          jobs: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                jobTitle: { type: 'string' },
+                companyName: { type: 'string' },
+                location: { type: 'string' },
+                workType: { type: 'string' },
+                salaryRange: { type: 'string' },
+                salaryPeriod: { type: 'string' },
+                salaryCurrency: { type: 'string' },
+                employmentType: { type: 'string' },
+                contractDuration: { type: 'string' },
+                postedDate: { type: 'string' },
+                jobUrl: { type: 'string' },
+              },
+            },
+          },
+        },
       } as const;
       // Scrape sequentially to avoid provider rate limits
       const scrapeResults: any[] = [];
@@ -158,6 +221,21 @@ Strict rules:
           if (s?.success && s?.data) scrapeResults.push({ success: true, data: s.data, url: u });
         } catch (_) {
           // skip failed url
+        }
+      }
+      // Optionally parse search/list pages into multiple jobs
+      if (includeSearchListings && searchUrls.length) {
+        for (const u of searchUrls) {
+          try {
+            const s = await withRetry(() => firecrawlFetch('/v1/scrape', apiKey, { url: u, pageOptions: { extractionSchema: listingSchema } }), 2, 500);
+            if (s?.success && s?.data && Array.isArray(s.data.jobs)) {
+              for (const j of s.data.jobs) {
+                if (j && (j.jobUrl || u)) {
+                  scrapeResults.push({ success: true, data: { ...j, fullJobDescription: j.fullJobDescription || '', _fromListing: true }, url: j.jobUrl || u });
+                }
+              }
+            }
+          } catch (_) {}
         }
       }
       // Basic extractor to pull lists under common headings when schema misses them
@@ -185,6 +263,59 @@ Strict rules:
         return { reqs: grabAfter(reqHeads), bens: grabAfter(benHeads) };
       };
 
+      // salary helpers
+      const normalizeCurrency = (s?: string) => {
+        if (!s) return null;
+        const t = s.trim().toUpperCase();
+        if (['USD','$'].includes(t)) return 'USD';
+        if (['EUR','€'].includes(t)) return 'EUR';
+        if (['GBP','£'].includes(t)) return 'GBP';
+        return t;
+      };
+      const parseSalaryRangeToMinMax = (input?: string): { min: number | null; max: number | null } => {
+        if (!input) return { min: null, max: null };
+        const cleaned = String(input).replace(/[,\s]/g, '').toLowerCase();
+        // handle 120k-180k
+        const kRe = /(?:(\$|€|£)?)(\d{2,3})k(?:[-–to]+(?:(\$|€|£)?)(\d{2,3})k)?/i;
+        const mK = cleaned.match(kRe);
+        if (mK) {
+          const a = parseInt(mK[2], 10) * 1000;
+          const b = mK[4] ? parseInt(mK[4], 10) * 1000 : NaN;
+          return { min: Number.isFinite(a) ? a : null, max: Number.isFinite(b) ? b : null };
+        }
+        const m = cleaned.match(/(\$|€|£)?(\d{2,7})(?:[-–to]+(\$|€|£)?(\d{2,7}))?/i);
+        if (!m) return { min: null, max: null };
+        const min = parseInt(m[2], 10);
+        const max = m[4] ? parseInt(m[4], 10) : NaN;
+        return { min: Number.isFinite(min) ? min : null, max: Number.isFinite(max) ? max : null };
+      };
+
+      // Try to infer salary period and currency from text if missing
+      const inferSalaryMeta = (text?: string) => {
+        const t = String(text || '').toLowerCase();
+        const periodRe = /(per\s+)?(hour|hr|day|week|wk|month|mo|year|yr|annum)/i;
+        const currencyRe = /([$€£]|usd|eur|gbp)/i;
+        const periodMatch = t.match(periodRe);
+        const currencyMatch = (text || '').match(currencyRe);
+        const normPeriod = (p?: string | null) => {
+          const v = (p || '').toLowerCase();
+          if (v === 'hr' || v === 'hour') return 'hour';
+          if (v === 'day') return 'day';
+          if (v === 'week' || v === 'wk') return 'week';
+          if (v === 'month' || v === 'mo') return 'month';
+          if (v === 'year' || v === 'yr' || v === 'annum') return 'year';
+          return null;
+        };
+        const normCurr = (c?: string | null) => {
+          const v = (c || '').toUpperCase();
+          if (v === '$' || v === 'USD') return 'USD';
+          if (v === '€' || v === 'EUR') return 'EUR';
+          if (v === '£' || v === 'GBP') return 'GBP';
+          return null;
+        };
+        return { period: normPeriod(periodMatch?.[2] || null), currency: normCurr(currencyMatch?.[1] || null) } as { period: string | null; currency: string | null };
+      };
+
       scrapedJobs = scrapeResults
         .filter((res: any) => res?.success && res?.data)
         .map((res: any) => {
@@ -193,11 +324,17 @@ Strict rules:
           // Parse salary range and posted date from extracted data if present
           const { min: sMin, max: sMax } = parseSalaryRangeToMinMax(String(data.salaryRange || ''));
           const postedISO = data.postedDate ? new Date(String(data.postedDate)).toISOString() : undefined;
+          const meta = inferSalaryMeta(data.salaryRange || data.fullJobDescription || '');
           return {
             ...data,
             requirements: Array.isArray(data.requirements) && data.requirements.length ? data.requirements : (Array.isArray(data.requiredSkills) ? data.requiredSkills : reqs),
             benefits: Array.isArray(data.benefits) && data.benefits.length ? data.benefits : bens,
             sourceUrl: res.url,
+            // Additional salary/contract metadata (not all DB-persisted)
+            salary_currency: normalizeCurrency(data.salaryCurrency) || meta.currency,
+            salary_period: data.salaryPeriod || meta.period,
+            employmentType: data.employmentType || null,
+            contractDuration: data.contractDuration || null,
             // Extra fields used by UI mapping
             salary_min: sMin ?? null,
             salary_max: sMax ?? null,
