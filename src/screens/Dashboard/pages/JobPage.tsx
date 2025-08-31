@@ -40,6 +40,21 @@ interface Job extends JobListing {
 
 const supabase = createClient();
 
+// Minimal HTML sanitizer to render job descriptions safely
+const sanitizeHtml = (html: string) => {
+  if (!html) return "";
+  let out = String(html);
+  // strip script/style tags and contents
+  out = out.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
+  out = out.replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "");
+  // neutralize javascript: URLs
+  out = out.replace(/href\s*=\s*(["'])javascript:[^"']*\1/gi, 'href="#"');
+  out = out.replace(/src\s*=\s*(["'])javascript:[^"']*\1/gi, '');
+  // remove on* event handlers
+  out = out.replace(/ on[a-z]+\s*=\s*(["']).*?\1/gi, "");
+  return out;
+};
+
 // A simple debounce hook
 const useDebounce = (value: string, delay: number) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -62,6 +77,8 @@ export const JobPage = (): JSX.Element => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resultNote, setResultNote] = useState<string | null>(null);
+  const [resultSource, setResultSource] = useState<"live" | "db" | null>(null);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const debouncedSelectedLocation = useDebounce(selectedLocation, 500);
@@ -79,13 +96,17 @@ export const JobPage = (): JSX.Element => {
       const { data, error } = await supabase.functions.invoke('process-and-match', {
         body: {
           searchQuery: debouncedSearchQuery,
-          location: debouncedSelectedLocation
+          location: debouncedSelectedLocation,
+          // pass work type when selected
+          type: selectedType === 'All' ? undefined : selectedType,
         },
       });
 
       if (error) throw error;
 
-      let { matchedJobs } = data || { matchedJobs: [] };
+      let { matchedJobs, note } = data || { matchedJobs: [], note: null };
+      setResultNote(note ?? null);
+      setResultSource(note ? 'db' : 'live');
 
       // If scraping returned nothing, fallback to DB-backed function
       if (!Array.isArray(matchedJobs) || matchedJobs.length === 0) {
@@ -103,18 +124,24 @@ export const JobPage = (): JSX.Element => {
             requiredSkills: r.required_skills,
             fullJobDescription: r.full_job_description,
             sourceUrl: r.source_url,
+            salary_min: r.salary_min,
+            salary_max: r.salary_max,
             _source: r.source || 'db',
           }));
+          setResultSource('db');
+          setResultNote('fallback: provider_unavailable');
         }
       }
 
-      const newJobs = (matchedJobs as (JobListing & { _source?: string })[]).map((job) => ({
+      const newJobs = (matchedJobs as (JobListing & { _source?: string; salary_min?: number | null; salary_max?: number | null; })[]).map((job) => ({
         ...job,
         id: job.sourceUrl || `${job.jobTitle}-${job.companyName}`,
         title: job.jobTitle,
         company: job.companyName,
         type: (job as any).workType || "N/A",
-        salary: "N/A",
+        salary: typeof (job as any).salary_min === 'number' || typeof (job as any).salary_max === 'number'
+          ? `$${(job as any).salary_min ?? ''}${(job as any).salary_min && (job as any).salary_max ? ' - ' : ''}${(job as any).salary_max ?? ''}`
+          : "N/A",
         postedDate: "N/A",
         description: job.fullJobDescription,
         requirements: job.requiredSkills || [],
@@ -123,7 +150,7 @@ export const JobPage = (): JSX.Element => {
         isApplied: false,
         logo: job.companyName?.[0]?.toUpperCase() || '?',
         // marker for UI badge
-        source: (job as any)._source,
+        source: (job as any)._source || (note ? 'db' : 'scraped'),
       }));
 
       setJobs(newJobs);
@@ -133,7 +160,7 @@ export const JobPage = (): JSX.Element => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearchQuery, debouncedSelectedLocation]);
+  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType]);
 
   useEffect(() => {
     performSearch();
@@ -152,7 +179,21 @@ export const JobPage = (): JSX.Element => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Job Search</h1>
-              <p className="text-[#ffffff80] text-sm sm:text-base">Find your next opportunity</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[#ffffff80] text-sm sm:text-base">Find your next opportunity</p>
+                {resultSource && (
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-wide border ${
+                      resultSource === 'live'
+                        ? 'border-[#1dff00]/40 text-[#1dff00] bg-[#1dff0033]'
+                        : 'border-amber-400/40 text-amber-300 bg-amber-500/10'
+                    }`}
+                    title={resultNote || undefined}
+                  >
+                    {resultSource === 'live' ? 'Live' : 'DB fallback'}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex gap-2 sm:gap-3">
               <Button 
@@ -197,9 +238,9 @@ export const JobPage = (): JSX.Element => {
               />
             </div>
             
-            {/* Type Filter */}
+            {/* Work Type Filter */}
             <div className="flex gap-1">
-              {["All", "Full-time", "Remote"].map((type) => (
+              {["All", "Remote", "Hybrid", "On-site"].map((type) => (
                 <Button
                   key={type}
                   variant="ghost"
@@ -316,11 +357,22 @@ export const JobPage = (): JSX.Element => {
                         )}
                       </div>
                       
-                      <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2">
                         <span className="px-2 py-1 bg-[#ffffff1a] text-white text-xs rounded border border-[#ffffff33]">{job.type}</span>
                         {job.isApplied && (
                           <span className="px-2 py-1 bg-[#1dff0020] text-[#1dff00] text-xs rounded border border-[#1dff00]/30">Applied</span>
                         )}
+                          {job.sourceUrl && (
+                            <a
+                              href={job.sourceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer nofollow"
+                              className="px-2 py-1 text-xs rounded border border-[#ffffff33] text-[#ffffffb3] bg-[#ffffff14] hover:bg-[#1dff00]/10 hover:border-[#1dff00]/40 transition"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              View posting
+                            </a>
+                          )}
                       </div>
                     </div>
                   </div>
@@ -421,7 +473,9 @@ export const JobPage = (): JSX.Element => {
                             <Building2 className="w-5 h-5 mr-2 text-white" />
                             Job Description
                           </h3>
-                          <p className="text-[#ffffff80] leading-relaxed">{job.description}</p>
+                          <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed">
+                            <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.description) }} />
+                          </div>
                         </Card>
                         
                         {/* Requirements */}
@@ -467,6 +521,19 @@ export const JobPage = (): JSX.Element => {
                             ))}
                           </div>
                         </Card>
+                        {/* External Link */}
+                        {job.sourceUrl && (
+                          <div className="flex justify-end">
+                            <a
+                              href={job.sourceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer nofollow"
+                              className="inline-flex items-center px-4 py-2 rounded-md border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff0033] hover:bg-[#1dff004d] transition"
+                            >
+                              Open original job posting
+                            </a>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   );
