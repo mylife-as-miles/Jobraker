@@ -11,6 +11,7 @@ import { HomePage } from "@/client/pages/home/page";
 import { ErrorPage } from "@/client/pages/public/error";
 import { publicLoader, PublicResumePage } from "@/client/pages/public/page";
 import { Providers } from "@/client/providers";
+import { AuthGuard } from "./guards/auth";
 
 export const routes = createRoutesFromElements(
   <Route element={<Providers />}>
