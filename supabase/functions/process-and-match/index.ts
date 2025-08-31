@@ -136,13 +136,38 @@ Deno.serve(async (req) => {
   const apiKey = headerKey || Deno.env.get('FIRECRAWL_API_KEY');
   if (!apiKey) throw new Error('FIRECRAWL_API_KEY not provided');
 
-    if (!effectiveQuery) throw new Error("Search query is required.");
+    // Allow using saved Job Sources (deepresearch entries) when caller doesn't pass q
+    let configDeepQueries: string[] = [];
+    try {
+      const authHeader = req.headers.get('authorization') || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+      if (token) {
+        const sb = createClient(
+          Deno.env.get('SUPABASE_URL') || 'https://yquhsllwrwfvrwolqywh.supabase.co',
+          Deno.env.get('SUPABASE_ANON_KEY') || ''
+        );
+        try { (sb as any).auth.setAuth(token); } catch {}
+        const { data } = await sb
+          .from('job_source_configs')
+          .select('sources')
+          .limit(1)
+          .maybeSingle();
+        const arr: any[] = (data && Array.isArray((data as any).sources)) ? (data as any).sources : [];
+        configDeepQueries = arr
+          .filter((s: any) => (s?.type || '').toLowerCase() === 'deepresearch' && (s?.enabled ?? true))
+          .map((s: any) => String(s?.query || '').trim())
+          .filter((q: string) => q.length > 0);
+      }
+    } catch (_) { /* ignore */ }
+
+    const queriesToRun = effectiveQuery ? [effectiveQuery] : configDeepQueries;
+    if (!queriesToRun.length) throw new Error("Search query is required.");
 
     // --- Step 1: Use deepResearch ---
     // Build a targeted prompt and parameters
   const locText = effectiveLocation ? ` in ${effectiveLocation}` : '';
   const typeText = effectiveTypes.length ? `\n• Prefer work type: ${effectiveTypes.join(', ')}` : '';
-  const prompt = `Find current job opportunities for: ${effectiveQuery}${locText}.
+  const buildPrompt = (q: string) => `Find current job opportunities for: ${q}${locText}.
 Strict rules:
 ${includeSearchListings ? '• You may include job search/listing pages if they contain multiple recent postings.\n' : '• Return only direct job posting pages (no search result pages).\n'}
 ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.com entirely.\n'}
@@ -150,8 +175,16 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
 • Prefer company career pages or reputable boards.${typeText}
 `;
     const params: any = { maxDepth: 3, timeLimit: 90, maxUrls: 12 };
-  const dr = await withRetry(() => firecrawlFetch('/v1/deep-research', apiKey, { query: prompt, ...params }), 3, 600);
-    const sources = Array.isArray(dr?.data?.sources) ? dr.data.sources : [];
+    // Aggregate sources across all configured queries
+    const sources: any[] = [];
+    for (const q of queriesToRun) {
+      try {
+        const dr = await withRetry(() => firecrawlFetch('/v1/deep-research', apiKey, { query: buildPrompt(q), ...params }), 3, 600);
+        if (Array.isArray(dr?.data?.sources)) sources.push(...dr.data.sources);
+      } catch (_) {
+        // continue with next query
+      }
+    }
 
     // Filter plausible job listing URLs (with optional allowance for LinkedIn/search pages)
     const isJobListingUrl = (url: string) => {

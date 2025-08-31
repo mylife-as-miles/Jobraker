@@ -89,22 +89,53 @@ async function fetchArbeitNow(query = "software"): Promise<Job[]> {
 }
 
 async function fetchFromSources(): Promise<Job[]> {
+  // Priority: DB (job_source_configs by JOB_SOURCES_USER_ID) > env var JOB_SOURCES > defaults
   const envSources = Deno.env.get("JOB_SOURCES");
-  // Default to user's requested config if env is not set or fails to parse
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY");
+
+  // Defaults
   let sources: { type: string; url?: string; query?: string; workType?: string[]; location?: string; salaryRange?: string; experienceLevel?: string; maxResults?: number }[] = [
     { type: "remotive", query: "software engineer" },
-    {
-      type: "deepresearch",
-      query: "senior full-stack engineer react node",
-      workType: ["Remote", "Hybrid"],
-      location: "United States",
-      salaryRange: "120k-200k",
-      experienceLevel: "senior",
-      maxResults: 20,
-    }
+    { type: "remoteok" },
+    { type: "arbeitnow", query: "typescript" },
+    { type: "deepresearch", query: "senior full-stack engineer react node", workType: ["Remote", "Hybrid"], location: "United States", salaryRange: "120k-200k", experienceLevel: "senior", maxResults: 20 }
   ];
+
+  // Try DB config first if we have credentials and a configured user id
+  const configUserId = Deno.env.get("JOB_SOURCES_USER_ID");
+  if (supabaseUrl && serviceKey && configUserId) {
+    try {
+      const sb = createClient(supabaseUrl, serviceKey);
+      const { data, error } = await sb
+        .from('job_source_configs')
+        .select('sources')
+        .eq('user_id', configUserId)
+        .maybeSingle();
+      if (!error && data && Array.isArray((data as any).sources)) {
+        const arr: any[] = (data as any).sources;
+        // Map UI shape to expected ingestor shape, keep only enabled
+        const mapped = arr
+          .filter((s: any) => s && (s.enabled ?? true))
+          .map((s: any) => {
+            const t = String(s.type || '').toLowerCase();
+            if (t === 'json') {
+              return { type: 'json', url: s.query || s.url };
+            }
+            if (t === 'deepresearch') {
+              return { type: 'deepresearch', query: s.query || 'software engineer' };
+            }
+            return { type: t, query: s.query };
+          });
+        if (mapped.length) sources = mapped as any;
+      }
+    } catch (e) {
+      console.warn('Failed to load job sources from DB:', e);
+    }
+  }
+  // If DB didn't override and env var is present, use it
   if (envSources) {
-    try { sources = JSON.parse(envSources); } catch { /* keep defaults */ }
+    try { const parsed = JSON.parse(envSources); if (Array.isArray(parsed) && parsed.length) sources = parsed; } catch { /* ignore */ }
   }
   const results: Job[] = [];
   for (const s of sources) {
@@ -124,7 +155,7 @@ async function fetchFromSources(): Promise<Job[]> {
           experienceLevel: s.experienceLevel || "",
           maxResults: s.maxResults || 15,
         }));
-      } else if (s.type === "json" && s.url) {
+  } else if (s.type === "json" && s.url) {
         const r = await fetch(s.url, { headers: { accept: "application/json" } });
         if (r.ok) {
           const data: any[] = await r.json();
