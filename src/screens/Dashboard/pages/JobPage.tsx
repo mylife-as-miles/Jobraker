@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
@@ -41,6 +41,8 @@ interface Job extends JobListing {
   logoUrl?: string;
   source?: string;
 }
+
+type FacetItem = { value: string; count: number };
 
 const supabase = createClient();
 
@@ -138,6 +140,7 @@ export const JobPage = (): JSX.Element => {
   const [selectedType, setSelectedType] = useState("All");
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [lastLiveJobs, setLastLiveJobs] = useState<Job[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resultNote, setResultNote] = useState<string | null>(null);
@@ -146,6 +149,11 @@ export const JobPage = (): JSX.Element => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState<'relevance' | 'posted_desc'>('relevance');
+  // Facet state
+  const [facets, setFacets] = useState<{ requirements: FacetItem[]; benefits: FacetItem[] }>({ requirements: [], benefits: [] });
+  const [selectedReq, setSelectedReq] = useState<Set<string>>(new Set());
+  const [selectedBen, setSelectedBen] = useState<Set<string>>(new Set());
+  const [facetLoading, setFacetLoading] = useState(false);
   const { success, error: toastError, info } = useToast();
 
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
@@ -229,6 +237,8 @@ export const JobPage = (): JSX.Element => {
       }));
 
       setJobs(newJobs);
+      // remember last live results so clearing facets restores them
+      if (!note) setLastLiveJobs(newJobs);
       setCurrentPage(1);
       setSelectedJob(newJobs[0]?.id ?? null);
     } catch (e: any) {
@@ -237,6 +247,108 @@ export const JobPage = (): JSX.Element => {
       setLoading(false);
     }
   }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType]);
+
+  // Helper: map DB rows to Job shape
+  const mapDbRowsToJobs = useCallback((rows: any[]): Job[] => {
+    return rows.map((r: any) => ({
+      id: r.source_url || `${r.job_title}-${r.company_name}`,
+      title: r.job_title,
+      company: r.company_name,
+      location: r.location,
+      type: r.work_type || 'N/A',
+      salary: typeof r.salary_min === 'number' || typeof r.salary_max === 'number'
+        ? `$${r.salary_min ?? ''}${r.salary_min && r.salary_max ? ' - ' : ''}${r.salary_max ?? ''}`
+        : 'N/A',
+      postedDate: r.posted_at ? new Date(r.posted_at).toLocaleDateString() : 'N/A',
+      rawPostedAt: r.posted_at ? new Date(r.posted_at).getTime() : null,
+      description: r.full_job_description || '',
+      requirements: Array.isArray(r.requirements) && r.requirements.length
+        ? r.requirements : extractSectionBullets(r.full_job_description || '', ['requirements', 'qualifications', "what you'll need", 'what you will need']),
+      benefits: Array.isArray(r.benefits) && r.benefits.length
+        ? r.benefits : extractSectionBullets(r.full_job_description || '', ['benefits', 'perks', 'what we offer', 'what you get', 'compensation & benefits']),
+      isBookmarked: false,
+      isApplied: false,
+      logo: (r.company_name?.[0] || '?').toUpperCase(),
+      logoUrl: getCompanyLogoUrl(r.company_name, r.source_url),
+      source: r.source || 'db',
+    }));
+  }, []);
+
+  // Fetch facets for current query/location/type (no req/benefit filters)
+  const fetchFacets = useCallback(async () => {
+    if (!debouncedSearchQuery) {
+      setFacets({ requirements: [], benefits: [] });
+      return;
+    }
+    setFacetLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-jobs', {
+        body: {
+          q: debouncedSearchQuery,
+          location: debouncedSelectedLocation,
+          type: selectedType === 'All' ? '' : selectedType,
+        }
+      });
+      if (error) throw error;
+      const f = (data?.facets as any) || {};
+      setFacets({
+        requirements: Array.isArray(f?.requirements) ? f.requirements : [],
+        benefits: Array.isArray(f?.benefits) ? f.benefits : [],
+      });
+    } catch (_) {
+      setFacets({ requirements: [], benefits: [] });
+    } finally {
+      setFacetLoading(false);
+    }
+  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType]);
+
+  // Apply facet filters by switching to DB-backed results
+  const applyFacetFilters = useCallback(async (reqArr: string[], benArr: string[]) => {
+    // If no filters selected, restore live results if available
+    if (reqArr.length === 0 && benArr.length === 0) {
+      if (lastLiveJobs) {
+        setJobs(lastLiveJobs);
+        setResultSource('live');
+        setResultNote(null);
+      } else {
+        await performSearch();
+      }
+      // refresh facets in either case
+      fetchFacets();
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-jobs', {
+        body: {
+          q: debouncedSearchQuery,
+          location: debouncedSelectedLocation,
+          type: selectedType === 'All' ? '' : selectedType,
+          requirements: reqArr,
+          benefits: benArr,
+        }
+      });
+      if (error) throw error;
+      const rows = Array.isArray(data?.jobs) ? data.jobs : [];
+      const mapped = mapDbRowsToJobs(rows);
+      setJobs(mapped);
+      setCurrentPage(1);
+      setSelectedJob(mapped[0]?.id ?? null);
+      setResultSource('db');
+      setResultNote('filtered');
+      // update facets to reflect filtered set
+      const f = (data?.facets as any) || {};
+      setFacets({
+        requirements: Array.isArray(f?.requirements) ? f.requirements : [],
+        benefits: Array.isArray(f?.benefits) ? f.benefits : [],
+      });
+    } catch (e: any) {
+      setError(e.message || 'Failed to apply filters');
+    } finally {
+      setLoading(false);
+    }
+  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, lastLiveJobs, mapDbRowsToJobs, performSearch, fetchFacets]);
 
   // Load existing bookmarks for the user to hydrate isBookmarked
   useEffect(() => {
@@ -340,6 +452,34 @@ export const JobPage = (): JSX.Element => {
     performSearch();
   }, [performSearch]);
 
+  // Whenever the main query inputs change, refresh facets and clear selected facet filters
+  useEffect(() => {
+    setSelectedReq(new Set());
+    setSelectedBen(new Set());
+    fetchFacets();
+  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, fetchFacets]);
+
+  // Derived chip counts
+  const activeFacetCount = useMemo(() => selectedReq.size + selectedBen.size, [selectedReq, selectedBen]);
+
+  const toggleReq = (value: string) => {
+    const next = new Set(selectedReq);
+    if (next.has(value)) next.delete(value); else next.add(value);
+    setSelectedReq(next);
+    applyFacetFilters(Array.from(next), Array.from(selectedBen));
+  };
+  const toggleBen = (value: string) => {
+    const next = new Set(selectedBen);
+    if (next.has(value)) next.delete(value); else next.add(value);
+    setSelectedBen(next);
+    applyFacetFilters(Array.from(selectedReq), Array.from(next));
+  };
+  const clearFacetFilters = () => {
+    setSelectedReq(new Set());
+    setSelectedBen(new Set());
+    applyFacetFilters([], []);
+  };
+
   const filteredJobs = jobs.filter(job => {
     const matchesType = selectedType === "All" || job.type === selectedType;
     return matchesType;
@@ -422,13 +562,13 @@ export const JobPage = (): JSX.Element => {
                 )}
               </div>
             </div>
-            <div className="flex gap-2 sm:gap-3">
+      <div className="flex gap-2 sm:gap-3">
               <Button 
                 variant="outline" 
-                className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+        className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
               >
-                <Filter className="w-4 h-4 mr-2" />
-                Filters
+        <Filter className="w-4 h-4 mr-2" />
+        {activeFacetCount > 0 ? `Filters (${activeFacetCount})` : 'Filters'}
               </Button>
               <Button 
                 className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
@@ -490,6 +630,60 @@ export const JobPage = (): JSX.Element => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           {/* Job List */}
           <div className="space-y-4">
+            {/* Facet Panel */}
+            <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-white font-semibold text-sm">Facet Filters</h3>
+                <div className="flex items-center gap-2">
+                  {facetLoading && <span className="text-xs text-[#ffffff80]">Loading…</span>}
+                  {activeFacetCount > 0 && (
+                    <Button variant="ghost" size="sm" onClick={clearFacetFilters} className="text-[#1dff00] hover:bg-[#1dff00]/10">
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-[#ffffff80] mb-2">Requirements</div>
+                  <div className="flex flex-wrap gap-2">
+                    {(facets.requirements || []).slice(0, 12).map((f) => {
+                      const active = selectedReq.has(f.value);
+                      return (
+                        <button
+                          key={`req-${f.value}`}
+                          onClick={() => toggleReq(f.value)}
+                          className={`px-2 py-1 rounded border text-xs transition ${active ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}
+                          title={`${f.value} (${f.count})`}
+                        >
+                          {f.value}
+                          <span className="ml-1 text-[10px] opacity-70">{f.count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-[#ffffff80] mb-2">Benefits</div>
+                  <div className="flex flex-wrap gap-2">
+                    {(facets.benefits || []).slice(0, 12).map((f) => {
+                      const active = selectedBen.has(f.value);
+                      return (
+                        <button
+                          key={`ben-${f.value}`}
+                          onClick={() => toggleBen(f.value)}
+                          className={`px-2 py-1 rounded border text-xs transition ${active ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/10 hover:bg-[#1dff00]/10'}`}
+                          title={`${f.value} (${f.count})`}
+                        >
+                          {f.value}
+                          <span className="ml-1 text-[10px] opacity-70">{f.count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </Card>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg sm:text-xl font-semibold text-white">
                 {loading ? "Searching..." : `${filteredJobs.length} Jobs Found`}
