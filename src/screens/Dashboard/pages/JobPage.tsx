@@ -692,8 +692,11 @@ export const JobPage = (): JSX.Element => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* Search Input */}
             <div className="lg:col-span-2 relative">
+              <label htmlFor="job-search" className="sr-only">Search jobs</label>
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
               <Input
+                id="job-search"
+                name="job-search"
                 placeholder="Search jobs, companies..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -703,8 +706,11 @@ export const JobPage = (): JSX.Element => {
             
             {/* Location Filter */}
             <div className="relative">
+              <label htmlFor="job-location" className="sr-only">Location</label>
               <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
               <Input
+                id="job-location"
+                name="job-location"
                 placeholder="Location..."
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
@@ -733,32 +739,45 @@ export const JobPage = (): JSX.Element => {
           </div>
           {/* Salary & Time filters row */}
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <Input
+            <div className="relative">
+              <label htmlFor="salary-min" className="sr-only">Minimum salary</label>
+              <Input
+                id="salary-min"
+                name="salary-min"
               placeholder="Min salary (e.g. 120000)"
               inputMode="numeric"
               value={minSalary}
               onChange={(e) => setMinSalary(e.target.value.replace(/[^0-9]/g, ''))}
               className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
-            />
-            <Input
+              />
+            </div>
+            <div className="relative">
+              <label htmlFor="salary-max" className="sr-only">Maximum salary</label>
+              <Input
+                id="salary-max"
+                name="salary-max"
               placeholder="Max salary (e.g. 200000)"
               inputMode="numeric"
               value={maxSalary}
               onChange={(e) => setMaxSalary(e.target.value.replace(/[^0-9]/g, ''))}
               className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
-            />
-            <SafeSelect fallbackValue="any" value={postedSince} onValueChange={(v) => setPostedSince(v === 'any' ? '' : v)}>
-              <SelectTrigger className="h-10">
+              />
+            </div>
+            <div className="relative">
+              <label id="posted-since-label" className="sr-only">Posted since</label>
+              <SafeSelect fallbackValue="any" value={postedSince} onValueChange={(v) => setPostedSince(v === 'any' ? '' : v)}>
+                <SelectTrigger className="h-10" aria-labelledby="posted-since-label" aria-label="Posted since" name="posted-since">
                 <SelectValue placeholder="Posted since" />
-              </SelectTrigger>
-              <SelectContent>
+                </SelectTrigger>
+                <SelectContent>
         <SelectItem value="any">Any time</SelectItem>
                 <SelectItem value="3">Last 3 days</SelectItem>
                 <SelectItem value="7">Last 7 days</SelectItem>
                 <SelectItem value="14">Last 14 days</SelectItem>
                 <SelectItem value="30">Last 30 days</SelectItem>
-              </SelectContent>
-            </SafeSelect>
+                </SelectContent>
+              </SafeSelect>
+            </div>
             <div className="flex gap-2">
               <Button
                 variant="outline"
