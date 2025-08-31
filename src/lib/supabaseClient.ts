@@ -55,7 +55,24 @@ export function createClient(): SupabaseClient {
       } catch {
         // fall through to original call if session check fails
       }
-      return originalGetUser(...args);
+      // If there is a token, try getUser; on 401/403 attempt refresh then retry once.
+      const exec = async () => originalGetUser(...args);
+      const res = await exec();
+      const err = (res as any)?.error;
+      const isAuthErr = err && (String(err.status || '').startsWith('40') || /forbidden|unauthorized/i.test(String(err.message || '')));
+      if (isAuthErr) {
+        try {
+          await client.auth.refreshSession();
+          const retry = await exec();
+          const retryErr = (retry as any)?.error;
+          const retryAuthErr = retryErr && (String(retryErr.status || '').startsWith('40') || /forbidden|unauthorized/i.test(String(retryErr.message || '')));
+          if (!retryAuthErr) return retry;
+        } catch {}
+        // Clear bad session to stop repeated 403s
+        try { await client.auth.signOut(); } catch {}
+        return { data: { user: null }, error: null };
+      }
+      return res;
     };
   } catch {
     // non-fatal; keep default behavior

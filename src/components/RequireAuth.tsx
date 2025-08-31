@@ -13,6 +13,13 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
   useEffect(() => {
     let mounted = true
     const check = async () => {
+      // First look at local session; avoids /auth/v1/user when logged out
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        if (!mounted) return
+        navigate(ROUTES.LOGIN, { replace: true })
+        return
+      }
       const { data } = await supabase.auth.getUser()
       if (!mounted) return
       if (!data.user) {
