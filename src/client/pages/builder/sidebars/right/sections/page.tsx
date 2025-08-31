@@ -48,9 +48,10 @@ export const PageSection = () => {
         </div>
 
         <div className="space-y-1.5">
-          <Label>{t`Margin`}</Label>
+          <Label htmlFor="page-margin-slider">{t`Margin`}</Label>
           <div className="flex items-center gap-x-4 py-1">
             <Slider
+              id="page-margin-slider"
               min={0}
               max={48}
               step={2}

@@ -10,11 +10,14 @@ export interface SliderProps extends Omit<React.InputHTMLAttributes<HTMLInputEle
 
 const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
   ({ min = 0, max = 100, step = 1, value, onValueChange, className, ...rest }, ref) => {
+    const autoId = React.useId()
     const current = Array.isArray(value) && value.length ? value[0] : min
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const v = Number(e.target.value)
       onValueChange?.([v])
     }
+    const inputId = rest.id ?? autoId
+    const inputName = rest.name ?? inputId
     return (
       <div className={cn("relative w-full flex items-center", className)}>
         <input
@@ -30,7 +33,9 @@ const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
             "[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#1dff00] [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-[#1dff00]",
             "[&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#1dff00] [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-[#1dff00]"
           )}
-          aria-label="Slider"
+          id={inputId}
+          name={inputName}
+          aria-label={rest["aria-label"]}
           {...rest}
         />
       </div>
