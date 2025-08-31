@@ -17,6 +17,9 @@ export interface JobListing {
   workType?: 'On-site' | 'Remote' | 'Hybrid';
   experienceLevel?: string;
   requiredSkills?: string[];
+  // Optional structured extras
+  requirements?: string[];
+  benefits?: string[];
   fullJobDescription: string;
   sourceUrl: string;
 }

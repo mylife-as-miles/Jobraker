@@ -129,6 +129,8 @@ Strict rules:
           workType: { type: 'string', enum: ['On-site', 'Remote', 'Hybrid'] },
           experienceLevel: { type: 'string' },
           requiredSkills: { type: 'array', items: { type: 'string' } },
+          requirements: { type: 'array', items: { type: 'string' } },
+          benefits: { type: 'array', items: { type: 'string' } },
           fullJobDescription: { type: 'string' },
         },
         required: ['jobTitle', 'companyName', 'location', 'fullJobDescription'],
@@ -144,12 +146,46 @@ Strict rules:
           // skip failed url
         }
       }
+      // Basic extractor to pull lists under common headings when schema misses them
+      const extractLists = (htmlOrText: string) => {
+        const clean = (htmlOrText || '').replace(/\r/g, '');
+        const lower = clean.toLowerCase();
+        const reqHeads = ['requirements', 'qualifications', "what you'll need", 'what you will need'];
+        const benHeads = ['benefits', 'perks', 'what we offer', 'what you get', 'compensation & benefits'];
+        const grabAfter = (heads: string[]) => {
+          for (const h of heads) {
+            const idx = lower.indexOf(h);
+            if (idx !== -1) {
+              const segment = clean.slice(idx, idx + 2000);
+              // Try list items first
+              const liMatches = Array.from(segment.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)).map(m => m[1].replace(/<[^>]+>/g, '').trim());
+              if (liMatches.length) return liMatches.filter(Boolean).slice(0, 20);
+              // Fallback to lines starting with -, *, •
+              const lines = segment.split(/\n+/).map(s => s.trim());
+              const bullets = lines.filter(s => /^[-*•]/.test(s)).map(s => s.replace(/^[-*•]\s*/, ''));
+              if (bullets.length) return bullets.slice(0, 20);
+            }
+          }
+          return [] as string[];
+        };
+        return { reqs: grabAfter(reqHeads), bens: grabAfter(benHeads) };
+      };
+
       scrapedJobs = scrapeResults
         .filter((res: any) => res?.success && res?.data)
-        .map((res: any) => ({ ...res.data, sourceUrl: res.url })) as JobListing[];
+        .map((res: any) => {
+          const data = res.data;
+          const { reqs, bens } = extractLists(String(data.fullJobDescription || ''));
+          return {
+            ...data,
+            requirements: Array.isArray(data.requirements) && data.requirements.length ? data.requirements : (Array.isArray(data.requiredSkills) ? data.requiredSkills : reqs),
+            benefits: Array.isArray(data.benefits) && data.benefits.length ? data.benefits : bens,
+            sourceUrl: res.url,
+          } as JobListing;
+        });
 
       // Upsert minimal fields compatible with job_listings schema
-      for (const job of scrapedJobs) {
+  for (const job of scrapedJobs) {
         try {
           await supabaseAdmin.from('job_listings').upsert(
             {
@@ -160,6 +196,8 @@ Strict rules:
               full_job_description: job.fullJobDescription || '',
               source_url: job.sourceUrl,
               posted_at: new Date().toISOString(),
+      requirements: (job as any).requirements ?? (Array.isArray(job.requiredSkills) ? job.requiredSkills : []),
+      benefits: (job as any).benefits ?? [],
             },
             { onConflict: 'source_url' }
           );
@@ -197,7 +235,7 @@ Strict rules:
 
       let query = supabaseAdmin
         .from('job_listings')
-        .select('job_title, company_name, location, work_type, full_job_description, source_url, posted_at')
+  .select('job_title, company_name, location, work_type, full_job_description, source_url, posted_at, requirements, benefits')
         .order('posted_at', { ascending: false, nullsFirst: false })
         .limit(50);
 
@@ -221,14 +259,40 @@ Strict rules:
       }
 
       const { data } = await query;
-      const fallbackJobs = (data || []).map((r: any) => ({
-        jobTitle: r.job_title,
-        companyName: r.company_name,
-        location: r.location,
-        workType: r.work_type,
-        fullJobDescription: r.full_job_description,
-        sourceUrl: r.source_url,
-      }));
+      const extractLists = (htmlOrText: string) => {
+        const clean = (htmlOrText || '').replace(/\r/g, '');
+        const lower = clean.toLowerCase();
+        const reqHeads = ['requirements', 'qualifications', "what you'll need", 'what you will need'];
+        const benHeads = ['benefits', 'perks', 'what we offer', 'what you get', 'compensation & benefits'];
+        const grabAfter = (heads: string[]) => {
+          for (const h of heads) {
+            const idx = lower.indexOf(h);
+            if (idx !== -1) {
+              const segment = clean.slice(idx, idx + 2000);
+              const liMatches = Array.from(segment.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)).map(m => m[1].replace(/<[^>]+>/g, '').trim());
+              if (liMatches.length) return liMatches.filter(Boolean).slice(0, 20);
+              const lines = segment.split(/\n+/).map(s => s.trim());
+              const bullets = lines.filter(s => /^[-*•]/.test(s)).map(s => s.replace(/^[-*•]\s*/, ''));
+              if (bullets.length) return bullets.slice(0, 20);
+            }
+          }
+          return [] as string[];
+        };
+        return { reqs: grabAfter(reqHeads), bens: grabAfter(benHeads) };
+      };
+    const fallbackJobs = (data || []).map((r: any) => {
+        const { reqs, bens } = extractLists(String(r.full_job_description || ''));
+        return {
+          jobTitle: r.job_title,
+          companyName: r.company_name,
+          location: r.location,
+          workType: r.work_type,
+          fullJobDescription: r.full_job_description,
+          sourceUrl: r.source_url,
+      requirements: Array.isArray(r.requirements) && r.requirements.length ? r.requirements : reqs,
+      benefits: Array.isArray(r.benefits) && r.benefits.length ? r.benefits : bens,
+        } as JobListing;
+      });
       return new Response(JSON.stringify({ matchedJobs: fallbackJobs, note: 'fallback: provider_unavailable' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,

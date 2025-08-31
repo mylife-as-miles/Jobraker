@@ -298,6 +298,29 @@ async function upsertIntoSupabase(jobs: Job[]) {
   // Upsert in chunks
   const chunkSize = 200;
   let upserted = 0;
+  // heuristic extractors for requirements/benefits from description text
+  const extractLists = (htmlOrText?: string) => {
+    const clean = (htmlOrText || '').replace(/\r/g, '');
+    const lower = clean.toLowerCase();
+    const reqHeads = ['requirements', 'qualifications', "what you'll need", 'what you will need'];
+    const benHeads = ['benefits', 'perks', 'what we offer', 'what you get', 'compensation & benefits'];
+    const grabAfter = (heads: string[]) => {
+      for (const h of heads) {
+        const idx = lower.indexOf(h);
+        if (idx !== -1) {
+          const segment = clean.slice(idx, idx + 2000);
+          const liMatches = Array.from(segment.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)).map(m => m[1].replace(/<[^>]+>/g, '').trim());
+          if (liMatches.length) return liMatches.filter(Boolean).slice(0, 20);
+          const lines = segment.split(/\n+/).map(s => s.trim());
+          const bullets = lines.filter(s => /^[-*•]/.test(s)).map(s => s.replace(/^[-*•]\s*/, ''));
+          if (bullets.length) return bullets.slice(0, 20);
+        }
+      }
+      return [] as string[];
+    };
+    return { requirements: grabAfter(reqHeads), benefits: grabAfter(benHeads) };
+  };
+
   for (let i = 0; i < jobs.length; i += chunkSize) {
     const chunk = jobs.slice(i, i + chunkSize);
     const rows = chunk.map(j => ({
@@ -315,6 +338,11 @@ async function upsertIntoSupabase(jobs: Job[]) {
       salary_min: j.salary_min ?? null,
       salary_max: j.salary_max ?? null,
       updated_at: new Date().toISOString(),
+      // derived lists
+      ...(() => {
+        const { requirements, benefits } = extractLists(j.description || '');
+        return { requirements, benefits };
+      })(),
     }));
 
     // Upsert by unique source_url

@@ -59,6 +59,25 @@ const sanitizeHtml = (html: string) => {
   return out;
 };
 
+// Lightweight bullet extractor from description as a fallback
+const extractSectionBullets = (htmlOrText: string, heads: string[]): string[] => {
+  if (!htmlOrText) return [];
+  const clean = String(htmlOrText).replace(/\r/g, "");
+  const lower = clean.toLowerCase();
+  for (const h of heads) {
+    const idx = lower.indexOf(h);
+    if (idx !== -1) {
+      const segment = clean.slice(idx, idx + 2000);
+      const liMatches = Array.from(segment.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)).map(m => m[1].replace(/<[^>]+>/g, '').trim());
+      if (liMatches.length) return liMatches.filter(Boolean).slice(0, 20);
+      const lines = segment.split(/\n+/).map(s => s.trim());
+      const bullets = lines.filter(s => /^[-*•]/.test(s)).map(s => s.replace(/^[-*•]\s*/, ''));
+      if (bullets.length) return bullets.slice(0, 20);
+    }
+  }
+  return [];
+};
+
 // Try to derive a company domain from the name
 const companyToDomain = (companyName?: string, tld: string = (import.meta as any).env?.VITE_LOGO_TLD || 'com') => {
   if (!companyName) return undefined;
@@ -183,7 +202,7 @@ export const JobPage = (): JSX.Element => {
         }
       }
 
-      const newJobs = (matchedJobs as (JobListing & { _source?: string; salary_min?: number | null; salary_max?: number | null; })[]).map((job) => ({
+      const newJobs = (matchedJobs as (JobListing & { _source?: string; salary_min?: number | null; salary_max?: number | null; requirements?: string[]; benefits?: string[]; })[]).map((job) => ({
         ...job,
         id: job.sourceUrl || `${job.jobTitle}-${job.companyName}`,
         title: job.jobTitle,
@@ -195,8 +214,12 @@ export const JobPage = (): JSX.Element => {
   postedDate: (job as any)._posted_at ? new Date((job as any)._posted_at).toLocaleDateString() : "N/A",
   rawPostedAt: (job as any)._posted_at ? new Date((job as any)._posted_at).getTime() : null,
         description: job.fullJobDescription,
-        requirements: job.requiredSkills || [],
-        benefits: [],
+        requirements: (job as any).requirements && (job as any).requirements.length
+          ? (job as any).requirements
+          : (job.requiredSkills && job.requiredSkills.length ? job.requiredSkills : extractSectionBullets(job.fullJobDescription, ['requirements', 'qualifications', "what you'll need", 'what you will need'])),
+        benefits: (job as any).benefits && (job as any).benefits.length
+          ? (job as any).benefits
+          : extractSectionBullets(job.fullJobDescription, ['benefits', 'perks', 'what we offer', 'what you get', 'compensation & benefits']),
         isBookmarked: false,
         isApplied: false,
         logo: job.companyName?.[0]?.toUpperCase() || '?',

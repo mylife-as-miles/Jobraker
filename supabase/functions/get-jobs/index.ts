@@ -10,8 +10,8 @@ Deno.serve(async (req) => {
   }
   try {
     const url = new URL(req.url);
-    let q = (url.searchParams.get("q") || "").trim();
-    let location = (url.searchParams.get("location") || "").trim();
+  let q = (url.searchParams.get("q") || "").trim();
+  let location = (url.searchParams.get("location") || "").trim();
     // support multiple types via comma or repeated params
     const typeParams = url.searchParams.getAll("type");
     let types: string[] = [];
@@ -23,6 +23,21 @@ Deno.serve(async (req) => {
         }
       }
     }
+    // Parse requirements/benefits filters (repeatable or comma-separated)
+    const collectMulti = (name: string) => {
+      const out: string[] = [];
+      const vals = url.searchParams.getAll(name);
+      for (const v of vals) {
+        for (const p of v.split(',')) {
+          const s = p.trim();
+          if (s) out.push(s);
+        }
+      }
+      return Array.from(new Set(out));
+    };
+    let reqKeywords: string[] = collectMulti('req');
+    let benKeywords: string[] = collectMulti('benefit');
+
     if (req.method !== "GET") {
       try {
         const body = await req.json();
@@ -36,6 +51,16 @@ Deno.serve(async (req) => {
             if (v) types.push(v);
           }
         }
+        if (Array.isArray(body?.requirements)) {
+          reqKeywords = Array.from(new Set(body.requirements.map((s: string) => String(s).trim()).filter(Boolean)));
+        } else if (typeof body?.requirements === 'string') {
+          reqKeywords = Array.from(new Set(String(body.requirements).split(',').map((s) => s.trim()).filter(Boolean)));
+        }
+        if (Array.isArray(body?.benefits)) {
+          benKeywords = Array.from(new Set(body.benefits.map((s: string) => String(s).trim()).filter(Boolean)));
+        } else if (typeof body?.benefits === 'string') {
+          benKeywords = Array.from(new Set(String(body.benefits).split(',').map((s) => s.trim()).filter(Boolean)));
+        }
       } catch (_) {
         // ignore missing/invalid JSON
       }
@@ -48,9 +73,9 @@ Deno.serve(async (req) => {
       serviceKey!
     );
 
-    let query = supabase
+  let query = supabase
       .from("job_listings")
-      .select("job_title, company_name, location, work_type, full_job_description, source_url, source, posted_at, salary_min, salary_max")
+  .select("job_title, company_name, location, work_type, full_job_description, source_url, source, posted_at, salary_min, salary_max, requirements, benefits")
       .order("posted_at", { ascending: false })
       .limit(100);
 
@@ -85,10 +110,42 @@ Deno.serve(async (req) => {
       (query as any) = (query as any).in("work_type", typesNorm);
     }
 
+    // Exact contains on arrays (server-side)
+    if (reqKeywords.length) {
+      (query as any) = (query as any).contains('requirements', reqKeywords);
+    }
+    if (benKeywords.length) {
+      (query as any) = (query as any).contains('benefits', benKeywords);
+    }
+
     const { data, error } = await query;
     if (error) throw error;
 
-    return new Response(JSON.stringify({ jobs: data }), { headers: { ...corsHeaders, "content-type": "application/json" } });
+    // Facet counts from returned rows
+    const reqCounts: Record<string, number> = {};
+    const benCounts: Record<string, number> = {};
+    for (const row of (data || [])) {
+      if (Array.isArray(row.requirements)) {
+        for (const r of row.requirements) {
+          const key = String(r).trim();
+          if (!key) continue;
+          reqCounts[key] = (reqCounts[key] ?? 0) + 1;
+        }
+      }
+      if (Array.isArray(row.benefits)) {
+        for (const b of row.benefits) {
+          const key = String(b).trim();
+          if (!key) continue;
+          benCounts[key] = (benCounts[key] ?? 0) + 1;
+        }
+      }
+    }
+    const toSortedList = (m: Record<string, number>) => Object.entries(m)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 50)
+      .map(([value, count]) => ({ value, count }));
+
+    return new Response(JSON.stringify({ jobs: data, facets: { requirements: toSortedList(reqCounts), benefits: toSortedList(benCounts) } }), { headers: { ...corsHeaders, "content-type": "application/json" } });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: { ...corsHeaders, "content-type": "application/json" } });
   }
