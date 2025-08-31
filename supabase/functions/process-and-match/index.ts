@@ -120,6 +120,17 @@ Strict rules:
 
     let scrapedJobs: JobListing[] = [];
     if (jobUrls.length) {
+      // Helper to parse a salary range string like "$120000 - $180000" to numeric min/max
+      const parseSalaryRangeToMinMax = (input?: string): { min: number | null; max: number | null } => {
+        if (!input) return { min: null, max: null };
+        const cleaned = String(input).replace(/[\s,]/g, '');
+        const m = cleaned.match(/\$?(\d{2,7})(?:[-–to]+\$?(\d{2,7}))?/i);
+        if (!m) return { min: null, max: null };
+        const min = parseInt(m[1], 10);
+        const max = m[2] ? parseInt(m[2], 10) : NaN;
+        return { min: Number.isFinite(min) ? min : null, max: Number.isFinite(max) ? max : null };
+      };
+
       const jobSchema = {
         type: 'object',
         properties: {
@@ -132,6 +143,9 @@ Strict rules:
           requirements: { type: 'array', items: { type: 'string' } },
           benefits: { type: 'array', items: { type: 'string' } },
           fullJobDescription: { type: 'string' },
+          // Additional fields to populate UI when available
+          salaryRange: { type: 'string' },
+          postedDate: { type: 'string' },
         },
         required: ['jobTitle', 'companyName', 'location', 'fullJobDescription'],
       } as const;
@@ -176,17 +190,25 @@ Strict rules:
         .map((res: any) => {
           const data = res.data;
           const { reqs, bens } = extractLists(String(data.fullJobDescription || ''));
+          // Parse salary range and posted date from extracted data if present
+          const { min: sMin, max: sMax } = parseSalaryRangeToMinMax(String(data.salaryRange || ''));
+          const postedISO = data.postedDate ? new Date(String(data.postedDate)).toISOString() : undefined;
           return {
             ...data,
             requirements: Array.isArray(data.requirements) && data.requirements.length ? data.requirements : (Array.isArray(data.requiredSkills) ? data.requiredSkills : reqs),
             benefits: Array.isArray(data.benefits) && data.benefits.length ? data.benefits : bens,
             sourceUrl: res.url,
+            // Extra fields used by UI mapping
+            salary_min: sMin ?? null,
+            salary_max: sMax ?? null,
+            _posted_at: postedISO,
           } as JobListing;
         });
 
       // Upsert minimal fields compatible with job_listings schema
   for (const job of scrapedJobs) {
         try {
+          const postedISO = (job as any)._posted_at || new Date().toISOString();
           await supabaseAdmin.from('job_listings').upsert(
             {
               job_title: job.jobTitle,
@@ -195,7 +217,9 @@ Strict rules:
               work_type: job.workType,
               full_job_description: job.fullJobDescription || '',
               source_url: job.sourceUrl,
-              posted_at: new Date().toISOString(),
+              posted_at: postedISO,
+              salary_min: (job as any).salary_min ?? null,
+              salary_max: (job as any).salary_max ?? null,
       requirements: (job as any).requirements ?? (Array.isArray(job.requiredSkills) ? job.requiredSkills : []),
       benefits: (job as any).benefits ?? [],
             },

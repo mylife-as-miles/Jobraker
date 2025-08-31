@@ -549,6 +549,27 @@ export const JobPage = (): JSX.Element => {
     applyFacetFilters([], []);
   };
 
+  // Reset only salary/time filters and refresh current results/facets
+  const resetSalaryTime = useCallback(() => {
+    setMinSalary("");
+    setMaxSalary("");
+    setPostedSince(""); // 'any'
+    // Refresh facets and re-apply current facet selections against DB
+    fetchFacets();
+    applyFacetFilters(Array.from(selectedReq), Array.from(selectedBen));
+  }, [fetchFacets, applyFacetFilters, selectedReq, selectedBen]);
+
+  // Clear all filter chips and salary/time in one action
+  const clearAllFilters = useCallback(() => {
+    setSelectedReq(new Set());
+    setSelectedBen(new Set());
+    setMinSalary("");
+    setMaxSalary("");
+    setPostedSince("");
+    // Will restore live results if available and refresh facets internally
+    applyFacetFilters([], []);
+  }, [applyFacetFilters]);
+
   const filteredJobs = jobs.filter(job => {
     const matchesType = selectedType === "All" || job.type === selectedType;
     return matchesType;
@@ -721,13 +742,31 @@ export const JobPage = (): JSX.Element => {
                 <SelectItem value="30">Last 30 days</SelectItem>
               </SelectContent>
             </SafeSelect>
-            <Button
-              variant="outline"
-              onClick={() => { fetchFacets(); applyFacetFilters(Array.from(selectedReq), Array.from(selectedBen)); }}
-              className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
-            >
-              Apply filters
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => { fetchFacets(); applyFacetFilters(Array.from(selectedReq), Array.from(selectedBen)); }}
+                className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
+              >
+                Apply filters
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={resetSalaryTime}
+                className="text-[#1dff00] hover:bg-[#1dff00]/10"
+                title="Reset salary and posted time filters"
+              >
+                Reset salary/time
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={clearAllFilters}
+                className="text-[#1dff00] hover:bg-[#1dff00]/10"
+                title="Clear all facet chips and salary/time"
+              >
+                Clear all filters
+              </Button>
+            </div>
           </div>
         </Card>
 
