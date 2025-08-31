@@ -11,7 +11,6 @@ import { HomePage } from "@/client/pages/home/page";
 import { ErrorPage } from "@/client/pages/public/error";
 import { publicLoader, PublicResumePage } from "@/client/pages/public/page";
 import { Providers } from "@/client/providers";
-// Auth-related routes and guards removed; main app handles auth (Supabase)
 
 export const routes = createRoutesFromElements(
   <Route element={<Providers />}>
@@ -23,12 +22,14 @@ export const routes = createRoutesFromElements(
   {/* Auth routes removed; handled by main app */}
 
       <Route path="dashboard">
-        <Route element={<DashboardLayout />}>
-          <Route path="resumes" element={<ResumesPage />} />
-          <Route path="resumes/new" element={<NewResumeRedirect />} />
-          <Route path="settings" element={<SettingsPage />} />
+        <Route element={<AuthGuard />}>
+          <Route element={<DashboardLayout />}>
+            <Route path="resumes" element={<ResumesPage />} />
+            <Route path="resumes/new" element={<NewResumeRedirect />} />
+            <Route path="settings" element={<SettingsPage />} />
 
-          <Route index element={<Navigate replace to="/dashboard/resumes" />} />
+            <Route index element={<Navigate replace to="/dashboard/resumes" />} />
+          </Route>
         </Route>
       </Route>
 
