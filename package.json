@@ -21,10 +21,10 @@
     "supabase:push:dry": "cd backend/supabase && npx supabase db push --linked --dry-run",
     "supabase:push:dburl": "cd backend/supabase && npx supabase db push --db-url $SUPABASE_DB_URL --include-all --yes",
     "supabase:sync:push": "npm run -s supabase:schema:sync && npm run -s supabase:push",
-  "db:run-sql": "node backend/supabase/scripts/run-sql.js --db-url $env:SUPABASE_DB_URL --file $env:SQL_FILE",
-  "db:create-job-listings": "$env:SQL_FILE='backend/supabase/migrations/20250828_create_job_listings.sql'; npm run -s db:run-sql",
-  "db:create-bookmarks": "$env:SQL_FILE='backend/supabase/sql/bookmarks_idempotent.sql'; npm run -s db:run-sql",
-  "db:create-core": "npm run -s db:create-job-listings; npm run -s db:create-bookmarks"
+    "db:run-sql": "node backend/supabase/scripts/run-sql.js --db-url $env:SUPABASE_DB_URL --file $env:SQL_FILE",
+    "db:create-job-listings": "$env:SQL_FILE='backend/supabase/migrations/20250828_create_job_listings.sql'; npm run -s db:run-sql",
+    "db:create-bookmarks": "$env:SQL_FILE='backend/supabase/sql/bookmarks_idempotent.sql'; npm run -s db:run-sql",
+    "db:create-core": "npm run -s db:create-job-listings; npm run -s db:create-bookmarks"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
@@ -76,7 +76,7 @@
     "esbuild": "^0.20.0",
     "globals": "15.12.0",
     "pg": "^8.16.3",
-    "supabase": "^2.33.9",
+    "supabase": "^2.39.2",
     "tailwindcss": "3.4.16",
     "vite": "^5.4.19"
   },
