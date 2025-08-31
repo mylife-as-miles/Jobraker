@@ -213,6 +213,8 @@ export const JobPage = (): JSX.Element => {
             sourceUrl: r.source_url,
             salary_min: r.salary_min,
             salary_max: r.salary_max,
+            requirements: r.requirements,
+            benefits: r.benefits,
             _source: r.source || 'db',
             _posted_at: r.posted_at,
           }));
@@ -262,6 +264,11 @@ export const JobPage = (): JSX.Element => {
   // Helper: map DB rows to Job shape
   const mapDbRowsToJobs = useCallback((rows: any[]): Job[] => {
     return rows.map((r: any) => ({
+  // JobListing fields (to satisfy Job extends JobListing)
+  jobTitle: r.job_title,
+  companyName: r.company_name,
+  fullJobDescription: r.full_job_description || '',
+  sourceUrl: r.source_url,
       id: r.source_url || `${r.job_title}-${r.company_name}`,
       title: r.job_title,
       company: r.company_name,
