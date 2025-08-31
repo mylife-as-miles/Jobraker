@@ -30,7 +30,14 @@ async function main() {
     process.exit(1);
   }
 
-  const sqlPath = path.isAbsolute(file) ? file : path.resolve(__dirname, file);
+  function resolveSqlPath(p) {
+    if (path.isAbsolute(p)) return p;
+    const fromCwd = path.resolve(process.cwd(), p);
+    if (fs.existsSync(fromCwd)) return fromCwd;
+    return path.resolve(__dirname, p);
+  }
+
+  const sqlPath = resolveSqlPath(file);
   if (!fs.existsSync(sqlPath)) {
     console.error(`SQL file not found: ${sqlPath}`);
     process.exit(1);
