@@ -34,5 +34,15 @@ create policy "Insert own job sources" on public.job_source_settings
 create policy "Update own job sources" on public.job_source_settings
   for update using (auth.uid() = id) with check (auth.uid() = id);
 
--- Enable realtime
-alter publication supabase_realtime add table public.job_source_settings;
+-- Enable realtime (idempotent)
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'job_source_settings'
+  ) then
+    alter publication supabase_realtime add table public.job_source_settings;
+  end if;
+end $$;
