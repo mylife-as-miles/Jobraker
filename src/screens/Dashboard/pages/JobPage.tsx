@@ -799,9 +799,9 @@ export const JobPage = (): JSX.Element => {
                 <span className="text-white">{total}</span>
                 <div className="hidden md:flex items-center gap-2 ml-3">
                   <span>Rows:</span>
-                  <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(parseInt(v)); setCurrentPage(1); }}>
+          <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(parseInt(v)); setCurrentPage(1); }}>
                     <SelectTrigger className="w-[90px] h-8">
-                      <SelectValue placeholder="Rows" />
+            <SelectValue placeholder="Rows" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="10">10</SelectItem>
@@ -812,9 +812,9 @@ export const JobPage = (): JSX.Element => {
                 </div>
                 <div className="hidden md:flex items-center gap-2 ml-3">
                   <span>Sort:</span>
-                  <Select value={sortBy} onValueChange={(v) => { setSortBy(v as any); setCurrentPage(1); }}>
+          <Select value={sortBy || 'relevance'} onValueChange={(v) => { setSortBy(v as any); setCurrentPage(1); }}>
                     <SelectTrigger className="w-[160px] h-8">
-                      <SelectValue placeholder="Sort" />
+            <SelectValue placeholder="Sort" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="relevance">Relevance</SelectItem>

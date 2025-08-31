@@ -31,7 +31,7 @@ export const PageSection = () => {
         <div className="space-y-1.5">
           <Label>{t`Format`}</Label>
           <Select
-            value={page.format}
+            value={page.format || 'a4'}
             onValueChange={(value) => {
               setValue("metadata.page.format", value);
             }}
