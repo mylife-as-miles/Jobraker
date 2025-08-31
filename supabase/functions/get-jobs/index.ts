@@ -37,13 +37,21 @@ Deno.serve(async (req) => {
     };
     let reqKeywords: string[] = collectMulti('req');
     let benKeywords: string[] = collectMulti('benefit');
+    // Parse salary and posted-since filters
+    const num = (v: any) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : undefined;
+    };
+    let minSalary: number | undefined = num(url.searchParams.get('minSalary') || url.searchParams.get('min_salary'));
+    let maxSalary: number | undefined = num(url.searchParams.get('maxSalary') || url.searchParams.get('max_salary'));
+    let postedSinceDays: number | undefined = num(url.searchParams.get('posted') || url.searchParams.get('postedSince') || url.searchParams.get('posted_since_days'));
 
     if (req.method !== "GET") {
       try {
         const body = await req.json();
         q = (body?.q ?? q ?? "").trim();
         location = (body?.location ?? location ?? "").trim();
-        if (Array.isArray(body?.type)) {
+  if (Array.isArray(body?.type)) {
           types = body.type.map((s: string) => String(s).trim()).filter(Boolean);
         } else if (typeof body?.type === 'string') {
           for (const part of String(body.type).split(',')) {
@@ -51,6 +59,11 @@ Deno.serve(async (req) => {
             if (v) types.push(v);
           }
         }
+  if (body?.minSalary != null) minSalary = num(body.minSalary);
+  if (body?.maxSalary != null) maxSalary = num(body.maxSalary);
+  if (body?.posted != null) postedSinceDays = num(body.posted);
+  if (body?.postedSince != null) postedSinceDays = num(body.postedSince);
+  if (body?.posted_since_days != null) postedSinceDays = num(body.posted_since_days);
         if (Array.isArray(body?.requirements)) {
           reqKeywords = Array.from(new Set(body.requirements.map((s: string) => String(s).trim()).filter(Boolean)));
         } else if (typeof body?.requirements === 'string') {
@@ -116,6 +129,23 @@ Deno.serve(async (req) => {
     }
     if (benKeywords.length) {
       (query as any) = (query as any).contains('benefits', benKeywords);
+    }
+
+    // Salary filters: accept overlap logic when both provided
+    if (typeof minSalary === 'number' && typeof maxSalary === 'number') {
+      query = query.lte('salary_min', maxSalary).gte('salary_max', minSalary);
+    } else if (typeof minSalary === 'number') {
+      // salary_min >= min OR salary_max >= min
+      (query as any) = (query as any).or(`salary_min.gte.${minSalary},salary_max.gte.${minSalary}`);
+    } else if (typeof maxSalary === 'number') {
+      // salary_min <= max OR salary_max <= max
+      (query as any) = (query as any).or(`salary_min.lte.${maxSalary},salary_max.lte.${maxSalary}`);
+    }
+
+    // Posted time filter: within last N days
+    if (typeof postedSinceDays === 'number' && postedSinceDays > 0) {
+      const since = new Date(Date.now() - postedSinceDays * 24 * 60 * 60 * 1000).toISOString();
+      query = query.gte('posted_at', since);
     }
 
     const { data, error } = await query;

@@ -154,6 +154,10 @@ export const JobPage = (): JSX.Element => {
   const [selectedReq, setSelectedReq] = useState<Set<string>>(new Set());
   const [selectedBen, setSelectedBen] = useState<Set<string>>(new Set());
   const [facetLoading, setFacetLoading] = useState(false);
+  // Salary and time filters
+  const [minSalary, setMinSalary] = useState<string>("");
+  const [maxSalary, setMaxSalary] = useState<string>("");
+  const [postedSince, setPostedSince] = useState<string>(""); // days: 3,7,14,30
   const { success, error: toastError, info } = useToast();
 
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
@@ -187,7 +191,14 @@ export const JobPage = (): JSX.Element => {
       // If scraping returned nothing, fallback to DB-backed function
       if (!Array.isArray(matchedJobs) || matchedJobs.length === 0) {
         const fallback = await supabase.functions.invoke('get-jobs', {
-          body: { q: debouncedSearchQuery, location: debouncedSelectedLocation, type: selectedType === 'All' ? '' : selectedType }
+          body: {
+            q: debouncedSearchQuery,
+            location: debouncedSelectedLocation,
+            type: selectedType === 'All' ? '' : selectedType,
+            minSalary: minSalary ? Number(minSalary) : undefined,
+            maxSalary: maxSalary ? Number(maxSalary) : undefined,
+            posted: postedSince ? Number(postedSince) : undefined,
+          }
         });
         if (!fallback.error) {
           const rows = fallback.data?.jobs || [];
@@ -287,6 +298,9 @@ export const JobPage = (): JSX.Element => {
           q: debouncedSearchQuery,
           location: debouncedSelectedLocation,
           type: selectedType === 'All' ? '' : selectedType,
+          minSalary: minSalary ? Number(minSalary) : undefined,
+          maxSalary: maxSalary ? Number(maxSalary) : undefined,
+          posted: postedSince ? Number(postedSince) : undefined,
         }
       });
       if (error) throw error;
@@ -300,7 +314,7 @@ export const JobPage = (): JSX.Element => {
     } finally {
       setFacetLoading(false);
     }
-  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType]);
+  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, minSalary, maxSalary, postedSince]);
 
   // Apply facet filters by switching to DB-backed results
   const applyFacetFilters = useCallback(async (reqArr: string[], benArr: string[]) => {
@@ -320,13 +334,16 @@ export const JobPage = (): JSX.Element => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error } = await supabase.functions.invoke('get-jobs', {
+    const { data, error } = await supabase.functions.invoke('get-jobs', {
         body: {
           q: debouncedSearchQuery,
           location: debouncedSelectedLocation,
           type: selectedType === 'All' ? '' : selectedType,
           requirements: reqArr,
           benefits: benArr,
+      minSalary: minSalary ? Number(minSalary) : undefined,
+      maxSalary: maxSalary ? Number(maxSalary) : undefined,
+      posted: postedSince ? Number(postedSince) : undefined,
         }
       });
       if (error) throw error;
@@ -348,7 +365,7 @@ export const JobPage = (): JSX.Element => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, lastLiveJobs, mapDbRowsToJobs, performSearch, fetchFacets]);
+  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, lastLiveJobs, mapDbRowsToJobs, performSearch, fetchFacets, minSalary, maxSalary, postedSince]);
 
   // Load existing bookmarks for the user to hydrate isBookmarked
   useEffect(() => {
@@ -457,7 +474,51 @@ export const JobPage = (): JSX.Element => {
     setSelectedReq(new Set());
     setSelectedBen(new Set());
     fetchFacets();
-  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, fetchFacets]);
+  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, minSalary, maxSalary, postedSince, fetchFacets]);
+
+  // URL sync: initial read on mount
+  useEffect(() => {
+    try {
+      const u = new URL(window.location.href);
+      const q = u.searchParams.get('q');
+      const loc = u.searchParams.get('location');
+      const type = u.searchParams.get('type');
+      const req = u.searchParams.getAll('req');
+      const ben = u.searchParams.getAll('benefit');
+      const min = u.searchParams.get('minSalary');
+      const max = u.searchParams.get('maxSalary');
+      const posted = u.searchParams.get('posted');
+      if (q) setSearchQuery(q);
+      if (loc) setSelectedLocation(loc);
+      if (type) setSelectedType(type);
+      if (req?.length) setSelectedReq(new Set(req.flatMap(s => s.split(',').map(x => x.trim()).filter(Boolean))));
+      if (ben?.length) setSelectedBen(new Set(ben.flatMap(s => s.split(',').map(x => x.trim()).filter(Boolean))));
+      if (min) setMinSalary(min);
+      if (max) setMaxSalary(max);
+      if (posted) setPostedSince(posted);
+    } catch {}
+  }, []);
+
+  // URL sync: write when query/filters change
+  useEffect(() => {
+    try {
+      const u = new URL(window.location.href);
+      const sp = u.searchParams;
+      const setOrDel = (k: string, v?: string) => { if (v && v.trim()) sp.set(k, v); else sp.delete(k); };
+      setOrDel('q', debouncedSearchQuery);
+      setOrDel('location', debouncedSelectedLocation);
+      setOrDel('type', selectedType === 'All' ? '' : selectedType);
+      sp.delete('req');
+      sp.delete('benefit');
+      for (const r of Array.from(selectedReq)) sp.append('req', r);
+      for (const b of Array.from(selectedBen)) sp.append('benefit', b);
+      setOrDel('minSalary', minSalary);
+      setOrDel('maxSalary', maxSalary);
+      setOrDel('posted', postedSince);
+      const next = u.toString();
+      if (next !== window.location.href) window.history.replaceState({}, '', next);
+    } catch {}
+  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, selectedReq, selectedBen, minSalary, maxSalary, postedSince]);
 
   // Derived chip counts
   const activeFacetCount = useMemo(() => selectedReq.size + selectedBen.size, [selectedReq, selectedBen]);
@@ -623,6 +684,42 @@ export const JobPage = (): JSX.Element => {
                 </Button>
               ))}
             </div>
+          </div>
+          {/* Salary & Time filters row */}
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <Input
+              placeholder="Min salary (e.g. 120000)"
+              inputMode="numeric"
+              value={minSalary}
+              onChange={(e) => setMinSalary(e.target.value.replace(/[^0-9]/g, ''))}
+              className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
+            />
+            <Input
+              placeholder="Max salary (e.g. 200000)"
+              inputMode="numeric"
+              value={maxSalary}
+              onChange={(e) => setMaxSalary(e.target.value.replace(/[^0-9]/g, ''))}
+              className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
+            />
+            <Select value={postedSince} onValueChange={(v) => setPostedSince(v)}>
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="Posted since" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Any time</SelectItem>
+                <SelectItem value="3">Last 3 days</SelectItem>
+                <SelectItem value="7">Last 7 days</SelectItem>
+                <SelectItem value="14">Last 14 days</SelectItem>
+                <SelectItem value="30">Last 30 days</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              onClick={() => { fetchFacets(); applyFacetFilters(Array.from(selectedReq), Array.from(selectedBen)); }}
+              className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
+            >
+              Apply filters
+            </Button>
           </div>
         </Card>
 
