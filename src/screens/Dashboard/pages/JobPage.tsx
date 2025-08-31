@@ -181,6 +181,11 @@ export const JobPage = (): JSX.Element => {
     setError(null);
 
     try {
+      // Optionally provide Firecrawl key from local env for development
+      const headers: Record<string, string> = {};
+      const fcKey = (import.meta as any).env?.VITE_FIRECRAWL_API_KEY as string | undefined;
+      if (fcKey) headers['x-firecrawl-api-key'] = fcKey;
+
       const { data, error } = await supabase.functions.invoke('process-and-match', {
         body: {
           searchQuery: debouncedSearchQuery,
@@ -188,6 +193,7 @@ export const JobPage = (): JSX.Element => {
           // pass work type when selected
           type: selectedType === 'All' ? undefined : selectedType,
         },
+        headers,
       });
 
       if (error) throw error;
