@@ -18,6 +18,7 @@ const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
     }
     const inputId = rest.id ?? autoId
     const inputName = rest.name ?? inputId
+  const ariaLabel: string | undefined = (rest as any)["aria-label"] ?? undefined
     return (
       <div className={cn("relative w-full flex items-center", className)}>
         <input
@@ -35,7 +36,10 @@ const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
           )}
           id={inputId}
           name={inputName}
-          aria-label={rest["aria-label"]}
+      aria-label={ariaLabel}
+      aria-valuemin={Number(min) as number}
+      aria-valuemax={Number(max) as number}
+      aria-valuenow={Number(current) as number}
           {...rest}
         />
       </div>

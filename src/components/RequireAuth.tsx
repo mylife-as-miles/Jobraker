@@ -17,13 +17,13 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.access_token) {
         if (!mounted) return
-        navigate(ROUTES.LOGIN, { replace: true })
+  navigate(ROUTES.SIGNIN, { replace: true })
         return
       }
       const { data } = await supabase.auth.getUser()
       if (!mounted) return
       if (!data.user) {
-        navigate(ROUTES.LOGIN, { replace: true })
+  navigate(ROUTES.SIGNIN, { replace: true })
       } else {
         setChecking(false)
       }
@@ -31,7 +31,7 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
     check()
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-      if (!session?.user) navigate(ROUTES.LOGIN, { replace: true })
+  if (!session?.user) navigate(ROUTES.SIGNIN, { replace: true })
     })
 
     return () => {
