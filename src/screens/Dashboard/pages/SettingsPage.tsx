@@ -1084,29 +1084,7 @@ export const SettingsPage = (): JSX.Element => {
               ))}
             </div>
 
-            {/* Configuration Info */}
-            <Card className="bg-gradient-to-br from-[#1dff00]/5 to-[#1dff00]/10 border border-[#1dff00]/20">
-              <CardContent className="p-6">
-                <h3 className="text-white font-medium mb-3 flex items-center">
-                  <SettingsIcon className="w-5 h-5 mr-2 text-[#1dff00]" />
-                  Configuration Instructions
-                </h3>
-                <div className="space-y-2 text-sm text-[#ffffff80]">
-                  <p>• <strong>Remotive:</strong> Popular remote job board with search query support</p>
-                  <p>• <strong>RemoteOK:</strong> Simple remote job aggregator (no query needed)</p>
-                  <p>• <strong>Arbeit Now:</strong> European job board with search capabilities</p>
-                  <p>• <strong>LinkedIn:</strong> Professional networking platform job listings</p>
-                  <p>• <strong>Indeed:</strong> World's largest job search engine</p>
-                  <p>• <strong>FeedCoyote:</strong> RSS-based job feed aggregator</p>
-                  <p>• <strong>Truly Remote:</strong> Curated remote job opportunities</p>
-                  <p>• <strong>Remote.co:</strong> Remote-first company job board</p>
-                  <p>• <strong>Jobspresso:</strong> Premium remote and flexible jobs</p>
-                  <p>• <strong>Skip The Drive:</strong> Work-from-home job opportunities</p>
-                  <p>• <strong>Custom JSON:</strong> Provide your own job feed URL</p>
-                  <p>• <strong>Deep Research:</strong> AI-powered job discovery (requires Firecrawl API key)</p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Configuration Info removed as requested */}
 
             {/* Save Button */}
             <div className="flex justify-end">
