@@ -133,8 +133,18 @@ Deno.serve(async (req) => {
   // No heavy initialization required for OPTIONS/POST
   // Prefer API key passed from a trusted proxy (e.g., Vercel serverless) to avoid storing in Supabase
   const headerKey = req.headers.get('x-firecrawl-api-key') || req.headers.get('X-FIRECRAWL-API-KEY');
-  const apiKey = headerKey || Deno.env.get('FIRECRAWL_API_KEY');
+  const envKey = Deno.env.get('FIRECRAWL_API_KEY');
+  // Prefer env secret when present (prevents a bad client header from overriding a valid server key)
+  const apiKey = envKey || headerKey;
   if (!apiKey) throw new Error('FIRECRAWL_API_KEY not provided');
+  try {
+    // Non-sensitive debug signal about key source
+    console.log('process-and-match key_source', {
+      used: envKey ? 'env' : (headerKey ? 'header' : 'none'),
+      header_present: Boolean(headerKey),
+      env_present: Boolean(envKey),
+    });
+  } catch {}
 
     // Allow using saved Job Sources (deepresearch entries) when caller doesn't pass q
     let configDeepQueries: string[] = [];
