@@ -20,7 +20,8 @@ import {
 import { motion } from "framer-motion";
 import { createClient } from "../../../lib/supabaseClient";
 import { JobListing } from "../../../../supabase/functions/_shared/types";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+import { SafeSelect } from "../../../components/ui/safe-select";
 import { useToast } from "../../../components/ui/toast";
 
 interface Job extends JobListing {
@@ -708,7 +709,7 @@ export const JobPage = (): JSX.Element => {
               onChange={(e) => setMaxSalary(e.target.value.replace(/[^0-9]/g, ''))}
               className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
             />
-            <Select value={postedSince || 'any'} onValueChange={(v) => setPostedSince(v === 'any' ? '' : v)}>
+            <SafeSelect fallbackValue="any" value={postedSince} onValueChange={(v) => setPostedSince(v === 'any' ? '' : v)}>
               <SelectTrigger className="h-10">
                 <SelectValue placeholder="Posted since" />
               </SelectTrigger>
@@ -719,7 +720,7 @@ export const JobPage = (): JSX.Element => {
                 <SelectItem value="14">Last 14 days</SelectItem>
                 <SelectItem value="30">Last 30 days</SelectItem>
               </SelectContent>
-            </Select>
+            </SafeSelect>
             <Button
               variant="outline"
               onClick={() => { fetchFacets(); applyFacetFilters(Array.from(selectedReq), Array.from(selectedBen)); }}
@@ -799,7 +800,7 @@ export const JobPage = (): JSX.Element => {
                 <span className="text-white">{total}</span>
                 <div className="hidden md:flex items-center gap-2 ml-3">
                   <span>Rows:</span>
-          <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(parseInt(v)); setCurrentPage(1); }}>
+                  <SafeSelect fallbackValue="10" value={String(pageSize)} onValueChange={(v) => { setPageSize(parseInt(v)); setCurrentPage(1); }}>
                     <SelectTrigger className="w-[90px] h-8">
             <SelectValue placeholder="Rows" />
                     </SelectTrigger>
@@ -808,11 +809,11 @@ export const JobPage = (): JSX.Element => {
                       <SelectItem value="20">20</SelectItem>
                       <SelectItem value="50">50</SelectItem>
                     </SelectContent>
-                  </Select>
+                  </SafeSelect>
                 </div>
                 <div className="hidden md:flex items-center gap-2 ml-3">
                   <span>Sort:</span>
-          <Select value={sortBy || 'relevance'} onValueChange={(v) => { setSortBy(v as any); setCurrentPage(1); }}>
+                  <SafeSelect fallbackValue="relevance" value={sortBy} onValueChange={(v) => { setSortBy(v as any); setCurrentPage(1); }}>
                     <SelectTrigger className="w-[160px] h-8">
             <SelectValue placeholder="Sort" />
                     </SelectTrigger>
@@ -820,7 +821,7 @@ export const JobPage = (): JSX.Element => {
                       <SelectItem value="relevance">Relevance</SelectItem>
                       <SelectItem value="posted_desc">Date (Newest)</SelectItem>
                     </SelectContent>
-                  </Select>
+                  </SafeSelect>
                 </div>
                 <div className="ml-2 hidden sm:flex items-center gap-1">
                   <Button

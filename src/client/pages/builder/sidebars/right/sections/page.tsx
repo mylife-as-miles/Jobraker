@@ -2,12 +2,12 @@ import { t } from "@lingui/macro";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { 
-  Select, 
   SelectContent, 
   SelectItem, 
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { SafeSelect } from "@/components/ui/safe-select";
 import { Slider } from "@/components/ui/slider";
 
 import { useResumeStore } from "@/client/stores/resume";
@@ -30,8 +30,9 @@ export const PageSection = () => {
       <main className="grid gap-y-6">
         <div className="space-y-1.5">
           <Label>{t`Format`}</Label>
-          <Select
-            value={page.format || 'a4'}
+          <SafeSelect
+            fallbackValue="a4"
+            value={page.format}
             onValueChange={(value: string) => {
               setValue("metadata.page.format", value);
             }}
@@ -43,7 +44,7 @@ export const PageSection = () => {
               <SelectItem value="a4">{t`A4`}</SelectItem>
               <SelectItem value="letter">{t`Letter`}</SelectItem>
             </SelectContent>
-          </Select>
+          </SafeSelect>
         </div>
 
         <div className="space-y-1.5">
