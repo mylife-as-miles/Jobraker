@@ -12,13 +12,30 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     let q = (url.searchParams.get("q") || "").trim();
     let location = (url.searchParams.get("location") || "").trim();
-    let type = (url.searchParams.get("type") || "").trim();
+    // support multiple types via comma or repeated params
+    const typeParams = url.searchParams.getAll("type");
+    let types: string[] = [];
+    if (typeParams.length) {
+      for (const t of typeParams) {
+        for (const part of t.split(",")) {
+          const v = part.trim();
+          if (v) types.push(v);
+        }
+      }
+    }
     if (req.method !== "GET") {
       try {
         const body = await req.json();
         q = (body?.q ?? q ?? "").trim();
         location = (body?.location ?? location ?? "").trim();
-        type = (body?.type ?? type ?? "").trim();
+        if (Array.isArray(body?.type)) {
+          types = body.type.map((s: string) => String(s).trim()).filter(Boolean);
+        } else if (typeof body?.type === 'string') {
+          for (const part of String(body.type).split(',')) {
+            const v = part.trim();
+            if (v) types.push(v);
+          }
+        }
       } catch (_) {
         // ignore missing/invalid JSON
       }
@@ -37,14 +54,35 @@ Deno.serve(async (req) => {
       .order("posted_at", { ascending: false })
       .limit(100);
 
+    // Normalize types
+    const normalizeType = (s: string) => {
+      const v = s.toLowerCase();
+      if (v === 'remote') return 'Remote';
+      if (v === 'hybrid') return 'Hybrid';
+      if (v === 'on-site' || v === 'onsite' || v === 'on_site' || v === 'on site') return 'On-site';
+      return s;
+    };
+    const typesNorm = Array.from(new Set(types.map(normalizeType)));
+
     if (q) {
-      query = query.ilike("job_title", `%${q}%`);
+      // Match Job Title OR Full Description
+      query = query.or(`job_title.ilike.%${q}%,full_job_description.ilike.%${q}%`);
     }
     if (location) {
-      query = query.ilike("location", `%${location}%`);
+      const locLower = location.toLowerCase();
+      if (locLower === 'remote' || locLower === 'hybrid' || locLower === 'on-site' || locLower === 'onsite') {
+        const m = normalizeType(location);
+        // location says a work type; match either work_type or location text
+        query = query.or(`work_type.eq.${m},location.ilike.%${location}%`);
+      } else {
+        query = query.ilike("location", `%${location}%`);
+      }
     }
-    if (type) {
-      query = query.eq("work_type", type);
+    if (typesNorm.length === 1) {
+      query = query.eq("work_type", typesNorm[0]);
+    } else if (typesNorm.length > 1) {
+      // supabase-js in() support
+      (query as any) = (query as any).in("work_type", typesNorm);
     }
 
     const { data, error } = await query;
