@@ -708,12 +708,12 @@ export const JobPage = (): JSX.Element => {
               onChange={(e) => setMaxSalary(e.target.value.replace(/[^0-9]/g, ''))}
               className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
             />
-            <Select value={postedSince} onValueChange={(v) => setPostedSince(v)}>
+            <Select value={postedSince || 'any'} onValueChange={(v) => setPostedSince(v === 'any' ? '' : v)}>
               <SelectTrigger className="h-10">
                 <SelectValue placeholder="Posted since" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Any time</SelectItem>
+        <SelectItem value="any">Any time</SelectItem>
                 <SelectItem value="3">Last 3 days</SelectItem>
                 <SelectItem value="7">Last 7 days</SelectItem>
                 <SelectItem value="14">Last 14 days</SelectItem>
