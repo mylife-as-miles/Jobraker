@@ -357,6 +357,8 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
               posted_at: postedISO,
               salary_min: (job as any).salary_min ?? null,
               salary_max: (job as any).salary_max ?? null,
+              salary_period: (job as any).salary_period ?? null,
+              salary_currency: (job as any).salary_currency ?? null,
       requirements: (job as any).requirements ?? (Array.isArray(job.requiredSkills) ? job.requiredSkills : []),
       benefits: (job as any).benefits ?? [],
             },

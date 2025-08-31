@@ -217,6 +217,8 @@ export const JobPage = (): JSX.Element => {
             sourceUrl: r.source_url,
             salary_min: r.salary_min,
             salary_max: r.salary_max,
+            salary_period: r.salary_period,
+            salary_currency: r.salary_currency,
             requirements: r.requirements,
             benefits: r.benefits,
             _source: r.source || 'db',
@@ -238,8 +240,8 @@ export const JobPage = (): JSX.Element => {
           : ((job as any).salary_period && ((job as any).salary_min || (job as any).salary_max))
             ? `$${(job as any).salary_min ?? (job as any).salary_max ?? ''} / ${(job as any).salary_period}`
             : "N/A",
-  postedDate: (job as any)._posted_at ? new Date((job as any)._posted_at).toLocaleDateString() : "N/A",
-  rawPostedAt: (job as any)._posted_at ? new Date((job as any)._posted_at).getTime() : null,
+        postedDate: (job as any)._posted_at ? new Date((job as any)._posted_at).toLocaleDateString() : "N/A",
+        rawPostedAt: (job as any)._posted_at ? new Date((job as any)._posted_at).getTime() : null,
         description: job.fullJobDescription,
         requirements: (job as any).requirements && (job as any).requirements.length
           ? (job as any).requirements
@@ -281,7 +283,7 @@ export const JobPage = (): JSX.Element => {
       location: r.location,
       type: r.work_type || 'N/A',
       salary: typeof r.salary_min === 'number' || typeof r.salary_max === 'number'
-        ? `$${r.salary_min ?? ''}${r.salary_min && r.salary_max ? ' - ' : ''}${r.salary_max ?? ''}`
+        ? `$${r.salary_min ?? ''}${r.salary_min && r.salary_max ? ' - ' : ''}${r.salary_max ?? ''}${r.salary_period ? ` / ${r.salary_period}` : ''}`
         : 'N/A',
       postedDate: r.posted_at ? new Date(r.posted_at).toLocaleDateString() : 'N/A',
       rawPostedAt: r.posted_at ? new Date(r.posted_at).getTime() : null,

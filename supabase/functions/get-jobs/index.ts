@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
 
   let query = supabase
       .from("job_listings")
-  .select("job_title, company_name, location, work_type, full_job_description, source_url, source, posted_at, salary_min, salary_max, requirements, benefits")
+  .select("job_title, company_name, location, work_type, full_job_description, source_url, source, posted_at, salary_min, salary_max, salary_period, salary_currency, requirements, benefits")
       .order("posted_at", { ascending: false })
       .limit(100);
 
