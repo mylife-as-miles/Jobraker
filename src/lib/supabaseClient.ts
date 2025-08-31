@@ -3,8 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 export function createClient(): SupabaseClient {
   // Support both Vite and Next.js style public env names
-  const supabaseUrl = (import.meta as any)?.env?.VITE_SUPABASE_URL || (import.meta as any)?.env?.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = (import.meta as any)?.env?.VITE_SUPABASE_ANON_KEY || (import.meta as any)?.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = (import.meta as any)?.env?.VITE_SUPABASE_URL;
+  const supabaseAnonKey = (import.meta as any)?.env?.VITE_SUPABASE_ANON_KEY;
 
   // Handle missing environment variables gracefully
   if (!supabaseUrl || !supabaseAnonKey) {
