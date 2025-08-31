@@ -21,6 +21,7 @@ import { motion } from "framer-motion";
 import { createClient } from "../../../lib/supabaseClient";
 import { JobListing } from "../../../../supabase/functions/_shared/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+import { useToast } from "../../../components/ui/toast";
 
 interface Job extends JobListing {
   id: string;
@@ -126,6 +127,7 @@ export const JobPage = (): JSX.Element => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState<'relevance' | 'posted_desc'>('relevance');
+  const { success, error: toastError, info } = useToast();
 
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const debouncedSelectedLocation = useDebounce(selectedLocation, 500);
@@ -212,6 +214,104 @@ export const JobPage = (): JSX.Element => {
       setLoading(false);
     }
   }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType]);
+
+  // Load existing bookmarks for the user to hydrate isBookmarked
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: userData } = await (supabase as any).auth.getUser();
+        const uid = (userData as any)?.user?.id;
+        if (!uid) return;
+        const { data } = await (supabase as any)
+          .from('bookmarks')
+          .select('source_url')
+          .eq('user_id', uid)
+          .order('created_at', { ascending: false });
+        const bookmarked = new Set((data || []).map((r: any) => r.source_url));
+        setJobs((prev) => prev.map((j) => ({ ...j, isBookmarked: j.sourceUrl ? bookmarked.has(j.sourceUrl) : j.isBookmarked })));
+      } catch {}
+    })();
+  }, []);
+
+  const toggleBookmark = useCallback(async (job: Job) => {
+    try {
+      const { data: userData } = await (supabase as any).auth.getUser();
+      const uid = (userData as any)?.user?.id;
+      if (!uid) {
+        toastError('Login required', 'Sign in to save jobs');
+        return;
+      }
+      const isBookmarked = job.isBookmarked;
+      // optimistic UI
+      setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isBookmarked: !isBookmarked } : j)));
+      if (!isBookmarked) {
+        const payload = {
+          user_id: uid,
+          source_url: job.sourceUrl,
+          job_title: job.title,
+          company: job.company,
+          location: job.location,
+          logo: job.logoUrl ?? null,
+        };
+        const { error } = await (supabase as any)
+          .from('bookmarks')
+          .insert(payload);
+        if (error) throw error;
+        success('Saved', `${job.title} @ ${job.company}`);
+      } else {
+        const { error } = await (supabase as any)
+          .from('bookmarks')
+          .delete()
+          .eq('source_url', job.sourceUrl)
+          .then(async (res: any) => res);
+        if (error) throw error;
+        info('Removed bookmark');
+      }
+    } catch (e: any) {
+      toastError('Bookmark failed', e.message || 'Try again');
+      // revert
+      setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isBookmarked: job.isBookmarked } : j)));
+    }
+  }, [supabase, success, toastError, info]);
+
+  const quickApply = useCallback(async (job: Job) => {
+    try {
+      const { data: userData } = await (supabase as any).auth.getUser();
+      const uid = (userData as any)?.user?.id;
+      if (!uid) {
+        toastError('Login required', 'Sign in to apply');
+        return;
+      }
+      // Create minimal application record
+      const { error } = await (supabase as any)
+        .from('applications')
+        .insert({
+          user_id: uid,
+          job_title: job.title,
+          company: job.company,
+          location: job.location,
+          applied_date: new Date().toISOString(),
+          status: 'Applied',
+          logo: job.logoUrl ?? null,
+          notes: job.sourceUrl ? `Applied via JobRaker: ${job.sourceUrl}` : null,
+        });
+      if (error) throw error;
+      success('Application added', `${job.title} @ ${job.company}`);
+      setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isApplied: true } : j)));
+    } catch (e: any) {
+      toastError('Apply failed', e.message || 'Try again');
+    }
+  }, [supabase, success, toastError]);
+
+  const shareJob = useCallback(async (job: Job) => {
+    try {
+      const url = job.sourceUrl || window.location.href;
+      await navigator.clipboard.writeText(url);
+      info('Link copied');
+    } catch {
+      toastError('Copy failed');
+    }
+  }, [info, toastError]);
 
   useEffect(() => {
     performSearch();
@@ -493,6 +593,7 @@ export const JobPage = (): JSX.Element => {
                         <Button 
                           variant="ghost" 
                           size="sm" 
+                          onClick={(e) => { e.stopPropagation(); toggleBookmark(job); }}
                           className={`text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300 ${
                             job.isBookmarked ? "text-[#1dff00]" : ""
                           }`}
@@ -502,6 +603,7 @@ export const JobPage = (): JSX.Element => {
                         <Button 
                           variant="ghost" 
                           size="sm" 
+                          onClick={(e) => { e.stopPropagation(); shareJob(job); }}
                           className="text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300"
                         >
                           <MoreVertical className="w-4 h-4" />
@@ -639,12 +741,14 @@ export const JobPage = (): JSX.Element => {
                           <div className="flex items-center space-x-3 w-full sm:w-auto">
                             <Button 
                               variant="outline" 
+                              onClick={() => toggleBookmark(job)}
                               className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
                             >
                               <Bookmark className="w-4 h-4 mr-2" />
-                              Save Job
+                              {job.isBookmarked ? 'Unsave' : 'Save Job'}
                             </Button>
                             <Button 
+                              onClick={() => quickApply(job)}
                               className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
                             >
                               {job.isApplied ? "Applied" : "Apply Now"}
