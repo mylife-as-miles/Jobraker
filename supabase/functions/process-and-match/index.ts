@@ -186,21 +186,40 @@ Strict rules:
     try {
       const q = effectiveQuery;
       const loc = effectiveLocation;
+      const normalizeType = (s: string) => {
+        const v = s.toLowerCase();
+        if (v === 'remote') return 'Remote';
+        if (v === 'hybrid') return 'Hybrid';
+        if (v === 'on-site' || v === 'onsite' || v === 'on_site' || v === 'on site') return 'On-site';
+        return s;
+      };
+      const typesNorm = Array.from(new Set(effectiveTypes.map(normalizeType)));
+
       let query = supabaseAdmin
         .from('job_listings')
         .select('job_title, company_name, location, work_type, full_job_description, source_url, posted_at')
         .order('posted_at', { ascending: false, nullsFirst: false })
-        .limit(15);
+        .limit(50);
+
       if (q) {
-        // Match on title or description
-        query = query.ilike('job_title', `%${q}%`);
+        // Match on Job Title OR Full Description
+        query = query.or(`job_title.ilike.%${q}%,full_job_description.ilike.%${q}%`);
       }
       if (loc) {
-        query = query.ilike('location', `%${loc}%`);
+        const locLower = loc.toLowerCase();
+        if (['remote', 'hybrid', 'on-site', 'onsite', 'on_site', 'on site'].includes(locLower)) {
+          const m = normalizeType(loc);
+          query = query.or(`work_type.eq.${m},location.ilike.%${loc}%`);
+        } else {
+          query = query.ilike('location', `%${loc}%`);
+        }
       }
-      if (effectiveTypes.length) {
-        query = (query as any).in('work_type', effectiveTypes);
+      if (typesNorm.length === 1) {
+        query = query.eq('work_type', typesNorm[0]);
+      } else if (typesNorm.length > 1) {
+        query = (query as any).in('work_type', typesNorm);
       }
+
       const { data } = await query;
       const fallbackJobs = (data || []).map((r: any) => ({
         jobTitle: r.job_title,
