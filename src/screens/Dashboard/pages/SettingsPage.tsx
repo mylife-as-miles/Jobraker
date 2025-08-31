@@ -27,14 +27,15 @@ export const SettingsPage = (): JSX.Element => {
   const { success, error: toastError } = useToast();
   const [activeTab, setActiveTab] = useState("profile");
   const [showPassword, setShowPassword] = useState(false);
-  const [jobSources, setJobSources] = useState([
+  const defaultJobSources = useMemo(() => ([
     { id: 1, type: "remotive", query: "software engineer", enabled: true },
     { id: 2, type: "remoteok", query: "", enabled: true },
     { id: 3, type: "arbeitnow", query: "typescript", enabled: false },
     { id: 4, type: "linkedin", query: "full stack developer", enabled: true },
     { id: 5, type: "indeed", query: "react developer", enabled: false },
-    { id: 6, type: "trulyremote", query: "backend engineer", enabled: false }
-  ]);
+    { id: 6, type: "trulyremote", query: "backend engineer", enabled: false },
+  ]), []);
+  const [jobSources, setJobSources] = useState(defaultJobSources);
   const { profile, updateProfile, createProfile, refresh: refreshProfile } = useProfileSettings();
   const { settings: notif, updateSettings, createSettings, refresh: refreshNotif } = useNotificationSettings();
   const { settings: privacy, createSettings: createPrivacy, updateSettings: updatePrivacy, refresh: refreshPrivacy } = usePrivacySettings();
@@ -85,6 +86,26 @@ export const SettingsPage = (): JSX.Element => {
   }, [formData.firstName, formData.lastName, formData.email]);
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  // Small helper for URL validation (used for Custom JSON)
+  const isValidUrl = (value: string) => {
+    try { new URL(value); return true; } catch { return false; }
+  };
+
+  // Persist job sources locally so settings survive refreshes
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('jobSources');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) setJobSources(parsed);
+      }
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem('jobSources', JSON.stringify(jobSources)); } catch { /* ignore */ }
+  }, [jobSources]);
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -888,18 +909,47 @@ export const SettingsPage = (): JSX.Element => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-white mb-2">Job Sources Configuration</h2>
-                <p className="text-[#ffffff80] text-sm">Configure and manage job ingestion sources for automated job discovery</p>
+                <p className="text-[#ffffff80] text-sm">
+                  Configure and manage job ingestion sources for automated job discovery
+                </p>
+                <p className="text-xs text-[#ffffff66] mt-1">
+                  {jobSources.filter(s => s.enabled).length} of {jobSources.length} sources enabled
+                </p>
               </div>
-              <Button 
-                className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
-                onClick={() => {
-                  const newId = Math.max(...jobSources.map(s => s.id)) + 1;
-                  setJobSources([...jobSources, { id: newId, type: "linkedin", query: "", enabled: true }]);
-                }}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Source
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline"
+                  className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50"
+                  onClick={() => setJobSources(jobSources.map(s => ({ ...s, enabled: true })))}
+                >
+                  Enable All
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50"
+                  onClick={() => setJobSources(jobSources.map(s => ({ ...s, enabled: false })))}
+                >
+                  Disable All
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50"
+                  onClick={() => setJobSources(defaultJobSources)}
+                >
+                  Reset
+                </Button>
+                <Button 
+                  className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                  onClick={() => {
+                    const maxId = jobSources.reduce((m, s) => Math.max(m, s.id || 0), 0);
+                    const newId = maxId + 1;
+                    setJobSources([...jobSources, { id: newId, type: "linkedin", query: "", enabled: true }]);
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Source
+                </Button>
+              </div>
             </div>
 
             {/* Job Sources List */}
@@ -960,7 +1010,9 @@ export const SettingsPage = (): JSX.Element => {
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            setJobSources(jobSources.filter(s => s.id !== source.id));
+                            if (confirm('Remove this source?')) {
+                              setJobSources(jobSources.filter(s => s.id !== source.id));
+                            }
                           }}
                           className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
                         >
@@ -1024,8 +1076,11 @@ export const SettingsPage = (): JSX.Element => {
                               ));
                             }}
                             placeholder="https://your.api.example/jobs.json"
-                            className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
+                            className={`bg-[#ffffff1a] text-white placeholder:text-[#ffffff60] focus:border-[${'#1dff00'}] border ${source.query && !isValidUrl(source.query) ? 'border-red-500 focus:border-red-500' : 'border-[#ffffff33]'}`}
                           />
+                          {source.query && !isValidUrl(source.query) && (
+                            <p className="mt-1 text-xs text-red-400">Please enter a valid URL</p>
+                          )}
                         </div>
                       )}
                     </div>
