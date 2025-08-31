@@ -14,7 +14,7 @@ export const DashboardLayout = () => {
               aria-label="Settings"
               className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <FadersHorizontal size={20} />
+              <FadersHorizontal width={20} height={20} />
             </Link>
           )}
         </div>
