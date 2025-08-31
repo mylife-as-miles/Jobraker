@@ -20,6 +20,7 @@ import {
 import { motion } from "framer-motion";
 import { createClient } from "../../../lib/supabaseClient";
 import { JobListing } from "../../../../supabase/functions/_shared/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 
 interface Job extends JobListing {
   id: string;
@@ -29,12 +30,14 @@ interface Job extends JobListing {
   type: "Full-time" | "Part-time" | "Contract" | "Remote" | "Hybrid" | "On-site" | "N/A";
   salary: string;
   postedDate: string;
+  rawPostedAt?: number | null;
   description: string;
   requirements: string[];
   benefits: string[];
   isBookmarked: boolean;
   isApplied: boolean;
   logo: string;
+  logoUrl?: string;
   source?: string;
 }
 
@@ -53,6 +56,46 @@ const sanitizeHtml = (html: string) => {
   // remove on* event handlers
   out = out.replace(/ on[a-z]+\s*=\s*(["']).*?\1/gi, "");
   return out;
+};
+
+// Try to derive a company domain from the name
+const companyToDomain = (companyName?: string, tld: string = (import.meta as any).env?.VITE_LOGO_TLD || 'com') => {
+  if (!companyName) return undefined;
+  const base = companyName
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9\s.-]/g, '')
+    .replace(/\s+/g, '')
+    .replace(/-+/g, '-');
+  if (!base) return undefined;
+  return `${base}.${tld}`;
+};
+
+// Try to get a company logo URL via optional API template, Clearbit/Google favicon, or initials
+const getCompanyLogoUrl = (companyName?: string, sourceUrl?: string): string | undefined => {
+  const tld = (import.meta as any).env?.VITE_LOGO_TLD || 'com';
+  const tmpl = (import.meta as any).env?.VITE_LOGO_API_TEMPLATE as string | undefined;
+  const domainGuess = companyToDomain(companyName, tld);
+  if (tmpl && companyName) {
+    const withCompany = tmpl.replace('{company}', encodeURIComponent(companyName));
+    if (domainGuess) return withCompany.replace('{domain}', domainGuess);
+    return withCompany;
+  }
+  try {
+    if (domainGuess) {
+      // Prefer Clearbit-like logo by domain
+      return `https://logo.clearbit.com/${domainGuess}`;
+    }
+  } catch {}
+  // As a last resort, attempt Google’s favicon service based on the source domain
+  try {
+    if (sourceUrl) {
+      const u = new URL(sourceUrl);
+      return `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(u.hostname)}`;
+    }
+  } catch {}
+  // Final fallback will be DiceBear initials handled by caller UI
+  return undefined;
 };
 
 // A simple debounce hook
@@ -79,6 +122,10 @@ export const JobPage = (): JSX.Element => {
   const [error, setError] = useState<string | null>(null);
   const [resultNote, setResultNote] = useState<string | null>(null);
   const [resultSource, setResultSource] = useState<"live" | "db" | null>(null);
+  const [logoError, setLogoError] = useState<Record<string, boolean>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [sortBy, setSortBy] = useState<'relevance' | 'posted_desc'>('relevance');
 
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const debouncedSelectedLocation = useDebounce(selectedLocation, 500);
@@ -127,6 +174,7 @@ export const JobPage = (): JSX.Element => {
             salary_min: r.salary_min,
             salary_max: r.salary_max,
             _source: r.source || 'db',
+            _posted_at: r.posted_at,
           }));
           setResultSource('db');
           setResultNote('fallback: provider_unavailable');
@@ -142,18 +190,21 @@ export const JobPage = (): JSX.Element => {
         salary: typeof (job as any).salary_min === 'number' || typeof (job as any).salary_max === 'number'
           ? `$${(job as any).salary_min ?? ''}${(job as any).salary_min && (job as any).salary_max ? ' - ' : ''}${(job as any).salary_max ?? ''}`
           : "N/A",
-        postedDate: "N/A",
+  postedDate: (job as any)._posted_at ? new Date((job as any)._posted_at).toLocaleDateString() : "N/A",
+  rawPostedAt: (job as any)._posted_at ? new Date((job as any)._posted_at).getTime() : null,
         description: job.fullJobDescription,
         requirements: job.requiredSkills || [],
         benefits: [],
         isBookmarked: false,
         isApplied: false,
         logo: job.companyName?.[0]?.toUpperCase() || '?',
+        logoUrl: getCompanyLogoUrl(job.companyName, job.sourceUrl),
         // marker for UI badge
         source: (job as any)._source || (note ? 'db' : 'scraped'),
       }));
 
       setJobs(newJobs);
+      setCurrentPage(1);
       setSelectedJob(newJobs[0]?.id ?? null);
     } catch (e: any) {
       setError(e.message);
@@ -170,6 +221,59 @@ export const JobPage = (): JSX.Element => {
     const matchesType = selectedType === "All" || job.type === selectedType;
     return matchesType;
   });
+
+  const sortedJobs = (() => {
+    if (sortBy === 'posted_desc') {
+      return [...filteredJobs].sort((a, b) => {
+        const at = a.rawPostedAt ?? -Infinity;
+        const bt = b.rawPostedAt ?? -Infinity;
+        return bt - at;
+      });
+    }
+    // relevance: keep original order
+    return filteredJobs;
+  })();
+
+  const total = sortedJobs.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const start = (currentPage - 1) * pageSize;
+  const end = Math.min(total, start + pageSize);
+  const paginatedJobs = sortedJobs.slice(start, end);
+
+  useEffect(() => {
+    // ensure selected item remains visible on page change
+    if (selectedJob && !paginatedJobs.some(j => j.id === selectedJob)) {
+      setSelectedJob(paginatedJobs[0]?.id ?? null);
+    }
+  }, [currentPage, pageSize, selectedJob, paginatedJobs]);
+
+  // Keyboard navigation: Up/Down select, PageUp/PageDown change page
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target && (e.target as HTMLElement).tagName.match(/INPUT|TEXTAREA|SELECT/)) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (!selectedJob && paginatedJobs.length) {
+          setSelectedJob(paginatedJobs[0].id);
+          return;
+        }
+        const idx = paginatedJobs.findIndex(j => j.id === selectedJob);
+        if (idx >= 0 && idx < paginatedJobs.length - 1) setSelectedJob(paginatedJobs[idx + 1].id);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const idx = paginatedJobs.findIndex(j => j.id === selectedJob);
+        if (idx > 0) setSelectedJob(paginatedJobs[idx - 1].id);
+      } else if (e.key === 'PageDown') {
+        e.preventDefault();
+        setCurrentPage(p => Math.min(totalPages, p + 1));
+      } else if (e.key === 'PageUp') {
+        e.preventDefault();
+        setCurrentPage(p => Math.max(1, p - 1));
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [paginatedJobs, selectedJob, totalPages]);
 
   return (
     <div className="min-h-screen bg-black">
@@ -268,17 +372,83 @@ export const JobPage = (): JSX.Element => {
                 {loading ? "Searching..." : `${filteredJobs.length} Jobs Found`}
               </h2>
               <div className="flex items-center space-x-2 text-sm text-[#ffffff80]">
-                <span>Sort by:</span>
-                <Button variant="ghost" size="sm" className="text-[#1dff00] hover:bg-[#1dff00]/10">
-                  Relevance
-                </Button>
+                <span className="hidden sm:inline">Showing</span>
+                <span className="text-white">{start + 1}–{end}</span>
+                <span>of</span>
+                <span className="text-white">{total}</span>
+                <div className="hidden md:flex items-center gap-2 ml-3">
+                  <span>Rows:</span>
+                  <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(parseInt(v)); setCurrentPage(1); }}>
+                    <SelectTrigger className="w-[90px] h-8">
+                      <SelectValue placeholder="Rows" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="hidden md:flex items-center gap-2 ml-3">
+                  <span>Sort:</span>
+                  <Select value={sortBy} onValueChange={(v) => { setSortBy(v as any); setCurrentPage(1); }}>
+                    <SelectTrigger className="w-[160px] h-8">
+                      <SelectValue placeholder="Sort" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="relevance">Relevance</SelectItem>
+                      <SelectItem value="posted_desc">Date (Newest)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="ml-2 hidden sm:flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className="text-[#1dff00] hover:bg-[#1dff00]/10 disabled:opacity-50"
+                  >
+                    Prev
+                  </Button>
+                  <span className="text-[#ffffff80]">Page {currentPage} / {totalPages}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    className="text-[#1dff00] hover:bg-[#1dff00]/10 disabled:opacity-50"
+                  >
+                    Next
+                  </Button>
+                </div>
               </div>
             </div>
-
-            {loading && <p className="text-white">Loading jobs...</p>}
+            {loading && (
+              <div className="space-y-4">
+                {Array.from({ length: pageSize }).map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6">
+                      <div className="flex items-start gap-3">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#ffffff1a] rounded-xl" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-[#ffffff1a] rounded w-2/3" />
+                          <div className="h-3 bg-[#ffffff12] rounded w-1/2" />
+                          <div className="flex gap-2 mt-2">
+                            <div className="h-3 bg-[#ffffff12] rounded w-24" />
+                            <div className="h-3 bg-[#ffffff12] rounded w-20" />
+                            <div className="h-3 bg-[#ffffff12] rounded w-16" />
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                ))}
+              </div>
+            )}
             {error && <p className="text-red-500">{error}</p>}
 
-            {!loading && !error && filteredJobs.map((job, index) => (
+            {!loading && !error && paginatedJobs.map((job, index) => (
               <motion.div
                 key={job.id}
                 onClick={() => setSelectedJob(job.id)}
@@ -301,9 +471,18 @@ export const JobPage = (): JSX.Element => {
                     {/* Header */}
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-3 flex-1 min-w-0">
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg flex-shrink-0">
-                          {job.logo}
-                        </div>
+                        {job.logoUrl && !logoError[job.id] ? (
+                          <img
+                            src={job.logoUrl}
+                            alt={job.company}
+                            className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain bg-white flex-shrink-0"
+                            onError={() => setLogoError((m) => ({ ...m, [job.id]: true }))}
+                          />
+                        ) : (
+                          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg flex-shrink-0">
+                            {job.logo}
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <h3 className="text-white font-semibold text-sm sm:text-base lg:text-lg truncate">{job.title}</h3>
                           <p className="text-[#ffffff80] text-xs sm:text-sm">{job.company}</p>
@@ -399,9 +578,18 @@ export const JobPage = (): JSX.Element => {
                       <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 mb-6 hover:shadow-lg transition-all duration-300">
                         <div className="flex items-start justify-between mb-6">
                           <div className="flex items-center space-x-4 flex-1 min-w-0">
-                            <div className="w-16 h-16 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-xl flex-shrink-0">
-                              {job.logo}
-                            </div>
+                            {job.logoUrl && !logoError[job.id] ? (
+                              <img
+                                src={job.logoUrl}
+                                alt={job.company}
+                                className="w-16 h-16 rounded-xl object-contain bg-white flex-shrink-0"
+                                onError={() => setLogoError((m) => ({ ...m, [job.id]: true }))}
+                              />
+                            ) : (
+                              <div className="w-16 h-16 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-xl flex-shrink-0">
+                                {job.logo}
+                              </div>
+                            )}
                             <div className="flex-1 min-w-0">
                               <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">{job.title}</h1>
                               <p className="text-lg text-[#ffffff80] mb-2">{job.company}</p>
@@ -547,6 +735,26 @@ export const JobPage = (): JSX.Element => {
               </Card>
             )}
           </div>
+        </div>
+
+  {/* Mobile Pagination & Controls */}
+        <div className="mt-6 flex sm:hidden items-center justify-center gap-3">
+          <Button
+            variant="outline"
+            className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
+            disabled={currentPage <= 1}
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+          >
+            Prev
+          </Button>
+          <span className="text-[#ffffff80]">{currentPage} / {totalPages}</span>
+          <Button
+            className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+            disabled={currentPage >= totalPages}
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+          >
+            Next
+          </Button>
         </div>
       </div>
     </div>
