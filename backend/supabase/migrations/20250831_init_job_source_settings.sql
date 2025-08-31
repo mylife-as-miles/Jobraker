@@ -5,6 +5,7 @@ create table if not exists public.job_source_settings (
   include_indeed boolean not null default true,
   include_search boolean not null default true,
   allowed_domains text[] null,
+  enabled_sources text[] null, -- e.g., {'deepresearch','remotive','remoteok','arbeitnow'}
   updated_at timestamptz default now()
 );
 
