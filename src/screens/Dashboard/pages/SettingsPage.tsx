@@ -3,7 +3,7 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss } from "lucide-react";
+import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
 import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
@@ -86,6 +86,9 @@ export const SettingsPage = (): JSX.Element => {
   }, [formData.firstName, formData.lastName, formData.email]);
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [groupEnabledFirst, setGroupEnabledFirst] = useState(true);
+  const [draggingId, setDraggingId] = useState<number | null>(null);
+  const [dragOverId, setDragOverId] = useState<number | null>(null);
   // Small helper for URL validation (used for Custom JSON)
   const isValidUrl = (value: string) => {
     try { new URL(value); return true; } catch { return false; }
@@ -106,6 +109,43 @@ export const SettingsPage = (): JSX.Element => {
   useEffect(() => {
     try { localStorage.setItem('jobSources', JSON.stringify(jobSources)); } catch { /* ignore */ }
   }, [jobSources]);
+
+  // Try loading job sources from backend table if present; fallback to local
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        const uid = (auth as any)?.user?.id;
+        if (!uid) return;
+        const { data: rows, error } = await (supabase as any)
+          .from('job_source_configs')
+          .select('sources')
+          .eq('user_id', uid)
+          .maybeSingle();
+        if (!error && rows && Array.isArray((rows as any).sources)) {
+          setJobSources((rows as any).sources);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, [supabase]);
+
+  const displayedSources = useMemo(() => {
+    if (!groupEnabledFirst) return jobSources;
+    const arr = [...jobSources];
+    arr.sort((a, b) => Number(b.enabled) - Number(a.enabled));
+    return arr;
+  }, [jobSources, groupEnabledFirst]);
+
+  const moveItem = (list: any[], fromId: number, toId: number) => {
+    if (fromId === toId) return list;
+    const srcIdx = list.findIndex((s) => s.id === fromId);
+    const dstIdx = list.findIndex((s) => s.id === toId);
+    if (srcIdx < 0 || dstIdx < 0) return list;
+    const copy = [...list];
+    const [item] = copy.splice(srcIdx, 1);
+    copy.splice(dstIdx, 0, item);
+    return copy;
+  };
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -954,8 +994,25 @@ export const SettingsPage = (): JSX.Element => {
 
             {/* Job Sources List */}
             <div className="space-y-4">
-              {jobSources.map((source) => (
-                <Card key={source.id} className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
+              {displayedSources.map((source) => (
+                <Card
+                  key={source.id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('text/plain', String(source.id));
+                    setDraggingId(source.id);
+                  }}
+                  onDragOver={(e) => { e.preventDefault(); if (dragOverId !== source.id) setDragOverId(source.id); }}
+                  onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const fromId = Number(e.dataTransfer.getData('text/plain'));
+                    const toId = source.id;
+                    setJobSources((prev) => moveItem(prev, fromId, toId));
+                    setDraggingId(null); setDragOverId(null);
+                  }}
+                  className={`bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300 ${dragOverId === source.id ? 'ring-2 ring-[#1dff00]/40' : ''} ${draggingId === source.id ? 'opacity-70' : ''}`}
+                >
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-3">
@@ -1023,6 +1080,10 @@ export const SettingsPage = (): JSX.Element => {
 
                     {/* Configuration Fields */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex items-center gap-2 text-[#ffffff88] text-xs">
+                        <GripVertical className="w-4 h-4" />
+                        <span>Drag to reorder</span>
+                      </div>
                       <div>
                         <label className="block text-sm font-medium text-white mb-2">Source Type</label>
                         <select
@@ -1065,7 +1126,7 @@ export const SettingsPage = (): JSX.Element => {
                         </div>
                       )}
 
-                      {source.type === 'json' && (
+          {source.type === 'json' && (
                         <div className="md:col-span-2">
                           <label className="block text-sm font-medium text-white mb-2">JSON Feed URL</label>
                           <Input
@@ -1076,7 +1137,7 @@ export const SettingsPage = (): JSX.Element => {
                               ));
                             }}
                             placeholder="https://your.api.example/jobs.json"
-                            className={`bg-[#ffffff1a] text-white placeholder:text-[#ffffff60] focus:border-[${'#1dff00'}] border ${source.query && !isValidUrl(source.query) ? 'border-red-500 focus:border-red-500' : 'border-[#ffffff33]'}`}
+            className={`bg-[#ffffff1a] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] border ${source.query && !isValidUrl(source.query) ? 'border-red-500 focus:border-red-500' : 'border-[#ffffff33]'}`}
                           />
                           {source.query && !isValidUrl(source.query) && (
                             <p className="mt-1 text-xs text-red-400">Please enter a valid URL</p>
@@ -1141,17 +1202,41 @@ export const SettingsPage = (): JSX.Element => {
 
             {/* Configuration Info removed as requested */}
 
-            {/* Save Button */}
-            <div className="flex justify-end">
-              <Button 
-                className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
-                onClick={() => {
-                  success('Job sources saved', 'Your job source configuration has been updated successfully');
-                }}
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Save Configuration
-              </Button>
+            {/* Save / Grouping */}
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-[#ffffff88] flex items-center gap-2">
+                <button
+                  className={`px-2 py-1 rounded border ${groupEnabledFirst ? 'bg-[#1dff00]/20 border-[#1dff00]/40 text-white' : 'border-[#ffffff30] text-[#ffffffaa]'}`}
+                  onClick={() => setGroupEnabledFirst((v) => !v)}
+                >
+                  {groupEnabledFirst ? 'Grouping: Enabled first' : 'Grouping: Off'}
+                </button>
+              </div>
+              <div>
+                <Button 
+                  className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                  onClick={async () => {
+                    try {
+                      const { data: auth } = await supabase.auth.getUser();
+                      const uid = (auth as any)?.user?.id;
+                      if (!uid) { toastError('Not signed in', ''); return; }
+                      const payload = { user_id: uid, sources: jobSources } as any;
+                      const { error } = await (supabase as any)
+                        .from('job_source_configs')
+                        .upsert(payload, { onConflict: 'user_id' });
+                      if (error) throw error;
+                      try { localStorage.setItem('jobSources', JSON.stringify(jobSources)); } catch { /* ignore */ }
+                      success('Job sources saved', 'Your job source configuration has been updated successfully');
+                    } catch (e: any) {
+                      try { localStorage.setItem('jobSources', JSON.stringify(jobSources)); } catch { /* ignore */ }
+                      toastError('Saved locally (no backend table)', e?.message || '');
+                    }
+                  }}
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Configuration
+                </Button>
+              </div>
             </div>
           </div>
         );
