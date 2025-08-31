@@ -180,9 +180,6 @@ export const JobPage = (): JSX.Element => {
           location: debouncedSelectedLocation,
           // pass work type when selected
           type: selectedType === 'All' ? undefined : selectedType,
-          // new flags to expand sources
-          includeLinkedIn: true,
-          includeSearch: true,
         },
       });
 

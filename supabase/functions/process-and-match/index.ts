@@ -89,13 +89,45 @@ Deno.serve(async (req) => {
   // Feature flags (can be sent in body or query): includeLinkedIn, includeSearch
   let includeLinkedIn = true; // default allow LinkedIn
   let includeSearchListings = true; // default allow search/listing pages
+  let includeIndeed = true;
+  let allowedDomains: string[] | null = null;
+  let enabledSources: string[] | null = null; // deepresearch is the source here; others apply to cron and DB fallback
+  let parsedBody: any = undefined;
   try {
     const body = await req.json();
+    parsedBody = body;
     includeLinkedIn = Boolean(body?.includeLinkedIn ?? includeLinkedIn);
     includeSearchListings = Boolean(body?.includeSearch ?? includeSearchListings);
+    includeIndeed = Boolean(body?.includeIndeed ?? includeIndeed);
   } catch (_) {}
   if (qpIncludeLinkedIn != null) includeLinkedIn = ['1','true','yes','on'].includes(qpIncludeLinkedIn.toLowerCase());
   if (qpIncludeSearch != null) includeSearchListings = ['1','true','yes','on'].includes(qpIncludeSearch.toLowerCase());
+
+  // If caller didn't send explicit flags, try loading per-user defaults from job_source_settings
+  try {
+    const authHeader = req.headers.get('authorization') || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if ((!parsedBody || (parsedBody.includeLinkedIn == null && parsedBody.includeSearch == null && parsedBody.includeIndeed == null)) && token) {
+      const supabaseAuthed = createClient(
+        Deno.env.get('SUPABASE_URL') || 'https://yquhsllwrwfvrwolqywh.supabase.co',
+        Deno.env.get('SUPABASE_ANON_KEY') || ''
+      );
+      try { (supabaseAuthed as any).auth.setAuth(token); } catch {}
+      const { data: s } = await supabaseAuthed
+        .from('job_source_settings')
+        .select('include_linkedin, include_indeed, include_search, allowed_domains, enabled_sources')
+        .limit(1).maybeSingle();
+      if (s) {
+        if (s.include_linkedin != null) includeLinkedIn = !!s.include_linkedin;
+        if (s.include_search != null) includeSearchListings = !!s.include_search;
+        if (s.include_indeed != null) includeIndeed = !!s.include_indeed;
+        if (Array.isArray(s.allowed_domains) && s.allowed_domains.length) allowedDomains = s.allowed_domains;
+        if (Array.isArray(s.enabled_sources) && s.enabled_sources.length) enabledSources = s.enabled_sources.map((x: string) => x.toLowerCase());
+      }
+    }
+  } catch (_) {
+    // ignore settings lookup errors
+  }
 
   try {
   // No heavy initialization required for OPTIONS/POST
@@ -124,7 +156,7 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
     // Filter plausible job listing URLs (with optional allowance for LinkedIn/search pages)
     const isJobListingUrl = (url: string) => {
       if (!url) return false;
-      const deny = [
+  const deny = [
         includeLinkedIn ? /$a/ : /linkedin\.com/i,
         /salary/i, /average/i, /calculator/i, /statistics/i, /glassdoor\.com\/Salaries/i, /payscale\.com/i,
         includeSearchListings ? /$a/ : /\?q=/i,
@@ -135,7 +167,7 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
         /\/job\//i, /\/jobs\//i, /\/careers?\//i, /\/jobdetail/i, /\/job-posting/i, /\/viewjob/i,
         /workatastartup\.com\/(jobs|companies)/i, /amazon\.jobs/i, /careers\./i,
       ];
-      const looksLikeListing = allow.some((r) => r.test(url));
+  const looksLikeListing = allow.some((r) => r.test(url)) || (includeIndeed && url.includes('indeed.com') && (/\/job\//i.test(url) || /viewjob/i.test(url)));
       if (looksLikeListing) return true;
       if (includeSearchListings) {
         // permit search/listing pages that are common on boards
@@ -144,7 +176,13 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
       }
       return false;
     };
-    const allUrls: string[] = sources.map((s: any) => s?.url).filter((u: any) => typeof u === 'string' && isJobListingUrl(u));
+    let allUrls: string[] = sources.map((s: any) => s?.url).filter((u: any) => typeof u === 'string' && isJobListingUrl(u));
+    if (allowedDomains && allowedDomains.length) {
+      const domOk = (u: string) => {
+        try { const h = new URL(u).hostname; return allowedDomains!.some(d => h.includes(d)); } catch { return false; }
+      };
+      allUrls = allUrls.filter(domOk);
+    }
     const jobUrls: string[] = [];
     const searchUrls: string[] = [];
     for (const u of allUrls) {
@@ -396,7 +434,7 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
       };
       const typesNorm = Array.from(new Set(effectiveTypes.map(normalizeType)));
 
-      let query = supabaseAdmin
+  let query = supabaseAdmin
         .from('job_listings')
   .select('job_title, company_name, location, work_type, full_job_description, source_url, posted_at, requirements, benefits')
         .order('posted_at', { ascending: false, nullsFirst: false })
@@ -419,6 +457,11 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
         query = query.eq('work_type', typesNorm[0]);
       } else if (typesNorm.length > 1) {
         query = (query as any).in('work_type', typesNorm);
+      }
+
+      if (enabledSources && enabledSources.length) {
+        // limit fallback results to chosen sources (e.g., remotive, remoteok, arbeitnow, deepresearch)
+        query = (query as any).in('source', enabledSources);
       }
 
       const { data } = await query;
