@@ -1,14 +1,14 @@
 import { t } from "@lingui/macro";
-import {
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Slider,
-  Switch,
-} from "@reactive-resume/ui";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 
 import { useResumeStore } from "@/client/stores/resume";
 
@@ -32,7 +32,7 @@ export const PageSection = () => {
           <Label>{t`Format`}</Label>
           <Select
             value={page.format || 'a4'}
-            onValueChange={(value) => {
+            onValueChange={(value: string) => {
               setValue("metadata.page.format", value);
             }}
           >
@@ -54,7 +54,7 @@ export const PageSection = () => {
               max={48}
               step={2}
               value={[page.margin]}
-              onValueChange={(value) => {
+              onValueChange={(value: number[]) => {
                 setValue("metadata.page.margin", value[0]);
               }}
             />
@@ -71,7 +71,7 @@ export const PageSection = () => {
               <Switch
                 id="metadata.page.options.breakLine"
                 checked={page.options.breakLine}
-                onCheckedChange={(checked) => {
+                onCheckedChange={(checked: boolean) => {
                   setValue("metadata.page.options.breakLine", checked);
                 }}
               />
@@ -84,7 +84,7 @@ export const PageSection = () => {
               <Switch
                 id="metadata.page.options.pageNumbers"
                 checked={page.options.pageNumbers}
-                onCheckedChange={(checked) => {
+                onCheckedChange={(checked: boolean) => {
                   setValue("metadata.page.options.pageNumbers", checked);
                 }}
               />
