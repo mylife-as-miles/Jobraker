@@ -23,13 +23,21 @@
     --accent: var(--zinc-100);
     --accent-foreground: var(--zinc-900);
 
+  /* Muted (subtle text/surfaces) */
+  --muted: var(--zinc-100);
+  --muted-foreground: var(--zinc-600);
+
     /* Popover / Card */
     --popover: 0 0% 100%;
     --popover-foreground: var(--zinc-900);
     --card: 0 0% 100%;
     --card-foreground: var(--zinc-900);
 
-    /* Status */
+  /* Destructive */
+  --destructive: var(--rose-500);
+  --destructive-foreground: var(--rose-50);
+
+  /* Status */
     --error: var(--rose-500);
     --error-accent: var(--rose-400);
     --error-foreground: var(--rose-50);
@@ -64,6 +72,9 @@
     --accent: var(--zinc-900);
     --accent-foreground: var(--zinc-50);
 
+  --muted: var(--zinc-900);
+  --muted-foreground: var(--zinc-400);
+
     --popover: var(--zinc-900);
     --popover-foreground: var(--zinc-50);
     --card: var(--zinc-900);
@@ -72,6 +83,9 @@
     --error: var(--rose-700);
     --error-accent: var(--rose-800);
     --error-foreground: var(--rose-50);
+
+  --destructive: var(--rose-700);
+  --destructive-foreground: var(--rose-50);
     --warning: var(--amber-700);
     --warning-accent: var(--amber-800);
     --warning-foreground: var(--amber-50);
