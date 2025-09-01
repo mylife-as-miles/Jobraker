@@ -89,7 +89,7 @@ export function SplitLineAreaChart({
   }, [defaultVisible, series.map(s => s.key).join("|")])
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative ${className} overflow-hidden`}>
       {showLegend && (
         <div className="absolute top-0 left-0 right-0 z-10 flex flex-wrap items-center gap-2 px-2 pt-2">
           {series.map((s, idx) => {
