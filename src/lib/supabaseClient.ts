@@ -2,9 +2,17 @@ import { createBrowserClient } from '@supabase/ssr'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export function createClient(): SupabaseClient {
-  // Support both Vite and Next.js style public env names
-  const supabaseUrl = (import.meta as any)?.env?.VITE_SUPABASE_URL || (import.meta as any)?.env?.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = (import.meta as any)?.env?.VITE_SUPABASE_ANON_KEY || (import.meta as any)?.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // Get environment variables from Vite
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  // Debug logging
+  console.log('Supabase Config Check:', {
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseAnonKey,
+    urlStart: supabaseUrl?.substring(0, 30) + '...',
+    keyStart: supabaseAnonKey?.substring(0, 30) + '...',
+  });
 
   // Handle missing environment variables gracefully
   if (!supabaseUrl || !supabaseAnonKey) {
