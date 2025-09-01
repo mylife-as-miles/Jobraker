@@ -106,8 +106,10 @@ const getCompanyLogoUrl = (companyName?: string, sourceUrl?: string): string | u
   }
   try {
     if (domainGuess) {
-      // Prefer Clearbit-like logo by domain
-      return `https://logo.clearbit.com/${domainGuess}`;
+      // Check if logo exists before trying to load it
+      const logoUrl = `https://logo.clearbit.com/${domainGuess}`;
+      // Return the URL but the img onError handler will catch 404s
+      return logoUrl;
     }
   } catch {}
   // As a last resort, attempt Google’s favicon service based on the source domain
