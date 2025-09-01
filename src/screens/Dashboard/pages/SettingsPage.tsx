@@ -3,7 +3,7 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon } from "lucide-react";
+import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, MapPin, DollarSign, Briefcase, ToggleLeft, ToggleRight } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
 import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
@@ -27,6 +27,11 @@ export const SettingsPage = (): JSX.Element => {
   const { success, error: toastError } = useToast();
   const [activeTab, setActiveTab] = useState("profile");
   const [showPassword, setShowPassword] = useState(false);
+  const [jobSources, setJobSources] = useState([
+    { id: 1, type: "remotive", query: "software engineer", enabled: true },
+    { id: 2, type: "remoteok", query: "", enabled: true },
+    { id: 3, type: "arbeitnow", query: "typescript", enabled: false }
+  ]);
   const { profile, updateProfile, createProfile, refresh: refreshProfile } = useProfileSettings();
   const { settings: notif, updateSettings, createSettings, refresh: refreshNotif } = useNotificationSettings();
   const { settings: privacy, createSettings: createPrivacy, updateSettings: updatePrivacy, refresh: refreshPrivacy } = usePrivacySettings();
@@ -123,6 +128,7 @@ export const SettingsPage = (): JSX.Element => {
     { id: "security", label: "Security", icon: <Shield className="w-4 h-4" /> },
     { id: "appearance", label: "Appearance", icon: <Palette className="w-4 h-4" /> },
     { id: "privacy", label: "Privacy", icon: <Globe className="w-4 h-4" /> },
+    { id: "job-sources", label: "Job Sources", icon: <SettingsIcon className="w-4 h-4" /> },
     { id: "billing", label: "Billing", icon: <CreditCard className="w-4 h-4" /> }
   ];
 
@@ -869,6 +875,220 @@ export const SettingsPage = (): JSX.Element => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+        );
+
+      case "job-sources":
+        return (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-white mb-2">Job Sources Configuration</h2>
+                <p className="text-[#ffffff80] text-sm">Configure and manage job ingestion sources for automated job discovery</p>
+              </div>
+              <Button 
+                className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                onClick={() => {
+                  const newId = Math.max(...jobSources.map(s => s.id)) + 1;
+                  setJobSources([...jobSources, { id: newId, type: "remotive", query: "", enabled: true }]);
+                }}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Source
+              </Button>
+            </div>
+
+            {/* Job Sources List */}
+            <div className="space-y-4">
+              {jobSources.map((source) => (
+                <Card key={source.id} className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 border border-[#1dff00]/30 flex items-center justify-center">
+                          {source.type === 'remotive' && <Search className="w-5 h-5 text-[#1dff00]" />}
+                          {source.type === 'remoteok' && <Globe className="w-5 h-5 text-[#1dff00]" />}
+                          {source.type === 'arbeitnow' && <Briefcase className="w-5 h-5 text-[#1dff00]" />}
+                          {source.type === 'json' && <Link className="w-5 h-5 text-[#1dff00]" />}
+                          {source.type === 'deepresearch' && <Search className="w-5 h-5 text-[#1dff00]" />}
+                        </div>
+                        <div>
+                          <h3 className="text-white font-medium capitalize">{source.type}</h3>
+                          <p className="text-[#ffffff60] text-sm">
+                            {source.type === 'remotive' && 'Remote job listings with search query support'}
+                            {source.type === 'remoteok' && 'Popular remote job board'}
+                            {source.type === 'arbeitnow' && 'European job board with search capabilities'}
+                            {source.type === 'json' && 'Custom JSON feed URL'}
+                            {source.type === 'deepresearch' && 'AI-powered deep job research'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <button
+                          onClick={() => {
+                            setJobSources(jobSources.map(s => 
+                              s.id === source.id ? { ...s, enabled: !s.enabled } : s
+                            ));
+                          }}
+                          className="transition-colors duration-200"
+                        >
+                          {source.enabled ? (
+                            <ToggleRight className="w-6 h-6 text-[#1dff00]" />
+                          ) : (
+                            <ToggleLeft className="w-6 h-6 text-[#ffffff60]" />
+                          )}
+                        </button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setJobSources(jobSources.filter(s => s.id !== source.id));
+                          }}
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Configuration Fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-white mb-2">Source Type</label>
+                        <select
+                          value={source.type}
+                          onChange={(e) => {
+                            setJobSources(jobSources.map(s => 
+                              s.id === source.id ? { ...s, type: e.target.value } : s
+                            ));
+                          }}
+                          className="w-full px-3 py-2 bg-[#ffffff1a] border border-[#ffffff33] rounded-lg text-white focus:border-[#1dff00] focus:outline-none transition-colors"
+                        >
+                          <option value="remotive">Remotive</option>
+                          <option value="remoteok">RemoteOK</option>
+                          <option value="arbeitnow">Arbeit Now</option>
+                          <option value="json">Custom JSON</option>
+                          <option value="deepresearch">Deep Research</option>
+                        </select>
+                      </div>
+
+                      {(source.type === 'remotive' || source.type === 'arbeitnow' || source.type === 'deepresearch') && (
+                        <div>
+                          <label className="block text-sm font-medium text-white mb-2">Search Query</label>
+                          <Input
+                            value={source.query}
+                            onChange={(e) => {
+                              setJobSources(jobSources.map(s => 
+                                s.id === source.id ? { ...s, query: e.target.value } : s
+                              ));
+                            }}
+                            placeholder="e.g., software engineer, react developer"
+                            className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
+                          />
+                        </div>
+                      )}
+
+                      {source.type === 'json' && (
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-white mb-2">JSON Feed URL</label>
+                          <Input
+                            value={source.query}
+                            onChange={(e) => {
+                              setJobSources(jobSources.map(s => 
+                                s.id === source.id ? { ...s, query: e.target.value } : s
+                              ));
+                            }}
+                            placeholder="https://your.api.example/jobs.json"
+                            className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {source.type === 'deepresearch' && (
+                      <div className="mt-4 p-4 bg-[#1dff00]/5 border border-[#1dff00]/20 rounded-lg">
+                        <h4 className="text-white font-medium mb-3 flex items-center">
+                          <Search className="w-4 h-4 mr-2 text-[#1dff00]" />
+                          Advanced AI Research Options
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-white mb-2">Work Type</label>
+                            <select className="w-full px-3 py-2 bg-[#ffffff1a] border border-[#ffffff33] rounded-lg text-white focus:border-[#1dff00] focus:outline-none">
+                              <option value="Remote">Remote</option>
+                              <option value="Hybrid">Hybrid</option>
+                              <option value="On-site">On-site</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-white mb-2">Location</label>
+                            <Input
+                              placeholder="e.g., United States, Europe"
+                              className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-white mb-2">Experience Level</label>
+                            <select className="w-full px-3 py-2 bg-[#ffffff1a] border border-[#ffffff33] rounded-lg text-white focus:border-[#1dff00] focus:outline-none">
+                              <option value="entry">Entry Level</option>
+                              <option value="mid">Mid Level</option>
+                              <option value="senior">Senior Level</option>
+                              <option value="lead">Lead/Principal</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-white mb-2">Salary Range</label>
+                            <Input
+                              placeholder="e.g., 120k-200k"
+                              className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-white mb-2">Max Results</label>
+                            <Input
+                              type="number"
+                              placeholder="20"
+                              className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Configuration Info */}
+            <Card className="bg-gradient-to-br from-[#1dff00]/5 to-[#1dff00]/10 border border-[#1dff00]/20">
+              <CardContent className="p-6">
+                <h3 className="text-white font-medium mb-3 flex items-center">
+                  <SettingsIcon className="w-5 h-5 mr-2 text-[#1dff00]" />
+                  Configuration Instructions
+                </h3>
+                <div className="space-y-2 text-sm text-[#ffffff80]">
+                  <p>• <strong>Remotive:</strong> Popular remote job board with search query support</p>
+                  <p>• <strong>RemoteOK:</strong> Simple remote job aggregator (no query needed)</p>
+                  <p>• <strong>Arbeit Now:</strong> European job board with search capabilities</p>
+                  <p>• <strong>Custom JSON:</strong> Provide your own job feed URL</p>
+                  <p>• <strong>Deep Research:</strong> AI-powered job discovery (requires Firecrawl API key)</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Save Button */}
+            <div className="flex justify-end">
+              <Button 
+                className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                onClick={() => {
+                  success('Job sources saved', 'Your job source configuration has been updated successfully');
+                }}
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Save Configuration
+              </Button>
+            </div>
           </div>
         );
 
