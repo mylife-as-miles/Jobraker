@@ -3,7 +3,7 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight } from "lucide-react";
+import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
 import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
@@ -30,7 +30,10 @@ export const SettingsPage = (): JSX.Element => {
   const [jobSources, setJobSources] = useState([
     { id: 1, type: "remotive", query: "software engineer", enabled: true },
     { id: 2, type: "remoteok", query: "", enabled: true },
-    { id: 3, type: "arbeitnow", query: "typescript", enabled: false }
+    { id: 3, type: "arbeitnow", query: "typescript", enabled: false },
+    { id: 4, type: "linkedin", query: "full stack developer", enabled: true },
+    { id: 5, type: "indeed", query: "react developer", enabled: false },
+    { id: 6, type: "trulyremote", query: "backend engineer", enabled: false }
   ]);
   const { profile, updateProfile, createProfile, refresh: refreshProfile } = useProfileSettings();
   const { settings: notif, updateSettings, createSettings, refresh: refreshNotif } = useNotificationSettings();
@@ -891,7 +894,7 @@ export const SettingsPage = (): JSX.Element => {
                 className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
                 onClick={() => {
                   const newId = Math.max(...jobSources.map(s => s.id)) + 1;
-                  setJobSources([...jobSources, { id: newId, type: "remotive", query: "", enabled: true }]);
+                  setJobSources([...jobSources, { id: newId, type: "linkedin", query: "", enabled: true }]);
                 }}
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -910,6 +913,13 @@ export const SettingsPage = (): JSX.Element => {
                           {source.type === 'remotive' && <Search className="w-5 h-5 text-[#1dff00]" />}
                           {source.type === 'remoteok' && <Globe className="w-5 h-5 text-[#1dff00]" />}
                           {source.type === 'arbeitnow' && <Briefcase className="w-5 h-5 text-[#1dff00]" />}
+                          {source.type === 'linkedin' && <Users className="w-5 h-5 text-[#1dff00]" />}
+                          {source.type === 'indeed' && <Building className="w-5 h-5 text-[#1dff00]" />}
+                          {source.type === 'feedcoyote' && <Rss className="w-5 h-5 text-[#1dff00]" />}
+                          {source.type === 'trulyremote' && <Globe className="w-5 h-5 text-[#1dff00]" />}
+                          {source.type === 'remoteco' && <Coffee className="w-5 h-5 text-[#1dff00]" />}
+                          {source.type === 'jobspresso' && <Coffee className="w-5 h-5 text-[#1dff00]" />}
+                          {source.type === 'skipthedrive' && <Car className="w-5 h-5 text-[#1dff00]" />}
                           {source.type === 'json' && <Link className="w-5 h-5 text-[#1dff00]" />}
                           {source.type === 'deepresearch' && <Search className="w-5 h-5 text-[#1dff00]" />}
                         </div>
@@ -919,6 +929,13 @@ export const SettingsPage = (): JSX.Element => {
                             {source.type === 'remotive' && 'Remote job listings with search query support'}
                             {source.type === 'remoteok' && 'Popular remote job board'}
                             {source.type === 'arbeitnow' && 'European job board with search capabilities'}
+                            {source.type === 'linkedin' && 'Professional networking platform job listings'}
+                            {source.type === 'indeed' && 'World\'s largest job search engine'}
+                            {source.type === 'feedcoyote' && 'RSS-based job feed aggregator'}
+                            {source.type === 'trulyremote' && 'Curated remote job opportunities'}
+                            {source.type === 'remoteco' && 'Remote-first company job board'}
+                            {source.type === 'jobspresso' && 'Premium remote and flexible jobs'}
+                            {source.type === 'skipthedrive' && 'Work-from-home job opportunities'}
                             {source.type === 'json' && 'Custom JSON feed URL'}
                             {source.type === 'deepresearch' && 'AI-powered deep job research'}
                           </p>
@@ -968,12 +985,19 @@ export const SettingsPage = (): JSX.Element => {
                           <option value="remotive">Remotive</option>
                           <option value="remoteok">RemoteOK</option>
                           <option value="arbeitnow">Arbeit Now</option>
+                          <option value="linkedin">LinkedIn</option>
+                          <option value="indeed">Indeed</option>
+                          <option value="feedcoyote">FeedCoyote</option>
+                          <option value="trulyremote">Truly Remote</option>
+                          <option value="remoteco">Remote.co</option>
+                          <option value="jobspresso">Jobspresso</option>
+                          <option value="skipthedrive">Skip The Drive</option>
                           <option value="json">Custom JSON</option>
                           <option value="deepresearch">Deep Research</option>
                         </select>
                       </div>
 
-                      {(source.type === 'remotive' || source.type === 'arbeitnow' || source.type === 'deepresearch') && (
+                      {(source.type === 'remotive' || source.type === 'arbeitnow' || source.type === 'linkedin' || source.type === 'indeed' || source.type === 'trulyremote' || source.type === 'jobspresso' || source.type === 'deepresearch') && (
                         <div>
                           <label className="block text-sm font-medium text-white mb-2">Search Query</label>
                           <Input
@@ -1071,6 +1095,13 @@ export const SettingsPage = (): JSX.Element => {
                   <p>• <strong>Remotive:</strong> Popular remote job board with search query support</p>
                   <p>• <strong>RemoteOK:</strong> Simple remote job aggregator (no query needed)</p>
                   <p>• <strong>Arbeit Now:</strong> European job board with search capabilities</p>
+                  <p>• <strong>LinkedIn:</strong> Professional networking platform job listings</p>
+                  <p>• <strong>Indeed:</strong> World's largest job search engine</p>
+                  <p>• <strong>FeedCoyote:</strong> RSS-based job feed aggregator</p>
+                  <p>• <strong>Truly Remote:</strong> Curated remote job opportunities</p>
+                  <p>• <strong>Remote.co:</strong> Remote-first company job board</p>
+                  <p>• <strong>Jobspresso:</strong> Premium remote and flexible jobs</p>
+                  <p>• <strong>Skip The Drive:</strong> Work-from-home job opportunities</p>
                   <p>• <strong>Custom JSON:</strong> Provide your own job feed URL</p>
                   <p>• <strong>Deep Research:</strong> AI-powered job discovery (requires Firecrawl API key)</p>
                 </div>
