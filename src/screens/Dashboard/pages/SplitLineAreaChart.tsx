@@ -31,7 +31,7 @@ export function SplitLineAreaChart({
   data,
   xKey = "label",
   series = [{ key: "value", label: "Series", color: "var(--chart-1)" }],
-  className = "h-56 sm:h-64 lg:h-72 w-full",
+  className = "h-72 sm:h-80 lg:h-96 w-full",
   tickFormatter,
   stacked = false,
   showLegend = false,
