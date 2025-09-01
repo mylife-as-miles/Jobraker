@@ -6,14 +6,6 @@ export function createClient(): SupabaseClient {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-  // Debug logging
-  console.log('Supabase Config Check:', {
-    hasUrl: !!supabaseUrl,
-    hasKey: !!supabaseAnonKey,
-    urlStart: supabaseUrl?.substring(0, 30) + '...',
-    keyStart: supabaseAnonKey?.substring(0, 30) + '...',
-  });
-
   // Handle missing environment variables gracefully
   if (!supabaseUrl || !supabaseAnonKey) {
     console.warn('Supabase environment variables not found. Some features may not work.');

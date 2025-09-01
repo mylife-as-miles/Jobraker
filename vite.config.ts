@@ -8,7 +8,12 @@ export default defineConfig({
   plugins: [react()],
   // Use absolute base so assets resolve from root on deep routes (Vercel)
   base: "/",
-  // Vite automatically loads VITE_ prefixed variables from .env files
+  // For production builds (like Vercel), explicitly define the env vars
+  define: {
+    'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL),
+    'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY),
+  },
+  // Vite automatically loads VITE_ prefixed variables from .env files for development
   envPrefix: ['VITE_'],
   css: {
     postcss: {
