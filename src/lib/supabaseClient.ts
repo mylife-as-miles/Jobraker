@@ -6,16 +6,6 @@ export function createClient(): SupabaseClient {
   const supabaseUrl = (import.meta as any)?.env?.VITE_SUPABASE_URL || (import.meta as any)?.env?.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = (import.meta as any)?.env?.VITE_SUPABASE_ANON_KEY || (import.meta as any)?.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  console.log('SupabaseClient: Debug env access', {
-    importMeta: typeof import.meta,
-    env: import.meta?.env,
-    allEnvKeys: import.meta?.env ? Object.keys(import.meta.env) : [],
-    supabaseUrl,
-    supabaseAnonKey,
-    raw_VITE_URL: (import.meta as any)?.env?.VITE_SUPABASE_URL,
-    raw_NEXT_URL: (import.meta as any)?.env?.NEXT_PUBLIC_SUPABASE_URL
-  });
-
   // Handle missing environment variables gracefully
   if (!supabaseUrl || !supabaseAnonKey) {
     console.warn('Supabase environment variables not found. Some features may not work.');
