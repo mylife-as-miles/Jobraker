@@ -948,7 +948,11 @@ export const JobPage = (): JSX.Element => {
                             src={job.logoUrl}
                             alt={job.company}
                             className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain bg-white flex-shrink-0"
-                            onError={() => setLogoError((m) => ({ ...m, [job.id]: true }))}
+                            onError={() => {
+                              setLogoError((m) => ({ ...m, [job.id]: true }));
+                              // Cache failed logo URL to avoid future 404s
+                              if (job.logoUrl) logoFailureCache.add(job.logoUrl);
+                            }}
                           />
                         ) : (
                           <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg flex-shrink-0">
@@ -1057,7 +1061,11 @@ export const JobPage = (): JSX.Element => {
                                 src={job.logoUrl}
                                 alt={job.company}
                                 className="w-16 h-16 rounded-xl object-contain bg-white flex-shrink-0"
-                                onError={() => setLogoError((m) => ({ ...m, [job.id]: true }))}
+                                onError={() => {
+                                  setLogoError((m) => ({ ...m, [job.id]: true }));
+                                  // Cache failed logo URL to avoid future 404s
+                                  if (job.logoUrl) logoFailureCache.add(job.logoUrl);
+                                }}
                               />
                             ) : (
                               <div className="w-16 h-16 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-xl flex-shrink-0">
