@@ -94,6 +94,9 @@ const companyToDomain = (companyName?: string, tld: string = (import.meta as any
   return `${base}.${tld}`;
 };
 
+// Cache for failed logo URLs to avoid repeated 404s
+const logoFailureCache = new Set<string>();
+
 // Try to get a company logo URL via optional API template, Clearbit/Google favicon, or initials
 const getCompanyLogoUrl = (companyName?: string, sourceUrl?: string): string | undefined => {
   const tld = (import.meta as any).env?.VITE_LOGO_TLD || 'com';
@@ -106,9 +109,11 @@ const getCompanyLogoUrl = (companyName?: string, sourceUrl?: string): string | u
   }
   try {
     if (domainGuess) {
-      // Check if logo exists before trying to load it
       const logoUrl = `https://logo.clearbit.com/${domainGuess}`;
-      // Return the URL but the img onError handler will catch 404s
+      // Skip if we already know this URL fails
+      if (logoFailureCache.has(logoUrl)) {
+        return undefined;
+      }
       return logoUrl;
     }
   } catch {}
