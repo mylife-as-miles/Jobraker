@@ -236,7 +236,7 @@ export const OverviewPage = (): JSX.Element => {
               whileHover={{ scale: 1.02 }}
               className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
+              <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-6 sm:p-8 lg:p-10 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-2">
                   <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Applications</h2>
                   <div className="text-left sm:text-right">
@@ -293,7 +293,7 @@ export const OverviewPage = (): JSX.Element => {
                 </div>
 
                 {/* Applications Chart (real data, status series) */}
-                <div className="mt-2 sm:mt-4 min-h-[24rem]">
+                <div className="mt-2 sm:mt-4 min-h-[32rem] sm:min-h-[36rem] lg:min-h-[40rem]">
                   <SplitLineAreaChart
                     data={seriesData}
                     xKey="label"
@@ -303,7 +303,7 @@ export const OverviewPage = (): JSX.Element => {
                     onVisibleChange={setVisibleSeries}
                     defaultVisible={visibleSeries}
                     tickFormatter={(v) => String(v).slice(0, 3)}
-                    className="h-80 sm:h-96 lg:h-[28rem] w-full"
+                    className="h-96 sm:h-[28rem] lg:h-[32rem] xl:h-[36rem] w-full"
                   />
                 </div>
               </Card>
