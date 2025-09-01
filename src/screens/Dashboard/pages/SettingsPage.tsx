@@ -3,7 +3,7 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, MapPin, DollarSign, Briefcase, ToggleLeft, ToggleRight } from "lucide-react";
+import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
 import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
@@ -504,7 +504,7 @@ export const SettingsPage = (): JSX.Element => {
                 <p className="text-[#ffffff80] mb-4">Add an extra layer of security to your account</p>
                 <div className="flex items-center gap-3">
                   <Button 
-                    variant={sec?.two_factor_enabled ? 'default' : 'outline'}
+                    variant={sec?.two_factor_enabled ? 'secondary' : 'outline'}
                     onClick={async () => {
                       try {
                         if (sec?.two_factor_enabled) {
