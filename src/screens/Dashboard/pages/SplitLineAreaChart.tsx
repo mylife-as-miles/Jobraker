@@ -170,7 +170,7 @@ export function SplitLineAreaChart({
                 const gradientId = `fill_${s.key}`
                 return (
                   <linearGradient key={gradientId} id={gradientId} x1="0" y1="0" x2="1" y2="0">
-                    <motion.stop offset="0%" stopColor={color as string} stopOpacity={0.8} />
+                    <motion.stop offset="0%" stopColor={color as string} stopOpacity={0.9} />
                     <motion.stop
                       stopColor={color as string}
                       stopOpacity={0.8}
@@ -179,11 +179,11 @@ export function SplitLineAreaChart({
                     />
                     <motion.stop
                       stopColor={color as string}
-                      stopOpacity={0.1}
+                      stopOpacity={0.2}
                       animate={{ offset: `${splitOffset + 0.1}%` }}
                       transition={{ duration: 0.4, ease: "easeInOut" }}
                     />
-                    <stop offset="95%" stopColor="#000000" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#0a2f0a" stopOpacity={0.1} />
                   </linearGradient>
                 )
               })}
@@ -199,7 +199,8 @@ export function SplitLineAreaChart({
                   type="natural"
                   fill={`url(#${gradientId})`}
                   stroke={color as string}
-                  fillOpacity={0.35}
+                  strokeWidth={2}
+                  fillOpacity={0.6}
                   dot={false}
                   stackId={effectiveStacked ? "a" : undefined}
                   hide={!visible.has(s.key)}

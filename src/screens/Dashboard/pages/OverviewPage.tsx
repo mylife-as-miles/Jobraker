@@ -192,7 +192,7 @@ export const OverviewPage = (): JSX.Element => {
     const series = statuses.map((s, i) => ({
       key: s,
       label: s,
-      color: i === 0 ? "var(--chart-1)" : i === 1 ? "var(--chart-2)" : i === 2 ? "var(--chart-3)" : "var(--chart-4)",
+      color: i === 0 ? "#1dff00" : i === 1 ? "#00ff7f" : i === 2 ? "#32cd32" : i === 3 ? "#00ff00" : "#90ee90",
     }))
 
   return { seriesData: data, seriesMeta: series, appliedCount: applied, interviewCount: interviews, totals: { totalInWindow } }
@@ -293,7 +293,7 @@ export const OverviewPage = (): JSX.Element => {
                 </div>
 
                 {/* Applications Chart (real data, status series) */}
-                <div className="mt-2 sm:mt-4 min-h-[16rem]">
+                <div className="mt-2 sm:mt-4 min-h-[24rem]">
                   <SplitLineAreaChart
                     data={seriesData}
                     xKey="label"
@@ -303,6 +303,7 @@ export const OverviewPage = (): JSX.Element => {
                     onVisibleChange={setVisibleSeries}
                     defaultVisible={visibleSeries}
                     tickFormatter={(v) => String(v).slice(0, 3)}
+                    className="h-80 sm:h-96 lg:h-[28rem] w-full"
                   />
                 </div>
               </Card>
