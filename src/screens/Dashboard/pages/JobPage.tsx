@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { createClient } from "../../../lib/supabaseClient";
+import { applyToJobs } from "../../../services/applications/applyToJobs";
 import { JobListing } from "../../../../supabase/functions/_shared/types";
 import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { SafeSelect } from "../../../components/ui/safe-select";
@@ -459,22 +460,51 @@ export const JobPage = (): JSX.Element => {
         toastError('Login required', 'Sign in to apply');
         return;
       }
-      // Create minimal application record
-      const { error } = await (supabase as any)
-        .from('applications')
-        .insert({
-          user_id: uid,
-          job_title: job.title,
-          company: job.company,
-          location: job.location,
-          applied_date: new Date().toISOString(),
-          status: 'Applied',
-          logo: job.logoUrl ?? null,
-          notes: job.sourceUrl ? `Applied via JobRaker: ${job.sourceUrl}` : null,
-        });
-      if (error) throw error;
-      success('Application added', `${job.title} @ ${job.company}`);
-      setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isApplied: true } : j)));
+      // Trigger Skyvern apply workflow via Edge Function
+      const addlInfo = (import.meta as any).env?.VITE_APPLY_ADDITIONAL_INFO as string | undefined;
+      const resumeUrl = (import.meta as any).env?.VITE_APPLY_RESUME_URL as string | undefined;
+      const payload: any = {
+        job_urls: job.sourceUrl ? [job.sourceUrl] : [],
+      };
+      if (addlInfo) payload.additional_information = addlInfo;
+      if (resumeUrl) payload.resume = resumeUrl;
+      try {
+        const res = await applyToJobs(payload);
+        const appUrl = (res as any)?.skyvern?.app_url;
+        // Create minimal application record after successful trigger
+        const { error } = await (supabase as any)
+          .from('applications')
+          .insert({
+            user_id: uid,
+            job_title: job.title,
+            company: job.company,
+            location: job.location,
+            applied_date: new Date().toISOString(),
+            status: 'Applied',
+            logo: job.logoUrl ?? null,
+            notes: appUrl ? `Skyvern run: ${appUrl}` : (job.sourceUrl ? `Applied via JobRaker: ${job.sourceUrl}` : null),
+          });
+        if (error) throw error;
+        success('Application started', appUrl ? 'Opened a Skyvern workflow' : `${job.title} @ ${job.company}`);
+        setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isApplied: true } : j)));
+      } catch (efErr: any) {
+        // If Edge Function fails, fall back to logging the application locally
+        const { error } = await (supabase as any)
+          .from('applications')
+          .insert({
+            user_id: uid,
+            job_title: job.title,
+            company: job.company,
+            location: job.location,
+            applied_date: new Date().toISOString(),
+            status: 'Applied',
+            logo: job.logoUrl ?? null,
+            notes: job.sourceUrl ? `Apply trigger failed; saved locally. ${job.sourceUrl}` : 'Apply trigger failed; saved locally.',
+          });
+        if (error) throw error;
+        info('Saved application', 'Apply trigger failed; saved locally');
+        setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isApplied: true } : j)));
+      }
     } catch (e: any) {
       toastError('Apply failed', e.message || 'Try again');
     }
