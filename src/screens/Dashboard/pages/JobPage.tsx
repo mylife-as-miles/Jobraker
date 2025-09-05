@@ -24,6 +24,7 @@ import { JobListing } from "../../../../supabase/functions/_shared/types";
 import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { SafeSelect } from "../../../components/ui/safe-select";
 import { useToast } from "../../../components/ui/toast";
+import { ensureApplyReadiness } from "../../../utils/applyPreflight";
 
 interface Job extends JobListing {
   id: string;
@@ -168,6 +169,8 @@ export const JobPage = (): JSX.Element => {
   const [maxSalary, setMaxSalary] = useState<string>("");
   const [postedSince, setPostedSince] = useState<string>(""); // days: 3,7,14,30
   const { success, error: toastError, info } = useToast();
+  const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
+  const [readiness, setReadiness] = useState<{ profile: boolean; resume: boolean } | null>(null);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const debouncedSelectedLocation = useDebounce(selectedLocation, 500);
@@ -453,21 +456,25 @@ export const JobPage = (): JSX.Element => {
   }, [supabase, success, toastError, info]);
 
   const quickApply = useCallback(async (job: Job) => {
+    if (applyingJobId) return; // prevent parallel
+    setApplyingJobId(job.id);
     try {
       const { data: userData } = await (supabase as any).auth.getUser();
       const uid = (userData as any)?.user?.id;
       if (!uid) {
         toastError('Login required', 'Sign in to apply');
+        setApplyingJobId(null);
         return;
       }
-      // Server will enrich additional_information & resume if omitted
-      const payload: any = {
-        job_urls: job.sourceUrl ? [job.sourceUrl] : [],
-      };
+      // Preflight: capture readiness result
+      try {
+        const r: any = await ensureApplyReadiness();
+        if (r && typeof r === 'object' && 'profile' in r && 'resume' in r) setReadiness({ profile: !!r.profile, resume: !!r.resume });
+      } catch {}
+      const payload: any = { job_urls: job.sourceUrl ? [job.sourceUrl] : [] };
       try {
         const res = await applyToJobs(payload);
         const appUrl = (res as any)?.skyvern?.app_url;
-        // Create minimal application record after successful trigger
         const { error } = await (supabase as any)
           .from('applications')
           .insert({
@@ -484,7 +491,6 @@ export const JobPage = (): JSX.Element => {
         success('Application started', appUrl ? 'Opened a Skyvern workflow' : `${job.title} @ ${job.company}`);
         setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isApplied: true } : j)));
       } catch (efErr: any) {
-        // If Edge Function fails, fall back to logging the application locally
         const { error } = await (supabase as any)
           .from('applications')
           .insert({
@@ -502,9 +508,19 @@ export const JobPage = (): JSX.Element => {
         setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isApplied: true } : j)));
       }
     } catch (e: any) {
-      toastError('Apply failed', e.message || 'Try again');
+      const msg = e.message || 'Try again';
+      toastError('Apply failed', msg);
+      try {
+        window.dispatchEvent(new CustomEvent('toast', { detail: { title: 'Retry apply?', description: msg, action: { label: 'Retry', jobId: job.id } } }));
+      } catch {}
+    } finally {
+      try {
+        const r: any = await ensureApplyReadiness();
+        if (r && typeof r === 'object' && 'profile' in r && 'resume' in r) setReadiness({ profile: !!r.profile, resume: !!r.resume });
+      } catch {}
+      setApplyingJobId(null);
     }
-  }, [supabase, success, toastError, info]);
+  }, [supabase, success, toastError, info, applyingJobId]);
 
   const shareJob = useCallback(async (job: Job) => {
     try {
@@ -519,6 +535,16 @@ export const JobPage = (): JSX.Element => {
   useEffect(() => {
     performSearch();
   }, [performSearch]);
+
+  // Preflight once on initial page load (capture readiness)
+  useEffect(() => {
+    (async () => {
+      try {
+        const r: any = await ensureApplyReadiness();
+        if (r && typeof r === 'object' && 'profile' in r && 'resume' in r) setReadiness({ profile: !!r.profile, resume: !!r.resume });
+      } catch {}
+    })();
+  }, []);
 
   // Whenever the main query inputs change, refresh facets and clear selected facet filters
   useEffect(() => {
@@ -679,7 +705,7 @@ export const JobPage = (): JSX.Element => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Job Search</h1>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-[#ffffff80] text-sm sm:text-base">Find your next opportunity</p>
                 {resultSource && (
                   <span
@@ -692,6 +718,22 @@ export const JobPage = (): JSX.Element => {
                   >
                     {resultSource === 'live' ? 'Live' : 'DB fallback'}
                   </span>
+                )}
+                {readiness && (
+                  <>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-wide border ${readiness.profile ? 'border-emerald-400/40 text-emerald-300 bg-emerald-500/10' : 'border-red-400/40 text-red-300 bg-red-500/10'}`}
+                      title={readiness.profile ? 'Profile info available' : 'Missing profile info'}
+                    >
+                      Profile {readiness.profile ? '✓' : 'Missing'}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-wide border ${readiness.resume ? 'border-emerald-400/40 text-emerald-300 bg-emerald-500/10' : 'border-red-400/40 text-red-300 bg-red-500/10'}`}
+                      title={readiness.resume ? 'Resume available' : 'Missing resume'}
+                    >
+                      Resume {readiness.resume ? '✓' : 'Missing'}
+                    </span>
+                  </>
                 )}
               </div>
             </div>
@@ -1180,9 +1222,10 @@ export const JobPage = (): JSX.Element => {
                             </Button>
                             <Button 
                               onClick={() => quickApply(job)}
-                              className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
+                              disabled={!!applyingJobId || job.isApplied}
+                              className={`bg-[#1dff00] text-black hover:bg-[#1dff00]/90 transition-all duration-300 flex-1 sm:flex-none ${(applyingJobId || job.isApplied) ? 'opacity-70 cursor-not-allowed hover:scale-100' : 'hover:scale-105'}`}
                             >
-                              {job.isApplied ? "Applied" : "Apply Now"}
+                              {job.isApplied ? 'Applied' : (applyingJobId === job.id ? 'Applying…' : 'Apply Now')}
                             </Button>
                           </div>
                         </div>

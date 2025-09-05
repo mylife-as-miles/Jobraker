@@ -17,6 +17,7 @@ import { PreviewLayout } from "./pages/preview";
 import { Providers } from "./providers";
 import { ClientBuilderRoute } from "@/client/pages/builder/route-bridge";
 import { ROUTES } from "./routes";
+import { ToastEventBridge } from "./components/system/ToastEventBridge";
 
 // Error boundary component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
@@ -52,6 +53,7 @@ function App() {
     <BrowserRouter>
       {/* Global providers */}
       <ToastProvider>
+        <ToastEventBridge />
         
         <Routes>
         {/* Default route shows landing page */}
