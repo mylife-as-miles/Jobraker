@@ -460,14 +460,10 @@ export const JobPage = (): JSX.Element => {
         toastError('Login required', 'Sign in to apply');
         return;
       }
-      // Trigger Skyvern apply workflow via Edge Function
-      const addlInfo = (import.meta as any).env?.VITE_APPLY_ADDITIONAL_INFO as string | undefined;
-      const resumeUrl = (import.meta as any).env?.VITE_APPLY_RESUME_URL as string | undefined;
+      // Server will enrich additional_information & resume if omitted
       const payload: any = {
         job_urls: job.sourceUrl ? [job.sourceUrl] : [],
       };
-      if (addlInfo) payload.additional_information = addlInfo;
-      if (resumeUrl) payload.resume = resumeUrl;
       try {
         const res = await applyToJobs(payload);
         const appUrl = (res as any)?.skyvern?.app_url;
@@ -508,7 +504,7 @@ export const JobPage = (): JSX.Element => {
     } catch (e: any) {
       toastError('Apply failed', e.message || 'Try again');
     }
-  }, [supabase, success, toastError]);
+  }, [supabase, success, toastError, info]);
 
   const shareJob = useCallback(async (job: Job) => {
     try {
