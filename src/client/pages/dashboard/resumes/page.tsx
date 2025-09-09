@@ -11,7 +11,7 @@ import { Upload } from 'lucide-react';
 
 export const ResumesPage = () => {
   const fileRef = useRef<HTMLInputElement | null>(null);
-  const { importMultiple } = useResumes();
+  const { importMultiple, importStatuses } = useResumes();
   const [dragActive, setDragActive] = useState(false);
 
   const handlePick = () => fileRef.current?.click();
@@ -70,6 +70,30 @@ export const ResumesPage = () => {
           onDrop={onDrop}
           className={`relative ${dragActive ? 'ring-2 ring-[#1dff00] ring-offset-2 ring-offset-black rounded-lg transition' : ''}`}
         >
+        {importStatuses.length > 0 && (
+          <div className="mb-4 space-y-2">
+            <h2 className="text-sm font-medium text-[#1dff00]/80">Recent Imports</h2>
+            <ul className="max-h-40 overflow-auto thin-scrollbar pr-1 text-xs divide-y divide-[#1dff00]/10 border border-[#1dff00]/10 rounded-md bg-black/30 backdrop-blur-sm">
+              {importStatuses.slice(0,12).map(st => (
+                <li key={st.id} className="flex items-start justify-between gap-3 px-3 py-1.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[#1dff00] font-medium">{st.name}</p>
+                    <p className="text-[10px] text-[#1dff00]/60">
+                      {(st.size/1024).toFixed(1)} KB
+                      {st.error && <span className="ml-2 text-red-400">{st.error}</span>}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00]">
+                    {st.state === 'pending' && 'Queued'}
+                    {st.state === 'uploading' && 'Uploading'}
+                    {st.state === 'done' && 'Done'}
+                    {st.state === 'error' && 'Error'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <ScrollArea
           allowOverflow
           className="h-[calc(100vh-150px)] lg:h-[calc(100vh-110px)] overflow-visible border-t border-[#1dff00]/10"

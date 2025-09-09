@@ -28,6 +28,15 @@ export function useResumes() {
   const [resumes, setResumes] = useState<ResumeRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Track per-file import statuses (ephemeral, not persisted)
+  const [importStatuses, setImportStatuses] = useState<{
+    id: string; // temporary id (file name + index)
+    name: string;
+    size: number;
+    state: 'pending' | 'uploading' | 'done' | 'error';
+    error?: string;
+  }[]>([]);
+  const MAX_IMPORT_STATUS = 50;
   const objectUrlMap = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
@@ -150,6 +159,11 @@ export function useResumes() {
   // For now we just upload the binary and create a Draft record; parsing/structuring can be added later.
   const importResume = useCallback(async (file: File) => {
     if (!userId) return null;
+    const tempId = `single:${Date.now()}:${file.name}`;
+    setImportStatuses((prev) => {
+      const next = [{ id: tempId, name: file.name, size: file.size, state: 'uploading' }, ...prev];
+      return next.slice(0, MAX_IMPORT_STATUS);
+    });
     try {
       const MAX_MB = 8;
       if (file.size > MAX_MB * 1024 * 1024) throw new Error(`File exceeds ${MAX_MB}MB limit`);
@@ -187,25 +201,91 @@ export function useResumes() {
       const rec = data as ResumeRecord;
       setResumes((prev) => [rec, ...prev]);
       success('Resume imported', `${rec.name}.${rec.file_ext ?? ''}`);
+  setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'done' } : st));
       return rec;
     } catch (e: any) {
       const msg = e.message || 'Import failed';
       setError(msg);
       toastError('Import failed', msg);
+    setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'error', error: msg } : st));
+      return null;
+    }
+  }, [supabase, userId, resumes, success, toastError]);
+
+  // Internal helper to allow passing a temp status id (defined before importMultiple to avoid temporal dead zone)
+  const importResumeWithId = useCallback(async (file: File, tempId: string) => {
+    if (!userId) return null;
+    try {
+      const MAX_MB = 8;
+      if (file.size > MAX_MB * 1024 * 1024) throw new Error(`File exceeds ${MAX_MB}MB limit`);
+      const rawExt = file.name.split('.').pop()?.toLowerCase() || '';
+      const ext = rawExt || 'bin';
+      let inferredName = file.name.replace(/\.[^.]+$/, '');
+      let template: string | null = null;
+      if (ext === 'json') {
+        try {
+          const txt = await file.text();
+          const parsed = JSON.parse(txt);
+          if (parsed?.title && typeof parsed.title === 'string') inferredName = String(parsed.title).slice(0,120);
+          if (parsed?.template && typeof parsed.template === 'string') template = String(parsed.template).slice(0,60);
+        } catch {}
+      }
+      const path = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: upErr } = await (supabase as any).storage.from('resumes').upload(path, file, { upsert: false, contentType: file.type || undefined });
+      if (upErr) throw upErr;
+      const isFirst = resumes.length === 0;
+      const insertPayload = {
+        user_id: userId,
+        name: inferredName,
+        template,
+        status: 'Draft' as ResumeStatus,
+        applications: 0,
+        thumbnail: null,
+        is_favorite: isFirst,
+        file_path: path,
+        file_ext: ext,
+        size: file.size,
+      };
+      const { data, error: insErr } = await (supabase as any).from('resumes').insert(insertPayload).select('*').single();
+      if (insErr) throw insErr;
+      const rec = data as ResumeRecord;
+      setResumes((prev) => [rec, ...prev]);
+      success('Resume imported', `${rec.name}.${rec.file_ext ?? ''}`);
+      setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'done' } : st));
+      return rec;
+    } catch (e: any) {
+      const msg = e.message || 'Import failed';
+      setError(msg);
+      toastError('Import failed', msg);
+  setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'error', error: msg } : st));
       return null;
     }
   }, [supabase, userId, resumes, success, toastError]);
 
   const importMultiple = useCallback(async (files: FileList | File[]) => {
     const list = Array.from(files);
+    const batchId = Date.now().toString(36);
+    // seed statuses
+    setImportStatuses((prev) => {
+      const seeded = list.map((f, i) => ({
+        id: `${batchId}:${i}:${f.name}`,
+        name: f.name,
+        size: f.size,
+        state: 'pending' as 'pending',
+      }));
+      const next = [...seeded, ...prev];
+      return next.slice(0, MAX_IMPORT_STATUS);
+    });
     const results: ResumeRecord[] = [];
-    for (const f of list) {
-      const rec = await importResume(f);
+    for (const [index, f] of list.entries()) {
+      const tempId = `${batchId}:${index}:${f.name}`;
+      setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'uploading' } : st));
+      const rec = await importResumeWithId(f, tempId);
       if (rec) results.push(rec);
     }
     if (results.length > 1) success('Imported resumes', `${results.length} files processed`);
     return results;
-  }, [importResume, success]);
+  }, [success, importResumeWithId]);
 
   const createEmpty = useCallback(
     async ({ name = "Untitled Resume", template = "Modern" }: { name?: string; template?: string } = {}) => {
@@ -399,6 +479,7 @@ export function useResumes() {
     resumes,
     loading,
     error,
+  importStatuses,
     refresh: list,
     upload,
   importResume,
