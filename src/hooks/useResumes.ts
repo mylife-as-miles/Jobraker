@@ -146,6 +146,67 @@ export function useResumes() {
     [supabase, userId, success, toastError]
   );
 
+  // Import an existing resume file (PDF/Doc or JSON) and register in resumes table.
+  // For now we just upload the binary and create a Draft record; parsing/structuring can be added later.
+  const importResume = useCallback(async (file: File) => {
+    if (!userId) return null;
+    try {
+      const MAX_MB = 8;
+      if (file.size > MAX_MB * 1024 * 1024) throw new Error(`File exceeds ${MAX_MB}MB limit`);
+      const rawExt = file.name.split('.').pop()?.toLowerCase() || '';
+      const ext = rawExt || 'bin';
+      // Optional: if JSON with embedded name/template metadata
+      let inferredName = file.name.replace(/\.[^.]+$/, '');
+      let template: string | null = null;
+      if (ext === 'json') {
+        try {
+          const txt = await file.text();
+            const parsed = JSON.parse(txt);
+            if (parsed?.title && typeof parsed.title === 'string') inferredName = String(parsed.title).slice(0,120);
+            if (parsed?.template && typeof parsed.template === 'string') template = String(parsed.template).slice(0,60);
+        } catch {}
+      }
+      const path = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: upErr } = await (supabase as any).storage.from('resumes').upload(path, file, { upsert: false, contentType: file.type || undefined });
+      if (upErr) throw upErr;
+      const isFirst = resumes.length === 0;
+      const insertPayload = {
+        user_id: userId,
+        name: inferredName,
+        template,
+        status: 'Draft' as ResumeStatus,
+        applications: 0,
+        thumbnail: null,
+        is_favorite: isFirst,
+        file_path: path,
+        file_ext: ext,
+        size: file.size,
+      };
+      const { data, error: insErr } = await (supabase as any).from('resumes').insert(insertPayload).select('*').single();
+      if (insErr) throw insErr;
+      const rec = data as ResumeRecord;
+      setResumes((prev) => [rec, ...prev]);
+      success('Resume imported', `${rec.name}.${rec.file_ext ?? ''}`);
+      return rec;
+    } catch (e: any) {
+      const msg = e.message || 'Import failed';
+      setError(msg);
+      toastError('Import failed', msg);
+      return null;
+    }
+  }, [supabase, userId, resumes, success, toastError]);
+
+  const importMultiple = useCallback(async (files: FileList | File[]) => {
+    const list = Array.from(files);
+    const results: ResumeRecord[] = [];
+    for (const f of list) {
+      const rec = await importResume(f);
+      if (rec) results.push(rec);
+    }
+    if (results.length > 1) success('Imported resumes', `${results.length} files processed`);
+    return results;
+  }, [importResume, success]);
+
   const createEmpty = useCallback(
     async ({ name = "Untitled Resume", template = "Modern" }: { name?: string; template?: string } = {}) => {
       if (!userId) return null;
@@ -340,6 +401,8 @@ export function useResumes() {
     error,
     refresh: list,
     upload,
+  importResume,
+  importMultiple,
     createEmpty,
     toggleFavorite,
     rename,
