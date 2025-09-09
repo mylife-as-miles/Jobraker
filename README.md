@@ -92,6 +92,19 @@ JobRaker is an enterprise-grade autonomous job application platform that revolut
 - **Background Sync**: Continuous data synchronization when offline
 - **Performance Optimized**: Lighthouse score of 95+ across all metrics
 
+## 🆕 Recent Enhancements
+
+The following improvements were recently added during active development:
+
+- **Skyvern Integration**: Edge functions `apply-to-jobs` and `get-run` enable automated job application workflow triggers plus polling of run status (screenshots, recording URL, parsed outputs).
+- **Server-Side Enrichment**: `apply-to-jobs` auto-enriches applications with user profile details and a signed resume URL when the client omits them.
+- **Run Status Polling Hook**: `useSkyvernRun` React hook for lightweight polling until a workflow run reaches a terminal state.
+- **Application UX Upgrades**: Readiness badges (Profile / Resume), disabled state + progress label for Apply button, and retry toast events.
+- **Resume Import & Multi-Upload**: Drag & drop and multi-file import (PDF / DOC / TXT / JSON) with automatic favorite assignment for the first resume and optional JSON metadata extraction.
+- **Toast Event Bridge**: Event-based toast system lets utilities surface user feedback without prop drilling.
+
+> These updates pave the way for richer automation telemetry and faster iteration on application flows.
+
 ## 🛠 Tech Stack
 
 ### Frontend
