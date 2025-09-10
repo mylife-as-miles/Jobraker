@@ -8,11 +8,23 @@ export interface ParsedPdfResult {
 
 export async function parsePdfFile(file: File): Promise<ParsedPdfResult> {
   const arrayBuffer = await file.arrayBuffer();
-  const pdfjs = await import('pdfjs-dist/build/pdf');
-  // @ts-ignore
-  const workerSrc = await import('pdfjs-dist/build/pdf.worker');
-  // @ts-ignore
-  pdfjs.GlobalWorkerOptions.workerSrc = workerSrc; // may rely on bundler asset handling
+  // pdfjs-dist v4 exports from root; dynamic import keeps bundle size small
+  const pdfjs = await import('pdfjs-dist');
+  // Some bundlers (Vite) need explicit worker entry (asset handled separately)
+  try {
+    // @ts-ignore - worker entry asset
+    const worker = await import('pdfjs-dist/build/pdf.worker.js');
+    // @ts-ignore - set worker source path/URL
+    if (pdfjs.GlobalWorkerOptions && worker) {
+      // Worker may be a module URL string or object; attempt common patterns
+      const workerSrc = (worker && (worker.default || worker)) as any;
+      if (typeof workerSrc === 'string') {
+        pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+      }
+    }
+  } catch {
+    // Fallback: rely on default worker bundling; ignore if missing
+  }
 
   const doc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
   let fullText = '';
