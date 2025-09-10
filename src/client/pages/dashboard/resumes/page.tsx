@@ -11,7 +11,7 @@ import { Upload } from 'lucide-react';
 
 export const ResumesPage = () => {
   const fileRef = useRef<HTMLInputElement | null>(null);
-  const { importMultiple, importStatuses } = useResumes();
+  const { importMultiple, importStatuses, clearImportStatuses, removeImportStatus } = useResumes();
   const [dragActive, setDragActive] = useState(false);
 
   const handlePick = () => fileRef.current?.click();
@@ -72,25 +72,38 @@ export const ResumesPage = () => {
         >
         {importStatuses.length > 0 && (
           <div className="mb-4 space-y-2">
-            <h2 className="text-sm font-medium text-[#1dff00]/80">Recent Imports</h2>
-            <ul className="max-h-40 overflow-auto thin-scrollbar pr-1 text-xs divide-y divide-[#1dff00]/10 border border-[#1dff00]/10 rounded-md bg-black/30 backdrop-blur-sm">
-              {importStatuses.slice(0,12).map(st => (
-                <li key={st.id} className="flex items-start justify-between gap-3 px-3 py-1.5">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[#1dff00] font-medium">{st.name}</p>
-                    <p className="text-[10px] text-[#1dff00]/60">
-                      {(st.size/1024).toFixed(1)} KB
-                      {st.error && <span className="ml-2 text-red-400">{st.error}</span>}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00]">
-                    {st.state === 'pending' && 'Queued'}
-                    {st.state === 'uploading' && 'Uploading'}
-                    {st.state === 'done' && 'Done'}
-                    {st.state === 'error' && 'Error'}
-                  </span>
-                </li>
-              ))}
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-medium text-[#1dff00]/80">Recent Imports</h2>
+              <button onClick={clearImportStatuses} className="text-[10px] text-[#1dff00]/60 hover:text-[#1dff00] transition">Clear</button>
+            </div>
+            <ul className="max-h-44 overflow-auto thin-scrollbar pr-1 text-[11px] divide-y divide-[#1dff00]/10 border border-[#1dff00]/10 rounded-md bg-black/40 backdrop-blur-sm">
+              {importStatuses.slice(0,14).map(st => {
+                const pct = Math.round(st.progress);
+                const barColor = st.state === 'error' ? 'bg-red-500/60' : st.state === 'done' ? 'bg-[#1dff00]' : 'bg-[#1dff00]/60';
+                return (
+                  <li key={st.id} className="px-3 py-2 space-y-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[#1dff00] font-medium leading-tight">{st.name}</p>
+                        <p className="text-[10px] text-[#1dff00]/50">{(st.size/1024).toFixed(1)} KB</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00]">
+                          {st.state === 'pending' && 'Queued'}
+                          {st.state === 'uploading' && (pct < 100 ? `${pct}%` : 'Finishing')}
+                          {st.state === 'done' && 'Done'}
+                          {st.state === 'error' && 'Error'}
+                        </span>
+                        <button onClick={() => removeImportStatus(st.id)} className="text-[#1dff00]/40 hover:text-[#1dff00] text-xs" aria-label="Remove import status">×</button>
+                      </div>
+                    </div>
+                    <div className="h-1.5 w-full rounded bg-[#1dff00]/10 overflow-hidden">
+                      <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+                    </div>
+                    {st.error && <p className="text-[10px] text-red-400">{st.error}</p>}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

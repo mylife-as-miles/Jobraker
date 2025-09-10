@@ -30,9 +30,10 @@ export function useResumes() {
   const [error, setError] = useState<string | null>(null);
   // Track per-file import statuses (ephemeral, not persisted)
   type ImportState = 'pending' | 'uploading' | 'done' | 'error';
-  interface ImportStatus { id: string; name: string; size: number; state: ImportState; error?: string }
+  interface ImportStatus { id: string; name: string; size: number; state: ImportState; error?: string; progress: number }
   const [importStatuses, setImportStatuses] = useState<ImportStatus[]>([]);
   const MAX_IMPORT_STATUS = 50;
+  const progressTimers = useRef<Map<string, number>>(new Map());
   const objectUrlMap = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
@@ -157,10 +158,17 @@ export function useResumes() {
     if (!userId) return null;
     const tempId = `single:${Date.now()}:${file.name}`;
     setImportStatuses((prev) => {
-      const uploading: ImportStatus = { id: tempId, name: file.name, size: file.size, state: 'uploading' };
+      const uploading: ImportStatus = { id: tempId, name: file.name, size: file.size, state: 'uploading', progress: 0 };
       const next: ImportStatus[] = [uploading, ...prev];
       return next.slice(0, MAX_IMPORT_STATUS);
     });
+    // Simulated progress ticker
+    const interval = window.setInterval(() => {
+      setImportStatuses((s) => s.map((st) => st.id === tempId && st.state === 'uploading'
+        ? { ...st, progress: Math.min(95, st.progress + Math.random() * 15) }
+        : st));
+    }, 350);
+    progressTimers.current.set(tempId, interval);
     try {
       const MAX_MB = 8;
       if (file.size > MAX_MB * 1024 * 1024) throw new Error(`File exceeds ${MAX_MB}MB limit`);
@@ -198,13 +206,21 @@ export function useResumes() {
       const rec = data as ResumeRecord;
       setResumes((prev) => [rec, ...prev]);
       success('Resume imported', `${rec.name}.${rec.file_ext ?? ''}`);
-  setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'done' } : st));
+      if (progressTimers.current.has(tempId)) {
+        clearInterval(progressTimers.current.get(tempId)!);
+        progressTimers.current.delete(tempId);
+      }
+      setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'done', progress: 100 } : st));
       return rec;
     } catch (e: any) {
       const msg = e.message || 'Import failed';
       setError(msg);
       toastError('Import failed', msg);
-    setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'error', error: msg } : st));
+      if (progressTimers.current.has(tempId)) {
+        clearInterval(progressTimers.current.get(tempId)!);
+        progressTimers.current.delete(tempId);
+      }
+      setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'error', error: msg, progress: st.progress || 0 } : st));
       return null;
     }
   }, [supabase, userId, resumes, success, toastError]);
@@ -269,6 +285,7 @@ export function useResumes() {
         name: f.name,
         size: f.size,
         state: 'pending',
+        progress: 0,
       }));
       const next: ImportStatus[] = [...seeded, ...prev];
       return next.slice(0, MAX_IMPORT_STATUS);
@@ -276,13 +293,41 @@ export function useResumes() {
     const results: ResumeRecord[] = [];
     for (const [index, f] of list.entries()) {
       const tempId = `${batchId}:${index}:${f.name}`;
-      setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'uploading' } : st));
+      setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'uploading', progress: 0 } : st));
+      const interval = window.setInterval(() => {
+        setImportStatuses((s) => s.map((st) => st.id === tempId && st.state === 'uploading'
+          ? { ...st, progress: Math.min(95, st.progress + Math.random() * 20) }
+          : st));
+      }, 300 + Math.random()*200);
+      progressTimers.current.set(tempId, interval);
       const rec = await importResumeWithId(f, tempId);
       if (rec) results.push(rec);
     }
     if (results.length > 1) success('Imported resumes', `${results.length} files processed`);
     return results;
   }, [success, importResumeWithId]);
+
+  const retryImport = useCallback(async (statusId: string) => {
+    const st = importStatuses.find(s => s.id === statusId);
+    if (!st) return;
+    // We can't actually re-use the original File object (wasn't stored); notify user.
+    info('Retry not available', 'Original file reference not retained');
+  }, [importStatuses, info]);
+
+  const clearImportStatuses = useCallback(() => {
+    // clear timers
+    progressTimers.current.forEach((id) => clearInterval(id));
+    progressTimers.current.clear();
+    setImportStatuses([]);
+  }, []);
+
+  const removeImportStatus = useCallback((statusId: string) => {
+    if (progressTimers.current.has(statusId)) {
+      clearInterval(progressTimers.current.get(statusId)!);
+      progressTimers.current.delete(statusId);
+    }
+    setImportStatuses((s) => s.filter((st) => st.id !== statusId));
+  }, []);
 
   const createEmpty = useCallback(
     async ({ name = "Untitled Resume", template = "Modern" }: { name?: string; template?: string } = {}) => {
@@ -477,6 +522,9 @@ export function useResumes() {
     loading,
     error,
   importStatuses,
+  retryImport,
+  clearImportStatuses,
+  removeImportStatus,
     refresh: list,
     upload,
   importResume,
