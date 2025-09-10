@@ -8,6 +8,10 @@ export interface AnalyzedResume {
   skills: string[];
   sections: { heading: string; content: string }[];
   structured: Record<string, any>;
+  entities: {
+    companies: string[];
+    titles: string[];
+  };
 }
 
 const SKILL_WORDS = [
@@ -48,5 +52,12 @@ export function analyzeResumeText(text: string): AnalyzedResume {
     projects: sections.filter(s => s.heading.toLowerCase().includes('project')),
   };
 
-  return { emails, phones, urls, skills: foundSkills, sections, structured };
+  // Naive company extraction: lines with Inc|LLC|Ltd or capitalized multi-word tokens
+  const companyRegex = /\b([A-Z][A-Za-z&]+(?:\s+[A-Z][A-Za-z&]+)*\s+(?:Inc|LLC|Ltd|Corporation|Corp|Group))\b/g;
+  const companies = Array.from(new Set((text.match(companyRegex) || []).slice(0,50)));
+  // Naive title extraction
+  const titleRegex = /\b(Senior|Lead|Principal|Staff|Junior)?\s*(Engineer|Developer|Manager|Director|Designer|Analyst|Consultant)\b/gi;
+  const titles = Array.from(new Set((text.match(titleRegex) || []).map(t => t.trim())));
+
+  return { emails, phones, urls, skills: foundSkills, sections, structured, entities: { companies, titles } };
 }

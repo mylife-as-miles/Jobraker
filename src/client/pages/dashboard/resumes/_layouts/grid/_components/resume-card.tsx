@@ -49,6 +49,12 @@ export const ResumeCard = ({ resume }: Props) => {
     open("delete", { id: "resume", item: resume });
   };
 
+  const onReparse = () => {
+    // Placeholder – actual hook consumption for reparseResume can be wired when unified data shape available
+    // e.g., reparseResume(resume)
+    console.log('Reparse requested for', resume.id);
+  };
+
   return (
     <DropdownMenu>
     <DropdownMenuTrigger className="text-left">
@@ -74,6 +80,11 @@ export const ResumeCard = ({ resume }: Props) => {
           >
             <h4 className="line-clamp-2 font-medium">{resume.title}</h4>
             <p className="line-clamp-1 text-xs opacity-75">{t`Last updated ${lastUpdated}`}</p>
+            {/* Parsed metadata badges (placeholder – backend linkage needed) */}
+            <div className="flex flex-wrap gap-1 pt-1">
+              {/* Example badges could be injected once parsed data joined */}
+              {/* <span className="rounded bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 text-[10px] font-medium">5 skills</span> */}
+            </div>
           </div>
 
           <img
@@ -89,6 +100,10 @@ export const ResumeCard = ({ resume }: Props) => {
         <DropdownMenuItem onClick={onUpdate}>
           <PencilSimple width={14} height={14} className="mr-2" />
           {t`Rename`}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onReparse}>
+          <CopySimple width={14} height={14} className="mr-2" />
+          {t`Re-parse`}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onDuplicate}>
           <CopySimple width={14} height={14} className="mr-2" />

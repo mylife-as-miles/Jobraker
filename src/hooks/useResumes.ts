@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parsePdfFile } from '@/utils/parsePdf';
 import { analyzeResumeText } from '@/utils/analyzeResume';
+import { hashEmbedding } from '@/utils/hashEmbedding';
 import { createClient } from "../lib/supabaseClient";
 import { useToast } from "../components/ui/toast";
 
@@ -236,15 +237,17 @@ export function useResumes() {
   if (ext === 'pdf') {
         (async () => {
           try {
-    const parsed = await parsePdfFile(file);
-    const analyzed = analyzeResumeText(parsed.text);
+            const parsed = await parsePdfFile(file);
+            const analyzed = analyzeResumeText(parsed.text);
+            const embedding = hashEmbedding(parsed.text);
             await (supabase as any).from('parsed_resumes').insert({
               resume_id: rec.id,
               user_id: userId,
       raw_text: parsed.text,
-      json: { lines: parsed.lines },
-      structured: analyzed.structured,
-      skills: analyzed.skills
+              json: { lines: parsed.lines, entities: analyzed.entities },
+              structured: analyzed.structured,
+              skills: analyzed.skills,
+              embedding
             });
           } catch {}
         })();
@@ -306,15 +309,17 @@ export function useResumes() {
   if (ext === 'pdf') {
         (async () => {
           try {
-    const parsed = await parsePdfFile(file);
-    const analyzed = analyzeResumeText(parsed.text);
+            const parsed = await parsePdfFile(file);
+            const analyzed = analyzeResumeText(parsed.text);
+            const embedding = hashEmbedding(parsed.text);
             await (supabase as any).from('parsed_resumes').insert({
               resume_id: rec.id,
               user_id: userId,
       raw_text: parsed.text,
-      json: { lines: parsed.lines },
-      structured: analyzed.structured,
-      skills: analyzed.skills
+              json: { lines: parsed.lines, entities: analyzed.entities },
+              structured: analyzed.structured,
+              skills: analyzed.skills,
+              embedding
             });
           } catch {}
         })();
@@ -401,6 +406,37 @@ export function useResumes() {
     }
     setImportStatuses((s) => s.filter((st) => st.id !== statusId));
   }, []);
+
+  const reparseResume = useCallback(async (resume: ResumeRecord) => {
+    if (!resume.file_path || !(resume.file_ext === 'pdf')) {
+      info('Re-parse skipped', 'Only PDF resumes supported');
+      return false;
+    }
+    try {
+      const { data, error: urlErr } = await (supabase as any).storage.from('resumes').createSignedUrl(resume.file_path, 60);
+      if (urlErr || !data?.signedUrl) throw urlErr || new Error('Signed URL failed');
+      const resp = await fetch(data.signedUrl);
+      const blob = await resp.blob();
+      const file = new File([blob], `${resume.name}.${resume.file_ext}`, { type: 'application/pdf' });
+      const parsed = await parsePdfFile(file);
+      const analyzed = analyzeResumeText(parsed.text);
+      const embedding = hashEmbedding(parsed.text);
+      await (supabase as any).from('parsed_resumes').insert({
+        resume_id: resume.id,
+        user_id: resume.user_id,
+        raw_text: parsed.text,
+        json: { lines: parsed.lines, entities: analyzed.entities },
+        structured: analyzed.structured,
+        skills: analyzed.skills,
+        embedding
+      });
+      success('Re-parsed', resume.name);
+      return true;
+    } catch (e: any) {
+      toastError('Re-parse failed', e.message || 'Unknown error');
+      return false;
+    }
+  }, [supabase, success, toastError, info]);
 
   const createEmpty = useCallback(
     async ({ name = "Untitled Resume", template = "Modern" }: { name?: string; template?: string } = {}) => {
@@ -598,6 +634,7 @@ export function useResumes() {
   retryImport,
   clearImportStatuses,
   removeImportStatus,
+  reparseResume,
     refresh: list,
     upload,
   importResume,
