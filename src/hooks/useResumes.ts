@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parsePdfFile } from '@/utils/parsePdf';
+import { analyzeResumeText } from '@/utils/analyzeResume';
 import { createClient } from "../lib/supabaseClient";
 import { useToast } from "../components/ui/toast";
 
@@ -232,15 +233,18 @@ export function useResumes() {
       }
       setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'done', progress: 100, completedAt: Date.now() } : st));
       // Fire-and-forget PDF parsing
-      if (ext === 'pdf') {
+  if (ext === 'pdf') {
         (async () => {
           try {
-            const parsed = await parsePdfFile(file);
+    const parsed = await parsePdfFile(file);
+    const analyzed = analyzeResumeText(parsed.text);
             await (supabase as any).from('parsed_resumes').insert({
               resume_id: rec.id,
               user_id: userId,
-              raw_text: parsed.text,
-              json: { lines: parsed.lines }
+      raw_text: parsed.text,
+      json: { lines: parsed.lines },
+      structured: analyzed.structured,
+      skills: analyzed.skills
             });
           } catch {}
         })();
@@ -299,15 +303,18 @@ export function useResumes() {
       setResumes((prev) => [rec, ...prev]);
       success('Resume imported', `${rec.name}.${rec.file_ext ?? ''}`);
       setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'done', completedAt: Date.now(), progress: 100 } : st));
-      if (ext === 'pdf') {
+  if (ext === 'pdf') {
         (async () => {
           try {
-            const parsed = await parsePdfFile(file);
+    const parsed = await parsePdfFile(file);
+    const analyzed = analyzeResumeText(parsed.text);
             await (supabase as any).from('parsed_resumes').insert({
               resume_id: rec.id,
               user_id: userId,
-              raw_text: parsed.text,
-              json: { lines: parsed.lines }
+      raw_text: parsed.text,
+      json: { lines: parsed.lines },
+      structured: analyzed.structured,
+      skills: analyzed.skills
             });
           } catch {}
         })();
