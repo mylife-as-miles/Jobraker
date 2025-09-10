@@ -29,13 +29,9 @@ export function useResumes() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Track per-file import statuses (ephemeral, not persisted)
-  const [importStatuses, setImportStatuses] = useState<{
-    id: string; // temporary id (file name + index)
-    name: string;
-    size: number;
-    state: 'pending' | 'uploading' | 'done' | 'error';
-    error?: string;
-  }[]>([]);
+  type ImportState = 'pending' | 'uploading' | 'done' | 'error';
+  interface ImportStatus { id: string; name: string; size: number; state: ImportState; error?: string }
+  const [importStatuses, setImportStatuses] = useState<ImportStatus[]>([]);
   const MAX_IMPORT_STATUS = 50;
   const objectUrlMap = useRef<Map<string, string>>(new Map());
 
@@ -161,7 +157,8 @@ export function useResumes() {
     if (!userId) return null;
     const tempId = `single:${Date.now()}:${file.name}`;
     setImportStatuses((prev) => {
-      const next = [{ id: tempId, name: file.name, size: file.size, state: 'uploading' }, ...prev];
+      const uploading: ImportStatus = { id: tempId, name: file.name, size: file.size, state: 'uploading' };
+      const next: ImportStatus[] = [uploading, ...prev];
       return next.slice(0, MAX_IMPORT_STATUS);
     });
     try {
@@ -267,13 +264,13 @@ export function useResumes() {
     const batchId = Date.now().toString(36);
     // seed statuses
     setImportStatuses((prev) => {
-      const seeded = list.map((f, i) => ({
+      const seeded: ImportStatus[] = list.map((f, i): ImportStatus => ({
         id: `${batchId}:${i}:${f.name}`,
         name: f.name,
         size: f.size,
-        state: 'pending' as 'pending',
+        state: 'pending',
       }));
-      const next = [...seeded, ...prev];
+      const next: ImportStatus[] = [...seeded, ...prev];
       return next.slice(0, MAX_IMPORT_STATUS);
     });
     const results: ResumeRecord[] = [];
