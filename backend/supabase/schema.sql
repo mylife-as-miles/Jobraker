@@ -440,7 +440,7 @@ CREATE TABLE IF NOT EXISTS "public"."applications" (
     "logo" text,
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT "applications_status_check" CHECK (("status" = ANY (ARRAY['Applied'::text,'Interview'::text,'Offer'::text,'Rejected'::text,'Withdrawn'::text])))
+    CONSTRAINT "applications_status_check" CHECK (("status" = ANY (ARRAY['Pending'::text,'Applied'::text,'Interview'::text,'Offer'::text,'Rejected'::text,'Withdrawn'::text])))
 );
 
 ALTER TABLE "public"."applications" OWNER TO "postgres";

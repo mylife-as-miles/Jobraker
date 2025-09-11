@@ -15,7 +15,7 @@ create table if not exists "public"."applications" (
   "created_at" timestamptz not null default now(),
   "updated_at" timestamptz not null default now(),
   constraint applications_pkey primary key ("id"),
-  constraint applications_status_check check (status in ('Applied','Interview','Offer','Rejected','Withdrawn'))
+  constraint applications_status_check check (status in ('Pending','Applied','Interview','Offer','Rejected','Withdrawn'))
 );
 
 alter table "public"."applications"

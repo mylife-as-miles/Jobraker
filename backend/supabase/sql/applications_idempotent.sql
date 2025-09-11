@@ -41,15 +41,26 @@ BEGIN
   END IF;
 END $$;
 
--- Status check (idempotent)
+-- Status check (ensure 'Pending' is allowed)
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'applications_status_check'
-  ) THEN
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'applications_status_check') THEN
+    -- Recreate constraint if it does not include 'Pending'
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_constraint c
+      WHERE c.conname = 'applications_status_check'
+        AND pg_get_constraintdef(c.oid) ILIKE '%Pending%'
+    ) THEN
+      ALTER TABLE public.applications DROP CONSTRAINT applications_status_check;
+      ALTER TABLE public.applications
+        ADD CONSTRAINT applications_status_check
+        CHECK (status IN ('Pending','Applied','Interview','Offer','Rejected','Withdrawn'));
+    END IF;
+  ELSE
     ALTER TABLE public.applications
       ADD CONSTRAINT applications_status_check
-      CHECK (status IN ('Applied','Interview','Offer','Rejected','Withdrawn'));
+      CHECK (status IN ('Pending','Applied','Interview','Offer','Rejected','Withdrawn'));
   END IF;
 END $$;
 

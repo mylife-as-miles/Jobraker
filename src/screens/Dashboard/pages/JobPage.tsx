@@ -7,6 +7,7 @@ import { Search, MapPin, Clock, MoreVertical, Filter } from "lucide-react";
 import { motion } from "framer-motion";
 import { createClient } from "../../../lib/supabaseClient";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
+import { getRun } from "../../../services/skyvern/getRun";
 import { JobListing } from "../../../../supabase/functions/_shared/types";
 import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { SafeSelect } from "../../../components/ui/safe-select";
@@ -468,8 +469,18 @@ export const JobPage = (): JSX.Element => {
       }
       try {
         const res = await applyToJobs(payload);
-        const appUrl = (res as any)?.skyvern?.app_url;
-        const { error } = await (supabase as any)
+        const runId = (res as any)?.skyvern?.id || (res as any)?.skyvern?.run_id || null;
+        const appUrl = (res as any)?.skyvern?.app_url || null;
+        const workflowId = (res as any)?.submitted?.workflow_id || (res as any)?.skyvern?.workflow_id || null;
+
+        const notes = [
+          job.sourceUrl ? `Source: ${job.sourceUrl}` : null,
+          appUrl ? `Skyvern: ${appUrl}` : null,
+          runId ? `Run: ${runId}` : null,
+          workflowId ? `Workflow: ${workflowId}` : null,
+        ].filter(Boolean).join(' | ');
+
+        const { data: inserted, error } = await (supabase as any)
           .from('applications')
           .insert({
             user_id: uid,
@@ -477,13 +488,41 @@ export const JobPage = (): JSX.Element => {
             company: job.company,
             location: job.location,
             applied_date: new Date().toISOString(),
-            status: 'Applied',
+            status: 'Pending',
             logo: job.logoUrl ?? null,
-            notes: appUrl ? `Skyvern run: ${appUrl}` : (job.sourceUrl ? `Applied via JobRaker: ${job.sourceUrl}` : null),
-          });
+            notes,
+          })
+          .select('*')
+          .single();
         if (error) throw error;
-        success('Application started', appUrl ? 'Opened a Skyvern workflow' : `${job.title} @ ${job.company}`);
+        const applicationId = (inserted as any)?.id as string | undefined;
+        success('Application started', appUrl ? 'Skyvern workflow triggered' : `${job.title} @ ${job.company}`);
         setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isApplied: true } : j)));
+
+        if (runId && applicationId) {
+          const stop = new Set(['succeeded','failed','error','cancelled','completed']);
+          let tries = 0;
+          const maxTries = 36; // ~3 minutes at 5s
+          const poll = async () => {
+            try {
+              const r = await getRun(runId);
+              const st = r?.run?.status?.toLowerCase?.() || '';
+              if (stop.has(st)) {
+                const finalStatus = st === 'succeeded' || st === 'completed' ? 'Applied' : 'Rejected';
+                const noteBits = [notes];
+                if (r?.run?.recording_url) noteBits.push(`Recording: ${r.run.recording_url}`);
+                if (r?.run?.failure_reason) noteBits.push(`Failure: ${r.run.failure_reason}`);
+                await (supabase as any)
+                  .from('applications')
+                  .update({ status: finalStatus, notes: noteBits.filter(Boolean).join(' | ') })
+                  .eq('id', applicationId);
+                return;
+              }
+            } catch {}
+            if (++tries < maxTries) setTimeout(poll, 5000);
+          };
+          setTimeout(poll, 5000);
+        }
       } catch (efErr: any) {
         const { error } = await (supabase as any)
           .from('applications')
@@ -493,7 +532,7 @@ export const JobPage = (): JSX.Element => {
             company: job.company,
             location: job.location,
             applied_date: new Date().toISOString(),
-            status: 'Applied',
+            status: 'Pending',
             logo: job.logoUrl ?? null,
             notes: job.sourceUrl ? `Apply trigger failed; saved locally. ${job.sourceUrl}` : 'Apply trigger failed; saved locally.',
           });
@@ -707,7 +746,6 @@ export const JobPage = (): JSX.Element => {
   const paginatedJobs = sortedJobs.slice(start, end);
 
   useEffect(() => {
-    // ensure selected item remains visible on page change
     if (selectedJob && !paginatedJobs.some(j => j.id === selectedJob)) {
       setSelectedJob(paginatedJobs[0]?.id ?? null);
     }

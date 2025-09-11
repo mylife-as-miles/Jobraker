@@ -105,7 +105,7 @@ function ApplicationPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2 -m-1">
-            {["All", "Pending", "Applied", "Interview", "Offer", "Rejected", "Withdrawn"] as const).map((s) => (
+            {(["All", "Pending", "Applied", "Interview", "Offer", "Rejected", "Withdrawn"] as const).map((s) => (
               <Button
                 key={s}
                 size="sm"
