@@ -639,6 +639,7 @@ export function useResumes() {
     resumes,
     loading,
     error,
+  getSignedUrl,
   importStatuses,
   retryImport,
   clearImportStatuses,

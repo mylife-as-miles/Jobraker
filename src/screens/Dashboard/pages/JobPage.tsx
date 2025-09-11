@@ -1,24 +1,9 @@
 import { Briefcase, Bookmark, Building2, DollarSign, Heart, Share, Star, Users, CheckCircle2, FileText, UploadCloud } from "lucide-react";
-import { useResumes } from "@/hooks/useResumes";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
-import { 
-  Search, 
-  MapPin, 
-  Bookmark, 
-  Clock, 
-  Briefcase, 
-  Share, 
-  Heart, 
-  MoreVertical,
-  Filter,
-  Star,
-  Building2,
-  DollarSign,
-  Users
-} from "lucide-react";
+import { Search, MapPin, Clock, MoreVertical, Filter } from "lucide-react";
 import { motion } from "framer-motion";
 import { createClient } from "../../../lib/supabaseClient";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
@@ -28,8 +13,7 @@ import { SafeSelect } from "../../../components/ui/safe-select";
 import { useToast } from "../../../components/ui/toast";
 import { ensureApplyReadiness } from "../../../utils/applyPreflight";
 import { useResumes } from "@/hooks/useResumes";
-import type { ResumeRecord } from "@/hooks/useResumes";
-import { createClient as createSbClient } from "@/lib/supabaseClient";
+// import { createClient as createSbClient } from "@/lib/supabaseClient";
 
 interface Job extends JobListing {
   id: string;
