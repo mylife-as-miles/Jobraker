@@ -3,6 +3,7 @@ import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { 
   Search, 
   Calendar, 
@@ -14,11 +15,14 @@ import {
   Eye,
   Edit,
   Trash2,
-  MoreVertical,
   Plus,
   Download,
   Share,
   Filter,
+  LayoutGrid,
+  List as ListIcon,
+  ExternalLink,
+  Link as LinkIcon,
   
 } from "lucide-react";
  
@@ -30,6 +34,8 @@ export const ApplicationPage = (): JSX.Element => {
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [selectedApplication, setSelectedApplication] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid"|"list">("grid");
+  const [sortBy, setSortBy] = useState<"score"|"recent"|"company"|"status">("score");
   const [formData, setFormData] = useState<{ id?: string; job_title: string; company: string; location: string; applied_date: string; status: ApplicationStatus; salary: string; notes: string; next_step: string; interview_date: string; logo: string }>({ job_title: "", company: "", location: "", applied_date: "", status: "Applied", salary: "", notes: "", next_step: "", interview_date: "", logo: "" });
   const { applications, loading, create, update, remove, exportCSV } = useApplications();
 
@@ -74,8 +80,20 @@ export const ApplicationPage = (): JSX.Element => {
     return matchesSearch && matchesStatus;
   });
 
-  // Sort by match score descending
-  filteredApplications.sort((a, b) => (b.match_score ?? 0) - (a.match_score ?? 0));
+  // Sorting
+  filteredApplications.sort((a, b) => {
+    switch (sortBy) {
+      case "recent":
+        return new Date(b.applied_date).getTime() - new Date(a.applied_date).getTime();
+      case "company":
+        return (a.company || "").localeCompare(b.company || "");
+      case "status":
+        return (a.status || "").localeCompare(b.status || "");
+      case "score":
+      default:
+        return (b.match_score ?? 0) - (a.match_score ?? 0);
+    }
+  });
 
   const stats = {
     total: applications.length,
@@ -148,7 +166,7 @@ export const ApplicationPage = (): JSX.Element => {
 
   {/* Chart moved to Overview Applications card */}
 
-        {/* Search and Filters */}
+        {/* Search, Filters, Layout, Sort */}
         <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 mb-6 sm:mb-8">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
@@ -161,13 +179,42 @@ export const ApplicationPage = (): JSX.Element => {
                   className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
                 />
               </div>
-              <Button 
-                variant="outline" 
-                className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300 sm:w-auto"
-              >
-                <Filter className="w-4 h-4 mr-2" />
-                Filters
-              </Button>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                  <SelectTrigger className="w-[160px] bg-[#ffffff1a] border-[#ffffff33] text-white">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-black text-white border-[#ffffff33]">
+                    <SelectItem value="score">Best match</SelectItem>
+                    <SelectItem value="recent">Most recent</SelectItem>
+                    <SelectItem value="company">Company</SelectItem>
+                    <SelectItem value="status">Status</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button 
+                  variant="outline" 
+                  className={`border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 sm:w-auto ${viewMode==='grid' ? 'bg-[#ffffff1a]' : ''}`}
+                  title="Grid view"
+                  onClick={() => setViewMode('grid')}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className={`border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 sm:w-auto ${viewMode==='list' ? 'bg-[#ffffff1a]' : ''}`}
+                  title="List view"
+                  onClick={() => setViewMode('list')}
+                >
+                  <ListIcon className="w-4 h-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300 sm:w-auto"
+                >
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filters
+                </Button>
+              </div>
             </div>
             
             <div className="flex flex-wrap gap-2">
@@ -204,19 +251,33 @@ export const ApplicationPage = (): JSX.Element => {
           </Card>
         )}
 
+        {/* Loading skeletons */}
+        {loading && (
+          <div className={`grid grid-cols-1 ${viewMode==='grid' ? 'md:grid-cols-2 xl:grid-cols-3' : ''} gap-4 mb-6`}>
+            {Array.from({ length: viewMode==='grid' ? 6 : 3 }).map((_, i) => (
+              <Card key={i} className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 animate-pulse">
+                <div className="h-4 w-24 bg-[#ffffff1a] rounded mb-3" />
+                <div className="h-8 w-3/4 bg-[#ffffff1a] rounded mb-2" />
+                <div className="h-4 w-1/2 bg-[#ffffff12] rounded" />
+              </Card>
+            ))}
+          </div>
+        )}
+
         {/* Applications List */}
-        <div className="space-y-4">
+        <div className={viewMode==='grid' ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" : "space-y-4"}>
           {filteredApplications.map((application: ApplicationRecord, index) => (
             <motion.div
               key={application.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: index * 0.1 }}
-              whileHover={{ scale: 1.01, x: 4 }}
+              whileHover={{ scale: 1.01, x: viewMode==='list' ? 4 : 0 }}
               className="transition-transform duration-300"
               onClick={() => setSelectedApplication(application.id)}
             >
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] hover:shadow-lg hover:border-[#1dff00]/50 transition-all duration-300 cursor-pointer">
+              <Card className="group relative bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] hover:shadow-lg hover:border-[#1dff00]/50 transition-all duration-300 cursor-pointer overflow-hidden">
+                <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(600px_circle_at_var(--x)_var(--y),rgba(29,255,0,0.08),transparent_40%)]" />
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
@@ -235,6 +296,10 @@ export const ApplicationPage = (): JSX.Element => {
                             <Calendar className="w-3 h-3" />
                             <span>{new Date(application.applied_date).toLocaleDateString()}</span>
                           </div>
+                          <div className="flex items-center space-x-1">
+                            <Clock className="w-3 h-3" />
+                            <span>{Math.max(0, Math.floor((Date.now() - new Date(application.applied_date).getTime())/86400000))}d ago</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -242,11 +307,22 @@ export const ApplicationPage = (): JSX.Element => {
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
                       <div className="flex items-center justify-between w-full sm:w-auto sm:flex-col sm:items-end gap-2">
                         <div className="flex items-center gap-2">
-                           <MatchScoreBadge score={application.match_score ?? 0} />
-                           <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(application.status)}`}>
-                            {getStatusIcon(application.status)}
-                            <span>{application.status}</span>
-                          </div>
+                          <MatchScoreBadge score={application.match_score ?? 0} />
+                          <Select value={application.status} onValueChange={(val) => update(application.id, { status: val as ApplicationStatus })}>
+                            <SelectTrigger className="h-7 px-2 text-xs bg-transparent border-[#ffffff33] text-white">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-black text-white border-[#ffffff33]">
+                              {(["Applied","Interview","Offer","Rejected","Withdrawn"] as ApplicationStatus[]).map(s => (
+                                <SelectItem key={s} value={s}>
+                                  <div className={`inline-flex items-center space-x-2`}>
+                                    {getStatusIcon(s)}
+                                    <span>{s}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <span className="text-[#1dff00] font-semibold text-sm sm:text-base">{application.salary ?? ""}</span>
                       </div>
@@ -268,6 +344,29 @@ export const ApplicationPage = (): JSX.Element => {
                         >
                           <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
                         </Button>
+                        {(() => {
+                          const urlMatch = (application.notes || "").match(/https?:\/\/\S+/);
+                          return urlMatch ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-[#ffffff60] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300 p-1 sm:p-2"
+                              onClick={(e) => { e.stopPropagation(); window.open(urlMatch[0], '_blank'); }}
+                              title="Open workflow"
+                            >
+                              <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                          ) : null;
+                        })()}
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-[#ffffff60] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300 p-1 sm:p-2"
+                          onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${application.job_title} at ${application.company}`); }}
+                          title="Copy summary"
+                        >
+                          <LinkIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </Button>
                         <Button 
                           variant="ghost" 
                           size="sm" 
@@ -275,14 +374,6 @@ export const ApplicationPage = (): JSX.Element => {
                           onClick={(e) => { e.stopPropagation(); remove(application.id); }}
                         >
                           <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-[#ffffff60] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300 p-1 sm:p-2"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4" />
                         </Button>
                       </div>
                     </div>
