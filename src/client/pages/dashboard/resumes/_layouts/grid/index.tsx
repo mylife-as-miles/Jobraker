@@ -1,12 +1,10 @@
-import { sortByDate } from "@/lib/reactive-resume-utils";
 import { AnimatePresence, motion } from "framer-motion";
-
-import { useResumes } from "@/client/services/resume";
+import { useResumes } from "@/hooks/useResumes";
 
 import { BaseCard } from "./_components/base-card";
 import { CreateResumeCard } from "./_components/create-card";
 import { ImportResumeCard } from "./_components/import-card";
-import { ResumeCard } from "./_components/resume-card";
+import { SbResumeCard } from "./_components/sb-resume-card";
 
 export const GridView = () => {
   const { resumes, loading } = useResumes();
@@ -36,20 +34,19 @@ export const GridView = () => {
           </div>
         ))}
 
-    {items.length > 0 && (
+      {items.length > 0 && (
         <AnimatePresence>
-  {sortByDate(items)
-            .map((resume, index) => (
-              <motion.div
-                key={resume.id}
-                layout
-                initial={{ opacity: 0, x: -50 }}
-                animate={{ opacity: 1, x: 0, transition: { delay: (index + 2) * 0.1 } }}
-                exit={{ opacity: 0, filter: "blur(8px)", transition: { duration: 0.5 } }}
-              >
-                <ResumeCard resume={resume} />
-              </motion.div>
-            ))}
+          {items.map((resume, index) => (
+            <motion.div
+              key={resume.id}
+              layout
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0, transition: { delay: (index + 2) * 0.1 } }}
+              exit={{ opacity: 0, filter: "blur(8px)", transition: { duration: 0.5 } }}
+            >
+              <SbResumeCard resume={resume} />
+            </motion.div>
+          ))}
         </AnimatePresence>
       )}
     </div>
