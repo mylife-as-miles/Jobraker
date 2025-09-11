@@ -8,25 +8,20 @@ export interface ParsedPdfResult {
 
 export async function parsePdfFile(file: File): Promise<ParsedPdfResult> {
   const arrayBuffer = await file.arrayBuffer();
-  // pdfjs-dist v4 exports from root; dynamic import keeps bundle size small
-  const pdfjs = await import('pdfjs-dist');
-  // Some bundlers (Vite) need explicit worker entry (asset handled separately)
+  // pdfjs-dist v4 ESM: import API and worker URL explicitly for Vite
+  const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist');
   try {
-    // @ts-ignore - worker entry asset
-    const worker = await import('pdfjs-dist/build/pdf.worker.js');
-    // @ts-ignore - set worker source path/URL
-    if (pdfjs.GlobalWorkerOptions && worker) {
-      // Worker may be a module URL string or object; attempt common patterns
-      const workerSrc = (worker && (worker.default || worker)) as any;
-      if (typeof workerSrc === 'string') {
-        pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
-      }
+    // Vite: import worker as URL so pdf.js can load it
+    // @ts-ignore - bundler query param
+    const workerSrc: string = (await import('pdfjs-dist/build/pdf.worker.mjs?url')).default;
+    if (GlobalWorkerOptions) {
+      (GlobalWorkerOptions as any).workerSrc = workerSrc;
     }
   } catch {
-    // Fallback: rely on default worker bundling; ignore if missing
+    // If worker URL import fails, pdf.js may still work with inline worker in dev
   }
 
-  const doc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+  const doc = await getDocument({ data: arrayBuffer }).promise;
   let fullText = '';
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
