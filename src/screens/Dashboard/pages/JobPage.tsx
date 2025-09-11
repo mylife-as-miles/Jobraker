@@ -1,3 +1,5 @@
+import { Briefcase, Bookmark, Building2, DollarSign, Heart, Share, Star, Users, CheckCircle2, FileText, UploadCloud } from "lucide-react";
+import { useResumes } from "@/hooks/useResumes";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
@@ -25,6 +27,9 @@ import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../
 import { SafeSelect } from "../../../components/ui/safe-select";
 import { useToast } from "../../../components/ui/toast";
 import { ensureApplyReadiness } from "../../../utils/applyPreflight";
+import { useResumes } from "@/hooks/useResumes";
+import type { ResumeRecord } from "@/hooks/useResumes";
+import { createClient as createSbClient } from "@/lib/supabaseClient";
 
 interface Job extends JobListing {
   id: string;
@@ -456,6 +461,7 @@ export const JobPage = (): JSX.Element => {
   }, [supabase, success, toastError, info]);
 
   const quickApply = useCallback(async (job: Job) => {
+  // NOTE: This function may receive a resume URL override via closure (state)
     if (applyingJobId) return; // prevent parallel
     setApplyingJobId(job.id);
     try {
@@ -471,7 +477,11 @@ export const JobPage = (): JSX.Element => {
         const r: any = await ensureApplyReadiness();
         if (r && typeof r === 'object' && 'profile' in r && 'resume' in r) setReadiness({ profile: !!r.profile, resume: !!r.resume });
       } catch {}
-      const payload: any = { job_urls: job.sourceUrl ? [job.sourceUrl] : [] };
+      const payload: any = { job_urls: job.sourceUrl ? [job.sourceUrl] : [] }; 
+      // If a resume has been selected and signed, include it
+      if (selectedResumeSignedUrl.current) {
+        payload.resume = selectedResumeSignedUrl.current;
+      }
       try {
         const res = await applyToJobs(payload);
         const appUrl = (res as any)?.skyvern?.app_url;
@@ -521,6 +531,56 @@ export const JobPage = (): JSX.Element => {
       setApplyingJobId(null);
     }
   }, [supabase, success, toastError, info, applyingJobId]);
+
+  // ==== Resume Picker (Modern UI) ====
+  const { resumes: resumeOptions, getSignedUrl } = useResumes();
+  const [resumePickerOpen, setResumePickerOpen] = useState(false);
+  const [jobPendingApply, setJobPendingApply] = useState<Job | null>(null);
+  const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
+  const selectedResumeSignedUrl = useRef<string | null>(null);
+
+  const openResumePicker = useCallback((job: Job) => {
+    setJobPendingApply(job);
+    // Preselect favorite or most recent
+    const pick = (resumeOptions || []).slice().sort((a, b) => {
+      const favA = (a as any).is_favorite ? 1 : 0;
+      const favB = (b as any).is_favorite ? 1 : 0;
+      if (favA !== favB) return favB - favA;
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+    })[0];
+    setSelectedResumeId(pick?.id ?? null);
+    setResumePickerOpen(true);
+  }, [resumeOptions]);
+
+  const cancelResumePicker = useCallback(() => {
+    setResumePickerOpen(false);
+    setJobPendingApply(null);
+    setSelectedResumeId(null);
+    selectedResumeSignedUrl.current = null;
+  }, []);
+
+  const confirmResumePicker = useCallback(async () => {
+    if (!jobPendingApply) return;
+    try {
+      selectedResumeSignedUrl.current = null;
+      if (selectedResumeId) {
+        const chosen = (resumeOptions || []).find(r => r.id === selectedResumeId);
+        if (chosen?.file_path) {
+          // Longer expiry to be safe for backend call
+          const url = await getSignedUrl(chosen.file_path);
+          if (url) selectedResumeSignedUrl.current = url;
+          else info?.('Using latest resume', 'Could not sign selected; falling back');
+        }
+      }
+      setResumePickerOpen(false);
+      // Trigger apply with possible override
+      await quickApply(jobPendingApply);
+    } finally {
+      // reset override to avoid leaking into other applies
+      setTimeout(() => { selectedResumeSignedUrl.current = null; }, 0);
+      setJobPendingApply(null);
+    }
+  }, [jobPendingApply, selectedResumeId, resumeOptions, getSignedUrl, quickApply, info]);
 
   const shareJob = useCallback(async (job: Job) => {
     try {
@@ -1221,7 +1281,7 @@ export const JobPage = (): JSX.Element => {
                               {job.isBookmarked ? 'Unsave' : 'Save Job'}
                             </Button>
                             <Button 
-                              onClick={() => quickApply(job)}
+                              onClick={() => openResumePicker(job)}
                               disabled={!!applyingJobId || job.isApplied}
                               className={`bg-[#1dff00] text-black hover:bg-[#1dff00]/90 transition-all duration-300 flex-1 sm:flex-none ${(applyingJobId || job.isApplied) ? 'opacity-70 cursor-not-allowed hover:scale-100' : 'hover:scale-105'}`}
                             >
@@ -1334,7 +1394,83 @@ export const JobPage = (): JSX.Element => {
             Next
           </Button>
         </div>
+        {/* Resume Picker Modal Mount */}
+        <ResumePickerModal
+          open={resumePickerOpen}
+          resumes={resumeOptions as any}
+          selectedId={selectedResumeId}
+          onSelect={(id) => setSelectedResumeId(id)}
+          onCancel={cancelResumePicker}
+          onConfirm={confirmResumePicker}
+        />
       </div>
     </div>
   );
 };
+
+// Resume Picker Modal
+function ResumePickerModal({
+  open,
+  resumes,
+  selectedId,
+  onSelect,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  resumes: Array<{ id: string; name: string; template: string | null; updated_at: string; is_favorite?: boolean }>;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative w-full max-w-3xl rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] via-[#0b0b0b] to-[#050505] shadow-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-[#1dff00]/20 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-[#1dff00]">
+            <UploadCloud className="w-4 h-4" />
+            <h3 className="font-semibold">Choose a resume to attach</h3>
+          </div>
+          <button onClick={onCancel} className="text-white/60 hover:text-white">✕</button>
+        </div>
+        <div className="p-5 max-h-[60vh] overflow-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {resumes.length === 0 && (
+            <div className="text-center text-white/70 py-8">No resumes yet. Import one from the Resumes page.</div>
+          )}
+          {resumes.map((r) => {
+            const active = selectedId === r.id;
+            const template = r.template || 'Modern';
+            return (
+              <button
+                key={r.id}
+                onClick={() => onSelect(r.id)}
+                className={`relative rounded-lg border transition group overflow-hidden text-left ${active ? 'border-[#1dff00] ring-2 ring-[#1dff00]/40' : 'border-white/10 hover:border-[#1dff00]/40'}`}
+              >
+                <img src={`/templates/jpg/${template}.jpg`} alt={template} className="w-full h-36 object-cover opacity-90" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-white font-medium truncate flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-[#1dff00]" /> {r.name}
+                      </div>
+                      <div className="text-xs text-white/70">Updated {new Date(r.updated_at).toLocaleString()}</div>
+                    </div>
+                    {active && <CheckCircle2 className="w-5 h-5 text-[#1dff00]" />}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        <div className="px-5 py-4 border-t border-white/10 flex items-center justify-end gap-3">
+          <button onClick={onCancel} className="px-3 py-2 rounded-md text-white/80 hover:text-white">Cancel</button>
+          <button onClick={onConfirm} className="px-4 py-2 rounded-md bg-[#1dff00] text-black hover:bg-[#1dff00]/90">Attach & Apply</button>
+        </div>
+      </div>
+    </div>
+  );
+}
