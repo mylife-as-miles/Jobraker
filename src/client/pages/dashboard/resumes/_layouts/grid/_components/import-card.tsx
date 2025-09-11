@@ -6,11 +6,13 @@ import { useRef } from "react";
 import { useCreateResume } from "@/client/services/resume";
 import slugify from "@sindresorhus/slugify";
 import { toast } from "@/client/hooks/use-toast";
+import { useResumes as useResumeOps } from "@/hooks/useResumes";
 
 export const ImportResumeCard = () => {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const { createResume } = useCreateResume();
+  const { importResume: importBinary } = useResumeOps();
 
   const onPick = () => inputRef.current?.click();
 
@@ -18,18 +20,22 @@ export const ImportResumeCard = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      const title = (data?.title as string) || file.name.replace(/\.[^.]+$/, "");
-      const slug = slugify(title);
-  const res = await createResume({ title, slug, visibility: "private" as const });
-      // Attach imported data if present
-      // Optional: could call an update here if needed to store full data
-  navigate(`/builder/${res.id}`, { state: { resume: res } });
-      toast({ variant: "success", title: t`Imported`, description: t`Your resume was created.` });
+      const lower = file.name.toLowerCase();
+      if (lower.endsWith(".json")) {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        const title = (data?.title as string) || file.name.replace(/\.[^.]+$/, "");
+        const slug = slugify(title);
+        const res = await createResume({ title, slug, visibility: "private" as const });
+        navigate(`/builder/${res.id}`, { state: { resume: res } });
+        toast({ variant: "success", title: t`Imported`, description: t`Your resume was created.` });
+      } else {
+        await importBinary(file);
+        toast({ variant: "success", title: t`Imported`, description: t`Your file was uploaded.` });
+      }
     } catch (error) {
       console.error("Import failed:", error);
-      toast({ variant: "error", title: t`Import failed`, description: t`Please select a valid resume JSON.` });
+      toast({ variant: "error", title: t`Import failed`, description: t`Please select a valid resume file.` });
     } finally {
       e.target.value = "";
     }
@@ -37,7 +43,7 @@ export const ImportResumeCard = () => {
 
   return (
     <BaseCard onClick={onPick} onDoubleClick={onPick} className="group">
-      <input ref={inputRef} type="file" accept=".json" hidden onChange={onFile} />
+      <input ref={inputRef} type="file" accept=".pdf,.doc,.docx,.txt,.json" hidden onChange={onFile} />
       <div className="flex flex-col items-center justify-center gap-2 text-center">
         <div className="flex size-10 items-center justify-center rounded-full bg-[#1dff00]/10 group-hover:bg-[#1dff00]/20 transition-colors">
           <DownloadSimple width={18} height={18} className="text-[#1dff00]" />
