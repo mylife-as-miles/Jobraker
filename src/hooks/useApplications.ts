@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "../lib/supabaseClient";
 import { useToast } from "../components/ui/toast";
 
-export type ApplicationStatus = "Applied" | "Interview" | "Offer" | "Rejected" | "Withdrawn";
+export type ApplicationStatus = "Pending" | "Applied" | "Interview" | "Offer" | "Rejected" | "Withdrawn";
 
 export interface ApplicationRecord {
   id: string;
@@ -131,7 +131,7 @@ export function useApplications() {
         company: input.company,
         location: input.location ?? "",
         applied_date: input.applied_date ?? new Date().toISOString(),
-        status: (input.status ?? "Applied") as ApplicationStatus,
+  status: (input.status ?? "Pending") as ApplicationStatus,
         salary: input.salary ?? null,
         notes: input.notes ?? null,
         next_step: input.next_step ?? null,
