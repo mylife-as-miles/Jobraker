@@ -23,6 +23,7 @@ import {
   List as ListIcon,
   ExternalLink,
   Link as LinkIcon,
+  Columns,
   
 } from "lucide-react";
  
@@ -34,7 +35,7 @@ export const ApplicationPage = (): JSX.Element => {
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [selectedApplication, setSelectedApplication] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [viewMode, setViewMode] = useState<"grid"|"list">("grid");
+  const [viewMode, setViewMode] = useState<"grid"|"list"|"kanban">("grid");
   const [sortBy, setSortBy] = useState<"score"|"recent"|"company"|"status">("score");
   const [formData, setFormData] = useState<{ id?: string; job_title: string; company: string; location: string; applied_date: string; status: ApplicationStatus; salary: string; notes: string; next_step: string; interview_date: string; logo: string }>({ job_title: "", company: "", location: "", applied_date: "", status: "Applied", salary: "", notes: "", next_step: "", interview_date: "", logo: "" });
   const { applications, loading, create, update, remove, exportCSV } = useApplications();
@@ -209,6 +210,14 @@ export const ApplicationPage = (): JSX.Element => {
                 </Button>
                 <Button 
                   variant="outline" 
+                  className={`border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 sm:w-auto ${viewMode==='kanban' ? 'bg-[#ffffff1a]' : ''}`}
+                  title="Kanban view"
+                  onClick={() => setViewMode('kanban')}
+                >
+                  <Columns className="w-4 h-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
                   className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300 sm:w-auto"
                 >
                   <Filter className="w-4 h-4 mr-2" />
@@ -218,7 +227,7 @@ export const ApplicationPage = (): JSX.Element => {
             </div>
             
             <div className="flex flex-wrap gap-2">
-              {["All", "Applied", "Interview", "Offer", "Rejected"].map((status) => (
+              {["All", "Applied", "Interview", "Offer", "Rejected", "Withdrawn"].map((status) => (
                 <Button
                   key={status}
                   variant="ghost"
@@ -264,8 +273,68 @@ export const ApplicationPage = (): JSX.Element => {
           </div>
         )}
 
+        {/* Kanban Board */}
+        {viewMode === 'kanban' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+            {(["Applied", "Interview", "Offer", "Rejected", "Withdrawn"] as ApplicationStatus[]).map((col) => {
+              const items = filteredApplications.filter(a => a.status === col);
+              return (
+                <Card key={col} className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] overflow-hidden">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className={`inline-flex items-center space-x-2 px-2.5 py-1.5 rounded-full text-xs font-medium border ${getStatusColor(col)}`}>
+                        {getStatusIcon(col)}
+                        <span>{col}</span>
+                      </div>
+                      <div className="text-[#ffffff80] text-xs">{items.length}</div>
+                    </div>
+                    <div
+                      onDragOver={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).classList.add('ring-1','ring-[#1dff00]/40'); }}
+                      onDragLeave={(e) => { (e.currentTarget as HTMLElement).classList.remove('ring-1','ring-[#1dff00]/40'); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        (e.currentTarget as HTMLElement).classList.remove('ring-1','ring-[#1dff00]/40');
+                        const id = e.dataTransfer?.getData('text/plain');
+                        if (id) update(id, { status: col });
+                      }}
+                      className="min-h-[200px] space-y-3 transition-all"
+                    >
+                      {items.map((application) => (
+                        <div
+                          key={application.id}
+                          draggable
+                          onDragStart={(e) => { e.dataTransfer?.setData('text/plain', application.id); }}
+                          onClick={() => setSelectedApplication(application.id)}
+                          className="group bg-black/30 border border-[#ffffff12] rounded-xl p-3 hover:border-[#1dff00]/40 hover:shadow-lg transition-all cursor-grab active:cursor-grabbing"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-sm flex-shrink-0">
+                              {application.logo || (application.company?.[0] ?? "")}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-white font-medium text-sm truncate">{application.job_title}</div>
+                              <div className="text-[#ffffff80] text-xs truncate">{application.company}</div>
+                              <div className="flex items-center gap-2 text-[10px] text-[#ffffff60] mt-1">
+                                <span>{new Date(application.applied_date).toLocaleDateString()}</span>
+                                <span>•</span>
+                                <span>{application.location}</span>
+                              </div>
+                            </div>
+                            <MatchScoreBadge score={application.match_score ?? 0} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
         {/* Applications List */}
-        <div className={viewMode==='grid' ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" : "space-y-4"}>
+        {viewMode !== 'kanban' && (
+          <div className={viewMode==='grid' ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" : "space-y-4"}>
           {filteredApplications.map((application: ApplicationRecord, index) => (
             <motion.div
               key={application.id}
@@ -385,8 +454,9 @@ export const ApplicationPage = (): JSX.Element => {
                 </CardContent>
               </Card>
             </motion.div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Application Details Modal */}
         {selectedApplication && (
