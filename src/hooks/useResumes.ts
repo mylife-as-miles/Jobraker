@@ -129,10 +129,13 @@ export function useResumes() {
         const ext = file.name.split(".").pop()?.toLowerCase() || null;
         const path = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext ?? "bin"}`;
         try {
+          // Use a stable in-memory Blob to avoid Chromium ERR_UPLOAD_FILE_CHANGED
+          const bytes = await file.arrayBuffer();
+          const blob = new Blob([bytes], { type: file.type || "application/octet-stream" });
           const { error: upErr } = await (supabase as any)
             .storage
             .from("resumes")
-            .upload(path, file, { upsert: false, contentType: file.type || undefined });
+            .upload(path, blob, { upsert: false, contentType: file.type || undefined });
           if (upErr) throw upErr;
 
           const insertPayload = {
@@ -208,7 +211,10 @@ export function useResumes() {
         } catch {}
       }
       const path = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: upErr } = await (supabase as any).storage.from('resumes').upload(path, file, { upsert: false, contentType: file.type || undefined });
+  // Use a stable in-memory Blob to avoid Chromium ERR_UPLOAD_FILE_CHANGED
+  const bytes = await file.arrayBuffer();
+  const blob = new Blob([bytes], { type: file.type || 'application/octet-stream' });
+  const { error: upErr } = await (supabase as any).storage.from('resumes').upload(path, blob, { upsert: false, contentType: file.type || undefined });
       if (upErr) throw upErr;
       const isFirst = resumes.length === 0;
       const insertPayload = {
@@ -285,7 +291,10 @@ export function useResumes() {
         } catch {}
       }
       const path = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: upErr } = await (supabase as any).storage.from('resumes').upload(path, file, { upsert: false, contentType: file.type || undefined });
+  // Use a stable in-memory Blob to avoid Chromium ERR_UPLOAD_FILE_CHANGED
+  const bytes = await file.arrayBuffer();
+  const blob = new Blob([bytes], { type: file.type || 'application/octet-stream' });
+  const { error: upErr } = await (supabase as any).storage.from('resumes').upload(path, blob, { upsert: false, contentType: file.type || undefined });
       if (upErr) throw upErr;
       const isFirst = resumes.length === 0;
       const insertPayload = {
@@ -668,7 +677,10 @@ export function useResumes() {
         if (rec.file_path) {
           await (supabase as any).storage.from("resumes").remove([rec.file_path]);
         }
-        const { error: upErr } = await (supabase as any).storage.from("resumes").upload(path, file, { upsert: false, contentType: file.type || undefined });
+  // Use a stable in-memory Blob to avoid Chromium ERR_UPLOAD_FILE_CHANGED
+  const bytes = await file.arrayBuffer();
+  const blob = new Blob([bytes], { type: file.type || 'application/octet-stream' });
+  const { error: upErr } = await (supabase as any).storage.from("resumes").upload(path, blob, { upsert: false, contentType: file.type || undefined });
         if (upErr) throw upErr;
         await (supabase as any).from("resumes").update({ file_path: path, file_ext: ext, size: file.size }).eq("id", id);
         setResumes((p) => p.map((r) => (r.id === id ? { ...r, file_path: path, file_ext: ext, size: file.size } : r)));
