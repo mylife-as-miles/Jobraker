@@ -491,6 +491,10 @@ export const JobPage = (): JSX.Element => {
             status: 'Pending',
             logo: job.logoUrl ?? null,
             notes,
+            run_id: runId,
+            workflow_id: workflowId,
+            app_url: appUrl,
+            provider_status: 'queued',
           })
           .select('*')
           .single();
@@ -514,7 +518,13 @@ export const JobPage = (): JSX.Element => {
                 if (r?.run?.failure_reason) noteBits.push(`Failure: ${r.run.failure_reason}`);
                 await (supabase as any)
                   .from('applications')
-                  .update({ status: finalStatus, notes: noteBits.filter(Boolean).join(' | ') })
+                  .update({
+                    status: finalStatus,
+                    notes: noteBits.filter(Boolean).join(' | '),
+                    provider_status: st,
+                    recording_url: r?.run?.recording_url ?? null,
+                    failure_reason: r?.run?.failure_reason ?? null,
+                  })
                   .eq('id', applicationId);
                 return;
               }

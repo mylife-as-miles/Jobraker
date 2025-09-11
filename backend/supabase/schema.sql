@@ -438,6 +438,13 @@ CREATE TABLE IF NOT EXISTS "public"."applications" (
     "next_step" text,
     "interview_date" timestamp with time zone,
     "logo" text,
+    -- Skyvern tracking fields
+    "run_id" text,
+    "workflow_id" text,
+    "app_url" text,
+    "provider_status" text,
+    "recording_url" text,
+    "failure_reason" text,
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT "applications_status_check" CHECK (("status" = ANY (ARRAY['Pending'::text,'Applied'::text,'Interview'::text,'Offer'::text,'Rejected'::text,'Withdrawn'::text])))

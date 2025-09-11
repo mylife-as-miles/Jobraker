@@ -14,6 +14,13 @@ CREATE TABLE IF NOT EXISTS public.applications (
   next_step text,
   interview_date timestamptz,
   logo text,
+  -- Skyvern tracking fields
+  run_id text,
+  workflow_id text,
+  app_url text,
+  provider_status text,
+  recording_url text,
+  failure_reason text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );

@@ -95,7 +95,8 @@ Deno.serve(async (req) => {
   let additional_information = typeof body?.additional_information === "string" ? body.additional_information : "";
   let resume = typeof body?.resume === "string" ? body.resume : "";
   const proxy_location = typeof body?.proxy_location === "string" ? body.proxy_location : undefined;
-  const webhook_url = typeof body?.webhook_url === "string" ? body.webhook_url : undefined;
+  // Allow override, else use our function URL if configured
+  let webhook_url = typeof body?.webhook_url === "string" ? body.webhook_url : undefined;
   const title = typeof body?.title === "string" ? body.title : undefined;
 
     // Secrets: prefer environment over header to avoid client override
@@ -183,8 +184,14 @@ Deno.serve(async (req) => {
       additional_information,
       resume,
     };
-    const skyvernRun: Record<string, any> = { workflow_id, parameters };
+  const skyvernRun: Record<string, any> = { workflow_id, parameters };
     if (proxy_location) skyvernRun.proxy_location = proxy_location;
+    if (!webhook_url) {
+      try {
+        const base = (Deno.env.get('SUPABASE_URL') || '').replace(/\/$/, '');
+        if (base) webhook_url = `${base}/functions/v1/skyvern-webhook`;
+      } catch {}
+    }
     if (webhook_url) skyvernRun.webhook_url = webhook_url;
     if (title) skyvernRun.title = title;
 
