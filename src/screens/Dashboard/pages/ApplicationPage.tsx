@@ -25,6 +25,1184 @@ import {
   Link as LinkIcon,
   Columns,
 } from "lucide-react";
+
+import { motion } from "framer-motion";
+import { useApplications, type ApplicationRecord, type ApplicationStatus } from "../../../hooks/useApplications";
+
+export const ApplicationPage = (): JSX.Element => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("All");
+  const [selectedApplication, setSelectedApplication] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "kanban">("grid");
+  const [sortBy, setSortBy] = useState<"score" | "recent" | "company" | "status">("score");
+  const [formData, setFormData] = useState<{
+    id?: string;
+    job_title: string;
+    company: string;
+    location: string;
+    applied_date: string;
+    status: ApplicationStatus;
+    salary: string;
+    notes: string;
+    next_step: string;
+    interview_date: string;
+    logo: string;
+  }>({ job_title: "", company: "", location: "", applied_date: "", status: "Applied", salary: "", notes: "", next_step: "", interview_date: "", logo: "" });
+
+  const { applications, loading, create, update, remove, exportCSV } = useApplications();
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Applied":
+        return "text-blue-400 bg-blue-400/20 border-blue-400/30";
+      case "Interview":
+        return "text-yellow-400 bg-yellow-400/20 border-yellow-400/30";
+      case "Offer":
+        return "text-green-400 bg-green-400/20 border-green-400/30";
+      case "Rejected":
+        return "text-red-400 bg-red-400/20 border-red-400/30";
+      case "Withdrawn":
+        return "text-gray-400 bg-gray-400/20 border-gray-400/30";
+      default:
+        return "text-gray-400 bg-gray-400/20 border-gray-400/30";
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "Applied":
+        return <Clock className="w-3 h-3 sm:w-4 sm:h-4" />;
+      case "Interview":
+        return <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />;
+      case "Offer":
+        return <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />;
+      case "Rejected":
+      case "Withdrawn":
+        return <XCircle className="w-3 h-3 sm:w-4 sm:h-4" />;
+      default:
+        return <Clock className="w-3 h-3 sm:w-4 sm:h-4" />;
+    }
+  };
+
+  const filteredApplications = applications.filter((app) => {
+    const matchesSearch =
+      app.job_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      app.company.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = selectedStatus === "All" || app.status === selectedStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  filteredApplications.sort((a, b) => {
+    switch (sortBy) {
+      case "recent":
+        return new Date(b.applied_date).getTime() - new Date(a.applied_date).getTime();
+      case "company":
+        return (a.company || "").localeCompare(b.company || "");
+      case "status":
+        return (a.status || "").localeCompare(b.status || "");
+      case "score":
+      default:
+        return (b.match_score ?? 0) - (a.match_score ?? 0);
+    }
+  });
+
+  const stats = {
+    total: applications.length,
+    applied: applications.filter((app) => app.status === "Applied").length,
+    interviews: applications.filter((app) => app.status === "Interview").length,
+    offers: applications.filter((app) => app.status === "Offer").length,
+    rejected: applications.filter((app) => app.status === "Rejected").length,
+  };
+
+  return (
+    <div className="min-h-screen bg-black">
+      <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+          <div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Application Tracker</h1>
+            <p className="text-[#ffffff80] text-sm sm:text-base">Track and manage your job applications</p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+            <Button
+              className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300 text-sm"
+              onClick={() => {
+                setFormData({ job_title: "", company: "", location: "", applied_date: new Date().toISOString().slice(0, 10), status: "Applied", salary: "", notes: "", next_step: "", interview_date: "", logo: "" });
+                setShowForm(true);
+              }}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Application
+            </Button>
+            <Button
+              variant="outline"
+              className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300 text-sm"
+              onClick={() => exportCSV()}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
+          {[
+            { label: "Total", value: stats.total, color: "text-white", bgColor: "from-[#ffffff08] to-[#ffffff05]" },
+            { label: "Applied", value: stats.applied, color: "text-blue-400", bgColor: "from-blue-400/10 to-blue-400/5" },
+            { label: "Interviews", value: stats.interviews, color: "text-yellow-400", bgColor: "from-yellow-400/10 to-yellow-400/5" },
+            { label: "Offers", value: stats.offers, color: "text-green-400", bgColor: "from-green-400/10 to-green-400/5" },
+            { label: "Rejected", value: stats.rejected, color: "text-red-400", bgColor: "from-red-400/10 to-red-400/5" },
+          ].map((stat, index) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: index * 0.1 }}
+              whileHover={{ scale: 1.05 }}
+              className="transition-transform duration-300"
+            >
+              <Card className={`bg-gradient-to-br ${stat.bgColor} border border-[#ffffff15] backdrop-blur-[25px] p-3 sm:p-4 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300`}>
+                <div className="text-center">
+                  <div className={`text-xl sm:text-2xl lg:text-3xl font-bold mb-1 ${stat.color}`}>{stat.value}</div>
+                  <div className="text-xs sm:text-sm text-[#ffffff80]">{stat.label}</div>
+                </div>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Search, Filters, Layout, Sort */}
+        <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
+                <Input
+                  placeholder="Search applications..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+                />
+              </div>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                  <SelectTrigger className="w-[160px] bg-[#ffffff1a] border-[#ffffff33] text-white">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-black text-white border-[#ffffff33]">
+                    <SelectItem value="score">Best match</SelectItem>
+                    <SelectItem value="recent">Most recent</SelectItem>
+                    <SelectItem value="company">Company</SelectItem>
+                    <SelectItem value="status">Status</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  className={`border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 sm:w-auto ${viewMode === "grid" ? "bg-[#ffffff1a]" : ""}`}
+                  title="Grid view"
+                  onClick={() => setViewMode("grid")}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className={`border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 sm:w-auto ${viewMode === "list" ? "bg-[#ffffff1a]" : ""}`}
+                  title="List view"
+                  onClick={() => setViewMode("list")}
+                >
+                  <ListIcon className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className={`border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 sm:w-auto ${viewMode === "kanban" ? "bg-[#ffffff1a]" : ""}`}
+                  title="Kanban view"
+                  onClick={() => setViewMode("kanban")}
+                >
+                  <Columns className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300 sm:w-auto"
+                >
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filters
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 -m-1">
+              {["All", "Applied", "Interview", "Offer", "Rejected", "Withdrawn"].map((status) => (
+                <Button
+                  key={status}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedStatus(status)}
+                  className={`m-1 text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${
+                    selectedStatus === status
+                      ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+                      : "text-white hover:text-white hover:bg-[#ffffff1a]"
+                  }`}
+                >
+                  {status}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        {/* Kanban Board */}
+        {viewMode === "kanban" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-start min-h-[60vh]">
+            {(["Applied", "Interview", "Offer", "Rejected", "Withdrawn"] as ApplicationStatus[]).map((col) => {
+              const items = filteredApplications.filter((a) => a.status === col);
+              return (
+                <Card key={col} className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] overflow-hidden h-[70vh] flex flex-col">
+                  <CardContent className="p-0 flex-1 flex flex-col">
+                    <div className="sticky top-0 z-10 bg-black/40 backdrop-blur px-3 sm:px-4 py-3 border-b border-[#ffffff15] flex items-center justify-between">
+                      <div className={`inline-flex items-center space-x-2 px-2.5 py-1.5 rounded-full text-xs font-medium border ${getStatusColor(col)}`}>
+                        {getStatusIcon(col)}
+                        <span>{col}</span>
+                      </div>
+                      <div className="text-[#ffffff80] text-xs">{items.length}</div>
+                    </div>
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        (e.currentTarget as HTMLElement).classList.add("ring-1", "ring-[#1dff00]/40");
+                      }}
+                      onDragLeave={(e) => {
+                        (e.currentTarget as HTMLElement).classList.remove("ring-1", "ring-[#1dff00]/40");
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        (e.currentTarget as HTMLElement).classList.remove("ring-1", "ring-[#1dff00]/40");
+                        const id = e.dataTransfer?.getData("text/plain");
+                        if (id) update(id, { status: col });
+                      }}
+                      className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 transition-all min-h-[200px]"
+                    >
+                      {items.map((application) => (
+                        <div
+                          key={application.id}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer?.setData("text/plain", application.id);
+                          }}
+                          onClick={() => setSelectedApplication(application.id)}
+                          className="group bg-black/30 border border-[#ffffff12] rounded-xl p-3 hover:border-[#1dff00]/40 hover:shadow-lg transition-all cursor-grab active:cursor-grabbing"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-sm flex-shrink-0">
+                              {application.logo || application.company?.[0] || ""}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-white font-medium text-sm truncate">{application.job_title}</div>
+                              <div className="text-[#ffffff80] text-xs truncate">{application.company}</div>
+                              <div className="flex items-center gap-2 text-[10px] text-[#ffffff60] mt-1">
+                                <span>{new Date(application.applied_date).toLocaleDateString()}</span>
+                                <span>•</span>
+                                <span>{application.location}</span>
+                              </div>
+                            </div>
+                            <MatchScoreBadge score={application.match_score ?? 0} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Applications List */}
+        {viewMode !== "kanban" && (
+          <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" : "space-y-4"}>
+            {filteredApplications.map((application: ApplicationRecord, index) => (
+              <motion.div
+                key={application.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: index * 0.1 }}
+                whileHover={{ scale: 1.01, x: viewMode === "list" ? 4 : 0 }}
+                className="transition-transform duration-300"
+                onClick={() => setSelectedApplication(application.id)}
+              >
+                <Card className="group relative bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] hover:shadow-lg hover:border-[#1dff00]/50 transition-all duration-300 cursor-pointer overflow-hidden">
+                  <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(600px_circle_at_var(--x)_var(--y),rgba(29,255,0,0.08),transparent_40%)]" />
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg flex-shrink-0">
+                          {application.logo || application.company?.[0] || ""}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-white font-semibold text-sm sm:text-base lg:text-lg truncate">{application.job_title}</h3>
+                          <p className="text-[#ffffff80] text-xs sm:text-sm">{application.company}</p>
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 text-xs text-[#ffffff60]">
+                            <div className="flex items-center space-x-1">
+                              <MapPin className="w-3 h-3" />
+                              <span>{application.location}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <Calendar className="w-3 h-3" />
+                              <span>{new Date(application.applied_date).toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <Clock className="w-3 h-3" />
+                              <span>{Math.max(0, Math.floor((Date.now() - new Date(application.applied_date).getTime()) / 86400000))}d ago</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                        <div className="flex items-center justify-between w-full sm:w-auto sm:flex-col sm:items-end gap-2">
+                          <div className="flex items-center gap-2">
+                            <MatchScoreBadge score={application.match_score ?? 0} />
+                            <Select value={application.status} onValueChange={(val) => update(application.id, { status: val as ApplicationStatus })}>
+                              <SelectTrigger className="h-7 px-2 text-xs bg-transparent border-[#ffffff33] text-white">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-black text-white border-[#ffffff33]">
+                                {(["Applied", "Interview", "Offer", "Rejected", "Withdrawn"] as ApplicationStatus[]).map((s) => (
+                                  <SelectItem key={s} value={s}>
+                                    <div className={`inline-flex items-center space-x-2`}>
+                                      {getStatusIcon(s)}
+                                      <span>{s}</span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <span className="text-[#1dff00] font-semibold text-sm sm:text-base">{application.salary ?? ""}</span>
+                        </div>
+
+                        <div className="flex items-center space-x-1 sm:space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-[#ffffff60] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300 p-1 sm:p-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedApplication(application.id);
+                            }}
+                          >
+                            <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-[#ffffff60] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300 p-1 sm:p-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFormData({
+                                id: application.id,
+                                job_title: application.job_title,
+                                company: application.company,
+                                location: application.location,
+                                applied_date: application.applied_date.slice(0, 10),
+                                status: application.status as ApplicationStatus,
+                                salary: application.salary ?? "",
+                                notes: application.notes ?? "",
+                                next_step: application.next_step ?? "",
+                                interview_date: application.interview_date ? application.interview_date.slice(0, 10) : "",
+                                logo: application.logo ?? "",
+                              });
+                              setShowForm(true);
+                            }}
+                          >
+                            <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </Button>
+                          {(() => {
+                            const urlMatch = (application.notes || "").match(/https?:\/\/\S+/);
+                            return urlMatch ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-[#ffffff60] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300 p-1 sm:p-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(urlMatch[0], "_blank");
+                                }}
+                                title="Open workflow"
+                              >
+                                <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4" />
+                              </Button>
+                            ) : null;
+                          })()}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-[#ffffff60] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300 p-1 sm:p-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(`${application.job_title} at ${application.company}`);
+                            }}
+                            title="Copy summary"
+                          >
+                            <LinkIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-[#ffffff60] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300 p-1 sm:p-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              remove(application.id);
+                            }}
+                          >
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-[#ffffff1a]">
+                      <p className="text-[#ffffff80] text-xs sm:text-sm leading-relaxed truncate">{application.next_step ?? ""}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {/* Application Details Modal */}
+        {selectedApplication && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setSelectedApplication(null)}
+          >
+            <Card
+              className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <CardContent className="p-6">
+                {(() => {
+                  const app = applications.find((a) => a.id === selectedApplication);
+                  if (!app) return null;
+
+                  return (
+                    <div className="space-y-6">
+                      {/* Header */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-4 flex-1 min-w-0">
+                          <div className="w-16 h-16 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-xl flex-shrink-0">
+                            {app.logo || app.company?.[0] || ""}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h2 className="text-xl font-bold text-white">{app.job_title}</h2>
+                            <p className="text-[#ffffff80]">{app.company}</p>
+                            <p className="text-[#ffffff60] text-sm">{app.location}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedApplication(null)}
+                          className="text-[#ffffff60] hover:text:white hover:scale-110 transition-all duration-300 flex-shrink-0"
+                        >
+                          <XCircle className="w-5 h-5" />
+                        </Button>
+                      </div>
+
+                      {/* Status and Details */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[#ffffff80] text-sm">Status</label>
+                          <div className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium mt-1 border ${getStatusColor(app.status)}`}>
+                            {getStatusIcon(app.status)}
+                            <span>{app.status}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[#ffffff80] text-sm">Applied Date</label>
+                          <p className="text-white mt-1">{new Date(app.applied_date).toLocaleDateString()}</p>
+                        </div>
+                        <div>
+                          <label className="text-[#ffffff80] text-sm">Salary Range</label>
+                          <p className="text-[#1dff00] font-medium mt-1">{app.salary ?? ""}</p>
+                        </div>
+                        <div>
+                          <label className="text-[#ffffff80] text-sm">Next Step</label>
+                          <p className="text-white mt-1">{app.next_step ?? ""}</p>
+                        </div>
+                      </div>
+
+                      {/* Notes */}
+                      <div>
+                        <label className="text-[#ffffff80] text-sm">Notes</label>
+                        <p className="text-white mt-1 leading-relaxed">{app.notes ?? ""}</p>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-4 border-t border-[#ffffff1a]">
+                        <Button
+                          className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                          onClick={() => {
+                            setFormData({
+                              id: app.id,
+                              job_title: app.job_title,
+                              company: app.company,
+                              location: app.location,
+                              applied_date: app.applied_date.slice(0, 10),
+                              status: app.status as ApplicationStatus,
+                              salary: app.salary ?? "",
+                              notes: app.notes ?? "",
+                              next_step: app.next_step ?? "",
+                              interview_date: app.interview_date ? app.interview_date.slice(0, 10) : "",
+                              logo: app.logo ?? "",
+                            });
+                            setShowForm(true);
+                            setSelectedApplication(null);
+                          }}
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit Application
+                        </Button>
+                        <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300">
+                          <Share className="w-4 h-4 mr-2" />
+                          Share
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-500 hover:scale-105 transition-all duration-300"
+                          onClick={() => {
+                            remove(app.id);
+                            setSelectedApplication(null);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Add/Edit Modal */}
+        {showForm && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.97 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowForm(false)}
+          >
+            <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] w-full max-w-xl" onClick={(e) => e.stopPropagation()}>
+              <CardContent className="p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input placeholder="Job title" value={formData.job_title} onChange={(e) => setFormData((p) => ({ ...p, job_title: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Company" value={formData.company} onChange={(e) => setFormData((p) => ({ ...p, company: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Location" value={formData.location} onChange={(e) => setFormData((p) => ({ ...p, location: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input type="date" placeholder="Applied date" value={formData.applied_date} onChange={(e) => setFormData((p) => ({ ...p, applied_date: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text:white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Status (Applied/Interview/Offer/Rejected/Withdrawn)" value={formData.status} onChange={(e) => setFormData((p) => ({ ...p, status: e.target.value as ApplicationStatus }))} className="bg-[#ffffff1a] border-[#ffffff33] text:white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Salary" value={formData.salary} onChange={(e) => setFormData((p) => ({ ...p, salary: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text:white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Next step" value={formData.next_step} onChange={(e) => setFormData((p) => ({ ...p, next_step: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text:white placeholder:text-[#ffffff60]" />
+                  <Input type="date" placeholder="Interview date" value={formData.interview_date} onChange={(e) => setFormData((p) => ({ ...p, interview_date: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text:white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Logo letter (optional)" value={formData.logo} onChange={(e) => setFormData((p) => ({ ...p, logo: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text:white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Notes" value={formData.notes} onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))} className="sm:col-span-2 bg-[#ffffff1a] border-[#ffffff33] text:white placeholder:text-[#ffffff60]" />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" className="border-[#ffffff33] text:white hover:bg-[#ffffff1a]" onClick={() => setShowForm(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+                    onClick={async () => {
+                      if (formData.id) {
+                        await update(formData.id, {
+                          job_title: formData.job_title,
+                          company: formData.company,
+                          location: formData.location,
+                          applied_date: new Date(formData.applied_date).toISOString(),
+                          status: formData.status,
+                          salary: formData.salary || null,
+                          notes: formData.notes || null,
+                          next_step: formData.next_step || null,
+                          interview_date: formData.interview_date ? new Date(formData.interview_date).toISOString() : null,
+                          logo: formData.logo || null,
+                        });
+                      } else {
+                        await create({
+                          job_title: formData.job_title,
+                          company: formData.company,
+                          location: formData.location,
+                          applied_date: new Date(formData.applied_date).toISOString(),
+                          status: formData.status,
+                          salary: formData.salary || undefined,
+                          notes: formData.notes || undefined,
+                          next_step: formData.next_step || undefined,
+                          interview_date: formData.interview_date ? new Date(formData.interview_date).toISOString() : undefined,
+                          logo: formData.logo || undefined,
+                        });
+                      }
+                      setShowForm(false);
+                    }}
+                  >
+                    {formData.id ? "Save" : "Add"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+};
+import { useState } from "react";
+import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
+import { Button } from "../../../components/ui/button";
+import { Card, CardContent } from "../../../components/ui/card";
+import { Input } from "../../../components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+import {
+  Search,
+  Calendar,
+  MapPin,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Eye,
+  Edit,
+  Trash2,
+  Plus,
+  Download,
+  Share,
+  Filter,
+  LayoutGrid,
+  List as ListIcon,
+  ExternalLink,
+  Link as LinkIcon,
+  Columns,
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { useApplications, type ApplicationRecord, type ApplicationStatus } from "../../../hooks/useApplications";
+
+export const ApplicationPage = (): JSX.Element => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("All");
+  const [selectedApplication, setSelectedApplication] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "kanban">("grid");
+  const [sortBy, setSortBy] = useState<"score" | "recent" | "company" | "status">("score");
+  const [formData, setFormData] = useState<{
+    id?: string;
+    job_title: string;
+    company: string;
+    location: string;
+    applied_date: string;
+    status: ApplicationStatus;
+    salary: string;
+    notes: string;
+    next_step: string;
+    interview_date: string;
+    logo: string;
+  }>({ job_title: "", company: "", location: "", applied_date: "", status: "Applied", salary: "", notes: "", next_step: "", interview_date: "", logo: "" });
+  const { applications, loading, create, update, remove, exportCSV } = useApplications();
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Applied":
+        return "text-blue-400 bg-blue-400/20 border-blue-400/30";
+      case "Interview":
+        return "text-yellow-400 bg-yellow-400/20 border-yellow-400/30";
+      case "Offer":
+        return "text-green-400 bg-green-400/20 border-green-400/30";
+      case "Rejected":
+        return "text-red-400 bg-red-400/20 border-red-400/30";
+      case "Withdrawn":
+        return "text-gray-400 bg-gray-400/20 border-gray-400/30";
+      default:
+        return "text-gray-400 bg-gray-400/20 border-gray-400/30";
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "Applied":
+        return <Clock className="w-3 h-3 sm:w-4 sm:h-4" />;
+      case "Interview":
+        return <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />;
+      case "Offer":
+        return <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />;
+      case "Rejected":
+        return <XCircle className="w-3 h-3 sm:w-4 sm:h-4" />;
+      case "Withdrawn":
+        return <XCircle className="w-3 h-3 sm:w-4 sm:h-4" />;
+      default:
+        return <Clock className="w-3 h-3 sm:w-4 sm:h-4" />;
+    }
+  };
+
+  const filteredApplications = applications.filter((app) => {
+    const matchesSearch = app.job_title.toLowerCase().includes(searchQuery.toLowerCase()) || app.company.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = selectedStatus === "All" || app.status === selectedStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  filteredApplications.sort((a, b) => {
+    switch (sortBy) {
+      case "recent":
+        return new Date(b.applied_date).getTime() - new Date(a.applied_date).getTime();
+      case "company":
+        return (a.company || "").localeCompare(b.company || "");
+      case "status":
+        return (a.status || "").localeCompare(b.status || "");
+      case "score":
+      default:
+        return (b.match_score ?? 0) - (a.match_score ?? 0);
+    }
+  });
+
+  const stats = {
+    total: applications.length,
+    applied: applications.filter((app) => app.status === "Applied").length,
+    interviews: applications.filter((app) => app.status === "Interview").length,
+    offers: applications.filter((app) => app.status === "Offer").length,
+    rejected: applications.filter((app) => app.status === "Rejected").length,
+  };
+
+  return (
+    <div className="min-h-screen bg-black">
+      <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+          <div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Application Tracker</h1>
+            <p className="text-[#ffffff80] text-sm sm:text-base">Track and manage your job applications</p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+            <Button
+              className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300 text-sm"
+              onClick={() => {
+                setFormData({ job_title: "", company: "", location: "", applied_date: new Date().toISOString().slice(0, 10), status: "Applied", salary: "", notes: "", next_step: "", interview_date: "", logo: "" });
+                setShowForm(true);
+              }}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Application
+            </Button>
+            <Button
+              variant="outline"
+              className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300 text-sm"
+              onClick={() => exportCSV()}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
+          {[
+            { label: "Total", value: stats.total, color: "text-white", bgColor: "from-[#ffffff08] to-[#ffffff05]" },
+            { label: "Applied", value: stats.applied, color: "text-blue-400", bgColor: "from-blue-400/10 to-blue-400/5" },
+            { label: "Interviews", value: stats.interviews, color: "text-yellow-400", bgColor: "from-yellow-400/10 to-yellow-400/5" },
+            { label: "Offers", value: stats.offers, color: "text-green-400", bgColor: "from-green-400/10 to-green-400/5" },
+            { label: "Rejected", value: stats.rejected, color: "text-red-400", bgColor: "from-red-400/10 to-red-400/5" },
+          ].map((stat, index) => (
+            <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: index * 0.1 }} whileHover={{ scale: 1.05 }} className="transition-transform duration-300">
+              <Card className={`bg-gradient-to-br ${stat.bgColor} border border-[#ffffff15] backdrop-blur-[25px] p-3 sm:p-4 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300`}>
+                <div className="text-center">
+                  <div className={`text-xl sm:text-2xl lg:text-3xl font-bold mb-1 ${stat.color}`}>{stat.value}</div>
+                  <div className="text-xs sm:text-sm text-[#ffffff80]">{stat.label}</div>
+                </div>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Search, Filters, Layout, Sort */}
+        <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
+                <Input
+                  placeholder="Search applications..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+                />
+              </div>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                  <SelectTrigger className="w-[160px] bg-[#ffffff1a] border-[#ffffff33] text-white">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-black text-white border-[#ffffff33]">
+                    <SelectItem value="score">Best match</SelectItem>
+                    <SelectItem value="recent">Most recent</SelectItem>
+                    <SelectItem value="company">Company</SelectItem>
+                    <SelectItem value="status">Status</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" className={`border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 sm:w-auto ${viewMode === "grid" ? "bg-[#ffffff1a]" : ""}`} title="Grid view" onClick={() => setViewMode("grid")}>
+                  <LayoutGrid className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" className={`border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 sm:w-auto ${viewMode === "list" ? "bg-[#ffffff1a]" : ""}`} title="List view" onClick={() => setViewMode("list")}>
+                  <ListIcon className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" className={`border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 sm:w-auto ${viewMode === "kanban" ? "bg-[#ffffff1a]" : ""}`} title="Kanban view" onClick={() => setViewMode("kanban")}>
+                  <Columns className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300 sm:w-auto">
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filters
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 -m-1">
+              {["All", "Applied", "Interview", "Offer", "Rejected", "Withdrawn"].map((status) => (
+                <Button key={status} variant="ghost" size="sm" onClick={() => setSelectedStatus(status)} className={`m-1 text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${selectedStatus === status ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90" : "text-white hover:text-white hover:bg-[#ffffff1a]"}`}>
+                  {status}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        {/* Kanban Board */}
+        {viewMode === "kanban" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-start min-h-[60vh]">
+            {(["Applied", "Interview", "Offer", "Rejected", "Withdrawn"] as ApplicationStatus[]).map((col) => {
+              const items = filteredApplications.filter((a) => a.status === col);
+              return (
+                <Card key={col} className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] overflow-hidden h-[70vh] flex flex-col">
+                  <CardContent className="p-0 flex-1 flex flex-col">
+                    <div className="sticky top-0 z-10 bg-black/40 backdrop-blur px-3 sm:px-4 py-3 border-b border-[#ffffff15] flex items-center justify-between">
+                      <div className={`inline-flex items-center space-x-2 px-2.5 py-1.5 rounded-full text-xs font-medium border ${getStatusColor(col)}`}>
+                        {getStatusIcon(col)}
+                        <span>{col}</span>
+                      </div>
+                      <div className="text-[#ffffff80] text-xs">{items.length}</div>
+                    </div>
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        (e.currentTarget as HTMLElement).classList.add("ring-1", "ring-[#1dff00]/40");
+                      }}
+                      onDragLeave={(e) => {
+                        (e.currentTarget as HTMLElement).classList.remove("ring-1", "ring-[#1dff00]/40");
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        (e.currentTarget as HTMLElement).classList.remove("ring-1", "ring-[#1dff00]/40");
+                        const id = e.dataTransfer?.getData("text/plain");
+                        if (id) update(id, { status: col });
+                      }}
+                      className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 transition-all min-h-[200px]"
+                    >
+                      {items.map((application) => (
+                        <div
+                          key={application.id}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer?.setData("text/plain", application.id);
+                          }}
+                          onClick={() => setSelectedApplication(application.id)}
+                          className="group bg-black/30 border border-[#ffffff12] rounded-xl p-3 hover:border-[#1dff00]/40 hover:shadow-lg transition-all cursor-grab active:cursor-grabbing"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-sm flex-shrink-0">
+                              {application.logo || application.company?.[0] || ""}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-white font-medium text-sm truncate">{application.job_title}</div>
+                              <div className="text-[#ffffff80] text-xs truncate">{application.company}</div>
+                              <div className="flex items-center gap-2 text-[10px] text-[#ffffff60] mt-1">
+                                <span>{new Date(application.applied_date).toLocaleDateString()}</span>
+                                <span>•</span>
+                                <span>{application.location}</span>
+                              </div>
+                            </div>
+                            <MatchScoreBadge score={application.match_score ?? 0} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Applications List */}
+        {viewMode !== "kanban" && (
+          <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" : "space-y-4"}>
+            {filteredApplications.map((application: ApplicationRecord, index) => (
+              <motion.div key={application.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: index * 0.1 }} whileHover={{ scale: 1.01, x: viewMode === "list" ? 4 : 0 }} className="transition-transform duration-300" onClick={() => setSelectedApplication(application.id)}>
+                <Card className="group relative bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] hover:shadow-lg hover:border-[#1dff00]/50 transition-all duration-300 cursor-pointer overflow-hidden">
+                  <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(600px_circle_at_var(--x)_var(--y),rgba(29,255,0,0.08),transparent_40%)]" />
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg flex-shrink-0">
+                          {application.logo || application.company?.[0] || ""}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-white font-semibold text-sm sm:text-base lg:text-lg truncate">{application.job_title}</h3>
+                          <p className="text-[#ffffff80] text-xs sm:text-sm">{application.company}</p>
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 text-xs text-[#ffffff60]">
+                            <div className="flex items-center space-x-1">
+                              <MapPin className="w-3 h-3" />
+                              <span>{application.location}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <Calendar className="w-3 h-3" />
+                              <span>{new Date(application.applied_date).toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <Clock className="w-3 h-3" />
+                              <span>{Math.max(0, Math.floor((Date.now() - new Date(application.applied_date).getTime()) / 86400000))}d ago</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                        <div className="flex items-center justify-between w-full sm:w-auto sm:flex-col sm:items-end gap-2">
+                          <div className="flex items-center gap-2">
+                            <MatchScoreBadge score={application.match_score ?? 0} />
+                            <Select value={application.status} onValueChange={(val) => update(application.id, { status: val as ApplicationStatus })}>
+                              <SelectTrigger className="h-7 px-2 text-xs bg-transparent border-[#ffffff33] text-white">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-black text-white border-[#ffffff33]">
+                                {(["Applied", "Interview", "Offer", "Rejected", "Withdrawn"] as ApplicationStatus[]).map((s) => (
+                                  <SelectItem key={s} value={s}>
+                                    <div className={`inline-flex items-center space-x-2`}>
+                                      {getStatusIcon(s)}
+                                      <span>{s}</span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <span className="text-[#1dff00] font-semibold text-sm sm:text-base">{application.salary ?? ""}</span>
+                        </div>
+
+                        <div className="flex items-center space-x-1 sm:space-x-2">
+                          <Button variant="ghost" size="sm" className="text-[#ffffff60] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300 p-1 sm:p-2" onClick={(e) => { e.stopPropagation(); setSelectedApplication(application.id); }}>
+                            <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-[#ffffff60] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300 p-1 sm:p-2" onClick={(e) => { e.stopPropagation(); setFormData({ id: application.id, job_title: application.job_title, company: application.company, location: application.location, applied_date: application.applied_date.slice(0, 10), status: application.status as ApplicationStatus, salary: application.salary ?? "", notes: application.notes ?? "", next_step: application.next_step ?? "", interview_date: application.interview_date ? application.interview_date.slice(0, 10) : "", logo: application.logo ?? "" }); setShowForm(true); }}>
+                            <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </Button>
+                          {(() => {
+                            const urlMatch = (application.notes || "").match(/https?:\/\/\S+/);
+                            return urlMatch ? (
+                              <Button variant="ghost" size="sm" className="text-[#ffffff60] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300 p-1 sm:p-2" onClick={(e) => { e.stopPropagation(); window.open(urlMatch[0], "_blank"); }} title="Open workflow">
+                                <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4" />
+                              </Button>
+                            ) : null;
+                          })()}
+                          <Button variant="ghost" size="sm" className="text-[#ffffff60] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300 p-1 sm:p-2" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${application.job_title} at ${application.company}`); }} title="Copy summary">
+                            <LinkIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-[#ffffff60] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300 p-1 sm:p-2" onClick={(e) => { e.stopPropagation(); remove(application.id); }}>
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-[#ffffff1a]">
+                      <p className="text-[#ffffff80] text-xs sm:text-sm leading-relaxed truncate">{application.next_step ?? ""}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {/* Application Details Modal */}
+        {selectedApplication && (
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setSelectedApplication(null)}>
+            <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <CardContent className="p-6">
+                {(() => {
+                  const app = applications.find((a) => a.id === selectedApplication);
+                  if (!app) return null;
+
+                  return (
+                    <div className="space-y-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-4 flex-1 min-w-0">
+                          <div className="w-16 h-16 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-xl flex-shrink-0">
+                            {app.logo || app.company?.[0] || ""}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h2 className="text-xl font-bold text-white">{app.job_title}</h2>
+                            <p className="text-[#ffffff80]">{app.company}</p>
+                            <p className="text-[#ffffff60] text-sm">{app.location}</p>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedApplication(null)} className="text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300 flex-shrink-0">
+                          <XCircle className="w-5 h-5" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[#ffffff80] text-sm">Status</label>
+                          <div className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium mt-1 border ${getStatusColor(app.status)}`}>
+                            {getStatusIcon(app.status)}
+                            <span>{app.status}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[#ffffff80] text-sm">Applied Date</label>
+                          <p className="text-white mt-1">{new Date(app.applied_date).toLocaleDateString()}</p>
+                        </div>
+                        <div>
+                          <label className="text-[#ffffff80] text-sm">Salary Range</label>
+                          <p className="text-[#1dff00] font-medium mt-1">{app.salary ?? ""}</p>
+                        </div>
+                        <div>
+                          <label className="text-[#ffffff80] text-sm">Next Step</label>
+                          <p className="text-white mt-1">{app.next_step ?? ""}</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[#ffffff80] text-sm">Notes</label>
+                        <p className="text-white mt-1 leading-relaxed">{app.notes ?? ""}</p>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-4 border-t border-[#ffffff1a]">
+                        <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300" onClick={() => { setFormData({ id: app.id, job_title: app.job_title, company: app.company, location: app.location, applied_date: app.applied_date.slice(0, 10), status: app.status as ApplicationStatus, salary: app.salary ?? "", notes: app.notes ?? "", next_step: app.next_step ?? "", interview_date: app.interview_date ? app.interview_date.slice(0, 10) : "", logo: app.logo ?? "" }); setShowForm(true); setSelectedApplication(null); }}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit Application
+                        </Button>
+                        <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300">
+                          <Share className="w-4 h-4 mr-2" />
+                          Share
+                        </Button>
+                        <Button variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-500 hover:scale-105 transition-all duration-300" onClick={() => { remove(app.id); setSelectedApplication(null); }}>
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Add/Edit Modal */}
+        {showForm && (
+          <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
+            <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] w-full max-w-xl" onClick={(e) => e.stopPropagation()}>
+              <CardContent className="p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input placeholder="Job title" value={formData.job_title} onChange={(e) => setFormData((p) => ({ ...p, job_title: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Company" value={formData.company} onChange={(e) => setFormData((p) => ({ ...p, company: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Location" value={formData.location} onChange={(e) => setFormData((p) => ({ ...p, location: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input type="date" placeholder="Applied date" value={formData.applied_date} onChange={(e) => setFormData((p) => ({ ...p, applied_date: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Status (Applied/Interview/Offer/Rejected/Withdrawn)" value={formData.status} onChange={(e) => setFormData((p) => ({ ...p, status: e.target.value as ApplicationStatus }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Salary" value={formData.salary} onChange={(e) => setFormData((p) => ({ ...p, salary: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Next step" value={formData.next_step} onChange={(e) => setFormData((p) => ({ ...p, next_step: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input type="date" placeholder="Interview date" value={formData.interview_date} onChange={(e) => setFormData((p) => ({ ...p, interview_date: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Logo letter (optional)" value={formData.logo} onChange={(e) => setFormData((p) => ({ ...p, logo: e.target.value }))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                  <Input placeholder="Notes" value={formData.notes} onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))} className="sm:col-span-2 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60]" />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={() => setShowForm(false)}>
+                    Cancel
+                  </Button>
+                  <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={async () => {
+                    if (formData.id) {
+                      await update(formData.id, {
+                        job_title: formData.job_title,
+                        company: formData.company,
+                        location: formData.location,
+                        applied_date: new Date(formData.applied_date).toISOString(),
+                        status: formData.status,
+                        salary: formData.salary || null,
+                        notes: formData.notes || null,
+                        next_step: formData.next_step || null,
+                        interview_date: formData.interview_date ? new Date(formData.interview_date).toISOString() : null,
+                        logo: formData.logo || null,
+                      });
+                    } else {
+                      await create({
+                        job_title: formData.job_title,
+                        company: formData.company,
+                        location: formData.location,
+                        applied_date: new Date(formData.applied_date).toISOString(),
+                        status: formData.status,
+                        salary: formData.salary || undefined,
+                        notes: formData.notes || undefined,
+                        next_step: formData.next_step || undefined,
+                        interview_date: formData.interview_date ? new Date(formData.interview_date).toISOString() : undefined,
+                        logo: formData.logo || undefined,
+                      });
+                    }
+                    setShowForm(false);
+                  }}>
+                    {formData.id ? "Save" : "Add"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+};
+import { useState } from "react";
+import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
+import { Button } from "../../../components/ui/button";
+import { Card, CardContent } from "../../../components/ui/card";
+import { Input } from "../../../components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+import {
+  Search,
+  Calendar,
+  MapPin,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Eye,
+  Edit,
+  Trash2,
+  Plus,
+  Download,
+  Share,
+  Filter,
+  LayoutGrid,
+  List as ListIcon,
+  ExternalLink,
+  Link as LinkIcon,
+  Columns,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { useApplications, type ApplicationRecord, type ApplicationStatus } from "../../../hooks/useApplications";
 
