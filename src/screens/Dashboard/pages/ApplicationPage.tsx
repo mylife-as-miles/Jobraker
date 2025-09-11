@@ -8,64 +8,7 @@ import {
   Search, 
   Calendar, 
   MapPin,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Eye,
-  Edit,
-  Trash2,
-  Plus,
-  Download,
-  Share,
-  Filter,
-  LayoutGrid,
-  List as ListIcon,
-  ExternalLink,
-  Link as LinkIcon,
-  Columns,
-  
-} from "lucide-react";
- 
-import { motion } from "framer-motion";
-import { useApplications, type ApplicationRecord, type ApplicationStatus } from "../../../hooks/useApplications";
-
-export const ApplicationPage = (): JSX.Element => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("All");
-  const [selectedApplication, setSelectedApplication] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [viewMode, setViewMode] = useState<"grid"|"list"|"kanban">("grid");
-  const [sortBy, setSortBy] = useState<"score"|"recent"|"company"|"status">("score");
-  const [formData, setFormData] = useState<{ id?: string; job_title: string; company: string; location: string; applied_date: string; status: ApplicationStatus; salary: string; notes: string; next_step: string; interview_date: string; logo: string }>({ job_title: "", company: "", location: "", applied_date: "", status: "Applied", salary: "", notes: "", next_step: "", interview_date: "", logo: "" });
-  const { applications, loading, create, update, remove, exportCSV } = useApplications();
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Applied":
-        return "text-blue-400 bg-blue-400/20 border-blue-400/30";
-      case "Interview":
-        return "text-yellow-400 bg-yellow-400/20 border-yellow-400/30";
-      case "Offer":
-        return "text-green-400 bg-green-400/20 border-green-400/30";
-      case "Rejected":
-        return "text-red-400 bg-red-400/20 border-red-400/30";
-      case "Withdrawn":
-        return "text-gray-400 bg-gray-400/20 border-gray-400/30";
-      default:
-        return "text-gray-400 bg-gray-400/20 border-gray-400/30";
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "Applied":
-        return <Clock className="w-3 h-3 sm:w-4 sm:h-4" />;
-      case "Interview":
-        return <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />;
-      case "Offer":
-        return <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />;
-      case "Rejected":
+  {/* Kanban Board: improved layout version above retained; old duplicate removed */}
         return <XCircle className="w-3 h-3 sm:w-4 sm:h-4" />;
       case "Withdrawn":
         return <XCircle className="w-3 h-3 sm:w-4 sm:h-4" />;
@@ -169,14 +112,14 @@ export const ApplicationPage = (): JSX.Element => {
 
         {/* Search, Filters, Layout, Sort */}
         <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 mb-6 sm:mb-8">
-          <div className="flex flex-col gap-4">
+    <div className="flex flex-wrap gap-2 -m-1">
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
                 <Input
                   placeholder="Search applications..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+      onClick={() => setSelectedStatus(status)}
+      className={`m-1 text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${
                   className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
                 />
               </div>
@@ -211,59 +154,59 @@ export const ApplicationPage = (): JSX.Element => {
                 <Button 
                   variant="outline" 
                   className={`border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 sm:w-auto ${viewMode==='kanban' ? 'bg-[#ffffff1a]' : ''}`}
-                  title="Kanban view"
-                  onClick={() => setViewMode('kanban')}
+                  {viewMode === 'kanban' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-start min-h-[60vh]">
                 >
                   <Columns className="w-4 h-4" />
                 </Button>
-                <Button 
-                  variant="outline" 
-                  className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300 sm:w-auto"
-                >
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filters
-                </Button>
-              </div>
-            </div>
-            
-            <div className="flex flex-wrap gap-2">
-              {["All", "Applied", "Interview", "Offer", "Rejected", "Withdrawn"].map((status) => (
-                <Button
-                  key={status}
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedStatus(status)}
-                  className={`text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${
-                    selectedStatus === status
-                      ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-                      : "text-white hover:text-white hover:bg-[#ffffff1a]"
-                  }`}
-                >
-                  {status}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </Card>
-
-        {/* Empty State */}
-        {filteredApplications.length === 0 && !loading && (
-          <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-8 text-center">
-            <div className="flex flex-col items-center gap-3">
-              <Plus className="w-6 h-6 text-[#1dff00]" />
-              <h3 className="text-white text-lg font-semibold">No applications yet</h3>
-              <p className="text-[#ffffff80] text-sm">Start tracking your job hunt by adding your first application.</p>
-              <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => setShowForm(true)}>
-                <Plus className="w-4 h-4 mr-2" /> Add Application
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {/* Loading skeletons */}
-        {loading && (
-          <div className={`grid grid-cols-1 ${viewMode==='grid' ? 'md:grid-cols-2 xl:grid-cols-3' : ''} gap-4 mb-6`}>
-            {Array.from({ length: viewMode==='grid' ? 6 : 3 }).map((_, i) => (
+                          <Card key={col} className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] overflow-hidden h-[70vh] flex flex-col">
+                            <CardContent className="p-0 flex-1 flex flex-col">
+                              <div className="sticky top-0 z-10 bg-black/40 backdrop-blur px-3 sm:px-4 py-3 border-b border-[#ffffff15] flex items-center justify-between">
+                                <div className={`inline-flex items-center space-x-2 px-2.5 py-1.5 rounded-full text-xs font-medium border ${getStatusColor(col)}`}>
+                                  {getStatusIcon(col)}
+                                  <span>{col}</span>
+                                </div>
+                                <div className="text-[#ffffff80] text-xs">{items.length}</div>
+                              </div>
+                              <div
+                                onDragOver={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).classList.add('ring-1','ring-[#1dff00]/40'); }}
+                                onDragLeave={(e) => { (e.currentTarget as HTMLElement).classList.remove('ring-1','ring-[#1dff00]/40'); }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  (e.currentTarget as HTMLElement).classList.remove('ring-1','ring-[#1dff00]/40');
+                                  const id = e.dataTransfer?.getData('text/plain');
+                                  if (id) update(id, { status: col });
+                                }}
+                                className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 transition-all min-h-[200px]"
+                              >
+                                {items.map((application) => (
+                                  <div
+                                    key={application.id}
+                                    draggable
+                                    onDragStart={(e) => { e.dataTransfer?.setData('text/plain', application.id); }}
+                                    onClick={() => setSelectedApplication(application.id)}
+                                    className="group bg-black/30 border border-[#ffffff12] rounded-xl p-3 hover:border-[#1dff00]/40 hover:shadow-lg transition-all cursor-grab active:cursor-grabbing"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-sm flex-shrink-0">
+                                        {application.logo || (application.company?.[0] ?? "")}
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <div className="text-white font-medium text-sm truncate">{application.job_title}</div>
+                                        <div className="text-[#ffffff80] text-xs truncate">{application.company}</div>
+                                        <div className="flex items-center gap-2 text-[10px] text-[#ffffff60] mt-1">
+                                          <span>{new Date(application.applied_date).toLocaleDateString()}</span>
+                                          <span>•</span>
+                                          <span>{application.location}</span>
+                                        </div>
+                                      </div>
+                                      <MatchScoreBadge score={application.match_score ?? 0} />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
               <Card key={i} className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 animate-pulse">
                 <div className="h-4 w-24 bg-[#ffffff1a] rounded mb-3" />
                 <div className="h-8 w-3/4 bg-[#ffffff1a] rounded mb-2" />
@@ -458,20 +401,20 @@ export const ApplicationPage = (): JSX.Element => {
           </div>
         )}
 
-        {/* Application Details Modal */}
-        {selectedApplication && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setSelectedApplication(null)}
-          >
-            <Card
-              className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <CardContent className="p-6">
+        {/* Search, Filters, Layout, Sort */}
+        <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
+                <Input
+                  placeholder="Search applications..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+                />
+              </div>
+              <div className="flex items-center gap-2 sm:gap-3">
                 {(() => {
                   const app = applications.find(a => a.id === selectedApplication);
                   if (!app) return null;
@@ -516,25 +459,24 @@ export const ApplicationPage = (): JSX.Element => {
                         <div>
                           <label className="text-[#ffffff80] text-sm">Salary Range</label>
                           <p className="text-[#1dff00] font-medium mt-1">{app.salary ?? ""}</p>
-                        </div>
-                        <div>
-                          <label className="text-[#ffffff80] text-sm">Next Step</label>
-                          <p className="text-white mt-1">{app.next_step ?? ""}</p>
-                        </div>
-                      </div>
-                      
-                      {/* Notes */}
-                      <div>
-                        <label className="text-[#ffffff80] text-sm">Notes</label>
-                        <p className="text-white mt-1 leading-relaxed">{app.notes ?? ""}</p>
-                      </div>
-                      
-                      {/* Actions */}
-                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-4 border-t border-[#ffffff1a]">
-                        <Button 
-                          className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
-                          onClick={() => { setFormData({ id: app.id, job_title: app.job_title, company: app.company, location: app.location, applied_date: app.applied_date.slice(0,10), status: app.status as ApplicationStatus, salary: app.salary ?? "", notes: app.notes ?? "", next_step: app.next_step ?? "", interview_date: app.interview_date ? app.interview_date.slice(0,10) : "", logo: app.logo ?? "" }); setShowForm(true); setSelectedApplication(null); }}
-                        >
+            <div className="flex flex-wrap gap-2 -m-1">
+              {["All", "Applied", "Interview", "Offer", "Rejected", "Withdrawn"].map((status) => (
+                <Button
+                  key={status}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedStatus(status)}
+                  className={`m-1 text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${
+                    selectedStatus === status
+                      ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+                      : "text-white hover:text-white hover:bg-[#ffffff1a]"
+                  }`}
+                >
+                  {status}
+                </Button>
+              ))}
+            </div>
+          </div>
                           <Edit className="w-4 h-4 mr-2" />
                           Edit Application
                         </Button>
