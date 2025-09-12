@@ -12,7 +12,7 @@ import { Filter, LayoutGrid, List as ListIcon, Plus, Search, Columns } from "luc
 import { KanbanProvider, KanbanBoard, KanbanHeader, KanbanCards, KanbanCard } from "../../../components/ui/kibo-ui/kanban";
 
 function ApplicationPage() {
-  const { applications, exportCSV } = useApplications();
+  const { applications, exportCSV, update } = useApplications();
   const { info } = useToast();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -166,18 +166,29 @@ function ApplicationPage() {
                 { id: 'Withdrawn', name: 'Withdrawn', color: '#94A3B8' },
               ]}
               data={applications.map((a) => ({ ...a, id: a.id, column: a.status }))}
+              onItemMove={(id, toColumn) => {
+                const rec = applications.find((a) => a.id === id);
+                if (!rec) return;
+                if (rec.status === toColumn) return;
+                update(id, { status: toColumn as ApplicationStatus });
+              }}
             >
               {(column) => (
                 <KanbanBoard id={column.id} key={column.id}>
                   <KanbanHeader>
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full" style={{ backgroundColor: column.color }} />
-                      <span>{column.name}</span>
+                      <span>
+                        {column.name}
+                        <span className="ml-2 text-xs text-[#ffffff80]">
+                          {applications.filter((a) => a.status === (column.id as ApplicationStatus)).length}
+                        </span>
+                      </span>
                     </div>
                   </KanbanHeader>
                   <KanbanCards id={column.id}>
                     {(a: any) => (
-                      <KanbanCard key={a.id}>
+                      <KanbanCard key={a.id} id={a.id}>
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-xs flex-shrink-0">
                             {a.logo || (a.company?.[0] ?? "")}
