@@ -90,10 +90,10 @@ export function KanbanCard({ id, children }: { id?: string; name?: string; colum
       layout
       className="rounded-lg border border-[#ffffff15] bg-[#0b0b0b]/70 p-3 hover:border-[#1dff00]/40 transition-colors cursor-grab active:cursor-grabbing"
       draggable
-      onDragStart={(e) => {
+      onDragStartCapture={(e) => {
         if (!id) return;
         e.dataTransfer?.setData('text/plain', id);
-        e.dataTransfer!.effectAllowed = 'move';
+        if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
       }}
       whileHover={{ scale: 1.01 }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
