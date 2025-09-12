@@ -8,7 +8,8 @@ import { Input } from "../../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { useToast } from "../../../components/ui/toast-provider";
 
-import { Filter, LayoutGrid, List as ListIcon, Plus, Search } from "lucide-react";
+import { Filter, LayoutGrid, List as ListIcon, Plus, Search, Columns } from "lucide-react";
+import { KanbanProvider, KanbanBoard, KanbanHeader, KanbanCards, KanbanCard } from "../../../components/ui/kibo-ui/kanban";
 
 function ApplicationPage() {
   const { applications, exportCSV } = useApplications();
@@ -17,7 +18,7 @@ function ApplicationPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<"All" | ApplicationStatus>("All");
   const [sortBy, setSortBy] = useState<"score" | "recent" | "company" | "status">("score");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "kanban">("grid");
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -98,7 +99,14 @@ function ApplicationPage() {
               >
                 <ListIcon className="w-4 h-4" />
               </Button>
-              {/* Kanban view removed */}
+              <Button
+                variant="outline"
+                className={`border-[#ffffff33] text-white hover:bg-[#ffffff1a] ${viewMode==='kanban' ? 'bg-[#ffffff1a]' : ''}`}
+                title="Kanban view"
+                onClick={() => setViewMode('kanban')}
+              >
+                <Columns className="w-4 h-4" />
+              </Button>
               <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]">
                 <Filter className="w-4 h-4 mr-2" /> Filters
               </Button>
@@ -123,6 +131,7 @@ function ApplicationPage() {
       {/* Content */}
       <Card className="bg-transparent border-none shadow-none">
         <CardContent className="p-0">
+          {viewMode !== 'kanban' ? (
           <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4" : "space-y-3"}>
             {filtered.map((a) => (
               <div key={a.id} className={viewMode === 'grid' ?
@@ -146,6 +155,51 @@ function ApplicationPage() {
               </div>
             ))}
           </div>
+          ) : (
+            <KanbanProvider
+              columns={[
+                { id: 'Pending', name: 'Pending', color: '#6B7280' },
+                { id: 'Applied', name: 'Applied', color: '#1dff00' },
+                { id: 'Interview', name: 'Interview', color: '#F59E0B' },
+                { id: 'Offer', name: 'Offer', color: '#10B981' },
+                { id: 'Rejected', name: 'Rejected', color: '#EF4444' },
+                { id: 'Withdrawn', name: 'Withdrawn', color: '#94A3B8' },
+              ]}
+              data={applications.map((a) => ({ ...a, id: a.id, column: a.status }))}
+            >
+              {(column) => (
+                <KanbanBoard id={column.id} key={column.id}>
+                  <KanbanHeader>
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full" style={{ backgroundColor: column.color }} />
+                      <span>{column.name}</span>
+                    </div>
+                  </KanbanHeader>
+                  <KanbanCards id={column.id}>
+                    {(a: any) => (
+                      <KanbanCard key={a.id}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-xs flex-shrink-0">
+                            {a.logo || (a.company?.[0] ?? "")}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-white text-sm font-medium truncate">{a.job_title}</div>
+                            <div className="text-[#ffffff80] text-xs truncate">{a.company}</div>
+                          </div>
+                          <MatchScoreBadge score={a.match_score ?? 0} />
+                        </div>
+                        <div className="mt-2 flex items-center gap-2 text-[11px] text-[#ffffff60]">
+                          <span>{new Date(a.applied_date).toLocaleDateString()}</span>
+                          <span>•</span>
+                          <span>{a.location}</span>
+                        </div>
+                      </KanbanCard>
+                    )}
+                  </KanbanCards>
+                </KanbanBoard>
+              )}
+            </KanbanProvider>
+          )}
         </CardContent>
       </Card>
     </div>
