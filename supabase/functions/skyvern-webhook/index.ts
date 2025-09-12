@@ -4,14 +4,13 @@
 // Optionally include job source URL or application id in metadata for linking.
 
 import { corsHeaders } from "../_shared/types.ts";
-import { serve } from "jsr:@supabase/functions-js";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 function ok(json: any, status = 200) {
   return new Response(JSON.stringify(json), { status, headers: { ...corsHeaders, 'content-type': 'application/json' } });
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return ok({});
   if (req.method !== 'POST') return ok({ error: 'Method not allowed' }, 405);
 
@@ -56,4 +55,4 @@ serve(async (req) => {
   } catch (e) {
     return ok({ error: e?.message || 'unknown error' }, 500);
   }
-}, { verifyJWT: false });
+});
