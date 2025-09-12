@@ -188,8 +188,17 @@ Deno.serve(async (req) => {
     if (proxy_location) skyvernRun.proxy_location = proxy_location;
     if (!webhook_url) {
       try {
-        const base = (Deno.env.get('SUPABASE_URL') || '').replace(/\/$/, '');
-        if (base) webhook_url = `${base}/functions/v1/skyvern-webhook`;
+        const url = new URL(req.url);
+        let fallback = '';
+        if (url.hostname.endsWith('.functions.supabase.co')) {
+          // Called via the Functions domain; webhook is sibling function
+          fallback = `${url.origin}/skyvern-webhook`;
+        } else {
+          // Called via platform API domain; use SUPABASE_URL if provided
+          const base = (Deno.env.get('SUPABASE_URL') || '').replace(/\/$/, '');
+          if (base) fallback = `${base}/functions/v1/skyvern-webhook`;
+        }
+        if (fallback) webhook_url = fallback;
       } catch {}
     }
     if (webhook_url) skyvernRun.webhook_url = webhook_url;

@@ -4,13 +4,14 @@
 // Optionally include job source URL or application id in metadata for linking.
 
 import { corsHeaders } from "../_shared/types.ts";
+import { serve } from "jsr:@supabase/functions-js";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 function ok(json: any, status = 200) {
   return new Response(JSON.stringify(json), { status, headers: { ...corsHeaders, 'content-type': 'application/json' } });
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') return ok({});
   if (req.method !== 'POST') return ok({ error: 'Method not allowed' }, 405);
 
@@ -25,7 +26,11 @@ Deno.serve(async (req) => {
 
     if (!run_id) return ok({ error: 'run_id missing' }, 400);
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    let supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    if (!supabaseUrl) {
+      const ref = req.headers.get('sb-project-ref') || '';
+      if (ref) supabaseUrl = `https://${ref}.supabase.co`;
+    }
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY') || '';
     if (!supabaseUrl || !serviceKey) return ok({ error: 'server misconfigured' }, 500);
 
@@ -51,4 +56,4 @@ Deno.serve(async (req) => {
   } catch (e) {
     return ok({ error: e?.message || 'unknown error' }, 500);
   }
-});
+}, { verifyJWT: false });
