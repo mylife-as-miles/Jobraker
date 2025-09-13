@@ -131,6 +131,23 @@ function ApplicationPage() {
       {/* Content */}
       <Card className="bg-transparent border-none shadow-none">
         <CardContent className="p-0">
+          {applications.length === 0 && !searchQuery && selectedStatus === 'All' && (
+            <div className="border border-[#ffffff12] bg-black/30 rounded-xl p-8 text-center text-[#ffffffb3]">
+              <div className="mx-auto w-12 h-12 rounded-full bg-[#1dff00]/15 grid place-items-center mb-4">
+                <Columns className="w-6 h-6 text-[#1dff00]" />
+              </div>
+              <h3 className="text-white text-lg font-medium mb-1">No applications yet</h3>
+              <p className="text-sm text-[#ffffff80] mb-4">Start by applying to a job or importing an existing application.</p>
+              <div className="flex items-center justify-center gap-2">
+                <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => info("Coming soon") }>
+                  <Plus className="w-4 h-4 mr-2" /> Add Application
+                </Button>
+                <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={() => info("Import from resume coming soon") }>
+                  Import from Resume
+                </Button>
+              </div>
+            </div>
+          )}
           {viewMode !== 'kanban' ? (
           <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4" : "space-y-3"}>
             {filtered.map((a) => (
