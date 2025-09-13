@@ -1,6 +1,12 @@
 // Simple passthrough for t template literal
-export const t = (strings: TemplateStringsArray, ...expr: unknown[]) =>
-  strings.reduce((acc, s, i) => acc + s + (i < expr.length ? String(expr[i]) : ""), "");
+type TObj = { message: string; context?: string };
+export function t(stringsOrObj: TemplateStringsArray | TObj, ...expr: unknown[]) {
+  if (Array.isArray(stringsOrObj)) {
+    return stringsOrObj.reduce((acc, s, i) => acc + s + (i < expr.length ? String(expr[i]) : ""), "");
+  }
+  const obj = stringsOrObj as TObj;
+  return obj.message;
+}
 
 // msg tag behaves like identity for template literals
 export const msg = (strings: TemplateStringsArray, ...expr: unknown[]) =>

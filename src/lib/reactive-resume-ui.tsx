@@ -111,6 +111,12 @@ export const SelectItem: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ chi
 export const SelectTrigger: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
 export const SelectValue: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ children }) => <span>{children}</span>;
 
+export const AspectRatio: React.FC<{ ratio?: number } & React.HTMLAttributes<HTMLDivElement>> = ({ ratio = 1, children, style, ...props }) => (
+  <div style={{ position: "relative", width: "100%", paddingTop: `${100 / ratio}%`, ...(style as any) }} {...props}>
+    <div style={{ position: "absolute", inset: 0 }}>{children}</div>
+  </div>
+);
+
 export const Tabs: React.FC<
   React.HTMLAttributes<HTMLDivElement> & { value?: string; defaultValue?: string; onValueChange?: (v: string) => void }
 > = ({ children, value, defaultValue, onValueChange, ...rest }) => (
@@ -123,6 +129,7 @@ export const TabsContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ ch
 
 export const TooltipProvider: React.FC<React.PropsWithChildren> = ({ children }) => <>{children}</>;
 export const Tooltip: React.FC<{ content?: React.ReactNode } & React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <>{children}</>;
+export const Portal: React.FC<React.PropsWithChildren> = ({ children }) => <>{children}</>;
 export const Sheet: React.FC<React.HTMLAttributes<HTMLDivElement> & { open?: boolean; onOpenChange?: (o: boolean) => void }> = ({ children, ...props }) => <div {...props}>{children}</div>;
 export const SheetContent: React.FC<React.HTMLAttributes<HTMLDivElement> & { side?: string; showClose?: boolean; onOpenAutoFocus?: (e: any) => void }> = ({ children, ...props }) => <div {...props}>{children}</div>;
 export const SheetTrigger: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, ...props }) => <button {...props}>{children}</button>;

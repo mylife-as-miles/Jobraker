@@ -1,5 +1,5 @@
 import { t } from "@lingui/macro";
-import { Plus, PlusCircle } from "@phosphor-icons/react";
+import { Plus } from "@phosphor-icons/react";
 import type {
   Award,
   Certification,
@@ -144,7 +144,7 @@ export const LeftSidebar = () => {
             id="custom"
             variant="outline"
             name={t`Add a new section`}
-            icon={<Plus size={14} />}
+            icon={<Plus width={14} height={14} />}
             onClick={() => {
               addSection();
               // eslint-disable-next-line lingui/no-unlocalized-strings
@@ -244,7 +244,7 @@ export const LeftSidebar = () => {
           />
 
           {/* Custom Sections */}
-          {Object.values(customSections).map((section) => (
+          {Object.values(customSections as Record<string, CustomSection>).map((section) => (
             <Fragment key={section.id}>
               <Separator />
 
@@ -259,7 +259,7 @@ export const LeftSidebar = () => {
           <Separator />
 
           <Button size="lg" variant="outline" onClick={addSection}>
-            <PlusCircle />
+            <Plus width={16} height={16} />
             <span className="ml-2">{t`Add a new section`}</span>
           </Button>
         </div>

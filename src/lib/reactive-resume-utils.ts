@@ -120,6 +120,23 @@ export const removeItemInLayout = (sectionId: string, layout: any[][][]) => {
   }
 };
 
+// Types + helpers used by layout section (stubs for build)
+export type SortablePayload = { index?: number; containerId?: string };
+export type LayoutLocator = { page: number; column: number; section: number };
+
+export const parseLayoutLocator = (_payload: SortablePayload | null): LayoutLocator => {
+  return { page: 0, column: 0, section: 0 };
+};
+
+export const moveItemInLayout = (
+  _current: LayoutLocator,
+  _target: LayoutLocator,
+  layout: any[][][],
+) => {
+  // return the input layout unchanged in the stub
+  return layout;
+};
+
 // Minimal error message enum used by translate-error
 export enum ErrorMessage {
   InvalidCredentials = "InvalidCredentials",
