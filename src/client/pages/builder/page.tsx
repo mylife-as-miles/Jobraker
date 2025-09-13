@@ -1,5 +1,5 @@
 import type { ResumeDto } from "@reactive-resume/dto";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import type { LoaderFunction } from "react-router-dom";
 import { redirect } from "react-router-dom";
@@ -7,21 +7,15 @@ import { redirect } from "react-router-dom";
 import { queryClient } from "@/client/libs/query-client";
 import { findResumeById } from "@/client/services/resume";
 import { useResumeStore } from "@/client/stores/resume";
-import { useArtboardStore } from "../../../store/artboard";
-import { ArtboardPage } from "../../../pages/artboard";
-import { BuilderLayout as ArtboardBuilder } from "../../../pages/builder";
+import { pageSizeMap } from "@reactive-resume/utils";
 import { Loader2 } from "lucide-react";
 
 export const BuilderPage = () => {
+  const frameRef = useRef<HTMLIFrameElement>(null);
   const resume = useResumeStore((state) => state.resume);
   const title = useResumeStore((state) => state.resume?.title || "Builder");
   const data = useResumeStore((state) => state.resume?.data);
-  const setArtboardResume = useArtboardStore((state) => state.setResume);
-
-  // Sync resume data directly into the artboard store (no iframe)
-  useEffect(() => {
-    if (data) setArtboardResume(data);
-  }, [data, setArtboardResume]);
+  const format = useResumeStore((state) => state.resume?.data?.metadata?.page?.format as keyof typeof pageSizeMap);
 
   // Minimal guard to avoid blank page before store is hydrated
   if (!resume || !resume.id) {
@@ -53,20 +47,34 @@ export const BuilderPage = () => {
     );
   }
 
-  return (
-    <>
-      <Helmet>
-        <title>
-          {title} - JobRaker
-        </title>
-      </Helmet>
+  // Post the resume into the iframe when loaded or when data changes
+  useEffect(() => {
+    if (!frameRef.current?.contentWindow || !data) return;
+    const message = { type: "SET_RESUME", payload: data };
+    const send = () => frameRef.current?.contentWindow?.postMessage(message, "*");
+    // Try a couple of times in case artboard isn't initialized yet
+    send();
+    const id = setTimeout(send, 100);
+    return () => clearTimeout(id);
+  }, [data]);
 
-      {/* Render artboard directly instead of iframe */}
-      <div className="mt-16 w-screen" style={{ height: `calc(100vh - 64px)` }}>
-        <ArtboardPage />
-        <ArtboardBuilder />
-      </div>
-    </>
+  return (
+    <div className="w-screen h-[calc(100vh-64px)] mt-16 grid place-items-start">
+      <Helmet>
+        <title>{title} - JobRaker</title>
+      </Helmet>
+      <iframe
+        ref={frameRef}
+        title={title}
+        src="/artboard/builder"
+        style={{
+          width: format ? `${pageSizeMap[format].width}mm` : '100vw',
+          height: '100%',
+          border: 'none',
+          overflow: 'hidden',
+        }}
+      />
+    </div>
   );
 };
 
