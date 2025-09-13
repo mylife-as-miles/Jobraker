@@ -8,12 +8,12 @@ import { Input } from "../../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { useToast } from "../../../components/ui/toast-provider";
 
-import { Filter, LayoutGrid, List as ListIcon, Plus, Search, Columns } from "lucide-react";
+import { Filter, LayoutGrid, List as ListIcon, Plus, Search, Columns, ExternalLink, Link2, Clipboard, AlertCircle } from "lucide-react";
 import { KanbanProvider, KanbanBoard, KanbanHeader, KanbanCards, KanbanCard } from "../../../components/ui/kibo-ui/kanban";
 
 function ApplicationPage() {
-  const { applications, exportCSV, update } = useApplications();
-  const { info } = useToast();
+  const { applications, exportCSV, update, refresh } = useApplications();
+  const { info, error: toastError } = useToast();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<"All" | ApplicationStatus>("All");
@@ -166,11 +166,17 @@ function ApplicationPage() {
                 { id: 'Withdrawn', name: 'Withdrawn', color: '#94A3B8' },
               ]}
               data={applications.map((a) => ({ ...a, id: a.id, column: a.status }))}
-              onItemMove={(id, toColumn) => {
+              onItemMove={async (id, toColumn) => {
                 const rec = applications.find((a) => a.id === id);
                 if (!rec) return;
                 if (rec.status === toColumn) return;
-                update(id, { status: toColumn as ApplicationStatus });
+                try {
+                  await update(id, { status: toColumn as ApplicationStatus });
+                } catch (e) {
+                  // useApplications.update already toasts and refreshes, but add a subtle note
+                  toastError?.("Move failed", (e as any)?.message ?? "");
+                  await refresh();
+                }
               }}
             >
               {(column) => (
@@ -203,6 +209,38 @@ function ApplicationPage() {
                           <span>{new Date(a.applied_date).toLocaleDateString()}</span>
                           <span>•</span>
                           <span>{a.location}</span>
+                          {a.provider_status && (
+                            <span className="ml-auto inline-flex items-center gap-1 rounded px-1.5 py-0.5 border border-[#ffffff22] text-[10px] text-[#ffffffa0]">
+                              <span className={`h-1.5 w-1.5 rounded-full ${a.provider_status.match(/succeed|complete/i) ? 'bg-[#1dff00]' : a.provider_status.match(/fail|error|cancel/i) ? 'bg-[#ef4444]' : 'bg-[#f59e0b]'}`} />
+                              {a.provider_status}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          {a.app_url && (
+                            <a href={a.app_url} target="_blank" rel="noreferrer" className="text-xs inline-flex items-center gap-1 text-[#1dff00] hover:underline">
+                              <ExternalLink className="w-3 h-3" /> Open app
+                            </a>
+                          )}
+                          {a.run_id && (
+                            <button
+                              className="text-xs inline-flex items-center gap-1 text-[#ffffff99] hover:text-white"
+                              onClick={() => navigator.clipboard?.writeText(a.run_id!)}
+                              title="Copy run id"
+                            >
+                              <Clipboard className="w-3 h-3" /> Run
+                            </button>
+                          )}
+                          {a.recording_url && (
+                            <a href={a.recording_url} target="_blank" rel="noreferrer" className="text-xs inline-flex items-center gap-1 text-[#ffffff99] hover:text-white">
+                              <Link2 className="w-3 h-3" /> Recording
+                            </a>
+                          )}
+                          {a.failure_reason && (
+                            <span className="ml-auto text-[10px] inline-flex items-center gap-1 text-[#ef4444]" title={a.failure_reason}>
+                              <AlertCircle className="w-3 h-3" /> Failed
+                            </span>
+                          )}
                         </div>
                       </KanbanCard>
                     )}

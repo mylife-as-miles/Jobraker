@@ -20,6 +20,13 @@ export interface ApplicationRecord {
   created_at: string;
   updated_at: string;
   match_score?: number;
+  // Provider integration fields (populated by Skyvern flow)
+  run_id?: string | null;
+  workflow_id?: string | null;
+  app_url?: string | null;
+  provider_status?: string | null;
+  recording_url?: string | null;
+  failure_reason?: string | null;
 }
 
 type CreateInput = Partial<Omit<ApplicationRecord, "id" | "user_id" | "created_at" | "updated_at">> & {
@@ -130,8 +137,8 @@ export function useApplications() {
         job_title: input.job_title,
         company: input.company,
         location: input.location ?? "",
-        applied_date: input.applied_date ?? new Date().toISOString(),
-  status: (input.status ?? "Pending") as ApplicationStatus,
+    applied_date: input.applied_date ?? new Date().toISOString(),
+    status: (input.status ?? "Pending") as ApplicationStatus,
         salary: input.salary ?? null,
         notes: input.notes ?? null,
         next_step: input.next_step ?? null,
