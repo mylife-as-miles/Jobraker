@@ -32,7 +32,7 @@ function ApplicationPage() {
         list = list.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
         break;
       case "company":
-        list = list.sort((a, b) => a.company.localeCompare(b.company));
+        list = list.sort((a, b) => (a.company || "").localeCompare(b.company || ""));
         break;
       case "status":
         list = list.sort((a, b) => a.status.localeCompare(b.status));
