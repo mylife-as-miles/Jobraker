@@ -346,7 +346,7 @@ export const SettingsPage = (): JSX.Element => {
         return (
           <div className="space-y-6">
             <div className="flex items-center space-x-6">
-              <div className="w-24 h-24 rounded-full overflow-hidden bg-[color:var(--accent-color)]/20 border border-[color:var(--accent-color)] flex items-center justify-center text-white font-bold text-2xl">
+              <div className="w-24 h-24 rounded-full overflow-hidden bg-primary/20 border border-primary flex items-center justify-center text-primary-foreground font-bold text-2xl">
                 {avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -355,18 +355,18 @@ export const SettingsPage = (): JSX.Element => {
                 )}
               </div>
               <div className="space-y-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={handleUploadAvatar}
-                  className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                  className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50 hover:scale-105 transition-all duration-300"
                 >
                   <Upload className="w-4 h-4 mr-2" />
                   Upload Photo
                 </Button>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   onClick={handleRemoveAvatar}
-                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:scale-105 transition-all duration-300"
+                  className="text-destructive hover:text-destructive/90 hover:bg-destructive/10 hover:scale-105 transition-all duration-300"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
                   Remove Photo
@@ -376,60 +376,60 @@ export const SettingsPage = (): JSX.Element => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-[#ffffff80] mb-2">First Name</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">First Name</label>
                 <Input
                   value={formData.firstName}
                   onChange={(e) => handleInputChange("firstName", e.target.value)}
-                  className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+                  className="bg-card/10 border-border/20 text-foreground focus:border-primary hover:border-border/30 transition-all duration-300"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#ffffff80] mb-2">Last Name</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">Last Name</label>
                 <Input
                   value={formData.lastName}
                   onChange={(e) => handleInputChange("lastName", e.target.value)}
-                  className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+                  className="bg-card/10 border-border/20 text-foreground focus:border-primary hover:border-border/30 transition-all duration-300"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#ffffff80] mb-2">Email</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">Email</label>
                 <Input
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
-                  className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+                  className="bg-card/10 border-border/20 text-foreground focus:border-primary hover:border-border/30 transition-all duration-300"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#ffffff80] mb-2">Phone</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">Phone</label>
                 <Input
                   value={formData.phone}
                   onChange={(e) => handleInputChange("phone", e.target.value)}
-                  className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+                  className="bg-card/10 border-border/20 text-foreground focus:border-primary hover:border-border/30 transition-all duration-300"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-[#ffffff80] mb-2">Location</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">Location</label>
                 <Input
                   value={formData.location}
                   onChange={(e) => handleInputChange("location", e.target.value)}
-                  className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+                  className="bg-card/10 border-border/20 text-foreground focus:border-primary hover:border-border/30 transition-all duration-300"
                 />
               </div>
             </div>
 
             <div className="flex items-center space-x-3 pt-4">
-              <Button 
+              <Button
                 onClick={handleSaveProfile}
-                className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 transition-all duration-300"
               >
                 <Save className="w-4 h-4 mr-2" />
                 Save Changes
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={handleResetForm}
-                className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50 hover:scale-105 transition-all duration-300"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Reset
@@ -450,14 +450,14 @@ export const SettingsPage = (): JSX.Element => {
                 { key: "weekly_digest", label: "Weekly Digest", description: "Weekly summary of your activity" },
                 { key: "marketing_emails", label: "Marketing Emails", description: "Promotional emails and updates" }
               ].map((setting) => (
-                <motion.div 
-                  key={setting.key} 
-                  className="flex items-center justify-between p-4 bg-[#ffffff1a] rounded-lg border border-[#ffffff33] hover:border-[#1dff00]/50 hover:bg-[#ffffff26] transition-all duration-300"
+                <motion.div
+                  key={setting.key}
+                  className="flex items-center justify-between p-4 bg-card/10 rounded-lg border border-border/20 hover:border-primary/50 hover:bg-card/20 transition-all duration-300"
                   whileHover={{ scale: 1.01 }}
                 >
                   <div>
-                    <h4 className="text-white font-medium">{setting.label}</h4>
-                    <p className="text-sm text-[#ffffff80]">{setting.description}</p>
+                    <h4 className="text-foreground font-medium">{setting.label}</h4>
+                    <p className="text-sm text-muted-foreground">{setting.description}</p>
                   </div>
                   <Button
                     variant="ghost"
@@ -465,8 +465,8 @@ export const SettingsPage = (): JSX.Element => {
                     onClick={() => handleNotificationChange(setting.key, !(notif as any)?.[setting.key])}
                     className={`transition-all duration-300 hover:scale-105 ${
                       (notif as any)?.[setting.key]
-                        ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-                        : "bg-[#ffffff33] text-white hover:bg-[#ffffff4d]"
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
                     }`}
                   >
                     {(notif as any)?.[setting.key] ? "Enabled" : "Disabled"}
@@ -481,56 +481,56 @@ export const SettingsPage = (): JSX.Element => {
         return (
           <div className="space-y-6">
             {/* Change Password */}
-            <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
+            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
-                <h3 className="text-white font-medium mb-4">Change Password</h3>
+                <h3 className="text-foreground font-medium mb-4">Change Password</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-[#ffffff80] mb-2">Current Password</label>
+                    <label className="block text-sm font-medium text-muted-foreground mb-2">Current Password</label>
                     <div className="relative">
                       <Input
                         type={showPassword ? "text" : "password"}
                         value={formData.currentPassword}
                         onChange={(e) => handleInputChange("currentPassword", e.target.value)}
-                        className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] pr-10 transition-all duration-300"
+                        className="bg-card/10 border-border/20 text-foreground focus:border-primary hover:border-border/30 pr-10 transition-all duration-300"
                       />
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300"
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground hover:scale-110 transition-all duration-300"
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </Button>
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[#ffffff80] mb-2">New Password</label>
+                    <label className="block text-sm font-medium text-muted-foreground mb-2">New Password</label>
                     <Input
                       type="password"
                       value={formData.newPassword}
                       onChange={(e) => handleInputChange("newPassword", e.target.value)}
                       aria-invalid={!!formData.newPassword && !passwordCheck.valid}
-                      className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+                      className="bg-card/10 border-border/20 text-foreground focus:border-primary hover:border-border/30 transition-all duration-300"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[#ffffff80] mb-2">Confirm New Password</label>
+                    <label className="block text-sm font-medium text-muted-foreground mb-2">Confirm New Password</label>
                     <Input
                       type="password"
                       value={formData.confirmPassword}
                       onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                      className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+                      className="bg-card/10 border-border/20 text-foreground focus:border-primary hover:border-border/30 transition-all duration-300"
                     />
                   </div>
                   {/* Password rules & strength */}
                   <div className="space-y-2 text-xs sm:text-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-[#ffffffb3]">Strength</span>
-                      <span className={`font-semibold ${passwordCheck.score >= 4 ? 'text-[#1dff00]' : passwordCheck.score >= 3 ? 'text-yellow-300' : 'text-red-400'}`}>{passwordCheck.strength}</span>
+                      <span className="text-muted-foreground">Strength</span>
+                      <span className={`font-semibold ${passwordCheck.score >= 4 ? 'text-success' : passwordCheck.score >= 3 ? 'text-warning' : 'text-destructive'}`}>{passwordCheck.strength}</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-white/80">
+                    <div className="grid grid-cols-2 gap-2 text-muted-foreground">
                       {[
                         { ok: passwordCheck.lengthOk, label: '8+ characters' },
                         { ok: passwordCheck.hasUpper, label: 'Uppercase letter' },
@@ -541,19 +541,19 @@ export const SettingsPage = (): JSX.Element => {
                       ].map((r, i) => (
                         <div key={i} className="flex items-center gap-2">
                           {r.ok ? (
-                            <CheckCircle2 className="w-4 h-4 text-[#1dff00]" />
+                            <CheckCircle2 className="w-4 h-4 text-success" />
                           ) : (
-                            <XCircle className="w-4 h-4 text-red-400" />
+                            <XCircle className="w-4 h-4 text-destructive" />
                           )}
-                          <span className={r.ok ? 'text-white/90' : 'text-white/60'}>{r.label}</span>
+                          <span className={r.ok ? 'text-foreground' : 'text-muted-foreground'}>{r.label}</span>
                         </div>
                       ))}
                     </div>
                   </div>
-                  <Button 
+                  <Button
                     onClick={handleChangePassword}
                     disabled={!passwordCheck.valid || formData.newPassword !== formData.confirmPassword}
-                    className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300 disabled:opacity-60"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 transition-all duration-300 disabled:opacity-60"
                   >
                     Update Password
                   </Button>
@@ -562,12 +562,12 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* Two-Factor Authentication */}
-            <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
+            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
-                <h3 className="text-white font-medium mb-4">Two-Factor Authentication</h3>
-                <p className="text-[#ffffff80] mb-4">Add an extra layer of security to your account</p>
+                <h3 className="text-foreground font-medium mb-4">Two-Factor Authentication</h3>
+                <p className="text-muted-foreground mb-4">Add an extra layer of security to your account</p>
                 <div className="flex items-center gap-3">
-                  <Button 
+                  <Button
                     variant={sec?.two_factor_enabled ? 'secondary' : 'outline'}
                     onClick={async () => {
                       try {
@@ -587,35 +587,35 @@ export const SettingsPage = (): JSX.Element => {
                         toastError('2FA setup failed', e.message);
                       }
                     }}
-                    className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                    className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50 hover:scale-105 transition-all duration-300"
                   >
                     {sec?.two_factor_enabled ? 'Disable 2FA' : 'Enable 2FA'}
                   </Button>
-                  <span className="text-sm text-[#ffffff80]">Status: {sec?.two_factor_enabled ? 'Enabled' : 'Disabled'}</span>
+                  <span className="text-sm text-muted-foreground">Status: {sec?.two_factor_enabled ? 'Enabled' : 'Disabled'}</span>
                 </div>
               </CardContent>
             </Card>
 
             {/* Sign-in Alerts */}
-            <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
+            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
-                <h3 className="text-white font-medium mb-4">Sign-in Alerts</h3>
+                <h3 className="text-foreground font-medium mb-4">Sign-in Alerts</h3>
                 <div className="space-y-3">
-                  <motion.div 
-                    className="flex items-center justify-between p-3 bg-[#ffffff0d] rounded border border-[#ffffff1a] hover:border-[#1dff00]/30 transition-all duration-300"
+                  <motion.div
+                    className="flex items-center justify-between p-3 bg-card/5 rounded border border-border/10 hover:border-primary/30 transition-all duration-300"
                     whileHover={{ scale: 1.01 }}
                   >
                     <div>
-                      <p className="text-white font-medium">Email alerts</p>
-                      <p className="text-sm text-[#ffffff80]">Notify me when a new device signs in</p>
+                      <p className="text-foreground font-medium">Email alerts</p>
+                      <p className="text-sm text-muted-foreground">Notify me when a new device signs in</p>
                     </div>
-                    <Button 
+                    <Button
                       variant="ghost" size="sm"
                       onClick={async () => {
                         if (!sec) await createSecurity({ sign_in_alerts: true });
                         else await updateSecurity({ sign_in_alerts: !sec.sign_in_alerts });
                       }}
-                      className={`transition-all duration-300 hover:scale-105 ${(sec?.sign_in_alerts ?? true) ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90' : 'bg-[#ffffff33] text-white hover:bg-[#ffffff4d]'}`}
+                      className={`transition-all duration-300 hover:scale-105 ${(sec?.sign_in_alerts ?? true) ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
                     >
                       {(sec?.sign_in_alerts ?? true) ? 'Enabled' : 'Disabled'}
                     </Button>
@@ -625,13 +625,13 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* Backup Codes */}
-            <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
+            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-white font-medium">Backup Codes</h3>
+                  <h3 className="text-foreground font-medium">Backup Codes</h3>
                   <Button
                     variant="outline"
-                    className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50"
+                    className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50"
                     onClick={async () => {
                       try {
                         const codes = await generateBackupCodes(10);
@@ -646,28 +646,28 @@ export const SettingsPage = (): JSX.Element => {
                     }}
                   >Generate</Button>
                 </div>
-                <p className="text-[#ffffff80] text-sm mb-3">Store these one-time use codes in a safe place. Each can be used once.</p>
-                <div className="mt-3 border border-[#ffffff1a] rounded-md overflow-hidden">
-                  <div className="grid grid-cols-3 text-xs text-[#ffffffb3] bg-[#ffffff08] py-2 px-3">
+                <p className="text-muted-foreground text-sm mb-3">Store these one-time use codes in a safe place. Each can be used once.</p>
+                <div className="mt-3 border border-border/10 rounded-md overflow-hidden">
+                  <div className="grid grid-cols-3 text-xs text-muted-foreground bg-card/5 py-2 px-3">
                     <div>ID</div>
                     <div>Status</div>
                     <div>Note</div>
                   </div>
-                  <div className="divide-y divide-[#ffffff14]">
+                  <div className="divide-y divide-border/10">
                     {backupCodes && backupCodes.length > 0 ? (
                       backupCodes.map((bc: any) => (
                         <div key={bc.id} className="grid grid-cols-3 items-center text-sm py-2 px-3">
-                          <div className="text-[#ffffffcc]">{bc.id}</div>
+                          <div className="text-foreground">{bc.id}</div>
                           <div>
-                            <span className={`text-xs px-2 py-1 rounded ${bc.used ? 'text-red-300 bg-red-500/10' : 'text-[#1dff00] bg-[#1dff0020]' }`}>
+                            <span className={`text-xs px-2 py-1 rounded ${bc.used ? 'text-destructive-foreground bg-destructive/80' : 'text-success-foreground bg-success/80' }`}>
                               {bc.used ? 'Used' : 'Unused'}
                             </span>
                           </div>
-                          <div className="text-[#ffffff80]">Plaintext shown only on generation</div>
+                          <div className="text-muted-foreground">Plaintext shown only on generation</div>
                         </div>
                       ))
                     ) : (
-                      <div className="text-sm text-[#ffffff80] py-3 px-3">No backup codes yet. Generate to create a new set.</div>
+                      <div className="text-sm text-muted-foreground py-3 px-3">No backup codes yet. Generate to create a new set.</div>
                     )}
                   </div>
                 </div>
@@ -675,13 +675,13 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* Trusted Devices */}
-            <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
+            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-white font-medium">Trusted Devices</h3>
+                  <h3 className="text-foreground font-medium">Trusted Devices</h3>
                   <Button
                     variant="outline"
-                    className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50"
+                    className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50"
                     onClick={async () => {
                       try {
                         const deviceId = crypto.getRandomValues(new Uint32Array(4)).join('-');
@@ -693,26 +693,26 @@ export const SettingsPage = (): JSX.Element => {
                     }}
                   >Trust This Device</Button>
                 </div>
-                <p className="text-[#ffffff80] text-sm mb-3">Trusted devices skip some security prompts. Revoke lost or old devices.</p>
-                <div className="mt-3 border border-[#ffffff1a] rounded-md overflow-hidden">
-                  <div className="grid grid-cols-4 text-xs text-[#ffffffb3] bg-[#ffffff08] py-2 px-3">
+                <p className="text-muted-foreground text-sm mb-3">Trusted devices skip some security prompts. Revoke lost or old devices.</p>
+                <div className="mt-3 border border-border/10 rounded-md overflow-hidden">
+                  <div className="grid grid-cols-4 text-xs text-muted-foreground bg-card/5 py-2 px-3">
                     <div>Device</div>
                     <div>Device ID</div>
                     <div>Last seen</div>
                     <div className="text-right">Actions</div>
                   </div>
-                  <div className="divide-y divide-[#ffffff14]">
+                  <div className="divide-y divide-border/10">
                     {devices && devices.length > 0 ? (
                       devices.map((d: any) => (
                         <div key={d.device_id} className="grid grid-cols-4 items-center text-sm py-2 px-3">
-                          <div className="truncate text-[#ffffffcc]" title={d.device_name || d.device_id}>{d.device_name || 'Unnamed device'}</div>
-                          <div className="truncate text-[#ffffff80]" title={d.device_id}>{String(d.device_id).slice(0, 10)}…</div>
-                          <div className="text-[#ffffff80]">{new Date(d.last_seen_at).toLocaleString()}</div>
+                          <div className="truncate text-foreground" title={d.device_name || d.device_id}>{d.device_name || 'Unnamed device'}</div>
+                          <div className="truncate text-muted-foreground" title={d.device_id}>{String(d.device_id).slice(0, 10)}…</div>
+                          <div className="text-muted-foreground">{new Date(d.last_seen_at).toLocaleString()}</div>
                           <div className="text-right">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                              className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
                               onClick={async () => {
                                 if (!confirm('Revoke this device?')) return;
                                 try { await revokeDevice(d.device_id); } catch (e: any) { toastError('Failed to revoke', e.message); }
@@ -722,7 +722,7 @@ export const SettingsPage = (): JSX.Element => {
                         </div>
                       ))
                     ) : (
-                      <div className="text-sm text-[#ffffff80] py-3 px-3">No trusted devices yet.</div>
+                      <div className="text-sm text-muted-foreground py-3 px-3">No trusted devices yet.</div>
                     )}
                   </div>
                 </div>
@@ -730,19 +730,19 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* Active Sessions (placeholder) */}
-            <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
+            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
-                <h3 className="text-white font-medium mb-4">Active Sessions</h3>
+                <h3 className="text-foreground font-medium mb-4">Active Sessions</h3>
                 <div className="space-y-3">
-                  <motion.div 
-                    className="flex items-center justify-between p-3 bg-[#ffffff0d] rounded border border-[#ffffff1a] hover:border-[#1dff00]/30 transition-all duration-300"
+                  <motion.div
+                    className="flex items-center justify-between p-3 bg-card/5 rounded border border-border/10 hover:border-primary/30 transition-all duration-300"
                     whileHover={{ scale: 1.01 }}
                   >
                     <div>
-                      <p className="text-white font-medium">Current Session</p>
-                      <p className="text-sm text-[#ffffff80]">Your current browser</p>
+                      <p className="text-foreground font-medium">Current Session</p>
+                      <p className="text-sm text-muted-foreground">Your current browser</p>
                     </div>
-                    <span className="text-xs text-[#1dff00] bg-[#1dff0020] px-2 py-1 rounded">Active</span>
+                    <span className="text-xs text-success-foreground bg-success/80 px-2 py-1 rounded">Active</span>
                   </motion.div>
                 </div>
               </CardContent>
@@ -753,9 +753,9 @@ export const SettingsPage = (): JSX.Element => {
       case "appearance":
         return (
           <div className="space-y-6">
-            <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
+            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
-                <h3 className="text-white font-medium mb-4">Theme</h3>
+                <h3 className="text-foreground font-medium mb-4">Theme</h3>
                 <div className="grid grid-cols-3 gap-3">
                   {["Dark", "Light", "Auto"].map((theme) => (
                     <motion.div
@@ -769,17 +769,17 @@ export const SettingsPage = (): JSX.Element => {
                       }}
                       className={`p-4 rounded-lg border cursor-pointer transition-all duration-300 ${
                         (appearanceSettings?.theme || 'auto') === theme.toLowerCase()
-                          ? "border-[#1dff00] bg-[#1dff0020]"
-                          : "border-[#ffffff33] hover:border-[#ffffff4d]"
+                          ? "border-primary bg-primary/20"
+                          : "border-border/20 hover:border-border/30"
                       }`}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
                       <div className="text-center">
                         <div className={`w-8 h-8 rounded mx-auto mb-2 ${
-                          theme === "Dark" ? "bg-black" : theme === "Light" ? "bg-white" : "bg-gradient-to-r from-black to-white"
+                          theme === "Dark" ? "bg-zinc-900" : theme === "Light" ? "bg-zinc-100" : "bg-gradient-to-r from-zinc-900 to-zinc-100"
                         }`}></div>
-                        <p className="text-white text-sm">{theme}</p>
+                        <p className="text-foreground text-sm">{theme}</p>
                       </div>
                     </motion.div>
                   ))}
@@ -787,9 +787,9 @@ export const SettingsPage = (): JSX.Element => {
               </CardContent>
             </Card>
 
-            <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
+            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
-                <h3 className="text-white font-medium mb-4">Accent Color</h3>
+                <h3 className="text-foreground font-medium mb-4">Accent Color</h3>
                 <div className="grid grid-cols-6 gap-3">
                   {["#1dff00", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#10b981"].map((color) => (
                     <motion.div
@@ -802,7 +802,7 @@ export const SettingsPage = (): JSX.Element => {
                       }}
                       className={`w-8 h-8 rounded cursor-pointer border-2 transition-all duration-300 ${
                         (appearanceSettings?.accent_color || '#1dff00').toLowerCase() === color.toLowerCase()
-                          ? "border-white"
+                          ? "border-foreground"
                           : "border-transparent"
                       }`}
                       style={{ backgroundColor: color }}
@@ -812,7 +812,7 @@ export const SettingsPage = (): JSX.Element => {
                   ))}
                 </div>
                 <div className="mt-4">
-                  <label className="block text-sm font-medium text-[#ffffff80] mb-2">Reduced motion</label>
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">Reduced motion</label>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -824,8 +824,8 @@ export const SettingsPage = (): JSX.Element => {
                     }}
                     className={`transition-all duration-300 hover:scale-105 ${
                       (appearanceSettings?.reduce_motion ?? false)
-                        ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-                        : "bg-[#ffffff33] text-white hover:bg-[#ffffff4d]"
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
                     }`}
                   >
                     {(appearanceSettings?.reduce_motion ?? false) ? 'Reduced motion: On' : 'Reduced motion: Off'}
@@ -839,9 +839,9 @@ export const SettingsPage = (): JSX.Element => {
       case "privacy":
         return (
           <div className="space-y-6">
-            <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
+            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
-                <h3 className="text-white font-medium mb-4">Data & Privacy</h3>
+                <h3 className="text-foreground font-medium mb-4">Data & Privacy</h3>
                 <div className="space-y-4">
                   {/* Privacy toggles */}
                   {[{
@@ -869,10 +869,10 @@ export const SettingsPage = (): JSX.Element => {
                     label: 'New resumes are public by default',
                     desc: 'When enabled, newly created resumes are public unless you change them.'
                   }].map((row: any) => (
-                    <motion.div key={row.key} className="flex items-center justify-between p-3 bg-[#ffffff0d] rounded border border-[#ffffff1a] hover:border-[#1dff00]/30 transition-all duration-300" whileHover={{ scale: 1.01 }}>
+                    <motion.div key={row.key} className="flex items-center justify-between p-3 bg-card/5 rounded border border-border/10 hover:border-primary/30 transition-all duration-300" whileHover={{ scale: 1.01 }}>
                       <div>
-                        <p className="text-white font-medium">{row.label}</p>
-                        <p className="text-sm text-[#ffffff80]">{row.desc}</p>
+                        <p className="text-foreground font-medium">{row.label}</p>
+                        <p className="text-sm text-muted-foreground">{row.desc}</p>
                       </div>
                       <Button
                         variant="ghost"
@@ -885,8 +885,8 @@ export const SettingsPage = (): JSX.Element => {
                         }}
                         className={`transition-all duration-300 hover:scale-105 ${
                           ((privacy as any)?.[row.key] ?? false)
-                            ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-                            : "bg-[#ffffff33] text-white hover:bg-[#ffffff4d]"
+                            ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
                         }`}
                       >
                         {((privacy as any)?.[row.key] ?? false) ? 'Enabled' : 'Disabled'}
@@ -894,23 +894,23 @@ export const SettingsPage = (): JSX.Element => {
                     </motion.div>
                   ))}
 
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={handleExportData}
-                    className="w-full justify-start border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                    className="w-full justify-start border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50 hover:scale-105 transition-all duration-300"
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Download Your Data
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50 hover:scale-105 transition-all duration-300"
                   >
                     <Shield className="w-4 h-4 mr-2" />
                     Privacy Settings
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={async () => {
                       if (!confirm('Delete your account? This cannot be undone.')) return;
                       const { data } = await supabase.auth.getUser();
@@ -931,7 +931,7 @@ export const SettingsPage = (): JSX.Element => {
                         toastError('Delete failed', e.message);
                       }
                     }}
-                    className="w-full justify-start border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-500 hover:scale-105 transition-all duration-300"
+                    className="w-full justify-start border-destructive/50 text-destructive hover:bg-destructive/10 hover:border-destructive hover:scale-105 transition-all duration-300"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Delete Account
@@ -948,38 +948,38 @@ export const SettingsPage = (): JSX.Element => {
             {/* Header */}
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-white mb-2">Job Sources Configuration</h2>
-                <p className="text-[#ffffff80] text-sm">
+                <h2 className="text-xl font-bold text-foreground mb-2">Job Sources Configuration</h2>
+                <p className="text-muted-foreground text-sm">
                   Configure and manage job ingestion sources for automated job discovery
                 </p>
-                <p className="text-xs text-[#ffffff66] mt-1">
+                <p className="text-xs text-muted-foreground/80 mt-1">
                   {jobSources.filter(s => s.enabled).length} of {jobSources.length} sources enabled
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Button 
+                <Button
                   variant="outline"
-                  className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50"
+                  className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50"
                   onClick={() => setJobSources(jobSources.map(s => ({ ...s, enabled: true })))}
                 >
                   Enable All
                 </Button>
-                <Button 
+                <Button
                   variant="outline"
-                  className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50"
+                  className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50"
                   onClick={() => setJobSources(jobSources.map(s => ({ ...s, enabled: false })))}
                 >
                   Disable All
                 </Button>
-                <Button 
+                <Button
                   variant="outline"
-                  className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50"
+                  className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50"
                   onClick={() => setJobSources(defaultJobSources)}
                 >
                   Reset
                 </Button>
-                <Button 
-                  className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                <Button
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 transition-all duration-300"
                   onClick={() => {
                     const maxId = jobSources.reduce((m, s) => Math.max(m, s.id || 0), 0);
                     const newId = maxId + 1;
@@ -1011,28 +1011,28 @@ export const SettingsPage = (): JSX.Element => {
                     setJobSources((prev) => moveItem(prev, fromId, toId));
                     setDraggingId(null); setDragOverId(null);
                   }}
-                  className={`bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300 ${dragOverId === source.id ? 'ring-2 ring-[#1dff00]/40' : ''} ${draggingId === source.id ? 'opacity-70' : ''}`}
+                  className={`bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300 ${dragOverId === source.id ? 'ring-2 ring-primary/40' : ''} ${draggingId === source.id ? 'opacity-70' : ''}`}
                 >
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 border border-[#1dff00]/30 flex items-center justify-center">
-                          {source.type === 'remotive' && <Search className="w-5 h-5 text-[#1dff00]" />}
-                          {source.type === 'remoteok' && <Globe className="w-5 h-5 text-[#1dff00]" />}
-                          {source.type === 'arbeitnow' && <Briefcase className="w-5 h-5 text-[#1dff00]" />}
-                          {source.type === 'linkedin' && <Users className="w-5 h-5 text-[#1dff00]" />}
-                          {source.type === 'indeed' && <Building className="w-5 h-5 text-[#1dff00]" />}
-                          {source.type === 'feedcoyote' && <Rss className="w-5 h-5 text-[#1dff00]" />}
-                          {source.type === 'trulyremote' && <Globe className="w-5 h-5 text-[#1dff00]" />}
-                          {source.type === 'remoteco' && <Coffee className="w-5 h-5 text-[#1dff00]" />}
-                          {source.type === 'jobspresso' && <Coffee className="w-5 h-5 text-[#1dff00]" />}
-                          {source.type === 'skipthedrive' && <Car className="w-5 h-5 text-[#1dff00]" />}
-                          {source.type === 'json' && <Link className="w-5 h-5 text-[#1dff00]" />}
-                          {source.type === 'deepresearch' && <Search className="w-5 h-5 text-[#1dff00]" />}
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/30 flex items-center justify-center">
+                          {source.type === 'remotive' && <Search className="w-5 h-5 text-primary" />}
+                          {source.type === 'remoteok' && <Globe className="w-5 h-5 text-primary" />}
+                          {source.type === 'arbeitnow' && <Briefcase className="w-5 h-5 text-primary" />}
+                          {source.type === 'linkedin' && <Users className="w-5 h-5 text-primary" />}
+                          {source.type === 'indeed' && <Building className="w-5 h-5 text-primary" />}
+                          {source.type === 'feedcoyote' && <Rss className="w-5 h-5 text-primary" />}
+                          {source.type === 'trulyremote' && <Globe className="w-5 h-5 text-primary" />}
+                          {source.type === 'remoteco' && <Coffee className="w-5 h-5 text-primary" />}
+                          {source.type === 'jobspresso' && <Coffee className="w-5 h-5 text-primary" />}
+                          {source.type === 'skipthedrive' && <Car className="w-5 h-5 text-primary" />}
+                          {source.type === 'json' && <Link className="w-5 h-5 text-primary" />}
+                          {source.type === 'deepresearch' && <Search className="w-5 h-5 text-primary" />}
                         </div>
                         <div>
-                          <h3 className="text-white font-medium capitalize">{source.type}</h3>
-                          <p className="text-[#ffffff60] text-sm">
+                          <h3 className="text-foreground font-medium capitalize">{source.type}</h3>
+                          <p className="text-muted-foreground text-sm">
                             {source.type === 'remotive' && 'Remote job listings with search query support'}
                             {source.type === 'remoteok' && 'Popular remote job board'}
                             {source.type === 'arbeitnow' && 'European job board with search capabilities'}
@@ -1051,16 +1051,16 @@ export const SettingsPage = (): JSX.Element => {
                       <div className="flex items-center space-x-3">
                         <button
                           onClick={() => {
-                            setJobSources(jobSources.map(s => 
+                            setJobSources(jobSources.map(s =>
                               s.id === source.id ? { ...s, enabled: !s.enabled } : s
                             ));
                           }}
                           className="transition-colors duration-200"
                         >
                           {source.enabled ? (
-                            <ToggleRight className="w-6 h-6 text-[#1dff00]" />
+                            <ToggleRight className="w-6 h-6 text-primary" />
                           ) : (
-                            <ToggleLeft className="w-6 h-6 text-[#ffffff60]" />
+                            <ToggleLeft className="w-6 h-6 text-muted-foreground" />
                           )}
                         </button>
                         <Button
@@ -1071,7 +1071,7 @@ export const SettingsPage = (): JSX.Element => {
                               setJobSources(jobSources.filter(s => s.id !== source.id));
                             }
                           }}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -1080,20 +1080,20 @@ export const SettingsPage = (): JSX.Element => {
 
                     {/* Configuration Fields */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex items-center gap-2 text-[#ffffff88] text-xs">
+                      <div className="flex items-center gap-2 text-muted-foreground text-xs">
                         <GripVertical className="w-4 h-4" />
                         <span>Drag to reorder</span>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-white mb-2">Source Type</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Source Type</label>
                         <select
                           value={source.type}
                           onChange={(e) => {
-                            setJobSources(jobSources.map(s => 
+                            setJobSources(jobSources.map(s =>
                               s.id === source.id ? { ...s, type: e.target.value } : s
                             ));
                           }}
-                          className="w-full px-3 py-2 bg-[#ffffff1a] border border-[#ffffff33] rounded-lg text-white focus:border-[#1dff00] focus:outline-none transition-colors"
+                          className="w-full px-3 py-2 bg-card/10 border border-border/20 rounded-lg text-foreground focus:border-primary focus:outline-none transition-colors"
                         >
                           <option value="remotive">Remotive</option>
                           <option value="remoteok">RemoteOK</option>
@@ -1112,65 +1112,65 @@ export const SettingsPage = (): JSX.Element => {
 
                       {(source.type === 'remotive' || source.type === 'arbeitnow' || source.type === 'linkedin' || source.type === 'indeed' || source.type === 'trulyremote' || source.type === 'jobspresso' || source.type === 'deepresearch') && (
                         <div>
-                          <label className="block text-sm font-medium text-white mb-2">Search Query</label>
+                          <label className="block text-sm font-medium text-foreground mb-2">Search Query</label>
                           <Input
                             value={source.query}
                             onChange={(e) => {
-                              setJobSources(jobSources.map(s => 
+                              setJobSources(jobSources.map(s =>
                                 s.id === source.id ? { ...s, query: e.target.value } : s
                               ));
                             }}
                             placeholder="e.g., software engineer, react developer"
-                            className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
+                            className="bg-card/10 border-border/20 text-foreground placeholder:text-muted-foreground focus:border-primary"
                           />
                         </div>
                       )}
 
           {source.type === 'json' && (
                         <div className="md:col-span-2">
-                          <label className="block text-sm font-medium text-white mb-2">JSON Feed URL</label>
+                          <label className="block text-sm font-medium text-foreground mb-2">JSON Feed URL</label>
                           <Input
                             value={source.query}
                             onChange={(e) => {
-                              setJobSources(jobSources.map(s => 
+                              setJobSources(jobSources.map(s =>
                                 s.id === source.id ? { ...s, query: e.target.value } : s
                               ));
                             }}
                             placeholder="https://your.api.example/jobs.json"
-            className={`bg-[#ffffff1a] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] border ${source.query && !isValidUrl(source.query) ? 'border-red-500 focus:border-red-500' : 'border-[#ffffff33]'}`}
+            className={`bg-card/10 text-foreground placeholder:text-muted-foreground focus:border-primary border ${source.query && !isValidUrl(source.query) ? 'border-destructive focus:border-destructive' : 'border-border/20'}`}
                           />
                           {source.query && !isValidUrl(source.query) && (
-                            <p className="mt-1 text-xs text-red-400">Please enter a valid URL</p>
+                            <p className="mt-1 text-xs text-destructive">Please enter a valid URL</p>
                           )}
                         </div>
                       )}
                     </div>
 
                     {source.type === 'deepresearch' && (
-                      <div className="mt-4 p-4 bg-[#1dff00]/5 border border-[#1dff00]/20 rounded-lg">
-                        <h4 className="text-white font-medium mb-3 flex items-center">
-                          <Search className="w-4 h-4 mr-2 text-[#1dff00]" />
+                      <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                        <h4 className="text-foreground font-medium mb-3 flex items-center">
+                          <Search className="w-4 h-4 mr-2 text-primary" />
                           Advanced AI Research Options
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           <div>
-                            <label className="block text-sm font-medium text-white mb-2">Work Type</label>
-                            <select className="w-full px-3 py-2 bg-[#ffffff1a] border border-[#ffffff33] rounded-lg text-white focus:border-[#1dff00] focus:outline-none">
+                            <label className="block text-sm font-medium text-foreground mb-2">Work Type</label>
+                            <select className="w-full px-3 py-2 bg-card/10 border border-border/20 rounded-lg text-foreground focus:border-primary focus:outline-none">
                               <option value="Remote">Remote</option>
                               <option value="Hybrid">Hybrid</option>
                               <option value="On-site">On-site</option>
                             </select>
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-white mb-2">Location</label>
+                            <label className="block text-sm font-medium text-foreground mb-2">Location</label>
                             <Input
                               placeholder="e.g., United States, Europe"
-                              className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
+                              className="bg-card/10 border-border/20 text-foreground placeholder:text-muted-foreground focus:border-primary"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-white mb-2">Experience Level</label>
-                            <select className="w-full px-3 py-2 bg-[#ffffff1a] border border-[#ffffff33] rounded-lg text-white focus:border-[#1dff00] focus:outline-none">
+                            <label className="block text-sm font-medium text-foreground mb-2">Experience Level</label>
+                            <select className="w-full px-3 py-2 bg-card/10 border-border/20 rounded-lg text-foreground focus:border-primary focus:outline-none">
                               <option value="entry">Entry Level</option>
                               <option value="mid">Mid Level</option>
                               <option value="senior">Senior Level</option>
@@ -1178,18 +1178,18 @@ export const SettingsPage = (): JSX.Element => {
                             </select>
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-white mb-2">Salary Range</label>
+                            <label className="block text-sm font-medium text-foreground mb-2">Salary Range</label>
                             <Input
                               placeholder="e.g., 120k-200k"
-                              className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
+                              className="bg-card/10 border-border/20 text-foreground placeholder:text-muted-foreground focus:border-primary"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-white mb-2">Max Results</label>
+                            <label className="block text-sm font-medium text-foreground mb-2">Max Results</label>
                             <Input
                               type="number"
                               placeholder="20"
-                              className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
+                              className="bg-card/10 border-border/20 text-foreground placeholder:text-muted-foreground focus:border-primary"
                             />
                           </div>
                         </div>
@@ -1204,17 +1204,17 @@ export const SettingsPage = (): JSX.Element => {
 
             {/* Save / Grouping */}
             <div className="flex items-center justify-between">
-              <div className="text-xs text-[#ffffff88] flex items-center gap-2">
+              <div className="text-xs text-muted-foreground flex items-center gap-2">
                 <button
-                  className={`px-2 py-1 rounded border ${groupEnabledFirst ? 'bg-[#1dff00]/20 border-[#1dff00]/40 text-white' : 'border-[#ffffff30] text-[#ffffffaa]'}`}
+                  className={`px-2 py-1 rounded border ${groupEnabledFirst ? 'bg-primary/20 border-primary/40 text-foreground' : 'border-border/20 text-muted-foreground'}`}
                   onClick={() => setGroupEnabledFirst((v) => !v)}
                 >
                   {groupEnabledFirst ? 'Grouping: Enabled first' : 'Grouping: Off'}
                 </button>
               </div>
               <div>
-                <Button 
-                  className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                <Button
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 transition-all duration-300"
                   onClick={async () => {
                     try {
                       const { data: auth } = await supabase.auth.getUser();
@@ -1244,16 +1244,16 @@ export const SettingsPage = (): JSX.Element => {
       case "billing":
         return (
           <div className="space-y-6">
-            <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
+            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
-                <h3 className="text-white font-medium mb-4">Current Plan</h3>
+                <h3 className="text-foreground font-medium mb-4">Current Plan</h3>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-white font-medium">Free Plan</p>
-                    <p className="text-sm text-[#ffffff80]">Basic features included</p>
+                    <p className="text-foreground font-medium">Free Plan</p>
+                    <p className="text-sm text-muted-foreground">Basic features included</p>
                   </div>
-                  <Button 
-                    className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                  <Button
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 transition-all duration-300"
                     onClick={() => { window.location.href = '/pricing'; }}
                   >
                     Upgrade to Premium
@@ -1262,13 +1262,13 @@ export const SettingsPage = (): JSX.Element => {
               </CardContent>
             </Card>
 
-            <Card className="bg-[#ffffff1a] border-[#ffffff33] hover:border-[#1dff00]/50 transition-all duration-300">
+            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
-                <h3 className="text-white font-medium mb-4">Payment Method</h3>
-                <p className="text-[#ffffff80] mb-4">No payment method on file</p>
-                <Button 
-                  variant="outline" 
-                  className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                <h3 className="text-foreground font-medium mb-4">Payment Method</h3>
+                <p className="text-muted-foreground mb-4">No payment method on file</p>
+                <Button
+                  variant="outline"
+                  className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50 hover:scale-105 transition-all duration-300"
                 >
                   <CreditCard className="w-4 h-4 mr-2" />
                   Add Payment Method
@@ -1285,12 +1285,12 @@ export const SettingsPage = (): JSX.Element => {
 
   return (
     <>
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-background">
       <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 sm:gap-8">
           {/* Settings Navigation */}
           <div className="lg:col-span-1 space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-6 flex items-center">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-6 flex items-center">
               <SettingsIcon className="w-6 h-6 mr-2" />
               Settings
             </h1>
@@ -1302,8 +1302,8 @@ export const SettingsPage = (): JSX.Element => {
                 onClick={() => setActiveTab(tab.id)}
                 className={`w-full justify-start transition-all duration-300 hover:scale-105 ${
                   activeTab === tab.id
-                    ? "text-white bg-[#1dff0020] border-r-2 border-[#1dff00]"
-                    : "text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]"
+                    ? "text-foreground bg-primary/10 border-r-2 border-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 }`}
               >
                 {tab.icon}
@@ -1311,14 +1311,14 @@ export const SettingsPage = (): JSX.Element => {
               </Button>
             ))}
             
-            <div className="pt-4 border-t border-[#ffffff1a]">
+            <div className="pt-4 border-t border-border/20">
               <Button
                 variant="ghost"
                 onClick={async () => {
                   await supabase.auth.signOut();
                   window.location.href = '/login';
                 }}
-                className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:scale-105 transition-all duration-300"
+                className="w-full justify-start text-destructive hover:text-destructive/90 hover:bg-destructive/10 hover:scale-105 transition-all duration-300"
               >
                 <LogOut className="w-4 h-4 mr-3" />
                 Sign Out
@@ -1334,7 +1334,7 @@ export const SettingsPage = (): JSX.Element => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] hover:shadow-lg transition-all duration-300">
+              <Card className="bg-card/50 border-border/20 backdrop-blur-sm hover:shadow-lg transition-all duration-300">
                 <CardContent className="p-6">
                   {renderTabContent()}
                 </CardContent>
@@ -1360,31 +1360,31 @@ export const SettingsPage = (): JSX.Element => {
         side="center"
       >
         <div className="space-y-4">
-          <p className="text-[#ffffffb3] text-sm">
+          <p className="text-muted-foreground text-sm">
             Scan the QR code in your authenticator app (e.g., Google Authenticator, Authy), then enter the 6-digit code below.
           </p>
       {qrDataUrl ? (
             <div className="flex justify-center">
-        <img src={qrDataUrl} alt="TOTP QR" className="rounded border border-[#1dff00]/30" />
+        <img src={qrDataUrl} alt="TOTP QR" className="rounded border border-primary/30" />
             </div>
           ) : (
-            <div className="text-[#ffffff80] text-sm">Generating QR…</div>
+            <div className="text-muted-foreground text-sm">Generating QR…</div>
           )}
           <div>
-            <label className="block text-sm font-medium text-[#ffffff80] mb-1">Authentication code</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Authentication code</label>
             <Input
               inputMode="numeric"
               pattern="[0-9]*"
               placeholder="123456"
               value={totpCode}
               onChange={(e) => setTotpCode(e.target.value)}
-              className="bg-[#ffffff1a] border-[#ffffff33] text-white focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+              className="bg-card/10 border-border/20 text-foreground focus:border-primary hover:border-border/30 transition-all duration-300"
             />
           </div>
           <div className="flex justify-end gap-2">
             <Button
               variant="outline"
-              className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50"
+              className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50"
               onClick={() => setOpen2FA(false)}
             >
               Cancel
@@ -1400,7 +1400,7 @@ export const SettingsPage = (): JSX.Element => {
                   toastError('Verification failed', e.message);
                 } finally { setVerifyBusy(false); }
               }}
-              className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               Verify & Enable
             </Button>

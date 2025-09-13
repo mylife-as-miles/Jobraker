@@ -1,46 +1,84 @@
-/* Theme */
 @layer base {
   :root {
-    /* Surface & Text */
+    /* Base (light mode — tokens) */
+    /* Raw palette tokens come from _colors.css */
+    --color-brand-h: 262;
+    --color-brand-s: 83%;
+    --color-brand-l: 58%;
+
+    /* Semantic tokens */
     --background: var(--zinc-50);
     --foreground: var(--zinc-950);
+    --card: var(--zinc-0, 0 0% 100%);
+    --card-foreground: var(--zinc-900);
+    --popover: 0 0% 100%;
+    --popover-foreground: var(--zinc-900);
     --border: var(--zinc-200);
     --input: var(--zinc-200);
-    --ring: 262 83% 58%; /* matches brand */
+    --ring: var(--color-brand-h) var(--color-brand-s) var(--color-brand-l);
+    --brand: var(--color-brand-h) var(--color-brand-s) var(--color-brand-l);
 
-    /* Brand */
-    --brand: 262 83% 58%; /* violet-600 */
-
-    /* Primary (used by buttons) */
     --primary: var(--brand);
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary (subtle surfaces) */
     --secondary: var(--zinc-100);
     --secondary-foreground: var(--zinc-900);
 
-    /* Accent (hover states) */
     --accent: var(--zinc-100);
     --accent-foreground: var(--zinc-900);
 
-  /* Muted (subtle text/surfaces) */
-  --muted: var(--zinc-100);
-  --muted-foreground: var(--zinc-600);
+    --muted: var(--zinc-100);
+    --muted-foreground: var(--zinc-600);
 
-    /* Popover / Card */
-    --popover: 0 0% 100%;
-    --popover-foreground: var(--zinc-900);
-    --card: 0 0% 100%;
-    --card-foreground: var(--zinc-900);
+    /* Status (light) */
+    --destructive: var(--rose-600);
+    --destructive-foreground: var(--rose-50);
+    --error: var(--destructive);
+    --error-accent: var(--rose-500);
+    --error-foreground: var(--destructive-foreground);
+    --warning: var(--amber-600);
+    --warning-accent: var(--amber-500);
+    --warning-foreground: var(--amber-50);
+    --info: var(--sky-600);
+    --info-accent: var(--sky-500);
+    --info-foreground: var(--sky-50);
+    --success: var(--emerald-600);
+    --success-accent: var(--emerald-500);
+    --success-foreground: var(--emerald-50);
 
-  /* Destructive */
-  --destructive: var(--rose-500);
-  --destructive-foreground: var(--rose-50);
+    --radius: 0.5rem;
+  }
 
-  /* Status */
-    --error: var(--rose-500);
+  .dark {
+    --background: var(--zinc-950);
+    --foreground: var(--zinc-50);
+    --card: var(--zinc-900);
+    --card-foreground: var(--zinc-50);
+    --popover: var(--zinc-900);
+    --popover-foreground: var(--zinc-50);
+    --border: var(--zinc-800);
+    --input: var(--zinc-800);
+    --ring: var(--color-brand-h) var(--color-brand-s) 65%;
+    --brand: var(--color-brand-h) var(--color-brand-s) 65%;
+
+    --primary: var(--brand);
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: var(--zinc-800);
+    --secondary-foreground: var(--zinc-50);
+
+    --accent: var(--zinc-800);
+    --accent-foreground: var(--zinc-50);
+
+    --muted: var(--zinc-800);
+    --muted-foreground: var(--zinc-400);
+
+    /* Status (dark) - shift to deeper hues for contrast */
+    --destructive: var(--rose-500);
+    --destructive-foreground: var(--rose-50);
+    --error: var(--destructive);
     --error-accent: var(--rose-400);
-    --error-foreground: var(--rose-50);
+    --error-foreground: var(--destructive-foreground);
     --warning: var(--amber-500);
     --warning-accent: var(--amber-400);
     --warning-foreground: var(--amber-50);
@@ -49,51 +87,6 @@
     --info-foreground: var(--sky-50);
     --success: var(--emerald-500);
     --success-accent: var(--emerald-400);
-    --success-foreground: var(--emerald-50);
-
-    /* Radii */
-    --radius: 0.75rem;
-  }
-
-  .dark {
-    --background: var(--zinc-950);
-    --foreground: var(--zinc-50);
-    --border: var(--zinc-800);
-    --input: var(--zinc-800);
-    --ring: 263 89% 74%; /* slightly brighter accent for dark */
-
-    --brand: 263 89% 74%; /* violet-400 */
-    --primary: var(--brand);
-    --primary-foreground: 0 0% 10%;
-
-    --secondary: var(--zinc-900);
-    --secondary-foreground: var(--zinc-50);
-
-    --accent: var(--zinc-900);
-    --accent-foreground: var(--zinc-50);
-
-  --muted: var(--zinc-900);
-  --muted-foreground: var(--zinc-400);
-
-    --popover: var(--zinc-900);
-    --popover-foreground: var(--zinc-50);
-    --card: var(--zinc-900);
-    --card-foreground: var(--zinc-50);
-
-    --error: var(--rose-700);
-    --error-accent: var(--rose-800);
-    --error-foreground: var(--rose-50);
-
-  --destructive: var(--rose-700);
-  --destructive-foreground: var(--rose-50);
-    --warning: var(--amber-700);
-    --warning-accent: var(--amber-800);
-    --warning-foreground: var(--amber-50);
-    --info: var(--sky-700);
-    --info-accent: var(--sky-800);
-    --info-foreground: var(--sky-50);
-    --success: var(--emerald-700);
-    --success-accent: var(--emerald-800);
     --success-foreground: var(--emerald-50);
   }
 }

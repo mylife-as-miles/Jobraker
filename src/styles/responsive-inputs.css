@@ -10,11 +10,11 @@
 /* Enhanced input field styling */
 .enhanced-input {
   width: 100%;
-  background: transparent !important;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.75rem;
+  background: hsl(var(--card) / 0.1) !important;
+  border: 1px solid hsl(var(--border) / 0.2);
+  border-radius: var(--radius);
   padding: 1rem 1.25rem;
-  color: #ffffff;
+  color: hsl(var(--foreground));
   font-size: 1rem;
   font-weight: 500;
   letter-spacing: 0.025em;
@@ -26,22 +26,22 @@
 
 /* Placeholder styling */
 .enhanced-input::placeholder {
-  color: rgba(255, 255, 255, 0.6);
+  color: hsl(var(--muted-foreground));
   font-weight: 400;
 }
 
 /* Focus states */
 .enhanced-input:focus {
   outline: none;
-  border-color: #1dff00;
-  box-shadow: 0 0 20px rgba(29, 255, 0, 0.3);
-  background: rgba(255, 255, 255, 0.05);
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.35);
+  background: hsl(var(--card) / 0.2);
 }
 
 /* Hover states */
 .enhanced-input:hover {
-  border-color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.02);
+  border-color: hsl(var(--border) / 0.4);
+  background: hsl(var(--card) / 0.15);
 }
 
 /* Responsive breakpoints */
@@ -104,9 +104,9 @@
   display: flex;
   align-items: center;
   position: relative;
-  background: transparent !important;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.75rem;
+  background: hsl(var(--card) / 0.1) !important;
+  border: 1px solid hsl(var(--border) / 0.2);
+  border-radius: var(--radius);
   padding: 0 1.25rem;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(8px);
@@ -114,14 +114,14 @@
 }
 
 .input-with-icon:hover {
-  border-color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: hsl(var(--border) / 0.4);
+  background: hsl(var(--card) / 0.15) !important;
 }
 
 .input-with-icon:focus-within {
-  border-color: #1dff00;
-  box-shadow: 0 0 20px rgba(29, 255, 0, 0.3);
-  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.35);
+  background: hsl(var(--card) / 0.2) !important;
 }
 
 .input-with-icon input {
@@ -129,18 +129,18 @@
   background: transparent !important;
   border: none !important;
   outline: none !important;
-  color: #ffffff;
+  color: hsl(var(--foreground));
   font-weight: 500;
   letter-spacing: 0.025em;
   margin-left: 0.75rem;
 }
 
 .input-with-icon input::placeholder {
-  color: rgba(255, 255, 255, 0.6);
+  color: hsl(var(--muted-foreground));
 }
 
 .input-with-icon .icon {
-  color: #ffffff;
+  color: hsl(var(--foreground));
   flex-shrink: 0;
 }
 
@@ -236,29 +236,22 @@
 
 /* Error states */
 .input-with-icon.error {
-  border-color: #ef4444;
-  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 0.1) !important;
 }
 
 .input-with-icon.error:focus-within {
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 0 0 3px hsl(var(--destructive) / 0.35);
 }
 
 /* Success states */
 .input-with-icon.success {
-  border-color: #10b981;
-  background: rgba(16, 185, 129, 0.1) !important;
+  border-color: hsl(var(--success));
+  background: hsl(var(--success) / 0.1) !important;
 }
 
 .input-with-icon.success:focus-within {
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
-}
-
-/* Accessibility improvements */
-.enhanced-input:focus-visible,
-.input-with-icon:focus-visible {
-  outline: 2px solid #1dff00;
-  outline-offset: 2px;
+  box-shadow: 0 0 0 3px hsl(var(--success) / 0.35);
 }
 
 /* High contrast mode */
@@ -266,13 +259,13 @@
   .enhanced-input,
   .input-with-icon {
     border-width: 2px;
-    border-color: #ffffff;
+    border-color: hsl(var(--foreground));
   }
   
   .enhanced-input:focus,
   .input-with-icon:focus-within {
-    border-color: #1dff00;
-    box-shadow: 0 0 0 3px rgba(29, 255, 0, 0.5);
+    border-color: hsl(var(--ring));
+    box-shadow: 0 0 0 3px hsl(var(--ring) / 0.5);
   }
 }
 
