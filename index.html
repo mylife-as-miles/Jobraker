@@ -11,7 +11,18 @@
     <style>
       @import url("https://fonts.googleapis.com/css?family=Inter:500");
     </style>
-  <!-- Styles are imported via Vite in src/index.tsx (../tailwind.css) -->
+    <script>
+      (function initializeTheme() {
+        try {
+          if (localStorage.theme === "dark" || (!('theme' in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+            document.documentElement.classList.add("dark");
+          } else {
+            document.documentElement.classList.remove("dark");
+          }
+        } catch (_) {}
+      })();
+    </script>
+    <!-- Styles are imported via Vite in src/index.tsx (../tailwind.css) -->
   </head>
   <body style="margin: 0; padding: 0; background-color: #000;">
     <div id="app"></div>
