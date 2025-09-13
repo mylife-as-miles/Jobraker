@@ -16,7 +16,8 @@ import {
   X,
   Home,
   ChevronRight as BreadcrumbChevron,
-  Briefcase
+  Briefcase,
+  Lock
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { AnalyticsContent } from "../../components/analytics/AnalyticsContent";
@@ -200,34 +201,26 @@ export const Dashboard = (): JSX.Element => {
     return currentItem?.path || "Dashboard";
   };
 
+  const LockedFeature = ({ name }: { name: string }) => (
+    <div className="h-full flex items-center justify-center p-6">
+      <div className="max-w-md w-full text-center bg-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl p-6 sm:p-8">
+        <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-3 sm:mb-4 rounded-full bg-[#1dff00]/10 flex items-center justify-center">
+          <Lock className="w-6 h-6 sm:w-7 sm:h-7 text-[#1dff00]" />
+        </div>
+        <h2 className="text-white text-lg sm:text-xl font-semibold mb-2">{name} is locked</h2>
+        <p className="text-[#888888] text-sm sm:text-base">This section is currently unavailable.</p>
+      </div>
+    </div>
+  );
+
   const renderPageContent = () => {
+    if (currentPage === "chat") return <LockedFeature name="Chat" />;
+    if (currentPage === "resume") return <LockedFeature name="Resume" />;
     switch (currentPage) {
       case "overview":
         return <OverviewPage />;
       case "analytics":
         return <AnalyticsContent />;
-      case "chat":
-        return <ChatPage />;
-      case "resume":
-        return (
-          <LocaleProvider>
-            <HelmetProvider context={helmetContext}>
-              <QueryClientProvider client={queryClient}>
-                <ThemeProvider>
-                  <TooltipProvider>
-                    <DialogProvider>
-                      {resumeSubRoute === "new" ? (
-                        <NewResumeRedirect />
-                      ) : (
-                        <ResumesPage />
-                      )}
-                    </DialogProvider>
-                  </TooltipProvider>
-                </ThemeProvider>
-              </QueryClientProvider>
-            </HelmetProvider>
-          </LocaleProvider>
-        );
       case "jobs":
         return <JobPage />;
       case "application":
@@ -244,7 +237,7 @@ export const Dashboard = (): JSX.Element => {
   };
 
   return (
-    <div className="min-h-screen bg-black flex">
+     <div className="min-h-screen bg-black flex">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
@@ -282,25 +275,33 @@ export const Dashboard = (): JSX.Element => {
         {/* Navigation - Responsive */}
         <nav className="flex-1 p-2 sm:p-3 lg:p-4 overflow-y-auto">
           <div className="space-y-1 sm:space-y-2">
-            {navigationItems.map((item) => (
-        <Button
-                key={item.id}
-                variant="ghost"
-                onClick={() => {
-                  const path = item.id === 'resume' ? '/dashboard/resumes' : `/dashboard/${item.id}`;
-                  navigate(path);
-                  setSidebarOpen(false);
-                }}
-                className={`w-full justify-start rounded-xl transition-colors duration-200 text-xs sm:text-sm lg:text-base px-3 py-2 sm:px-4 sm:py-3 h-auto ${
-                  currentPage === item.id
-                    ? "text-white bg-[#1dff00]/10 border border-[#1dff00]/30 shadow-[0_0_20px_rgba(29,255,0,0.15)]"
-                    : "text-[#a3a3a3] hover:text-white hover:bg-white/10"
-                }`}
-              >
-                {item.icon}
-                <span className="ml-2 sm:ml-3 lg:ml-4">{item.label}</span>
-              </Button>
-            ))}
+            {navigationItems.map((item) => {
+              const isLocked = item.id === "chat" || item.id === "resume";
+              const path = item.id === "resume" ? "/dashboard/resumes" : `/dashboard/${item.id}`;
+              const isActive = currentPage === item.id;
+              return (
+                <Button
+                  key={item.id}
+                  variant="ghost"
+                  disabled={isLocked}
+                  aria-disabled={isLocked}
+                  onClick={() => {
+                    if (isLocked) return;
+                    navigate(path);
+                    setSidebarOpen(false);
+                  }}
+                  className={`w-full justify-start rounded-xl transition-colors duration-200 text-xs sm:text-sm lg:text-base px-3 py-2 sm:px-4 sm:py-3 h-auto ${
+                    isActive && !isLocked
+                      ? "text-white bg-[#1dff00]/10 border border-[#1dff00]/30 shadow-[0_0_20px_rgba(29,255,0,0.15)]"
+                      : "text-[#a3a3a3] hover:text-white hover:bg-white/10"
+                  } ${isLocked ? "opacity-60 cursor-not-allowed" : ""}`}
+                >
+                  {item.icon}
+                  <span className="ml-2 sm:ml-3 lg:ml-4">{item.label}</span>
+                  {isLocked && <Lock className="ml-auto w-4 h-4 sm:w-5 sm:h-5 text-[#1dff00]/70" />}
+                </Button>
+              );
+            })}
           </div>
         </nav>
 
@@ -334,14 +335,16 @@ export const Dashboard = (): JSX.Element => {
         <header className="sticky top-0 z-40 bg-[#0a0a0a]/95 backdrop-blur border-b border-[#1dff00]/20 p-2 sm:p-3 lg:p-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="lg:hidden text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
-              </Button>
+              {currentPage !== "chat" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="lg:hidden text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2"
+                  onClick={() => setSidebarOpen(true)}
+                >
+                  <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
+                </Button>
+              )}
               
               {/* Current page (xs) */}
               <span className="sm:hidden text-white font-medium text-sm truncate">
