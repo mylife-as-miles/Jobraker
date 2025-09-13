@@ -15,6 +15,18 @@ export const Button: React.FC<ButtonProps> = ({ children, asChild, ...props }) =
 export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => (
   <div {...props} className={(props.className ?? "") + " rounded border p-3 bg-white/5"}>{children}</div>
 );
+export const CardContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => (
+  <div {...props}>{children}</div>
+);
+export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({ children, ...props }) => (
+  <h3 {...props}>{children}</h3>
+);
+export const CardDescription: React.FC<React.HTMLAttributes<HTMLParagraphElement>> = ({ children, ...props }) => (
+  <p {...props}>{children}</p>
+);
+export const CardFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => (
+  <div {...props}>{children}</div>
+);
 
 export const ScrollArea: React.FC<
   React.HTMLAttributes<HTMLDivElement> & { orientation?: "vertical" | "horizontal"; allowOverflow?: boolean }
@@ -55,6 +67,15 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
 ));
 Input.displayName = "Input";
 
+export const Checkbox: React.FC<{ checked?: boolean; onCheckedChange?: (v: boolean) => void } & React.InputHTMLAttributes<HTMLInputElement>> = ({ checked, onCheckedChange, ...props }) => (
+  <input
+    type="checkbox"
+    checked={!!checked}
+    onChange={(e) => onCheckedChange?.(e.target.checked)}
+    {...props}
+  />
+);
+
 export const RichInput: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement>> = (props) => (
   <textarea {...props} className={(props.className ?? "") + " rounded border px-2 py-1 min-h-[80px]"} />
 );
@@ -72,6 +93,16 @@ export const Slider: React.FC<{ value?: number[]; min?: number; max?: number; st
 
 export const Label: React.FC<React.LabelHTMLAttributes<HTMLLabelElement>> = ({ children, ...props }) => (
   <label {...props} className={(props.className ?? "") + " text-sm"}>{children}</label>
+);
+
+export const Switch: React.FC<{ id?: string; checked?: boolean; onCheckedChange?: (v: boolean) => void } & React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ checked, onCheckedChange, ...props }) => (
+  <button
+    role="switch"
+    aria-checked={!!checked}
+    onClick={() => onCheckedChange?.(!checked)}
+    type="button"
+    {...props}
+  />
 );
 
 export const Select: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
@@ -177,6 +208,35 @@ export const Toggle: React.FC<{ pressed?: boolean; onPressedChange?: (p: boolean
   </button>
 );
 
+// ToggleGroup primitives (single selection)
+const ToggleGroupCtx = React.createContext<{ value?: string; onValueChange?: (v: string) => void } | null>(null);
+export const ToggleGroup: React.FC<{
+  type?: "single" | "multiple";
+  value?: string;
+  onValueChange?: (v: string) => void;
+} & React.HTMLAttributes<HTMLDivElement>> = ({ children, value, onValueChange, ...props }) => (
+  <ToggleGroupCtx.Provider value={{ value, onValueChange }}>
+    <div {...props}>{children}</div>
+  </ToggleGroupCtx.Provider>
+);
+export const ToggleGroupItem: React.FC<{
+  value: string;
+} & React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ value, children, ...props }) => {
+  const ctx = React.useContext(ToggleGroupCtx);
+  const pressed = ctx?.value === value;
+  return (
+    <button
+      aria-pressed={pressed}
+      data-state={pressed ? "on" : "off"}
+      onClick={() => ctx?.onValueChange?.(value)}
+      type="button"
+      {...props}
+    >
+      {children}
+    </button>
+  );
+};
+
 // Command palette primitives
 export const Command: React.FC<{ shouldFilter?: boolean } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
 export const CommandInput: React.FC<{ value?: string; onValueChange?: (v: string) => void; placeholder?: string }> = ({ value, onValueChange, placeholder }) => (
@@ -230,6 +290,22 @@ export const DropdownMenuTrigger: React.FC<{ asChild?: boolean } & React.ButtonH
 export const DropdownMenuContent: React.FC<{ side?: string; align?: string } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
 export const DropdownMenuItem: React.FC<React.HTMLAttributes<HTMLDivElement> & { onClick?: () => void } > = ({ children, onClick, ...props }) => <div {...props} onClick={onClick}>{children}</div>;
 export const DropdownMenuSeparator: React.FC<React.HTMLAttributes<HTMLHRElement>> = (props) => <hr {...props} />;
+export const DropdownMenuCheckboxItem: React.FC<{ checked?: boolean; onCheckedChange?: (v: boolean) => void } & React.HTMLAttributes<HTMLDivElement>> = ({ children, checked, onCheckedChange, ...props }) => (
+  <div
+    role="menuitemcheckbox"
+    aria-checked={!!checked}
+    onClick={() => onCheckedChange?.(!checked)}
+    {...props}
+  >
+    {children}
+  </div>
+);
+export const DropdownMenuGroup: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const DropdownMenuRadioGroup: React.FC<{ value?: string; onValueChange?: (v: string) => void } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const DropdownMenuRadioItem: React.FC<{ value?: string } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const DropdownMenuSub: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+export const DropdownMenuSubTrigger: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, ...props }) => <button {...props}>{children}</button>;
+export const DropdownMenuSubContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
 
 // Context menu primitives
 export const ContextMenu: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;

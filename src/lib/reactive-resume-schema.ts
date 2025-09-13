@@ -63,3 +63,20 @@ export const sampleResume = {} as any;
 export const urlSchema = {
 	safeParse: (value: { href?: string }) => ({ success: !!value?.href && /^https?:\/\//.test(value.href) }),
 };
+
+// Minimal defaultSections map used by SectionOptions to reset names
+export const defaultSections: Record<string, { name: string }> = {
+	profiles: { name: "Profiles" },
+	summary: { name: "Summary" },
+	work: { name: "Work Experience" },
+	education: { name: "Education" },
+	skills: { name: "Skills" },
+	projects: { name: "Projects" },
+	awards: { name: "Awards" },
+	certifications: { name: "Certifications" },
+	interests: { name: "Interests" },
+	languages: { name: "Languages" },
+	publications: { name: "Publications" },
+	references: { name: "References" },
+	volunteer: { name: "Volunteer" },
+};

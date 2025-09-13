@@ -1,7 +1,6 @@
 import { t } from "@lingui/macro";
 import { useTheme } from "@reactive-resume/hooks";
 import { Label, Switch } from "@reactive-resume/ui";
-import Prism from "prismjs";
 import { Helmet } from "react-helmet-async";
 import CodeEditor from "react-simple-code-editor";
 
@@ -34,7 +33,7 @@ export const CssSection = () => {
           <Switch
             id="metadata.css.visible"
             checked={css.visible}
-            onCheckedChange={(checked) => {
+            onCheckedChange={(checked: boolean) => {
               setValue("metadata.css.visible", checked);
             }}
           />
@@ -46,8 +45,8 @@ export const CssSection = () => {
             tabSize={4}
             value={css.value}
             className="language-css font-mono"
-            highlight={(code) => Prism.highlight(code, Prism.languages.css, "css")}
-            onValueChange={(value) => {
+            highlight={(code: string) => code}
+            onValueChange={(value: string) => {
               setValue("metadata.css.value", value);
             }}
           />

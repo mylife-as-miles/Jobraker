@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
   KeyboardShortcut,
 } from "@reactive-resume/ui";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 
 import { useLogout } from "../services/auth";
 

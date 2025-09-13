@@ -35,10 +35,12 @@ export const routes = createRoutesFromElements(
       </Route>
 
       <Route path="builder">
-        <Route element={<BuilderLayout />}>
-          <Route path=":id" loader={builderLoader} element={<BuilderPage />} />
+        <Route element={<AuthGuard />}>
+          <Route element={<BuilderLayout />}>
+            <Route path=":id" loader={builderLoader} element={<BuilderPage />} />
 
-          <Route index element={<Navigate replace to="/dashboard/resumes" />} />
+            <Route index element={<Navigate replace to="/dashboard/resumes" />} />
+          </Route>
         </Route>
       </Route>
 

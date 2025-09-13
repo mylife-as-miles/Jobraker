@@ -1,0 +1,1 @@
+export const restrictToParentElement = (_: any) => undefined as any;

@@ -12,10 +12,11 @@ import { PublicOnly } from "./components/PublicOnly";
 import { RequireAuth } from "./components/RequireAuth";
 import { ToastProvider } from "./components/ui/toast-provider";
 import { ArtboardPage } from "./pages/artboard";
-import { BuilderLayout } from "./pages/builder";
+import { BuilderLayout as ArtboardCanvasLayout } from "./pages/builder";
 import { PreviewLayout } from "./pages/preview";
 import { Providers } from "./providers";
 import { ClientBuilderRoute } from "@/client/pages/builder/route-bridge";
+import { BuilderLayout } from "@/client/pages/builder/layout";
 import { ROUTES } from "./routes";
 import { ToastEventBridge } from "./components/system/ToastEventBridge";
 
@@ -80,14 +81,16 @@ function App() {
         {/* Artboard routes */}
         <Route element={<RequireAuth><Providers/></RequireAuth>}>
             <Route path={ROUTES.ARTBOARD} element={<ArtboardPage/>}>
-                <Route path="builder" element={<BuilderLayout/>}/>
+                <Route path="builder" element={<ArtboardCanvasLayout/>}/>
                 <Route path="preview" element={<PreviewLayout/>}/>
             </Route>
         </Route>
 
-        {/* Client builder route bridge for direct navigations */}
+        {/* Client builder route with layout (protected) */}
         <Route element={<RequireAuth><Providers/></RequireAuth>}>
-          <Route path="/builder/:id" element={<ClientBuilderRoute/>} />
+          <Route path="/builder" element={<BuilderLayout/>}>
+            <Route path=":id" element={<ClientBuilderRoute/>} />
+          </Route>
         </Route>
 
 

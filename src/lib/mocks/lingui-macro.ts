@@ -10,3 +10,8 @@ export const msg = (strings: TemplateStringsArray, ...expr: unknown[]) =>
 export function Trans(props: { children?: any }) {
   return (props && (props as any).children) ?? null;
 }
+
+// Minimal plural helper that returns a resolved string for display
+export function plural(value: number, forms: { one: string; other: string }) {
+  return value === 1 ? forms.one : forms.other;
+}

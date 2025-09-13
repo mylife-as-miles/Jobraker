@@ -1,4 +1,4 @@
-import { Navigate, Outlet, useSearchParams } from "react-router";
+import { Navigate, Outlet, useSearchParams } from "react-router-dom";
 
 import { useAuthStore } from "@/client/stores/auth";
 

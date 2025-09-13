@@ -1,5 +1,5 @@
 import type { ResumeDto } from "@reactive-resume/dto";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import type { LoaderFunction } from "react-router-dom";
 import { redirect } from "react-router-dom";
@@ -8,8 +8,6 @@ import { queryClient } from "@/client/libs/query-client";
 import { findResumeById } from "@/client/services/resume";
 import { useResumeStore } from "@/client/stores/resume";
 import { useArtboardStore } from "../../../store/artboard";
-import { ArtboardPage } from "../../../pages/artboard";
-import { BuilderLayout as ArtboardBuilder } from "../../../pages/builder";
 import { Loader2 } from "lucide-react";
 
 export const BuilderPage = () => {
@@ -17,11 +15,23 @@ export const BuilderPage = () => {
   const title = useResumeStore((state) => state.resume?.title || "Builder");
   const data = useResumeStore((state) => state.resume?.data);
   const setArtboardResume = useArtboardStore((state) => state.setResume);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
-  // Sync resume data directly into the artboard store (no iframe)
+  // If artboard is embedded as a route in the same app, we still keep local store in sync
   useEffect(() => {
     if (data) setArtboardResume(data);
   }, [data, setArtboardResume]);
+
+  // Post resume to iframe-based artboard once loaded and whenever data changes
+  useEffect(() => {
+    const post = () => {
+      if (!iframeRef.current?.contentWindow || !data) return;
+      iframeRef.current.contentWindow.postMessage({ type: 'SET_RESUME', payload: { resume: data } }, '*');
+    };
+    post();
+    const id = window.setTimeout(post, 200); // retry shortly in case load is late
+    return () => window.clearTimeout(id);
+  }, [data]);
 
   // Minimal guard to avoid blank page before store is hydrated
   if (!resume || !resume.id) {
@@ -61,10 +71,19 @@ export const BuilderPage = () => {
         </title>
       </Helmet>
 
-      {/* Render artboard directly instead of iframe */}
+      {/* Render artboard via iframe and pass resume via postMessage */}
       <div className="mt-16 w-screen" style={{ height: `calc(100vh - 64px)` }}>
-        <ArtboardPage />
-        <ArtboardBuilder />
+        <iframe
+          ref={iframeRef}
+          title="Artboard Builder"
+          src="/artboard/builder"
+          className="w-full h-full border-0 bg-black"
+          onLoad={() => {
+            if (data && iframeRef.current?.contentWindow) {
+              iframeRef.current.contentWindow.postMessage({ type: 'SET_RESUME', payload: { resume: data } }, '*');
+            }
+          }}
+        />
       </div>
     </>
   );

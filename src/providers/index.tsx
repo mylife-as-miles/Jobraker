@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { HelmetProvider } from "react-helmet-async";
-import { Outlet } from "react-router";
+import { Outlet } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 
 import { helmetContext } from "../constants/helmet";

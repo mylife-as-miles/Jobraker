@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
-import { Outlet } from "react-router";
+import { Outlet } from "react-router-dom";
 import webfontloader from "webfontloader";
 
 import { useArtboardStore } from "../store/artboard";
@@ -8,6 +8,7 @@ import { useArtboardStore } from "../store/artboard";
 export const ArtboardPage = () => {
   const name = useArtboardStore((state) => state.resume.basics.name);
   const metadata = useArtboardStore((state) => state.resume.metadata);
+  const setResume = useArtboardStore((state) => state.setResume);
 
   const fontString = useMemo(() => {
     const family = metadata.typography.font.family;
@@ -45,6 +46,19 @@ export const ArtboardPage = () => {
     document.documentElement.style.setProperty("--color-primary", metadata.theme.primary);
     document.documentElement.style.setProperty("--color-background", metadata.theme.background);
   }, [metadata]);
+
+  // Receive resume from parent via postMessage when embedded as iframe
+  useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      const msg = event?.data;
+      if (!msg || typeof msg !== 'object') return;
+      if (msg.type === 'SET_RESUME' && msg.payload?.resume) {
+        try { setResume(msg.payload.resume); } catch {}
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [setResume]);
 
   // Typography Options
   useEffect(() => {
