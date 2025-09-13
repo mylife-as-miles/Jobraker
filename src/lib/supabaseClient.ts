@@ -12,6 +12,7 @@ export function createClient(): SupabaseClient {
     // Return a mock client for development/demo purposes
     const mock = {
       auth: {
+        getSession: () => Promise.resolve({ data: { session: null }, error: null }),
         getUser: () => Promise.resolve({ data: { user: null }, error: null }),
         signInWithOAuth: () => Promise.resolve({ data: null, error: null }),
         signInWithPassword: () => Promise.resolve({ data: null, error: null }),
@@ -25,6 +26,16 @@ export function createClient(): SupabaseClient {
           },
           error: null,
         }),
+      },
+      storage: {
+        from: (_bucket: string) => ({
+          createSignedUrl: async (_path: string, _expiresIn: number) => ({ data: { signedUrl: '' }, error: null }),
+          upload: async () => ({ data: null, error: null }),
+          download: async () => ({ data: null, error: null }),
+        }),
+      },
+      functions: {
+        invoke: async (_name: string, _opts?: any) => ({ data: null, error: null }),
       },
       from: () => ({
         select: () => Promise.resolve({ data: [], error: null }),
