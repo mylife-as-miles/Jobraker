@@ -87,6 +87,20 @@ export const templatesList = [
   { id: "classic", name: "Classic" },
 ];
 
+// Minimal Google-like fonts catalog used in TypographySection
+export const fonts: Array<{ family: string; subsets: string[]; variants: string[] }> = [
+  { family: "IBM Plex Sans", subsets: ["latin"], variants: ["regular", "700"] },
+  { family: "IBM Plex Serif", subsets: ["latin"], variants: ["regular", "700"] },
+  { family: "Lato", subsets: ["latin"], variants: ["regular", "700"] },
+  { family: "Lora", subsets: ["latin"], variants: ["regular", "700"] },
+  { family: "Merriweather", subsets: ["latin"], variants: ["regular", "700"] },
+  { family: "Open Sans", subsets: ["latin"], variants: ["regular", "700"] },
+  { family: "Playfair Display", subsets: ["latin"], variants: ["regular", "700"] },
+  { family: "PT Sans", subsets: ["latin"], variants: ["regular", "700"] },
+  { family: "PT Serif", subsets: ["latin"], variants: ["regular", "700"] },
+  { family: "Roboto Condensed", subsets: ["latin"], variants: ["regular", "700"] },
+];
+
 // Template identifiers used across artboard/builder
 export type Template =
   | "azurill"
