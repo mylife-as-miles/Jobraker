@@ -9,7 +9,7 @@ export interface InputProps
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, variant = "transparent", inputSize = "lg", ...props }, ref) => {
-    const baseClasses = "flex w-full rounded-lg border border-input bg-background text-foreground placeholder:text-foreground/60 file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200"
+    const baseClasses = "flex w-full rounded-xl border border-input bg-background text-foreground placeholder:text-foreground/60 file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200"
 
     const variantClasses = {
       default: "bg-card/60 hover:border-border focus:border-brand",
