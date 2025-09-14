@@ -9,6 +9,30 @@ export interface AppearanceSettings {
   updated_at: string;
 }
 
+function hexToHsl(hex: string): { h: number, s: number, l: number } | null {
+    if (!hex.startsWith('#')) return null;
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+
+    if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+    }
+
+    return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+}
+
 function applyAppearanceToDOM({ theme, accent_color, reduce_motion }: { theme: 'dark' | 'light' | 'auto'; accent_color: string; reduce_motion: boolean; }) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
@@ -16,8 +40,15 @@ function applyAppearanceToDOM({ theme, accent_color, reduce_motion }: { theme: '
   const prefersDark = typeof window !== 'undefined' && (window as any).matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   root.classList.remove('dark');
   if (theme === 'dark' || (theme === 'auto' && prefersDark)) root.classList.add('dark');
-  // Accent color variable
-  root.style.setProperty('--accent-color', accent_color);
+
+  // Accent color variables
+  const hsl = hexToHsl(accent_color);
+  if (hsl) {
+    root.style.setProperty('--color-brand-h', `${hsl.h}`);
+    root.style.setProperty('--color-brand-s', `${hsl.s}%`);
+    root.style.setProperty('--color-brand-l', `${hsl.l}%`);
+  }
+
   // Reduced motion
   root.style.setProperty('--reduce-motion', reduce_motion ? '1' : '0');
   if (reduce_motion) root.classList.add('rm'); else root.classList.remove('rm');
