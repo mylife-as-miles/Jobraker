@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 import { TransformComponent, TransformWrapper } from "react-zoom-pan-pinch";
 
-import { MM_TO_PX, Page } from "../components/page";
+import { Page } from "../components/page";
 import { useArtboardStore } from "../store/artboard";
 import { getTemplate } from "../templates";
 
@@ -14,6 +14,8 @@ export const BuilderLayout = () => {
   const [wheelPanning, setWheelPanning] = useState(true);
 
   const transformRef = useRef<ReactZoomPanPinchRef>(null);
+
+  const MM_TO_PX = 3.78;
 
   const layout = useArtboardStore((state) => state.resume?.metadata?.layout);
   const format = useArtboardStore((state) => state.resume?.metadata?.page?.format as PageFormat);
