@@ -18,7 +18,7 @@ const Card = React.forwardRef<
     <div
       ref={ref}
       className={cn(
-  "rounded-lg text-card-foreground shadow-sm transition-all duration-200",
+  "rounded-xl text-card-foreground shadow-sm transition-all duration-200",
         variantClasses[variant],
         className
       )}
