@@ -4,35 +4,10 @@ import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
 import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award, GraduationCap, Briefcase } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
+import { useProfileCollections } from "../../../hooks/useProfileCollections";
 import { createClient } from "../../../lib/supabaseClient";
 
-interface Experience {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  startDate: string;
-  endDate: string;
-  current: boolean;
-  description: string;
-}
-
-interface Education {
-  id: string;
-  degree: string;
-  school: string;
-  location: string;
-  startDate: string;
-  endDate: string;
-  gpa?: string;
-}
-
-interface Skill {
-  id: string;
-  name: string;
-  level: "Beginner" | "Intermediate" | "Advanced" | "Expert";
-  category: string;
-}
+// Data now comes from Supabase via useProfileCollections
 
 const ProfilePage = (): JSX.Element => {
   const [isEditing, setIsEditing] = useState(false);
@@ -75,51 +50,14 @@ const ProfilePage = (): JSX.Element => {
     return () => { active = false; clearInterval(id); };
   }, [supabase, (profile as any)?.avatar_url]);
 
-  const experiences: Experience[] = [
-    {
-      id: "1",
-      title: "Senior Software Engineer",
-      company: "TechCorp Inc.",
-      location: "San Francisco, CA",
-      startDate: "2022-01",
-      endDate: "",
-      current: true,
-      description: "Lead development of microservices architecture serving 1M+ users. Mentored junior developers and improved system performance by 40%."
-    },
-    {
-      id: "2",
-      title: "Software Engineer",
-      company: "StartupXYZ",
-      location: "Remote",
-      startDate: "2020-03",
-      endDate: "2021-12",
-      current: false,
-      description: "Built full-stack web applications using React and Node.js. Implemented CI/CD pipelines and reduced deployment time by 60%."
-    }
-  ];
+  const { experiences, education, skills } = useProfileCollections();
+  const [showAddExperience, setShowAddExperience] = useState(false);
+  const [showAddEducation, setShowAddEducation] = useState(false);
+  const [showAddSkill, setShowAddSkill] = useState(false);
 
-  const education: Education[] = [
-    {
-      id: "1",
-      degree: "Bachelor of Science in Computer Science",
-      school: "University of California, Berkeley",
-      location: "Berkeley, CA",
-      startDate: "2016-08",
-      endDate: "2020-05",
-      gpa: "3.8"
-    }
-  ];
-
-  const skills: Skill[] = [
-    { id: "1", name: "JavaScript", level: "Expert", category: "Programming" },
-    { id: "2", name: "React", level: "Expert", category: "Frontend" },
-    { id: "3", name: "Node.js", level: "Advanced", category: "Backend" },
-    { id: "4", name: "TypeScript", level: "Advanced", category: "Programming" },
-    { id: "5", name: "Python", level: "Intermediate", category: "Programming" },
-    { id: "6", name: "AWS", level: "Intermediate", category: "Cloud" },
-    { id: "7", name: "Docker", level: "Intermediate", category: "DevOps" },
-    { id: "8", name: "GraphQL", level: "Advanced", category: "Backend" }
-  ];
+  // Access mutation helpers via direct import to keep patch minimal
+  // (Alternatively could restructure hook to return them; we already do.)
+  const collections = useProfileCollections();
 
   const getSkillLevelColor = (level: string) => {
     switch (level) {
@@ -343,13 +281,59 @@ const ProfilePage = (): JSX.Element => {
                   <Button 
                     size="sm" 
                     className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                    onClick={() => setShowAddExperience(v => !v)}
                   >
                     <Plus className="w-4 h-4 mr-1" />
-                    Add
+                    {showAddExperience ? 'Close' : 'Add'}
                   </Button>
                 </div>
+                {showAddExperience && (
+                  <div className="mb-4 space-y-2 p-4 bg-[#ffffff0a] rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <input placeholder="Title" id="exp-title" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                      <input placeholder="Company" id="exp-company" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                      <input placeholder="Location" id="exp-location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                      <div className="flex gap-2">
+                        <input type="month" placeholder="Start" id="exp-start" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
+                        <input type="month" placeholder="End" id="exp-end" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
+                      </div>
+                      <label className="flex items-center gap-2 text-xs text-[#ffffff80]">
+                        <input type="checkbox" id="exp-current" className="accent-[#1dff00]" /> Current Role
+                      </label>
+                      <textarea placeholder="Description" id="exp-desc" rows={2} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60] col-span-full resize-none" />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
+                        onClick={() => setShowAddExperience(false)}>Cancel</Button>
+                      <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+                        onClick={() => {
+                          const title = (document.getElementById('exp-title') as HTMLInputElement)?.value.trim();
+                          if (!title) return;
+                          collections.addExperience({
+                            title,
+                            company: (document.getElementById('exp-company') as HTMLInputElement)?.value.trim(),
+                            location: (document.getElementById('exp-location') as HTMLInputElement)?.value.trim(),
+                            start_date: (document.getElementById('exp-start') as HTMLInputElement)?.value ? (document.getElementById('exp-start') as HTMLInputElement).value + '-01' : new Date().toISOString(),
+                            end_date: (document.getElementById('exp-current') as HTMLInputElement)?.checked ? null : ((document.getElementById('exp-end') as HTMLInputElement)?.value ? (document.getElementById('exp-end') as HTMLInputElement).value + '-01' : null),
+                            is_current: (document.getElementById('exp-current') as HTMLInputElement)?.checked,
+                            description: (document.getElementById('exp-desc') as HTMLTextAreaElement)?.value.trim(),
+                          });
+                          setShowAddExperience(false);
+                        }}>Save</Button>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-4">
-                  {experiences.map((exp, index) => (
+                  {experiences.loading && (
+                    <p className="text-sm text-[#ffffff60]">Loading experiences...</p>
+                  )}
+                  {!experiences.loading && experiences.error && (
+                    <p className="text-sm text-red-400">{experiences.error}</p>
+                  )}
+                  {!experiences.loading && !experiences.error && experiences.data.length === 0 && (
+                    <p className="text-sm text-[#ffffff60]">Add your first experience.</p>
+                  )}
+                  {experiences.data.map((exp, index) => (
                     <motion.div
                       key={exp.id}
                       className="border-l-2 border-[#1dff00] pl-4 pb-4 relative hover:bg-[#ffffff0a] p-3 rounded-r-lg transition-all duration-300"
@@ -369,7 +353,7 @@ const ProfilePage = (): JSX.Element => {
                           </p>
                           <p className="text-[#ffffff60] text-sm flex items-center mt-1">
                             <Calendar className="w-3 h-3 mr-1" />
-                            {exp.startDate} - {exp.current ? "Present" : exp.endDate}
+                            {exp.start_date?.slice(0,7)} - {exp.is_current ? "Present" : (exp.end_date ? exp.end_date.slice(0,7) : '')}
                           </p>
                           <p className="text-[#ffffff80] text-sm mt-2 leading-relaxed">{exp.description}</p>
                         </div>
@@ -413,13 +397,54 @@ const ProfilePage = (): JSX.Element => {
                   <Button 
                     size="sm" 
                     className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                    onClick={() => setShowAddEducation(v => !v)}
                   >
                     <Plus className="w-4 h-4 mr-1" />
-                    Add
+                    {showAddEducation ? 'Close' : 'Add'}
                   </Button>
                 </div>
+                {showAddEducation && (
+                  <div className="mb-4 space-y-2 p-4 bg-[#ffffff0a] rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <input placeholder="Degree" id="edu-degree" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                      <input placeholder="School" id="edu-school" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                      <input placeholder="Location" id="edu-location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                      <div className="flex gap-2">
+                        <input type="month" placeholder="Start" id="edu-start" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
+                        <input type="month" placeholder="End" id="edu-end" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
+                      </div>
+                      <input placeholder="GPA" id="edu-gpa" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={() => setShowAddEducation(false)}>Cancel</Button>
+                      <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => {
+                        const degree = (document.getElementById('edu-degree') as HTMLInputElement)?.value.trim();
+                        const school = (document.getElementById('edu-school') as HTMLInputElement)?.value.trim();
+                        if (!degree || !school) return;
+                        collections.addEducation({
+                          degree,
+                          school,
+                          location: (document.getElementById('edu-location') as HTMLInputElement)?.value.trim(),
+                          start_date: (document.getElementById('edu-start') as HTMLInputElement)?.value ? (document.getElementById('edu-start') as HTMLInputElement).value + '-01' : new Date().toISOString(),
+                          end_date: (document.getElementById('edu-end') as HTMLInputElement)?.value ? (document.getElementById('edu-end') as HTMLInputElement).value + '-01' : null,
+                          gpa: (document.getElementById('edu-gpa') as HTMLInputElement)?.value.trim() || null,
+                        });
+                        setShowAddEducation(false);
+                      }}>Save</Button>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-4">
-                  {education.map((edu, index) => (
+                  {education.loading && (
+                    <p className="text-sm text-[#ffffff60]">Loading education...</p>
+                  )}
+                  {!education.loading && education.error && (
+                    <p className="text-sm text-red-400">{education.error}</p>
+                  )}
+                  {!education.loading && !education.error && education.data.length === 0 && (
+                    <p className="text-sm text-[#ffffff60]">Add your first education record.</p>
+                  )}
+                  {education.data.map((edu, index) => (
                     <motion.div
                       key={edu.id}
                       className="border-l-2 border-[#1dff00] pl-4 pb-4 relative hover:bg-[#ffffff0a] p-3 rounded-r-lg transition-all duration-300"
@@ -439,7 +464,7 @@ const ProfilePage = (): JSX.Element => {
                           </p>
                           <p className="text-[#ffffff60] text-sm flex items-center mt-1">
                             <Calendar className="w-3 h-3 mr-1" />
-                            {edu.startDate} - {edu.endDate}
+                            {edu.start_date?.slice(0,7)} - {edu.end_date?.slice(0,7)}
                           </p>
                           {edu.gpa && (
                             <p className="text-[#ffffff80] text-sm mt-1">GPA: {edu.gpa}</p>
@@ -485,13 +510,51 @@ const ProfilePage = (): JSX.Element => {
                   <Button 
                     size="sm" 
                     className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                    onClick={() => setShowAddSkill(v => !v)}
                   >
                     <Plus className="w-4 h-4 mr-1" />
-                    Add
+                    {showAddSkill ? 'Close' : 'Add'}
                   </Button>
                 </div>
+                {showAddSkill && (
+                  <div className="mb-4 space-y-2 p-4 bg-[#ffffff0a] rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                      <input placeholder="Name" id="skill-name" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60] md:col-span-2" />
+                      <select id="skill-level" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white md:col-span-1">
+                        <option value="">Level</option>
+                        <option value="Beginner">Beginner</option>
+                        <option value="Intermediate">Intermediate</option>
+                        <option value="Advanced">Advanced</option>
+                        <option value="Expert">Expert</option>
+                      </select>
+                      <input placeholder="Category" id="skill-category" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60] md:col-span-1" />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={() => setShowAddSkill(false)}>Cancel</Button>
+                      <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => {
+                        const name = (document.getElementById('skill-name') as HTMLInputElement)?.value.trim();
+                        if (!name) return;
+                        collections.addSkill({
+                          name,
+                          level: (document.getElementById('skill-level') as HTMLSelectElement)?.value as any || null,
+                          category: (document.getElementById('skill-category') as HTMLInputElement)?.value.trim(),
+                        });
+                        setShowAddSkill(false);
+                      }}>Save</Button>
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {skills.map((skill, index) => (
+                  {skills.loading && (
+                    <p className="text-sm text-[#ffffff60] col-span-full">Loading skills...</p>
+                  )}
+                  {!skills.loading && skills.error && (
+                    <p className="text-sm text-red-400 col-span-full">{skills.error}</p>
+                  )}
+                  {!skills.loading && !skills.error && skills.data.length === 0 && (
+                    <p className="text-sm text-[#ffffff60] col-span-full">Add your first skill.</p>
+                  )}
+                  {skills.data.map((skill, index) => (
                     <motion.div
                       key={skill.id}
                       className="space-y-2 p-3 bg-[#ffffff0a] rounded-lg hover:bg-[#ffffff15] transition-all duration-300"
@@ -506,7 +569,7 @@ const ProfilePage = (): JSX.Element => {
                       </div>
                       <div className="w-full bg-[#ffffff20] rounded-full h-2">
                         <div 
-                          className={`h-2 rounded-full transition-all duration-500 ${getSkillLevelColor(skill.level)} ${getSkillLevelWidth(skill.level)}`}
+                          className={`h-2 rounded-full transition-all duration-500 ${getSkillLevelColor(skill.level || '')} ${getSkillLevelWidth(skill.level || '')}`}
                         ></div>
                       </div>
                       <span className="text-[#ffffff60] text-xs">{skill.category}</span>

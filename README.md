@@ -105,6 +105,70 @@ The following improvements were recently added during active development:
 
 > These updates pave the way for richer automation telemetry and faster iteration on application flows.
 
+### Profile Data (Experiences, Education, Skills)
+
+The dashboard Profile page now loads real-time data from three normalized tables:
+
+Tables:
+```
+public.profile_experiences
+public.profile_education
+public.profile_skills
+```
+
+These were added via migration `20250916_add_profile_collections.sql` under `backend/supabase/migrations/`.
+
+Each table enforces RLS (row level security) and policies limiting access to the authenticated owner (`auth.uid() = user_id`).
+
+#### Applying the Migration Locally
+```bash
+# From repo root
+supabase start            # if not already running
+supabase db push          # applies new migration files
+```
+
+#### Verifying
+```sql
+select table_name from information_schema.tables 
+ where table_schema = 'public' 
+   and table_name like 'profile_%';
+```
+
+#### Frontend Hook
+The React hook `useProfileCollections` (in `src/hooks/useProfileCollections.ts`) provides:
+- Loading + error state per collection
+- Realtime subscriptions (Postgres changes) filtered by current user
+- CRUD helpers: add / update / delete for experiences, education, skills
+
+#### Usage Example
+```tsx
+import { useProfileCollections } from '@/hooks/useProfileCollections';
+
+function ProfileSection() {
+  const { experiences, addExperience } = useProfileCollections();
+  if (experiences.loading) return <p>Loading...</p>;
+  return (
+    <div>
+      {experiences.data.map(e => <div key={e.id}>{e.title}</div>)}
+      <button onClick={() => addExperience({ title: 'New Role', company: 'Acme', location: 'Remote', start_date: new Date().toISOString(), is_current: true, description: '' })}>Add</button>
+    </div>
+  );
+}
+```
+
+#### Deployment Notes
+After merging these changes, ensure production database has the migration applied either by:
+1. Running `supabase db push` against the remote project (with `SUPABASE_ACCESS_TOKEN` & `SUPABASE_PROJECT_REF` configured), or
+2. Manually creating equivalent tables & policies through the Supabase dashboard SQL editor (paste the migration SQL).
+
+Set environment variables in Vercel:
+```
+VITE_SUPABASE_URL=... # project API URL
+VITE_SUPABASE_ANON_KEY=... # regenerated anon key (rotate if previously exposed)
+```
+
+> If the anon key was exposed publicly, rotate it in Supabase Dashboard → Project Settings → API → Regenerate anon key, then update Vercel & redeploy.
+
 ## 🛠 Tech Stack
 
 ### Frontend
