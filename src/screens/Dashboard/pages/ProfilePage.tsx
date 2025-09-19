@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award, GraduationCap, Briefcase } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useProfileCollections } from "../../../hooks/useProfileCollections";
+import type { ProfileEducation as TProfileEducation, ProfileExperience as TProfileExperience, ProfileSkill as TProfileSkill } from "../../../hooks/useProfileCollections";
+import { useApplications } from "../../../hooks/useApplications";
 import { createClient } from "../../../lib/supabaseClient";
 
 // Data now comes from Supabase via useProfileCollections
@@ -50,14 +52,19 @@ const ProfilePage = (): JSX.Element => {
     return () => { active = false; clearInterval(id); };
   }, [supabase, (profile as any)?.avatar_url]);
 
-  const { experiences, education, skills } = useProfileCollections();
+  // Consolidated collections hook: data + CRUD are from the same instance
+  const collections = useProfileCollections();
+  const { experiences, education, skills, addExperience, addEducation, addSkill, deleteExperience, deleteEducation, deleteSkill } = collections as any;
   const [showAddExperience, setShowAddExperience] = useState(false);
   const [showAddEducation, setShowAddEducation] = useState(false);
   const [showAddSkill, setShowAddSkill] = useState(false);
 
-  // Access mutation helpers via direct import to keep patch minimal
-  // (Alternatively could restructure hook to return them; we already do.)
-  const collections = useProfileCollections();
+  // Applications for realtime Quick Stats
+  const { applications, loading: appsLoading, error: appsError } = useApplications();
+  const totalApps = applications?.length ?? 0;
+  const interviews = applications?.filter(a => a.status === 'Interview').length ?? 0;
+  const offers = applications?.filter(a => a.status === 'Offer').length ?? 0;
+  const successRate = totalApps > 0 ? Math.round((offers / totalApps) * 100) : 0;
 
   const getSkillLevelColor = (level: string) => {
     switch (level) {
@@ -174,24 +181,30 @@ const ProfilePage = (): JSX.Element => {
             >
               <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <h3 className="text-lg font-semibold text-white mb-4">Quick Stats</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[#ffffff80]">Applications</span>
-                    <span className="text-[#1dff00] font-semibold">47</span>
+                {appsLoading ? (
+                  <p className="text-sm text-[#ffffff60]">Loading stats…</p>
+                ) : appsError ? (
+                  <p className="text-sm text-red-400">{appsError}</p>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#ffffff80]">Applications</span>
+                      <span className="text-[#1dff00] font-semibold">{totalApps}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#ffffff80]">Interviews</span>
+                      <span className="text-[#1dff00] font-semibold">{interviews}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#ffffff80]">Offers</span>
+                      <span className="text-[#1dff00] font-semibold">{offers}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#ffffff80]">Success Rate</span>
+                      <span className="text-[#1dff00] font-semibold">{successRate}%</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[#ffffff80]">Interviews</span>
-                    <span className="text-[#1dff00] font-semibold">12</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[#ffffff80]">Offers</span>
-                    <span className="text-[#1dff00] font-semibold">3</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[#ffffff80]">Success Rate</span>
-                    <span className="text-[#1dff00] font-semibold">89%</span>
-                  </div>
-                </div>
+                )}
               </Card>
             </motion.div>
           </div>
@@ -309,7 +322,7 @@ const ProfilePage = (): JSX.Element => {
                         onClick={() => {
                           const title = (document.getElementById('exp-title') as HTMLInputElement)?.value.trim();
                           if (!title) return;
-                          collections.addExperience({
+                          addExperience({
                             title,
                             company: (document.getElementById('exp-company') as HTMLInputElement)?.value.trim(),
                             location: (document.getElementById('exp-location') as HTMLInputElement)?.value.trim(),
@@ -333,7 +346,7 @@ const ProfilePage = (): JSX.Element => {
                   {!experiences.loading && !experiences.error && experiences.data.length === 0 && (
                     <p className="text-sm text-[#ffffff60]">Add your first experience.</p>
                   )}
-                  {experiences.data.map((exp, index) => (
+                  {experiences.data.map((exp: TProfileExperience, index: number) => (
                     <motion.div
                       key={exp.id}
                       className="border-l-2 border-[#1dff00] pl-4 pb-4 relative hover:bg-[#ffffff0a] p-3 rounded-r-lg transition-all duration-300"
@@ -369,6 +382,7 @@ const ProfilePage = (): JSX.Element => {
                             size="sm" 
                             variant="ghost" 
                             className="text-[#ffffff60] hover:text-red-400 hover:scale-110 transition-all duration-300 p-1"
+                            onClick={() => deleteExperience(exp.id)}
                           >
                             <Trash2 className="w-3 h-3" />
                           </Button>
@@ -421,7 +435,7 @@ const ProfilePage = (): JSX.Element => {
                         const degree = (document.getElementById('edu-degree') as HTMLInputElement)?.value.trim();
                         const school = (document.getElementById('edu-school') as HTMLInputElement)?.value.trim();
                         if (!degree || !school) return;
-                        collections.addEducation({
+                        addEducation({
                           degree,
                           school,
                           location: (document.getElementById('edu-location') as HTMLInputElement)?.value.trim(),
@@ -444,7 +458,7 @@ const ProfilePage = (): JSX.Element => {
                   {!education.loading && !education.error && education.data.length === 0 && (
                     <p className="text-sm text-[#ffffff60]">Add your first education record.</p>
                   )}
-                  {education.data.map((edu, index) => (
+                  {education.data.map((edu: TProfileEducation, index: number) => (
                     <motion.div
                       key={edu.id}
                       className="border-l-2 border-[#1dff00] pl-4 pb-4 relative hover:bg-[#ffffff0a] p-3 rounded-r-lg transition-all duration-300"
@@ -482,6 +496,7 @@ const ProfilePage = (): JSX.Element => {
                             size="sm" 
                             variant="ghost" 
                             className="text-[#ffffff60] hover:text-red-400 hover:scale-110 transition-all duration-300 p-1"
+                            onClick={() => deleteEducation(edu.id)}
                           >
                             <Trash2 className="w-3 h-3" />
                           </Button>
@@ -534,7 +549,7 @@ const ProfilePage = (): JSX.Element => {
                       <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => {
                         const name = (document.getElementById('skill-name') as HTMLInputElement)?.value.trim();
                         if (!name) return;
-                        collections.addSkill({
+                        addSkill({
                           name,
                           level: (document.getElementById('skill-level') as HTMLSelectElement)?.value as any || null,
                           category: (document.getElementById('skill-category') as HTMLInputElement)?.value.trim(),
@@ -554,7 +569,7 @@ const ProfilePage = (): JSX.Element => {
                   {!skills.loading && !skills.error && skills.data.length === 0 && (
                     <p className="text-sm text-[#ffffff60] col-span-full">Add your first skill.</p>
                   )}
-                  {skills.data.map((skill, index) => (
+                  {skills.data.map((skill: TProfileSkill, index: number) => (
                     <motion.div
                       key={skill.id}
                       className="space-y-2 p-3 bg-[#ffffff0a] rounded-lg hover:bg-[#ffffff15] transition-all duration-300"
@@ -565,7 +580,17 @@ const ProfilePage = (): JSX.Element => {
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-white font-medium text-sm">{skill.name}</span>
-                        <span className="text-[#ffffff60] text-xs">{skill.level}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[#ffffff60] text-xs">{skill.level}</span>
+                          <button
+                            className="text-[#ffffff60] hover:text-red-400 transition-colors text-xs"
+                            onClick={() => deleteSkill(skill.id)}
+                            aria-label="Delete skill"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                       <div className="w-full bg-[#ffffff20] rounded-full h-2">
                         <div 
