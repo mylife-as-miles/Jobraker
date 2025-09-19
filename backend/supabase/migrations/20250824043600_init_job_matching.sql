@@ -1,6 +1,5 @@
 -- Enable the pgvector extension for similarity search
 CREATE EXTENSION IF NOT EXISTS vector;
-
 -- Stores structured data from user resumes
 CREATE TABLE IF NOT EXISTS public.candidate_profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -12,7 +11,6 @@ CREATE TABLE IF NOT EXISTS public.candidate_profiles (
     work_experience JSONB,
     created_at TIMESTAMPTZ DEFAULT now()
 );
-
 -- Stores scraped job listings and their vector embeddings
 CREATE TABLE IF NOT EXISTS public.job_listings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -27,7 +25,6 @@ CREATE TABLE IF NOT EXISTS public.job_listings (
     source_url TEXT UNIQUE,
     created_at TIMESTAMPTZ DEFAULT now()
 );
-
 -- SQL function to perform vector similarity search
 CREATE OR REPLACE FUNCTION match_jobs (
   query_embedding VECTOR(384),
@@ -69,10 +66,8 @@ BEGIN
   LIMIT match_count;
 END;
 $$;
-
 -- Add Row Level Security (example policies)
 ALTER TABLE public.candidate_profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can manage their own profiles." ON public.candidate_profiles FOR ALL USING (auth.uid() = user_id);
-
 ALTER TABLE public.job_listings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Authenticated users can read jobs." ON public.job_listings FOR SELECT USING (auth.role() = 'authenticated');

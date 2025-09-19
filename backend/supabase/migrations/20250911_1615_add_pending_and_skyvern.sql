@@ -19,7 +19,6 @@ BEGIN
       CHECK (status IN ('Pending','Applied','Interview','Offer','Rejected','Withdrawn'));
   END IF;
 END $$;
-
 -- Add Skyvern tracking columns if not present
 DO $$
 BEGIN
@@ -60,6 +59,5 @@ BEGIN
     ALTER TABLE public.applications ADD COLUMN failure_reason text;
   END IF;
 END $$;
-
 -- Helpful index for webhook updates
 CREATE INDEX IF NOT EXISTS applications_run_id_idx ON public.applications (run_id);

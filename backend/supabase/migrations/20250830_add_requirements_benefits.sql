@@ -17,7 +17,6 @@ BEGIN
       ADD COLUMN benefits jsonb NOT NULL DEFAULT '[]'::jsonb;
   END IF;
 END $$;
-
 -- Optional: GIN indexes to speed containment and search (safe if exists)
 DO $$
 BEGIN

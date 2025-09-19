@@ -9,7 +9,6 @@ create table if not exists public.parsed_resumes (
 );
 create index if not exists parsed_resumes_user_idx on public.parsed_resumes(user_id, extracted_at desc);
 create index if not exists parsed_resumes_resume_idx on public.parsed_resumes(resume_id);
-
 alter table public.parsed_resumes enable row level security;
 DO $$
 BEGIN

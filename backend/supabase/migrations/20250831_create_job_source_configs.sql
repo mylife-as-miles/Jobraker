@@ -7,10 +7,8 @@ create table if not exists public.job_source_configs (
   sources jsonb not null default '[]'::jsonb,
   updated_at timestamptz not null default now()
 );
-
 comment on table public.job_source_configs is 'Per-user job ingestion source configuration stored as JSON array';
 comment on column public.job_source_configs.sources is 'Array of { id:number, type:string, query:string, enabled:boolean }';
-
 -- Helpful index
 do $$
 begin
@@ -20,7 +18,6 @@ begin
     create index job_source_configs_updated_at_idx on public.job_source_configs(updated_at desc);
   end if;
 end $$;
-
 -- updated_at trigger (idempotent)
 do $$
 begin
@@ -38,7 +35,6 @@ begin
     $fn$;
   end if;
 end $$;
-
 do $$
 begin
   if not exists (
@@ -49,10 +45,8 @@ begin
     for each row execute function public.set_updated_at();
   end if;
 end $$;
-
 -- RLS
 alter table public.job_source_configs enable row level security;
-
 -- Policies (idempotent guards)
 do $$
 begin

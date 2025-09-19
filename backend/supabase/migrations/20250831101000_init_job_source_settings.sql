@@ -8,9 +8,7 @@ create table if not exists public.job_source_settings (
   enabled_sources text[] null, -- e.g., {'deepresearch','remotive','remoteok','arbeitnow'}
   updated_at timestamptz default now()
 );
-
 alter table public.job_source_settings enable row level security;
-
 -- RLS policies: read/insert/update own settings
 do $$
 begin
@@ -24,16 +22,12 @@ begin
     drop policy "Update own job sources" on public.job_source_settings;
   end if;
 end $$;
-
 create policy "Read own job sources" on public.job_source_settings
   for select using (auth.uid() = id);
-
 create policy "Insert own job sources" on public.job_source_settings
   for insert with check (auth.uid() = id);
-
 create policy "Update own job sources" on public.job_source_settings
   for update using (auth.uid() = id) with check (auth.uid() = id);
-
 -- Enable realtime (idempotent)
 do $$
 begin

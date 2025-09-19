@@ -1,7 +1,6 @@
 -- Enable required extensions
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
-
 -- Store your project URL and anon key in Vault before enabling the schedule:
 --   select vault.create_secret('https://<project-ref>.supabase.co', 'project_url');
 --   select vault.create_secret('<YOUR_ANON_OR_SERVICE_KEY>', 'publishable_key');
@@ -15,7 +14,6 @@ exception when others then
   -- ignore if it didn't exist
   null;
 end;$$;
-
 select cron.schedule(
   'invoke-jobs-cron-hourly',
   '5 * * * *',

@@ -1,6 +1,5 @@
 -- Ensure UUID generator exists
 create extension if not exists pgcrypto;
-
 -- Create table and indexes idempotently
 do $$
 begin
@@ -34,10 +33,8 @@ begin
     create index job_listings_posted_at_idx on public.job_listings (posted_at desc);
   end if;
 end $$;
-
 -- RLS + read policy
 alter table public.job_listings enable row level security;
-
 do $$
 begin
   if not exists (
@@ -50,7 +47,6 @@ begin
       for select using (true);
   end if;
 end $$;
-
 -- Grants
 grant select on table public.job_listings to anon, authenticated;
 grant all on table public.job_listings to service_role;
