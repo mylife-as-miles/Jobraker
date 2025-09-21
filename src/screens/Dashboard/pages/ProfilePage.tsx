@@ -721,11 +721,11 @@ const ProfilePage = (): JSX.Element => {
                       </div>
                       {editingSkillId === skill.id ? (
                         <div className="flex justify-end gap-2">
-                          <Button size="xs" variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
+                          <Button size="sm" variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
                             onClick={() => setEditingSkillId(null)}>
                             Cancel
                           </Button>
-                          <Button size="xs" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={async () => {
+                          <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={async () => {
                             await updateSkill(skill.id, {
                               name: (document.getElementById(`skill-edit-name-${skill.id}`) as HTMLInputElement)?.value.trim(),
                               level: ((document.getElementById(`skill-edit-level-${skill.id}`) as HTMLSelectElement)?.value || null) as any,
