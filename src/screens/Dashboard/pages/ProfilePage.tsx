@@ -13,7 +13,7 @@ import { createClient } from "../../../lib/supabaseClient";
 
 const ProfilePage = (): JSX.Element => {
   const [isEditing, setIsEditing] = useState(false);
-  const { profile } = useProfileSettings();
+  const { profile, updateProfile } = useProfileSettings();
   const supabase = useMemo(() => createClient(), []);
   const [email, setEmail] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -54,10 +54,26 @@ const ProfilePage = (): JSX.Element => {
 
   // Consolidated collections hook: data + CRUD are from the same instance
   const collections = useProfileCollections();
-  const { experiences, education, skills, addExperience, addEducation, addSkill, deleteExperience, deleteEducation, deleteSkill } = collections as any;
+  const {
+    experiences,
+    education,
+    skills,
+    addExperience,
+    addEducation,
+    addSkill,
+    deleteExperience,
+    deleteEducation,
+    deleteSkill,
+    updateExperience,
+    updateEducation,
+    updateSkill,
+  } = collections as any;
   const [showAddExperience, setShowAddExperience] = useState(false);
   const [showAddEducation, setShowAddEducation] = useState(false);
   const [showAddSkill, setShowAddSkill] = useState(false);
+  const [editingExpId, setEditingExpId] = useState<string | null>(null);
+  const [editingEduId, setEditingEduId] = useState<string | null>(null);
+  const [editingSkillId, setEditingSkillId] = useState<string | null>(null);
 
   // Applications for realtime Quick Stats
   const { applications, loading: appsLoading, error: appsError } = useApplications();
@@ -96,6 +112,25 @@ const ProfilePage = (): JSX.Element => {
     }
   };
 
+  // Avatar upload handler
+  const onAvatarPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = (userData as any)?.user?.id as string | undefined;
+      if (!userId) return;
+      const path = `${userId}/${Date.now()}_${file.name}`;
+      const { error: upErr } = await (supabase as any).storage.from("avatars").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      await updateProfile({ avatar_url: path } as any);
+    } catch {
+      // swallow; toast handled by hook on failure
+    } finally {
+      e.currentTarget.value = "";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black">
       <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -121,12 +156,10 @@ const ProfilePage = (): JSX.Element => {
                         <span>{initials}</span>
                       )}
                     </div>
-                    <Button
-                      size="sm"
-                      className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-110 transition-all duration-300 p-0"
-                    >
+                    <label className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-110 transition-all duration-300 p-0 flex items-center justify-center cursor-pointer">
                       <Edit className="w-4 h-4" />
-                    </Button>
+                      <input type="file" accept="image/*" className="hidden" onChange={onAvatarPick} />
+                    </label>
                   </div>
                   
                   <h2 className="text-xl font-bold text-white mb-1">
@@ -220,7 +253,7 @@ const ProfilePage = (): JSX.Element => {
               className="transition-transform duration-300"
             >
               <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
-                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white">About</h3>
                   <Button 
                     size="sm" 
@@ -232,30 +265,18 @@ const ProfilePage = (): JSX.Element => {
                   </Button>
                 </div>
                 {isEditing ? (
-                  <div className="space-y-4">
-                    <textarea
-                      className="w-full p-3 bg-[#ffffff1a] border border-[#ffffff33] rounded-lg text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300 resize-none"
-                      rows={4}
-                      defaultValue={profile?.job_title ? `Working as ${profile.job_title}${profile?.experience_years ? ` with ${profile.experience_years} years experience` : ''}${profile?.location ? ` in ${profile.location}` : ''}.` : ''}
-                    />
-                    <div className="flex space-x-2">
-                      <Button 
-                        size="sm" 
-                        className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
-                        onClick={() => setIsEditing(false)}
-                      >
-                        Save
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:scale-105 transition-all duration-300"
-                        onClick={() => setIsEditing(false)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
+                  <AboutEditor
+                    profile={{
+                      job_title: profile?.job_title ?? "",
+                      location: profile?.location ?? "",
+                      experience_years: profile?.experience_years ?? null,
+                    }}
+                    onCancel={() => setIsEditing(false)}
+                    onSave={async (patch) => {
+                      await updateProfile(patch as any);
+                      setIsEditing(false);
+                    }}
+                  />
                 ) : (
                   <p className="text-[#ffffff80] leading-relaxed">
                     {profile?.job_title ? (
@@ -270,7 +291,7 @@ const ProfilePage = (): JSX.Element => {
                         .
                       </>
                     ) : (
-                      <>Update your profile in Settings to personalize this page.</>
+                      <>No profile details yet. Click the pencil to add your role, years, and location.</>
                     )}
                   </p>
                 )}
@@ -344,7 +365,12 @@ const ProfilePage = (): JSX.Element => {
                     <p className="text-sm text-red-400">{experiences.error}</p>
                   )}
                   {!experiences.loading && !experiences.error && experiences.data.length === 0 && (
-                    <p className="text-sm text-[#ffffff60]">Add your first experience.</p>
+                    <div className="text-sm text-[#ffffff80] flex items-center justify-between bg-[#ffffff08] px-3 py-2 rounded">
+                      <span>No experience yet. Add your first role to showcase your impact.</span>
+                      <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => setShowAddExperience(true)}>
+                        <Plus className="w-4 h-4 mr-1" /> Add
+                      </Button>
+                    </div>
                   )}
                   {experiences.data.map((exp: TProfileExperience, index: number) => (
                     <motion.div
@@ -371,13 +397,16 @@ const ProfilePage = (): JSX.Element => {
                           <p className="text-[#ffffff80] text-sm mt-2 leading-relaxed">{exp.description}</p>
                         </div>
                         <div className="flex space-x-1 ml-4">
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300 p-1"
-                          >
-                            <Edit className="w-3 h-3" />
-                          </Button>
+                          {editingExpId === exp.id ? null : (
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300 p-1"
+                              onClick={() => setEditingExpId(exp.id)}
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                          )}
                           <Button 
                             size="sm" 
                             variant="ghost" 
@@ -388,6 +417,39 @@ const ProfilePage = (): JSX.Element => {
                           </Button>
                         </div>
                       </div>
+
+                      {editingExpId === exp.id && (
+                        <div className="mt-3 p-3 bg-[#ffffff10] rounded-lg space-y-2">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <input defaultValue={exp.title} id={`exp-edit-title-${exp.id}`} placeholder="Title" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                            <input defaultValue={exp.company} id={`exp-edit-company-${exp.id}`} placeholder="Company" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                            <input defaultValue={exp.location} id={`exp-edit-location-${exp.id}`} placeholder="Location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                            <div className="flex gap-2">
+                              <input type="month" defaultValue={(exp.start_date || '').slice(0,7)} id={`exp-edit-start-${exp.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
+                              <input type="month" defaultValue={exp.end_date ? exp.end_date.slice(0,7) : ''} id={`exp-edit-end-${exp.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
+                            </div>
+                            <label className="flex items-center gap-2 text-xs text-[#ffffff80]">
+                              <input type="checkbox" defaultChecked={!!exp.is_current} id={`exp-edit-current-${exp.id}`} className="accent-[#1dff00]" /> Current Role
+                            </label>
+                            <textarea defaultValue={exp.description || ''} id={`exp-edit-desc-${exp.id}`} rows={2} placeholder="Description" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60] col-span-full resize-none" />
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <Button size="sm" variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={() => setEditingExpId(null)}>Cancel</Button>
+                            <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={async () => {
+                              await updateExperience(exp.id, {
+                                title: (document.getElementById(`exp-edit-title-${exp.id}`) as HTMLInputElement)?.value.trim(),
+                                company: (document.getElementById(`exp-edit-company-${exp.id}`) as HTMLInputElement)?.value.trim(),
+                                location: (document.getElementById(`exp-edit-location-${exp.id}`) as HTMLInputElement)?.value.trim(),
+                                start_date: (document.getElementById(`exp-edit-start-${exp.id}`) as HTMLInputElement)?.value ? (document.getElementById(`exp-edit-start-${exp.id}`) as HTMLInputElement).value + '-01' : exp.start_date,
+                                end_date: (document.getElementById(`exp-edit-current-${exp.id}`) as HTMLInputElement)?.checked ? null : ((document.getElementById(`exp-edit-end-${exp.id}`) as HTMLInputElement)?.value ? (document.getElementById(`exp-edit-end-${exp.id}`) as HTMLInputElement).value + '-01' : exp.end_date),
+                                is_current: (document.getElementById(`exp-edit-current-${exp.id}`) as HTMLInputElement)?.checked,
+                                description: (document.getElementById(`exp-edit-desc-${exp.id}`) as HTMLTextAreaElement)?.value.trim(),
+                              } as any);
+                              setEditingExpId(null);
+                            }}>Save</Button>
+                          </div>
+                        </div>
+                      )}
                     </motion.div>
                   ))}
                 </div>
@@ -456,7 +518,12 @@ const ProfilePage = (): JSX.Element => {
                     <p className="text-sm text-red-400">{education.error}</p>
                   )}
                   {!education.loading && !education.error && education.data.length === 0 && (
-                    <p className="text-sm text-[#ffffff60]">Add your first education record.</p>
+                    <div className="text-sm text-[#ffffff80] flex items-center justify-between bg-[#ffffff08] px-3 py-2 rounded">
+                      <span>No education added yet. Add schools and degrees you completed.</span>
+                      <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => setShowAddEducation(true)}>
+                        <Plus className="w-4 h-4 mr-1" /> Add
+                      </Button>
+                    </div>
                   )}
                   {education.data.map((edu: TProfileEducation, index: number) => (
                     <motion.div
@@ -485,13 +552,16 @@ const ProfilePage = (): JSX.Element => {
                           )}
                         </div>
                         <div className="flex space-x-1 ml-4">
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300 p-1"
-                          >
-                            <Edit className="w-3 h-3" />
-                          </Button>
+                          {editingEduId === edu.id ? null : (
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300 p-1"
+                              onClick={() => setEditingEduId(edu.id)}
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                          )}
                           <Button 
                             size="sm" 
                             variant="ghost" 
@@ -502,6 +572,34 @@ const ProfilePage = (): JSX.Element => {
                           </Button>
                         </div>
                       </div>
+                      {editingEduId === edu.id && (
+                        <div className="mt-3 p-3 bg-[#ffffff10] rounded-lg space-y-2">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <input defaultValue={edu.degree} id={`edu-edit-degree-${edu.id}`} placeholder="Degree" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                            <input defaultValue={edu.school} id={`edu-edit-school-${edu.id}`} placeholder="School" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                            <input defaultValue={edu.location} id={`edu-edit-location-${edu.id}`} placeholder="Location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                            <div className="flex gap-2">
+                              <input type="month" defaultValue={(edu.start_date || '').slice(0,7)} id={`edu-edit-start-${edu.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
+                              <input type="month" defaultValue={edu.end_date ? edu.end_date.slice(0,7) : ''} id={`edu-edit-end-${edu.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
+                            </div>
+                            <input defaultValue={edu.gpa || ''} id={`edu-edit-gpa-${edu.id}`} placeholder="GPA" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <Button size="sm" variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={() => setEditingEduId(null)}>Cancel</Button>
+                            <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={async () => {
+                              await updateEducation(edu.id, {
+                                degree: (document.getElementById(`edu-edit-degree-${edu.id}`) as HTMLInputElement)?.value.trim(),
+                                school: (document.getElementById(`edu-edit-school-${edu.id}`) as HTMLInputElement)?.value.trim(),
+                                location: (document.getElementById(`edu-edit-location-${edu.id}`) as HTMLInputElement)?.value.trim(),
+                                start_date: (document.getElementById(`edu-edit-start-${edu.id}`) as HTMLInputElement)?.value ? (document.getElementById(`edu-edit-start-${edu.id}`) as HTMLInputElement).value + '-01' : edu.start_date,
+                                end_date: (document.getElementById(`edu-edit-end-${edu.id}`) as HTMLInputElement)?.value ? (document.getElementById(`edu-edit-end-${edu.id}`) as HTMLInputElement).value + '-01' : edu.end_date,
+                                gpa: (document.getElementById(`edu-edit-gpa-${edu.id}`) as HTMLInputElement)?.value.trim() || null,
+                              } as any);
+                              setEditingEduId(null);
+                            }}>Save</Button>
+                          </div>
+                        </div>
+                      )}
                     </motion.div>
                   ))}
                 </div>
@@ -567,7 +665,12 @@ const ProfilePage = (): JSX.Element => {
                     <p className="text-sm text-red-400 col-span-full">{skills.error}</p>
                   )}
                   {!skills.loading && !skills.error && skills.data.length === 0 && (
-                    <p className="text-sm text-[#ffffff60] col-span-full">Add your first skill.</p>
+                    <div className="text-sm text-[#ffffff80] col-span-full flex items-center justify-between bg-[#ffffff08] px-3 py-2 rounded">
+                      <span>No skills yet. Add your core skills and expertise.</span>
+                      <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => setShowAddSkill(true)}>
+                        <Plus className="w-4 h-4 mr-1" /> Add
+                      </Button>
+                    </div>
                   )}
                   {skills.data.map((skill: TProfileSkill, index: number) => (
                     <motion.div
@@ -579,25 +682,68 @@ const ProfilePage = (): JSX.Element => {
                       whileHover={{ scale: 1.02 }}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-white font-medium text-sm">{skill.name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[#ffffff60] text-xs">{skill.level}</span>
-                          <button
-                            className="text-[#ffffff60] hover:text-red-400 transition-colors text-xs"
-                            onClick={() => deleteSkill(skill.id)}
-                            aria-label="Delete skill"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                        {editingSkillId === skill.id ? (
+                          <div className="w-full grid grid-cols-1 md:grid-cols-4 gap-2">
+                            <input defaultValue={skill.name} id={`skill-edit-name-${skill.id}`} placeholder="Name" className="bg-[#ffffff1a] px-2 py-1 rounded text-xs text-white placeholder:text-[#ffffff60] md:col-span-2" />
+                            <select defaultValue={skill.level || ''} id={`skill-edit-level-${skill.id}`} className="bg-[#ffffff1a] px-2 py-1 rounded text-xs text-white md:col-span-1">
+                              <option value="">Level</option>
+                              <option value="Beginner">Beginner</option>
+                              <option value="Intermediate">Intermediate</option>
+                              <option value="Advanced">Advanced</option>
+                              <option value="Expert">Expert</option>
+                            </select>
+                            <input defaultValue={skill.category} id={`skill-edit-category-${skill.id}`} placeholder="Category" className="bg-[#ffffff1a] px-2 py-1 rounded text-xs text-white placeholder:text-[#ffffff60] md:col-span-1" />
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-white font-medium text-sm">{skill.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[#ffffff60] text-xs">{skill.level}</span>
+                              <button
+                                className="text-[#ffffff60] hover:text-white transition-colors text-xs"
+                                onClick={() => setEditingSkillId(skill.id)}
+                                aria-label="Edit skill"
+                                title="Edit"
+                              >
+                                <Edit className="w-3 h-3" />
+                              </button>
+                              <button
+                                className="text-[#ffffff60] hover:text-red-400 transition-colors text-xs"
+                                onClick={() => deleteSkill(skill.id)}
+                                aria-label="Delete skill"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      {editingSkillId === skill.id ? (
+                        <div className="flex justify-end gap-2">
+                          <Button size="xs" variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
+                            onClick={() => setEditingSkillId(null)}>
+                            Cancel
+                          </Button>
+                          <Button size="xs" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={async () => {
+                            await updateSkill(skill.id, {
+                              name: (document.getElementById(`skill-edit-name-${skill.id}`) as HTMLInputElement)?.value.trim(),
+                              level: ((document.getElementById(`skill-edit-level-${skill.id}`) as HTMLSelectElement)?.value || null) as any,
+                              category: (document.getElementById(`skill-edit-category-${skill.id}`) as HTMLInputElement)?.value.trim(),
+                            } as any);
+                            setEditingSkillId(null);
+                          }}>Save</Button>
                         </div>
-                      </div>
-                      <div className="w-full bg-[#ffffff20] rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full transition-all duration-500 ${getSkillLevelColor(skill.level || '')} ${getSkillLevelWidth(skill.level || '')}`}
-                        ></div>
-                      </div>
-                      <span className="text-[#ffffff60] text-xs">{skill.category}</span>
+                      ) : (
+                        <>
+                          <div className="w-full bg-[#ffffff20] rounded-full h-2">
+                            <div 
+                              className={`h-2 rounded-full transition-all duration-500 ${getSkillLevelColor(skill.level || '')} ${getSkillLevelWidth(skill.level || '')}`}
+                            ></div>
+                          </div>
+                          <span className="text-[#ffffff60] text-xs">{skill.category}</span>
+                        </>
+                      )}
                     </motion.div>
                   ))}
                 </div>
@@ -609,5 +755,38 @@ const ProfilePage = (): JSX.Element => {
     </div>
   );
 };
+
+// Lightweight About editor component (inline to keep file scoped)
+function AboutEditor({ profile, onSave, onCancel }: { profile: { job_title: string; location: string; experience_years: number | null }; onSave: (p: { job_title: string; location: string | null; experience_years: number | null }) => Promise<void> | void; onCancel: () => void; }) {
+  const [jobTitle, setJobTitle] = useState(profile.job_title);
+  const [location, setLocation] = useState(profile.location || "");
+  const [years, setYears] = useState<string>(profile.experience_years != null ? String(profile.experience_years) : "");
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="Job title" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+        <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+        <input value={years} onChange={(e) => setYears(e.target.value)} placeholder="Years experience" inputMode="numeric" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+      </div>
+      <div className="flex space-x-2">
+        <Button 
+          size="sm" 
+          className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+          onClick={() => onSave({ job_title: jobTitle.trim(), location: location.trim() || null, experience_years: years ? Number(years) : null })}
+        >
+          Save
+        </Button>
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:scale-105 transition-all duration-300"
+          onClick={onCancel}
+        >
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default ProfilePage;

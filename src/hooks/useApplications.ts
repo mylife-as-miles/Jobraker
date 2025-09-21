@@ -69,12 +69,8 @@ export function useApplications() {
         .eq("user_id", userId)
         .order("updated_at", { ascending: false });
       if (error) throw error;
-      // HACK: Add mock match score for demo purposes
-      const applicationsWithScores = ((data ?? []) as ApplicationRecord[]).map(app => ({
-        ...app,
-        match_score: Math.floor(Math.random() * (98 - 70 + 1) + 70) // Random score between 70-98
-      }));
-      setApplications(applicationsWithScores);
+      // Use raw data from DB only (no mock values)
+      setApplications((data ?? []) as ApplicationRecord[]);
     } catch (e: any) {
       const msg = e.message || "Failed to load applications";
       setError(msg);
