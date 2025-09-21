@@ -3,7 +3,6 @@ import { createRoot } from "react-dom/client";
 import "../tailwind.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LandingPage } from "./screens/LandingPage";
-import HdriViewerPage from "./pages/hdri-viewer";
 import { JobrackerSignup } from "./screens/JobrackerSignup";
 import { Onboarding } from "./screens/Onboarding";
 import { Analytics } from "./screens/Analytics";
@@ -60,8 +59,6 @@ function App() {
         <Routes>
         {/* Default route shows landing page */}
           <Route path={ROUTES.ROOT} element={<PublicOnly><LandingPage /></PublicOnly>} />
-          {/* Public HDRI viewer for 3D model preview */}
-          <Route path="/hdri" element={<PublicOnly><HdriViewerPage /></PublicOnly>} />
         
   {/* Step 1: Signup Page */}
           <Route path={ROUTES.SIGNUP} element={<PublicOnly><JobrackerSignup /></PublicOnly>} />
