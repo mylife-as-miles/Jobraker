@@ -401,7 +401,14 @@ export const DropdownMenuTrigger: React.FC<{ asChild?: boolean } & React.ButtonH
   );
 };
 
-export const DropdownMenuContent: React.FC<{ side?: string; align?: string } & React.HTMLAttributes<HTMLDivElement>> = ({ children, className = "", style, ...props }) => {
+export const DropdownMenuContent: React.FC<{
+  side?: "top" | "bottom" | "left" | "right";
+  align?: "start" | "center" | "end";
+  sideOffset?: number;
+  alignOffset?: number;
+  avoidCollisions?: boolean;
+  collisionPadding?: number;
+} & React.HTMLAttributes<HTMLDivElement>> = ({ children, className = "", style, side = "bottom", align = "end", sideOffset = 6, alignOffset = 0, avoidCollisions = true, collisionPadding = 8, ...props }) => {
   const ctx = React.useContext(DropdownCtx);
   const [coords, setCoords] = React.useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
   const contentRef = ctx?.contentRef || React.useRef<HTMLDivElement | null>(null);
@@ -411,32 +418,66 @@ export const DropdownMenuContent: React.FC<{ side?: string; align?: string } & R
       const el = ctx.triggerRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-  const margin = 8;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+      const margin = collisionPadding;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
       let width = contentRef.current?.offsetWidth || Math.max(160, r.width);
       width = Math.min(width, vw - margin * 2);
-      let left = r.right - width; // right align in viewport coords
-      if (left < margin) left = margin;
-      if (left + width > vw - margin) left = vw - margin - width;
-      let desiredTop = r.bottom + 6; // below
-      let maxHeight = Math.min(320, vh - desiredTop - margin);
-      // If not enough space below, flip above
-      if (maxHeight < 120) {
-        desiredTop = Math.max(margin, r.top - 6 - Math.min(320, vh - margin - 6));
-        maxHeight = Math.min(320, r.top - margin);
+
+      // Base placement
+      let top = r.bottom + sideOffset; // default bottom
+      let left = r.right - width; // default end alignment
+      if (side === "top") top = r.top - sideOffset - (contentRef.current?.offsetHeight || 0);
+      if (side === "left") {
+        left = r.left - width - sideOffset;
+        top = r.top;
+      } else if (side === "right") {
+        left = r.right + sideOffset;
+        top = r.top;
       }
-      const top = desiredTop + window.scrollY;
+      // Alignments
+      if (side === "top" || side === "bottom") {
+        if (align === "start") left = r.left;
+        if (align === "center") left = r.left + r.width / 2 - width / 2;
+        if (align === "end") left = r.right - width;
+        left += alignOffset;
+      } else {
+        const ch = contentRef.current?.offsetHeight || 0;
+        if (align === "start") top = r.top;
+        if (align === "center") top = r.top + r.height / 2 - ch / 2;
+        if (align === "end") top = r.bottom - ch;
+      }
+
+      // Collision handling
+      if (avoidCollisions) {
+        // Flip vertically if needed
+        const ch = contentRef.current?.offsetHeight || 200;
+        if (side === "bottom" && r.bottom + ch + sideOffset + margin > vh) {
+          top = Math.max(margin, r.top - sideOffset - ch);
+        } else if (side === "top" && r.top - ch - sideOffset - margin < 0) {
+          top = Math.min(vh - margin - ch, r.bottom + sideOffset);
+        }
+        // Clamp horizontally
+        if (left < margin) left = margin;
+        if (left + width > vw - margin) left = vw - margin - width;
+      }
+
+      // Max height after placement
+      const maxHeight = Math.min(320, vh - margin - Math.max(margin, top));
+      const absTop = top + window.scrollY;
       const absLeft = left + window.scrollX;
-      setCoords({ top, left: absLeft, width, maxHeight: Math.max(120, maxHeight) });
+      setCoords({ top: absTop, left: absLeft, width, maxHeight: Math.max(120, maxHeight) });
     };
     update();
     const on = () => update();
     window.addEventListener('resize', on);
     window.addEventListener('scroll', on, true);
+    const ro = new ResizeObserver(() => update());
+    if (contentRef.current) ro.observe(contentRef.current);
     return () => {
       window.removeEventListener('resize', on);
       window.removeEventListener('scroll', on, true);
+      ro.disconnect();
     };
   }, [ctx?.open, ctx?.triggerRef]);
   if (!ctx || !ctx.open) return null;
