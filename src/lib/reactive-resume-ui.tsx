@@ -3,7 +3,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 
-export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "default"|"secondary"|"outline"|"ghost"|"destructive"; size?: "sm"|"md"|"lg"; asChild?: boolean };
+export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "default"|"secondary"|"outline"|"ghost"|"destructive"|"error"|"link"; size?: "sm"|"md"|"lg"; asChild?: boolean };
 export const Button: React.FC<ButtonProps> = ({ children, asChild, variant = "default", size = "md", className = "", ...props }) => {
   if (asChild) return <>{children}</>;
   const sizeCls = size === "sm" ? "h-8 px-3 text-sm" : size === "lg" ? "h-11 px-5 text-base" : "h-10 px-4 text-sm";
@@ -14,6 +14,8 @@ export const Button: React.FC<ButtonProps> = ({ children, asChild, variant = "de
     outline: "border border-[hsl(var(--border))] bg-transparent text-[hsl(var(--foreground))] hover:bg-[hsl(var(--accent))]",
     ghost: "bg-transparent hover:bg-[hsl(var(--accent))]",
     destructive: "bg-[hsl(var(--destructive))] text-[hsl(var(--destructive-foreground))] hover:opacity-95",
+    error: "bg-[hsl(var(--destructive))] text-[hsl(var(--destructive-foreground))] hover:opacity-95",
+    link: "h-auto px-0 text-[hsl(var(--primary))] hover:underline underline-offset-4",
   };
   return (
     <button {...props} className={[base, sizeCls, variants[variant], className].join(" ")}>{children}</button>
