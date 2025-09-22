@@ -314,10 +314,177 @@ export const CommandItem: React.FC<{ value?: string; disabled?: boolean; onSelec
   <li {...props} onClick={() => !disabled && onSelect?.(value)}>{children}</li>
 );
 
-// Popover primitives
-export const Popover: React.FC<{ open?: boolean; onOpenChange?: (o: boolean) => void } & React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
-export const PopoverTrigger: React.FC<{ asChild?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ asChild, children, ...props }) => asChild ? <>{children}</> : <button {...props}>{children}</button>;
-export const PopoverContent: React.FC<{ align?: string } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
+// Popover primitives with portal + positioning + collision handling
+type PopoverCtxType = {
+  open: boolean;
+  setOpen: (o: boolean) => void;
+  triggerRef: React.RefObject<HTMLElement>;
+  contentRef: React.RefObject<HTMLDivElement>;
+};
+const PopoverCtx = React.createContext<PopoverCtxType | null>(null);
+
+export const Popover: React.FC<{ open?: boolean; onOpenChange?: (o: boolean) => void } & React.HTMLAttributes<HTMLDivElement>> = ({ open, onOpenChange, children, className = "", ...props }) => {
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const isControlled = typeof open === "boolean";
+  const isOpen = isControlled ? !!open : internalOpen;
+  const setOpen = (o: boolean) => {
+    if (isControlled) onOpenChange?.(o);
+    else setInternalOpen(o);
+  };
+  const triggerRef = React.useRef<HTMLElement>(null);
+  const contentRef = React.useRef<HTMLDivElement>(null);
+
+  // outside click + escape to close
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      const t = e.target as Node;
+      const trig = triggerRef.current;
+      const content = contentRef.current;
+      if ((trig && trig.contains(t)) || (content && content.contains(t))) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [isOpen]);
+
+  return (
+    <PopoverCtx.Provider value={{ open: isOpen, setOpen, triggerRef, contentRef }}>
+      <div className={["inline-block", className].join(" ")} {...props}>{children}</div>
+    </PopoverCtx.Provider>
+  );
+};
+
+export const PopoverTrigger: React.FC<{ asChild?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ asChild, children, className = "", onClick, ...props }) => {
+  const ctx = React.useContext(PopoverCtx);
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    onClick?.(e);
+    ctx?.setOpen(!ctx.open);
+  };
+  if (asChild && React.isValidElement(children)) {
+    return React.cloneElement(children as any, {
+      ref: ctx?.triggerRef as any,
+      onClick: (e: any) => {
+        (children as any).props?.onClick?.(e);
+        handleClick(e as any);
+      },
+      className: [(children as any).props?.className, className].filter(Boolean).join(" "),
+    });
+  }
+  return (
+    <button ref={ctx?.triggerRef as any} onClick={handleClick} className={["rounded-xl", className].join(" ")} {...props}>
+      {children}
+    </button>
+  );
+};
+
+export const PopoverContent: React.FC<{
+  side?: "top" | "bottom" | "left" | "right";
+  align?: "start" | "center" | "end";
+  sideOffset?: number;
+  alignOffset?: number;
+  avoidCollisions?: boolean;
+  collisionPadding?: number;
+} & React.HTMLAttributes<HTMLDivElement>> = ({
+  children,
+  className = "",
+  style,
+  side = "bottom",
+  align = "center",
+  sideOffset = 8,
+  alignOffset = 0,
+  avoidCollisions = true,
+  collisionPadding = 8,
+  ...props
+}) => {
+  const ctx = React.useContext(PopoverCtx);
+  const [coords, setCoords] = React.useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
+  const contentRef = ctx?.contentRef || React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!ctx?.open) return;
+    const update = () => {
+      const el = ctx.triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const margin = collisionPadding;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      let width = contentRef.current?.offsetWidth || r.width || 200;
+      width = Math.min(width, vw - margin * 2);
+
+      // Base placement
+      let top = r.bottom + sideOffset; // default bottom
+      let left = r.left; // will adjust via align below
+      if (side === "top") top = r.top - sideOffset - (contentRef.current?.offsetHeight || 0);
+      if (side === "left") { left = r.left - (contentRef.current?.offsetWidth || width) - sideOffset; top = r.top; }
+      if (side === "right") { left = r.right + sideOffset; top = r.top; }
+
+      // Alignments
+      if (side === "top" || side === "bottom") {
+        if (align === "start") left = r.left;
+        if (align === "center") left = r.left + r.width / 2 - width / 2;
+        if (align === "end") left = r.right - width;
+        left += alignOffset;
+      } else {
+        const ch = contentRef.current?.offsetHeight || 0;
+        if (align === "start") top = r.top;
+        if (align === "center") top = r.top + r.height / 2 - ch / 2;
+        if (align === "end") top = r.bottom - ch;
+      }
+
+      // Collision handling
+      if (avoidCollisions) {
+        const ch = contentRef.current?.offsetHeight || 240;
+        if (side === "bottom" && r.bottom + ch + sideOffset + margin > vh) {
+          top = Math.max(margin, r.top - sideOffset - ch);
+        } else if (side === "top" && r.top - ch - sideOffset - margin < 0) {
+          top = Math.min(vh - margin - ch, r.bottom + sideOffset);
+        }
+        if (left < margin) left = margin;
+        if (left + width > vw - margin) left = vw - margin - width;
+      }
+
+      const maxHeight = Math.min(360, vh - margin - Math.max(margin, top));
+      const absTop = top + window.scrollY;
+      const absLeft = left + window.scrollX;
+      setCoords({ top: absTop, left: absLeft, width, maxHeight: Math.max(120, maxHeight) });
+    };
+    update();
+    const on = () => update();
+    window.addEventListener("resize", on);
+    window.addEventListener("scroll", on, true);
+    const ro = new ResizeObserver(() => update());
+    if (contentRef.current) ro.observe(contentRef.current);
+    return () => {
+      window.removeEventListener("resize", on);
+      window.removeEventListener("scroll", on, true);
+      ro.disconnect();
+    };
+  }, [ctx?.open, ctx?.triggerRef]);
+
+  if (!ctx || !ctx.open) return null;
+  return createPortal(
+    <div
+      role="dialog"
+      ref={contentRef}
+      className={[
+        "fixed z-[120] min-w-[10rem] max-w-[calc(100vw-16px)] overflow-auto rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--popover))] text-[hsl(var(--popover-foreground))] shadow-lg",
+        className,
+      ].join(" ")}
+      style={{ top: coords?.top, left: coords?.left, width: coords?.width, maxHeight: coords?.maxHeight, ...(style as any) }}
+      {...props}
+    >
+      {children}
+    </div>,
+    document.body
+  );
+};
 
 // Resizable panels primitives (no-op wrappers)
 export const PanelGroup: React.FC<{ direction?: "horizontal" | "vertical" } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
