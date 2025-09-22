@@ -9,6 +9,8 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "@reactive-resume/ui";
 
+// This component renders the UI for the cover letter page.
+// It includes a header, the cover letter content, and a footer with controls.
 export const CoverLetter = () => {
   const navigate = useNavigate();
   const [fontSize, setFontSize] = useState(16);
