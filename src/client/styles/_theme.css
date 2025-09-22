@@ -2,10 +2,10 @@
   :root {
     /* Base (light mode — tokens) */
     /* Raw palette tokens come from _colors.css */
-    /* Neon green brand to match pitch-black aesthetic */
-    --color-brand-h: 120;
-    --color-brand-s: 100%;
-    --color-brand-l: 50%;
+  /* Green‑golden brand (chartreuse-ish) to match live overview */
+  --color-brand-h: 90;   /* hue ~90° (yellow-green) */
+  --color-brand-s: 95%;  /* vivid saturation */
+  --color-brand-l: 55%;  /* slightly brighter for glow */
 
     --background: var(--slate-50);
     --foreground: var(--slate-950);
@@ -60,9 +60,9 @@
     --popover-foreground: 0 0% 100%;
     --border: 0 0% 15%;           /* subtle separators */
     --input: 0 0% 18%;
-    /* Slightly brighter green for rings in dark */
-    --ring: var(--color-brand-h) var(--color-brand-s) 55%;
-    --brand: var(--color-brand-h) var(--color-brand-s) 55%;
+  /* Slightly brighter brand in dark for glow */
+  --ring: var(--color-brand-h) var(--color-brand-s) 58%;
+  --brand: var(--color-brand-h) var(--color-brand-s) 58%;
 
     --primary: var(--brand);
     --primary-foreground: 0 0% 0%; /* black text on neon green for chips/badges; buttons override to white via classes */
