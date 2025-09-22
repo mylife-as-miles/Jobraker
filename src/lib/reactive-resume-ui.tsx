@@ -409,10 +409,9 @@ export const DropdownMenuContent: React.FC<{ side?: string; align?: string } & R
       const el = ctx.triggerRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      const margin = 8;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const trigH = r.height;
+  const margin = 8;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
       let width = contentRef.current?.offsetWidth || Math.max(160, r.width);
       width = Math.min(width, vw - margin * 2);
       let left = r.right - width; // right align in viewport coords
