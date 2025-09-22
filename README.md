@@ -120,6 +120,18 @@ These were added via migration `20250916_add_profile_collections.sql` under `bac
 
 Each table enforces RLS (row level security) and policies limiting access to the authenticated owner (`auth.uid() = user_id`).
 
+#### Realtime Publication
+These profile tables and the core `profiles` table are included in the `supabase_realtime` publication so UI updates stream instantly across sessions.
+
+Verify in your database:
+```sql
+select schemaname, tablename
+from pg_publication_tables
+where pubname = 'supabase_realtime'
+  and tablename in ('profiles','profile_experiences','profile_education','profile_skills')
+order by tablename;
+```
+
 #### Applying the Migration Locally
 ```bash
 # From repo root
@@ -168,6 +180,35 @@ VITE_SUPABASE_ANON_KEY=... # regenerated anon key (rotate if previously exposed)
 ```
 
 > If the anon key was exposed publicly, rotate it in Supabase Dashboard → Project Settings → API → Regenerate anon key, then update Vercel & redeploy.
+
+#### Pushing Migrations to a Remote Supabase Project
+From the repo root:
+
+```bash
+# Authenticate once
+supabase login
+
+# Link this folder to your remote project
+export SUPABASE_PROJECT_REF=your-project-ref   # e.g. abcdefghijklmno
+supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+# Review migration status (local vs remote)
+supabase migration list
+
+# Push pending migrations to remote
+supabase db push
+
+# Sanity-check realtime publication contains profile tables
+supabase db remote commit "check-publication" --dry-run >/dev/null 2>&1 || true
+```
+
+If you previously applied migrations manually and encounter a history mismatch, prefer aligning by removing duplicate/manual changes and pushing via CLI. As a last resort, consult Supabase docs on repairing migration history.
+
+#### Quick Smoke Test: Realtime Profile
+1. Set `.env.local` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for the target project.
+2. Run `npm run dev` and sign in in two different browsers (or a window + incognito).
+3. On the Profile page, add a new Experience. The second session should update within a second without a refresh.
+4. Update the same entry’s title; both sessions should reflect the change immediately.
 
 ## 🛠 Tech Stack
 
