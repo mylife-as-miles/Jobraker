@@ -354,20 +354,45 @@ export const DropdownMenuTrigger: React.FC<{ asChild?: boolean } & React.ButtonH
 
 export const DropdownMenuContent: React.FC<{ side?: string; align?: string } & React.HTMLAttributes<HTMLDivElement>> = ({ children, className = "", style, ...props }) => {
   const ctx = React.useContext(DropdownCtx);
-  if (!ctx) return null;
-  if (!ctx.open) return null;
+  const [coords, setCoords] = React.useState<{ top: number; left: number; width: number } | null>(null);
+  const contentRef = React.useRef<HTMLDivElement | null>(null);
+  React.useEffect(() => {
+    if (!ctx?.open) return;
+    const update = () => {
+      const el = ctx.triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const top = r.bottom + window.scrollY + 6;
+      const width = contentRef.current?.offsetWidth || r.width;
+      const left = r.right + window.scrollX - width; // right align
+      setCoords({ top, left, width });
+    };
+    update();
+    const on = () => update();
+    window.addEventListener('resize', on);
+    window.addEventListener('scroll', on, true);
+    return () => {
+      window.removeEventListener('resize', on);
+      window.removeEventListener('scroll', on, true);
+    };
+  }, [ctx?.open, ctx?.triggerRef]);
+  if (!ctx || !ctx.open) return null;
   return (
-    <div
-      role="menu"
-      className={[
-        "absolute right-0 mt-1 z-50 min-w-[10rem] rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--popover))] text-[hsl(var(--popover-foreground))] shadow-md",
-        className,
-      ].join(" ")}
-      style={style as any}
-      {...props}
-    >
-      {children}
-    </div>
+    React.createPortal(
+      <div
+        role="menu"
+        ref={contentRef}
+        className={[
+          "fixed z-50 min-w-[10rem] rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--popover))] text-[hsl(var(--popover-foreground))] shadow-md",
+          className,
+        ].join(" ")}
+        style={{ top: coords?.top, left: coords?.left, ...(style as any) }}
+        {...props}
+      >
+        {children}
+      </div>,
+      document.body
+    )
   );
 };
 export const DropdownMenuItem: React.FC<React.HTMLAttributes<HTMLDivElement> & { onClick?: () => void } > = ({ children, onClick, className = "", ...props }) => {
