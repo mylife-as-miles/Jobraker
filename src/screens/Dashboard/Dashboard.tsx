@@ -215,7 +215,6 @@ export const Dashboard = (): JSX.Element => {
 
   const renderPageContent = () => {
     if (currentPage === "chat") return <LockedFeature name="Chat" />;
-    if (currentPage === "resume") return <LockedFeature name="Resume" />;
     switch (currentPage) {
       case "overview":
         return <OverviewPage />;
@@ -225,6 +224,21 @@ export const Dashboard = (): JSX.Element => {
         return <JobPage />;
       case "application":
         return <ApplicationPage />;
+      case "resume":
+        // Wrap client Resume page with required providers
+        return (
+          <HelmetProvider context={helmetContext}>
+            <QueryClientProvider client={queryClient}>
+              <TooltipProvider>
+                <LocaleProvider>
+                  <ThemeProvider>
+                    {resumeSubRoute === 'new' ? <NewResumeRedirect /> : <ResumesPage />}
+                  </ThemeProvider>
+                </LocaleProvider>
+              </TooltipProvider>
+            </QueryClientProvider>
+          </HelmetProvider>
+        );
       case "settings":
         return <SettingsPage />;
       case "notifications":

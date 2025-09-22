@@ -66,8 +66,8 @@ function App() {
         {/* Sign In Page */}
           <Route path={ROUTES.SIGNIN} element={<PublicOnly><JobrackerSignup /></PublicOnly>} />
         
-        {/* Step 2: Onboarding Page (after signup) */}
-          <Route path={ROUTES.ONBOARDING} element={<RequireAuth><Onboarding /></RequireAuth>} />
+        {/* Step 2: Onboarding Page (after signup). Public so it doesn't blank when unauthenticated; final step requires auth */}
+          <Route path={ROUTES.ONBOARDING} element={<Onboarding />} />
         
         {/* Step 3: Dashboard Page (after onboarding completion) - Now serves as main container */}
           <Route path={ROUTES.DASHBOARD_WILDCARD} element={<RequireAuth><Dashboard /></RequireAuth>} />

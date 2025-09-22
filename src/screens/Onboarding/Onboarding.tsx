@@ -163,7 +163,8 @@ export const Onboarding = (): JSX.Element => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          navigate('/login');
+          // If user is not authenticated, send to sign-in route
+          navigate('/signIn');
           return;
         }
         // Upsert profile information and mark onboarding complete
@@ -179,7 +180,7 @@ export const Onboarding = (): JSX.Element => {
           updated_at: new Date().toISOString(),
         }, { onConflict: 'id' });
         if (error) throw error;
-        navigate("/dashboard");
+  navigate("/dashboard/overview");
       } catch (err) {
         console.error('Failed to save onboarding:', err);
         alert('Failed to save onboarding info. Please try again.');
