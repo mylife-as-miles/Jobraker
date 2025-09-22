@@ -2,11 +2,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2, Check } from "lucide-react";
 import { Button, Card } from "@reactive-resume/ui";
+import { createClient } from "@/lib/supabaseClient";
+import { useToast } from "@/components/ui/toast-provider";
 
 // This component renders the UI for the cover letter page.
 // It includes a header, the cover letter content, and a footer with controls.
 export const CoverLetter = () => {
   const navigate = useNavigate();
+  const supabase = useMemo(() => createClient(), []);
+  const { success, error: toastError } = useToast();
   const [fontSize, setFontSize] = useState(16);
   const [role, setRole] = useState("Software Engineer");
   const [recipient, setRecipient] = useState("Hiring Manager");
@@ -14,6 +18,7 @@ export const CoverLetter = () => {
   const [content, setContent] = useState("");
   const [copied, setCopied] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
   const previewRef = useRef<HTMLDivElement | null>(null);
 
   // Load/save from localStorage (keeps it functional without backend migrations)
@@ -77,7 +82,36 @@ export const CoverLetter = () => {
       alert("Failed to prepare PDF. Use your browser's Print to PDF as a fallback.");
     }
   };
-  const aiPolish = () => alert("AI Polishing content... (coming soon)");
+  const aiPolish = async () => {
+    if (aiLoading) return;
+    setAiLoading(true);
+    try {
+      const payload = {
+        role: role?.trim() || undefined,
+        company: company?.trim() || undefined,
+        recipient: recipient?.trim() || undefined,
+        job_description: undefined,
+        tone: 'professional',
+        length: 'medium',
+      } as any;
+
+      const { data, error } = await (supabase as any).functions.invoke('generate-cover-letter', {
+        body: payload,
+      });
+      if (error) throw new Error(error?.message || 'Failed to generate');
+      const text: string = (data?.text || '').trim();
+      if (!text) {
+        throw new Error('No content returned. Try again later.');
+      }
+      setContent(text);
+      success('Draft updated', 'AI polished your cover letter');
+    } catch (e: any) {
+      console.error('AI generate error:', e);
+      toastError('AI failed', e?.message || 'Please try again later.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
   const quickEdit = () => {
     const textarea = document.getElementById("cover-letter-content") as HTMLTextAreaElement | null;
     textarea?.focus();
@@ -121,7 +155,7 @@ export const CoverLetter = () => {
         </div>
         <div className="flex items-center gap-2 overflow-x-auto">
           <Button variant="outline" onClick={quickEdit} className="rounded-xl whitespace-nowrap"> <Pencil className="w-4 h-4 mr-2"/> Quick Edit</Button>
-          <Button variant="outline" onClick={aiPolish} className="rounded-xl whitespace-nowrap"> <Wand2 className="w-4 h-4 mr-2"/> AI Polish</Button>
+          <Button variant="outline" disabled={aiLoading} onClick={aiPolish} className="rounded-xl whitespace-nowrap"> <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> {aiLoading ? 'Polishing…' : 'AI Polish'}</Button>
           <Button variant="outline" onClick={share} className="rounded-xl whitespace-nowrap"> {copied ? <><Check className="w-4 h-4 mr-2"/> Copied</> : <><Share2 className="w-4 h-4 mr-2"/> Share</>} </Button>
           <Button onClick={download} className="rounded-xl whitespace-nowrap"> <Download className="w-4 h-4 mr-2"/> Download</Button>
         </div>
