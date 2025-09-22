@@ -283,7 +283,7 @@ export const Dashboard = (): JSX.Element => {
   }
 
   return (
-     <div className="min-h-screen bg-black flex">
+    <div className="min-h-screen bg-background text-foreground flex">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 

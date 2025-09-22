@@ -1,4 +1,6 @@
-/* Import targeted white background fixes */
+/* Import theme tokens and targeted input fixes */
+@import url('./src/client/styles/_colors.css');
+@import url('./src/client/styles/_theme.css');
 @import url('./src/styles/responsive-inputs.css');
 
 @tailwind base;

@@ -110,7 +110,7 @@ export const JobSourceSettings = () => {
         <div className="py-2 space-y-1">
           <div className="font-medium">Allowed Domains</div>
           <p className="text-sm text-muted-foreground">Comma-separated list to prefer/limit when scraping (e.g., careers.google.com, amazon.jobs)</p>
-          <input className="w-full rounded-md border border-input bg-background p-2 text-foreground placeholder:text-foreground/60" value={allowedDomains} onChange={(e) => setAllowedDomains(e.target.value)} placeholder="example.com, jobs.example.org" />
+          <input className="w-full rounded-xl border border-input bg-background p-2 text-foreground placeholder:text-foreground/60" value={allowedDomains} onChange={(e) => setAllowedDomains(e.target.value)} placeholder="example.com, jobs.example.org" />
         </div>
 
         <Button variant="primary" onClick={save} disabled={saving || loading}>Save</Button>
