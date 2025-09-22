@@ -2,9 +2,10 @@
   :root {
     /* Base (light mode — tokens) */
     /* Raw palette tokens come from _colors.css */
-    --color-brand-h: 262;
-    --color-brand-s: 83%;
-    --color-brand-l: 58%;
+    /* Neon green brand to match pitch-black aesthetic */
+    --color-brand-h: 120;
+    --color-brand-s: 100%;
+    --color-brand-l: 50%;
 
     --background: var(--slate-50);
     --foreground: var(--slate-950);
@@ -14,8 +15,8 @@
     --popover-foreground: var(--slate-900);
     --border: var(--slate-200);
     --input: var(--slate-200);
-    --ring: var(--color-brand-h) var(--color-brand-s) var(--color-brand-l);
-    --brand: var(--color-brand-h) var(--color-brand-s) var(--color-brand-l);
+  --ring: var(--color-brand-h) var(--color-brand-s) var(--color-brand-l);
+  --brand: var(--color-brand-h) var(--color-brand-s) var(--color-brand-l);
 
     --primary: var(--brand);
     --primary-foreground: 0 0% 100%;
@@ -50,30 +51,33 @@
   }
 
   .dark {
-    --background: var(--slate-950);
-    --foreground: var(--slate-50);
-    --card: var(--slate-900);
-    --card-foreground: var(--slate-50);
-    --popover: var(--slate-900);
-    --popover-foreground: var(--slate-50);
-    --border: var(--slate-800);
-    --input: var(--slate-800);
-    --ring: var(--color-brand-h) var(--color-brand-s) 65%;
-    --brand: var(--color-brand-h) var(--color-brand-s) 65%;
+    /* Pitch-black surfaces */
+    --background: 0 0% 0%;        /* #000 */
+    --foreground: 0 0% 100%;      /* #fff */
+    --card: 0 0% 6%;              /* ~#0f0f0f */
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 100%;
+    --border: 0 0% 15%;           /* subtle separators */
+    --input: 0 0% 18%;
+    /* Slightly brighter green for rings in dark */
+    --ring: var(--color-brand-h) var(--color-brand-s) 55%;
+    --brand: var(--color-brand-h) var(--color-brand-s) 55%;
 
     --primary: var(--brand);
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: 0 0% 0%; /* black text on neon green for chips/badges; buttons override to white via classes */
 
-    --secondary: var(--slate-800);
-    --secondary-foreground: var(--slate-50);
+    /* Near-black blends for secondary/accent/muted */
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 100%;
 
-    --accent: var(--slate-800);
-    --accent-foreground: var(--slate-50);
+    --accent: 0 0% 12%;
+    --accent-foreground: 0 0% 100%;
 
-    --muted: var(--slate-800);
-    --muted-foreground: var(--slate-400);
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 60%;
 
-    /* Status (dark) - shift to deeper hues for contrast */
+    /* Status (dark) - balanced for contrast on black */
     --destructive: var(--rose-500);
     --destructive-foreground: var(--rose-50);
     --error: var(--destructive);

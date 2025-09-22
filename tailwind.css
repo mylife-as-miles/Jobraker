@@ -27,12 +27,25 @@
 @layer components {
   /* Glassy card surface with subtle border and blur */
   .card-surface {
-    @apply bg-white/5 dark:bg-black/30 backdrop-blur-sm border border-white/10 dark:border-white/5 rounded-xl shadow-sm;
+    @apply backdrop-blur-sm rounded-xl shadow-sm;
+    background-color: hsla(0, 0%, 100%, 0.03);
+    border: 1px solid hsla(0, 0%, 100%, 0.06);
   }
   .card-hover {
-    @apply transition-all duration-300 hover:shadow-[0_0_12px_rgba(29,255,0,0.15)] hover:border-brand/40 hover:-translate-y-0.5;
+    @apply transition-all duration-300 hover:-translate-y-0.5;
+    box-shadow: 0 0 12px hsla(var(--brand) / 0.18);
+    border-color: hsl(var(--brand) / 0.4);
   }
   .brand-glow {
-    box-shadow: 0 0 12px rgba(29, 255, 0, 0.15);
+    box-shadow: 0 0 14px hsla(var(--brand) / 0.22), 0 0 32px hsla(var(--brand) / 0.10);
+  }
+  .glass-black {
+    background: linear-gradient(
+      180deg,
+      hsla(0, 0%, 100%, 0.04) 0%,
+      hsla(0, 0%, 100%, 0.02) 100%
+    );
+    border: 1px solid hsl(var(--border));
+    @apply rounded-xl backdrop-blur-sm;
   }
 }
