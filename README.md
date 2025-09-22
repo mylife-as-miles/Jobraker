@@ -103,6 +103,9 @@ The following improvements were recently added during active development:
 - **Resume Import & Multi-Upload**: Drag & drop and multi-file import (PDF / DOC / TXT / JSON) with automatic favorite assignment for the first resume and optional JSON metadata extraction.
 - **Toast Event Bridge**: Event-based toast system lets utilities surface user feedback without prop drilling.
 
+Related docs:
+- Job sources, ingestion, LinkedIn/search controls, and secrets: see `docs/job-sources.md`.
+
 > These updates pave the way for richer automation telemetry and faster iteration on application flows.
 
 ### Profile Data (Experiences, Education, Skills)
@@ -210,6 +213,24 @@ If you previously applied migrations manually and encounter a history mismatch, 
 3. On the Profile page, add a new Experience. The second session should update within a second without a refresh.
 4. Update the same entry’s title; both sessions should reflect the change immediately.
 
+### Edge Functions in this repo
+Located under `supabase/functions`:
+
+- `apply-to-jobs` — orchestrates job application automations and enrichment
+- `get-run` — polls Skyvern run status (screenshots, recording URL, parsed outputs)
+- `get-jobs` — lightweight read endpoint for recent job listings
+- `jobs-cron` — scheduled ingestion from job sources; supports deep research
+- `process-and-match` — live search/extraction pipeline with multi-source parsing
+- `skyvern-webhook` — webhook handler for async callbacks
+
+Function environment variables live in `supabase/functions/.env.example`. Set these in Supabase → Project Settings → Functions → Environment Variables:
+
+- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (required for DB writes)
+- `JOB_SOURCES` (JSON): controls ingestion sources; examples in `docs/job-sources.md`
+- `JOBS_CRON_EXPR` (cron): schedule for `jobs-cron`
+- `FIRECRAWL_API_KEY` (optional; enables deep research)
+- `INCLUDE_LINKEDIN`, `INCLUDE_SEARCH` (booleans; control LinkedIn/search parsing)
+
 ## 🛠 Tech Stack
 
 ### Frontend
@@ -230,10 +251,10 @@ If you previously applied migrations manually and encounter a history mismatch, 
 
 ### Development & Build Tools
 - **Package Manager**: npm
-- **Type Checking**: TypeScript with strict mode
-- **Code Quality**: ESLint + Prettier for consistent code formatting
+- **Type Checking**: TypeScript
+- **Code Quality**: Linting is not yet configured in this repo
 - **Version Control**: Git with conventional commits
-- **CI/CD**: GitHub Actions for automated testing and deployment
+- **CI/CD**: Not included by default (you can add GitHub Actions later)
 
 ### Deployment & Infrastructure
 - **Hosting**: Vercel for frontend deployment
@@ -425,38 +446,47 @@ npm run dev
 # Create optimized production build
 npm run build
 
-# Preview production build locally
-npm run preview
-
-# Analyze bundle size
-npm run analyze
+# (Optional) Preview production build locally
+npx vite preview
 ```
 
 ### Available Scripts
 
 ```bash
-# Development
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run preview      # Preview production build
+# App
+npm run dev                     # Start development server (Vite)
+npm run build                   # Build for production
 
-# Code Quality
-npm run lint         # Run ESLint
-npm run lint:fix     # Fix ESLint issues
-npm run type-check   # Run TypeScript compiler
-npm run format       # Format code with Prettier
+# Supabase (local stack lives under backend/supabase)
+npm run supabase:start          # Start local Supabase stack
+npm run supabase:stop           # Stop local stack
+npm run supabase:status         # Show local stack status
+npm run supabase:reset          # Drop, migrate, and seed local DB
+npm run supabase:diff           # Diff DB to create a new migration file
+npm run supabase:schema:dump    # Dump current schema to backend/supabase/schema.sql
+npm run supabase:schema:sync    # Generate migration(s) and dump schema in one step
+npm run supabase:login          # CLI login (required before linking/pushing)
+npm run supabase:link           # Link this repo to a remote project (uses SUPABASE_PROJECT_REF)
+npm run supabase:push           # Push migrations to the linked remote project
+npm run supabase:push:dry       # Dry-run remote push
+npm run supabase:push:dburl     # Push using SUPABASE_DB_URL (advanced)
+npm run supabase:sync:push      # Sync schema then push migrations
 
-# Testing
-npm run test         # Run unit tests
-npm run test:watch   # Run tests in watch mode
-npm run test:coverage # Generate coverage report
-npm run e2e          # Run end-to-end tests
-
-# Deployment
-npm run deploy       # Deploy to production
-npm run deploy:preview # Deploy preview environment
+# DB helpers (advanced)
+npm run db:run-sql              # Run a SQL file against SUPABASE_DB_URL
+npm run db:create-job-listings  # Create job_listings table via migration SQL
+npm run db:create-bookmarks     # Create bookmarks via idempotent SQL
+npm run db:create-core          # Create core tables (job listings + bookmarks)
+```
 ```
 
+### Environment notes for Vite
+Development reads `VITE_`-prefixed variables from `.env.*` files. For production builds, `vite.config.ts` injects only two variables at build time:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Ensure these are defined in your deployment environment (e.g., Vercel) before building.
 ## 🏗 Architecture
 
 ### Project Structure
@@ -840,37 +870,7 @@ VITE_ENABLE_ANALYTICS=true
 - Set up uptime monitoring
 
 ### CI/CD Pipeline
-
-```yaml
-# .github/workflows/deploy.yml
-name: Deploy to Production
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          cache: 'npm'
-      
-      - run: npm ci
-      - run: npm run build
-      - run: npm run test
-      
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v20
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.ORG_ID }}
-          vercel-project-id: ${{ secrets.PROJECT_ID }}
-          vercel-args: '--prod'
-```
+This repository does not include CI by default. You can add your own GitHub Actions workflow later if needed.
 
 ## 🤝 Contributing
 
@@ -926,6 +926,9 @@ refactor: optimize database queries
 test: add unit tests for user profile
 chore: update dependencies
 ```
+
+### Git authorship
+Commits in this repository are authored as `mylife-as-miles`. A `.mailmap` file in the repo consolidates historical authors to this identity for cleaner blame/logs.
 
 ## 📄 License
 
