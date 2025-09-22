@@ -26,7 +26,6 @@ import { createClient } from "../../lib/supabaseClient";
 
 // Import sub-page components
 import { OverviewPage } from "./pages/OverviewPage";
-import { ChatPage } from "./pages/ChatPage";
 import { ResumesPage } from "@/client/pages/dashboard/resumes/page";
 import NewResumeRedirect from "@/client/pages/dashboard/resumes/new";
 import { JobPage } from "./pages/JobPage";
@@ -40,7 +39,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@reactive-resume/ui";
 import { LocaleProvider } from "@/client/providers/locale";
 import { ThemeProvider } from "@/client/providers/theme";
-import { DialogProvider } from "@/client/providers/dialog";
+// (dialog provider not needed here)
 import { helmetContext } from "@/client/constants/helmet";
 import { queryClient } from "@/client/libs/query-client";
 
@@ -250,6 +249,39 @@ export const Dashboard = (): JSX.Element => {
     }
   };
 
+  // Local error boundary to prevent blank screens on subpages (e.g., settings)
+  class PageErrorBoundary extends React.Component<React.PropsWithChildren<{ resetKey: string }>, { hasError: boolean; err?: Error | null }> {
+    constructor(props: React.PropsWithChildren<{ resetKey: string }>) {
+      super(props);
+      this.state = { hasError: false, err: null };
+    }
+    static getDerivedStateFromError(error: Error) { return { hasError: true, err: error }; }
+    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+      console.error("Dashboard subpage crashed:", { page: currentPage, sub: resumeSubRoute, path: location.pathname, error, errorInfo });
+    }
+    componentDidUpdate(prevProps: Readonly<{ resetKey: string }>) {
+      if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
+        this.setState({ hasError: false, err: null });
+      }
+    }
+    render() {
+      if (this.state.hasError) {
+        return (
+          <div className="h-full flex items-center justify-center p-6">
+            <div className="max-w-md w-full text-center bg-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl p-6">
+              <h2 className="text-white text-lg font-semibold mb-2">Something went wrong</h2>
+              <p className="text-[#aaaaaa] text-sm mb-4">The page failed to render. Please try again.</p>
+              <div className="text-left text-xs text-[#888888] max-h-48 overflow-auto rounded-md bg-black/30 p-3 border border-[#1dff00]/10">
+                <div className="font-mono whitespace-pre-wrap break-words">{String(this.state.err?.message || this.state.err)}</div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      return this.props.children as React.ReactNode;
+    }
+  }
+
   return (
      <div className="min-h-screen bg-black flex">
       {/* Mobile sidebar overlay */}
@@ -270,7 +302,7 @@ export const Dashboard = (): JSX.Element => {
     <div className="p-3 sm:p-4 lg:p-6 border-b border-[#1dff00]/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center hover:scale-110 transition-transform duration-300">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center hover:scale-110 transition-transform duration-300">
                 <span className="text-black font-bold text-xs sm:text-sm lg:text-base">JR</span>
               </div>
       <span className="font-semibold text-sm sm:text-lg lg:text-xl bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">JobRaker</span>
@@ -455,7 +487,9 @@ export const Dashboard = (): JSX.Element => {
             transition={{ duration: 0.3 }}
             className="h-full"
           >
-            {renderPageContent()}
+            <PageErrorBoundary resetKey={`${currentPage}:${resumeSubRoute}`}>
+              {renderPageContent()}
+            </PageErrorBoundary>
           </motion.div>
         </div>
       </div>

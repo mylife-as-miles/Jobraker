@@ -57,8 +57,8 @@ export const ResumeCard = ({ resume }: Props) => {
 
   return (
     <DropdownMenu>
-    <DropdownMenuTrigger className="text-left">
-  <BaseCard className="cursor-context-menu space-y-0" onDoubleClick={onOpen}>
+      <DropdownMenuTrigger asChild className="text-left">
+        <BaseCard className="cursor-context-menu space-y-0" onDoubleClick={onOpen}>
           <AnimatePresence>
             {resume.locked && (
               <motion.div
@@ -90,12 +90,12 @@ export const ResumeCard = ({ resume }: Props) => {
           <img
             src={`/templates/jpg/${template}.jpg`}
             alt={template}
-            className="rounded-sm opacity-90 contrast-110"
+            className="rounded-xl opacity-90 contrast-110"
           />
         </BaseCard>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent>
+      <DropdownMenuContent className="rounded-xl overflow-hidden">
         <DropdownMenuItem onClick={onOpen}>{t`Open`}</DropdownMenuItem>
         <DropdownMenuItem onClick={onUpdate}>
           <PencilSimple width={14} height={14} className="mr-2" />

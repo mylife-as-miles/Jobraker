@@ -69,7 +69,7 @@ export const ResumesPage = () => {
           onDragOver={onDrag}
           onDragLeave={onDrag}
           onDrop={onDrop}
-          className={`relative ${dragActive ? 'ring-2 ring-[#1dff00] ring-offset-2 ring-offset-black rounded-lg transition' : ''}`}
+          className={`relative ${dragActive ? 'ring-2 ring-[#1dff00] ring-offset-2 ring-offset-black rounded-xl transition' : ''}`}
         >
         {importStatuses.length > 0 && (
           <div className="mb-4 space-y-2">
@@ -83,7 +83,7 @@ export const ResumesPage = () => {
                 <button onClick={clearImportStatuses} className="text-[10px] text-[#1dff00]/60 hover:text-[#1dff00] transition">Clear</button>
               </div>
             </div>
-            <ul className="max-h-44 overflow-auto thin-scrollbar pr-1 text-[11px] divide-y divide-[#1dff00]/10 border border-[#1dff00]/10 rounded-md bg-black/40 backdrop-blur-sm">
+            <ul className="max-h-44 overflow-auto thin-scrollbar pr-1 text-[11px] divide-y divide-[#1dff00]/10 border border-[#1dff00]/10 rounded-xl bg-black/40 backdrop-blur-sm">
               {importStatuses.filter(st => showCompleted || (st.state !== 'done')).slice(0,14).map(st => {
                 const pct = Math.round(st.progress);
                 const barColor = st.state === 'error' ? 'bg-red-500/60' : st.state === 'done' ? 'bg-[#1dff00]' : 'bg-[#1dff00]/60';
@@ -124,7 +124,7 @@ export const ResumesPage = () => {
           <GridView />
         </ScrollArea>
         {dragActive && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[#1dff00] font-medium text-sm backdrop-blur-[2px] bg-black/40 rounded-lg">
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[#1dff00] font-medium text-sm backdrop-blur-[2px] bg-black/40 rounded-xl">
             Drop to import
           </div>
         )}

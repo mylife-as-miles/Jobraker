@@ -47,7 +47,7 @@ export const SbResumeCard = ({ resume }: Props) => {
       <img
         src={`/templates/jpg/${template}.jpg`}
         alt={template}
-        className="rounded-sm opacity-90 contrast-110"
+        className="rounded-xl opacity-90 contrast-110"
         onError={(e) => {
           // Fallback if the template image is missing
           (e.currentTarget as HTMLImageElement).src = "/templates/jpg/Modern.jpg";

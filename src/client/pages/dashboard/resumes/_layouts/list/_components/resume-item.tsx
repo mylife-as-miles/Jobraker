@@ -8,7 +8,7 @@ export const ResumeListItem = ({ resume }: { resume: ResumeDto }) => {
   const navigate = useNavigate();
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-md border p-3 cursor-pointer bg-gradient-to-r from-[#111111] to-[#0a0a0a] border-[#1dff00]/20 hover:border-[#1dff00]/40 hover:bg-[#1dff00]/5 transition-colors"
+  <div className="flex items-center justify-between gap-3 rounded-xl border p-3 cursor-pointer bg-gradient-to-r from-[#111111] to-[#0a0a0a] border-[#1dff00]/20 hover:border-[#1dff00]/40 hover:bg-[#1dff00]/5 transition-colors"
       onClick={() => navigate(`/builder/${resume.id}`)}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/builder/${resume.id}`); } }}
       tabIndex={0}
@@ -22,7 +22,7 @@ export const ResumeListItem = ({ resume }: { resume: ResumeDto }) => {
       <img
         src={`/templates/jpg/${resume.data.metadata.template}.jpg`}
         alt={resume.data.metadata.template}
-        className="h-10 w-8 rounded-sm object-cover opacity-90 contrast-110"
+        className="h-10 w-8 rounded-xl object-cover opacity-90 contrast-110"
       />
     </div>
   );

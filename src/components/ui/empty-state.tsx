@@ -46,7 +46,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     ].join(" ")}
     >
       {illustrationSrc && (
-        <img src={illustrationSrc} alt="" className="mb-4 h-28 w-auto rounded-md opacity-80" />
+        <img src={illustrationSrc} alt="" className="mb-4 h-28 w-auto rounded-xl opacity-80" />
       )}
       <h3 className="text-lg font-semibold text-white">{title}</h3>
       {description && (

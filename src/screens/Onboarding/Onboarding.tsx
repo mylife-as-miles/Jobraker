@@ -106,7 +106,7 @@ export const Onboarding = (): JSX.Element => {
           {["Find a new job", "Better salary", "Career growth", "Networking"].map((goal) => (
             <Button
               key={goal}
-              variant={formData.goals.includes(goal) ? "default" : "outline"}
+              variant={formData.goals.includes(goal) ? "primary" : "outline"}
               onClick={() => toggleGoal(goal)}
               className={`h-10 sm:h-12 text-xs sm:text-sm transition-all duration-200 ${
                 formData.goals.includes(goal)

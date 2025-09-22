@@ -1,6 +1,7 @@
 // Minimal UI kit used by the client code. Enhanced with basic styling & behavior
 // to avoid layout issues (e.g., dropdowns rendering inline) while keeping deps light.
 import React from "react";
+import { createPortal } from "react-dom";
 
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "default"|"secondary"|"outline"|"ghost"|"destructive"; size?: "sm"|"md"|"lg"; asChild?: boolean };
 export const Button: React.FC<ButtonProps> = ({ children, asChild, variant = "default", size = "md", className = "", ...props }) => {
@@ -305,20 +306,23 @@ export const AlertDescription: React.FC<React.HTMLAttributes<HTMLDivElement>> = 
 
 // Dropdown menu primitives
 // Lightweight dropdown with internal open state and absolute positioning
-type DMContext = { open: boolean; setOpen: (o: boolean) => void; triggerRef: React.RefObject<HTMLElement> };
+type DMContext = { open: boolean; setOpen: (o: boolean) => void; triggerRef: React.RefObject<HTMLElement>; contentRef: React.RefObject<HTMLDivElement> };
 const DropdownCtx = React.createContext<DMContext | null>(null);
 
 export const DropdownMenu: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, className = "", ...props }) => {
   const [open, setOpen] = React.useState(false);
   const triggerRef = React.useRef<HTMLElement>(null);
+  const contentRef = React.useRef<HTMLDivElement>(null);
   // close on outside click
   React.useEffect(() => {
     if (!open) return;
     const onDocClick = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (!triggerRef.current) return;
-      const root = (triggerRef.current.parentElement as HTMLElement) || null;
-      if (root && !root.contains(t)) setOpen(false);
+      const trig = triggerRef.current;
+      const content = contentRef.current;
+      if (trig && trig.contains(t)) return;
+      if (content && content.contains(t)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("mousedown", onDocClick);
@@ -329,7 +333,7 @@ export const DropdownMenu: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ c
     };
   }, [open]);
   return (
-    <DropdownCtx.Provider value={{ open, setOpen, triggerRef }}>
+    <DropdownCtx.Provider value={{ open, setOpen, triggerRef, contentRef }}>
       <div className={["relative inline-block", className].join(" ")} {...props}>{children}</div>
     </DropdownCtx.Provider>
   );
@@ -344,7 +348,7 @@ export const DropdownMenuTrigger: React.FC<{ asChild?: boolean } & React.ButtonH
     <button
       ref={ctx?.triggerRef as any}
       onClick={() => ctx?.setOpen(!ctx.open)}
-      className={["rounded-md", className].join(" ")}
+      className={["rounded-xl", className].join(" ")}
       {...props}
     >
       {children}
@@ -355,7 +359,7 @@ export const DropdownMenuTrigger: React.FC<{ asChild?: boolean } & React.ButtonH
 export const DropdownMenuContent: React.FC<{ side?: string; align?: string } & React.HTMLAttributes<HTMLDivElement>> = ({ children, className = "", style, ...props }) => {
   const ctx = React.useContext(DropdownCtx);
   const [coords, setCoords] = React.useState<{ top: number; left: number; width: number } | null>(null);
-  const contentRef = React.useRef<HTMLDivElement | null>(null);
+  const contentRef = ctx?.contentRef || React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => {
     if (!ctx?.open) return;
     const update = () => {
@@ -378,7 +382,7 @@ export const DropdownMenuContent: React.FC<{ side?: string; align?: string } & R
   }, [ctx?.open, ctx?.triggerRef]);
   if (!ctx || !ctx.open) return null;
   return (
-    React.createPortal(
+    createPortal(
       <div
         role="menu"
         ref={contentRef}
