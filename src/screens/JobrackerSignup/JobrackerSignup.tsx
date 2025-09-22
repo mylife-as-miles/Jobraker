@@ -36,6 +36,10 @@ export const JobrackerSignup = (): JSX.Element => {
   const [submitting, setSubmitting] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
   const passwordCheck = useMemo(() => validatePassword(formData.password, formData.email), [formData.password, formData.email]);
+  const emailValid = useMemo(() => {
+    const v = (formData.email || "").trim();
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  }, [formData.email]);
 
   const handleOAuth = useCallback(
     async (provider: "google" | "linkedin_oidc") => {
@@ -380,13 +384,18 @@ export const JobrackerSignup = (): JSX.Element => {
                             className="border-0 bg-transparent text-white tracking-wide placeholder:text-white/70 focus-visible:ring-0 p-0 h-auto ml-3 sm:ml-4"
                             type="email"
                             placeholder="Email address"
+                            name="email"
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             required
                             autoComplete="email"
-                            aria-invalid={false}
+                            inputMode="email"
+                            aria-invalid={!emailValid && formData.email.length > 0}
                           />
                         </div>
+                        {formData.email.length > 0 && !emailValid && (
+                          <div className="mt-2 text-[11px] sm:text-xs text-red-400">Enter a valid email address</div>
+                        )}
                       </motion.div>
 
                       {/* Password Field - Responsive */}
@@ -421,6 +430,8 @@ export const JobrackerSignup = (): JSX.Element => {
                               className="text-[#ffffff80] hover:text-white transition-colors duration-200 flex-shrink-0 ml-2"
                               whileHover={{ scale: 1.1 }}
                               whileTap={{ scale: 0.9 }}
+                              aria-label={showPassword ? "Hide password" : "Show password"}
+                              title={showPassword ? "Hide password" : "Show password"}
                             >
                               {showPassword ? (
                                 <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -452,6 +463,7 @@ export const JobrackerSignup = (): JSX.Element => {
                               className="border-0 bg-transparent text-white tracking-wide placeholder:text-white/70 focus-visible:ring-0 p-0 h-auto ml-3 sm:ml-4"
                               type="password"
                               placeholder="Confirm Password"
+                              name="confirmPassword"
                               value={formData.confirmPassword}
                               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                               required
@@ -534,7 +546,7 @@ export const JobrackerSignup = (): JSX.Element => {
                       type="submit"
                       aria-busy={submitting}
                       className="w-full flex items-center justify-center gap-2 relative shadow-[0px_3px_14px_#00000040] bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] font-bold text-white hover:shadow-[0px_4px_22px_#00000060] transition-all duration-300 h-10 sm:h-12 lg:h-14 text-xs sm:text-sm lg:text-base rounded-xl disabled:opacity-60"
-                      disabled={submitting || (isSignUp && !passwordCheck.valid)}
+                      disabled={submitting || !emailValid || (isSignUp && !showForgotPassword && !passwordCheck.valid)}
                     >
                       {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                       <span>
