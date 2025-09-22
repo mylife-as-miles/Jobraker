@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2 } from "lucide-react";
+import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2, Check } from "lucide-react";
 import { Button, Card } from "@reactive-resume/ui";
 
 // This component renders the UI for the cover letter page.
@@ -12,6 +12,37 @@ export const CoverLetter = () => {
   const [recipient, setRecipient] = useState("Hiring Manager");
   const [company, setCompany] = useState("Acme Corp");
   const [content, setContent] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const previewRef = useRef<HTMLDivElement | null>(null);
+
+  // Load/save from localStorage (keeps it functional without backend migrations)
+  const STORAGE_KEY = "jr.coverLetter.draft.v1";
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setRole(parsed?.role ?? "Software Engineer");
+        setRecipient(parsed?.recipient ?? "Hiring Manager");
+        setCompany(parsed?.company ?? "Acme Corp");
+        setContent(parsed?.content ?? "");
+        setFontSize(parsed?.fontSize ?? 16);
+        setSavedAt(parsed?.savedAt ?? null);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        const payload = { role, recipient, company, content, fontSize, savedAt: new Date().toISOString() };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        setSavedAt(payload.savedAt);
+      } catch {}
+    }, 400);
+    return () => clearTimeout(t);
+  }, [role, recipient, company, content, fontSize]);
 
   const preview = useMemo(() => {
     if (content.trim().length) return content;
@@ -20,39 +51,92 @@ export const CoverLetter = () => {
 
   const zoomIn = () => setFontSize((size) => Math.min(28, size + 1));
   const zoomOut = () => setFontSize((size) => Math.max(12, size - 1));
-  const download = () => alert("Downloading PDF...");
-  const aiPolish = () => alert("AI Polishing content...");
-  const quickEdit = () => alert("Open structured editor...");
-  const share = () => alert("Generating share link...");
+  const download = () => {
+    try {
+      const node = previewRef.current;
+      if (!node) return;
+      const html = node.innerHTML;
+      const win = window.open("", "_blank", "noopener,noreferrer,width=900,height=1200");
+      if (!win) return;
+      win.document.write(`<!doctype html><html><head><title>Cover Letter</title>
+        <meta charset=\"utf-8\" />
+        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+        <style>
+          @page { margin: 24mm; }
+          body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial, sans-serif; }
+          .doc { max-width: 800px; margin: 0 auto; }
+          pre { white-space: pre-wrap; font-family: inherit; }
+        </style>
+      </head><body><div class="doc">${html}</div></body></html>`);
+      win.document.close();
+      win.focus();
+      win.print();
+      setTimeout(() => { try { win.close(); } catch {} }, 300);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to prepare PDF. Use your browser's Print to PDF as a fallback.");
+    }
+  };
+  const aiPolish = () => alert("AI Polishing content... (coming soon)");
+  const quickEdit = () => {
+    const textarea = document.getElementById("cover-letter-content") as HTMLTextAreaElement | null;
+    textarea?.focus();
+  };
+  const share = async () => {
+    try {
+      const text = preview;
+      if (navigator.share) {
+        await navigator.share({ title: `Cover Letter - ${company}`, text });
+      } else {
+        await navigator.clipboard.writeText(text);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (e) {
+      console.error(e);
+      try {
+        await navigator.clipboard.writeText(preview);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      } catch {}
+    }
+  };
+
+  const clearDraft = () => {
+    setRole("");
+    setRecipient("");
+    setCompany("");
+    setContent("");
+  };
 
   return (
-    <div className="flex h-[calc(100vh-2rem)] flex-col gap-4">
+    <div className="flex min-h-[calc(100vh-4rem)] flex-col gap-4 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between sticky top-0 z-10 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-xl border border-border px-3 sm:px-4 py-2 sm:py-3">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" className="h-9 w-9 p-0" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Cover Letter</h1>
+          <h1 className="text-lg sm:text-xl md:text-2xl font-semibold tracking-tight">Cover Letter</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={quickEdit} className="rounded-xl"> <Pencil className="w-4 h-4 mr-2"/> Quick Edit</Button>
-          <Button variant="outline" onClick={aiPolish} className="rounded-xl"> <Wand2 className="w-4 h-4 mr-2"/> AI Polish</Button>
-          <Button variant="outline" onClick={share} className="rounded-xl"> <Share2 className="w-4 h-4 mr-2"/> Share</Button>
-          <Button onClick={download} className="rounded-xl"> <Download className="w-4 h-4 mr-2"/> Download</Button>
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <Button variant="outline" onClick={quickEdit} className="rounded-xl whitespace-nowrap"> <Pencil className="w-4 h-4 mr-2"/> Quick Edit</Button>
+          <Button variant="outline" onClick={aiPolish} className="rounded-xl whitespace-nowrap"> <Wand2 className="w-4 h-4 mr-2"/> AI Polish</Button>
+          <Button variant="outline" onClick={share} className="rounded-xl whitespace-nowrap"> {copied ? <><Check className="w-4 h-4 mr-2"/> Copied</> : <><Share2 className="w-4 h-4 mr-2"/> Share</>} </Button>
+          <Button onClick={download} className="rounded-xl whitespace-nowrap"> <Download className="w-4 h-4 mr-2"/> Download</Button>
         </div>
       </div>
 
       {/* Workspace */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <div className="grid gap-4 grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)]">
         {/* Left: Controls */}
-        <Card className="p-4">
-          <div className="grid gap-3">
+        <Card className="p-4 rounded-xl">
+          <div className="grid gap-4">
             <div>
               <label className="text-xs opacity-70">Role</label>
               <input value={role} onChange={(e)=>setRole(e.target.value)} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs opacity-70">Recipient</label>
                 <input value={recipient} onChange={(e)=>setRecipient(e.target.value)} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
@@ -63,10 +147,13 @@ export const CoverLetter = () => {
               </div>
             </div>
             <div>
-              <label className="text-xs opacity-70">Content</label>
-              <textarea value={content} onChange={(e)=>setContent(e.target.value)} rows={12} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" placeholder="Write or paste your cover letter here..." />
+              <div className="flex items-center justify-between">
+                <label className="text-xs opacity-70">Content</label>
+                <span className="text-[11px] opacity-60">{content.length} chars</span>
+              </div>
+              <textarea id="cover-letter-content" value={content} onChange={(e)=>setContent(e.target.value)} rows={12} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" placeholder="Write or paste your cover letter here..." />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={zoomOut}>
                 <Minus className="w-4 h-4" />
               </Button>
@@ -74,14 +161,18 @@ export const CoverLetter = () => {
                 <Plus className="w-4 h-4" />
               </Button>
               <span className="text-xs opacity-70">Font: {fontSize}px</span>
+              <div className="ml-auto flex items-center gap-2">
+                <Button variant="outline" size="sm" className="rounded-xl" onClick={clearDraft}>Clear</Button>
+                {savedAt && <span className="text-[11px] opacity-60">Saved {new Date(savedAt).toLocaleTimeString()}</span>}
+              </div>
             </div>
           </div>
         </Card>
 
         {/* Right: Preview */}
-        <Card className="p-6 overflow-hidden">
-          <div className="mx-auto w-full max-w-[800px] rounded-xl border border-border bg-white text-black shadow-xl">
-            <div className="p-8" style={{ fontSize: `${fontSize}px`, lineHeight: 1.6 }}>
+        <Card className="p-3 sm:p-4 md:p-6 overflow-hidden rounded-xl">
+          <div ref={previewRef} className="mx-auto w-full max-w-[800px] rounded-xl border border-border bg-white text-black shadow-xl">
+            <div className="p-6 sm:p-8" style={{ fontSize: `${fontSize}px`, lineHeight: 1.6 }}>
               <div className="mb-6">
                 <p className="font-bold">[Your Name]</p>
                 <p>[Your Phone Number]</p>
