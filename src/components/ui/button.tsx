@@ -2,7 +2,7 @@ import React from "react";
 import { cn } from "../../lib/utils";
 
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "outline" | "ghost" | "destructive" | "neo";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "destructive" | "neo" | "link";
   size?: "sm" | "md" | "lg";
 };
 
@@ -21,6 +21,7 @@ export const Button: React.FC<ButtonProps> = ({ variant = "primary", size = "md"
     ghost: "bg-transparent hover:bg-accent",
     destructive: "bg-destructive text-destructive-foreground hover:opacity-95",
     neo: "bg-brand text-black hover:opacity-95 shadow-[0_0_18px_hsla(var(--brand)/0.35)] border border-brand/40",
+    link: "bg-transparent text-brand hover:underline underline-offset-4 px-0 h-auto",
   }[variant];
 
   return (

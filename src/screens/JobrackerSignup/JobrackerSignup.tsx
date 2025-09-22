@@ -78,7 +78,7 @@ export const JobrackerSignup = (): JSX.Element => {
           email: formData.email,
           password: formData.password,
           options: {
-      emailRedirectTo: `${window.location.origin}/login`,
+      emailRedirectTo: `${window.location.origin}/signIn`,
           },
         });
         if (error) throw error;
@@ -110,7 +110,7 @@ export const JobrackerSignup = (): JSX.Element => {
         const { error } = await authAny.resend({
           type: "signup",
           email: formData.email,
-          options: { emailRedirectTo: `${window.location.origin}/login` },
+          options: { emailRedirectTo: `${window.location.origin}/signIn` },
         });
         if (error) throw error;
       }
@@ -602,7 +602,7 @@ export const JobrackerSignup = (): JSX.Element => {
               className="w-full bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] text-white"
               onClick={() => {
                 setShowVerifyModal(false);
-                navigate("/login");
+                navigate("/signIn");
               }}
             >
               Go to login

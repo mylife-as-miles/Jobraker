@@ -4,6 +4,7 @@ import "../tailwind.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LandingPage } from "./screens/LandingPage";
 import { JobrackerSignup } from "./screens/JobrackerSignup";
+import { ResetPassword } from "./screens/ResetPassword";
 import { Onboarding } from "./screens/Onboarding";
 import { Analytics } from "./screens/Analytics";
 import { Dashboard } from "./screens/Dashboard";
@@ -65,6 +66,8 @@ function App() {
 
         {/* Sign In Page */}
           <Route path={ROUTES.SIGNIN} element={<PublicOnly><JobrackerSignup /></PublicOnly>} />
+          {/* Password recovery/update page (handles Supabase recovery links) */}
+          <Route path="/reset-password" element={<PublicOnly><ResetPassword /></PublicOnly>} />
         
         {/* Step 2: Onboarding Page (after signup). Public so it doesn't blank when unauthenticated; final step requires auth */}
           <Route path={ROUTES.ONBOARDING} element={<Onboarding />} />
