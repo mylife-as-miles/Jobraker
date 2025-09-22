@@ -1,102 +1,97 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  ArrowLeft,
-  DotsThreeVertical,
-  Minus,
-  Plus,
-  DownloadSimple,
-} from "@phosphor-icons/react";
-import { Button } from "@reactive-resume/ui";
+import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2 } from "lucide-react";
+import { Button, Card } from "@reactive-resume/ui";
 
 // This component renders the UI for the cover letter page.
 // It includes a header, the cover letter content, and a footer with controls.
 export const CoverLetter = () => {
   const navigate = useNavigate();
   const [fontSize, setFontSize] = useState(16);
+  const [role, setRole] = useState("Software Engineer");
+  const [recipient, setRecipient] = useState("Hiring Manager");
+  const [company, setCompany] = useState("Acme Corp");
+  const [content, setContent] = useState("");
 
-  const zoomIn = () => setFontSize((size) => size + 1);
-  const zoomOut = () => setFontSize((size) => size - 1);
-  const download = () => alert("Downloading...");
-  const editDetails = () => alert("Editing details...");
-  const aiEdit = () => alert("AI edit...");
+  const preview = useMemo(() => {
+    if (content.trim().length) return content;
+    return `Dear ${recipient},\n\nI’m excited to apply for the ${role} role at ${company}. I bring hands-on experience building production-grade systems, a bias for ownership, and a track record shipping polished user experiences.\n\nHighlights:\n• Led end-to-end delivery of complex features across frontend/backends.\n• Collaborated across design, product, and data to align on impact.\n• Elevated code quality with tests, performance tuning, and strong reviews.\n\nI’d love to discuss how I can contribute to ${company}.\n\nBest regards,\n[Your Name]`;
+  }, [content, role, recipient, company]);
+
+  const zoomIn = () => setFontSize((size) => Math.min(28, size + 1));
+  const zoomOut = () => setFontSize((size) => Math.max(12, size - 1));
+  const download = () => alert("Downloading PDF...");
+  const aiPolish = () => alert("AI Polishing content...");
+  const quickEdit = () => alert("Open structured editor...");
+  const share = () => alert("Generating share link...");
 
   return (
-    <div className="flex flex-col h-screen">
-      <header className="flex items-center justify-between p-4 border-b">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft size={24} />
-        </Button>
-        <h1 className="text-xl font-bold">Software Engineer</h1>
-        <Button variant="ghost" size="icon">
-          <DotsThreeVertical size={24} />
-        </Button>
-      </header>
+    <div className="flex h-[calc(100vh-2rem)] flex-col gap-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" className="h-9 w-9 p-0" onClick={() => navigate(-1)}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Cover Letter</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={quickEdit} className="rounded-xl"> <Pencil className="w-4 h-4 mr-2"/> Quick Edit</Button>
+          <Button variant="outline" onClick={aiPolish} className="rounded-xl"> <Wand2 className="w-4 h-4 mr-2"/> AI Polish</Button>
+          <Button variant="outline" onClick={share} className="rounded-xl"> <Share2 className="w-4 h-4 mr-2"/> Share</Button>
+          <Button onClick={download} className="rounded-xl"> <Download className="w-4 h-4 mr-2"/> Download</Button>
+        </div>
+      </div>
 
-      <main className="flex-1 p-4 overflow-y-auto">
-        <div
-          className="bg-white p-6 rounded-lg shadow-md"
-          style={{ fontSize: `${fontSize}px` }}
-        >
-          <div className="mb-6">
-            <p className="font-bold">[Your Name]</p>
-            <p>[Your Phone Number]</p>
-            <p>[Your Email]</p>
+      {/* Workspace */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        {/* Left: Controls */}
+        <Card className="p-4">
+          <div className="grid gap-3">
+            <div>
+              <label className="text-xs opacity-70">Role</label>
+              <input value={role} onChange={(e)=>setRole(e.target.value)} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs opacity-70">Recipient</label>
+                <input value={recipient} onChange={(e)=>setRecipient(e.target.value)} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div>
+                <label className="text-xs opacity-70">Company</label>
+                <input value={company} onChange={(e)=>setCompany(e.target.value)} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs opacity-70">Content</label>
+              <textarea value={content} onChange={(e)=>setContent(e.target.value)} rows={12} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" placeholder="Write or paste your cover letter here..." />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={zoomOut}>
+                <Minus className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={zoomIn}>
+                <Plus className="w-4 h-4" />
+              </Button>
+              <span className="text-xs opacity-70">Font: {fontSize}px</span>
+            </div>
           </div>
-          <div className="mb-6">
-            <p>Dear Hiring Manager,</p>
-          </div>
-          <div className="space-y-4">
-            <p>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse
-              lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor. Cras elementum
-              ultrices diam. Maecenas ligula massa, varius a, semper congue, euismod non, mi.
-            </p>
-            <p>
-              Proin porttitor, orci nec nonummy molestie, enim est eleifend mi, non fermentum diam
-              nisl sit amet erat. Duis semper. Duis arcu massa, scelerisque vitae, consequat in,
-              pretium a, enim. Pellentesque congue. Ut in risus volutpat libero pharetra tempor.
-            </p>
-            <p>
-              Cras vestibulum bibendum augue. Praesent egestas leo in pede. Praesent blandit odio eu
-              enim. Pellentesque sed dui ut augue blandit sodales. Vestibulum ante ipsum primis in
-              faucibus orci luctus et ultrices posuere cubilia Curae; Aliquam nibh.
-            </p>
-            <p>
-              Mauris ac mauris sed pede pellentesque fermentum. Maecenas adipiscing ante non diam.
-              Proin porttitor, orci nec nonummy molestie, enim est eleifend mi, non fermentum diam
-              nisl sit amet erat. Duis semper. Duis arcu massa, scelerisque vitae, consequat in,
-              pretium a, enim.
-            </p>
-            <p>Best regards,</p>
-            <p>[Your Name]</p>
-          </div>
-        </div>
-      </main>
+        </Card>
 
-      <footer className="p-4 border-t">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="icon" onClick={zoomOut}>
-              <Minus size={20} />
-            </Button>
-            <Button variant="outline" size="icon" onClick={zoomIn}>
-              <Plus size={20} />
-            </Button>
+        {/* Right: Preview */}
+        <Card className="p-6 overflow-hidden">
+          <div className="mx-auto w-full max-w-[800px] rounded-xl border border-border bg-white text-black shadow-xl">
+            <div className="p-8" style={{ fontSize: `${fontSize}px`, lineHeight: 1.6 }}>
+              <div className="mb-6">
+                <p className="font-bold">[Your Name]</p>
+                <p>[Your Phone Number]</p>
+                <p>[Your Email]</p>
+              </div>
+              <pre className="whitespace-pre-wrap font-sans text-[inherit] leading-[inherit]">{preview}</pre>
+            </div>
           </div>
-          <Button className="rounded-full h-12 w-12" onClick={download}>
-            <DownloadSimple size={24} />
-          </Button>
-        </div>
-        <div className="mt-4 flex justify-around">
-          <Button variant="ghost" onClick={editDetails}>
-            Edit Details
-          </Button>
-          <Button variant="ghost" onClick={aiEdit}>
-            AI Edit
-          </Button>
-        </div>
-      </footer>
+        </Card>
+      </div>
     </div>
   );
 };

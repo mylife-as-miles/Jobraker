@@ -28,6 +28,7 @@ import { createClient } from "../../lib/supabaseClient";
 import { OverviewPage } from "./pages/OverviewPage";
 import { ResumesPage } from "@/client/pages/dashboard/resumes/page";
 import NewResumeRedirect from "@/client/pages/dashboard/resumes/new";
+import { CoverLetterPage } from "@/client/pages/dashboard/cover-letter/page";
 import { JobPage } from "./pages/JobPage";
 import { ApplicationPage } from "./pages/ApplicationPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -50,6 +51,7 @@ type DashboardPage =
   | "resume" 
   | "jobs" 
   | "application" 
+  | "cover-letter"
   | "settings"
   | "notifications"
   | "profile"
@@ -73,6 +75,7 @@ export const Dashboard = (): JSX.Element => {
     "resume",
     "jobs",
     "application",
+    "cover-letter",
     "settings",
     "notifications",
     "profile",
@@ -146,6 +149,12 @@ export const Dashboard = (): JSX.Element => {
       label: "Resume",
       icon: <FileText className="w-4 h-4 sm:w-5 sm:h-5" />,
       path: "Dashboard / Resume"
+    },
+    {
+      id: "cover-letter",
+      label: "Cover Letter",
+      icon: <FileText className="w-4 h-4 sm:w-5 sm:h-5" />,
+      path: "Dashboard / Cover Letter"
     },
     {
       id: "jobs",
@@ -223,6 +232,8 @@ export const Dashboard = (): JSX.Element => {
         return <JobPage />;
       case "application":
         return <ApplicationPage />;
+      case "cover-letter":
+        return <CoverLetterPage />;
       case "resume":
         // Wrap client Resume page with required providers
         return (
