@@ -58,9 +58,52 @@ export function KeyboardShortcut({ combo, children, className }: { combo?: strin
   return <kbd className={(className ?? "") + " rounded border px-2 py-0.5 text-xs opacity-70"}>{children ?? combo}</kbd>;
 }
 
-// Dialog/toast/select inputs simplified stubs; extend as needed by pages you enable
-export const Dialog: React.FC<{ open?: boolean; onOpenChange?: (v: boolean) => void } & React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
-export const DialogContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
+// Dialog primitives with portal + overlay and basic focus/escape/outside handling
+type DialogCtxType = { open?: boolean; onOpenChange?: (v: boolean) => void };
+const DialogCtx = React.createContext<DialogCtxType | null>(null);
+
+export const Dialog: React.FC<{ open?: boolean; onOpenChange?: (v: boolean) => void } & React.HTMLAttributes<HTMLDivElement>> = ({ open, onOpenChange, children }) => {
+  return <DialogCtx.Provider value={{ open, onOpenChange }}>{children}</DialogCtx.Provider>;
+};
+
+export const DialogContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, className = "", style, ...props }) => {
+  const ctx = React.useContext(DialogCtx);
+  const isOpen = !!ctx?.open;
+  const contentRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") ctx?.onOpenChange?.(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+  return createPortal(
+    <div className="fixed inset-0 z-[99]">
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={() => ctx?.onOpenChange?.(false)}
+      />
+      <div
+        ref={contentRef}
+        role="dialog"
+        aria-modal="true"
+        className={[
+          "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]",
+          "w-[90vw] max-w-2xl max-h-[85vh] overflow-auto",
+          "rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--popover))] text-[hsl(var(--popover-foreground))] shadow-xl",
+          className,
+        ].join(" ")}
+        style={style as any}
+        {...props}
+      >
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+};
 export const DialogDescription: React.FC<React.HTMLAttributes<HTMLParagraphElement>> = ({ children }) => <p>{children}</p>;
 export const DialogFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
 export const DialogHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
@@ -358,7 +401,7 @@ export const DropdownMenuTrigger: React.FC<{ asChild?: boolean } & React.ButtonH
 
 export const DropdownMenuContent: React.FC<{ side?: string; align?: string } & React.HTMLAttributes<HTMLDivElement>> = ({ children, className = "", style, ...props }) => {
   const ctx = React.useContext(DropdownCtx);
-  const [coords, setCoords] = React.useState<{ top: number; left: number; width: number } | null>(null);
+  const [coords, setCoords] = React.useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
   const contentRef = ctx?.contentRef || React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => {
     if (!ctx?.open) return;
@@ -366,10 +409,25 @@ export const DropdownMenuContent: React.FC<{ side?: string; align?: string } & R
       const el = ctx.triggerRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      const top = r.bottom + window.scrollY + 6;
-      const width = contentRef.current?.offsetWidth || r.width;
-      const left = r.right + window.scrollX - width; // right align
-      setCoords({ top, left, width });
+      const margin = 8;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const trigH = r.height;
+      let width = contentRef.current?.offsetWidth || Math.max(160, r.width);
+      width = Math.min(width, vw - margin * 2);
+      let left = r.right - width; // right align in viewport coords
+      if (left < margin) left = margin;
+      if (left + width > vw - margin) left = vw - margin - width;
+      let desiredTop = r.bottom + 6; // below
+      let maxHeight = Math.min(320, vh - desiredTop - margin);
+      // If not enough space below, flip above
+      if (maxHeight < 120) {
+        desiredTop = Math.max(margin, r.top - 6 - Math.min(320, vh - margin - 6));
+        maxHeight = Math.min(320, r.top - margin);
+      }
+      const top = desiredTop + window.scrollY;
+      const absLeft = left + window.scrollX;
+      setCoords({ top, left: absLeft, width, maxHeight: Math.max(120, maxHeight) });
     };
     update();
     const on = () => update();
@@ -387,10 +445,10 @@ export const DropdownMenuContent: React.FC<{ side?: string; align?: string } & R
         role="menu"
         ref={contentRef}
         className={[
-          "fixed z-50 min-w-[10rem] rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--popover))] text-[hsl(var(--popover-foreground))] shadow-md",
+          "fixed z-[120] min-w-[10rem] max-w-[calc(100vw-16px)] overflow-auto rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--popover))] text-[hsl(var(--popover-foreground))] shadow-lg",
           className,
         ].join(" ")}
-        style={{ top: coords?.top, left: coords?.left, ...(style as any) }}
+        style={{ top: coords?.top, left: coords?.left, width: coords?.width, maxHeight: coords?.maxHeight, ...(style as any) }}
         {...props}
       >
         {children}
