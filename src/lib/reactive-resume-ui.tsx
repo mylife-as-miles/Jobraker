@@ -1,19 +1,34 @@
-// Minimal mock UI kit to satisfy imports from @reactive-resume/ui used by client code.
-// Replace with your own design system components as needed.
+// Minimal UI kit used by the client code. Enhanced with basic styling & behavior
+// to avoid layout issues (e.g., dropdowns rendering inline) while keeping deps light.
 import React from "react";
 
-export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string; asChild?: boolean };
-export const Button: React.FC<ButtonProps> = ({ children, asChild, ...props }) => {
+export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "default"|"secondary"|"outline"|"ghost"|"destructive"; size?: "sm"|"md"|"lg"; asChild?: boolean };
+export const Button: React.FC<ButtonProps> = ({ children, asChild, variant = "default", size = "md", className = "", ...props }) => {
   if (asChild) return <>{children}</>;
+  const sizeCls = size === "sm" ? "h-8 px-3 text-sm" : size === "lg" ? "h-11 px-5 text-base" : "h-10 px-4 text-sm";
+  const base = "inline-flex items-center justify-center gap-1 rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:pointer-events-none active:translate-y-px";
+  const variants: Record<string, string> = {
+    default: "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:opacity-95 shadow-sm",
+    secondary: "bg-[hsl(var(--secondary))] text-[hsl(var(--secondary-foreground))] hover:bg-[hsl(var(--accent))]",
+    outline: "border border-[hsl(var(--border))] bg-transparent text-[hsl(var(--foreground))] hover:bg-[hsl(var(--accent))]",
+    ghost: "bg-transparent hover:bg-[hsl(var(--accent))]",
+    destructive: "bg-[hsl(var(--destructive))] text-[hsl(var(--destructive-foreground))] hover:opacity-95",
+  };
   return (
-    <button {...props} className={(props.className ?? "") + " inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded border"}>
-      {children}
-    </button>
+    <button {...props} className={[base, sizeCls, variants[variant], className].join(" ")}>{children}</button>
   );
 };
 
-export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => (
-  <div {...props} className={(props.className ?? "") + " rounded border p-3 bg-white/5"}>{children}</div>
+export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, className = "", ...props }) => (
+  <div
+    {...props}
+    className={[
+      "rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/0.7)] text-[hsl(var(--card-foreground))] shadow-sm backdrop-blur-sm transition-all",
+      className,
+    ].join(" ")}
+  >
+    {children}
+  </div>
 );
 export const CardContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => (
   <div {...props}>{children}</div>
@@ -30,12 +45,9 @@ export const CardFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ chi
 
 export const ScrollArea: React.FC<
   React.HTMLAttributes<HTMLDivElement> & { orientation?: "vertical" | "horizontal"; allowOverflow?: boolean }
-> = ({ children, style, orientation, allowOverflow, ...rest }) => {
-  // ignore orientation/allowOverflow in this stub
-  return (
-    <div {...rest} style={{ overflow: "auto", ...(style as any) }}>{children}</div>
-  );
-};
+> = ({ children, style, orientation, allowOverflow, className = "", ...rest }) => (
+  <div {...rest} className={["scroll-area", className].join(" ")} style={{ overflow: allowOverflow ? "visible" : "auto", ...(style as any) }}>{children}</div>
+);
 
 export const Separator: React.FC<React.HTMLAttributes<HTMLDivElement>> = (props) => (
   <hr className={(props.className ?? "") + " my-2 border-gray-300/40"} />
@@ -292,11 +304,82 @@ export const AlertDescription: React.FC<React.HTMLAttributes<HTMLDivElement>> = 
 );
 
 // Dropdown menu primitives
-export const DropdownMenu: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
-export const DropdownMenuTrigger: React.FC<{ asChild?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ asChild, children, ...props }) => asChild ? <>{children}</> : <button {...props}>{children}</button>;
-export const DropdownMenuContent: React.FC<{ side?: string; align?: string } & React.HTMLAttributes<HTMLDivElement>> = ({ children, ...props }) => <div {...props}>{children}</div>;
-export const DropdownMenuItem: React.FC<React.HTMLAttributes<HTMLDivElement> & { onClick?: () => void } > = ({ children, onClick, ...props }) => <div {...props} onClick={onClick}>{children}</div>;
-export const DropdownMenuSeparator: React.FC<React.HTMLAttributes<HTMLHRElement>> = (props) => <hr {...props} />;
+// Lightweight dropdown with internal open state and absolute positioning
+type DMContext = { open: boolean; setOpen: (o: boolean) => void; triggerRef: React.RefObject<HTMLElement> };
+const DropdownCtx = React.createContext<DMContext | null>(null);
+
+export const DropdownMenu: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, className = "", ...props }) => {
+  const [open, setOpen] = React.useState(false);
+  const triggerRef = React.useRef<HTMLElement>(null);
+  // close on outside click
+  React.useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!triggerRef.current) return;
+      const root = (triggerRef.current.parentElement as HTMLElement) || null;
+      if (root && !root.contains(t)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <DropdownCtx.Provider value={{ open, setOpen, triggerRef }}>
+      <div className={["relative inline-block", className].join(" ")} {...props}>{children}</div>
+    </DropdownCtx.Provider>
+  );
+};
+
+export const DropdownMenuTrigger: React.FC<{ asChild?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ asChild, children, className = "", ...props }) => {
+  const ctx = React.useContext(DropdownCtx);
+  if (asChild) {
+    return <span ref={ctx?.triggerRef as any} onClick={() => ctx?.setOpen(!ctx.open)} className={className} {...(props as any)}>{children}</span>;
+  }
+  return (
+    <button
+      ref={ctx?.triggerRef as any}
+      onClick={() => ctx?.setOpen(!ctx.open)}
+      className={["rounded-md", className].join(" ")}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+};
+
+export const DropdownMenuContent: React.FC<{ side?: string; align?: string } & React.HTMLAttributes<HTMLDivElement>> = ({ children, className = "", style, ...props }) => {
+  const ctx = React.useContext(DropdownCtx);
+  if (!ctx) return null;
+  if (!ctx.open) return null;
+  return (
+    <div
+      role="menu"
+      className={[
+        "absolute right-0 mt-1 z-50 min-w-[10rem] rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--popover))] text-[hsl(var(--popover-foreground))] shadow-md",
+        className,
+      ].join(" ")}
+      style={style as any}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+};
+export const DropdownMenuItem: React.FC<React.HTMLAttributes<HTMLDivElement> & { onClick?: () => void } > = ({ children, onClick, className = "", ...props }) => (
+  <div
+    {...props}
+    onClick={onClick}
+    className={["cursor-pointer select-none px-3 py-1.5 text-sm hover:bg-[hsl(var(--accent))] focus:bg-[hsl(var(--accent))] rounded", className].join(" ")}
+  >
+    {children}
+  </div>
+);
+export const DropdownMenuSeparator: React.FC<React.HTMLAttributes<HTMLHRElement>> = (props) => <hr {...props} className={["my-1 border-t", props.className ?? ""].join(" ")} />;
 export const DropdownMenuCheckboxItem: React.FC<{ checked?: boolean; onCheckedChange?: (v: boolean) => void } & React.HTMLAttributes<HTMLDivElement>> = ({ children, checked, onCheckedChange, ...props }) => (
   <div
     role="menuitemcheckbox"
