@@ -45,7 +45,8 @@
     --success-accent: var(--emerald-500);
     --success-foreground: var(--emerald-50);
 
-    --radius: 0.5rem;
+  /* Increase corner radius to make buttons/cards more curved */
+  --radius: 0.75rem;
   }
 
   .dark {

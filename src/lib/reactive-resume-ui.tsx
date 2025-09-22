@@ -370,15 +370,23 @@ export const DropdownMenuContent: React.FC<{ side?: string; align?: string } & R
     </div>
   );
 };
-export const DropdownMenuItem: React.FC<React.HTMLAttributes<HTMLDivElement> & { onClick?: () => void } > = ({ children, onClick, className = "", ...props }) => (
-  <div
-    {...props}
-    onClick={onClick}
-    className={["cursor-pointer select-none px-3 py-1.5 text-sm hover:bg-[hsl(var(--accent))] focus:bg-[hsl(var(--accent))] rounded", className].join(" ")}
-  >
-    {children}
-  </div>
-);
+export const DropdownMenuItem: React.FC<React.HTMLAttributes<HTMLDivElement> & { onClick?: () => void } > = ({ children, onClick, className = "", ...props }) => {
+  const ctx = React.useContext(DropdownCtx);
+  const handleClick = () => {
+    onClick?.();
+    // Close after action
+    ctx?.setOpen(false);
+  };
+  return (
+    <div
+      {...props}
+      onClick={handleClick}
+      className={["cursor-pointer select-none px-3 py-1.5 text-sm hover:bg-[hsl(var(--accent))] focus:bg-[hsl(var(--accent))] rounded", className].join(" ")}
+    >
+      {children}
+    </div>
+  );
+};
 export const DropdownMenuSeparator: React.FC<React.HTMLAttributes<HTMLHRElement>> = (props) => <hr {...props} className={["my-1 border-t", props.className ?? ""].join(" ")} />;
 export const DropdownMenuCheckboxItem: React.FC<{ checked?: boolean; onCheckedChange?: (v: boolean) => void } & React.HTMLAttributes<HTMLDivElement>> = ({ children, checked, onCheckedChange, ...props }) => (
   <div

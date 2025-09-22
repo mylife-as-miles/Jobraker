@@ -49,6 +49,20 @@ export const GridView = () => {
           ))}
         </AnimatePresence>
       )}
+
+      {!loading && items.length === 0 && (
+        <div className="sm:col-span-3 xl:col-span-4 2xl:col-span-5">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-[#1dff00]/20 bg-black/30 p-10 text-center backdrop-blur-sm">
+            <img src="/screenshots/builder.jpg" alt="Resume builder" className="mb-4 h-28 w-auto rounded-md opacity-80" />
+            <h3 className="text-lg font-semibold text-white">No resumes yet</h3>
+            <p className="mt-1 max-w-md text-sm text-white/70">Create your first resume to get started, or import an existing one.</p>
+            <div className="mt-4 flex gap-3">
+              <a href="/dashboard/resumes/new" className="inline-flex h-10 items-center rounded-xl bg-[#1dff00] px-4 text-black shadow transition hover:opacity-90">Create resume</a>
+              <a href="#" className="inline-flex h-10 items-center rounded-xl border border-[#1dff00]/40 px-4 text-[#1dff00] hover:bg-[#1dff00]/10">Import</a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
