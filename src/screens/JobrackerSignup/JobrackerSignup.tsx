@@ -1,22 +1,30 @@
-import { LockKeyholeIcon, MailIcon, Eye, EyeOff, ArrowRight, Sparkles, CheckCircle2, XCircle } from "lucide-react";
-import React, { useCallback, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { LockKeyholeIcon, MailIcon, Eye, EyeOff, ArrowRight, Sparkles, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Separator } from "../../components/ui/separator";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
+import { ROUTES } from "../../routes";
 import { validatePassword } from "../../utils/password";
 import { useToast } from "../../components/ui/toast-provider";
 import Modal from "../../components/ui/modal";
 
 export const JobrackerSignup = (): JSX.Element => {
   const navigate = useNavigate();
+  const location = useLocation();
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError } = useToast();
-  const [isSignUp, setIsSignUp] = useState(true);
+  const [isSignUp, setIsSignUp] = useState<boolean>(() => location.pathname !== ROUTES.SIGNIN);
   const [showPassword, setShowPassword] = useState(false);
+  // Keep mode in sync when navigating between /signup and /signIn
+  useEffect(() => {
+    const shouldSignUp = location.pathname !== ROUTES.SIGNIN;
+    setIsSignUp(shouldSignUp);
+  }, [location.pathname]);
+
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [resending, setResending] = useState(false);
@@ -26,6 +34,7 @@ export const JobrackerSignup = (): JSX.Element => {
     confirmPassword: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
   const passwordCheck = useMemo(() => validatePassword(formData.password, formData.email), [formData.password, formData.email]);
 
   const handleOAuth = useCallback(
@@ -35,7 +44,7 @@ export const JobrackerSignup = (): JSX.Element => {
         const { error } = await supabase.auth.signInWithOAuth({
           provider,
           options: {
-            redirectTo: `${window.location.origin}/dashboard`,
+            redirectTo: `${window.location.origin}${ROUTES.DASHBOARD}`,
           },
         });
         if (error) throw error;
@@ -78,7 +87,7 @@ export const JobrackerSignup = (): JSX.Element => {
           email: formData.email,
           password: formData.password,
           options: {
-      emailRedirectTo: `${window.location.origin}/signIn`,
+  emailRedirectTo: `${window.location.origin}${ROUTES.SIGNIN}`,
           },
         });
         if (error) throw error;
@@ -92,7 +101,7 @@ export const JobrackerSignup = (): JSX.Element => {
           password: formData.password,
         });
         if (error) throw error;
-        navigate("/dashboard");
+  navigate(ROUTES.DASHBOARD);
       }
     } catch (error: any) {
       console.error("Supabase auth error:", error);
@@ -356,15 +365,14 @@ export const JobrackerSignup = (): JSX.Element => {
                       exit={{ opacity: 0, x: -20 }}
                       transition={{ duration: 0.3 }}
                     >
-                      {/* Email Field - Responsive */
-                      // Standardize using transparent variant and lg size for consistency
-                      }
+                      {/* Email Field - Responsive (transparent variant, lg size) */}
                       <motion.div
                         className="w-full"
-                        whileFocus={{ scale: 1.01 }}
+                        // Subtle interactive feedback
+                        whileHover={{ scale: 1.005 }}
                         transition={{ type: "spring", stiffness: 300 }}
                       >
-                        <div className="flex w-full items-center relative bg-transparent border border-solid border-[#ffffff33] shadow-[0px_2px_14px_#0000000d] backdrop-blur-sm hover:border-[#ffffff4d] focus-within:border-[#1dff00] transition-all duration-300 h-12 sm:h-14 md:h-16 lg:h-18 px-4 sm:px-5 md:px-6 rounded-lg sm:rounded-xl">
+                        <div className="flex w-full items-center relative bg-transparent border border-solid border-[#ffffff33] shadow-[0px_2px_14px_#0000000d] backdrop-blur-sm hover:border-[#ffffff4d] focus-within:border-[#1dff00] transition-all duration-300 h-12 sm:h-14 md:h-16 lg:h-16 px-4 sm:px-5 md:px-6 rounded-xl">
                           <MailIcon className="text-white flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5" />
                           <Input
                             variant="transparent"
@@ -375,6 +383,8 @@ export const JobrackerSignup = (): JSX.Element => {
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             required
+                            autoComplete="email"
+                            aria-invalid={false}
                           />
                         </div>
                       </motion.div>
@@ -383,10 +393,10 @@ export const JobrackerSignup = (): JSX.Element => {
                       {!showForgotPassword && (
                         <motion.div
                           className="w-full"
-                          whileFocus={{ scale: 1.01 }}
+                          whileHover={{ scale: 1.005 }}
                           transition={{ type: "spring", stiffness: 300 }}
                         >
-                          <div className="flex w-full items-center relative bg-transparent border border-solid border-[#ffffff33] shadow-[0px_2px_14px_#0000000d] backdrop-blur-sm hover:border-[#ffffff4d] focus-within:border-[#1dff00] transition-all duration-300 h-12 sm:h-14 md:h-16 lg:h-18 px-4 sm:px-5 md:px-6 rounded-lg sm:rounded-xl">
+                          <div className="flex w-full items-center relative bg-transparent border border-solid border-[#ffffff33] shadow-[0px_2px_14px_#0000000d] backdrop-blur-sm hover:border-[#ffffff4d] focus-within:border-[#1dff00] transition-all duration-300 h-12 sm:h-14 md:h-16 lg:h-16 px-4 sm:px-5 md:px-6 rounded-xl">
                             <LockKeyholeIcon className="text-white flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5" />
                             <Input
                               variant="transparent"
@@ -397,6 +407,13 @@ export const JobrackerSignup = (): JSX.Element => {
                               value={formData.password}
                               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                               required
+                              autoComplete={isSignUp ? "new-password" : "current-password"}
+                              aria-invalid={isSignUp && !showForgotPassword ? !passwordCheck.valid && formData.password.length > 0 ? true : false : false}
+                              aria-describedby={isSignUp ? "password-strength" : undefined}
+                              onKeyUp={(e) => {
+                                const caps = (e as any).getModifierState?.("CapsLock");
+                                if (typeof caps === "boolean") setCapsLockOn(caps);
+                              }}
                             />
                             <motion.button
                               type="button"
@@ -412,6 +429,9 @@ export const JobrackerSignup = (): JSX.Element => {
                               )}
                             </motion.button>
                           </div>
+                          {capsLockOn && (
+                            <div className="mt-2 text-xs text-yellow-300/90">Warning: Caps Lock is on</div>
+                          )}
                         </motion.div>
                       )}
 
@@ -424,7 +444,7 @@ export const JobrackerSignup = (): JSX.Element => {
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ duration: 0.3 }}
                         >
-                          <div className="flex w-full items-center relative bg-transparent border border-solid border-[#ffffff33] shadow-[0px_2px_14px_#0000000d] backdrop-blur-sm hover:border-[#ffffff4d] focus-within:border-[#1dff00] transition-all duration-300 h-12 sm:h-14 md:h-16 lg:h-18 px-4 sm:px-5 md:px-6 rounded-lg sm:rounded-xl">
+                          <div className="flex w-full items-center relative bg-transparent border border-solid border-[#ffffff33] shadow-[0px_2px_14px_#0000000d] backdrop-blur-sm hover:border-[#ffffff4d] focus-within:border-[#1dff00] transition-all duration-300 h-12 sm:h-14 md:h-16 lg:h-16 px-4 sm:px-5 md:px-6 rounded-xl">
                             <LockKeyholeIcon className="text-white flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5" />
                             <Input
                               variant="transparent"
@@ -435,10 +455,19 @@ export const JobrackerSignup = (): JSX.Element => {
                               value={formData.confirmPassword}
                               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                               required
+                              autoComplete="new-password"
+                              aria-invalid={isSignUp && formData.confirmPassword.length > 0 ? formData.confirmPassword !== formData.password : false}
                             />
                           </div>
                           {/* Password rules & strength */}
-                          <div className="mt-3 space-y-2 text-xs sm:text-sm">
+                          <div className="mt-3 space-y-2 text-xs sm:text-sm" id="password-strength">
+                            {/* Strength meter bar */}
+                            <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                              <div
+                                className="h-full bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] transition-all duration-300"
+                                style={{ width: `${(passwordCheck.score / 5) * 100}%` }}
+                              />
+                            </div>
                             <div className="flex items-center justify-between">
                               <span className="text-white/80">Strength</span>
                               <span className={`font-semibold ${passwordCheck.score >= 4 ? "text-[#1dff00]" : passwordCheck.score >= 3 ? "text-yellow-300" : "text-red-400"}`}>
@@ -503,15 +532,19 @@ export const JobrackerSignup = (): JSX.Element => {
                   >
                     <Button
                       type="submit"
-                      className="w-full flex items-center justify-center relative shadow-[0px_3px_14px_#00000040] bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] font-bold text-white hover:shadow-[0px_4px_22px_#00000060] transition-all duration-300 h-10 sm:h-12 lg:h-14 text-xs sm:text-sm lg:text-base rounded-lg sm:rounded-xl disabled:opacity-60"
-                    disabled={submitting || (isSignUp && !passwordCheck.valid)}
+                      aria-busy={submitting}
+                      className="w-full flex items-center justify-center gap-2 relative shadow-[0px_3px_14px_#00000040] bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] font-bold text-white hover:shadow-[0px_4px_22px_#00000060] transition-all duration-300 h-10 sm:h-12 lg:h-14 text-xs sm:text-sm lg:text-base rounded-xl disabled:opacity-60"
+                      disabled={submitting || (isSignUp && !passwordCheck.valid)}
                     >
-                      {showForgotPassword
-                        ? "Send Reset Link"
-                        : isSignUp
-                        ? "Create Account"
-                        : "Sign In"}
-                      <ArrowRight className="ml-2 w-3 h-3 sm:w-4 sm:h-4" />
+                      {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                      <span>
+                        {showForgotPassword
+                          ? "Send Reset Link"
+                          : isSignUp
+                          ? "Create Account"
+                          : "Sign In"}
+                      </span>
+                      <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
                     </Button>
                   </motion.div>
                 </motion.form>
@@ -594,6 +627,7 @@ export const JobrackerSignup = (): JSX.Element => {
               disabled={resending}
               onClick={handleResendVerification}
             >
+              {resending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {resending ? "Resending..." : "Resend link"}
             </Button>
           </div>
@@ -602,7 +636,7 @@ export const JobrackerSignup = (): JSX.Element => {
               className="w-full bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] text-white"
               onClick={() => {
                 setShowVerifyModal(false);
-                navigate("/signIn");
+                navigate(ROUTES.SIGNIN);
               }}
             >
               Go to login
