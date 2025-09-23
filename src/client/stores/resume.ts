@@ -11,6 +11,40 @@ import { immer } from "zustand/middleware/immer";
 
 import { debouncedUpdateResume } from "../services/resume";
 
+const defaultResume: any = {
+  id: "local:placeholder",
+  title: "Builder",
+  slug: "builder",
+  visibility: "private",
+  data: {
+    sections: {
+      basics: {},
+      summary: { name: "Summary", visible: true, content: "" },
+      experience: { name: "Experience", visible: true, items: [] },
+      education: { name: "Education", visible: true, items: [] },
+      skills: { name: "Skills", visible: true, items: [] },
+      languages: { name: "Languages", visible: true, items: [] },
+      awards: { name: "Awards", visible: true, items: [] },
+      certifications: { name: "Certifications", visible: true, items: [] },
+      interests: { name: "Interests", visible: true, items: [] },
+      projects: { name: "Projects", visible: true, items: [] },
+      publications: { name: "Publications", visible: true, items: [] },
+      volunteer: { name: "Volunteer", visible: true, items: [] },
+      references: { name: "References", visible: true, items: [] },
+      custom: {},
+    },
+    metadata: {
+      template: "classic",
+      theme: { primary: "#4f46e5", background: "#ffffff", text: "#0f172a" },
+      typography: {},
+      css: "",
+      page: { options: { breakLine: true, pageNumbers: true } },
+      layout: [[["summary", "experience"], ["skills"]]],
+      ui: { kickstartDismissed: false },
+    },
+  },
+};
+
 type ResumeStore = {
   resume: ResumeDto;
   setValue: (path: string, value: unknown) => void;
@@ -21,7 +55,7 @@ type ResumeStore = {
 export const useResumeStore = create<ResumeStore>()(
   devtools(
     immer((set) => ({
-      resume: {} as ResumeDto,
+      resume: defaultResume as ResumeDto,
       setValue: (path, value) => {
         set((state) => {
           if (path === "visibility") {
