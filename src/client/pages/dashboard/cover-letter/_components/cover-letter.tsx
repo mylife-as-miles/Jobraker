@@ -41,6 +41,7 @@ export const CoverLetter = () => {
   const [copied, setCopied] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [inlineEdit, setInlineEdit] = useState(false);
   const previewRef = useRef<HTMLDivElement | null>(null);
 
   // Load/save from localStorage (keeps it functional without backend migrations)
@@ -308,14 +309,15 @@ export const CoverLetter = () => {
   const loadProfile = async () => {
     try {
       const { data: userData } = await (supabase as any).auth.getUser();
-      if (!userData?.user) {
+      const uid = userData?.user?.id;
+      if (!uid) {
         toastError('Not signed in', 'Please sign in to load your profile.');
         return;
       }
       const { data, error } = await (supabase as any)
         .from('profiles')
-        .select('first_name,last_name,phone,website')
-        .limit(1)
+        .select('first_name,last_name,job_title,location,phone')
+        .eq('id', uid)
         .maybeSingle();
       if (error) throw error;
       if (data) {
@@ -325,8 +327,10 @@ export const CoverLetter = () => {
           if (!signatureName) setSignatureName(name);
         }
         if (data.phone) setSenderPhone(data.phone);
-        if (data.website) setSenderEmail(data.website); // if website is used as contact; adjust if email field exists
-        success('Profile loaded', 'Filled sender details from your profile');
+        // We don't have email/website column in schema.sql; leave email empty for manual entry.
+        if (data.location) setSenderAddress(data.location);
+        if (data.job_title) setRole(data.job_title);
+        success('Profile loaded', 'Filled details from your profile');
       } else {
         toastError('No profile found', 'Please complete your profile first.');
       }
@@ -376,6 +380,7 @@ export const CoverLetter = () => {
         </div>
         <div className="flex items-center gap-2 overflow-x-auto">
           <Button variant="outline" onClick={quickEdit} className="rounded-xl whitespace-nowrap"> <Pencil className="w-4 h-4 mr-2"/> Quick Edit</Button>
+          <Button variant="outline" onClick={() => setInlineEdit((v)=>!v)} className={`rounded-xl whitespace-nowrap ${inlineEdit ? 'bg-primary/10 border-primary text-primary' : ''}`}> <Pencil className="w-4 h-4 mr-2"/> {inlineEdit ? 'Edit in Preview: On' : 'Edit in Preview'} </Button>
           <Button variant="outline" disabled={aiLoading} onClick={aiPolish} className="rounded-xl whitespace-nowrap"> <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> {aiLoading ? 'Polishing…' : 'AI Polish'}</Button>
           <Button variant="outline" onClick={share} className="rounded-xl whitespace-nowrap"> {copied ? <><Check className="w-4 h-4 mr-2"/> Copied</> : <><Share2 className="w-4 h-4 mr-2"/> Share</>} </Button>
           <Button onClick={download} className="rounded-xl whitespace-nowrap"> <Download className="w-4 h-4 mr-2"/> Download</Button>
@@ -425,6 +430,15 @@ export const CoverLetter = () => {
                 <input value={subject} onChange={(e)=>setSubject(e.target.value)} placeholder="Subject (optional)" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <input value={salutation} onChange={(e)=>setSalutation(e.target.value)} placeholder="Salutation (e.g., Dear …,)" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+
+            {/* Closing/signature */}
+            <div className="grid gap-2">
+              <label className="text-xs opacity-70 uppercase tracking-wide">Closing & Signature</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <input value={closing} onChange={(e)=>setClosing(e.target.value)} placeholder="Closing (e.g., Best regards,)" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                <input value={signatureName} onChange={(e)=>setSignatureName(e.target.value)} placeholder="Signature name" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+              </div>
             </div>
 
             {/* AI Config */}
@@ -517,41 +531,152 @@ export const CoverLetter = () => {
               {/* Sender */}
               {(senderName || senderPhone || senderEmail || senderAddress) && (
                 <div className="mb-6">
-                  {senderName && <p className="font-bold">{senderName}</p>}
-                  {senderPhone && <p>{senderPhone}</p>}
-                  {senderEmail && <p>{senderEmail}</p>}
-                  {senderAddress && <p>{senderAddress}</p>}
+                  {senderName && (
+                    <p
+                      className="font-bold focus:outline-none focus:ring-2 ring-primary/50"
+                      contentEditable={inlineEdit}
+                      suppressContentEditableWarning
+                      onBlur={(e) => setSenderName(e.currentTarget.innerText.trim())}
+                    >{senderName}</p>
+                  )}
+                  {senderPhone && (
+                    <p
+                      className="focus:outline-none focus:ring-2 ring-primary/50"
+                      contentEditable={inlineEdit}
+                      suppressContentEditableWarning
+                      onBlur={(e) => setSenderPhone(e.currentTarget.innerText.trim())}
+                    >{senderPhone}</p>
+                  )}
+                  {senderEmail && (
+                    <p
+                      className="focus:outline-none focus:ring-2 ring-primary/50"
+                      contentEditable={inlineEdit}
+                      suppressContentEditableWarning
+                      onBlur={(e) => setSenderEmail(e.currentTarget.innerText.trim())}
+                    >{senderEmail}</p>
+                  )}
+                  {senderAddress && (
+                    <p
+                      className="focus:outline-none focus:ring-2 ring-primary/50"
+                      contentEditable={inlineEdit}
+                      suppressContentEditableWarning
+                      onBlur={(e) => setSenderAddress(e.currentTarget.innerText.trim())}
+                    >{senderAddress}</p>
+                  )}
                 </div>
               )}
               {/* Date */}
               {date && (
-                <p className="mb-4">{new Date(date).toLocaleDateString()}</p>
+                <p
+                  className="mb-4 focus:outline-none focus:ring-2 ring-primary/50"
+                  contentEditable={inlineEdit}
+                  suppressContentEditableWarning
+                  onBlur={(e) => {
+                    const raw = e.currentTarget.innerText.trim();
+                    // try parse; if fails, keep raw string
+                    const d = new Date(raw);
+                    if (!isNaN(d.getTime())) setDate(raw.length === 10 && /\d{4}-\d{2}-\d{2}/.test(date) ? raw : new Date(d).toISOString().slice(0,10));
+                    else e.currentTarget.innerText = new Date(date).toLocaleDateString();
+                  }}
+                >{new Date(date).toLocaleDateString()}</p>
               )}
               {/* Recipient */}
               {(recipient || recipientTitle || company || recipientAddress) && (
                 <div className="mb-6">
                   {[recipient, recipientTitle].filter(Boolean).length > 0 && (
-                    <p>{[recipient, recipientTitle].filter(Boolean).join(', ')}</p>
+                    <p
+                      className="focus:outline-none focus:ring-2 ring-primary/50"
+                      contentEditable={inlineEdit}
+                      suppressContentEditableWarning
+                      onBlur={(e) => {
+                        const t = e.currentTarget.innerText.trim();
+                        const [namePart, ...rest] = t.split(',');
+                        setRecipient((namePart || '').trim());
+                        setRecipientTitle(rest.join(',').trim());
+                      }}
+                    >{[recipient, recipientTitle].filter(Boolean).join(', ')}</p>
                   )}
-                  {company && <p>{company}</p>}
-                  {recipientAddress && <p>{recipientAddress}</p>}
+                  {company && (
+                    <p
+                      className="focus:outline-none focus:ring-2 ring-primary/50"
+                      contentEditable={inlineEdit}
+                      suppressContentEditableWarning
+                      onBlur={(e) => setCompany(e.currentTarget.innerText.trim())}
+                    >{company}</p>
+                  )}
+                  {recipientAddress && (
+                    <p
+                      className="focus:outline-none focus:ring-2 ring-primary/50"
+                      contentEditable={inlineEdit}
+                      suppressContentEditableWarning
+                      onBlur={(e) => setRecipientAddress(e.currentTarget.innerText.trim())}
+                    >{recipientAddress}</p>
+                  )}
                 </div>
               )}
               {/* Subject */}
-              {subject && <p className="font-semibold underline mb-4">Subject: {subject}</p>}
+              {subject && (
+                <p
+                  className="font-semibold underline mb-4 focus:outline-none focus:ring-2 ring-primary/50"
+                  contentEditable={inlineEdit}
+                  suppressContentEditableWarning
+                  onBlur={(e) => {
+                    const t = e.currentTarget.innerText.replace(/^\s*Subject\s*:\s*/i, '').trim();
+                    setSubject(t);
+                    e.currentTarget.innerText = `Subject: ${t}`;
+                  }}
+                >{`Subject: ${subject}`}</p>
+              )}
               {/* Salutation */}
-              {salutation && <p className="mb-4">{salutation}</p>}
+              {salutation && (
+                <p
+                  className="mb-4 focus:outline-none focus:ring-2 ring-primary/50"
+                  contentEditable={inlineEdit}
+                  suppressContentEditableWarning
+                  onBlur={(e) => setSalutation(e.currentTarget.innerText.trim())}
+                >{salutation}</p>
+              )}
               {/* Body */}
               <div className="space-y-4">
                 {(paragraphs.length ? paragraphs : finalBody.split(/\n\s*\n+/)).map((p, i) => (
-                  <p key={i} className="whitespace-pre-wrap">{p}</p>
+                  <p
+                    key={i}
+                    className="whitespace-pre-wrap focus:outline-none focus:ring-2 ring-primary/50"
+                    contentEditable={inlineEdit}
+                    suppressContentEditableWarning
+                    onBlur={(e) => {
+                      const text = e.currentTarget.innerText.trim();
+                      if (paragraphs.length) {
+                        updateParagraph(i, text);
+                      } else {
+                        const parts = finalBody.split(/\n\s*\n+/);
+                        parts[i] = text;
+                        setParagraphs(parts);
+                        setContent('');
+                      }
+                    }}
+                  >{p}</p>
                 ))}
               </div>
               {/* Closing & signature */}
               {(closing || signatureName) && (
                 <div className="mt-6">
-                  {closing && <p className="mb-8">{closing}</p>}
-                  {signatureName && <p className="font-semibold">{signatureName}</p>}
+                  {closing && (
+                    <p
+                      className="mb-8 focus:outline-none focus:ring-2 ring-primary/50"
+                      contentEditable={inlineEdit}
+                      suppressContentEditableWarning
+                      onBlur={(e) => setClosing(e.currentTarget.innerText.trim())}
+                    >{closing}</p>
+                  )}
+                  {signatureName && (
+                    <p
+                      className="font-semibold focus:outline-none focus:ring-2 ring-primary/50"
+                      contentEditable={inlineEdit}
+                      suppressContentEditableWarning
+                      onBlur={(e) => setSignatureName(e.currentTarget.innerText.trim())}
+                    >{signatureName}</p>
+                  )}
                 </div>
               )}
             </div>

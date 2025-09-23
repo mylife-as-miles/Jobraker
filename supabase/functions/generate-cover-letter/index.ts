@@ -50,10 +50,10 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const anon = Deno.env.get('SUPABASE_ANON_KEY') || '';
-    const sb = (supabaseUrl && anon) ? createClient(supabaseUrl, anon) : null;
-    if (sb && token) {
-      try { (sb as any).auth.setAuth(token); } catch {}
-    }
+    const authHeader = req.headers.get('authorization') || '';
+    const sb = (supabaseUrl && anon)
+      ? createClient(supabaseUrl, anon, { global: { headers: { Authorization: authHeader } } })
+      : null;
 
     // fetch profile + collections
     let profile: any = null;
@@ -62,10 +62,13 @@ Deno.serve(async (req) => {
     let education: any[] = [];
 
     if (sb) {
+      // profiles table: id, first_name, last_name, job_title, experience_years, location, goals, phone, avatar_url
       try {
-        const { data: prof } = await sb.from('profiles')
-          .select('id,first_name,last_name,job_title,experience_years,location,goals,about,phone,website')
-          .limit(1).maybeSingle();
+        const { data: prof } = await sb
+          .from('profiles')
+          .select('id,first_name,last_name,job_title,experience_years,location,goals,phone')
+          .limit(1)
+          .maybeSingle();
         if (prof) profile = prof;
       } catch {}
 
@@ -74,17 +77,21 @@ Deno.serve(async (req) => {
         if (Array.isArray(data)) skills = data.map((s: any) => s?.name).filter(Boolean);
       } catch {}
 
+      // profile_experiences: title, company, description, start_date ...
       try {
-        const { data } = await sb.from('profile_experiences')
-          .select('job_title,company,description')
+        const { data } = await sb
+          .from('profile_experiences')
+          .select('title,company,description')
           .order('start_date', { ascending: false })
           .limit(5);
         if (Array.isArray(data)) experiences = data;
       } catch {}
 
+      // profile_education: degree, school, location, gpa, start_date, end_date
       try {
-        const { data } = await sb.from('profile_education')
-          .select('degree,field,school,description')
+        const { data } = await sb
+          .from('profile_education')
+          .select('degree,school,location,gpa')
           .order('start_date', { ascending: false })
           .limit(3);
         if (Array.isArray(data)) education = data;
@@ -102,14 +109,15 @@ Deno.serve(async (req) => {
     const lengthInstruction = length === 'short' ? '140-180 words' : length === 'long' ? '280-400 words' : '180-280 words';
 
     const expBullets = experiences.map((e) => {
-      const parts = [e?.job_title, e?.company].filter(Boolean).join(' at ');
+      const parts = [e?.title, e?.company].filter(Boolean).join(' at ');
       const desc = (e?.description || '').replace(/\s+/g, ' ').trim();
       return parts ? `- ${parts}${desc ? ` — ${desc}` : ''}` : (desc ? `- ${desc}` : '');
     }).filter(Boolean).join('\n');
 
     const eduBullets = education.map((e) => {
-      const parts = [e?.degree, e?.field, e?.school].filter(Boolean).join(' · ');
-      const desc = (e?.description || '').replace(/\s+/g, ' ').trim();
+      const parts = [e?.degree, e?.school, e?.location].filter(Boolean).join(' · ');
+      const gpa = (e?.gpa || '').toString().trim();
+      const desc = gpa ? `GPA: ${gpa}` : '';
       return parts ? `- ${parts}${desc ? ` — ${desc}` : ''}` : (desc ? `- ${desc}` : '');
     }).filter(Boolean).join('\n');
 
