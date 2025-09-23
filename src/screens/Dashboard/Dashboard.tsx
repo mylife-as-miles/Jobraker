@@ -333,7 +333,7 @@ export const Dashboard = (): JSX.Element => {
         <nav className="flex-1 p-2 sm:p-3 lg:p-4 overflow-y-auto">
           <div className="space-y-1 sm:space-y-2">
             {navigationItems.map((item) => {
-              const isLocked = item.id === "chat" || item.id === "resume";
+              const isLocked = item.id === "chat";
               const path = item.id === "resume" ? "/dashboard/resumes" : `/dashboard/${item.id}`;
               const isActive = currentPage === item.id;
               return (
