@@ -29,7 +29,12 @@ export const useResumeStore = create<ResumeStore>()(
           } else {
             state.resume.data = _set(state.resume.data, path, value);
           }
-          void debouncedUpdateResume(JSON.parse(JSON.stringify(state.resume)));
+          // Skip network update for local/offline drafts
+          const id = state.resume?.id as unknown as string | undefined;
+          const isLocal = !id || (typeof id === "string" && id.startsWith("local:"));
+          if (!isLocal) {
+            void debouncedUpdateResume(JSON.parse(JSON.stringify(state.resume)));
+          }
         });
       },
       addSection: () => {

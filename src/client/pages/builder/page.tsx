@@ -10,6 +10,7 @@ import { useResumeStore } from "@/client/stores/resume";
 import { useArtboardStore } from "../../../store/artboard";
 import { Loader2 } from "lucide-react";
 import { KickstartPanel } from "./_components/kickstart";
+import { ArtboardCanvas } from "./_components/artboard-canvas";
 
 export const BuilderPage = () => {
   const resume = useResumeStore((state) => state.resume);
@@ -92,23 +93,13 @@ export const BuilderPage = () => {
         </title>
       </Helmet>
 
-      {/* Render artboard via iframe and pass resume via postMessage */}
+      {/* Render artboard inline to avoid blank iframe on deployments */}
       <div className="mt-16 w-screen" style={{ height: `calc(100vh - 64px)` }}>
         {/* Kickstart Onboarding, show once for new/empty resumes unless dismissed */}
         {isNewish && !kickstartDismissed && kickstartOpen && (
           <KickstartPanel onClose={() => setKickstartOpen(false)} />
         )}
-        <iframe
-          ref={iframeRef}
-          title="Artboard Builder"
-          src="/artboard/builder"
-          className="w-full h-full border-0 bg-black"
-          onLoad={() => {
-            if (data && iframeRef.current?.contentWindow) {
-              iframeRef.current.contentWindow.postMessage({ type: 'SET_RESUME', payload: { resume: data } }, '*');
-            }
-          }}
-        />
+        <ArtboardCanvas />
       </div>
     </>
   );
