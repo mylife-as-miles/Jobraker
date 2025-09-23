@@ -25,13 +25,14 @@
 
   /* Ensure consistent theming on mobile/tablet and avoid white flashes */
   html {
-    /* Force UA widgets (scrollbars, form controls) to match current theme */
+    /* Force UA widgets to a known scheme by default; dashboard overrides to dark */
     color-scheme: light;
     background-color: hsl(var(--background) / 1);
   }
   html.dark { color-scheme: dark; }
   html, body, #app {
     min-height: 100%;
+    /* Ensure immediate paint in dark avoids white flash */
     background-color: hsl(var(--background) / 1);
     color: hsl(var(--foreground) / 1);
   }

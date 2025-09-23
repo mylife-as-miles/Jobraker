@@ -14,7 +14,18 @@
     <script>
       (function initializeTheme() {
         try {
-          if (localStorage.theme === "dark" || (!('theme' in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+          var path = window.location.pathname || "";
+          var isDashboard = path.startsWith("/dashboard");
+          // Always force dark mode on dashboard to avoid white backgrounds on some devices
+          if (isDashboard) {
+            document.documentElement.classList.add("dark");
+            return;
+          }
+          // Fallback: respect explicit preference or system setting elsewhere
+          if (
+            localStorage.theme === "dark" ||
+            (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)
+          ) {
             document.documentElement.classList.add("dark");
           } else {
             document.documentElement.classList.remove("dark");

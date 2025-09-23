@@ -67,6 +67,15 @@ interface PageLink {
 export const Dashboard = (): JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
+  // Enforce dark theme within dashboard routes to prevent white backgrounds
+  useEffect(() => {
+    const el = document.documentElement;
+    if (!el.classList.contains("dark")) el.classList.add("dark");
+    // Last-resort fallback to ensure pitch-black surface, avoids white flashes
+    const prev = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = "#000";
+    return () => { document.body.style.backgroundColor = prev; };
+  }, []);
 
   const pages: DashboardPage[] = [
     "overview",
