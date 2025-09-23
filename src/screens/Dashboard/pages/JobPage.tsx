@@ -823,15 +823,20 @@ export const JobPage = (): JSX.Element => {
   }, [paginatedJobs, selectedJob, totalPages]);
 
   return (
-    <div className="min-h-screen bg-black">
-      <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-[#030303] text-white relative overflow-hidden">
+      {/* Ambient background glow */}
+      <div aria-hidden className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 h-[560px] w-[560px] rounded-full bg-[radial-gradient(closest-side,_rgba(29,255,0,0.14),_transparent_65%)] blur-3xl" />
+      <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 relative">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
             <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Job Search</h1>
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-[#ffffff80] text-sm sm:text-base">Find your next opportunity</p>
+              <div className="inline-flex items-center px-2 py-1 rounded-full border border-[#1dff00]/20 bg-[#1dff00]/5 text-[#b4ffb4] text-[10px] tracking-widest uppercase mb-2">Discover</div>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight">
+                Find your next role
+                <span className="block text-[#a3a3a3] text-base sm:text-lg font-normal mt-2">Curated from live sources with instant auto-apply</span>
+              </h1>
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
                 {resultSource && (
                   <span
                     className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-wide border ${
@@ -862,17 +867,16 @@ export const JobPage = (): JSX.Element => {
                 )}
               </div>
             </div>
-      <div className="flex gap-2 sm:gap-3">
+            <div className="flex gap-2 sm:gap-3">
               <Button 
                 variant="outline" 
-        className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                className="border-[#2a2a2a] text-white/90 hover:text-white hover:bg-white/5 hover:border-[#1dff00]/40 hover:shadow-[0_0_24px_rgba(29,255,0,0.15)] transition-all"
+                onClick={() => { /* no-op; facets below */ }}
               >
-        <Filter className="w-4 h-4 mr-2" />
-        {activeFacetCount > 0 ? `Filters (${activeFacetCount})` : 'Filters'}
+                <Filter className="w-4 h-4 mr-2" />
+                {activeFacetCount > 0 ? `Filters (${activeFacetCount})` : 'Filters'}
               </Button>
-              <Button 
-                className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
-              >
+              <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:shadow-[0_10px_30px_-10px_rgba(29,255,0,0.6)] transition-transform hover:scale-[1.02]">
                 <Bookmark className="w-4 h-4 mr-2" />
                 Saved Jobs
               </Button>
@@ -880,121 +884,129 @@ export const JobPage = (): JSX.Element => {
           </div>
         </div>
 
-        {/* Search and Filters */}
-        <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 mb-6 sm:mb-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Toolbar */}
+        <Card className="bg-[#0a0a0a]/70 border border-white/10 backdrop-blur-xl rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8 shadow-[inset_0_0_1px_rgba(255,255,255,0.06)]">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4">
             {/* Search Input */}
-            <div className="lg:col-span-2 relative">
+            <div className="lg:col-span-5 relative">
               <label htmlFor="job-search" className="sr-only">Search jobs</label>
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
               <Input
                 id="job-search"
                 name="job-search"
-                placeholder="Search jobs, companies..."
+                placeholder="Search roles, skills, companies…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+                className="pl-10 h-11 bg-white/5 border-white/15 text-white placeholder:text-white/50 focus:border-[#1dff00] hover:border-white/25 transition"
               />
             </div>
-            
-            {/* Location Filter */}
-            <div className="relative">
+            {/* Location */}
+            <div className="lg:col-span-3 relative">
               <label htmlFor="job-location" className="sr-only">Location</label>
-              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
               <Input
                 id="job-location"
                 name="job-location"
-                placeholder="Location..."
+                placeholder="Location (e.g. Remote)"
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
-                className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+                className="pl-10 h-11 bg-white/5 border-white/15 text-white placeholder:text-white/50 focus:border-[#1dff00] hover:border-white/25 transition"
               />
             </div>
-            
-            {/* Work Type Filter */}
-            <div className="flex gap-1">
-              {["All", "Remote", "Hybrid", "On-site"].map((type) => (
-                <Button
-                  key={type}
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedType(type)}
-                  className={`text-xs flex-1 transition-all duration-300 hover:scale-105 ${
-                    selectedType === type
-                      ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-                      : "text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]"
-                  }`}
-                >
-                  {type}
-                </Button>
-              ))}
-            </div>
-          </div>
-          {/* Salary & Time filters row */}
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div className="relative">
-              <label htmlFor="salary-min" className="sr-only">Minimum salary</label>
-              <Input
-                id="salary-min"
-                name="salary-min"
-              placeholder="Min salary (e.g. 120000)"
-              inputMode="numeric"
-              value={minSalary}
-              onChange={(e) => setMinSalary(e.target.value.replace(/[^0-9]/g, ''))}
-              className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
-              />
-            </div>
-            <div className="relative">
-              <label htmlFor="salary-max" className="sr-only">Maximum salary</label>
-              <Input
-                id="salary-max"
-                name="salary-max"
-              placeholder="Max salary (e.g. 200000)"
-              inputMode="numeric"
-              value={maxSalary}
-              onChange={(e) => setMaxSalary(e.target.value.replace(/[^0-9]/g, ''))}
-              className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
-              />
-            </div>
-            <div className="relative">
+            {/* Posted since */}
+            <div className="lg:col-span-2">
               <label id="posted-since-label" className="sr-only">Posted since</label>
               <SafeSelect fallbackValue="any" value={postedSince} onValueChange={(v) => setPostedSince(v === 'any' ? '' : v)}>
-                <SelectTrigger className="h-10" aria-labelledby="posted-since-label" aria-label="Posted since" name="posted-since">
-                <SelectValue placeholder="Posted since" />
+                <SelectTrigger className="h-11 bg-white/5 border-white/15 focus:border-[#1dff00]">
+                  <SelectValue placeholder="Posted since" />
                 </SelectTrigger>
                 <SelectContent>
-        <SelectItem value="any">Any time</SelectItem>
-                <SelectItem value="3">Last 3 days</SelectItem>
-                <SelectItem value="7">Last 7 days</SelectItem>
-                <SelectItem value="14">Last 14 days</SelectItem>
-                <SelectItem value="30">Last 30 days</SelectItem>
+                  <SelectItem value="any">Any time</SelectItem>
+                  <SelectItem value="3">Last 3 days</SelectItem>
+                  <SelectItem value="7">Last 7 days</SelectItem>
+                  <SelectItem value="14">Last 14 days</SelectItem>
+                  <SelectItem value="30">Last 30 days</SelectItem>
                 </SelectContent>
               </SafeSelect>
             </div>
-            <div className="flex gap-2">
+            {/* Actions */}
+            <div className="lg:col-span-2 flex gap-2">
               <Button
                 variant="outline"
                 onClick={() => { fetchFacets(); applyFacetFilters(Array.from(selectedReq), Array.from(selectedBen)); }}
-                className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
+                className="h-11 flex-1 border-white/15 text-white hover:bg-white/5 hover:border-[#1dff00]/40"
               >
-                Apply filters
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={resetSalaryTime}
-                className="text-[#1dff00] hover:bg-[#1dff00]/10"
-                title="Reset salary and posted time filters"
-              >
-                Reset salary/time
+                Apply
               </Button>
               <Button
                 variant="ghost"
                 onClick={clearAllFilters}
-                className="text-[#1dff00] hover:bg-[#1dff00]/10"
-                title="Clear all facet chips and salary/time"
+                className="h-11 text-[#1dff00] hover:bg-[#1dff00]/10"
+                title="Clear all filters"
               >
-                Clear all filters
+                Clear
               </Button>
+            </div>
+          </div>
+          {/* Work Type & Salary Row */}
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4">
+            <div className="lg:col-span-5 flex flex-wrap gap-2">
+              {["All", "Remote", "Hybrid", "On-site"].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setSelectedType(type)}
+                  className={`px-3 py-1.5 rounded-full text-xs border transition ${
+                    selectedType === type
+                      ? 'border-[#1dff00]/60 text-black bg-[#1dff00] shadow-[0_8px_24px_-10px_rgba(29,255,0,0.8)]'
+                      : 'border-white/10 text-white/80 bg-white/5 hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10 hover:text-white'
+                  }`}
+                >{type}</button>
+              ))}
+            </div>
+            <div className="lg:col-span-3 grid grid-cols-2 gap-3">
+              <Input
+                id="salary-min"
+                placeholder="Min salary"
+                inputMode="numeric"
+                value={minSalary}
+                onChange={(e) => setMinSalary(e.target.value.replace(/[^0-9]/g, ''))}
+                className="h-10 bg-white/5 border-white/15 text-white placeholder:text-white/50 focus:border-[#1dff00]"
+              />
+              <Input
+                id="salary-max"
+                placeholder="Max salary"
+                inputMode="numeric"
+                value={maxSalary}
+                onChange={(e) => setMaxSalary(e.target.value.replace(/[^0-9]/g, ''))}
+                className="h-10 bg-white/5 border-white/15 text-white placeholder:text-white/50 focus:border-[#1dff00]"
+              />
+            </div>
+            <div className="lg:col-span-4 flex items-center justify-end text-sm text-white/70">
+              <div className="hidden md:flex items-center gap-2">
+                <span>Rows:</span>
+                <SafeSelect fallbackValue="10" value={String(pageSize)} onValueChange={(v) => { setPageSize(parseInt(v)); setCurrentPage(1); }}>
+                  <SelectTrigger className="w-[90px] h-9 bg-white/5 border-white/15">
+                    <SelectValue placeholder="Rows" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </SafeSelect>
+              </div>
+              <div className="hidden md:flex items-center gap-2 ml-4">
+                <span>Sort:</span>
+                <SafeSelect fallbackValue="relevance" value={sortBy} onValueChange={(v) => { setSortBy(v as any); setCurrentPage(1); }}>
+                  <SelectTrigger className="w-[160px] h-9 bg-white/5 border-white/15">
+                    <SelectValue placeholder="Sort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="relevance">Relevance</SelectItem>
+                    <SelectItem value="posted_desc">Date (Newest)</SelectItem>
+                  </SelectContent>
+                </SafeSelect>
+              </div>
             </div>
           </div>
         </Card>
@@ -1027,11 +1039,11 @@ export const JobPage = (): JSX.Element => {
                           key={`req-${f.value}`}
                           onClick={() => toggleReq(f.value)}
                           className={`px-2 py-1 rounded border text-xs transition ${active ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}
-                          title={`${f.value} (${f.count})`}
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
                         >
                           {f.value}
                           <span className="ml-1 text-[10px] opacity-70">{f.count}</span>
-                        </button>
+                              <Card className="bg-[#0a0a0a]/70 border border-white/10 backdrop-blur-xl rounded-2xl p-4 shadow-[inset_0_0_1px_rgba(255,255,255,0.06)]">
                       );
                     })}
                   </div>
@@ -1053,7 +1065,7 @@ export const JobPage = (): JSX.Element => {
                         </button>
                       );
                     })}
-                  </div>
+                                            className={`px-2.5 py-1.5 rounded-full border text-xs transition ${active ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-white/15 text-white/80 bg-white/5 hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}
                 </div>
               </div>
             </Card>
@@ -1072,7 +1084,7 @@ export const JobPage = (): JSX.Element => {
                     <SelectTrigger className="w-[90px] h-8">
             <SelectValue placeholder="Rows" />
                     </SelectTrigger>
-                    <SelectContent>
+                                            className={`px-2.5 py-1.5 rounded-full border text-xs transition ${active ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-white/15 text-white/80 bg-white/5 hover:border-[#1dff00]/10 hover:bg-[#1dff00]/10'}`}
                       <SelectItem value="10">10</SelectItem>
                       <SelectItem value="20">20</SelectItem>
                       <SelectItem value="50">50</SelectItem>
@@ -1120,7 +1132,7 @@ export const JobPage = (): JSX.Element => {
                   <div key={i} className="animate-pulse">
                     <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6">
                       <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#ffffff1a] rounded-xl" />
+                                      <Card className="bg-[#0a0a0a]/70 border border-white/10 backdrop-blur-xl rounded-2xl p-4 sm:p-6">
                         <div className="flex-1 space-y-2">
                           <div className="h-4 bg-[#ffffff1a] rounded w-2/3" />
                           <div className="h-3 bg-[#ffffff12] rounded w-1/2" />
@@ -1144,21 +1156,21 @@ export const JobPage = (): JSX.Element => {
                 onClick={() => setSelectedJob(job.id)}
                 className={`cursor-pointer transition-all duration-300 ${
                   selectedJob === job.id
-                    ? "transform scale-[1.02]"
+                                  className={`cursor-pointer transition-all duration-300 ${
                     : "hover:transform hover:scale-[1.01]"
-                }`}
-                initial={{ opacity: 0, y: 20 }}
+                                      ? "transform scale-[1.02]"
+                                      : "hover:transform hover:scale-[1.01]"
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: index * 0.1 }}
                 whileHover={{ x: 4 }}
               >
                 <Card className={`bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border backdrop-blur-[25px] p-4 sm:p-6 transition-all duration-300 hover:shadow-lg ${
                   selectedJob === job.id
-                    ? "border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.3)]"
-                    : "border-[#ffffff15] hover:border-[#1dff00]/50"
-                }`}>
-                  <div className="space-y-4">
-                    {/* Header */}
+                                  <Card className={`bg-[#0a0a0a]/70 border backdrop-blur-xl rounded-2xl p-4 sm:p-6 transition-all duration-300 hover:shadow-[0_10px_30px_-10px_rgba(29,255,0,0.35)] ${
+                                    selectedJob === job.id
+                                      ? "border-[#1dff00]/70 shadow-[0_0_28px_rgba(29,255,0,0.35)]"
+                                      : "border-white/10 hover:border-[#1dff00]/40"
+                                  }`}>
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-3 flex-1 min-w-0">
                         {job.logoUrl && !logoError[job.id] ? (
@@ -1167,7 +1179,7 @@ export const JobPage = (): JSX.Element => {
                             alt={job.company}
                             className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain bg-white flex-shrink-0"
                             onError={() => {
-                              setLogoError((m) => ({ ...m, [job.id]: true }));
+                                              className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain bg-white flex-shrink-0"
                               // Cache failed logo URL to avoid future 404s
                               if (job.logoUrl) logoFailureCache.add(job.logoUrl);
                             }}
@@ -1175,7 +1187,7 @@ export const JobPage = (): JSX.Element => {
                         ) : (
                           <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg flex-shrink-0">
                             {job.logo}
-                          </div>
+                                            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg flex-shrink-0">
                         )}
                         <div className="flex-1 min-w-0">
                           <h3 className="text-white font-semibold text-sm sm:text-base lg:text-lg truncate">{job.title}</h3>
@@ -1273,7 +1285,7 @@ export const JobPage = (): JSX.Element => {
                       {/* Job Header */}
                       <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 mb-6 hover:shadow-lg transition-all duration-300">
                         <div className="flex items-start justify-between mb-6">
-                          <div className="flex items-center space-x-4 flex-1 min-w-0">
+                                        <Card className="bg-[#0a0a0a]/70 border border-white/10 backdrop-blur-xl rounded-2xl p-6 mb-6 hover:shadow-[0_10px_30px_-10px_rgba(29,255,0,0.35)] transition-all">
                             {job.logoUrl && !logoError[job.id] ? (
                               <img
                                 src={job.logoUrl}
@@ -1361,7 +1373,7 @@ export const JobPage = (): JSX.Element => {
                         {/* Description */}
                         <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg transition-all duration-300">
                           <h3 className="text-lg font-bold text-white mb-3 flex items-center">
-                            <Building2 className="w-5 h-5 mr-2 text-white" />
+                                          <Card className="bg-[#0a0a0a]/70 border border-white/10 backdrop-blur-xl rounded-2xl p-6 hover:shadow-[0_10px_30px_-10px_rgba(29,255,0,0.35)] transition-all">
                             Job Description
                           </h3>
                           <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed">
@@ -1372,7 +1384,7 @@ export const JobPage = (): JSX.Element => {
                         {/* Requirements */}
                         <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg transition-all duration-300">
                           <h3 className="text-lg font-bold text-white mb-3 flex items-center">
-                            <Star className="w-5 h-5 mr-2 text-white" />
+                                          <Card className="bg-[#0a0a0a]/70 border border-white/10 backdrop-blur-xl rounded-2xl p-6 hover:shadow-[0_10px_30px_-10px_rgba(29,255,0,0.35)] transition-all">
                             Requirements
                           </h3>
                           <ul className="space-y-2">
@@ -1394,7 +1406,7 @@ export const JobPage = (): JSX.Element => {
                         {/* Benefits */}
                         <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg transition-all duration-300">
                           <h3 className="text-lg font-bold text-white mb-3 flex items-center">
-                            <Users className="w-5 h-5 mr-2 text-white" />
+                                          <Card className="bg-[#0a0a0a]/70 border border-white/10 backdrop-blur-xl rounded-2xl p-6 hover:shadow-[0_10px_30px_-10px_rgba(29,255,0,0.35)] transition-all">
                             Benefits
                           </h3>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1421,7 +1433,7 @@ export const JobPage = (): JSX.Element => {
                               rel="noopener noreferrer nofollow"
                               className="inline-flex items-center px-4 py-2 rounded-md border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff0033] hover:bg-[#1dff004d] transition"
                             >
-                              Open original job posting
+                                                className="inline-flex items-center px-4 py-2 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff0033] hover:bg-[#1dff004d] transition"
                             </a>
                           </div>
                         )}
@@ -1433,7 +1445,7 @@ export const JobPage = (): JSX.Element => {
             ) : (
               <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-8 text-center">
                 <Briefcase className="w-16 h-16 text-[#ffffff40] mx-auto mb-4" />
-                <h3 className="text-xl font-medium text-white mb-2">Select a job</h3>
+                                <Card className="bg-[#0a0a0a]/70 border border-white/10 backdrop-blur-xl rounded-2xl p-8 text-center">
                 <p className="text-[#ffffff60]">Choose a job from the list to view details</p>
               </Card>
             )}
@@ -1443,10 +1455,10 @@ export const JobPage = (): JSX.Element => {
   {/* Mobile Pagination & Controls */}
         <div className="mt-6 flex sm:hidden items-center justify-center gap-3">
           <Button
-            variant="outline"
+                          <div className="mt-6 flex sm:hidden items-center justify-center gap-3">
             className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
             disabled={currentPage <= 1}
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                              className="border-white/15 text-white hover:bg-white/5"
           >
             Prev
           </Button>
@@ -1454,7 +1466,7 @@ export const JobPage = (): JSX.Element => {
           <Button
             className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
             disabled={currentPage >= totalPages}
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                              className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
           >
             Next
           </Button>
