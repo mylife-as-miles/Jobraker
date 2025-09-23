@@ -12,7 +12,12 @@
 // }
 // Returns: { text: string }
 
-import { corsHeaders } from "../_shared/types.ts";
+// Basic CORS headers (inline to avoid missing shared import)
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 import OpenAI from "npm:openai";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -44,13 +49,10 @@ Deno.serve(async (req) => {
     const tone = trimText(body?.tone) || 'professional';
     const length = trimText(body?.length) || 'medium';
 
-    // auth
-    const authHeader = req.headers.get('authorization') || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-
+  // auth
+  const authHeader = req.headers.get('authorization') || '';
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const anon = Deno.env.get('SUPABASE_ANON_KEY') || '';
-    const authHeader = req.headers.get('authorization') || '';
     const sb = (supabaseUrl && anon)
       ? createClient(supabaseUrl, anon, { global: { headers: { Authorization: authHeader } } })
       : null;
