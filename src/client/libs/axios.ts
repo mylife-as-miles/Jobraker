@@ -3,7 +3,6 @@ import type { ErrorMessage } from "@reactive-resume/utils";
 import { deepSearchAndParseDates } from "@reactive-resume/utils";
 import _axios from "axios";
 import createAuthRefreshInterceptor from "axios-auth-refresh";
-import { redirect } from "react-router-dom";
 
 import { refreshToken } from "@/client/services/auth";
 
@@ -46,7 +45,8 @@ const handleAuthError = () => refreshToken(axiosForRefresh);
 // Interceptor to handle expired refresh token errors
 const handleRefreshError = async () => {
   await queryClient.invalidateQueries({ queryKey: USER_KEY });
-  redirect("/signIn");
+  // Use hard navigation to avoid router context issues in background interceptors
+  window.location.assign("/signIn");
 };
 
 // Intercept responses to check for 401 and 403 errors, refresh token and retry the request

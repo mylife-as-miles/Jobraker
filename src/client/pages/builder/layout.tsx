@@ -49,7 +49,7 @@ export const BuilderLayout = () => {
 
   if (isDesktop) {
     return (
-  <div className="relative size-full overflow-hidden bg-black">
+  <div className="relative h-screen w-screen overflow-hidden bg-black">
         <PanelGroup direction="horizontal">
           <Panel
             minSize={25}
@@ -86,7 +86,7 @@ export const BuilderLayout = () => {
   }
 
   return (
-    <div className="relative">
+    <div className="relative min-h-screen w-screen bg-black">
       <Sheet open={sheet.left.open} onOpenChange={sheet.left.setOpen}>
         <VisuallyHidden>
           <SheetHeader>
