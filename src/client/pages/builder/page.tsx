@@ -22,18 +22,7 @@ export const BuilderPage = () => {
   const [kickstartOpen, setKickstartOpen] = useState<boolean>(false);
 
   const printArtboard = useCallback(() => {
-    const page = document.getElementById("artboard-page");
-    if (!page) return window.print();
-    const html = `<!doctype html><html><head><title>Print</title><style>
-      @page { size: A4; margin: 0; }
-      body { margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    </style></head><body>${page.outerHTML}</body></html>`;
-    const w = window.open("about:blank", "_blank");
-    if (!w) return window.print();
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    setTimeout(() => { try { w.print(); } finally { w.close(); } }, 100);
+    window.dispatchEvent(new CustomEvent("ARTBOARD_CMD", { detail: { type: "PRINT" } }));
   }, []);
 
   const kickstartDismissed = useResumeStore(

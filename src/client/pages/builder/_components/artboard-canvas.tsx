@@ -15,6 +15,7 @@ export const ArtboardCanvas = () => {
   const [debug, setDebug] = useState<boolean>(() => {
     try { return new URLSearchParams(window.location.search).get('debug') === '1'; } catch { return false; }
   });
+  const PAGE = { width: 794, height: 1123 };
 
   // Handle commands from toolbar
   useEffect(() => {
@@ -27,16 +28,46 @@ export const ArtboardCanvas = () => {
         case "ZOOM_OUT":
           setScale((s) => Math.max(0.3, s / 1.1));
           break;
-        case "RESET_VIEW":
-          setScale(1);
+        case "RESET_VIEW": {
+          // Fit to view
+          const c = containerRef.current;
+          if (c) {
+            const sw = c.clientWidth;
+            const sh = c.clientHeight;
+            const fit = Math.min(sw / PAGE.width, sh / PAGE.height) * 0.95;
+            setScale(() => Math.max(0.3, Math.min(3, fit)));
+          } else {
+            setScale(1);
+          }
           setPan({ x: 0, y: 0 });
           break;
+        }
         case "CENTER_VIEW":
           setPan({ x: 0, y: 0 });
           break;
         case "TOGGLE_PAN_MODE":
           setPanMode(!!detail.panMode);
           break;
+        case "PRINT": {
+          // Client-side print of current artboard pages
+          const pagesRoot = document.getElementById('artboard-pages');
+          const content = pagesRoot?.innerHTML || document.querySelector('.artboard-page')?.outerHTML;
+          if (!content) return window.print();
+          const html = `<!doctype html><html><head><title>Print</title><style>
+            @page { size: A4; margin: 0; }
+            html, body { height: auto; }
+            body { margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .artboard-page { page-break-after: always; }
+            .artboard-page:last-child { page-break-after: auto; }
+          </style></head><body>${content}</body></html>`;
+          const w = window.open('about:blank', '_blank');
+          if (!w) return window.print();
+          w.document.write(html);
+          w.document.close();
+          w.focus();
+          setTimeout(() => { try { w.print(); } finally { w.close(); } }, 100);
+          break;
+        }
       }
     };
     window.addEventListener("ARTBOARD_CMD", onCmd as EventListener);
@@ -49,6 +80,7 @@ export const ArtboardCanvas = () => {
   const skills = data?.sections?.skills?.items ?? [];
   const theme = data?.metadata?.theme ?? { primary: "#4f46e5", background: "#ffffff", text: "#0f172a" };
   const layout: string[][][] | undefined = data?.metadata?.layout;
+  const pageOptions = data?.metadata?.page?.options ?? { breakLine: false, pageNumbers: true };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -71,6 +103,57 @@ export const ArtboardCanvas = () => {
     setDragging(false);
     dragStart.current = null;
   };
+  const onWheel = (e: React.WheelEvent) => {
+    // Prevent page scroll when interacting with artboard
+    e.preventDefault();
+    if (panMode) {
+      setPan((p) => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
+    } else {
+      const delta = -e.deltaY; // wheel up zooms in
+      const factor = Math.exp(delta * 0.001);
+      setScale((s) => Math.max(0.3, Math.min(3, s * factor)));
+    }
+  };
+
+  // Fit to container on first mount
+  useEffect(() => {
+    const c = containerRef.current;
+    if (!c) return;
+    const sw = c.clientWidth;
+    const sh = c.clientHeight;
+    const fit = Math.min(sw / PAGE.width, sh / PAGE.height) * 0.95;
+    setScale(() => Math.max(0.3, Math.min(3, fit)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keyboard shortcuts for zoom
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const key = e.key;
+      if ((e.ctrlKey || e.metaKey) && (key === '+' || key === '=')) {
+        e.preventDefault();
+        setScale((s) => Math.min(3, s * 1.1));
+      } else if ((e.ctrlKey || e.metaKey) && (key === '-' || key === '_')) {
+        e.preventDefault();
+        setScale((s) => Math.max(0.3, s / 1.1));
+      } else if ((e.ctrlKey || e.metaKey) && key === '0') {
+        e.preventDefault();
+        const c = containerRef.current;
+        if (c) {
+          const sw = c.clientWidth;
+          const sh = c.clientHeight;
+          const fit = Math.min(sw / PAGE.width, sh / PAGE.height) * 0.95;
+          setScale(() => Math.max(0.3, Math.min(3, fit)));
+          setPan({ x: 0, y: 0 });
+        } else {
+          setScale(1);
+          setPan({ x: 0, y: 0 });
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Simple computed initials for avatar fallback
   const initials = useMemo(() => {
@@ -207,61 +290,72 @@ export const ArtboardCanvas = () => {
     }
   };
 
-  const firstPage = Array.isArray(layout) && layout.length > 0 ? layout[0] : null;
-  const mainSections = firstPage ? firstPage[0] : ['summary', 'experience'];
-  const sidebarSections = firstPage ? firstPage[1] : ['skills'];
+  const pagesLayout: string[][][] = useMemo(() => {
+    if (Array.isArray(layout) && layout.length > 0) return layout;
+    return [[['summary', 'experience'], ['skills']]]; // fallback: one page, 2 columns
+  }, [layout]);
 
   return (
-    <div id="artboard-root" ref={containerRef} className="relative h-full w-full select-none overflow-hidden bg-black" onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
+    <div id="artboard-root" ref={containerRef} className="relative h-full w-full select-none overflow-hidden bg-black" onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp} onWheel={onWheel}>
       <div
         className="absolute left-1/2 top-1/2"
         style={{ transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px)) scale(${scale})` }}
         onMouseDown={onMouseDown}
       >
-        {/* A4 page */}
-        <div
-          id="artboard-page"
-          className="relative shadow-2xl"
-          style={{ width: 794, height: 1123, background: theme.background, color: theme.text }}
-        >
-          {/* Header */}
-          <div className="px-10 pt-10">
-            <div className="flex items-center gap-4">
-              <div className="grid size-16 place-items-center rounded-full text-sm font-semibold" style={{ background: theme.primary, color: "white" }}>
-                {initials || ""}
+        {/* A4 pages */}
+        <div id="artboard-pages">
+          {pagesLayout.map((cols, pageIndex) => {
+            const mainSections = cols?.[0] || [];
+            const sidebarSections = cols?.[1] || [];
+            return (
+              <div
+                key={pageIndex}
+                className={`artboard-page relative mb-8 shadow-2xl ${pageOptions.breakLine ? 'ring-1 ring-dashed ring-black/20' : ''}`}
+                style={{ width: PAGE.width, height: PAGE.height, background: theme.background, color: theme.text }}
+              >
+                {/* Header (repeat on each page for simplicity) */}
+                <div className="px-10 pt-10">
+                  <div className="flex items-center gap-4">
+                    <div className="grid size-16 place-items-center rounded-full text-sm font-semibold" style={{ background: theme.primary, color: "white" }}>
+                      {initials || ""}
+                    </div>
+                    <div>
+                      <h1 className="text-2xl font-bold" style={{ color: theme.primary }}>{basics?.name || "Your Name"}</h1>
+                      <p className="text-sm opacity-80">{basics?.headline || basics?.label || "Job Title"}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 text-xs opacity-80">
+                    <p className="truncate">
+                      {[basics?.email, basics?.phone, basics?.location?.city, basics?.location?.country]
+                        .filter(Boolean)
+                        .join(" • ") || "email@example.com • (123) 456-7890"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="mx-10 my-5 h-px" style={{ background: `${theme.primary}33` }} />
+
+                {/* Body using layout */}
+                <div className="grid grid-cols-3 gap-6 px-10">
+                  <div className="col-span-2">
+                    {mainSections.map((sid) => renderSection(sid))}
+                  </div>
+                  <div>
+                    {sidebarSections.map((sid) => renderSection(sid))}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                {pageOptions.pageNumbers && (
+                  <div className="absolute bottom-0 left-0 right-0 mb-4 text-center text-[10px] opacity-60">
+                    <span>{pageIndex + 1}</span>
+                  </div>
+                )}
               </div>
-              <div>
-                <h1 className="text-2xl font-bold" style={{ color: theme.primary }}>{basics?.name || "Your Name"}</h1>
-                <p className="text-sm opacity-80">{basics?.headline || basics?.label || "Job Title"}</p>
-              </div>
-            </div>
-
-            <div className="mt-3 text-xs opacity-80">
-              <p className="truncate">
-                {[basics?.email, basics?.phone, basics?.location?.city, basics?.location?.country]
-                  .filter(Boolean)
-                  .join(" • ") || "email@example.com • (123) 456-7890"}
-              </p>
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="mx-10 my-5 h-px" style={{ background: `${theme.primary}33` }} />
-
-          {/* Body using layout */}
-          <div className="grid grid-cols-3 gap-6 px-10">
-            <div className="col-span-2">
-              {mainSections.map((sid) => renderSection(sid))}
-            </div>
-            <div>
-              {sidebarSections.map((sid) => renderSection(sid))}
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="absolute bottom-0 left-0 right-0 mb-4 text-center text-[10px] opacity-60">
-            <span>1</span>
-          </div>
+            );
+          })}
         </div>
       </div>
 
@@ -272,7 +366,7 @@ export const ArtboardCanvas = () => {
           <div>Template: {data?.metadata?.template}</div>
           <div>Theme: {theme.primary}, {theme.background}, {theme.text}</div>
           <div>Scale: {scale.toFixed(2)} Pan: {pan.x},{pan.y}</div>
-          <div>Layout: {Array.isArray(layout) ? 'yes' : 'no'}</div>
+          <div>Layout pages: {Array.isArray(pagesLayout) ? pagesLayout.length : 0}</div>
         </div>
       )}
     </div>
