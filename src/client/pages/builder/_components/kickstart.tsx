@@ -81,9 +81,10 @@ export const KickstartPanel = ({ onClose }: KickstartPanelProps) => {
             <p className="mb-3 text-sm font-semibold text-white">{t`Pick a template`}</p>
             <div className="grid grid-cols-3 gap-3">
               {templatesList.slice(0, 6).map((tpl: any) => {
-                const slug: string = typeof tpl === "string" ? tpl : tpl.id ?? tpl.name;
-                const label: string = typeof tpl === "string" ? tpl : tpl.name ?? tpl.id;
-                const isActive = currentTemplate === slug || currentTemplate === label;
+                const slug: string | undefined = typeof tpl === "string" ? tpl : (typeof tpl?.id === 'string' ? tpl.id : (typeof tpl?.name === 'string' ? tpl.name : undefined));
+                if (!slug) return null; // skip objects without string id/name
+                const label: string = slug;
+                const isActive = currentTemplate === slug;
                 return (
                   <button
                     key={slug}
