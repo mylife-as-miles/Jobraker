@@ -89,8 +89,8 @@ function App() {
             </Route>
         </Route>
 
-        {/* Client builder route with layout (protected) */}
-        <Route element={<RequireAuth><Providers/></RequireAuth>}>
+        {/* Client builder route with layout (public for offline/local usage) */}
+        <Route element={<Providers/>}>
           <Route path="/builder" element={<BuilderLayout/>}>
             <Route path=":id" element={<ClientBuilderRoute/>} />
           </Route>
