@@ -357,10 +357,7 @@ export const CoverLetter = () => {
       setAiLoading(false);
     }
   };
-  const quickEdit = () => {
-    const textarea = document.getElementById("cover-letter-content") as HTMLTextAreaElement | null;
-    textarea?.focus();
-  };
+  // Removed Quick Edit per request
   const share = async () => {
     try {
       const text = serializeLetter();
@@ -478,7 +475,6 @@ export const CoverLetter = () => {
           <h1 className="text-lg sm:text-xl md:text-2xl font-semibold tracking-tight">Cover Letter</h1>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto">
-          <Button variant="outline" onClick={quickEdit} className="rounded-xl whitespace-nowrap"> <Pencil className="w-4 h-4 mr-2"/> Quick Edit</Button>
           <Button variant="outline" onClick={() => setInlineEdit((v)=>!v)} className={`rounded-xl whitespace-nowrap ${inlineEdit ? 'bg-primary/10 border-primary text-primary' : ''}`}> <Pencil className="w-4 h-4 mr-2"/> {inlineEdit ? 'Edit in Preview: On' : 'Edit in Preview'} </Button>
           <Button variant="outline" disabled={aiLoading} onClick={aiPolish} className="rounded-xl whitespace-nowrap"> <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> {aiLoading ? 'Polishing…' : 'AI Polish'}</Button>
           <Button variant="outline" disabled={aiLoading} onClick={aiWriteFull} className="rounded-xl whitespace-nowrap"> <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> {aiLoading ? 'Writing…' : 'AI Write (Full)'}</Button>
