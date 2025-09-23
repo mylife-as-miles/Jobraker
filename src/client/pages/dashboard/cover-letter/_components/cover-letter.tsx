@@ -292,19 +292,22 @@ export const CoverLetter = () => {
       setAiLoading(false);
     }
   };
+
+  // Full AI write: replaces salutation/body/closing/signature using formal cover letter rules.
   const aiWriteFull = async () => {
     if (aiLoading) return;
     setAiLoading(true);
     try {
-      const payload: any = {
+      const payload = {
         role: role?.trim() || undefined,
         company: company?.trim() || undefined,
         recipient: recipient?.trim() || undefined,
         job_description: jobDescription?.trim() || undefined,
-        tone,
+        tone: 'professional',
         length: lengthPref,
         mode: 'full',
-      };
+      } as any;
+
       const { data, error } = await (supabase as any).functions.invoke('generate-cover-letter', {
         body: payload,
       });
@@ -312,41 +315,43 @@ export const CoverLetter = () => {
       const text: string = (data?.text || '').trim();
       if (!text) throw new Error('No content returned. Try again later.');
 
-      // Robust parse: salutation (first Dear...), closing (from the last closing word), signature (name after closing)
-      const lines = text.split(/\n+/).map(l => l.trim());
-      let newSal = salutation;
-      let newClose = closing;
+      // Parse into salutation, paragraphs, closing, signature
+      let newSal = 'Dear Hiring Manager,';
+      let newClose = 'Sincerely,';
       let newSig = signatureName || senderName || '';
+      let bodyTxt = text;
 
-      // Salutation: first line starting with Dear
-      const salIdx = lines.findIndex(l => /^dear\b/i.test(l));
-      if (salIdx !== -1) newSal = lines[salIdx];
-
-      // Closing: search from bottom for typical closings
-      const closers = /^(sincerely|best regards|kind regards|regards|respectfully|yours truly|yours sincerely)/i;
-      let closingIdx = -1;
-      for (let i = lines.length - 1; i >= 0; i--) {
-        if (closers.test(lines[i])) { closingIdx = i; break; }
+      const lines = text.split(/\n+/);
+      if (lines.length > 2 && /^dear\b/i.test(lines[0].trim())) {
+        newSal = lines[0].trim().replace(/\s*,$/, ',');
+        bodyTxt = lines.slice(1).join('\n');
       }
+      const closingIdx = lines.findIndex((l) => /^(sincerely|best regards|kind regards|respectfully|yours truly)/i.test(l.trim()));
       if (closingIdx !== -1) {
-        newClose = lines[closingIdx];
+        newClose = lines[closingIdx].trim().replace(/\s*,$/, ',');
         const sigCandidate = (lines[closingIdx + 1] || '').trim();
         if (sigCandidate) newSig = sigCandidate;
+        bodyTxt = lines.slice(0, closingIdx).join('\n');
       }
+      const parts = bodyTxt
+        .split(/\n\s*\n+/)
+        .map((p) => p.trim())
+        .filter(Boolean);
 
-      // Body: between salutation and closing
-      const bodyStart = salIdx !== -1 ? salIdx + 1 : 0;
-      const bodyEnd = closingIdx !== -1 ? closingIdx : lines.length;
-      const bodyTxt = lines.slice(bodyStart, bodyEnd).join('\n').trim();
-      const parts = bodyTxt.split(/\n\s*\n+/).map(p => p.trim()).filter(Boolean);
-      if (parts.length) { setParagraphs(parts); setContent(''); } else { setContent(bodyTxt); }
-
+      // Apply structured fields
       setSalutation(newSal);
       setClosing(newClose);
       setSignatureName(newSig);
-      success('Letter created', 'A complete formal letter has been generated');
+      if (parts.length) {
+        setParagraphs(parts);
+        setContent('');
+      } else {
+        setParagraphs([]);
+        setContent(bodyTxt);
+      }
+      success('Cover letter drafted', 'A formal letter has been generated.');
     } catch (e: any) {
-      console.error('AI full error:', e);
+      console.error('AI write full error:', e);
       toastError('AI failed', e?.message || 'Please try again later.');
     } finally {
       setAiLoading(false);
