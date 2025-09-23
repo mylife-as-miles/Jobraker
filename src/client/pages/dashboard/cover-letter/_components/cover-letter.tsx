@@ -91,6 +91,38 @@ export const CoverLetter = () => {
     } catch {}
   }, []);
 
+  // Auto-hydrate sender details from profile/auth on first load if missing
+  useEffect(() => {
+    (async () => {
+      try {
+        const hasSender = !!(senderName || senderEmail || senderPhone || senderAddress);
+        if (hasSender) return;
+        const { data: userData } = await (supabase as any).auth.getUser();
+        const uid = userData?.user?.id;
+        if (!uid) return;
+        // Fill email from auth immediately if present
+        if (!senderEmail && userData?.user?.email) setSenderEmail(userData.user.email);
+        const { data, error } = await (supabase as any)
+          .from('profiles')
+          .select('first_name,last_name,job_title,location,phone')
+          .eq('id', uid)
+          .maybeSingle();
+        if (error) return; // silent on auto
+        if (data) {
+          const name = [data.first_name, data.last_name].filter(Boolean).join(' ');
+          if (!senderName && name) {
+            setSenderName(name);
+            if (!signatureName) setSignatureName(name);
+          }
+          if (!senderPhone && data.phone) setSenderPhone(data.phone);
+          if (!senderAddress && data.location) setSenderAddress(data.location);
+          if (!role && data.job_title) setRole(data.job_title);
+        }
+      } catch {}
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const t = setTimeout(() => {
       try {
@@ -327,6 +359,8 @@ export const CoverLetter = () => {
           if (!signatureName) setSignatureName(name);
         }
         if (data.phone) setSenderPhone(data.phone);
+        // Also set email from auth profile if available
+        if (userData?.user?.email) setSenderEmail(userData.user.email);
         // We don't have email/website column in schema.sql; leave email empty for manual entry.
         if (data.location) setSenderAddress(data.location);
         if (data.job_title) setRole(data.job_title);
@@ -528,47 +562,49 @@ export const CoverLetter = () => {
         <Card className="p-3 sm:p-4 md:p-6 overflow-hidden rounded-xl">
           <div ref={previewRef} className="mx-auto w-full max-w-[800px] rounded-xl border border-border bg-white text-black shadow-xl">
             <div className="p-6 sm:p-8" style={{ fontSize: `${fontSize}px`, lineHeight: 1.6 }}>
-              {/* Sender */}
+              {/* Sender (right-aligned for professional layout) */}
               {(senderName || senderPhone || senderEmail || senderAddress) && (
-                <div className="mb-6">
-                  {senderName && (
-                    <p
-                      className="font-bold focus:outline-none focus:ring-2 ring-primary/50"
-                      contentEditable={inlineEdit}
-                      suppressContentEditableWarning
-                      onBlur={(e) => setSenderName(e.currentTarget.innerText.trim())}
-                    >{senderName}</p>
-                  )}
-                  {senderPhone && (
-                    <p
-                      className="focus:outline-none focus:ring-2 ring-primary/50"
-                      contentEditable={inlineEdit}
-                      suppressContentEditableWarning
-                      onBlur={(e) => setSenderPhone(e.currentTarget.innerText.trim())}
-                    >{senderPhone}</p>
-                  )}
-                  {senderEmail && (
-                    <p
-                      className="focus:outline-none focus:ring-2 ring-primary/50"
-                      contentEditable={inlineEdit}
-                      suppressContentEditableWarning
-                      onBlur={(e) => setSenderEmail(e.currentTarget.innerText.trim())}
-                    >{senderEmail}</p>
-                  )}
-                  {senderAddress && (
-                    <p
-                      className="focus:outline-none focus:ring-2 ring-primary/50"
-                      contentEditable={inlineEdit}
-                      suppressContentEditableWarning
-                      onBlur={(e) => setSenderAddress(e.currentTarget.innerText.trim())}
-                    >{senderAddress}</p>
-                  )}
+                <div className="mb-6 flex">
+                  <div className="ml-auto text-right">
+                    {senderName && (
+                      <p
+                        className="font-bold focus:outline-none focus:ring-2 ring-primary/50"
+                        contentEditable={inlineEdit}
+                        suppressContentEditableWarning
+                        onBlur={(e) => setSenderName(e.currentTarget.innerText.trim())}
+                      >{senderName}</p>
+                    )}
+                    {senderPhone && (
+                      <p
+                        className="focus:outline-none focus:ring-2 ring-primary/50"
+                        contentEditable={inlineEdit}
+                        suppressContentEditableWarning
+                        onBlur={(e) => setSenderPhone(e.currentTarget.innerText.trim())}
+                      >{senderPhone}</p>
+                    )}
+                    {senderEmail && (
+                      <p
+                        className="focus:outline-none focus:ring-2 ring-primary/50"
+                        contentEditable={inlineEdit}
+                        suppressContentEditableWarning
+                        onBlur={(e) => setSenderEmail(e.currentTarget.innerText.trim())}
+                      >{senderEmail}</p>
+                    )}
+                    {senderAddress && (
+                      <p
+                        className="focus:outline-none focus:ring-2 ring-primary/50"
+                        contentEditable={inlineEdit}
+                        suppressContentEditableWarning
+                        onBlur={(e) => setSenderAddress(e.currentTarget.innerText.trim())}
+                      >{senderAddress}</p>
+                    )}
+                  </div>
                 </div>
               )}
               {/* Date */}
               {date && (
                 <p
-                  className="mb-4 focus:outline-none focus:ring-2 ring-primary/50"
+                  className="mb-4 focus:outline-none focus:ring-2 ring-primary/50 text-right"
                   contentEditable={inlineEdit}
                   suppressContentEditableWarning
                   onBlur={(e) => {
@@ -580,7 +616,7 @@ export const CoverLetter = () => {
                   }}
                 >{new Date(date).toLocaleDateString()}</p>
               )}
-              {/* Recipient */}
+              {/* Recipient (left-aligned) */}
               {(recipient || recipientTitle || company || recipientAddress) && (
                 <div className="mb-6">
                   {[recipient, recipientTitle].filter(Boolean).length > 0 && (
