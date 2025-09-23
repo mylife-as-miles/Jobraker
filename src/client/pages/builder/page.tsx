@@ -1,5 +1,5 @@
 import type { ResumeDto } from "@reactive-resume/dto";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import type { LoaderFunction } from "react-router-dom";
 import { redirect } from "react-router-dom";
@@ -9,6 +9,7 @@ import { findResumeById } from "@/client/services/resume";
 import { useResumeStore } from "@/client/stores/resume";
 import { useArtboardStore } from "../../../store/artboard";
 import { Loader2 } from "lucide-react";
+import { KickstartPanel } from "./_components/kickstart";
 
 export const BuilderPage = () => {
   const resume = useResumeStore((state) => state.resume);
@@ -16,6 +17,26 @@ export const BuilderPage = () => {
   const data = useResumeStore((state) => state.resume?.data);
   const setArtboardResume = useArtboardStore((state) => state.setResume);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [kickstartOpen, setKickstartOpen] = useState<boolean>(false);
+
+  const kickstartDismissed = useResumeStore(
+    (s) => s.resume?.data?.metadata?.ui?.kickstartDismissed ?? false,
+  );
+
+  const isNewish = useMemo(() => {
+    const d = data as any;
+    if (!d) return false;
+    const hasSummary = !!d.sections?.summary?.content;
+    const hasExp = Array.isArray(d.sections?.experience?.items) && d.sections.experience.items.length > 0;
+    const hasSkills = Array.isArray(d.sections?.skills?.items) && d.sections.skills.items.length > 0;
+    return !(hasSummary || hasExp || hasSkills);
+  }, [data]);
+
+  useEffect(() => {
+    if (isNewish && !kickstartDismissed) {
+      setKickstartOpen(true);
+    }
+  }, [isNewish, kickstartDismissed]);
 
   // If artboard is embedded as a route in the same app, we still keep local store in sync
   useEffect(() => {
@@ -73,6 +94,10 @@ export const BuilderPage = () => {
 
       {/* Render artboard via iframe and pass resume via postMessage */}
       <div className="mt-16 w-screen" style={{ height: `calc(100vh - 64px)` }}>
+        {/* Kickstart Onboarding, show once for new/empty resumes unless dismissed */}
+        {isNewish && !kickstartDismissed && kickstartOpen && (
+          <KickstartPanel onClose={() => setKickstartOpen(false)} />
+        )}
         <iframe
           ref={iframeRef}
           title="Artboard Builder"
