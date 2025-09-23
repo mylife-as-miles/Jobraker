@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useResumes } from "@/hooks/useResumes";
+import { useProfileSettings } from "@/hooks/useProfileSettings";
 
 import { BaseCard } from "./_components/base-card";
 import { CreateResumeCard } from "./_components/create-card";
@@ -9,6 +10,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 export const GridView = () => {
   const { resumes, loading } = useResumes();
+  // Pull profile so base_resume changes reflect immediately in UI
+  useProfileSettings();
   const items = Array.isArray(resumes) ? resumes : [];
 
   return (

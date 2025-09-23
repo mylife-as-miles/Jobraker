@@ -3,6 +3,7 @@ import { parsePdfFile } from '@/utils/parsePdf';
 import { analyzeResumeText } from '@/utils/analyzeResume';
 import { hashEmbedding } from '@/utils/hashEmbedding';
 import { createClient } from "../lib/supabaseClient";
+import { useProfileSettings } from "./useProfileSettings";
 import { useToast } from "../components/ui/toast";
 
 export type ResumeStatus = "Active" | "Draft" | "Archived";
@@ -27,6 +28,7 @@ type UploadInput = File | { file: File; template?: string };
 export function useResumes() {
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError, info } = useToast();
+  const { profile, updateProfile } = useProfileSettings();
   const [userId, setUserId] = useState<string | null>(null);
   const [resumes, setResumes] = useState<ResumeRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -639,6 +641,18 @@ export function useResumes() {
     resumes,
     loading,
     error,
+    baseResume: useMemo(() => {
+      const id = profile?.base_resume_id || null;
+      return id ? (resumes.find((r) => r.id === id) ?? null) : null;
+    }, [resumes, profile?.base_resume_id]),
+    setBaseResume: async (id: string) => {
+      try {
+        await updateProfile({ base_resume_id: id });
+        success("Base resume set");
+      } catch (e: any) {
+        toastError("Failed to set base resume", e?.message || "");
+      }
+    },
   getSignedUrl,
   importStatuses,
   retryImport,
