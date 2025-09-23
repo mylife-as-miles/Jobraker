@@ -6,6 +6,8 @@ import { Input } from "../../../components/ui/input";
 import { Search, MapPin, Clock, MoreVertical, Filter } from "lucide-react";
 import { motion } from "framer-motion";
 import { createClient } from "../../../lib/supabaseClient";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
 import { getRun } from "../../../services/skyvern/getRun";
 import { JobListing } from "../../../../supabase/functions/_shared/types";
@@ -37,7 +39,20 @@ interface Job extends JobListing {
 
 type FacetItem = { value: string; count: number };
 
+dayjs.extend(relativeTime);
 const supabase = createClient();
+
+// Relative time formatter for posted dates
+const formatPosted = (ts?: number | null): string => {
+  if (!ts || Number.isNaN(ts)) return "N/A";
+  try {
+    const d = dayjs(ts);
+    if (!d.isValid()) return "N/A";
+    return d.fromNow();
+  } catch {
+    return "N/A";
+  }
+};
 
 // Minimal HTML sanitizer to render job descriptions safely
 const sanitizeHtml = (html: string) => {
@@ -175,6 +190,12 @@ export const JobPage = (): JSX.Element => {
     setError(null);
 
     try {
+      // Resolve user ID for per-user routing or personalization downstream (ignored if not used)
+      let userId: string | undefined;
+      try {
+        const { data: userData } = await (supabase as any).auth.getUser();
+        userId = (userData as any)?.user?.id;
+      } catch {}
       // Optionally provide Firecrawl key from local env for development
       const headers: Record<string, string> = {};
       const fcKey = (import.meta as any).env?.VITE_FIRECRAWL_API_KEY as string | undefined;
@@ -186,6 +207,11 @@ export const JobPage = (): JSX.Element => {
           location: debouncedSelectedLocation,
           // pass work type when selected
           type: selectedType === 'All' ? undefined : selectedType,
+          // optional filters (provider may ignore)
+          minSalary: minSalary ? Number(minSalary) : undefined,
+          maxSalary: maxSalary ? Number(maxSalary) : undefined,
+          posted: postedSince ? Number(postedSince) : undefined,
+          userId,
         },
         headers,
       });
@@ -194,7 +220,9 @@ export const JobPage = (): JSX.Element => {
 
       let { matchedJobs, note } = data || { matchedJobs: [], note: null };
       setResultNote(note ?? null);
-      setResultSource(note ? 'db' : 'live');
+
+      // If we received any jobs from the live provider (Firecrawl), treat as live
+      let isLive = Array.isArray(matchedJobs) && matchedJobs.length > 0;
 
       // If scraping returned nothing, fallback to DB-backed function
       if (!Array.isArray(matchedJobs) || matchedJobs.length === 0) {
@@ -206,6 +234,7 @@ export const JobPage = (): JSX.Element => {
             minSalary: minSalary ? Number(minSalary) : undefined,
             maxSalary: maxSalary ? Number(maxSalary) : undefined,
             posted: postedSince ? Number(postedSince) : undefined,
+            userId,
           }
         });
         if (!fallback.error) {
@@ -228,10 +257,14 @@ export const JobPage = (): JSX.Element => {
             _source: r.source || 'db',
             _posted_at: r.posted_at,
           }));
+          isLive = false;
           setResultSource('db');
           setResultNote('fallback: provider_unavailable');
         }
       }
+
+      // Set top-level source indicator based on whether we used live provider or DB fallback
+      if (isLive) setResultSource('live');
 
       const newJobs = (matchedJobs as (JobListing & { _source?: string; salary_min?: number | null; salary_max?: number | null; salary_period?: string | null; salary_currency?: string | null; requirements?: string[]; benefits?: string[]; })[]).map((job) => ({
         ...job,
@@ -257,13 +290,13 @@ export const JobPage = (): JSX.Element => {
         isApplied: false,
         logo: job.companyName?.[0]?.toUpperCase() || '?',
         logoUrl: getCompanyLogoUrl(job.companyName, job.sourceUrl),
-        // marker for UI badge
-        source: (job as any)._source || (note ? 'db' : 'scraped'),
+        // marker for UI badge: 'live' for Firecrawl, 'db' for fallback rows
+        source: isLive ? 'live' : 'db',
       }));
 
-      setJobs(newJobs);
-      // remember last live results so clearing facets restores them
-      if (!note) setLastLiveJobs(newJobs);
+  setJobs(newJobs);
+  // remember last live results so clearing facets restores them
+  if (isLive) setLastLiveJobs(newJobs);
       setCurrentPage(1);
       setSelectedJob(newJobs[0]?.id ?? null);
     } catch (e: any) {
@@ -289,7 +322,7 @@ export const JobPage = (): JSX.Element => {
       salary: typeof r.salary_min === 'number' || typeof r.salary_max === 'number'
         ? `$${r.salary_min ?? ''}${r.salary_min && r.salary_max ? ' - ' : ''}${r.salary_max ?? ''}${r.salary_period ? ` / ${r.salary_period}` : ''}`
         : 'N/A',
-      postedDate: r.posted_at ? new Date(r.posted_at).toLocaleDateString() : 'N/A',
+  postedDate: r.posted_at ? new Date(r.posted_at).toLocaleDateString() : 'N/A',
       rawPostedAt: r.posted_at ? new Date(r.posted_at).getTime() : null,
       description: r.full_job_description || '',
       requirements: Array.isArray(r.requirements) && r.requirements.length
@@ -300,7 +333,7 @@ export const JobPage = (): JSX.Element => {
       isApplied: false,
       logo: (r.company_name?.[0] || '?').toUpperCase(),
       logoUrl: getCompanyLogoUrl(r.company_name, r.source_url),
-      source: r.source || 'db',
+      source: 'db',
     }));
   }, []);
 
@@ -1179,9 +1212,9 @@ export const JobPage = (): JSX.Element => {
                           <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
                           <span>{job.location}</span>
                         </div>
-                        <div className="flex items-center space-x-1">
+                        <div className="flex items-center space-x-1" title={job.rawPostedAt ? new Date(job.rawPostedAt).toLocaleString() : job.postedDate}>
                           <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span>{job.postedDate}</span>
+                          <span>{job.rawPostedAt ? formatPosted(job.rawPostedAt) : job.postedDate}</span>
                         </div>
                         <div className="flex items-center space-x-1">
                           <Briefcase className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1265,9 +1298,9 @@ export const JobPage = (): JSX.Element => {
                                   <MapPin className="w-4 h-4" />
                                   <span>{job.location}</span>
                                 </div>
-                                <div className="flex items-center space-x-1">
+                                <div className="flex items-center space-x-1" title={job.rawPostedAt ? new Date(job.rawPostedAt).toLocaleString() : job.postedDate}>
                                   <Clock className="w-4 h-4" />
-                                  <span>Posted {job.postedDate}</span>
+                                  <span>Posted {job.rawPostedAt ? formatPosted(job.rawPostedAt) : job.postedDate}</span>
                                 </div>
                                 <div className="flex items-center space-x-1">
                                   <Briefcase className="w-4 h-4" />
@@ -1317,7 +1350,7 @@ export const JobPage = (): JSX.Element => {
                               disabled={!!applyingJobId || job.isApplied}
                               className={`bg-[#1dff00] text-black hover:bg-[#1dff00]/90 transition-all duration-300 flex-1 sm:flex-none ${(applyingJobId || job.isApplied) ? 'opacity-70 cursor-not-allowed hover:scale-100' : 'hover:scale-105'}`}
                             >
-                              {job.isApplied ? 'Applied' : (applyingJobId === job.id ? 'Applying…' : 'Apply Now')}
+                              {job.isApplied ? 'Applied' : (applyingJobId === job.id ? 'Applying…' : 'Auto Apply')}
                             </Button>
                           </div>
                         </div>
