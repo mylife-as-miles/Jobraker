@@ -8,7 +8,7 @@ export const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="w-full mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="w-full mx-auto p-4 sm:p-5 lg:p-8">
         {/* Mobile top bar with Menu and Settings */}
         <div className="mb-4 flex items-center justify-between lg:hidden">
           <button

@@ -292,6 +292,66 @@ export const CoverLetter = () => {
       setAiLoading(false);
     }
   };
+  const aiWriteFull = async () => {
+    if (aiLoading) return;
+    setAiLoading(true);
+    try {
+      const payload: any = {
+        role: role?.trim() || undefined,
+        company: company?.trim() || undefined,
+        recipient: recipient?.trim() || undefined,
+        job_description: jobDescription?.trim() || undefined,
+        tone,
+        length: lengthPref,
+        mode: 'full',
+      };
+      const { data, error } = await (supabase as any).functions.invoke('generate-cover-letter', {
+        body: payload,
+      });
+      if (error) throw new Error(error?.message || 'Failed to generate');
+      const text: string = (data?.text || '').trim();
+      if (!text) throw new Error('No content returned. Try again later.');
+
+      // Robust parse: salutation (first Dear...), closing (from the last closing word), signature (name after closing)
+      const lines = text.split(/\n+/).map(l => l.trim());
+      let newSal = salutation;
+      let newClose = closing;
+      let newSig = signatureName || senderName || '';
+
+      // Salutation: first line starting with Dear
+      const salIdx = lines.findIndex(l => /^dear\b/i.test(l));
+      if (salIdx !== -1) newSal = lines[salIdx];
+
+      // Closing: search from bottom for typical closings
+      const closers = /^(sincerely|best regards|kind regards|regards|respectfully|yours truly|yours sincerely)/i;
+      let closingIdx = -1;
+      for (let i = lines.length - 1; i >= 0; i--) {
+        if (closers.test(lines[i])) { closingIdx = i; break; }
+      }
+      if (closingIdx !== -1) {
+        newClose = lines[closingIdx];
+        const sigCandidate = (lines[closingIdx + 1] || '').trim();
+        if (sigCandidate) newSig = sigCandidate;
+      }
+
+      // Body: between salutation and closing
+      const bodyStart = salIdx !== -1 ? salIdx + 1 : 0;
+      const bodyEnd = closingIdx !== -1 ? closingIdx : lines.length;
+      const bodyTxt = lines.slice(bodyStart, bodyEnd).join('\n').trim();
+      const parts = bodyTxt.split(/\n\s*\n+/).map(p => p.trim()).filter(Boolean);
+      if (parts.length) { setParagraphs(parts); setContent(''); } else { setContent(bodyTxt); }
+
+      setSalutation(newSal);
+      setClosing(newClose);
+      setSignatureName(newSig);
+      success('Letter created', 'A complete formal letter has been generated');
+    } catch (e: any) {
+      console.error('AI full error:', e);
+      toastError('AI failed', e?.message || 'Please try again later.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
   const quickEdit = () => {
     const textarea = document.getElementById("cover-letter-content") as HTMLTextAreaElement | null;
     textarea?.focus();
@@ -416,6 +476,7 @@ export const CoverLetter = () => {
           <Button variant="outline" onClick={quickEdit} className="rounded-xl whitespace-nowrap"> <Pencil className="w-4 h-4 mr-2"/> Quick Edit</Button>
           <Button variant="outline" onClick={() => setInlineEdit((v)=>!v)} className={`rounded-xl whitespace-nowrap ${inlineEdit ? 'bg-primary/10 border-primary text-primary' : ''}`}> <Pencil className="w-4 h-4 mr-2"/> {inlineEdit ? 'Edit in Preview: On' : 'Edit in Preview'} </Button>
           <Button variant="outline" disabled={aiLoading} onClick={aiPolish} className="rounded-xl whitespace-nowrap"> <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> {aiLoading ? 'Polishing…' : 'AI Polish'}</Button>
+          <Button variant="outline" disabled={aiLoading} onClick={aiWriteFull} className="rounded-xl whitespace-nowrap"> <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> {aiLoading ? 'Writing…' : 'AI Write (Full)'}</Button>
           <Button variant="outline" onClick={share} className="rounded-xl whitespace-nowrap"> {copied ? <><Check className="w-4 h-4 mr-2"/> Copied</> : <><Share2 className="w-4 h-4 mr-2"/> Share</>} </Button>
           <Button onClick={download} className="rounded-xl whitespace-nowrap"> <Download className="w-4 h-4 mr-2"/> Download</Button>
         </div>

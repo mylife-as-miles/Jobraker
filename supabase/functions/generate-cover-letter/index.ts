@@ -46,8 +46,9 @@ Deno.serve(async (req) => {
     const company = trimText(body?.company);
     const recipient = trimText(body?.recipient);
     const job_description = trimText(body?.job_description);
-    const tone = trimText(body?.tone) || 'professional';
-    const length = trimText(body?.length) || 'medium';
+  const tone = trimText(body?.tone) || 'professional';
+  const length = trimText(body?.length) || 'medium';
+  const mode = String(body?.mode || '').toLowerCase() === 'full' ? 'full' : 'polish';
 
   // auth
   const authHeader = req.headers.get('authorization') || '';
@@ -127,7 +128,7 @@ Deno.serve(async (req) => {
 
     const jobCtx = [role && `Target Role: ${role}`, company && `Company: ${company}`, recipient && `Recipient: ${recipient}`].filter(Boolean).join('\n');
 
-    const system = `You are an expert career coach and writing assistant. Draft a tailored cover letter that is ${toneInstruction}, concise (${lengthInstruction}), uses active voice, avoids clichés, and provides specific, credible accomplishments. Do not include placeholders like [Your Name]; use the candidate name if provided. Keep formatting as plain text paragraphs, no markdown.`;
+  const system = `You are an expert career coach and writing assistant. Draft a tailored cover letter that is ${toneInstruction}, concise (${lengthInstruction}), uses active voice, avoids clichés, and provides specific, credible accomplishments. Do not include placeholders like [Your Name]; use the candidate name if provided. Keep formatting as plain text paragraphs, no markdown.`;
 
     const user = [
       'Candidate:',
@@ -145,11 +146,14 @@ Deno.serve(async (req) => {
       job_description && `Job Description:\n${job_description}`,
       '',
       'Instructions:',
-      `- Address the recipient${recipient ? ` (${recipient})` : ''}.`,
+      mode === 'full'
+        ? `- Produce a complete formal cover letter text with salutation and closing: start with "Dear ${recipient || 'Hiring Manager'}," and end with a professional closing (e.g., "Sincerely,") followed by the candidate's full name.`
+        : `- Produce the core letter content; it's okay to include a salutation and closing if natural.`,
       company ? `- Mention the company (${company}) and show genuine interest.` : '- Show genuine interest in the company.',
       `- Highlight 2-3 relevant achievements that align with the role.`,
       `- Close with a confident call to action.`,
-      `- Return only the letter text, no salutations beyond the letter itself, and no markdown.`,
+      `- Do not include addresses, headers, or dates. Only the letter content.`,
+      `- Return plain text only, no markdown.`,
     ].filter(Boolean).join('\n');
 
     const apiKey = Deno.env.get('OPENAI_API_KEY') || '';
