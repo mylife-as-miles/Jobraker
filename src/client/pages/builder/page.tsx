@@ -1,5 +1,5 @@
 import type { ResumeDto } from "@reactive-resume/dto";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import type { LoaderFunction } from "react-router-dom";
 import { redirect } from "react-router-dom";
@@ -11,6 +11,7 @@ import { useArtboardStore } from "../../../store/artboard";
 import { Loader2 } from "lucide-react";
 import { KickstartPanel } from "./_components/kickstart";
 import { ArtboardCanvas } from "./_components/artboard-canvas";
+import { DebugOverlay } from "./_components/debug-overlay";
 
 export const BuilderPage = () => {
   const resume = useResumeStore((state) => state.resume);
@@ -19,6 +20,21 @@ export const BuilderPage = () => {
   const setArtboardResume = useArtboardStore((state) => state.setResume);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [kickstartOpen, setKickstartOpen] = useState<boolean>(false);
+
+  const printArtboard = useCallback(() => {
+    const page = document.getElementById("artboard-page");
+    if (!page) return window.print();
+    const html = `<!doctype html><html><head><title>Print</title><style>
+      @page { size: A4; margin: 0; }
+      body { margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    </style></head><body>${page.outerHTML}</body></html>`;
+    const w = window.open("about:blank", "_blank");
+    if (!w) return window.print();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { try { w.print(); } finally { w.close(); } }, 100);
+  }, []);
 
   const kickstartDismissed = useResumeStore(
     (s) => s.resume?.data?.metadata?.ui?.kickstartDismissed ?? false,
@@ -94,12 +110,18 @@ export const BuilderPage = () => {
       </Helmet>
 
       {/* Render artboard inline to avoid blank iframe on deployments */}
-      <div className="mt-16 w-screen" style={{ height: `calc(100vh - 64px)` }}>
+      <div className="relative mt-16 w-screen" style={{ height: `calc(100vh - 64px)` }}>
+        <div className="pointer-events-auto absolute right-4 top-2 z-20">
+          <button onClick={printArtboard} className="rounded border border-black/10 bg-white/80 px-3 py-1 text-xs shadow hover:bg-white">
+            Print / PDF
+          </button>
+        </div>
         {/* Kickstart Onboarding, show once for new/empty resumes unless dismissed */}
         {isNewish && !kickstartDismissed && kickstartOpen && (
           <KickstartPanel onClose={() => setKickstartOpen(false)} />
         )}
         <ArtboardCanvas />
+        <DebugOverlay />
       </div>
     </>
   );

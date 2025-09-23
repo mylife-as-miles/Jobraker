@@ -12,6 +12,9 @@ export const ArtboardCanvas = () => {
   const [panMode, setPanMode] = useState(true);
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef<Point | null>(null);
+  const [debug, setDebug] = useState<boolean>(() => {
+    try { return new URLSearchParams(window.location.search).get('debug') === '1'; } catch { return false; }
+  });
 
   // Handle commands from toolbar
   useEffect(() => {
@@ -45,6 +48,15 @@ export const ArtboardCanvas = () => {
   const experience = data?.sections?.experience?.items ?? [];
   const skills = data?.sections?.skills?.items ?? [];
   const theme = data?.metadata?.theme ?? { primary: "#4f46e5", background: "#ffffff", text: "#0f172a" };
+  const layout: string[][][] | undefined = data?.metadata?.layout;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'd') setDebug((v) => !v);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const onMouseDown = (e: React.MouseEvent) => {
     if (!panMode) return;
@@ -71,8 +83,136 @@ export const ArtboardCanvas = () => {
       .join("");
   }, [basics?.name]);
 
+  const renderSection = (id: string) => {
+    // Handle custom sections
+    if (id.startsWith('custom.')) {
+      const cid = id.split('custom.')[1];
+      const section = data?.sections?.custom?.[cid];
+      if (!section) return null;
+      return (
+        <section key={id} className="mb-5">
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: theme.primary }}>{section.name || 'Custom'}</h2>
+          {section.description && <p className="text-xs opacity-80">{section.description}</p>}
+          {Array.isArray(section.items) && section.items.length > 0 && (
+            <ul className="mt-1 space-y-1">
+              {section.items.slice(0, 8).map((it: any, i: number) => (
+                <li key={it?.id || i} className="text-xs opacity-90">{it?.name || it?.title || it?.position || it?.description || 'Item'}</li>
+              ))}
+            </ul>
+          )}
+        </section>
+      );
+    }
+
+    switch (id) {
+      case 'summary':
+        if (!summary?.content) return null;
+        return (
+          <section key={id} className="mb-5">
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: theme.primary }}>Summary</h2>
+            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: summary.content }} />
+          </section>
+        );
+      case 'experience':
+        if (!Array.isArray(experience) || experience.length === 0) return null;
+        return (
+          <section key={id} className="mb-5">
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: theme.primary }}>Experience</h2>
+            <div className="space-y-3">
+              {experience.slice(0, 6).map((exp: any) => (
+                <div key={exp.id} className="rounded border border-black/5 p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold">{exp.position || 'Role'}</p>
+                    <p className="text-xs opacity-60">{exp.startDate} {exp.endDate ? `– ${exp.endDate}` : '– Present'}</p>
+                  </div>
+                  <p className="text-xs opacity-80">{exp.company || 'Company'}</p>
+                  {exp.summary && (
+                    <div className="mt-1 text-xs opacity-90" dangerouslySetInnerHTML={{ __html: exp.summary }} />
+                  )}
+                  {Array.isArray(exp.highlights) && exp.highlights.length > 0 && (
+                    <ul className="mt-1 list-disc pl-5 text-xs opacity-90">
+                      {exp.highlights.slice(0, 5).map((h: string, i: number) => (
+                        <li key={i}>{h}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      case 'skills': {
+        const list = skills;
+        if (!Array.isArray(list) || list.length === 0) return null;
+        return (
+          <section key={id} className="mb-5">
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: theme.primary }}>Skills</h2>
+            <ul className="flex flex-wrap gap-1">
+              {list.slice(0, 18).map((s: any) => (
+                <li key={s.id} className="rounded bg-black/5 px-2 py-1 text-xs" style={{ borderColor: `${theme.primary}40` }}>
+                  {s.name || s.description || 'Skill'}
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      }
+      case 'education': {
+        const list = data?.sections?.education?.items ?? [];
+        if (!Array.isArray(list) || list.length === 0) return null;
+        return (
+          <section key={id} className="mb-5">
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: theme.primary }}>Education</h2>
+            <div className="space-y-2">
+              {list.slice(0, 5).map((ed: any) => (
+                <div key={ed.id}>
+                  <p className="text-sm font-semibold">{ed.studyType ? `${ed.studyType} • ${ed.area || ''}` : ed.area || 'Education'}</p>
+                  <p className="text-xs opacity-80">{ed.institution}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      }
+      case 'projects': {
+        const list = data?.sections?.projects?.items ?? [];
+        if (!Array.isArray(list) || list.length === 0) return null;
+        return (
+          <section key={id} className="mb-5">
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: theme.primary }}>Projects</h2>
+            <ul className="space-y-1">
+              {list.slice(0, 6).map((p: any) => (
+                <li key={p.id} className="text-xs"><span className="font-semibold">{p.name}</span>{p.description ? ` – ${p.description}` : ''}</li>
+              ))}
+            </ul>
+          </section>
+        );
+      }
+      case 'languages': {
+        const list = data?.sections?.languages?.items ?? [];
+        if (!Array.isArray(list) || list.length === 0) return null;
+        return (
+          <section key={id} className="mb-5">
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: theme.primary }}>Languages</h2>
+            <ul className="flex flex-wrap gap-1">
+              {list.slice(0, 8).map((l: any) => (
+                <li key={l.id} className="rounded bg-black/5 px-2 py-1 text-xs">{l.name}{l.level ? ` • ${l.level}` : ''}</li>
+              ))}
+            </ul>
+          </section>
+        );
+      }
+      default:
+        return null;
+    }
+  };
+
+  const firstPage = Array.isArray(layout) && layout.length > 0 ? layout[0] : null;
+  const mainSections = firstPage ? firstPage[0] : ['summary', 'experience'];
+  const sidebarSections = firstPage ? firstPage[1] : ['skills'];
+
   return (
-    <div ref={containerRef} className="relative h-full w-full select-none overflow-hidden bg-black" onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
+    <div id="artboard-root" ref={containerRef} className="relative h-full w-full select-none overflow-hidden bg-black" onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
       <div
         className="absolute left-1/2 top-1/2"
         style={{ transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px)) scale(${scale})` }}
@@ -80,6 +220,7 @@ export const ArtboardCanvas = () => {
       >
         {/* A4 page */}
         <div
+          id="artboard-page"
           className="relative shadow-2xl"
           style={{ width: 794, height: 1123, background: theme.background, color: theme.text }}
         >
@@ -107,60 +248,13 @@ export const ArtboardCanvas = () => {
           {/* Divider */}
           <div className="mx-10 my-5 h-px" style={{ background: `${theme.primary}33` }} />
 
-          {/* Body */}
+          {/* Body using layout */}
           <div className="grid grid-cols-3 gap-6 px-10">
             <div className="col-span-2">
-              {/* Summary */}
-              {summary?.content && (
-                <section className="mb-5">
-                  <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: theme.primary }}>Summary</h2>
-                  <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: summary.content }} />
-                </section>
-              )}
-
-              {/* Experience */}
-              {Array.isArray(experience) && experience.length > 0 && (
-                <section className="mb-5">
-                  <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: theme.primary }}>Experience</h2>
-                  <div className="space-y-3">
-                    {experience.slice(0, 6).map((exp: any) => (
-                      <div key={exp.id} className="rounded border border-black/5 p-3">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold">{exp.position || "Role"}</p>
-                          <p className="text-xs opacity-60">{exp.startDate} {exp.endDate ? `– ${exp.endDate}` : "– Present"}</p>
-                        </div>
-                        <p className="text-xs opacity-80">{exp.company || "Company"}</p>
-                        {exp.summary && (
-                          <div className="mt-1 text-xs opacity-90" dangerouslySetInnerHTML={{ __html: exp.summary }} />
-                        )}
-                        {Array.isArray(exp.highlights) && exp.highlights.length > 0 && (
-                          <ul className="mt-1 list-disc pl-5 text-xs opacity-90">
-                            {exp.highlights.slice(0, 5).map((h: string, i: number) => (
-                              <li key={i}>{h}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
+              {mainSections.map((sid) => renderSection(sid))}
             </div>
-
-            {/* Sidebar */}
             <div>
-              {Array.isArray(skills) && skills.length > 0 && (
-                <section className="mb-5">
-                  <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide" style={{ color: theme.primary }}>Skills</h2>
-                  <ul className="flex flex-wrap gap-1">
-                    {skills.slice(0, 18).map((s: any) => (
-                      <li key={s.id} className="rounded bg-black/5 px-2 py-1 text-xs" style={{ borderColor: `${theme.primary}40` }}>
-                        {s.name || s.description || "Skill"}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
+              {sidebarSections.map((sid) => renderSection(sid))}
             </div>
           </div>
 
@@ -170,6 +264,17 @@ export const ArtboardCanvas = () => {
           </div>
         </div>
       </div>
+
+      {debug && (
+        <div className="pointer-events-none fixed bottom-3 left-3 rounded bg-black/70 p-2 text-[11px] text-white shadow-lg">
+          <div>Debug On</div>
+          <div>ID: {useResumeStore.getState()?.resume?.id}</div>
+          <div>Template: {data?.metadata?.template}</div>
+          <div>Theme: {theme.primary}, {theme.background}, {theme.text}</div>
+          <div>Scale: {scale.toFixed(2)} Pan: {pan.x},{pan.y}</div>
+          <div>Layout: {Array.isArray(layout) ? 'yes' : 'no'}</div>
+        </div>
+      )}
     </div>
   );
 };
