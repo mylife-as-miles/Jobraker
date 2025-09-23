@@ -1,2 +1,0 @@
--- Placeholder migration to align local history with remote version 20250831
--- No-op: created by automated repair to reconcile migration ledger
