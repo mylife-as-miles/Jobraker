@@ -594,41 +594,55 @@ export const JobPage = (): JSX.Element => {
           payload.additional_information,
           `Attach Cover Letter: yes (template: ${tmpl})`
         ].filter(Boolean).join(' | ');
-        // Try to serialize saved cover letter draft into plaintext
+        // Prefer selected saved letter; fallback to current draft
+        const materializeLetter = (parsed: any) => {
+          const paras: string[] = Array.isArray(parsed?.paragraphs) ? parsed.paragraphs.filter((p: any) => typeof p === 'string' && p.trim()) : [];
+          const body: string = (paras.length ? paras.join("\n\n") : (parsed?.content || '')).trim();
+          const sal: string = (parsed?.salutation || '').trim();
+          const close: string = (parsed?.closing || '').trim();
+          const sig: string = (parsed?.signatureName || parsed?.senderName || '').trim();
+          const headerParts: string[] = [];
+          if (parsed?.senderName) headerParts.push(parsed.senderName);
+          if (parsed?.senderPhone) headerParts.push(parsed.senderPhone);
+          if (parsed?.senderEmail) headerParts.push(parsed.senderEmail);
+          if (parsed?.senderAddress) headerParts.push(parsed.senderAddress);
+          const dateLine = parsed?.date ? new Date(parsed.date).toLocaleDateString() : '';
+          const recipientLine = [parsed?.recipient, parsed?.recipientTitle].filter(Boolean).join(', ').trim();
+          const companyLine = (parsed?.company || '').trim();
+          const recipientAddr = (parsed?.recipientAddress || '').trim();
+          const subjectLine = (parsed?.subject || '').trim();
+          const lines: string[] = [];
+          if (headerParts.length) { lines.push(...headerParts, ''); }
+          if (dateLine) { lines.push(dateLine, ''); }
+          if (recipientLine || companyLine || recipientAddr) {
+            if (recipientLine) lines.push(recipientLine);
+            if (companyLine) lines.push(companyLine);
+            if (recipientAddr) lines.push(recipientAddr);
+            lines.push('');
+          }
+          if (subjectLine) { lines.push(`Subject: ${subjectLine}`, ''); }
+          if (sal) { lines.push(sal, ''); }
+          if (body) { lines.push(body, ''); }
+          if (close) { lines.push(close); }
+          if (sig) { lines.push(sig); }
+          return lines.join("\n").trim();
+        };
         try {
-          const raw = localStorage.getItem('jr.coverLetter.draft.v2');
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            const paras: string[] = Array.isArray(parsed?.paragraphs) ? parsed.paragraphs.filter((p: any) => typeof p === 'string' && p.trim()) : [];
-            const body: string = (paras.length ? paras.join("\n\n") : (parsed?.content || '')).trim();
-            const sal: string = (parsed?.salutation || '').trim();
-            const close: string = (parsed?.closing || '').trim();
-            const sig: string = (parsed?.signatureName || parsed?.senderName || '').trim();
-            const headerParts: string[] = [];
-            if (parsed?.senderName) headerParts.push(parsed.senderName);
-            if (parsed?.senderPhone) headerParts.push(parsed.senderPhone);
-            if (parsed?.senderEmail) headerParts.push(parsed.senderEmail);
-            if (parsed?.senderAddress) headerParts.push(parsed.senderAddress);
-            const dateLine = parsed?.date ? new Date(parsed.date).toLocaleDateString() : '';
-            const recipientLine = [parsed?.recipient, parsed?.recipientTitle].filter(Boolean).join(', ').trim();
-            const companyLine = (parsed?.company || '').trim();
-            const recipientAddr = (parsed?.recipientAddress || '').trim();
-            const subjectLine = (parsed?.subject || '').trim();
-            const lines: string[] = [];
-            if (headerParts.length) { lines.push(...headerParts, ''); }
-            if (dateLine) { lines.push(dateLine, ''); }
-            if (recipientLine || companyLine || recipientAddr) {
-              if (recipientLine) lines.push(recipientLine);
-              if (companyLine) lines.push(companyLine);
-              if (recipientAddr) lines.push(recipientAddr);
-              lines.push('');
+          let parsed: any = null;
+          if (selectedCoverId) {
+            const libRaw = localStorage.getItem('jr.coverLetters.library.v1');
+            if (libRaw) {
+              const arr = JSON.parse(libRaw);
+              const entry = Array.isArray(arr) ? arr.find((e: any) => e?.id === selectedCoverId) : null;
+              if (entry && entry.data) parsed = entry.data;
             }
-            if (subjectLine) { lines.push(`Subject: ${subjectLine}`, ''); }
-            if (sal) { lines.push(sal, ''); }
-            if (body) { lines.push(body, ''); }
-            if (close) { lines.push(close); }
-            if (sig) { lines.push(sig); }
-            const full = lines.join("\n").trim();
+          }
+          if (!parsed) {
+            const raw = localStorage.getItem('jr.coverLetter.draft.v2');
+            if (raw) parsed = JSON.parse(raw);
+          }
+          if (parsed) {
+            const full = materializeLetter(parsed);
             if (full) payload.cover_letter = full;
           }
         } catch {}
@@ -731,7 +745,7 @@ export const JobPage = (): JSX.Element => {
       } catch {}
       setApplyingJobId(null);
     }
-  }, [supabase, success, toastError, info, applyingJobId]);
+  }, [supabase, success, toastError, info, applyingJobId, selectedCoverId]);
 
   // ==== Resume Picker (Modern UI) ====
   const { resumes: resumeOptions, getSignedUrl } = useResumes();
@@ -1825,6 +1839,9 @@ export const JobPage = (): JSX.Element => {
           onToggleCoverLetter={(v) => setAttachCoverLetter(v)}
           selectedCoverTemplate={selectedCoverTemplate}
           onSelectCoverTemplate={(tmpl) => setSelectedCoverTemplate(tmpl)}
+          coverLibrary={coverLibrary as any}
+          selectedCoverId={selectedCoverId}
+          onSelectCoverId={(id) => setSelectedCoverId(id)}
         />
 
         {/* Mobile Filters Drawer */}
@@ -2063,6 +2080,9 @@ function ResumePickerModal({
   onToggleCoverLetter,
   selectedCoverTemplate = 'Standard',
   onSelectCoverTemplate,
+  coverLibrary = [],
+  selectedCoverId = null,
+  onSelectCoverId,
 }: {
   open: boolean;
   resumes: Array<{ id: string; name: string; template: string | null; updated_at: string; is_favorite?: boolean }>;
@@ -2074,6 +2094,9 @@ function ResumePickerModal({
   onToggleCoverLetter?: (v: boolean) => void;
   selectedCoverTemplate?: string | null;
   onSelectCoverTemplate?: (tmpl: string) => void;
+  coverLibrary?: Array<{ id: string; name: string; updatedAt: string; data: any }>;
+  selectedCoverId?: string | null;
+  onSelectCoverId?: (id: string | null) => void;
 }) {
   if (!open) return null;
   let hasDraft = false;
@@ -2134,25 +2157,92 @@ function ResumePickerModal({
                 </button>
               </div>
               {attachCoverLetter && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {['Standard','Modern','Elegant'].map(tmpl => (
-                    <button
-                      key={tmpl}
-                      onClick={() => onSelectCoverTemplate && onSelectCoverTemplate(tmpl)}
-                      className={`px-2 py-1 rounded border text-xs transition ${selectedCoverTemplate === tmpl ? 'border-[#1dff00] text-[#1dff00] bg-[#1dff0033]' : 'border-white/20 text-white/80 hover:border-[#1dff00]/40'}`}
+                <div className="mt-3 grid gap-3">
+                  <div className="flex flex-wrap gap-2">
+                    {['Standard','Modern','Elegant'].map(tmpl => (
+                      <button
+                        key={tmpl}
+                        onClick={() => onSelectCoverTemplate && onSelectCoverTemplate(tmpl)}
+                        className={`px-2 py-1 rounded border text-xs transition ${selectedCoverTemplate === tmpl ? 'border-[#1dff00] text-[#1dff00] bg-[#1dff0033]' : 'border-white/20 text-white/80 hover:border-[#1dff00]/40'}`}
+                      >
+                        {tmpl}
+                      </button>
+                    ))}
+                    <a
+                      href="/dashboard/cover-letter"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-auto px-2 py-1 rounded border border-white/20 text-white/80 hover:border-[#1dff00]/40 text-xs"
+                      title="Open the Cover Letter editor in a new tab"
                     >
-                      {tmpl}
-                    </button>
-                  ))}
-                  <a
-                    href="/dashboard/cover-letter"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-auto px-2 py-1 rounded border border-white/20 text-white/80 hover:border-[#1dff00]/40 text-xs"
-                    title="Open the Cover Letter editor in a new tab"
-                  >
-                    Edit Cover Letter
-                  </a>
+                      Edit Cover Letter
+                    </a>
+                  </div>
+                  <div className="rounded-md border border-white/10 p-2 bg-black/20">
+                    <div className="text-xs text-white/70 mb-1">Choose from saved letters</div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        className={`px-2 py-1 rounded border text-xs transition ${!selectedCoverId ? 'border-[#1dff00] text-[#1dff00] bg-[#1dff0033]' : 'border-white/20 text-white/80 hover:border-[#1dff00]/40'}`}
+                        onClick={() => onSelectCoverId && onSelectCoverId(null)}
+                        title="Use current draft"
+                      >Current Draft</button>
+                      {coverLibrary.map((e) => (
+                        <button
+                          key={e.id}
+                          className={`px-2 py-1 rounded border text-xs transition ${selectedCoverId === e.id ? 'border-[#1dff00] text-[#1dff00] bg-[#1dff0033]' : 'border-white/20 text-white/80 hover:border-[#1dff00]/40'}`}
+                          onClick={() => onSelectCoverId && onSelectCoverId(e.id)}
+                          title={`Updated ${new Date(e.updatedAt).toLocaleString()}`}
+                        >{e.name}</button>
+                      ))}
+                    </div>
+                    <div className="mt-2 max-h-40 overflow-auto rounded border border-white/10 bg-white/5 p-2 text-xs text-white/80 whitespace-pre-wrap">
+                      {(() => {
+                        try {
+                          let parsed: any = null;
+                          if (selectedCoverId) {
+                            const entry = coverLibrary.find((x) => x.id === selectedCoverId);
+                            if (entry) parsed = (entry as any).data;
+                          } else {
+                            const raw = localStorage.getItem('jr.coverLetter.draft.v2');
+                            if (raw) parsed = JSON.parse(raw);
+                          }
+                          if (!parsed) return <span className="opacity-60">No draft found</span>;
+                          const paras: string[] = Array.isArray(parsed?.paragraphs) ? parsed.paragraphs.filter((p: any) => typeof p === 'string' && p.trim()) : [];
+                          const body: string = (paras.length ? paras.join("\n\n") : (parsed?.content || '')).trim();
+                          const sal: string = (parsed?.salutation || '').trim();
+                          const close: string = (parsed?.closing || '').trim();
+                          const sig: string = (parsed?.signatureName || parsed?.senderName || '').trim();
+                          const headerParts: string[] = [];
+                          if (parsed?.senderName) headerParts.push(parsed.senderName);
+                          if (parsed?.senderPhone) headerParts.push(parsed.senderPhone);
+                          if (parsed?.senderEmail) headerParts.push(parsed.senderEmail);
+                          if (parsed?.senderAddress) headerParts.push(parsed.senderAddress);
+                          const dateLine = parsed?.date ? new Date(parsed.date).toLocaleDateString() : '';
+                          const recipientLine = [parsed?.recipient, parsed?.recipientTitle].filter(Boolean).join(', ').trim();
+                          const companyLine = (parsed?.company || '').trim();
+                          const recipientAddr = (parsed?.recipientAddress || '').trim();
+                          const subjectLine = (parsed?.subject || '').trim();
+                          const lines: string[] = [];
+                          if (headerParts.length) { lines.push(...headerParts, ''); }
+                          if (dateLine) { lines.push(dateLine, ''); }
+                          if (recipientLine || companyLine || recipientAddr) {
+                            if (recipientLine) lines.push(recipientLine);
+                            if (companyLine) lines.push(companyLine);
+                            if (recipientAddr) lines.push(recipientAddr);
+                            lines.push('');
+                          }
+                          if (subjectLine) { lines.push(`Subject: ${subjectLine}`, ''); }
+                          if (sal) { lines.push(sal, ''); }
+                          if (body) { lines.push(body, ''); }
+                          if (close) { lines.push(close); }
+                          if (sig) { lines.push(sig); }
+                          return lines.join("\n").trim();
+                        } catch {
+                          return <span className="opacity-60">Unable to preview letter</span>;
+                        }
+                      })()}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
