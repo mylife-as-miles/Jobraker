@@ -565,6 +565,22 @@ export const JobPage = (): JSX.Element => {
     }
   }, [info, toastError]);
 
+  // Cover letter library selection (available before quickApply uses it)
+  type LibEntry = { id: string; name: string; updatedAt: string; data: any };
+  const [coverLibrary, setCoverLibrary] = useState<LibEntry[]>([]);
+  const [selectedCoverId, setSelectedCoverId] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('jr.coverLetters.library.v1');
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) setCoverLibrary(arr);
+      }
+      const defId = localStorage.getItem('jr.coverLetters.defaultId');
+      if (defId) setSelectedCoverId(defId);
+    } catch {}
+  }, []);
+
   const quickApply = useCallback(async (job: Job) => {
   // NOTE: This function may receive a resume URL override via closure (state)
     if (applyingJobId) return; // prevent parallel
@@ -590,9 +606,18 @@ export const JobPage = (): JSX.Element => {
       // If a cover letter has been requested, hint it in additional info
       if (selectedCoverAttachRef.current) {
         const tmpl = selectedCoverTemplateRef.current || 'Standard';
+        let letterLabel: string | null = null;
+        try {
+          if (selectedCoverId) {
+            const entry = (coverLibrary || []).find((e) => e.id === selectedCoverId);
+            if (entry?.name) letterLabel = `saved:${entry.name}`;
+          } else {
+            letterLabel = 'draft';
+          }
+        } catch {}
         payload.additional_information = [
           payload.additional_information,
-          `Attach Cover Letter: yes (template: ${tmpl})`
+          `Attach Cover Letter: yes (template: ${tmpl}${letterLabel ? `, letter: ${letterLabel}` : ''})`
         ].filter(Boolean).join(' | ');
         // Prefer selected saved letter; fallback to current draft
         const materializeLetter = (parsed: any) => {
@@ -659,7 +684,7 @@ export const JobPage = (): JSX.Element => {
           appUrl ? `Skyvern: ${appUrl}` : null,
           runId ? `Run: ${runId}` : null,
           workflowId ? `Workflow: ${workflowId}` : null,
-          selectedCoverAttachRef.current ? `Cover Letter: ${selectedCoverTemplateRef.current || 'Standard'}` : null,
+          selectedCoverAttachRef.current ? `Cover Letter: ${(selectedCoverTemplateRef.current || 'Standard')}${(selectedCoverId ? (()=>{const e=(coverLibrary||[]).find(x=>x.id===selectedCoverId);return e?` (saved: ${e.name})`:''})() : ' (draft)')}` : null,
         ].filter(Boolean).join(' | ');
 
         const { data: inserted, error } = await (supabase as any)
@@ -758,21 +783,6 @@ export const JobPage = (): JSX.Element => {
   const [selectedCoverTemplate, setSelectedCoverTemplate] = useState<string | null>('Standard');
   const selectedCoverAttachRef = useRef<boolean>(false);
   const selectedCoverTemplateRef = useRef<string | null>(null);
-  // Cover letter library selection
-  type LibEntry = { id: string; name: string; updatedAt: string; data: any };
-  const [coverLibrary, setCoverLibrary] = useState<LibEntry[]>([]);
-  const [selectedCoverId, setSelectedCoverId] = useState<string | null>(null);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('jr.coverLetters.library.v1');
-      if (raw) {
-        const arr = JSON.parse(raw);
-        if (Array.isArray(arr)) setCoverLibrary(arr);
-      }
-      const defId = localStorage.getItem('jr.coverLetters.defaultId');
-      if (defId) setSelectedCoverId(defId);
-    } catch {}
-  }, []);
 
   const openResumePicker = useCallback((job: Job) => {
     setJobPendingApply(job);
