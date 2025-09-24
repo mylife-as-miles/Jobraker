@@ -489,7 +489,7 @@ export const JobPage = (): JSX.Element => {
       // revert
       setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isBookmarked: job.isBookmarked } : j)));
     }
-  }, [supabase, success, toastError, info]);
+  }, [supabase, success, toastError, info, savedDrawerOpen, loadBookmarks]);
 
   // Remove bookmark by URL (used in Saved Drawer)
   const removeBookmarkByUrl = useCallback(async (url: string) => {
