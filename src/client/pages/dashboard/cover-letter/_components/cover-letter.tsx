@@ -43,11 +43,27 @@ export const CoverLetter = () => {
   const [aiLoading, setAiLoading] = useState(false);
   const [inlineEdit, setInlineEdit] = useState(false);
   const previewRef = useRef<HTMLDivElement | null>(null);
+  // Local Library for multiple cover letters
+  type LibraryEntry = { id: string; name: string; updatedAt: string; data: any };
+  const LIB_KEY = "jr.coverLetters.library.v1";
+  const LIB_DEFAULT_KEY = "jr.coverLetters.defaultId";
+  const [library, setLibrary] = useState<LibraryEntry[]>([]);
+  const [libName, setLibName] = useState("");
+  const [currentLibId, setCurrentLibId] = useState<string | null>(null);
 
   // Load/save from localStorage (keeps it functional without backend migrations)
   const STORAGE_KEY = "jr.coverLetter.draft.v2";
   useEffect(() => {
     try {
+      // Load library
+      const libRaw = localStorage.getItem(LIB_KEY);
+      if (libRaw) {
+        const arr = JSON.parse(libRaw);
+        if (Array.isArray(arr)) setLibrary(arr);
+      }
+      const defId = localStorage.getItem(LIB_DEFAULT_KEY);
+      if (defId) setCurrentLibId(defId);
+
       const rawV2 = localStorage.getItem(STORAGE_KEY);
       const rawV1 = !rawV2 ? localStorage.getItem("jr.coverLetter.draft.v1") : null; // backwards compat
       const raw = rawV2 || rawV1;
@@ -151,6 +167,24 @@ export const CoverLetter = () => {
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
         setSavedAt(payload.savedAt);
+
+        // If a library entry is active, keep it updated live
+        if (currentLibId) {
+          const libRaw = localStorage.getItem(LIB_KEY);
+          let arr: LibraryEntry[] = [];
+          if (libRaw) {
+            try {
+              const parsed = JSON.parse(libRaw);
+              if (Array.isArray(parsed)) arr = parsed;
+            } catch {}
+          }
+          const idx = arr.findIndex((e) => e.id === currentLibId);
+          if (idx !== -1) {
+            arr[idx] = { id: currentLibId, name: arr[idx].name, updatedAt: payload.savedAt!, data: payload } as LibraryEntry;
+            localStorage.setItem(LIB_KEY, JSON.stringify(arr));
+            setLibrary(arr);
+          }
+        }
       } catch {}
     }, 400);
     return () => clearTimeout(t);
@@ -229,6 +263,106 @@ export const CoverLetter = () => {
       console.error(e);
       alert("Failed to prepare PDF. Use your browser's Print to PDF as a fallback.");
     }
+  };
+  const saveToLibrary = (name?: string) => {
+    try {
+      const payload = {
+        role,
+        company,
+        jobDescription,
+        tone,
+        lengthPref,
+        senderName,
+        senderEmail,
+        senderPhone,
+        senderAddress,
+        recipient,
+        recipientTitle,
+        recipientAddress,
+        date,
+        subject,
+        salutation,
+        paragraphs,
+        closing,
+        signatureName,
+        content,
+        fontSize,
+        savedAt: new Date().toISOString(),
+      };
+      const libRaw = localStorage.getItem(LIB_KEY);
+      let arr: LibraryEntry[] = [];
+      if (libRaw) {
+        try { const parsed = JSON.parse(libRaw); if (Array.isArray(parsed)) arr = parsed; } catch {}
+      }
+      const id = currentLibId || crypto.randomUUID();
+      const entryName = (name || libName || `Letter ${arr.length + 1}`).trim();
+      const idx = arr.findIndex((e) => e.id === id);
+      const entry: LibraryEntry = { id, name: entryName || `Letter ${arr.length + 1}`, updatedAt: payload.savedAt, data: payload };
+      if (idx === -1) arr.push(entry); else arr[idx] = entry;
+      localStorage.setItem(LIB_KEY, JSON.stringify(arr));
+      setLibrary(arr);
+      setCurrentLibId(id);
+      localStorage.setItem(LIB_DEFAULT_KEY, id);
+      setLibName(entry.name);
+      success('Saved to Library', 'Cover letter saved for reuse');
+    } catch (e) {
+      console.error('saveToLibrary error', e);
+      toastError('Save failed', 'Could not save letter');
+    }
+  };
+  const loadFromLibrary = (id: string) => {
+    try {
+      const entry = (library || []).find((e) => e.id === id);
+      if (!entry) return;
+      const parsed = entry.data || {};
+      setRole(parsed?.role ?? "");
+      setCompany(parsed?.company ?? "");
+      setJobDescription(parsed?.jobDescription ?? "");
+      setTone(parsed?.tone ?? "professional");
+      setLengthPref(parsed?.lengthPref ?? "medium");
+      setSenderName(parsed?.senderName ?? "");
+      setSenderEmail(parsed?.senderEmail ?? "");
+      setSenderPhone(parsed?.senderPhone ?? "");
+      setSenderAddress(parsed?.senderAddress ?? "");
+      setRecipient(parsed?.recipient ?? "Hiring Manager");
+      setRecipientTitle(parsed?.recipientTitle ?? "");
+      setRecipientAddress(parsed?.recipientAddress ?? "");
+      setDate(parsed?.date ?? new Date().toISOString().slice(0, 10));
+      setSubject(parsed?.subject ?? "");
+      setSalutation(parsed?.salutation ?? `Dear ${parsed?.recipient ?? "Hiring Manager"},`);
+      setParagraphs(Array.isArray(parsed?.paragraphs) ? parsed.paragraphs : []);
+      setClosing(parsed?.closing ?? "Best regards,");
+      setSignatureName(parsed?.signatureName ?? parsed?.senderName ?? "");
+      setContent(parsed?.content ?? "");
+      setFontSize(parsed?.fontSize ?? 16);
+      setSavedAt(parsed?.savedAt ?? null);
+      setCurrentLibId(id);
+      setLibName(entry.name);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+    } catch {}
+  };
+  const renameLibraryEntry = (id: string, name: string) => {
+    const arr = [...library];
+    const idx = arr.findIndex((e) => e.id === id);
+    if (idx === -1) return;
+    arr[idx] = { ...arr[idx], name: name.trim() || arr[idx].name };
+    localStorage.setItem(LIB_KEY, JSON.stringify(arr));
+    setLibrary(arr);
+    if (currentLibId === id) setLibName(arr[idx].name);
+  };
+  const deleteLibraryEntry = (id: string) => {
+    const arr = (library || []).filter((e) => e.id !== id);
+    localStorage.setItem(LIB_KEY, JSON.stringify(arr));
+    setLibrary(arr);
+    if (currentLibId === id) {
+      setCurrentLibId(null);
+      setLibName("");
+    }
+  };
+  const setDefaultLibraryEntry = (id: string) => {
+    localStorage.setItem(LIB_DEFAULT_KEY, id);
+    setCurrentLibId(id);
+    success('Default set', 'This letter will be selected by default');
   };
   const aiPolish = async () => {
     if (aiLoading) return;
@@ -488,6 +622,41 @@ export const CoverLetter = () => {
         {/* Left: Controls */}
         <Card className="p-4 rounded-xl">
           <div className="grid gap-4">
+            {/* Saved Letters (Library) */}
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs opacity-70 uppercase tracking-wide">Saved Letters</label>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => saveToLibrary()}>Save</Button>
+                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => { setCurrentLibId(null); setLibName(""); }}>New</Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input value={libName} onChange={(e)=>setLibName(e.target.value)} placeholder="Name" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                <Button variant="outline" onClick={() => saveToLibrary(libName)} className="rounded-xl">Save As</Button>
+              </div>
+              {library.length > 0 ? (
+                <div className="grid gap-2 max-h-40 overflow-auto rounded-xl border border-border p-2">
+                  {library.map((e) => (
+                    <div key={e.id} className="flex items-center gap-2 text-sm">
+                      <button
+                        className={`px-2 py-1 rounded border ${currentLibId===e.id? 'border-primary text-primary' : 'border-border text-foreground/80 hover:border-primary/40'}`}
+                        onClick={() => loadFromLibrary(e.id)}
+                        title={new Date(e.updatedAt).toLocaleString()}
+                      >{e.name}</button>
+                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => {
+                        const name = prompt('Rename letter', e.name);
+                        if (name!=null) renameLibraryEntry(e.id, name);
+                      }}>Rename</Button>
+                      <Button variant="ghost" size="sm" className="h-8 px-2 text-red-500" onClick={() => deleteLibraryEntry(e.id)}>Delete</Button>
+                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => setDefaultLibraryEntry(e.id)}>Default</Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs opacity-60">No saved letters yet. Save your current draft to reuse it during applications.</p>
+              )}
+            </div>
             {/* Sender */}
             <div className="grid gap-2">
               <div className="flex items-center justify-between">

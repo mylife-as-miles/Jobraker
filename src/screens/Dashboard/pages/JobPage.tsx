@@ -744,6 +744,21 @@ export const JobPage = (): JSX.Element => {
   const [selectedCoverTemplate, setSelectedCoverTemplate] = useState<string | null>('Standard');
   const selectedCoverAttachRef = useRef<boolean>(false);
   const selectedCoverTemplateRef = useRef<string | null>(null);
+  // Cover letter library selection
+  type LibEntry = { id: string; name: string; updatedAt: string; data: any };
+  const [coverLibrary, setCoverLibrary] = useState<LibEntry[]>([]);
+  const [selectedCoverId, setSelectedCoverId] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('jr.coverLetters.library.v1');
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) setCoverLibrary(arr);
+      }
+      const defId = localStorage.getItem('jr.coverLetters.defaultId');
+      if (defId) setSelectedCoverId(defId);
+    } catch {}
+  }, []);
 
   const openResumePicker = useCallback((job: Job) => {
     setJobPendingApply(job);
