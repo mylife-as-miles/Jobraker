@@ -594,6 +594,45 @@ export const JobPage = (): JSX.Element => {
           payload.additional_information,
           `Attach Cover Letter: yes (template: ${tmpl})`
         ].filter(Boolean).join(' | ');
+        // Try to serialize saved cover letter draft into plaintext
+        try {
+          const raw = localStorage.getItem('jr.coverLetter.draft.v2');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const paras: string[] = Array.isArray(parsed?.paragraphs) ? parsed.paragraphs.filter((p: any) => typeof p === 'string' && p.trim()) : [];
+            const body: string = (paras.length ? paras.join("\n\n") : (parsed?.content || '')).trim();
+            const sal: string = (parsed?.salutation || '').trim();
+            const close: string = (parsed?.closing || '').trim();
+            const sig: string = (parsed?.signatureName || parsed?.senderName || '').trim();
+            const headerParts: string[] = [];
+            if (parsed?.senderName) headerParts.push(parsed.senderName);
+            if (parsed?.senderPhone) headerParts.push(parsed.senderPhone);
+            if (parsed?.senderEmail) headerParts.push(parsed.senderEmail);
+            if (parsed?.senderAddress) headerParts.push(parsed.senderAddress);
+            const dateLine = parsed?.date ? new Date(parsed.date).toLocaleDateString() : '';
+            const recipientLine = [parsed?.recipient, parsed?.recipientTitle].filter(Boolean).join(', ').trim();
+            const companyLine = (parsed?.company || '').trim();
+            const recipientAddr = (parsed?.recipientAddress || '').trim();
+            const subjectLine = (parsed?.subject || '').trim();
+            const lines: string[] = [];
+            if (headerParts.length) { lines.push(...headerParts, ''); }
+            if (dateLine) { lines.push(dateLine, ''); }
+            if (recipientLine || companyLine || recipientAddr) {
+              if (recipientLine) lines.push(recipientLine);
+              if (companyLine) lines.push(companyLine);
+              if (recipientAddr) lines.push(recipientAddr);
+              lines.push('');
+            }
+            if (subjectLine) { lines.push(`Subject: ${subjectLine}`, ''); }
+            if (sal) { lines.push(sal, ''); }
+            if (body) { lines.push(body, ''); }
+            if (close) { lines.push(close); }
+            if (sig) { lines.push(sig); }
+            const full = lines.join("\n").trim();
+            if (full) payload.cover_letter = full;
+          }
+        } catch {}
+        if (selectedCoverTemplateRef.current) payload.cover_letter_template = selectedCoverTemplateRef.current;
       }
       try {
         const res = await applyToJobs(payload);
@@ -2022,6 +2061,8 @@ function ResumePickerModal({
   onSelectCoverTemplate?: (tmpl: string) => void;
 }) {
   if (!open) return null;
+  let hasDraft = false;
+  try { hasDraft = !!localStorage.getItem('jr.coverLetter.draft.v2'); } catch {}
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onCancel} />
@@ -2066,7 +2107,10 @@ function ResumePickerModal({
           <div className="sm:col-span-2 mt-2">
             <div className="rounded-lg border border-white/10 p-4 bg-white/5">
               <div className="flex items-center justify-between">
-                <div className="text-white font-medium">Attach Cover Letter (Cover Page)</div>
+                <div className="text-white font-medium flex items-center gap-2">
+                  Attach Cover Letter (Cover Page)
+                  {hasDraft && <span className="text-xs text-white/60">Draft found</span>}
+                </div>
                 <button
                   onClick={() => onToggleCoverLetter && onToggleCoverLetter(!attachCoverLetter)}
                   className={`px-3 py-1 rounded-md text-sm border transition ${attachCoverLetter ? 'border-[#1dff00] text-black bg-[#1dff00]' : 'border-white/20 text-white/80 hover:border-[#1dff00]/40'}`}
@@ -2085,6 +2129,15 @@ function ResumePickerModal({
                       {tmpl}
                     </button>
                   ))}
+                  <a
+                    href="/dashboard/cover-letter"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-auto px-2 py-1 rounded border border-white/20 text-white/80 hover:border-[#1dff00]/40 text-xs"
+                    title="Open the Cover Letter editor in a new tab"
+                  >
+                    Edit Cover Letter
+                  </a>
                 </div>
               )}
             </div>

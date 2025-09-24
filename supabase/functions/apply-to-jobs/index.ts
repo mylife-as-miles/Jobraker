@@ -5,6 +5,8 @@
 //   job_urls: string[] | string(JSON array) | { sourceUrl?: string; url?: string }[],
 //   additional_information?: string,
 //   resume?: string, // e.g., s3:// or https://
+//   cover_letter?: string, // optional: plaintext cover letter content
+//   cover_letter_template?: string, // optional: template name/variant for the cover letter
 //   workflow_id?: string, // defaults to env SKYVERN_WORKFLOW_ID
 //   proxy_location?: string, // optional, forwarded to Skyvern
 //   webhook_url?: string // optional, forwarded to Skyvern
@@ -94,6 +96,8 @@ Deno.serve(async (req) => {
 
   let additional_information = typeof body?.additional_information === "string" ? body.additional_information : "";
   let resume = typeof body?.resume === "string" ? body.resume : "";
+  const cover_letter = typeof body?.cover_letter === "string" ? body.cover_letter : undefined;
+  const cover_letter_template = typeof body?.cover_letter_template === "string" ? body.cover_letter_template : undefined;
   const proxy_location = typeof body?.proxy_location === "string" ? body.proxy_location : undefined;
   // Allow override, else use our function URL if configured
   let webhook_url = typeof body?.webhook_url === "string" ? body.webhook_url : undefined;
@@ -184,6 +188,8 @@ Deno.serve(async (req) => {
       additional_information,
       resume,
     };
+    if (cover_letter && cover_letter.trim()) parameters.cover_letter = cover_letter;
+    if (cover_letter_template && cover_letter_template.trim()) parameters.cover_letter_template = cover_letter_template;
   const skyvernRun: Record<string, any> = { workflow_id, parameters };
     if (proxy_location) skyvernRun.proxy_location = proxy_location;
     if (!webhook_url) {
