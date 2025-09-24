@@ -171,6 +171,10 @@ export const JobPage = (): JSX.Element => {
       return new Set(Array.isArray(arr) ? arr : []);
     } catch { return new Set(); }
   });
+  // Saved-only toggle
+  const [savedOnly, setSavedOnly] = useState<boolean>(() => {
+    try { return localStorage.getItem('job_saved_only') === '1'; } catch { return false; }
+  });
   // Salary and time filters
   const [minSalary, setMinSalary] = useState<string>("");
   const [maxSalary, setMaxSalary] = useState<string>("");
@@ -732,6 +736,9 @@ export const JobPage = (): JSX.Element => {
   useEffect(() => {
     try { localStorage.setItem('job_quick_presets', JSON.stringify(Array.from(selectedPresets))); } catch {}
   }, [selectedPresets]);
+  useEffect(() => {
+    try { localStorage.setItem('job_saved_only', savedOnly ? '1' : '0'); } catch {}
+  }, [savedOnly]);
 
   // Toggle a preset and update corresponding filters conservatively
   const togglePreset = (key: 'remote' | 'gt100k' | 'last7') => {
@@ -764,6 +771,7 @@ export const JobPage = (): JSX.Element => {
       const min = u.searchParams.get('minSalary');
       const max = u.searchParams.get('maxSalary');
       const posted = u.searchParams.get('posted');
+      const saved = u.searchParams.get('saved');
       if (q) setSearchQuery(q);
       if (loc) setSelectedLocation(loc);
       if (type) setSelectedType(type);
@@ -772,6 +780,7 @@ export const JobPage = (): JSX.Element => {
       if (min) setMinSalary(min);
       if (max) setMaxSalary(max);
       if (posted) setPostedSince(posted);
+      if (saved === '1' || saved === 'true') setSavedOnly(true);
     } catch {}
   }, []);
 
@@ -791,10 +800,11 @@ export const JobPage = (): JSX.Element => {
       setOrDel('minSalary', minSalary);
       setOrDel('maxSalary', maxSalary);
       setOrDel('posted', postedSince);
+      if (savedOnly) sp.set('saved', '1'); else sp.delete('saved');
       const next = u.toString();
       if (next !== window.location.href) window.history.replaceState({}, '', next);
     } catch {}
-  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, selectedReq, selectedBen, minSalary, maxSalary, postedSince]);
+  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, selectedReq, selectedBen, minSalary, maxSalary, postedSince, savedOnly]);
 
   // Derived chip counts
   const activeFacetCount = useMemo(() => selectedReq.size + selectedBen.size, [selectedReq, selectedBen]);
@@ -840,7 +850,8 @@ export const JobPage = (): JSX.Element => {
 
   const filteredJobs = jobs.filter(job => {
     const matchesType = selectedType === "All" || job.type === selectedType;
-    return matchesType;
+    const matchesSaved = !savedOnly || job.isBookmarked;
+    return matchesType && matchesSaved;
   });
 
   const sortedJobs = (() => {
@@ -1062,6 +1073,14 @@ export const JobPage = (): JSX.Element => {
               className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('last7') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}
             >
               Last 7 days
+            </button>
+            <button
+              type="button"
+              onClick={() => setSavedOnly(s => !s)}
+              className={`px-2 py-1 rounded border text-xs transition ${savedOnly ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}
+              title="Show only saved jobs"
+            >
+              Saved only
             </button>
           </div>
           {/* Salary & Time filters row */}
@@ -1696,6 +1715,7 @@ export const JobPage = (): JSX.Element => {
                     <button type="button" onClick={() => togglePreset('remote')} className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('remote') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>Remote</button>
                     <button type="button" onClick={() => togglePreset('gt100k')} className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('gt100k') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>{`>$100k`}</button>
                     <button type="button" onClick={() => togglePreset('last7')} className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('last7') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>Last 7 days</button>
+                    <button type="button" onClick={() => setSavedOnly(s => !s)} className={`px-2 py-1 rounded border text-xs transition ${savedOnly ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>Saved only</button>
                   </div>
                 </div>
                 {/* Salary & posted */}
