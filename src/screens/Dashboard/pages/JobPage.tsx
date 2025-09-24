@@ -154,6 +154,9 @@ export const JobPage = (): JSX.Element => {
   const [selectedReq, setSelectedReq] = useState<Set<string>>(new Set());
   const [selectedBen, setSelectedBen] = useState<Set<string>>(new Set());
   const [facetLoading, setFacetLoading] = useState(false);
+  // Facet panel ref for header button scroll
+  const facetPanelRef = useRef<HTMLDivElement | null>(null);
+  const [facetPulse, setFacetPulse] = useState(false);
   // Salary and time filters
   const [minSalary, setMinSalary] = useState<string>("");
   const [maxSalary, setMaxSalary] = useState<string>("");
@@ -161,8 +164,7 @@ export const JobPage = (): JSX.Element => {
   const { success, error: toastError, info } = useToast();
   const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
   const [readiness, setReadiness] = useState<{ profile: boolean; resume: boolean } | null>(null);
-  // Display density
-  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
+  // Display density removed (simplified UI)
 
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const debouncedSelectedLocation = useDebounce(selectedLocation, 500);
@@ -469,6 +471,14 @@ export const JobPage = (): JSX.Element => {
       if (selectedResumeSignedUrl.current) {
         payload.resume = selectedResumeSignedUrl.current;
       }
+      // If a cover letter has been requested, hint it in additional info
+      if (selectedCoverAttachRef.current) {
+        const tmpl = selectedCoverTemplateRef.current || 'Standard';
+        payload.additional_information = [
+          payload.additional_information,
+          `Attach Cover Letter: yes (template: ${tmpl})`
+        ].filter(Boolean).join(' | ');
+      }
       try {
         const res = await applyToJobs(payload);
         const runId = (res as any)?.skyvern?.id || (res as any)?.skyvern?.run_id || null;
@@ -480,6 +490,7 @@ export const JobPage = (): JSX.Element => {
           appUrl ? `Skyvern: ${appUrl}` : null,
           runId ? `Run: ${runId}` : null,
           workflowId ? `Workflow: ${workflowId}` : null,
+          selectedCoverAttachRef.current ? `Cover Letter: ${selectedCoverTemplateRef.current || 'Standard'}` : null,
         ].filter(Boolean).join(' | ');
 
         const { data: inserted, error } = await (supabase as any)
@@ -573,6 +584,11 @@ export const JobPage = (): JSX.Element => {
   const [jobPendingApply, setJobPendingApply] = useState<Job | null>(null);
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
   const selectedResumeSignedUrl = useRef<string | null>(null);
+  // Cover letter (cover page) attach options
+  const [attachCoverLetter, setAttachCoverLetter] = useState(false);
+  const [selectedCoverTemplate, setSelectedCoverTemplate] = useState<string | null>('Standard');
+  const selectedCoverAttachRef = useRef<boolean>(false);
+  const selectedCoverTemplateRef = useRef<string | null>(null);
 
   const openResumePicker = useCallback((job: Job) => {
     setJobPendingApply(job);
@@ -607,15 +623,20 @@ export const JobPage = (): JSX.Element => {
           else info?.('Using latest resume', 'Could not sign selected; falling back');
         }
       }
+      // Preserve cover letter selection across apply
+      selectedCoverAttachRef.current = !!attachCoverLetter;
+      selectedCoverTemplateRef.current = selectedCoverTemplate;
       setResumePickerOpen(false);
       // Trigger apply with possible override
       await quickApply(jobPendingApply);
+      // Note: cover selection is passed inside quickApply payload below
     } finally {
       // reset override to avoid leaking into other applies
       setTimeout(() => { selectedResumeSignedUrl.current = null; }, 0);
+      setTimeout(() => { selectedCoverAttachRef.current = false; selectedCoverTemplateRef.current = null; }, 0);
       setJobPendingApply(null);
     }
-  }, [jobPendingApply, selectedResumeId, resumeOptions, getSignedUrl, quickApply, info]);
+  }, [jobPendingApply, selectedResumeId, resumeOptions, getSignedUrl, quickApply, info, attachCoverLetter, selectedCoverTemplate]);
 
   const shareJob = useCallback(async (job: Job) => {
     try {
@@ -844,19 +865,20 @@ export const JobPage = (): JSX.Element => {
                 )}
               </div>
             </div>
-      <div className="flex gap-2 sm:gap-3">
+            <div className="flex gap-2 sm:gap-3">
               <Button 
                 variant="outline" 
-        className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                onClick={() => {
+                  if (facetPanelRef.current) {
+                    facetPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    setFacetPulse(true);
+                    setTimeout(() => setFacetPulse(false), 1200);
+                  }
+                }}
+                className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
               >
-        <Filter className="w-4 h-4 mr-2" />
-        {activeFacetCount > 0 ? `Filters (${activeFacetCount})` : 'Filters'}
-              </Button>
-              <Button 
-                className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
-              >
-                <Bookmark className="w-4 h-4 mr-2" />
-                Saved Jobs
+                <Filter className="w-4 h-4 mr-2" />
+                {activeFacetCount > 0 ? `Filters (${activeFacetCount})` : 'Filters'}
               </Button>
             </div>
           </div>
@@ -977,27 +999,6 @@ export const JobPage = (): JSX.Element => {
               >
                 Clear all filters
               </Button>
-              {/* Density toggle */}
-              <div className="ml-auto hidden lg:flex items-center gap-1" role="radiogroup" aria-label="View density">
-                <Button
-                  variant={density === 'comfortable' ? 'ghost' : 'ghost'}
-                  size="sm"
-                  aria-pressed={density === 'comfortable'}
-                  onClick={() => setDensity('comfortable')}
-                  className={density === 'comfortable' ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90' : 'text-[#ffffffb3] hover:text-white'}
-                >
-                  Comfortable
-                </Button>
-                <Button
-                  variant={density === 'compact' ? 'ghost' : 'ghost'}
-                  size="sm"
-                  aria-pressed={density === 'compact'}
-                  onClick={() => setDensity('compact')}
-                  className={density === 'compact' ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90' : 'text-[#ffffffb3] hover:text-white'}
-                >
-                  Compact
-                </Button>
-              </div>
             </div>
           </div>
         </Card>
@@ -1007,7 +1008,7 @@ export const JobPage = (): JSX.Element => {
           {/* Job List */}
           <div className="space-y-4" role="region" aria-label="Filters and results list">
             {/* Facet Panel */}
-            <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4">
+            <Card ref={facetPanelRef} className={`bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border backdrop-blur-[25px] p-4 ${facetPulse ? 'border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.3)]' : 'border-[#ffffff15]'}` }>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-white font-semibold text-sm">Facet Filters</h3>
                 <div className="flex items-center gap-2">
@@ -1121,7 +1122,7 @@ export const JobPage = (): JSX.Element => {
               <div className="space-y-4">
                 {Array.from({ length: pageSize }).map((_, i) => (
                   <div key={i} className="animate-pulse">
-                    <Card className={`bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] ${density === 'compact' ? 'p-3' : 'p-4 sm:p-6'}`}>
+                    <Card className={`bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6`}>
                       <div className="flex items-start gap-3">
                         <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#ffffff1a] rounded-xl" />
                         <div className="flex-1 space-y-2">
@@ -1179,7 +1180,7 @@ export const JobPage = (): JSX.Element => {
                 transition={{ duration: 0.4, delay: index * 0.1 }}
                 whileHover={{ x: 4 }}
               >
-                <Card role="listitem" aria-label={`${job.title} at ${job.company}`} className={`bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border backdrop-blur-[25px] ${density === 'compact' ? 'p-3' : 'p-4 sm:p-6'} transition-all duration-300 hover:shadow-lg ${
+                <Card role="listitem" aria-label={`${job.title} at ${job.company}`} className={`bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border backdrop-blur-[25px] p-4 sm:p-6 transition-all duration-300 hover:shadow-lg ${
                   selectedJob === job.id
                     ? "border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.3)]"
                     : "border-[#ffffff15] hover:border-[#1dff00]/50"
@@ -1515,6 +1516,10 @@ export const JobPage = (): JSX.Element => {
           onSelect={(id) => setSelectedResumeId(id)}
           onCancel={cancelResumePicker}
           onConfirm={confirmResumePicker}
+          attachCoverLetter={attachCoverLetter}
+          onToggleCoverLetter={(v) => setAttachCoverLetter(v)}
+          selectedCoverTemplate={selectedCoverTemplate}
+          onSelectCoverTemplate={(tmpl) => setSelectedCoverTemplate(tmpl)}
         />
       </div>
     </div>
@@ -1529,6 +1534,10 @@ function ResumePickerModal({
   onSelect,
   onCancel,
   onConfirm,
+  attachCoverLetter = false,
+  onToggleCoverLetter,
+  selectedCoverTemplate = 'Standard',
+  onSelectCoverTemplate,
 }: {
   open: boolean;
   resumes: Array<{ id: string; name: string; template: string | null; updated_at: string; is_favorite?: boolean }>;
@@ -1536,6 +1545,10 @@ function ResumePickerModal({
   onSelect: (id: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
+  attachCoverLetter?: boolean;
+  onToggleCoverLetter?: (v: boolean) => void;
+  selectedCoverTemplate?: string | null;
+  onSelectCoverTemplate?: (tmpl: string) => void;
 }) {
   if (!open) return null;
   return (
@@ -1578,6 +1591,33 @@ function ResumePickerModal({
               </button>
             );
           })}
+          {/* Cover Letter Section */}
+          <div className="sm:col-span-2 mt-2">
+            <div className="rounded-lg border border-white/10 p-4 bg-white/5">
+              <div className="flex items-center justify-between">
+                <div className="text-white font-medium">Attach Cover Letter (Cover Page)</div>
+                <button
+                  onClick={() => onToggleCoverLetter && onToggleCoverLetter(!attachCoverLetter)}
+                  className={`px-3 py-1 rounded-md text-sm border transition ${attachCoverLetter ? 'border-[#1dff00] text-black bg-[#1dff00]' : 'border-white/20 text-white/80 hover:border-[#1dff00]/40'}`}
+                >
+                  {attachCoverLetter ? 'Attached' : 'Attach'}
+                </button>
+              </div>
+              {attachCoverLetter && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {['Standard','Modern','Elegant'].map(tmpl => (
+                    <button
+                      key={tmpl}
+                      onClick={() => onSelectCoverTemplate && onSelectCoverTemplate(tmpl)}
+                      className={`px-2 py-1 rounded border text-xs transition ${selectedCoverTemplate === tmpl ? 'border-[#1dff00] text-[#1dff00] bg-[#1dff0033]' : 'border-white/20 text-white/80 hover:border-[#1dff00]/40'}`}
+                    >
+                      {tmpl}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         <div className="px-5 py-4 border-t border-white/10 flex items-center justify-end gap-3">
           <button onClick={onCancel} className="px-3 py-2 rounded-md text-white/80 hover:text-white">Cancel</button>
