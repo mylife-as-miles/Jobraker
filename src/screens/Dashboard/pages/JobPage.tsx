@@ -808,6 +808,12 @@ export const JobPage = (): JSX.Element => {
 
   // Derived chip counts
   const activeFacetCount = useMemo(() => selectedReq.size + selectedBen.size, [selectedReq, selectedBen]);
+  // Non-facet filters state helpers
+  const hasType = selectedType !== 'All';
+  const hasMin = !!minSalary;
+  const hasMax = !!maxSalary;
+  const hasPosted = !!postedSince;
+  const hasSavedOnly = !!savedOnly;
 
   const toggleReq = (value: string) => {
     const next = new Set(selectedReq);
@@ -1152,6 +1158,44 @@ export const JobPage = (): JSX.Element => {
           </div>
         </Card>
 
+        {/* Active Filters (non-facet) */}
+        {(hasType || hasMin || hasMax || hasPosted || hasSavedOnly) && (
+          <div className="mb-4 flex items-center gap-2 flex-wrap">
+            <span className="text-xs uppercase tracking-wide text-[#ffffff80] mr-1">Active:</span>
+            {hasType && (
+              <button onClick={() => setSelectedType('All')} className="px-2 py-1 rounded border border-white/20 bg-white/5 text-xs text-white/80 hover:border-[#1dff00]/40 group">
+                Type: <span className="ml-1 text-white">{selectedType}</span>
+                <span className="ml-2 text-white/60 group-hover:text-white">×</span>
+              </button>
+            )}
+            {hasMin && (
+              <button onClick={() => setMinSalary('')} className="px-2 py-1 rounded border border-white/20 bg-white/5 text-xs text-white/80 hover:border-[#1dff00]/40 group">
+                Min: <span className="ml-1 text-white">${minSalary}</span>
+                <span className="ml-2 text-white/60 group-hover:text-white">×</span>
+              </button>
+            )}
+            {hasMax && (
+              <button onClick={() => setMaxSalary('')} className="px-2 py-1 rounded border border-white/20 bg-white/5 text-xs text-white/80 hover:border-[#1dff00]/40 group">
+                Max: <span className="ml-1 text-white">${maxSalary}</span>
+                <span className="ml-2 text-white/60 group-hover:text-white">×</span>
+              </button>
+            )}
+            {hasPosted && (
+              <button onClick={() => setPostedSince('')} className="px-2 py-1 rounded border border-white/20 bg-white/5 text-xs text-white/80 hover:border-[#1dff00]/40 group">
+                Posted: <span className="ml-1 text-white">Last {postedSince} days</span>
+                <span className="ml-2 text-white/60 group-hover:text-white">×</span>
+              </button>
+            )}
+            {hasSavedOnly && (
+              <button onClick={() => setSavedOnly(false)} className="px-2 py-1 rounded border border-white/20 bg-white/5 text-xs text-white/80 hover:border-[#1dff00]/40 group" title="Show all jobs">
+                Saved only
+                <span className="ml-2 text-white/60 group-hover:text-white">×</span>
+              </button>
+            )}
+            <button onClick={clearAllFilters} className="ml-2 text-xs text-[#1dff00] hover:underline">Clear all</button>
+          </div>
+        )}
+
         {/* Job List and Details */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8" aria-label="Results and details">
           {/* Job List */}
@@ -1306,11 +1350,16 @@ export const JobPage = (): JSX.Element => {
                 <Briefcase className="w-14 h-14 text-[#ffffff40] mx-auto mb-4" />
                 <h3 className="text-xl font-medium text-white mb-2">No results</h3>
                 <p className="text-[#ffffff80] mb-4">Try broadening your search or clearing filters.</p>
-                <div className="flex items-center justify-center gap-2">
+                <div className="flex items-center justify-center gap-2 flex-wrap">
                   <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={() => { setSearchQuery(''); setSelectedLocation(''); }}>
                     Reset query
                   </Button>
                   <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={clearAllFilters}>Clear all filters</Button>
+                  {hasSavedOnly && (
+                    <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={() => setSavedDrawerOpen(true)}>
+                      Open Saved jobs
+                    </Button>
+                  )}
                 </div>
               </Card>
             )}
