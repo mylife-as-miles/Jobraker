@@ -27,24 +27,12 @@ import { createClient } from "../../lib/supabaseClient";
 
 // Import sub-page components
 import { OverviewPage } from "./pages/OverviewPage";
-import { ChatPage } from "./pages/ChatPage";
-import { ResumesPage } from "@/client/pages/dashboard/resumes/page";
-import NewResumeRedirect from "@/client/pages/dashboard/resumes/new";
 import { CoverLetterPage } from "@/client/pages/dashboard/cover-letter/page";
 import { JobPage } from "./pages/JobPage";
 import { ApplicationPage } from "./pages/ApplicationPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { NotificationPage } from "./pages/NotificationPage";
 import ProfilePage from "./pages/ProfilePage";
-// Client app providers to support ResumesPage (react-query, helmet, locale, theme, etc.)
-import { HelmetProvider } from "react-helmet-async";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { TooltipProvider } from "@reactive-resume/ui";
-import { LocaleProvider } from "@/client/providers/locale";
-import { ThemeProvider } from "@/client/providers/theme";
-import { DialogProvider } from "@/client/providers/dialog";
-import { helmetContext } from "@/client/constants/helmet";
-import { queryClient } from "@/client/libs/query-client";
 
 type DashboardPage = 
   | "overview" 
@@ -91,10 +79,10 @@ export const Dashboard = (): JSX.Element => {
     const normalized = segment === "resumes" ? "resume" : (segment as DashboardPage);
     return pages.includes(normalized) ? normalized : "overview";
   }, [location.pathname]);
-  const resumeSubRoute = useMemo(() => {
-    const parts = location.pathname.split("/");
-    return (parts[3] || "").toLowerCase(); // e.g., /dashboard/resumes/new -> "new"
-  }, [location.pathname]);
+  // const resumeSubRoute = useMemo(() => {
+  //   const parts = location.pathname.split("/");
+  //   return (parts[3] || "").toLowerCase();
+  // }, [location.pathname]);
 
   const { profile } = useProfileSettings();
   const supabase = useMemo(() => createClient(), []);
