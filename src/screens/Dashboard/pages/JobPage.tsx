@@ -1051,7 +1051,7 @@ export const JobPage = (): JSX.Element => {
               >
                 <Bookmark className="w-4 h-4 mr-2" />
                 Saved
-                {savedItems.map((it) => (
+                {savedItems.length > 0 && (
                   <span className="ml-2 inline-flex items-center justify-center text-xs rounded px-1.5 py-0.5 bg-[#1dff00]/20 text-[#1dff00] border border-[#1dff00]/40">{savedItems.length}</span>
                 )}
               </Button>
@@ -1066,82 +1066,23 @@ export const JobPage = (): JSX.Element => {
             <div className="lg:col-span-2 relative">
               <label htmlFor="job-search" className="sr-only">Search jobs</label>
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
-                          <button
-                            onClick={() => toggleSavedDetails(it.source_url)}
-                            className="px-2 py-1 rounded border border-white/20 text-white/80 hover:border-[#1dff00]/40 text-xs"
-                          >
-                            {savedDetails[it.source_url]?.expanded ? 'Hide details' : 'View details'}
-                          </button>
               <Input
                 id="job-search"
                 name="job-search"
                 placeholder="Search jobs, companies..."
-                              if (job) {
-                                setSelectedJob(job.id);
-                                openResumePicker(job);
-                              } else {
-                                const row = savedDetails[it.source_url]?.row;
-                                if (row) {
-                                  const temp = listingRowToJob(row);
-                                  // apply directly using details
-                                  openResumePicker(temp);
-                                } else {
-                                  window.open(it.source_url, '_blank', 'noopener,noreferrer');
-                                }
-                              }
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
+              />
+            </div>
+            
+            {/* Location Filter */}
             <div className="relative">
               <label htmlFor="job-location" className="sr-only">Location</label>
               <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
               <Input
                 id="job-location"
                 name="job-location"
-                        {savedDetails[it.source_url]?.expanded && (
-                          <div className="mt-3 rounded border border-white/10 bg-white/5 p-3 text-sm">
-                            {savedDetails[it.source_url]?.loading && (
-                              <div className="text-white/70">Loading details…</div>
-                            )}
-                            {!!savedDetails[it.source_url]?.error && (
-                              <div className="text-red-300">{savedDetails[it.source_url]?.error}</div>
-                            )}
-                            {savedDetails[it.source_url]?.row && (() => {
-                              const r: any = savedDetails[it.source_url]!.row;
-                              const salaryStr = (typeof r.salary_min === 'number' || typeof r.salary_max === 'number')
-                                ? `$${r.salary_min ?? ''}${(r.salary_min && r.salary_max) ? ' - ' : ''}${r.salary_max ?? ''}${r.salary_period ? ` / ${r.salary_period}` : ''}`
-                                : 'N/A';
-                              return (
-                                <div className="space-y-2">
-                                  <div className="flex flex-wrap items-center gap-3 text-white/80">
-                                    {r.location && <span className="px-2 py-0.5 rounded border border-white/15 bg-white/5">{r.location}</span>}
-                                    {r.work_type && <span className="px-2 py-0.5 rounded border border-white/15 bg-white/5">{r.work_type}</span>}
-                                    <span className="px-2 py-0.5 rounded border border-white/15 bg-white/5">Salary: {salaryStr}</span>
-                                    {r.posted_at && <span className="px-2 py-0.5 rounded border border-white/15 bg-white/5">Posted {new Date(r.posted_at).toLocaleDateString()}</span>}
-                                  </div>
-                                  <div className="prose prose-invert max-w-none text-white/80">
-                                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(r.full_job_description || '') }} />
-                                  </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    {Array.isArray(r.requirements) && r.requirements.length > 0 && (
-                                      <div>
-                                        <div className="text-white font-medium mb-1">Requirements</div>
-                                        <ul className="list-disc list-inside text-white/80 space-y-1">
-                                          {r.requirements.slice(0, 6).map((x: string, idx: number) => <li key={idx}>{x}</li>)}
-                                        </ul>
-                                      </div>
-                                    )}
-                                    {Array.isArray(r.benefits) && r.benefits.length > 0 && (
-                                      <div>
-                                        <div className="text-white font-medium mb-1">Benefits</div>
-                                        <ul className="list-disc list-inside text-white/80 space-y-1">
-                                          {r.benefits.slice(0, 6).map((x: string, idx: number) => <li key={idx}>{x}</li>)}
-                                        </ul>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        )}
                 placeholder="Location..."
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
@@ -1973,6 +1914,7 @@ export const JobPage = (): JSX.Element => {
                         <div className="mt-3 flex items-center gap-2 flex-wrap">
                           <a href={it.source_url} target="_blank" rel="noopener noreferrer nofollow" className="px-2 py-1 rounded border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff0033] hover:bg-[#1dff004d] text-xs">Open posting</a>
                           <button onClick={() => removeBookmarkByUrl(it.source_url)} className="px-2 py-1 rounded border border-red-400/40 text-red-300 bg-red-500/10 hover:bg-red-500/20 text-xs">Remove</button>
+                          <button onClick={() => toggleSavedDetails(it.source_url)} className="px-2 py-1 rounded border border-white/20 text-white/80 hover:border-[#1dff00]/40 text-xs">{savedDetails[it.source_url]?.expanded ? 'Hide details' : 'View details'}</button>
                           {/* Try to locate job in current list to quick-apply */}
                           <button
                             onClick={() => {
@@ -1981,33 +1923,67 @@ export const JobPage = (): JSX.Element => {
                                 setSelectedJob(job.id);
                                 openResumePicker(job);
                               } else {
-                                // If not in current list, open posting so user can apply
-                                window.open(it.source_url, '_blank', 'noopener,noreferrer');
+                                const row = savedDetails[it.source_url]?.row;
+                                if (row) {
+                                  const temp = listingRowToJob(row);
+                                  openResumePicker(temp);
+                                } else {
+                                  window.open(it.source_url, '_blank', 'noopener,noreferrer');
+                                }
                               }
                             }}
                             className="px-2 py-1 rounded bg-[#1dff00] text-black hover:bg-[#1dff00]/90 text-xs"
                           >
                             Apply Now
                           </button>
-                          <button
-                            onClick={() => {
-                              const job = jobs.find(j => j.sourceUrl === it.source_url);
-                              if (job) {
-                                setSelectedJob(job.id);
-                                setSavedDrawerOpen(false);
-                                try {
-                                  const el = document.querySelector('[aria-label="Results and details"]') as HTMLElement | null;
-                                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                } catch {}
-                              } else {
-                                window.open(it.source_url, '_blank', 'noopener,noreferrer');
-                              }
-                            }}
-                            className="px-2 py-1 rounded border border-white/20 text-white/80 hover:border-[#1dff00]/40 text-xs"
-                          >
-                            View details
-                          </button>
                         </div>
+                        {savedDetails[it.source_url]?.expanded && (
+                          <div className="mt-3 rounded border border-white/10 bg-white/5 p-3 text-sm">
+                            {savedDetails[it.source_url]?.loading && (
+                              <div className="text-white/70">Loading details…</div>
+                            )}
+                            {!!savedDetails[it.source_url]?.error && (
+                              <div className="text-red-300">{savedDetails[it.source_url]?.error}</div>
+                            )}
+                            {savedDetails[it.source_url]?.row && (() => {
+                              const r: any = savedDetails[it.source_url]!.row;
+                              const salaryStr = (typeof r.salary_min === 'number' || typeof r.salary_max === 'number')
+                                ? `$${r.salary_min ?? ''}${(r.salary_min && r.salary_max) ? ' - ' : ''}${r.salary_max ?? ''}${r.salary_period ? ` / ${r.salary_period}` : ''}`
+                                : 'N/A';
+                              return (
+                                <div className="space-y-2">
+                                  <div className="flex flex-wrap items-center gap-3 text-white/80">
+                                    {r.location && <span className="px-2 py-0.5 rounded border border-white/15 bg-white/5">{r.location}</span>}
+                                    {r.work_type && <span className="px-2 py-0.5 rounded border border-white/15 bg-white/5">{r.work_type}</span>}
+                                    <span className="px-2 py-0.5 rounded border border-white/15 bg-white/5">Salary: {salaryStr}</span>
+                                    {r.posted_at && <span className="px-2 py-0.5 rounded border border-white/15 bg-white/5">Posted {new Date(r.posted_at).toLocaleDateString()}</span>}
+                                  </div>
+                                  <div className="prose prose-invert max-w-none text-white/80">
+                                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(r.full_job_description || '') }} />
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {Array.isArray(r.requirements) && r.requirements.length > 0 && (
+                                      <div>
+                                        <div className="text-white font-medium mb-1">Requirements</div>
+                                        <ul className="list-disc list-inside text-white/80 space-y-1">
+                                          {r.requirements.slice(0, 6).map((x: string, idx: number) => <li key={idx}>{x}</li>)}
+                                        </ul>
+                                      </div>
+                                    )}
+                                    {Array.isArray(r.benefits) && r.benefits.length > 0 && (
+                                      <div>
+                                        <div className="text-white font-medium mb-1">Benefits</div>
+                                        <ul className="list-disc list-inside text-white/80 space-y-1">
+                                          {r.benefits.slice(0, 6).map((x: string, idx: number) => <li key={idx}>{x}</li>)}
+                                        </ul>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </Card>
