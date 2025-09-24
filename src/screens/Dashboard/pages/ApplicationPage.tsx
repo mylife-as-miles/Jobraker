@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApplications, type ApplicationStatus } from "../../../hooks/useApplications";
 import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
 
@@ -19,6 +19,28 @@ function ApplicationPage() {
   const [selectedStatus, setSelectedStatus] = useState<"All" | ApplicationStatus>("All");
   const [sortBy, setSortBy] = useState<"score" | "recent" | "company" | "status">("score");
   const [viewMode, setViewMode] = useState<"grid" | "list" | "kanban">("grid");
+
+  // Restore preferences on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("jr.apps.prefs.v1");
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p.viewMode === "grid" || p.viewMode === "list" || p.viewMode === "kanban") setViewMode(p.viewMode);
+        if (["All","Pending","Applied","Interview","Offer","Rejected","Withdrawn"].includes(p.selectedStatus)) setSelectedStatus(p.selectedStatus as any);
+        if (["score","recent","company","status"].includes(p.sortBy)) setSortBy(p.sortBy);
+        if (typeof p.searchQuery === 'string') setSearchQuery(p.searchQuery);
+      }
+    } catch {}
+  }, []);
+
+  // Persist preferences when they change
+  useEffect(() => {
+    try {
+      const payload = { viewMode, selectedStatus, sortBy, searchQuery };
+      localStorage.setItem("jr.apps.prefs.v1", JSON.stringify(payload));
+    } catch {}
+  }, [viewMode, selectedStatus, sortBy, searchQuery]);
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
