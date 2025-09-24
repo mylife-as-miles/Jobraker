@@ -1,150 +1,97 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
-import { motion } from "framer-motion";
-import { X, BarChart3, MessageSquare, FileText, Briefcase, Users, TrendingUp, Menu, Settings, Bell } from "lucide-react";
+import { RefreshCw, Link2 } from "lucide-react";
 import { AnalyticsContent } from "../../components/analytics/AnalyticsContent";
 
 export const Analytics = (): JSX.Element => {
-  const [selectedPeriod, setSelectedPeriod] = useState("1 Month");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [period, setPeriod] = useState<string>("30d");
+
+  // Initialize from URL
+  useEffect(() => {
+    try {
+      const usp = new URLSearchParams(window.location.search);
+      const p = usp.get("period");
+      if (p && ["7d","30d","90d","ytd","12m"].includes(p)) setPeriod(p);
+    } catch {}
+  }, []);
+
+  const setPeriodAndUrl = (p: string) => {
+    setPeriod(p);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("period", p);
+      window.history.replaceState({}, "", url.toString());
+    } catch {}
+  };
+
+  const periodLabel = useMemo(() => {
+    switch (period) {
+      case "7d": return "Last 7 days";
+      case "30d": return "Last 30 days";
+      case "90d": return "Last 90 days";
+      case "ytd": return "Year to date";
+      case "12m": return "Last 12 months";
+      default: return "Custom";
+    }
+  }, [period]);
+
+  const copyLink = async () => {
+    try { await navigator.clipboard.writeText(window.location.href); } catch {}
+  };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col">
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <div className={`
-        fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[#0a0a0a] border-r border-[#ffffff1a] flex flex-col
-        transform transition-transform duration-300 ease-in-out lg:transform-none
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
-        {/* Logo */}
-        <div className="p-6 border-b border-[#ffffff1a]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                <span className="text-black font-bold text-sm">A</span>
-              </div>
-              <span className="text-white font-semibold text-lg">Area50</span>
+    <div className="min-h-screen bg-black">
+      {/* Header Bar */}
+      <div className="sticky top-0 z-10 border-b border-white/10 bg-gradient-to-b from-[#0a0a0a] to-transparent">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">
+              <span className="bg-gradient-to-r from-white to-[#1dff00] bg-clip-text text-transparent">Analytics</span>
+            </h1>
+            <span className="hidden sm:inline text-xs text-white/60">{periodLabel}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="inline-flex rounded-lg border border-white/20 overflow-hidden">
+              {["7d","30d","90d","ytd","12m"].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPeriodAndUrl(p)}
+                  className={`px-3 py-1.5 text-xs sm:text-sm text-white/80 hover:text-white transition ${period===p ? 'bg-white/15' : ''} ${p!=="7d" ? 'border-l border-white/15' : ''}`}
+                  aria-pressed={period===p}
+                >
+                  {p.toUpperCase()}
+                </button>
+              ))}
             </div>
             <Button
-              variant="ghost"
-              size="sm"
-              className="lg:hidden text-white hover:bg-[#ffffff1a]"
-              onClick={() => setSidebarOpen(false)}
+              variant="outline"
+              className="border-white/30 text-white hover:bg-white/10"
+              onClick={() => window.location.reload()}
+              title="Refresh"
             >
-              <X className="w-5 h-5" />
+              <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+            </Button>
+            <Button
+              variant="outline"
+              className="border-white/30 text-white hover:bg-white/10"
+              onClick={copyLink}
+              title="Copy link"
+            >
+              <Link2 className="w-4 h-4 mr-2" /> Copy link
             </Button>
           </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="p-4">
-          <div className="space-y-2">
-            <Button variant="ghost" className="w-full justify-start text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]">
-              <BarChart3 className="w-5 h-5 mr-3" />
-              Dashboard
-            </Button>
-            <Button variant="ghost" className="w-full justify-start text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]">
-              <MessageSquare className="w-5 h-5 mr-3" />
-              Chat
-            </Button>
-            <Button variant="ghost" className="w-full justify-start text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]">
-              <FileText className="w-5 h-5 mr-3" />
-              Resume
-            </Button>
-            <Button variant="ghost" className="w-full justify-start text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]">
-              <Briefcase className="w-5 h-5 mr-3" />
-              Jobs
-            </Button>
-            <Button variant="ghost" className="w-full justify-start text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]">
-              <Users className="w-5 h-5 mr-3" />
-              Application
-            </Button>
-            <Button variant="ghost" className="w-full justify-start text-white bg-[#1dff0020] border-r-2 border-[#1dff00]">
-              <TrendingUp className="w-5 h-5 mr-3" />
-              Analytics
-            </Button>
-          </div>
-        </nav>
-
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Premium Card */}
-        <div className="p-4">
-          <Card className="bg-gradient-to-br from-[#1dff00] to-[#0a8246] border-none">
-            <CardContent className="p-4">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <TrendingUp className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="text-white font-bold text-lg mb-2">Go Premium</h3>
-                <p className="text-white/80 text-sm mb-4">Get incredible benefits that put you ahead</p>
-                <Button 
-                  size="sm"
-                  onClick={() => { window.location.href = '/pricing'; }}
-                  className="bg-black text-white hover:bg-black/90 hover:scale-105 transition-all duration-300"
-                >
-                  View Pricing
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 max-w-full mx-auto w-full sm:w-[95vw] md:w-[80vw] lg:w-[60vw] xl:w-[40vw] p-3 sm:p-6">
-        {/* Header */}
-        <header className="bg-[#0a0a0a] border-b border-[#ffffff1a] p-4 lg:p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="lg:hidden text-white hover:bg-[#ffffff1a]"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <Menu className="w-5 h-5" />
-              </Button>
-              <h1 className="text-white text-xl lg:text-2xl font-bold">Analytics</h1>
-            </div>
-            <div className="flex items-center space-x-2 lg:space-x-4">
-              <Button variant="ghost" size="sm" className="text-[#ffffff80] hover:text-white hidden sm:flex">
-                <Settings className="w-5 h-5" />
-              </Button>
-              <Button variant="ghost" size="sm" className="text-[#ffffff80] hover:text-white relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 lg:w-5 lg:h-5 bg-[#1dff00] rounded-full text-black text-xs font-bold flex items-center justify-center">
-                  <span className="hidden lg:inline">3</span>
-                </span>
-              </Button>
-              <div className="hidden sm:flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full flex items-center justify-center">
-                  <span className="text-black font-bold text-sm">U</span>
-                </div>
-                <div className="text-right hidden lg:block">
-                  <p className="text-white font-medium text-sm">Udochukwu Chimbo</p>
-                  <p className="text-[#ffffff66] text-xs">chimbouda@gmail.com</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Analytics Content */}
-        <div className="flex-1 p-4 lg:p-6 overflow-auto">
-          <AnalyticsContent />
-        </div>
-      </div>
+      {/* Content */}
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+        <Card className="rounded-xl border border-white/15 bg-gradient-to-br from-white/[0.04] via-white/[0.06] to-white/[0.03] backdrop-blur-xl shadow-[0_0_0_1px_rgba(29,255,0,0.05)]">
+          <CardContent className="p-4 sm:p-6">
+            <AnalyticsContent />
+          </CardContent>
+        </Card>
+      </main>
     </div>
   );
 };
