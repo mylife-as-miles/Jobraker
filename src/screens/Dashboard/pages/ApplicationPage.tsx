@@ -8,12 +8,12 @@ import { Input } from "../../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { useToast } from "../../../components/ui/toast-provider";
 
-import { Filter, LayoutGrid, List as ListIcon, Plus, Search, Columns, ExternalLink, Link2, Clipboard, AlertCircle } from "lucide-react";
+import { LayoutGrid, List as ListIcon, Search, Columns, ExternalLink, Link2, Clipboard, AlertCircle, RefreshCw } from "lucide-react";
 import { KanbanProvider, KanbanBoard, KanbanHeader, KanbanCards, KanbanCard } from "../../../components/ui/kibo-ui/kanban";
 
 function ApplicationPage() {
   const { applications, exportCSV, update, refresh } = useApplications();
-  const { info, error: toastError } = useToast();
+  const { error: toastError } = useToast();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<"All" | ApplicationStatus>("All");
@@ -47,19 +47,31 @@ function ApplicationPage() {
   return (
     <div className="space-y-6 sm:space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Applications</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">
+          <span className="bg-gradient-to-r from-white to-[#1dff00] bg-clip-text text-transparent">Applications</span>
+        </h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={exportCSV}>
+          <Button
+            variant="outline"
+            className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
+            onClick={exportCSV}
+            title="Export as CSV"
+          >
             Export CSV
           </Button>
-          <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => info("Coming soon") }>
-            <Plus className="w-4 h-4 mr-2" /> Add
+          <Button
+            variant="outline"
+            className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
+            onClick={() => refresh()}
+            title="Refresh applications"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" /> Refresh
           </Button>
         </div>
       </div>
 
       {/* Toolbar */}
-      <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6">
+      <Card className="bg-gradient-to-br from-white/[0.04] via-white/[0.06] to-white/[0.03] border border-white/[0.12] backdrop-blur-xl p-4 sm:p-6 rounded-xl shadow-[0_0_0_1px_rgba(29,255,0,0.05)]">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="flex-1 relative">
@@ -68,48 +80,44 @@ function ApplicationPage() {
                 placeholder="Search applications..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d]"
+                className="pl-10 bg-white/[0.10] border-white/30 text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d]"
               />
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
-                <SelectTrigger className="w-[160px] bg-[#ffffff1a] border-[#ffffff33] text-white">
+                <SelectTrigger className="w-[170px] bg-white/[0.10] border-white/30 text-white">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
-                <SelectContent className="bg-black text-white border-[#ffffff33]">
+                <SelectContent className="bg-black text-white border-white/30">
                   <SelectItem value="score">Best match</SelectItem>
                   <SelectItem value="recent">Most recent</SelectItem>
                   <SelectItem value="company">Company</SelectItem>
                   <SelectItem value="status">Status</SelectItem>
                 </SelectContent>
               </Select>
-              <Button
-                variant="outline"
-                className={`border-[#ffffff33] text-white hover:bg-[#ffffff1a] ${viewMode==='grid' ? 'bg-[#ffffff1a]' : ''}`}
-                title="Grid view"
-                onClick={() => setViewMode('grid')}
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                className={`border-[#ffffff33] text-white hover:bg-[#ffffff1a] ${viewMode==='list' ? 'bg-[#ffffff1a]' : ''}`}
-                title="List view"
-                onClick={() => setViewMode('list')}
-              >
-                <ListIcon className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                className={`border-[#ffffff33] text-white hover:bg-[#ffffff1a] ${viewMode==='kanban' ? 'bg-[#ffffff1a]' : ''}`}
-                title="Kanban view"
-                onClick={() => setViewMode('kanban')}
-              >
-                <Columns className="w-4 h-4" />
-              </Button>
-              <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]">
-                <Filter className="w-4 h-4 mr-2" /> Filters
-              </Button>
+              <div className="inline-flex rounded-lg border border-white/20 overflow-hidden">
+                <button
+                  className={`px-3 py-2 text-sm text-white/80 hover:text-white transition ${viewMode==='grid' ? 'bg-white/15' : ''}`}
+                  title="Grid view"
+                  onClick={() => setViewMode('grid')}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  className={`px-3 py-2 text-sm text-white/80 hover:text-white transition border-l border-white/15 ${viewMode==='list' ? 'bg-white/15' : ''}`}
+                  title="List view"
+                  onClick={() => setViewMode('list')}
+                >
+                  <ListIcon className="w-4 h-4" />
+                </button>
+                <button
+                  className={`px-3 py-2 text-sm text-white/80 hover:text-white transition border-l border-white/15 ${viewMode==='kanban' ? 'bg-white/15' : ''}`}
+                  title="Kanban view"
+                  onClick={() => setViewMode('kanban')}
+                >
+                  <Columns className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 -m-1">
@@ -119,7 +127,7 @@ function ApplicationPage() {
                 size="sm"
                 variant="ghost"
                 onClick={() => setSelectedStatus(s)}
-                className={`m-1 text-xs sm:text-sm ${selectedStatus===s ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90' : 'text-white hover:text-white hover:bg-[#ffffff1a]'}`}
+                className={`m-1 text-xs sm:text-sm rounded-full ${selectedStatus===s ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90' : 'text-white hover:text-white hover:bg-white/15'}`}
               >
                 {s}
               </Button>
@@ -132,18 +140,15 @@ function ApplicationPage() {
       <Card className="bg-transparent border-none shadow-none">
         <CardContent className="p-0">
           {applications.length === 0 && !searchQuery && selectedStatus === 'All' && (
-            <div className="border border-[#ffffff12] bg-black/30 rounded-xl p-8 text-center text-[#ffffffb3]">
+            <div className="border border-white/15 bg-black/30 rounded-xl p-8 text-center text-[#ffffffb3]">
               <div className="mx-auto w-12 h-12 rounded-full bg-[#1dff00]/15 grid place-items-center mb-4">
                 <Columns className="w-6 h-6 text-[#1dff00]" />
               </div>
               <h3 className="text-white text-lg font-medium mb-1">No applications yet</h3>
               <p className="text-sm text-[#ffffff80] mb-4">Start by applying to a job or importing an existing application.</p>
               <div className="flex items-center justify-center gap-2">
-                <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => info("Coming soon") }>
-                  <Plus className="w-4 h-4 mr-2" /> Add Application
-                </Button>
-                <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={() => info("Import from resume coming soon") }>
-                  Import from Resume
+                <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => refresh()}>
+                  <RefreshCw className="w-4 h-4 mr-2" /> Refresh
                 </Button>
               </div>
             </div>
@@ -152,14 +157,19 @@ function ApplicationPage() {
           <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4" : "space-y-3"}>
             {filtered.map((a) => (
               <div key={a.id} className={viewMode === 'grid' ?
-                "group bg-black/30 border border-[#ffffff12] rounded-xl p-4 hover:border-[#1dff00]/40 transition-all" :
-                "group bg-black/30 border border-[#ffffff12] rounded-xl p-3 hover:border-[#1dff00]/40 transition-all"}>
+                "group bg-black/30 border border-white/15 rounded-xl p-4 hover:border-[#1dff00]/40 hover:shadow-[0_0_0_1px_rgba(29,255,0,0.15)] transition-all" :
+                "group bg-black/30 border border-white/15 rounded-xl p-3 hover:border-[#1dff00]/40 hover:shadow-[0_0_0_1px_rgba(29,255,0,0.15)] transition-all"}>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-sm flex-shrink-0">
                     {a.logo || (a.company?.[0] ?? "")}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-white font-medium truncate">{a.job_title}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-white font-medium truncate">{a.job_title}</div>
+                      <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-white/20 px-2 py-0.5 text-[10px] text-white/70">
+                        {a.status}
+                      </span>
+                    </div>
                     <div className="text-[#ffffff80] text-sm truncate">{a.company}</div>
                     <div className="flex items-center gap-2 text-xs text-[#ffffff60] mt-1">
                       <span>{new Date(a.applied_date).toLocaleDateString()}</span>
@@ -169,6 +179,13 @@ function ApplicationPage() {
                   </div>
                   <MatchScoreBadge score={a.match_score ?? 0} />
                 </div>
+                {a.app_url && (
+                  <div className="mt-2">
+                    <a href={a.app_url} target="_blank" rel="noreferrer" className="text-xs inline-flex items-center gap-1 text-[#1dff00] hover:underline">
+                      <ExternalLink className="w-3 h-3" /> Open application
+                    </a>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -201,11 +218,9 @@ function ApplicationPage() {
                   <KanbanHeader>
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full" style={{ backgroundColor: column.color }} />
-                      <span>
-                        {column.name}
-                        <span className="ml-2 text-xs text-[#ffffff80]">
-                          {applications.filter((a) => a.status === (column.id as ApplicationStatus)).length}
-                        </span>
+                      <span className="text-white">{column.name}</span>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-white/20 px-2 py-0.5 text-[10px] text-white/70">
+                        {applications.filter((a) => a.status === (column.id as ApplicationStatus)).length}
                       </span>
                     </div>
                   </KanbanHeader>
