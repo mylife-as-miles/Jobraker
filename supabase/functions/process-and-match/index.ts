@@ -464,7 +464,7 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
       console.error('process-and-match firecrawl_error', msg);
     } catch {}
 
-    // Fallback: query local job_listings to return something useful
+    // Fallback: Prefer per-user jobs (RLS) and populate if empty
     try {
       const q = effectiveQuery;
       const loc = effectiveLocation;
@@ -477,72 +477,106 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
       };
       const typesNorm = Array.from(new Set(effectiveTypes.map(normalizeType)));
 
-  let query = supabaseAdmin
-        .from('job_listings')
-  .select('job_title, company_name, location, work_type, full_job_description, source_url, posted_at, requirements, benefits')
-        .order('posted_at', { ascending: false, nullsFirst: false })
+      // Try using authed client to read per-user jobs via RLS
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+      const authed = createClient(
+        Deno.env.get('SUPABASE_URL') || 'https://yquhsllwrwfvrwolqywh.supabase.co',
+        anonKey
+      );
+      const authHeader = (req.headers.get('authorization') || '');
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+      if (token) { try { (authed as any).auth.setAuth(token); } catch { /* ignore */ } }
+
+      const toJobListing = (r: any): JobListing => ({
+        jobTitle: r.title || r.job_title,
+        companyName: r.company || r.company_name,
+        location: r.location || null,
+        workType: r.remote_type ? (String(r.remote_type).toLowerCase() === 'remote' ? 'Remote' : (String(r.remote_type).toLowerCase() === 'hybrid' ? 'Hybrid' : 'On-site')) : (r.work_type || null),
+        fullJobDescription: r.description || r.full_job_description || '',
+        sourceUrl: r.apply_url || r.source_url,
+        requirements: Array.isArray(r.requirements) ? r.requirements : [],
+        benefits: Array.isArray(r.benefits) ? r.benefits : [],
+      });
+
+      // Query the personal jobs table first
+      let qJobs = authed
+        .from('jobs')
+        .select('title, company, location, remote_type, employment_type, description, apply_url, posted_at, salary_min, salary_max, salary_currency')
+        .order('posted_at', { ascending: false })
         .limit(50);
 
       if (q) {
-        // Match on Job Title OR Full Description
-        query = query.or(`job_title.ilike.%${q}%,full_job_description.ilike.%${q}%`);
+        // Match on title/company/description
+        (qJobs as any) = (qJobs as any).or(`title.ilike.%${q}%,company.ilike.%${q}%,description.ilike.%${q}%`);
       }
       if (loc) {
-        const locLower = loc.toLowerCase();
-        if (['remote', 'hybrid', 'on-site', 'onsite', 'on_site', 'on site'].includes(locLower)) {
-          const m = normalizeType(loc);
-          query = query.or(`work_type.eq.${m},location.ilike.%${loc}%`);
-        } else {
-          query = query.ilike('location', `%${loc}%`);
+        (qJobs as any) = (qJobs as any).ilike('location', `%${loc}%`);
+      }
+      if (typesNorm.length) {
+        // remote_type in jobs may vary; normalize simple contains
+        const t = typesNorm[0];
+        if (t === 'Remote' || t === 'Hybrid' || t === 'On-site') {
+          (qJobs as any) = (qJobs as any).ilike('remote_type', `%${t.toLowerCase()}%`);
         }
       }
-      if (typesNorm.length === 1) {
-        query = query.eq('work_type', typesNorm[0]);
-      } else if (typesNorm.length > 1) {
-        query = (query as any).in('work_type', typesNorm);
+
+      const { data: personal, error: perErr } = await qJobs;
+      if (perErr) {
+        console.error('fallback personal jobs query error', perErr);
+      }
+      if (Array.isArray(personal) && personal.length) {
+        const items = personal.map(toJobListing);
+        return new Response(JSON.stringify({ matchedJobs: items, note: 'fallback: personal' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        });
       }
 
-      if (enabledSources && enabledSources.length) {
-        // limit fallback results to chosen sources (e.g., remotive, remoteok, arbeitnow, deepresearch)
-        query = (query as any).in('source', enabledSources);
-      }
-
-      const { data } = await query;
-      const extractLists = (htmlOrText: string) => {
-        const clean = (htmlOrText || '').replace(/\r/g, '');
-        const lower = clean.toLowerCase();
-        const reqHeads = ['requirements', 'qualifications', "what you'll need", 'what you will need'];
-        const benHeads = ['benefits', 'perks', 'what we offer', 'what you get', 'compensation & benefits'];
-        const grabAfter = (heads: string[]) => {
-          for (const h of heads) {
-            const idx = lower.indexOf(h);
-            if (idx !== -1) {
-              const segment = clean.slice(idx, idx + 2000);
-              const liMatches = Array.from(segment.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)).map(m => m[1].replace(/<[^>]+>/g, '').trim());
-              if (liMatches.length) return liMatches.filter(Boolean).slice(0, 20);
-              const lines = segment.split(/\n+/).map(s => s.trim());
-              const bullets = lines.filter(s => /^[-*•]/.test(s)).map(s => s.replace(/^[-*•]\s*/, ''));
-              if (bullets.length) return bullets.slice(0, 20);
+      // If no personal jobs, attempt a lightweight fetch from Remotive and store per-user
+      const uid = (() => {
+        try { const jwt = token ? JSON.parse(atob(token.split('.')[1])) : null; return jwt?.sub || jwt?.user_id || null; } catch { return null; }
+      })();
+      if (uid && q) {
+        try {
+          const endpoint = `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(q)}`;
+          const res = await fetch(endpoint, { headers: { 'accept': 'application/json' } });
+          if (res.ok) {
+            const json: any = await res.json();
+            const jobs = (json?.jobs || []).slice(0, 30).map((j: any) => ({
+              user_id: uid,
+              source_type: 'remotive',
+              source_id: String(j?.id ?? j?.url ?? crypto.randomUUID()),
+              title: j?.title ?? '',
+              company: j?.company_name ?? '',
+              description: j?.description ?? null,
+              location: j?.candidate_required_location ?? null,
+              remote_type: 'remote',
+              employment_type: null,
+              salary_min: j?.salary_min ?? null,
+              salary_max: j?.salary_max ?? null,
+              salary_currency: 'USD',
+              tags: Array.isArray(j?.tags) ? j.tags : null,
+              apply_url: j?.url ?? '',
+              posted_at: j?.publication_date ? new Date(j.publication_date).toISOString() : new Date().toISOString(),
+              status: 'active',
+              raw_data: j || null,
+            }));
+            if (jobs.length) {
+              await supabaseAdmin.from('jobs').upsert(jobs, { onConflict: 'user_id,source_id' as any });
+              const items = jobs.map(toJobListing);
+              return new Response(JSON.stringify({ matchedJobs: items, note: 'fallback: seeded_personal' }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 200,
+              });
             }
           }
-          return [] as string[];
-        };
-        return { reqs: grabAfter(reqHeads), bens: grabAfter(benHeads) };
-      };
-    const fallbackJobs = (data || []).map((r: any) => {
-        const { reqs, bens } = extractLists(String(r.full_job_description || ''));
-        return {
-          jobTitle: r.job_title,
-          companyName: r.company_name,
-          location: r.location,
-          workType: r.work_type,
-          fullJobDescription: r.full_job_description,
-          sourceUrl: r.source_url,
-      requirements: Array.isArray(r.requirements) && r.requirements.length ? r.requirements : reqs,
-      benefits: Array.isArray(r.benefits) && r.benefits.length ? r.benefits : bens,
-        } as JobListing;
-      });
-      return new Response(JSON.stringify({ matchedJobs: fallbackJobs, note: 'fallback: provider_unavailable' }), {
+        } catch (e3) {
+          console.error('fallback remotive seed error', e3);
+        }
+      }
+
+      // As a final fallback, return empty list with note
+      return new Response(JSON.stringify({ matchedJobs: [], note: 'fallback: provider_unavailable' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });

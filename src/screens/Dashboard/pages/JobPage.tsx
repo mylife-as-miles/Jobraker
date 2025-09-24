@@ -1858,9 +1858,25 @@ export const JobPage = (): JSX.Element => {
                         <div className="text-white font-medium truncate">{it.job_title}</div>
                         <div className="text-white/70 text-sm truncate">{it.company}{it.location ? ` • ${it.location}` : ''}</div>
                         <div className="text-xs text-white/50 mt-1">Saved {new Date(it.created_at).toLocaleString()}</div>
-                        <div className="mt-3 flex items-center gap-2">
+                        <div className="mt-3 flex items-center gap-2 flex-wrap">
                           <a href={it.source_url} target="_blank" rel="noopener noreferrer nofollow" className="px-2 py-1 rounded border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff0033] hover:bg-[#1dff004d] text-xs">Open posting</a>
                           <button onClick={() => removeBookmarkByUrl(it.source_url)} className="px-2 py-1 rounded border border-red-400/40 text-red-300 bg-red-500/10 hover:bg-red-500/20 text-xs">Remove</button>
+                          {/* Try to locate job in current list to quick-apply */}
+                          <button
+                            onClick={() => {
+                              const job = jobs.find(j => j.sourceUrl === it.source_url);
+                              if (job) {
+                                setSelectedJob(job.id);
+                                openResumePicker(job);
+                              } else {
+                                // If not in current list, open posting so user can apply
+                                window.open(it.source_url, '_blank', 'noopener,noreferrer');
+                              }
+                            }}
+                            className="px-2 py-1 rounded bg-[#1dff00] text-black hover:bg-[#1dff00]/90 text-xs"
+                          >
+                            Apply Now
+                          </button>
                         </div>
                       </div>
                     </div>
