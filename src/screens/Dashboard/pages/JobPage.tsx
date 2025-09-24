@@ -157,6 +157,15 @@ export const JobPage = (): JSX.Element => {
   // Facet panel ref for header button scroll
   const facetPanelRef = useRef<HTMLDivElement | null>(null);
   const [facetPulse, setFacetPulse] = useState(false);
+  // Quick presets (lightweight helpers)
+  const [selectedPresets, setSelectedPresets] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem('job_quick_presets');
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw);
+      return new Set(Array.isArray(arr) ? arr : []);
+    } catch { return new Set(); }
+  });
   // Salary and time filters
   const [minSalary, setMinSalary] = useState<string>("");
   const [maxSalary, setMaxSalary] = useState<string>("");
@@ -669,6 +678,30 @@ export const JobPage = (): JSX.Element => {
     fetchFacets();
   }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, minSalary, maxSalary, postedSince, fetchFacets]);
 
+  // Persist quick presets
+  useEffect(() => {
+    try { localStorage.setItem('job_quick_presets', JSON.stringify(Array.from(selectedPresets))); } catch {}
+  }, [selectedPresets]);
+
+  // Toggle a preset and update corresponding filters conservatively
+  const togglePreset = (key: 'remote' | 'gt100k' | 'last7') => {
+    const next = new Set(selectedPresets);
+    const isOn = next.has(key);
+    if (isOn) {
+      next.delete(key);
+      // Revert only if unchanged since applying
+      if (key === 'remote' && selectedType === 'Remote') setSelectedType('All');
+      if (key === 'gt100k' && minSalary === '100000') setMinSalary('');
+      if (key === 'last7' && postedSince === '7') setPostedSince('');
+    } else {
+      next.add(key);
+      if (key === 'remote') setSelectedType('Remote');
+      if (key === 'gt100k') setMinSalary('100000');
+      if (key === 'last7') setPostedSince('7');
+    }
+    setSelectedPresets(next);
+  };
+
   // URL sync: initial read on mount
   useEffect(() => {
     try {
@@ -933,6 +966,31 @@ export const JobPage = (): JSX.Element => {
                 </Button>
               ))}
             </div>
+          </div>
+          {/* Quick Presets */}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs uppercase tracking-wide text-[#ffffff80] mr-1">Quick presets:</span>
+            <button
+              type="button"
+              onClick={() => togglePreset('remote')}
+              className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('remote') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}
+            >
+              Remote
+            </button>
+            <button
+              type="button"
+              onClick={() => togglePreset('gt100k')}
+              className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('gt100k') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}
+            >
+              {`>$100k`}
+            </button>
+            <button
+              type="button"
+              onClick={() => togglePreset('last7')}
+              className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('last7') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}
+            >
+              Last 7 days
+            </button>
           </div>
           {/* Salary & Time filters row */}
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
