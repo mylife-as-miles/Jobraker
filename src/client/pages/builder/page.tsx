@@ -1,5 +1,5 @@
 import type { ResumeDto } from "@reactive-resume/dto";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import type { LoaderFunction } from "react-router-dom";
 import { redirect } from "react-router-dom";
@@ -9,9 +9,6 @@ import { findResumeById } from "@/client/services/resume";
 import { useResumeStore } from "@/client/stores/resume";
 import { useArtboardStore } from "../../../store/artboard";
 import { Loader2 } from "lucide-react";
-import { KickstartPanel } from "./_components/kickstart";
-import { ArtboardCanvas } from "./_components/artboard-canvas";
-import { DebugOverlay } from "./_components/debug-overlay";
 
 export const BuilderPage = () => {
   const resume = useResumeStore((state) => state.resume);
@@ -19,30 +16,6 @@ export const BuilderPage = () => {
   const data = useResumeStore((state) => state.resume?.data);
   const setArtboardResume = useArtboardStore((state) => state.setResume);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const [kickstartOpen, setKickstartOpen] = useState<boolean>(false);
-
-  const printArtboard = useCallback(() => {
-    window.dispatchEvent(new CustomEvent("ARTBOARD_CMD", { detail: { type: "PRINT" } }));
-  }, []);
-
-  const kickstartDismissed = useResumeStore(
-    (s) => s.resume?.data?.metadata?.ui?.kickstartDismissed ?? false,
-  );
-
-  const isNewish = useMemo(() => {
-    const d = data as any;
-    if (!d) return false;
-    const hasSummary = !!d.sections?.summary?.content;
-    const hasExp = Array.isArray(d.sections?.experience?.items) && d.sections.experience.items.length > 0;
-    const hasSkills = Array.isArray(d.sections?.skills?.items) && d.sections.skills.items.length > 0;
-    return !(hasSummary || hasExp || hasSkills);
-  }, [data]);
-
-  useEffect(() => {
-    if (isNewish && !kickstartDismissed) {
-      setKickstartOpen(true);
-    }
-  }, [isNewish, kickstartDismissed]);
 
   // If artboard is embedded as a route in the same app, we still keep local store in sync
   useEffect(() => {
@@ -98,19 +71,19 @@ export const BuilderPage = () => {
         </title>
       </Helmet>
 
-      {/* Render artboard inline to avoid blank iframe on deployments */}
-      <div className="relative mt-16 w-screen" style={{ height: `calc(100vh - 64px)` }}>
-        <div className="pointer-events-auto absolute right-4 top-2 z-20">
-          <button onClick={printArtboard} className="rounded border border-black/10 bg-white/80 px-3 py-1 text-xs shadow hover:bg-white">
-            Print / PDF
-          </button>
-        </div>
-        {/* Kickstart Onboarding, show once for new/empty resumes unless dismissed */}
-        {isNewish && !kickstartDismissed && kickstartOpen && (
-          <KickstartPanel onClose={() => setKickstartOpen(false)} />
-        )}
-        <ArtboardCanvas />
-        <DebugOverlay />
+      {/* Render artboard via iframe and pass resume via postMessage */}
+      <div className="mt-16 w-screen" style={{ height: `calc(100vh - 64px)` }}>
+        <iframe
+          ref={iframeRef}
+          title="Artboard Builder"
+          src="/artboard/builder"
+          className="w-full h-full border-0 bg-black"
+          onLoad={() => {
+            if (data && iframeRef.current?.contentWindow) {
+              iframeRef.current.contentWindow.postMessage({ type: 'SET_RESUME', payload: { resume: data } }, '*');
+            }
+          }}
+        />
       </div>
     </>
   );

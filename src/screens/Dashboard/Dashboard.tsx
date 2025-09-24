@@ -26,9 +26,9 @@ import { createClient } from "../../lib/supabaseClient";
 
 // Import sub-page components
 import { OverviewPage } from "./pages/OverviewPage";
+import { ChatPage } from "./pages/ChatPage";
 import { ResumesPage } from "@/client/pages/dashboard/resumes/page";
 import NewResumeRedirect from "@/client/pages/dashboard/resumes/new";
-import { CoverLetterPage } from "@/client/pages/dashboard/cover-letter/page";
 import { JobPage } from "./pages/JobPage";
 import { ApplicationPage } from "./pages/ApplicationPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -40,7 +40,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@reactive-resume/ui";
 import { LocaleProvider } from "@/client/providers/locale";
 import { ThemeProvider } from "@/client/providers/theme";
-// (dialog provider not needed here)
+import { DialogProvider } from "@/client/providers/dialog";
 import { helmetContext } from "@/client/constants/helmet";
 import { queryClient } from "@/client/libs/query-client";
 
@@ -51,7 +51,6 @@ type DashboardPage =
   | "resume" 
   | "jobs" 
   | "application" 
-  | "cover-letter"
   | "settings"
   | "notifications"
   | "profile"
@@ -67,15 +66,6 @@ interface PageLink {
 export const Dashboard = (): JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
-  // Enforce dark theme within dashboard routes to prevent white backgrounds
-  useEffect(() => {
-    const el = document.documentElement;
-    if (!el.classList.contains("dark")) el.classList.add("dark");
-    // Last-resort fallback to ensure pitch-black surface, avoids white flashes
-    const prev = document.body.style.backgroundColor;
-    document.body.style.backgroundColor = "#000";
-    return () => { document.body.style.backgroundColor = prev; };
-  }, []);
 
   const pages: DashboardPage[] = [
     "overview",
@@ -84,7 +74,6 @@ export const Dashboard = (): JSX.Element => {
     "resume",
     "jobs",
     "application",
-    "cover-letter",
     "settings",
     "notifications",
     "profile",
@@ -160,12 +149,6 @@ export const Dashboard = (): JSX.Element => {
       path: "Dashboard / Resume"
     },
     {
-      id: "cover-letter",
-      label: "Cover Letter",
-      icon: <FileText className="w-4 h-4 sm:w-5 sm:h-5" />,
-      path: "Dashboard / Cover Letter"
-    },
-    {
       id: "jobs",
       label: "Jobs",
       icon: <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" />,
@@ -232,6 +215,7 @@ export const Dashboard = (): JSX.Element => {
 
   const renderPageContent = () => {
     if (currentPage === "chat") return <LockedFeature name="Chat" />;
+    if (currentPage === "resume") return <LockedFeature name="Resume" />;
     switch (currentPage) {
       case "overview":
         return <OverviewPage />;
@@ -241,23 +225,6 @@ export const Dashboard = (): JSX.Element => {
         return <JobPage />;
       case "application":
         return <ApplicationPage />;
-      case "cover-letter":
-        return <CoverLetterPage />;
-      case "resume":
-        // Wrap client Resume page with required providers
-        return (
-          <HelmetProvider context={helmetContext}>
-            <QueryClientProvider client={queryClient}>
-              <TooltipProvider>
-                <LocaleProvider>
-                  <ThemeProvider>
-                    {resumeSubRoute === 'new' ? <NewResumeRedirect /> : <ResumesPage />}
-                  </ThemeProvider>
-                </LocaleProvider>
-              </TooltipProvider>
-            </QueryClientProvider>
-          </HelmetProvider>
-        );
       case "settings":
         return <SettingsPage />;
       case "notifications":
@@ -269,41 +236,8 @@ export const Dashboard = (): JSX.Element => {
     }
   };
 
-  // Local error boundary to prevent blank screens on subpages (e.g., settings)
-  class PageErrorBoundary extends React.Component<React.PropsWithChildren<{ resetKey: string }>, { hasError: boolean; err?: Error | null }> {
-    constructor(props: React.PropsWithChildren<{ resetKey: string }>) {
-      super(props);
-      this.state = { hasError: false, err: null };
-    }
-    static getDerivedStateFromError(error: Error) { return { hasError: true, err: error }; }
-    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-      console.error("Dashboard subpage crashed:", { page: currentPage, sub: resumeSubRoute, path: location.pathname, error, errorInfo });
-    }
-    componentDidUpdate(prevProps: Readonly<{ resetKey: string }>) {
-      if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
-        this.setState({ hasError: false, err: null });
-      }
-    }
-    render() {
-      if (this.state.hasError) {
-        return (
-          <div className="h-full flex items-center justify-center p-6">
-            <div className="max-w-md w-full text-center bg-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl p-6">
-              <h2 className="text-white text-lg font-semibold mb-2">Something went wrong</h2>
-              <p className="text-[#aaaaaa] text-sm mb-4">The page failed to render. Please try again.</p>
-              <div className="text-left text-xs text-[#888888] max-h-48 overflow-auto rounded-md bg-black/30 p-3 border border-[#1dff00]/10">
-                <div className="font-mono whitespace-pre-wrap break-words">{String(this.state.err?.message || this.state.err)}</div>
-              </div>
-            </div>
-          </div>
-        );
-      }
-      return this.props.children as React.ReactNode;
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-background text-foreground flex">
+     <div className="min-h-screen bg-black flex">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
@@ -314,18 +248,18 @@ export const Dashboard = (): JSX.Element => {
 
       {/* Sidebar - Responsive */}
       <div className={`
-        fixed lg:static inset-y-0 left-0 z-50 w-56 sm:w-64 lg:w-72 xl:w-80 glass-black border-r flex flex-col
+        fixed lg:static inset-y-0 left-0 z-50 w-56 sm:w-64 lg:w-72 xl:w-80 bg-[#0a0a0a] border-r border-[#1dff00]/20 flex flex-col
         transform transition-transform duration-300 ease-in-out lg:transform-none
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* Logo - Responsive */}
-  <div className="p-3 sm:p-4 lg:p-6 border-b border-brand/30">
+    <div className="p-3 sm:p-4 lg:p-6 border-b border-[#1dff00]/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center brand-glow bg-brand">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center hover:scale-110 transition-transform duration-300">
                 <span className="text-black font-bold text-xs sm:text-sm lg:text-base">JR</span>
               </div>
-      <span className="font-semibold text-sm sm:text-lg lg:text-xl text-foreground">JobRaker</span>
+      <span className="font-semibold text-sm sm:text-lg lg:text-xl bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">JobRaker</span>
             </div>
             <Button
               variant="ghost"
@@ -342,7 +276,7 @@ export const Dashboard = (): JSX.Element => {
         <nav className="flex-1 p-2 sm:p-3 lg:p-4 overflow-y-auto">
           <div className="space-y-1 sm:space-y-2">
             {navigationItems.map((item) => {
-              const isLocked = item.id === "chat";
+              const isLocked = item.id === "chat" || item.id === "resume";
               const path = item.id === "resume" ? "/dashboard/resumes" : `/dashboard/${item.id}`;
               const isActive = currentPage === item.id;
               return (
@@ -373,18 +307,17 @@ export const Dashboard = (): JSX.Element => {
 
         {/* Premium Card - Responsive */}
         <div className="p-2 sm:p-3 lg:p-4">
-          <Card variant="neo">
+          <Card className="bg-gradient-to-br from-[#1dff00] to-[#0a8246] border-none hover:scale-105 transition-transform duration-300">
             <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="text-center">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3 hover:scale-110 transition-transform duration-300 border border-brand/30">
-                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-foreground" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-black/20 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3 hover:scale-110 transition-transform duration-300">
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
                 </div>
-                <h3 className="text-foreground font-bold text-sm sm:text-base lg:text-lg mb-1 sm:mb-2">Go Premium</h3>
-                <p className="text-muted-foreground text-xs sm:text-sm mb-3 sm:mb-4">Get incredible benefits that put you ahead</p>
+                <h3 className="text-black font-bold text-sm sm:text-base lg:text-lg mb-1 sm:mb-2">Go Premium</h3>
+                <p className="text-black/80 text-xs sm:text-sm mb-3 sm:mb-4">Get incredible benefits that put you ahead</p>
                 <Button 
-                  size="sm"
-                  variant="neo"
-                  className="hover:scale-105 transition-all duration-300 text-xs sm:text-sm w-full"
+                  size="sm" 
+                  className="bg-black text-white hover:bg-black/90 hover:scale-105 transition-all duration-300 text-xs sm:text-sm w-full"
                   onClick={() => { window.location.href = '/pricing'; }}
                 >
                   <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
@@ -399,7 +332,7 @@ export const Dashboard = (): JSX.Element => {
       {/* Main Content - Responsive */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header - Responsive */}
-  <header className="sticky top-0 z-40 glass-black/95 backdrop-blur border-b border-brand/30 p-2 sm:p-3 lg:p-4">
+        <header className="sticky top-0 z-40 bg-[#0a0a0a]/95 backdrop-blur border-b border-[#1dff00]/20 p-2 sm:p-3 lg:p-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
               {currentPage !== "chat" && (
@@ -420,11 +353,11 @@ export const Dashboard = (): JSX.Element => {
 
               {/* Breadcrumb Navigation (sm+) */}
               <div className="hidden sm:flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm lg:text-base min-w-0 whitespace-nowrap overflow-hidden">
-                <Home className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-muted-foreground flex-shrink-0" />
+                <Home className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-[#666666] flex-shrink-0" />
                 {getCurrentBreadcrumb().split(' / ').map((crumb, index, array) => (
                   <React.Fragment key={index}>
-                    {index > 0 && <BreadcrumbChevron className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />}
-                    <span className={`${index === array.length - 1 ? "text-foreground font-medium" : "text-muted-foreground"} truncate max-w-[14rem] md:max-w-[22rem]` }>
+                    {index > 0 && <BreadcrumbChevron className="w-3 h-3 sm:w-4 sm:h-4 text-[#444444] flex-shrink-0" />}
+                    <span className={`${index === array.length - 1 ? "text-white font-medium" : "text-[#666666]"} truncate max-w-[14rem] md:max-w-[22rem]` }>
                       {crumb}
                     </span>
                   </React.Fragment>
@@ -438,7 +371,7 @@ export const Dashboard = (): JSX.Element => {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="text-muted-foreground hover:text-foreground hover:bg-accent hover:scale-110 transition-all duration-300 hidden sm:flex p-1 sm:p-2"
+                className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 hidden sm:flex p-1 sm:p-2"
                 onClick={() => navigate("/dashboard/settings")}
               >
                 <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -447,11 +380,11 @@ export const Dashboard = (): JSX.Element => {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="text-muted-foreground hover:text-foreground hover:bg-accent hover:scale-110 transition-all duration-300 relative p-1 sm:p-2"
+                className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 relative p-1 sm:p-2"
                 onClick={() => navigate("/dashboard/notifications")}
               >
                 <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 bg-brand rounded-full text-black text-[10px] font-bold flex items-center justify-center animate-pulse">
+                <span className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 bg-[#1dff00] rounded-full text-black text-[10px] font-bold flex items-center justify-center animate-pulse">
                   <span className="hidden sm:inline text-xs">3</span>
                   <span className="sm:hidden">•</span>
                 </span>
@@ -464,7 +397,7 @@ export const Dashboard = (): JSX.Element => {
                 className="hidden sm:flex items-center space-x-2 sm:space-x-3 text-[#888888] hover:text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 p-1 sm:p-2"
                 onClick={() => navigate("/dashboard/profile")}
               >
-                <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300 brand-glow bg-brand">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300">
                   {avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -485,7 +418,7 @@ export const Dashboard = (): JSX.Element => {
                 className="sm:hidden text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 p-1"
                 onClick={() => navigate("/dashboard/profile")}
               >
-                <div className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center brand-glow bg-brand">
+                <div className="w-6 h-6 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center">
                   {avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -508,9 +441,7 @@ export const Dashboard = (): JSX.Element => {
             transition={{ duration: 0.3 }}
             className="h-full"
           >
-            <PageErrorBoundary resetKey={`${currentPage}:${resumeSubRoute}`}>
-              {renderPageContent()}
-            </PageErrorBoundary>
+            {renderPageContent()}
           </motion.div>
         </div>
       </div>

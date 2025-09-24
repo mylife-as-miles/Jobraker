@@ -10,7 +10,6 @@ export interface Profile {
   experience_years: number | null;
   location: string | null;
   goals: string[];
-  base_resume_id?: string | null;
   updated_at: string;
 }
 

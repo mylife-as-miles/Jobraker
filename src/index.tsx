@@ -4,7 +4,6 @@ import "../tailwind.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LandingPage } from "./screens/LandingPage";
 import { JobrackerSignup } from "./screens/JobrackerSignup";
-import { ResetPassword } from "./screens/ResetPassword";
 import { Onboarding } from "./screens/Onboarding";
 import { Analytics } from "./screens/Analytics";
 import { Dashboard } from "./screens/Dashboard";
@@ -66,11 +65,9 @@ function App() {
 
         {/* Sign In Page */}
           <Route path={ROUTES.SIGNIN} element={<PublicOnly><JobrackerSignup /></PublicOnly>} />
-          {/* Password recovery/update page (handles Supabase recovery links) */}
-          <Route path="/reset-password" element={<PublicOnly><ResetPassword /></PublicOnly>} />
         
-        {/* Step 2: Onboarding Page (after signup). Public so it doesn't blank when unauthenticated; final step requires auth */}
-          <Route path={ROUTES.ONBOARDING} element={<Onboarding />} />
+        {/* Step 2: Onboarding Page (after signup) */}
+          <Route path={ROUTES.ONBOARDING} element={<RequireAuth><Onboarding /></RequireAuth>} />
         
         {/* Step 3: Dashboard Page (after onboarding completion) - Now serves as main container */}
           <Route path={ROUTES.DASHBOARD_WILDCARD} element={<RequireAuth><Dashboard /></RequireAuth>} />
@@ -89,8 +86,8 @@ function App() {
             </Route>
         </Route>
 
-        {/* Client builder route with layout (public for offline/local usage) */}
-        <Route element={<Providers/>}>
+        {/* Client builder route with layout (protected) */}
+        <Route element={<RequireAuth><Providers/></RequireAuth>}>
           <Route path="/builder" element={<BuilderLayout/>}>
             <Route path=":id" element={<ClientBuilderRoute/>} />
           </Route>

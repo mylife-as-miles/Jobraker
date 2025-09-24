@@ -14,18 +14,7 @@
     <script>
       (function initializeTheme() {
         try {
-          var path = window.location.pathname || "";
-          var isDashboard = path.startsWith("/dashboard");
-          // Always force dark mode on dashboard to avoid white backgrounds on some devices
-          if (isDashboard) {
-            document.documentElement.classList.add("dark");
-            return;
-          }
-          // Fallback: respect explicit preference or system setting elsewhere
-          if (
-            localStorage.theme === "dark" ||
-            (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)
-          ) {
+          if (localStorage.theme === "dark" || (!('theme' in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
             document.documentElement.classList.add("dark");
           } else {
             document.documentElement.classList.remove("dark");
@@ -35,7 +24,7 @@
     </script>
     <!-- Styles are imported via Vite in src/index.tsx (../tailwind.css) -->
   </head>
-  <body style="margin: 0; padding: 0;">
+  <body style="margin: 0; padding: 0; background-color: #000;">
     <div id="app"></div>
     <script type="module" src="./src/index.tsx"></script>
   </body>
