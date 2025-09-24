@@ -1431,6 +1431,14 @@ function DefaultsForm() {
   const [includeSearch, setIncludeSearch] = useState(true);
   const [allowedDomains, setAllowedDomains] = useState<string>("");
   const [enabledSources, setEnabledSources] = useState<string[]>(["deepresearch","remotive","remoteok","arbeitnow"]);
+  const [cronEnabled, setCronEnabled] = useState<boolean>(false);
+  const [lastFetchedAt, setLastFetchedAt] = useState<string | null>(null);
+  // Test search helpers
+  const [testQuery, setTestQuery] = useState<string>("software engineer");
+  const [testLocation, setTestLocation] = useState<string>("Remote");
+  const [testing, setTesting] = useState<boolean>(false);
+  const [testCount, setTestCount] = useState<number | null>(null);
+  const [testNote, setTestNote] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -1441,7 +1449,7 @@ function DefaultsForm() {
         if (!uid) { setLoading(false); return; }
         const { data } = await (supabase as any)
           .from('job_source_settings')
-          .select('include_linkedin, include_indeed, include_search, allowed_domains, enabled_sources')
+          .select('include_linkedin, include_indeed, include_search, allowed_domains, enabled_sources, cron_enabled, last_fetched_at')
           .eq('id', uid)
           .maybeSingle();
         if (data) {
@@ -1450,6 +1458,11 @@ function DefaultsForm() {
           if (data.include_search != null) setIncludeSearch(!!data.include_search);
           if (Array.isArray(data.allowed_domains)) setAllowedDomains(data.allowed_domains.join(','));
           if (Array.isArray(data.enabled_sources)) setEnabledSources(data.enabled_sources);
+          if (typeof (data as any).cron_enabled === 'boolean') setCronEnabled(!!(data as any).cron_enabled);
+          if ((data as any).last_fetched_at) setLastFetchedAt((data as any).last_fetched_at);
+        } else {
+          // Fallback to local last fetched timestamp if any
+          try { const lf = localStorage.getItem('jobsCron.lastFetchedAt'); if (lf) setLastFetchedAt(lf); } catch {}
         }
       } catch (e: any) { console.warn(e); }
       setLoading(false);
@@ -1474,6 +1487,7 @@ function DefaultsForm() {
         include_search: includeSearch,
         allowed_domains: allowedDomains.split(',').map((s) => s.trim()).filter(Boolean),
         enabled_sources: enabledSources,
+        cron_enabled: cronEnabled,
         updated_at: new Date().toISOString(),
       };
       const { error } = await (supabase as any)
@@ -1496,8 +1510,40 @@ function DefaultsForm() {
       if (error) throw error;
       success('Job fetch started');
       console.log('jobs-cron result', data);
+      const ts = new Date().toISOString();
+      setLastFetchedAt(ts);
+      try { localStorage.setItem('jobsCron.lastFetchedAt', ts); } catch {}
+      // Best-effort: persist last_fetched_at if column exists
+      try {
+        await (supabase as any)
+          .from('job_source_settings')
+          .upsert({ id: uid, last_fetched_at: ts, updated_at: ts }, { onConflict: 'id' });
+      } catch { /* ignore */ }
     } catch (e: any) {
       toastError('Trigger failed', e.message);
+    }
+  };
+
+  const testSearch = async () => {
+    setTesting(true);
+    setTestNote(null);
+    setTestCount(null);
+    try {
+      const { data, error } = await (supabase as any).functions.invoke('get-jobs', {
+        body: {
+          q: (testQuery || 'software engineer').trim(),
+          location: (testLocation || 'Remote').trim(),
+          type: '',
+        },
+      });
+      if (error) throw error;
+      const rows = Array.isArray(data?.jobs) ? data.jobs : [];
+      setTestCount(rows.length);
+      setTestNote('Success');
+    } catch (e: any) {
+      setTestNote(e?.message || 'Failed');
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -1524,6 +1570,15 @@ function DefaultsForm() {
           Include Search/Listing pages
         </label>
       </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={cronEnabled} onChange={(e) => setCronEnabled(e.target.checked)} disabled={loading} />
+          Background Cron Enabled
+        </label>
+        <div className="text-xs text-muted-foreground flex items-center">
+          Last fetched: {lastFetchedAt ? new Date(lastFetchedAt).toLocaleString() : '—'}
+        </div>
+      </div>
       <div className="space-y-2">
         <div className="text-sm font-medium">Enabled Sources</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1548,6 +1603,23 @@ function DefaultsForm() {
       <div className="flex items-center gap-2">
         <Button onClick={save} disabled={saving || loading} className="bg-primary text-primary-foreground hover:bg-primary/90">Save</Button>
         <Button variant="outline" onClick={runNow} disabled={loading} className="border-border/20 text-foreground hover:bg-card/20">Run now</Button>
+        <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Status:</span>
+          <span className={`${cronEnabled ? 'text-success' : 'text-muted-foreground'}`}>{cronEnabled ? 'Cron on' : 'Cron off'}</span>
+        </div>
+      </div>
+      {/* Test Search Area */}
+      <div className="mt-3 p-3 rounded-md border border-border/20 bg-card/5">
+        <div className="text-sm font-medium mb-2">Test Search</div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
+          <Input value={testQuery} onChange={(e) => setTestQuery(e.target.value)} placeholder="Query (e.g., software engineer)" />
+          <Input value={testLocation} onChange={(e) => setTestLocation(e.target.value)} placeholder="Location (e.g., Remote)" />
+          <Button onClick={testSearch} disabled={testing} className="bg-primary text-primary-foreground hover:bg-primary/90">{testing ? 'Testing…' : 'Test Search'}</Button>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {testCount != null ? <span>Jobs: <span className="text-foreground font-semibold">{testCount}</span></span> : 'Run a test to validate DB fallback.'}
+          {testNote && <span className="ml-2">({testNote})</span>}
+        </div>
       </div>
     </div>
   );
