@@ -945,6 +945,14 @@ export const SettingsPage = (): JSX.Element => {
       case "job-sources":
         return (
           <div className="space-y-6">
+            {/* Quick Defaults for source flags that integrate with process-and-match */}
+            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
+              <CardContent className="p-4 space-y-4">
+                <h3 className="text-foreground font-medium">Job Source Defaults</h3>
+                <p className="text-sm text-muted-foreground">These settings are used by live search and fallbacks.</p>
+                <DefaultsForm />
+              </CardContent>
+            </Card>
             {/* Header */}
             <div className="flex items-center justify-between">
               <div>
@@ -1412,3 +1420,135 @@ export const SettingsPage = (): JSX.Element => {
 
   // remove stray return (modal is rendered above)
 };
+
+function DefaultsForm() {
+  const supabase = useMemo(() => createClient(), []);
+  const { success, error: toastError } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [includeLinkedIn, setIncludeLinkedIn] = useState(true);
+  const [includeIndeed, setIncludeIndeed] = useState(true);
+  const [includeSearch, setIncludeSearch] = useState(true);
+  const [allowedDomains, setAllowedDomains] = useState<string>("");
+  const [enabledSources, setEnabledSources] = useState<string[]>(["deepresearch","remotive","remoteok","arbeitnow"]);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        const uid = (auth as any)?.user?.id;
+        if (!uid) { setLoading(false); return; }
+        const { data } = await (supabase as any)
+          .from('job_source_settings')
+          .select('include_linkedin, include_indeed, include_search, allowed_domains, enabled_sources')
+          .eq('id', uid)
+          .maybeSingle();
+        if (data) {
+          if (data.include_linkedin != null) setIncludeLinkedIn(!!data.include_linkedin);
+          if (data.include_indeed != null) setIncludeIndeed(!!data.include_indeed);
+          if (data.include_search != null) setIncludeSearch(!!data.include_search);
+          if (Array.isArray(data.allowed_domains)) setAllowedDomains(data.allowed_domains.join(','));
+          if (Array.isArray(data.enabled_sources)) setEnabledSources(data.enabled_sources);
+        }
+      } catch (e: any) { console.warn(e); }
+      setLoading(false);
+    })();
+  }, [supabase]);
+
+  const toggle = (arr: string[], key: string, on: boolean) => {
+    if (on) return Array.from(new Set([...arr, key]));
+    return arr.filter((x) => x !== key);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = (auth as any)?.user?.id;
+      if (!uid) { setSaving(false); return; }
+      const payload = {
+        id: uid,
+        include_linkedin: includeLinkedIn,
+        include_indeed: includeIndeed,
+        include_search: includeSearch,
+        allowed_domains: allowedDomains.split(',').map((s) => s.trim()).filter(Boolean),
+        enabled_sources: enabledSources,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await (supabase as any)
+        .from('job_source_settings')
+        .upsert(payload, { onConflict: 'id' });
+      if (error) throw error;
+      success('Saved');
+    } catch (e: any) {
+      toastError('Save failed', e.message);
+    }
+    setSaving(false);
+  };
+
+  const runNow = async () => {
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = (auth as any)?.user?.id;
+      if (!uid) return;
+      const { data, error } = await (supabase as any).functions.invoke('jobs-cron', { body: { user_id: uid, manual_trigger: true } });
+      if (error) throw error;
+      success('Job fetch started');
+      console.log('jobs-cron result', data);
+    } catch (e: any) {
+      toastError('Trigger failed', e.message);
+    }
+  };
+
+  const sourceDefs = [
+    { id: 'deepresearch', label: 'Deep Research (Firecrawl)' },
+    { id: 'remotive', label: 'Remotive' },
+    { id: 'remoteok', label: 'RemoteOK' },
+    { id: 'arbeitnow', label: 'Arbeitnow' },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={includeLinkedIn} onChange={(e) => setIncludeLinkedIn(e.target.checked)} disabled={loading} />
+          Include LinkedIn
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={includeIndeed} onChange={(e) => setIncludeIndeed(e.target.checked)} disabled={loading} />
+          Include Indeed
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={includeSearch} onChange={(e) => setIncludeSearch(e.target.checked)} disabled={loading} />
+          Include Search/Listing pages
+        </label>
+      </div>
+      <div className="space-y-2">
+        <div className="text-sm font-medium">Enabled Sources</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {sourceDefs.map((s) => (
+            <label key={s.id} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-[hsl(var(--ring))]"
+                checked={enabledSources.includes(s.id)}
+                onChange={(e) => setEnabledSources((prev) => toggle(prev, s.id, e.target.checked))}
+                disabled={loading}
+              />
+              <span className="text-sm">{s.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Allowed Domains (comma separated)</label>
+        <Input value={allowedDomains} onChange={(e) => setAllowedDomains(e.target.value)} placeholder="careers.google.com, amazon.jobs" />
+      </div>
+      <div className="flex items-center gap-2">
+        <Button onClick={save} disabled={saving || loading} className="bg-primary text-primary-foreground hover:bg-primary/90">Save</Button>
+        <Button variant="outline" onClick={runNow} disabled={loading} className="border-border/20 text-foreground hover:bg-card/20">Run now</Button>
+      </div>
+    </div>
+  );
+}

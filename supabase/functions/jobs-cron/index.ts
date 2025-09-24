@@ -184,6 +184,80 @@ async function fetchFromSources(): Promise<Job[]> {
   return results;
 }
 
+// Fetch jobs using a specific user's saved job_source_configs (enabled only)
+async function fetchFromSourcesForUser(userId: string): Promise<Job[]> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY");
+  const results: Job[] = [];
+  let sources: { type: string; url?: string; query?: string; workType?: string[]; location?: string; salaryRange?: string; experienceLevel?: string; maxResults?: number }[] = [];
+  if (!supabaseUrl || !serviceKey) return results;
+  try {
+    const sb = createClient(supabaseUrl, serviceKey);
+    const { data, error } = await sb
+      .from('job_source_configs')
+      .select('sources')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) throw error;
+    const arr: any[] = (data && Array.isArray((data as any).sources)) ? (data as any).sources : [];
+    sources = arr
+      .filter((s: any) => s && (s.enabled ?? true))
+      .map((s: any) => {
+        const t = String(s.type || '').toLowerCase();
+        if (t === 'json') return { type: 'json', url: s.query || s.url } as any;
+        if (t === 'deepresearch') return { type: 'deepresearch', query: s.query || 'software engineer', workType: s.workType || [], location: s.location || '', salaryRange: s.salaryRange || '', experienceLevel: s.experienceLevel || '', maxResults: s.maxResults || 15 } as any;
+        return { type: t, query: s.query } as any;
+      });
+  } catch (e) {
+    console.warn('fetchFromSourcesForUser failed to read configs', e);
+    return results;
+  }
+  for (const s of sources) {
+    try {
+      if (s.type === "remotive") {
+        results.push(...await fetchRemotive(s.query || "software"));
+      } else if (s.type === "remoteok") {
+        results.push(...await fetchRemoteOK());
+      } else if (s.type === "arbeitnow") {
+        results.push(...await fetchArbeitNow(s.query || "software"));
+      } else if (s.type === "deepresearch") {
+        results.push(...await fetchDeepResearchJobs({
+          query: s.query || "software engineer",
+          workType: s.workType || [],
+          location: s.location || "",
+          salaryRange: s.salaryRange || "",
+          experienceLevel: s.experienceLevel || "",
+          maxResults: s.maxResults || 15,
+        }));
+      } else if (s.type === "json" && (s as any).url) {
+        const r = await fetch((s as any).url, { headers: { accept: "application/json" } });
+        if (r.ok) {
+          const data: any[] = await r.json();
+          for (const it of data) {
+            results.push({
+              external_id: String(it.external_id ?? it.id ?? crypto.randomUUID()),
+              title: it.title,
+              company: it.company,
+              location: it.location ?? null,
+              url: it.url,
+              source: it.source ?? new URL((s as any).url).hostname,
+              posted_at: it.posted_at ? new Date(it.posted_at).toISOString() : new Date().toISOString(),
+              description: it.description ?? null,
+              tags: Array.isArray(it.tags) ? it.tags : null,
+              salary_min: it.salary_min ?? null,
+              salary_max: it.salary_max ?? null,
+              work_type: it.work_type ?? null,
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Source fetch error (user)", s, e);
+    }
+  }
+  return results;
+}
+
 // Inspired by user-provided Firecrawl deep research logic
 const INCLUDE_LINKEDIN = (() => {
   try {
@@ -496,7 +570,17 @@ async function pushToFirestore(jobs: Job[]) {
 async function handler(req: Request) {
   const start = Date.now();
   try {
-    const jobs = await fetchFromSources();
+    let userIdOverride: string | undefined;
+    try {
+      const body = await req.json();
+      if (body && typeof body.user_id === 'string' && body.user_id) {
+        userIdOverride = body.user_id;
+      }
+    } catch { /* ignore */ }
+
+    const jobs = userIdOverride
+      ? await fetchFromSourcesForUser(userIdOverride)
+      : await fetchFromSources();
     const unique = new Map<string, Job>();
     for (const j of jobs) {
       const key = `${j.source}:${j.external_id}`;
@@ -504,8 +588,8 @@ async function handler(req: Request) {
     }
     const arr = Array.from(unique.values());
 
-    const upserted = await upsertIntoSupabase(arr);
-    const { pushed } = await pushToFirestore(arr);
+  const upserted = await upsertIntoSupabase(arr);
+  const { pushed } = await pushToFirestore(arr);
 
     const ms = Date.now() - start;
     return new Response(JSON.stringify({ ok: true, fetched: jobs.length, unique: arr.length, upserted, pushed, ms }), {
@@ -526,7 +610,38 @@ try {
     // @ts-ignore - Deno.cron is available in Supabase Edge Runtime
     Deno.cron("jobs-cron", cronExpr, async () => {
       try {
-        await handler(new Request("http://local/cron"));
+        const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY");
+        if (!supabaseUrl || !serviceKey) {
+          await handler(new Request("http://local/cron"));
+          return;
+        }
+        const sb = createClient(supabaseUrl, serviceKey);
+        const { data: rows, error } = await sb
+          .from('job_source_settings')
+          .select('id, cron_enabled')
+          .eq('cron_enabled', true);
+        if (error) throw error;
+        const users: string[] = Array.isArray(rows) ? rows.map((r: any) => r.id).filter(Boolean) : [];
+        // Limit to avoid timeouts; process sequentially
+        const maxUsers = Number(Deno.env.get('JOBS_CRON_MAX_USERS') || 10);
+        const picked = users.slice(0, maxUsers);
+        for (const uid of picked) {
+          try {
+            const jobs = await fetchFromSourcesForUser(uid);
+            if (!jobs.length) continue;
+            const unique = new Map<string, Job>();
+            for (const j of jobs) {
+              const key = `${j.source}:${j.external_id}`;
+              if (!unique.has(key)) unique.set(key, j);
+            }
+            const arr = Array.from(unique.values());
+            await upsertIntoSupabase(arr);
+            await pushToFirestore(arr);
+          } catch (e) {
+            console.error('cron user run failed', uid, e);
+          }
+        }
       } catch (e) {
         console.error("jobs-cron scheduled run failed", e);
       }
