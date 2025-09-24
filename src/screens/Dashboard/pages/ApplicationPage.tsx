@@ -69,8 +69,11 @@ function ApplicationPage() {
   return (
     <div className="space-y-6 sm:space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white flex items-center gap-3">
           <span className="bg-gradient-to-r from-white to-[#1dff00] bg-clip-text text-transparent">Applications</span>
+          <span className="inline-flex items-center gap-1 rounded-full border border-white/20 px-2 py-0.5 text-[10px] text-white/70">
+            {filtered.length} results
+          </span>
         </h1>
         <div className="flex items-center gap-2">
           <Button
@@ -182,8 +185,17 @@ function ApplicationPage() {
                 "group bg-black/30 border border-white/15 rounded-xl p-4 hover:border-[#1dff00]/40 hover:shadow-[0_0_0_1px_rgba(29,255,0,0.15)] transition-all" :
                 "group bg-black/30 border border-white/15 rounded-xl p-3 hover:border-[#1dff00]/40 hover:shadow-[0_0_0_1px_rgba(29,255,0,0.15)] transition-all"}>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-sm flex-shrink-0">
-                    {a.logo || (a.company?.[0] ?? "")}
+                  <div className="w-10 h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-sm flex-shrink-0 overflow-hidden">
+                    {/* Show initials if not a URL or image; keep simple */}
+                    <span className="select-none">
+                      {(a.logo && a.logo.length > 1 ? a.logo : (((a.company || a.job_title || "")
+                        .toString()
+                        .split(/\s+/)
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((w: string) => w[0] || "")
+                        .join("") || "").toUpperCase()))}
+                    </span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -201,11 +213,42 @@ function ApplicationPage() {
                   </div>
                   <MatchScoreBadge score={a.match_score ?? 0} />
                 </div>
-                {a.app_url && (
-                  <div className="mt-2">
-                    <a href={a.app_url} target="_blank" rel="noreferrer" className="text-xs inline-flex items-center gap-1 text-[#1dff00] hover:underline">
-                      <ExternalLink className="w-3 h-3" /> Open application
-                    </a>
+                {(a.app_url || a.run_id || a.recording_url) && (
+                  <div className="mt-2 flex items-center gap-3">
+                    {a.app_url && (
+                      <a
+                        href={a.app_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs inline-flex items-center gap-1 text-[#1dff00] hover:underline"
+                        title="Open application"
+                        aria-label="Open application"
+                      >
+                        <ExternalLink className="w-3 h-3" /> Open
+                      </a>
+                    )}
+                    {a.run_id && (
+                      <button
+                        className="text-xs inline-flex items-center gap-1 text-[#ffffff99] hover:text-white"
+                        onClick={() => navigator.clipboard?.writeText(a.run_id!)}
+                        title="Copy run id"
+                        aria-label="Copy run id"
+                      >
+                        <Clipboard className="w-3 h-3" /> Run
+                      </button>
+                    )}
+                    {a.recording_url && (
+                      <a
+                        href={a.recording_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs inline-flex items-center gap-1 text-[#ffffff99] hover:text-white"
+                        title="Open recording"
+                        aria-label="Open recording"
+                      >
+                        <Link2 className="w-3 h-3" /> Recording
+                      </a>
+                    )}
                   </div>
                 )}
               </div>
