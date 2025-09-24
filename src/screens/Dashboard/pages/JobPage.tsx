@@ -1,4 +1,4 @@
-import { Briefcase, Bookmark, Building2, DollarSign, Heart, Share, Star, Users, CheckCircle2, FileText, UploadCloud } from "lucide-react";
+import { Briefcase, Bookmark, Building2, DollarSign, Heart, Share, Star, Users, CheckCircle2, FileText, UploadCloud, Pencil } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
@@ -2153,59 +2153,100 @@ function ResumePickerModal({
           })}
           {/* Cover Letter Section */}
           <div className="sm:col-span-2 mt-2">
-            <div className="rounded-lg border border-white/10 p-4 bg-white/5">
-              <div className="flex items-center justify-between">
-                <div className="text-white font-medium flex items-center gap-2">
-                  Attach Cover Letter (Cover Page)
-                  {hasDraft && <span className="text-xs text-white/60">Draft found</span>}
-                </div>
-                <button
-                  onClick={() => onToggleCoverLetter && onToggleCoverLetter(!attachCoverLetter)}
-                  className={`px-3 py-1 rounded-md text-sm border transition ${attachCoverLetter ? 'border-[#1dff00] text-black bg-[#1dff00]' : 'border-white/20 text-white/80 hover:border-[#1dff00]/40'}`}
-                >
-                  {attachCoverLetter ? 'Attached' : 'Attach'}
-                </button>
-              </div>
-              {attachCoverLetter && (
-                <div className="mt-3 grid gap-3">
-                  <div className="flex flex-wrap gap-2">
-                    {['Standard','Modern','Elegant'].map(tmpl => (
-                      <button
-                        key={tmpl}
-                        onClick={() => onSelectCoverTemplate && onSelectCoverTemplate(tmpl)}
-                        className={`px-2 py-1 rounded border text-xs transition ${selectedCoverTemplate === tmpl ? 'border-[#1dff00] text-[#1dff00] bg-[#1dff0033]' : 'border-white/20 text-white/80 hover:border-[#1dff00]/40'}`}
-                      >
-                        {tmpl}
-                      </button>
-                    ))}
-                    <a
-                      href="/dashboard/cover-letter"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ml-auto px-2 py-1 rounded border border-white/20 text-white/80 hover:border-[#1dff00]/40 text-xs"
-                      title="Open the Cover Letter editor in a new tab"
-                    >
-                      Edit Cover Letter
-                    </a>
+            <div className="rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/[0.02] to-transparent p-4 shadow-[0_0_0_1px_rgba(29,255,0,0.05)]">
+              <div className="flex flex-wrap items-center gap-3 justify-between">
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#1dff00]/10 text-[#1dff00]">
+                    <FileText className="h-4 w-4" />
                   </div>
-                  <div className="rounded-md border border-white/10 p-2 bg-black/20">
-                    <div className="text-xs text-white/70 mb-1">Choose from saved letters</div>
+                  <div className="min-w-0">
+                    <div className="text-white font-semibold leading-tight">Attach Cover Letter</div>
+                    <div className="text-xs text-white/60">Optional cover page to elevate your application</div>
+                  </div>
+                  {hasDraft && (
+                    <span className="ml-2 shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+                      Draft found
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href="/dashboard/cover-letter"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 rounded-md border border-white/15 px-2.5 py-1.5 text-xs text-white/80 hover:border-[#1dff00]/40 hover:text-white transition"
+                    title="Open the Cover Letter editor in a new tab"
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> Edit
+                  </a>
+                  <button
+                    role="switch"
+                    aria-checked={attachCoverLetter}
+                    onClick={() => onToggleCoverLetter && onToggleCoverLetter(!attachCoverLetter)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#1dff00]/40 ${attachCoverLetter ? 'bg-[#1dff00]' : 'bg-white/20'}`}
+                    aria-label="Toggle attach cover letter"
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-black transition ${attachCoverLetter ? 'translate-x-5' : 'translate-x-1'}`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {attachCoverLetter && (
+                <div className="mt-4 grid gap-3">
+                  {/* Templates */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {['Standard','Modern','Elegant'].map((tmpl) => {
+                      const active = selectedCoverTemplate === tmpl;
+                      return (
+                        <button
+                          key={tmpl}
+                          onClick={() => onSelectCoverTemplate && onSelectCoverTemplate(tmpl)}
+                          className={`group inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition ${active ? 'border-[#1dff00] bg-[#1dff00]/10 text-[#1dff00]' : 'border-white/15 text-white/80 hover:border-[#1dff00]/40 hover:text-white'}`}
+                          title={`Use ${tmpl} template`}
+                        >
+                          <span className="inline-block h-1.5 w-1.5 rounded-full bg-current opacity-80" />
+                          {tmpl}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Saved letters and preview */}
+                  <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="text-xs font-medium text-white/70">Choose from saved letters</div>
+                      {!selectedCoverId && (
+                        <span className="text-[10px] text-white/50">Using current draft</span>
+                      )}
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       <button
-                        className={`px-2 py-1 rounded border text-xs transition ${!selectedCoverId ? 'border-[#1dff00] text-[#1dff00] bg-[#1dff0033]' : 'border-white/20 text-white/80 hover:border-[#1dff00]/40'}`}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition ${!selectedCoverId ? 'border-[#1dff00] bg-[#1dff00]/10 text-[#1dff00]' : 'border-white/15 text-white/80 hover:border-[#1dff00]/40 hover:text-white'}`}
                         onClick={() => onSelectCoverId && onSelectCoverId(null)}
                         title="Use current draft"
-                      >Current Draft</button>
-                      {coverLibrary.map((e) => (
-                        <button
-                          key={e.id}
-                          className={`px-2 py-1 rounded border text-xs transition ${selectedCoverId === e.id ? 'border-[#1dff00] text-[#1dff00] bg-[#1dff0033]' : 'border-white/20 text-white/80 hover:border-[#1dff00]/40'}`}
-                          onClick={() => onSelectCoverId && onSelectCoverId(e.id)}
-                          title={`Updated ${new Date(e.updatedAt).toLocaleString()}`}
-                        >{e.name}</button>
-                      ))}
+                      >
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-current opacity-80" />
+                        Current Draft
+                      </button>
+                      {coverLibrary.map((e) => {
+                        const active = selectedCoverId === e.id;
+                        return (
+                          <button
+                            key={e.id}
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition ${active ? 'border-[#1dff00] bg-[#1dff00]/10 text-[#1dff00]' : 'border-white/15 text-white/80 hover:border-[#1dff00]/40 hover:text-white'}`}
+                            onClick={() => onSelectCoverId && onSelectCoverId(e.id)}
+                            title={`Updated ${new Date(e.updatedAt).toLocaleString()}`}
+                          >
+                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-current opacity-80" />
+                            {e.name}
+                          </button>
+                        );
+                      })}
                     </div>
-                    <div className="mt-2 max-h-40 overflow-auto rounded border border-white/10 bg-white/5 p-2 text-xs text-white/80 whitespace-pre-wrap">
+
+                    <div className="mt-3 max-h-48 overflow-auto rounded-lg border border-white/10 bg-white/[0.06] p-3 text-xs text-white/80 whitespace-pre-wrap">
                       {(() => {
                         try {
                           let parsed: any = null;
