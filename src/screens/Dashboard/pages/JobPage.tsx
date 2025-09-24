@@ -162,6 +162,8 @@ export const JobPage = (): JSX.Element => {
   const [savedDrawerOpen, setSavedDrawerOpen] = useState(false);
   const [savedItems, setSavedItems] = useState<Array<{ source_url: string; job_title: string; company: string; location: string | null; logo: string | null; created_at: string }>>([]);
   const [savedLoading, setSavedLoading] = useState(false);
+  // Saved details cache keyed by source_url
+  const [savedDetails, setSavedDetails] = useState<Record<string, { loading: boolean; row?: any; error?: string; expanded?: boolean }>>({});
   // Quick presets (lightweight helpers)
   const [selectedPresets, setSelectedPresets] = useState<Set<string>>(() => {
     try {
@@ -451,6 +453,57 @@ export const JobPage = (): JSX.Element => {
   useEffect(() => {
     if (savedDrawerOpen) loadBookmarks();
   }, [savedDrawerOpen, loadBookmarks]);
+
+  // Toggle and fetch details for a saved job from job_listings
+  const toggleSavedDetails = useCallback(async (url: string) => {
+    setSavedDetails((m) => ({ ...m, [url]: { ...(m[url] || {}), expanded: !m[url]?.expanded } }));
+    const current = savedDetails[url];
+    if (!current || (!current.row && !current.loading)) {
+      try {
+        setSavedDetails((m) => ({ ...m, [url]: { ...(m[url] || {}), loading: true } }));
+        const { data, error } = await (supabase as any)
+          .from('job_listings')
+          .select('job_title, company_name, location, work_type, full_job_description, source_url, posted_at, salary_min, salary_max, salary_period, salary_currency, requirements, benefits')
+          .eq('source_url', url)
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        setSavedDetails((m) => ({ ...m, [url]: { loading: false, row: data || null, expanded: true } }));
+      } catch (e: any) {
+        setSavedDetails((m) => ({ ...m, [url]: { loading: false, error: e.message || 'Failed to load', expanded: true } }));
+      }
+    }
+  }, [savedDetails]);
+
+  // Convert a job_listings row to local Job shape for applying from Saved drawer
+  const listingRowToJob = useCallback((r: any): Job => {
+    const salary = (typeof r?.salary_min === 'number' || typeof r?.salary_max === 'number')
+      ? `$${r?.salary_min ?? ''}${(r?.salary_min && r?.salary_max) ? ' - ' : ''}${r?.salary_max ?? ''}${r?.salary_period ? ` / ${r?.salary_period}` : ''}`
+      : 'N/A';
+    const id = r?.source_url || `${r?.job_title}-${r?.company_name}`;
+    return {
+      jobTitle: r?.job_title || '',
+      companyName: r?.company_name || '',
+      fullJobDescription: r?.full_job_description || '',
+      sourceUrl: r?.source_url || '',
+      id,
+      title: r?.job_title || '',
+      company: r?.company_name || '',
+      location: r?.location || '',
+      type: r?.work_type || 'N/A',
+      salary,
+      postedDate: r?.posted_at ? new Date(r.posted_at).toLocaleDateString() : 'N/A',
+      rawPostedAt: r?.posted_at ? new Date(r.posted_at).getTime() : null,
+      description: r?.full_job_description || '',
+      requirements: Array.isArray(r?.requirements) ? r.requirements : extractSectionBullets(r?.full_job_description || '', ['requirements', 'qualifications', "what you'll need", 'what you will need']),
+      benefits: Array.isArray(r?.benefits) ? r.benefits : extractSectionBullets(r?.full_job_description || '', ['benefits', 'perks', 'what we offer', 'what you get', 'compensation & benefits']),
+      isBookmarked: true,
+      isApplied: false,
+      logo: (r?.company_name?.[0] || '?').toUpperCase(),
+      logoUrl: getCompanyLogoUrl(r?.company_name, r?.source_url),
+      source: 'db',
+    } as Job;
+  }, []);
 
   const toggleBookmark = useCallback(async (job: Job) => {
     try {
@@ -998,7 +1051,7 @@ export const JobPage = (): JSX.Element => {
               >
                 <Bookmark className="w-4 h-4 mr-2" />
                 Saved
-                {savedItems.length > 0 && (
+                {savedItems.map((it) => (
                   <span className="ml-2 inline-flex items-center justify-center text-xs rounded px-1.5 py-0.5 bg-[#1dff00]/20 text-[#1dff00] border border-[#1dff00]/40">{savedItems.length}</span>
                 )}
               </Button>
@@ -1013,23 +1066,82 @@ export const JobPage = (): JSX.Element => {
             <div className="lg:col-span-2 relative">
               <label htmlFor="job-search" className="sr-only">Search jobs</label>
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
+                          <button
+                            onClick={() => toggleSavedDetails(it.source_url)}
+                            className="px-2 py-1 rounded border border-white/20 text-white/80 hover:border-[#1dff00]/40 text-xs"
+                          >
+                            {savedDetails[it.source_url]?.expanded ? 'Hide details' : 'View details'}
+                          </button>
               <Input
                 id="job-search"
                 name="job-search"
                 placeholder="Search jobs, companies..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
-              />
-            </div>
-            
-            {/* Location Filter */}
+                              if (job) {
+                                setSelectedJob(job.id);
+                                openResumePicker(job);
+                              } else {
+                                const row = savedDetails[it.source_url]?.row;
+                                if (row) {
+                                  const temp = listingRowToJob(row);
+                                  // apply directly using details
+                                  openResumePicker(temp);
+                                } else {
+                                  window.open(it.source_url, '_blank', 'noopener,noreferrer');
+                                }
+                              }
             <div className="relative">
               <label htmlFor="job-location" className="sr-only">Location</label>
               <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
               <Input
                 id="job-location"
                 name="job-location"
+                        {savedDetails[it.source_url]?.expanded && (
+                          <div className="mt-3 rounded border border-white/10 bg-white/5 p-3 text-sm">
+                            {savedDetails[it.source_url]?.loading && (
+                              <div className="text-white/70">Loading details…</div>
+                            )}
+                            {!!savedDetails[it.source_url]?.error && (
+                              <div className="text-red-300">{savedDetails[it.source_url]?.error}</div>
+                            )}
+                            {savedDetails[it.source_url]?.row && (() => {
+                              const r: any = savedDetails[it.source_url]!.row;
+                              const salaryStr = (typeof r.salary_min === 'number' || typeof r.salary_max === 'number')
+                                ? `$${r.salary_min ?? ''}${(r.salary_min && r.salary_max) ? ' - ' : ''}${r.salary_max ?? ''}${r.salary_period ? ` / ${r.salary_period}` : ''}`
+                                : 'N/A';
+                              return (
+                                <div className="space-y-2">
+                                  <div className="flex flex-wrap items-center gap-3 text-white/80">
+                                    {r.location && <span className="px-2 py-0.5 rounded border border-white/15 bg-white/5">{r.location}</span>}
+                                    {r.work_type && <span className="px-2 py-0.5 rounded border border-white/15 bg-white/5">{r.work_type}</span>}
+                                    <span className="px-2 py-0.5 rounded border border-white/15 bg-white/5">Salary: {salaryStr}</span>
+                                    {r.posted_at && <span className="px-2 py-0.5 rounded border border-white/15 bg-white/5">Posted {new Date(r.posted_at).toLocaleDateString()}</span>}
+                                  </div>
+                                  <div className="prose prose-invert max-w-none text-white/80">
+                                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(r.full_job_description || '') }} />
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {Array.isArray(r.requirements) && r.requirements.length > 0 && (
+                                      <div>
+                                        <div className="text-white font-medium mb-1">Requirements</div>
+                                        <ul className="list-disc list-inside text-white/80 space-y-1">
+                                          {r.requirements.slice(0, 6).map((x: string, idx: number) => <li key={idx}>{x}</li>)}
+                                        </ul>
+                                      </div>
+                                    )}
+                                    {Array.isArray(r.benefits) && r.benefits.length > 0 && (
+                                      <div>
+                                        <div className="text-white font-medium mb-1">Benefits</div>
+                                        <ul className="list-disc list-inside text-white/80 space-y-1">
+                                          {r.benefits.slice(0, 6).map((x: string, idx: number) => <li key={idx}>{x}</li>)}
+                                        </ul>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
                 placeholder="Location..."
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}

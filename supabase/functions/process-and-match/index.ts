@@ -233,7 +233,7 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
       else jobUrls.push(u);
     }
 
-    let scrapedJobs: JobListing[] = [];
+  let scrapedJobs: JobListing[] = [];
     if (jobUrls.length) {
       // Helper to parse a salary range string like "$120000 - $180000" to numeric min/max
       const parseSalaryRangeToMinMax = (input?: string): { min: number | null; max: number | null } => {
@@ -451,6 +451,125 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
       }
     }
 
+    // Helper: seed per-user jobs from configured sources (remotive, remoteok, arbeitnow)
+    async function seedFromSources(uid: string, query: string, sources: string[] | null): Promise<JobListing[] | null> {
+      const enabled = (sources && sources.length ? sources : ['remotive']).map((s) => s.toLowerCase());
+      const items: any[] = [];
+      // Remotive
+      if (enabled.includes('remotive')) {
+        try {
+          const endpoint = `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(query)}`;
+          const res = await fetch(endpoint, { headers: { 'accept': 'application/json' } });
+          if (res.ok) {
+            const json: any = await res.json();
+            const jobs = (json?.jobs || []).slice(0, 30).map((j: any) => ({
+              user_id: uid,
+              source_type: 'remotive',
+              source_id: String(j?.id ?? j?.url ?? crypto.randomUUID()),
+              title: j?.title ?? '',
+              company: j?.company_name ?? '',
+              description: j?.description ?? null,
+              location: j?.candidate_required_location ?? null,
+              remote_type: 'remote',
+              employment_type: null,
+              salary_min: j?.salary_min ?? null,
+              salary_max: j?.salary_max ?? null,
+              salary_currency: 'USD',
+              tags: Array.isArray(j?.tags) ? j.tags : null,
+              apply_url: j?.url ?? '',
+              posted_at: j?.publication_date ? new Date(j.publication_date).toISOString() : new Date().toISOString(),
+              status: 'active',
+              raw_data: j || null,
+            }));
+            items.push(...jobs);
+          }
+        } catch (_) {}
+      }
+      // RemoteOK
+      if (enabled.includes('remoteok')) {
+        try {
+          const res = await fetch('https://remoteok.com/api', { headers: { 'accept': 'application/json' } });
+          if (res.ok) {
+            const arr: any[] = await res.json();
+            const rows = (Array.isArray(arr) ? arr : []).filter((x: any) => x && x.id && (x.position || x.title));
+            const ql = query.toLowerCase();
+            const filtered = rows.filter((r: any) => {
+              const hay = `${r.position || r.title || ''} ${r.company || ''} ${r.description || ''}`.toLowerCase();
+              return hay.includes(ql);
+            }).slice(0, 30);
+            const jobs = filtered.map((r: any) => ({
+              user_id: uid,
+              source_type: 'remoteok',
+              source_id: String(r.id ?? r.url ?? crypto.randomUUID()),
+              title: r.position || r.title || '',
+              company: r.company || '',
+              description: r.description || null,
+              location: Array.isArray(r.location) ? r.location.join(', ') : (r.location || null),
+              remote_type: 'remote',
+              employment_type: null,
+              salary_min: null,
+              salary_max: null,
+              salary_currency: 'USD',
+              tags: Array.isArray(r.tags) ? r.tags : null,
+              apply_url: r.url || r.apply_url || '',
+              posted_at: r.date ? new Date(r.date).toISOString() : new Date().toISOString(),
+              status: 'active',
+              raw_data: r || null,
+            }));
+            items.push(...jobs);
+          }
+        } catch (_) {}
+      }
+      // Arbeitnow
+      if (enabled.includes('arbeitnow')) {
+        try {
+          const res = await fetch('https://arbeitnow.com/api/job-board-api', { headers: { 'accept': 'application/json' } });
+          if (res.ok) {
+            const json: any = await res.json();
+            const data: any[] = Array.isArray(json?.data) ? json.data : [];
+            const ql = query.toLowerCase();
+            const filtered = data.filter((r: any) => {
+              const hay = `${r.title || ''} ${r.company || ''} ${r.description || ''}`.toLowerCase();
+              return hay.includes(ql);
+            }).slice(0, 30);
+            const jobs = filtered.map((r: any) => ({
+              user_id: uid,
+              source_type: 'arbeitnow',
+              source_id: String(r.slug || r.url || crypto.randomUUID()),
+              title: r.title || '',
+              company: r.company || '',
+              description: r.description || null,
+              location: Array.isArray(r.location) ? r.location.join(', ') : (r.location || null),
+              remote_type: (r.remote ? 'remote' : null),
+              employment_type: null,
+              salary_min: null,
+              salary_max: null,
+              salary_currency: 'USD',
+              tags: Array.isArray(r.tags) ? r.tags : null,
+              apply_url: r.url || '',
+              posted_at: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+              status: 'active',
+              raw_data: r || null,
+            }));
+            items.push(...jobs);
+          }
+        } catch (_) {}
+      }
+      if (!items.length) return null;
+      try { await supabaseAdmin.from('jobs').upsert(items, { onConflict: 'user_id,source_id' as any }); } catch (_) {}
+      const toJobListing = (r: any): JobListing => ({
+        jobTitle: r.title,
+        companyName: r.company,
+        location: r.location || null,
+        workType: r.remote_type ? (String(r.remote_type).toLowerCase() === 'remote' ? 'Remote' : (String(r.remote_type).toLowerCase() === 'hybrid' ? 'Hybrid' : 'On-site')) : null,
+        fullJobDescription: r.description || '',
+        sourceUrl: r.apply_url,
+        requirements: [],
+        benefits: [],
+      });
+      return items.map(toJobListing);
+    }
+
     // --- Step 2: If no scraped results, attempt per-user jobs fallback (RLS) and optional seeding ---
     if (!scrapedJobs.length) {
       try {
@@ -510,42 +629,12 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
           try { const jwt = token ? JSON.parse(atob(token.split('.')[1])) : null; return jwt?.sub || jwt?.user_id || null; } catch { return null; }
         })();
         if (uid && effectiveQuery) {
-          // Helper: seed from Remotive if enabled (or if settings absent) and/or seed from global job_listings
           const seededResults: JobListing[] = [];
-          const canUseRemotive = !enabledSources || enabledSources.includes('remotive');
-          // 1) Remotive
-          if (canUseRemotive) {
-            try {
-              const endpoint = `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(effectiveQuery)}`;
-              const res = await fetch(endpoint, { headers: { 'accept': 'application/json' } });
-              if (res.ok) {
-                const json: any = await res.json();
-                const jobs = (json?.jobs || []).slice(0, 30).map((j: any) => ({
-                  user_id: uid,
-                  source_type: 'remotive',
-                  source_id: String(j?.id ?? j?.url ?? crypto.randomUUID()),
-                  title: j?.title ?? '',
-                  company: j?.company_name ?? '',
-                  description: j?.description ?? null,
-                  location: j?.candidate_required_location ?? null,
-                  remote_type: 'remote',
-                  employment_type: null,
-                  salary_min: j?.salary_min ?? null,
-                  salary_max: j?.salary_max ?? null,
-                  salary_currency: 'USD',
-                  tags: Array.isArray(j?.tags) ? j.tags : null,
-                  apply_url: j?.url ?? '',
-                  posted_at: j?.publication_date ? new Date(j.publication_date).toISOString() : new Date().toISOString(),
-                  status: 'active',
-                  raw_data: j || null,
-                }));
-                if (jobs.length) {
-                  await supabaseAdmin.from('jobs').upsert(jobs, { onConflict: 'user_id,source_id' as any });
-                  seededResults.push(...jobs.map(toJobListing));
-                }
-              }
-            } catch (_) { /* ignore remotive errors */ }
-          }
+          // 1) Seed from external sources based on settings
+          try {
+            const seeded = await seedFromSources(uid, effectiveQuery, enabledSources);
+            if (Array.isArray(seeded) && seeded.length) seededResults.push(...seeded);
+          } catch (_) {}
           // 2) Global job_listings -> personal jobs seeding (always allowed; results remain per-user)
           try {
             let qSeed = supabaseAdmin
@@ -682,46 +771,21 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
         });
       }
 
-      // If no personal jobs, attempt a lightweight fetch from Remotive and store per-user
+      // If no personal jobs, attempt a lightweight fetch from enabled sources and store per-user
       const uid = (() => {
         try { const jwt = token ? JSON.parse(atob(token.split('.')[1])) : null; return jwt?.sub || jwt?.user_id || null; } catch { return null; }
       })();
       if (uid && q) {
         try {
-          const endpoint = `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(q)}`;
-          const res = await fetch(endpoint, { headers: { 'accept': 'application/json' } });
-          if (res.ok) {
-            const json: any = await res.json();
-            const jobs = (json?.jobs || []).slice(0, 30).map((j: any) => ({
-              user_id: uid,
-              source_type: 'remotive',
-              source_id: String(j?.id ?? j?.url ?? crypto.randomUUID()),
-              title: j?.title ?? '',
-              company: j?.company_name ?? '',
-              description: j?.description ?? null,
-              location: j?.candidate_required_location ?? null,
-              remote_type: 'remote',
-              employment_type: null,
-              salary_min: j?.salary_min ?? null,
-              salary_max: j?.salary_max ?? null,
-              salary_currency: 'USD',
-              tags: Array.isArray(j?.tags) ? j.tags : null,
-              apply_url: j?.url ?? '',
-              posted_at: j?.publication_date ? new Date(j.publication_date).toISOString() : new Date().toISOString(),
-              status: 'active',
-              raw_data: j || null,
-            }));
-            if (jobs.length) {
-              await supabaseAdmin.from('jobs').upsert(jobs, { onConflict: 'user_id,source_id' as any });
-              const items = jobs.map(toJobListing);
-              return new Response(JSON.stringify({ matchedJobs: items, note: 'fallback: seeded_personal' }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 200,
-              });
-            }
+          const seeded = await seedFromSources(uid, q, enabledSources);
+          if (Array.isArray(seeded) && seeded.length) {
+            return new Response(JSON.stringify({ matchedJobs: seeded, note: 'fallback: seeded_personal' }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200,
+            });
           }
         } catch (e3) {
-          console.error('fallback remotive seed error', e3);
+          console.error('fallback seed error', e3);
         }
       }
 
