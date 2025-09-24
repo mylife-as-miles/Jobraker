@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
-import { Search, MapPin, Clock, MoreVertical, Filter } from "lucide-react";
+import { Search, MapPin, Clock, MoreVertical, Filter, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { createClient } from "../../../lib/supabaseClient";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
@@ -157,6 +157,11 @@ export const JobPage = (): JSX.Element => {
   // Facet panel ref for header button scroll
   const facetPanelRef = useRef<HTMLDivElement | null>(null);
   const [facetPulse, setFacetPulse] = useState(false);
+  // Drawers
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [savedDrawerOpen, setSavedDrawerOpen] = useState(false);
+  const [savedItems, setSavedItems] = useState<Array<{ source_url: string; job_title: string; company: string; location: string | null; logo: string | null; created_at: string }>>([]);
+  const [savedLoading, setSavedLoading] = useState(false);
   // Quick presets (lightweight helpers)
   const [selectedPresets, setSelectedPresets] = useState<Set<string>>(() => {
     try {
@@ -285,6 +290,27 @@ export const JobPage = (): JSX.Element => {
       setLoading(false);
     }
   }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType]);
+
+  // Load bookmarks for drawer
+  const loadBookmarks = useCallback(async () => {
+    try {
+      setSavedLoading(true);
+      const { data: userData } = await (supabase as any).auth.getUser();
+      const uid = (userData as any)?.user?.id;
+      if (!uid) { setSavedItems([]); return; }
+      const { data, error } = await (supabase as any)
+        .from('bookmarks')
+        .select('source_url, job_title, company, location, logo, created_at')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setSavedItems(Array.isArray(data) ? data as any : []);
+    } catch (e) {
+      // ignore
+    } finally {
+      setSavedLoading(false);
+    }
+  }, []);
 
   // Helper: map DB rows to Job shape
   const mapDbRowsToJobs = useCallback((rows: any[]): Job[] => {
@@ -417,6 +443,11 @@ export const JobPage = (): JSX.Element => {
     })();
   }, []);
 
+  // When saved drawer opens, fetch bookmarks fresh
+  useEffect(() => {
+    if (savedDrawerOpen) loadBookmarks();
+  }, [savedDrawerOpen, loadBookmarks]);
+
   const toggleBookmark = useCallback(async (job: Job) => {
     try {
       const { data: userData } = await (supabase as any).auth.getUser();
@@ -451,12 +482,31 @@ export const JobPage = (): JSX.Element => {
         if (error) throw error;
         info('Removed bookmark');
       }
+      // Refresh saved drawer list if it's open
+      if (savedDrawerOpen) loadBookmarks();
     } catch (e: any) {
       toastError('Bookmark failed', e.message || 'Try again');
       // revert
       setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isBookmarked: job.isBookmarked } : j)));
     }
   }, [supabase, success, toastError, info]);
+
+  // Remove bookmark by URL (used in Saved Drawer)
+  const removeBookmarkByUrl = useCallback(async (url: string) => {
+    try {
+      const { error } = await (supabase as any)
+        .from('bookmarks')
+        .delete()
+        .eq('source_url', url);
+      if (error) throw error;
+      setSavedItems(prev => prev.filter(it => it.source_url !== url));
+      // Also reflect on current jobs list
+      setJobs(prev => prev.map(j => j.sourceUrl === url ? { ...j, isBookmarked: false } : j));
+      info('Removed bookmark');
+    } catch (e: any) {
+      toastError('Failed to remove', e.message || 'Try again');
+    }
+  }, [info, toastError]);
 
   const quickApply = useCallback(async (job: Job) => {
   // NOTE: This function may receive a resume URL override via closure (state)
@@ -899,6 +949,16 @@ export const JobPage = (): JSX.Element => {
               </div>
             </div>
             <div className="flex gap-2 sm:gap-3">
+              {/* Mobile: open drawer */}
+              <Button
+                variant="outline"
+                onClick={() => setMobileFiltersOpen(true)}
+                className="sm:hidden border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300"
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                {activeFacetCount > 0 ? `Filters (${activeFacetCount})` : 'Filters'}
+              </Button>
+              {/* Desktop: scroll to facet panel */}
               <Button 
                 variant="outline" 
                 onClick={() => {
@@ -908,10 +968,22 @@ export const JobPage = (): JSX.Element => {
                     setTimeout(() => setFacetPulse(false), 1200);
                   }
                 }}
-                className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                className="hidden sm:inline-flex border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
               >
                 <Filter className="w-4 h-4 mr-2" />
                 {activeFacetCount > 0 ? `Filters (${activeFacetCount})` : 'Filters'}
+              </Button>
+              {/* Saved jobs */}
+              <Button
+                variant="outline"
+                onClick={() => setSavedDrawerOpen(true)}
+                className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300"
+              >
+                <Bookmark className="w-4 h-4 mr-2" />
+                Saved
+                {savedItems.length > 0 && (
+                  <span className="ml-2 inline-flex items-center justify-center text-xs rounded px-1.5 py-0.5 bg-[#1dff00]/20 text-[#1dff00] border border-[#1dff00]/40">{savedItems.length}</span>
+                )}
               </Button>
             </div>
           </div>
@@ -1579,6 +1651,156 @@ export const JobPage = (): JSX.Element => {
           selectedCoverTemplate={selectedCoverTemplate}
           onSelectCoverTemplate={(tmpl) => setSelectedCoverTemplate(tmpl)}
         />
+
+        {/* Mobile Filters Drawer */}
+        {mobileFiltersOpen && (
+          <div className="fixed inset-0 z-50">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setMobileFiltersOpen(false)} />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 260, damping: 30 }}
+              className="absolute right-0 top-0 h-full w-full sm:w-[480px] bg-gradient-to-br from-[#0a0a0a] via-[#0b0b0b] to-[#050505] border-l border-white/10 shadow-2xl flex flex-col"
+              role="dialog"
+              aria-label="Mobile filters"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-white/10">
+                <div className="text-white font-semibold">Filters</div>
+                <button className="text-white/70 hover:text-white" onClick={() => setMobileFiltersOpen(false)} aria-label="Close filters">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-4 space-y-4 overflow-auto">
+                {/* Work Type */}
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-[#ffffff80] mb-2">Work type</div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {["All", "Remote", "Hybrid", "On-site"].map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => setSelectedType(type)}
+                        className={`px-2 py-1 rounded border text-xs transition ${
+                          selectedType === type ? 'border-[#1dff00] text-black bg-[#1dff00]' : 'border-white/20 text-white/80 hover:border-[#1dff00]/40'
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Quick presets */}
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-[#ffffff80] mb-2">Quick presets</div>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => togglePreset('remote')} className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('remote') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>Remote</button>
+                    <button type="button" onClick={() => togglePreset('gt100k')} className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('gt100k') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>{`>$100k`}</button>
+                    <button type="button" onClick={() => togglePreset('last7')} className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('last7') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>Last 7 days</button>
+                  </div>
+                </div>
+                {/* Salary & posted */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input placeholder="Min salary (e.g. 120000)" inputMode="numeric" value={minSalary} onChange={(e) => setMinSalary(e.target.value.replace(/[^0-9]/g, ''))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]" />
+                  <Input placeholder="Max salary (e.g. 200000)" inputMode="numeric" value={maxSalary} onChange={(e) => setMaxSalary(e.target.value.replace(/[^0-9]/g, ''))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]" />
+                  <div className="sm:col-span-2">
+                    <SafeSelect fallbackValue="any" value={postedSince} onValueChange={(v) => setPostedSince(v === 'any' ? '' : v)}>
+                      <SelectTrigger className="h-10"><SelectValue placeholder="Posted since" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Any time</SelectItem>
+                        <SelectItem value="3">Last 3 days</SelectItem>
+                        <SelectItem value="7">Last 7 days</SelectItem>
+                        <SelectItem value="14">Last 14 days</SelectItem>
+                        <SelectItem value="30">Last 30 days</SelectItem>
+                      </SelectContent>
+                    </SafeSelect>
+                  </div>
+                </div>
+                {/* Facets */}
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-[#ffffff80] mb-2">Requirements</div>
+                  <div className="flex flex-wrap gap-2">
+                    {(facets.requirements || []).map((f) => {
+                      const active = selectedReq.has(f.value);
+                      return (
+                        <button key={`mreq-${f.value}`} onClick={() => toggleReq(f.value)} className={`px-2 py-1 rounded border text-xs transition ${active ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>{f.value}<span className="ml-1 text-[10px] opacity-70">{f.count}</span></button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-[#ffffff80] mb-2">Benefits</div>
+                  <div className="flex flex-wrap gap-2">
+                    {(facets.benefits || []).map((f) => {
+                      const active = selectedBen.has(f.value);
+                      return (
+                        <button key={`mben-${f.value}`} onClick={() => toggleBen(f.value)} className={`px-2 py-1 rounded border text-xs transition ${active ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>{f.value}<span className="ml-1 text-[10px] opacity-70">{f.count}</span></button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 border-t border-white/10 flex items-center justify-between">
+                <Button variant="ghost" onClick={clearAllFilters} className="text-[#1dff00] hover:bg-[#1dff00]/10">Clear all</Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={() => { resetSalaryTime(); }} className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]">Reset salary/time</Button>
+                  <Button onClick={() => { fetchFacets(); applyFacetFilters(Array.from(selectedReq), Array.from(selectedBen)); setMobileFiltersOpen(false); }} className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90">Apply</Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Saved Jobs Drawer */}
+        {savedDrawerOpen && (
+          <div className="fixed inset-0 z-50">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setSavedDrawerOpen(false)} />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 260, damping: 30 }}
+              className="absolute right-0 top-0 h-full w-full sm:w-[540px] bg-gradient-to-br from-[#0a0a0a] via-[#0b0b0b] to-[#050505] border-l border-white/10 shadow-2xl flex flex-col"
+              role="dialog"
+              aria-label="Saved jobs"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-white/10">
+                <div className="text-white font-semibold">Saved Jobs {savedLoading ? <span className="text-xs text-white/50 ml-2">Loading…</span> : savedItems.length ? <span className="text-xs text-white/50 ml-2">({savedItems.length})</span> : null}</div>
+                <button className="text-white/70 hover:text-white" onClick={() => setSavedDrawerOpen(false)} aria-label="Close saved">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-4 space-y-3 overflow-auto">
+                {(!savedLoading && savedItems.length === 0) && (
+                  <Card className="border border-white/10 bg-white/5 p-6 text-center">
+                    <Bookmark className="w-10 h-10 text-white/40 mx-auto mb-2" />
+                    <div className="text-white/80 font-medium">No saved jobs</div>
+                    <div className="text-white/60 text-sm">Tap the bookmark on a job to save it here.</div>
+                  </Card>
+                )}
+                {savedItems.map((it) => (
+                  <Card key={it.source_url} className="border border-white/10 bg-white/5 p-4">
+                    <div className="flex items-start gap-3">
+                      {it.logo ? (
+                        <img src={it.logo} alt={it.company} className="w-12 h-12 rounded-lg bg-white object-contain" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-[#1dff00]/20 flex items-center justify-center text-[#1dff00] font-bold">{(it.company?.[0] || '?').toUpperCase()}</div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-white font-medium truncate">{it.job_title}</div>
+                        <div className="text-white/70 text-sm truncate">{it.company}{it.location ? ` • ${it.location}` : ''}</div>
+                        <div className="text-xs text-white/50 mt-1">Saved {new Date(it.created_at).toLocaleString()}</div>
+                        <div className="mt-3 flex items-center gap-2">
+                          <a href={it.source_url} target="_blank" rel="noopener noreferrer nofollow" className="px-2 py-1 rounded border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff0033] hover:bg-[#1dff004d] text-xs">Open posting</a>
+                          <button onClick={() => removeBookmarkByUrl(it.source_url)} className="px-2 py-1 rounded border border-red-400/40 text-red-300 bg-red-500/10 hover:bg-red-500/20 text-xs">Remove</button>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
       </div>
     </div>
   );
