@@ -1877,6 +1877,24 @@ export const JobPage = (): JSX.Element => {
                           >
                             Apply Now
                           </button>
+                          <button
+                            onClick={() => {
+                              const job = jobs.find(j => j.sourceUrl === it.source_url);
+                              if (job) {
+                                setSelectedJob(job.id);
+                                setSavedDrawerOpen(false);
+                                try {
+                                  const el = document.querySelector('[aria-label="Results and details"]') as HTMLElement | null;
+                                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                } catch {}
+                              } else {
+                                window.open(it.source_url, '_blank', 'noopener,noreferrer');
+                              }
+                            }}
+                            className="px-2 py-1 rounded border border-white/20 text-white/80 hover:border-[#1dff00]/40 text-xs"
+                          >
+                            View details
+                          </button>
                         </div>
                       </div>
                     </div>
