@@ -23,6 +23,7 @@ import { motion } from "framer-motion";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { useProfileSettings } from "../../hooks/useProfileSettings";
 import { createClient } from "../../lib/supabaseClient";
+import { useNotifications } from "../../hooks/useNotifications";
 
 // Import sub-page components
 import { OverviewPage } from "./pages/OverviewPage";
@@ -89,6 +90,8 @@ export const Dashboard = (): JSX.Element => {
   const supabase = useMemo(() => createClient(), []);
   const [email, setEmail] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const { items: recentNotifications } = useNotifications(20);
+  const unreadCount = useMemo(() => recentNotifications.filter(n => !n.read).length, [recentNotifications]);
   const initials = useMemo(() => {
     const a = (profile?.first_name || '').trim();
     const b = (profile?.last_name || '').trim();
@@ -369,10 +372,12 @@ export const Dashboard = (): JSX.Element => {
                 onClick={() => navigate("/dashboard/notifications")}
               >
                 <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 bg-[#1dff00] rounded-full text-black text-[10px] font-bold flex items-center justify-center animate-pulse">
-                  <span className="hidden sm:inline text-xs">3</span>
-                  <span className="sm:hidden">•</span>
-                </span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-3 h-3 sm:min-w-4 sm:h-4 lg:min-w-5 lg:h-5 bg-[#1dff00] rounded-full text-black text-[10px] font-bold flex items-center justify-center animate-pulse px-[2px]">
+                    <span className="hidden sm:inline text-xs max-w-[2.5rem] truncate">{unreadCount}</span>
+                    <span className="sm:hidden">•</span>
+                  </span>
+                )}
               </Button>
               
               {/* Profile Button - Responsive */}

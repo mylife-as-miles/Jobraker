@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "../lib/supabaseClient";
 import { useToast } from "../components/ui/toast";
+import { createNotification } from "../utils/notifications";
 
 export type ApplicationStatus = "Pending" | "Applied" | "Interview" | "Offer" | "Rejected" | "Withdrawn";
 
@@ -150,16 +151,39 @@ export function useApplications() {
       const rec = data as ApplicationRecord;
       setApplications((prev) => [rec, ...prev]);
       success("Application added", `${rec.job_title} @ ${rec.company}`);
+      // Notification: new application added
+      createNotification({
+        user_id: userId,
+        type: 'application',
+        title: `Application added: ${rec.job_title}`,
+        message: `${rec.job_title} @ ${rec.company}`,
+        company: rec.company,
+        action_url: rec.app_url ?? undefined,
+      });
       return rec;
     } catch (e: any) {
       const msg = e.message || "Failed to add application";
       setError(msg);
       toastError("Add failed", msg);
+      // System notification for failure (best-effort; ignore result)
+      if (userId) {
+        createNotification({
+          user_id: userId,
+          type: 'system',
+          title: 'Application creation failed',
+          message: msg,
+        });
+      }
       return null;
     }
   }, [supabase, userId, success, toastError]);
 
   const update = useCallback(async (id: string, patch: Partial<ApplicationRecord>) => {
+    // Inspect before state for status transitions
+    const current = applications.find(a => a.id === id);
+    const oldStatus = current?.status;
+    const newStatus = patch.status ?? oldStatus;
+    const oldInterviewDate = current?.interview_date;
     try {
       setApplications((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
       const { error } = await (supabase as any)
@@ -168,15 +192,77 @@ export function useApplications() {
         .eq("id", id);
       if (error) throw error;
       success("Saved changes");
+      // Create notifications for key lifecycle transitions
+      if (userId && oldStatus && newStatus && oldStatus !== newStatus && current) {
+        if (newStatus === 'Interview') {
+          createNotification({
+            user_id: userId,
+            type: 'interview',
+            title: `Interview stage: ${current.job_title}`,
+            message: `${current.job_title} @ ${current.company} advanced to Interview`,
+            company: current.company,
+            action_url: current.app_url ?? undefined,
+          });
+        } else if (newStatus === 'Offer') {
+          createNotification({
+            user_id: userId,
+            type: 'application',
+            title: `Offer received: ${current.job_title}`,
+            message: `Congratulations! Offer stage reached for ${current.job_title} @ ${current.company}`,
+            company: current.company,
+            action_url: current.app_url ?? undefined,
+          });
+        } else if (newStatus === 'Rejected') {
+          createNotification({
+            user_id: userId,
+            type: 'system',
+            title: `Application rejected: ${current.job_title}`,
+            message: `${current.job_title} @ ${current.company}`,
+            company: current.company,
+          });
+        }
+      }
+      // Interview date newly scheduled or changed
+      if (userId && patch.interview_date && patch.interview_date !== oldInterviewDate && current) {
+        const when = (() => {
+          try { return new Date(patch.interview_date as string).toLocaleString(); } catch { return patch.interview_date; }
+        })();
+        createNotification({
+          user_id: userId,
+          type: 'interview',
+          title: `Interview scheduled: ${current.job_title}`,
+          message: `${current.job_title} @ ${current.company} on ${when}`,
+          company: current.company,
+          action_url: current.app_url ?? undefined,
+        });
+      }
+      // Provider failure or explicit failure_reason update
+      if (userId && patch.failure_reason) {
+        createNotification({
+          user_id: userId,
+          type: 'system',
+          title: 'Application error',
+          message: patch.failure_reason.slice(0, 500),
+        });
+      }
     } catch (e: any) {
       const msg = e.message || "Failed to update application";
       setError(msg);
       toastError("Update failed", msg);
       await list();
+      if (userId) {
+        createNotification({
+          user_id: userId,
+          type: 'system',
+          title: 'Application update failed',
+          message: msg,
+        });
+      }
     }
-  }, [supabase, success, toastError, list]);
+  }, [supabase, success, toastError, list, applications, userId]);
 
   const remove = useCallback(async (id: string) => {
+    const current = applications.find(a => a.id === id);
     try {
       setApplications((prev) => prev.filter((r) => r.id !== id));
       const { error } = await (supabase as any)
@@ -185,13 +271,30 @@ export function useApplications() {
         .eq("id", id);
       if (error) throw error;
       info("Deleted");
+      if (userId && current) {
+        createNotification({
+          user_id: userId,
+          type: 'system',
+          title: `Application removed: ${current.job_title}`,
+          message: `${current.job_title} @ ${current.company}`,
+          company: current.company,
+        });
+      }
     } catch (e: any) {
       const msg = e.message || "Failed to delete application";
       setError(msg);
       toastError("Delete failed", msg);
       await list();
+      if (userId) {
+        createNotification({
+          user_id: userId,
+          type: 'system',
+          title: 'Application delete failed',
+          message: msg,
+        });
+      }
     }
-  }, [supabase, info, toastError, list]);
+  }, [supabase, info, toastError, list, applications, userId]);
 
   const exportCSV = useCallback(() => {
     const headers = [

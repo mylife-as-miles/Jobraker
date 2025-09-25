@@ -8,6 +8,7 @@ import { TypingIndicator } from '../../../components/chat/TypingIndicator';
 import { ScrollToBottom } from '../../../components/chat/ScrollToBottom';
 import { ChatSearchPalette } from '../../../components/chat/ChatSearchPalette';
 import { PinnedAndSnippetsPanel } from '../../../components/chat/PinnedAndSnippetsPanel';
+import { SlashCommandMenu } from '../../../components/chat/SlashCommandMenu';
 import { useChatSessions } from '../../../stores/chatSessions';
 import clsx from 'clsx';
 
@@ -120,6 +121,9 @@ export const ChatPage = (): JSX.Element => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [showSessions, setShowSessions] = useState(true);
   const [composerRows, setComposerRows] = useState(1);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const [slashOpen, setSlashOpen] = useState(false);
+  const [slashQuery, setSlashQuery] = useState('');
 
   const toggleSessions = useCallback(()=> setShowSessions(s => !s), []);
 
@@ -265,10 +269,23 @@ export const ChatPage = (): JSX.Element => {
             <div className="flex flex-col gap-2 flex-1">
               <div className="relative group">
                 <textarea
+                  ref={composerRef}
                   value={input}
-                  onChange={e=>{setInput(e.target.value); const lines = e.target.value.split(/\n/).length; setComposerRows(Math.min(8, Math.max(1, lines)));}}
+                  onChange={e=>{
+                    const val = e.target.value;
+                    setInput(val);
+                    const lines = val.split(/\n/).length; setComposerRows(Math.min(8, Math.max(1, lines)));
+                    if (val.startsWith('/')) {
+                      const q = val.slice(1).split(/\s+/)[0];
+                      setSlashQuery(q);
+                      setSlashOpen(true);
+                    } else if (slashOpen) {
+                      setSlashOpen(false); setSlashQuery('');
+                    }
+                  }}
                   onKeyDown={(e)=>{
-                    if(e.key==='Enter' && !e.shiftKey){
+                    if (slashOpen && e.key === 'Escape') { setSlashOpen(false); return; }
+                    if(e.key==='Enter' && !e.shiftKey && !slashOpen){
                       e.preventDefault();
                       send();
                     }
@@ -277,6 +294,19 @@ export const ChatPage = (): JSX.Element => {
                   placeholder="Ask anything about your applications, resumes, interviews... (Shift+Enter for newline)"
                   className="resize-none w-full peer bg-[#0d0d0d]/90 border-[#1dff00]/30 focus:border-[#1dff00] focus:ring-0 text-white placeholder:text-neutral-500 rounded-2xl py-3 pr-28 pl-4 text-sm shadow-inner shadow-black/40 leading-relaxed"
                 />
+                {/* Slash command popover */}
+                <div className="absolute left-0 -top-2 translate-y-[-100%] w-80 pointer-events-none">
+                  <SlashCommandMenu
+                    open={slashOpen}
+                    query={slashQuery}
+                    anchorRef={composerRef as any}
+                    onSelect={(cmd)=>{
+                      setInput('/'+cmd.cmd+' ');
+                      setSlashOpen(false);
+                      setTimeout(()=>composerRef.current?.focus(), 0);
+                    }}
+                  />
+                </div>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                   <Button variant="ghost" size="sm" onClick={()=>fileInputRef.current?.click()} className="w-9 h-9 p-0 text-neutral-400 hover:text-[#1dff00] hover:bg-[#1dff00]/10"><Paperclip className="w-4 h-4" /></Button>
                   <Button variant="ghost" size="sm" className="w-9 h-9 p-0 text-neutral-400 hover:text-[#1dff00] hover:bg-[#1dff00]/10"><Smile className="w-4 h-4" /></Button>
