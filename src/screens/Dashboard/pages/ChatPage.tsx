@@ -3,6 +3,7 @@ import { Button } from '../../../components/ui/button';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { Send, Paperclip, Smile, MoreVertical, X, StopCircle, Trash2, History, Loader2, Copy, Check, Sparkles, Edit3, BookmarkPlus, Pin, ChevronLeft, ChevronRight, Trash, Pencil, PanelRightClose } from 'lucide-react';
 import { useChat } from '../../../hooks/useChat';
+import { openAIStream } from '../../../services/ai/openAIStream';
 import { TypingIndicator } from '../../../components/chat/TypingIndicator';
 import { ScrollToBottom } from '../../../components/chat/ScrollToBottom';
 import { ChatSearchPalette } from '../../../components/chat/ChatSearchPalette';
@@ -113,6 +114,7 @@ export const ChatPage = (): JSX.Element => {
   const { messages, input, setInput, send, stop, clear, isSending, attachFiles, removeAttachment, pendingAttachments } = useChat({
     initialMessages: activeSessionId ? sessionMessages[activeSessionId] : undefined,
     onMessage: (msg) => { if (activeSessionId) addMessage(activeSessionId, msg); },
+    openAIStreamHandler: (history, userPrompt) => openAIStream(history, userPrompt),
   });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
