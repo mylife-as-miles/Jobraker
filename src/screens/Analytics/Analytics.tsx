@@ -8,6 +8,7 @@ import { useAnalyticsData } from "../../hooks/useAnalyticsData";
 export const Analytics = (): JSX.Element => {
   const [period, setPeriod] = useState<string>("30d");
   const analytics = useAnalyticsData(period as any);
+  const hasData = (analytics.chartDataApps?.length ?? 0) > 0 || (analytics.chartDataJobs?.length ?? 0) > 0 || (analytics.barData?.length ?? 0) > 0 || (analytics.donutData?.length ?? 0) > 0;
 
   // Initialize from URL
   useEffect(() => {
@@ -79,6 +80,7 @@ export const Analytics = (): JSX.Element => {
               className="border-white/30 text-white hover:bg-white/10"
               onClick={() => analytics.exportCSV?.()}
               title="Export CSV"
+              disabled={!hasData}
             >
               <Download className="w-4 h-4 mr-2" /> Export
             </Button>
@@ -92,9 +94,13 @@ export const Analytics = (): JSX.Element => {
             </Button>
           </div>
         </div>
-        {analytics.lastUpdated && (
+        {(analytics.error || analytics.lastUpdated) && (
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-2">
-            <p className="text-[11px] sm:text-xs text-white/50">Last updated {new Date(analytics.lastUpdated).toLocaleString()}</p>
+            {analytics.error ? (
+              <p className="text-[11px] sm:text-xs text-red-400">{analytics.error}</p>
+            ) : (
+              <p className="text-[11px] sm:text-xs text-white/50">Last updated {new Date(analytics.lastUpdated!).toLocaleString()}</p>
+            )}
           </div>
         )}
       </div>
