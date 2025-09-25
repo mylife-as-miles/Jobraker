@@ -2,11 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "../lib/supabaseClient";
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
+type Granularity = 'day' | 'week' | 'month';
 
 export type DataPoint = { name: string; value: number; timestamp: number };
 
-export function useAnalyticsData(period: Period) {
+export function useAnalyticsData(period: Period, opts?: { granularity?: Granularity }) {
   const supabase = useMemo(() => createClient(), []);
+  const granularity: Granularity = opts?.granularity ?? 'day';
   const [chartDataApps, setChartDataApps] = useState<DataPoint[]>([]);
   const [chartDataJobs, setChartDataJobs] = useState<DataPoint[]>([]);
   const [barData, setBarData] = useState<{ name: string; value: number; color: string }[]>([]);
@@ -38,7 +40,7 @@ export function useAnalyticsData(period: Period) {
   const cacheKeyRef = useRef<string>("");
   useEffect(() => {
     cacheKeyRef.current = ""; // reset on period change to recompute after user known
-  }, [period]);
+  }, [period, granularity]);
 
   const readCache = (key: string) => {
     try {
@@ -59,7 +61,7 @@ export function useAnalyticsData(period: Period) {
     } catch {}
   };
 
-  const exportCSV = (filename = `analytics-${period}-${new Date().toISOString().slice(0,19).replace(/[:T]/g, "-")}.csv`) => {
+  const exportCSV = (filename = `analytics-${period}-g-${granularity}-${new Date().toISOString().slice(0,19).replace(/[:T]/g, "-")}.csv`) => {
     try {
       const rows: string[] = [];
       const push = (line: (string|number)[]) => rows.push(line.map(cell => typeof cell === 'string' && cell.includes(',') ? `"${cell.replace(/"/g,'""')}"` : String(cell)).join(','));
@@ -110,6 +112,7 @@ export function useAnalyticsData(period: Period) {
     meta: {
       period,
       range: { start: range.start.toISOString(), end: range.end.toISOString() },
+      granularity,
       lastUpdated,
       generatedAt: new Date().toISOString(),
     },
@@ -121,7 +124,7 @@ export function useAnalyticsData(period: Period) {
     error,
   });
 
-  const exportJSON = (filename = `analytics-${period}-${new Date().toISOString().slice(0,19).replace(/[:T]/g, "-")}.json`) => {
+  const exportJSON = (filename = `analytics-${period}-g-${granularity}-${new Date().toISOString().slice(0,19).replace(/[:T]/g, "-")}.json`) => {
     try {
       const data = snapshot();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -161,7 +164,7 @@ export function useAnalyticsData(period: Period) {
       }
 
       // Build cache key after we know user
-      if (!cacheKeyRef.current) cacheKeyRef.current = `analytics:${user.id}:${period}:v1`;
+  if (!cacheKeyRef.current) cacheKeyRef.current = `analytics:${user.id}:${period}:${granularity}:v1`;
       const cacheKey = cacheKeyRef.current;
       if (!options?.bypassCache) {
         const cached = readCache(cacheKey);
@@ -243,22 +246,27 @@ export function useAnalyticsData(period: Period) {
       const jobsFoundDeltaPct = pctDelta(prevJobsFound, jobsFound);
       const avgMatchDelta = avgMatchScore - prevAvgMatch;
 
-      // Time series by day
-      const days = enumerateDays(range.start, range.end);
-      const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const byDay = (arr: any[], dateSelector: (x: any) => Date) => {
+      // Time series by selected granularity
+      const bins = enumerateBins(range.start, range.end, granularity);
+      const labelFmt = (d: Date) => {
+        if (granularity === 'month') return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+        if (granularity === 'week') return `Wk ${getISOWeek(d)} ${d.getFullYear().toString().slice(-2)}`;
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      };
+      const byBin = (arr: any[], dateSelector: (x: any) => Date) => {
         const m = new Map<string, number>();
-        for (const day of days) m.set(day.toISOString().slice(0,10), 0);
+        const keys = bins.map(b => b.key);
+        for (const key of keys) m.set(key, 0);
         for (const x of arr) {
           const d = dateSelector(x);
-          const key = d.toISOString().slice(0,10);
+          const key = binKeyForDate(d, granularity);
           if (m.has(key)) m.set(key, (m.get(key) || 0) + 1);
         }
-        return days.map(d => ({ name: fmt(d), value: m.get(d.toISOString().slice(0,10)) || 0, timestamp: d.getTime() }));
+        return bins.map(b => ({ name: labelFmt(b.start), value: m.get(b.key) || 0, timestamp: b.start.getTime() }));
       };
 
-      const appsSeries = byDay(apps, (a: any) => new Date(a.applied_date || a.created_at));
-      const jobsSeries = byDay(jobs, (j: any) => new Date(j.created_at));
+      const appsSeries = byBin(apps, (a: any) => new Date(a.applied_date || a.created_at));
+      const jobsSeries = byBin(jobs, (j: any) => new Date(j.created_at));
 
       // Bars and donut
       const bar = [
@@ -324,7 +332,7 @@ export function useAnalyticsData(period: Period) {
       abortRef.current?.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase, range.start, range.end]);
+  }, [supabase, range.start, range.end, granularity]);
 
   return { chartDataApps, chartDataJobs, barData, donutData, metrics, comparisons, loading, error, lastUpdated, refresh, exportCSV, exportJSON, snapshot } as const;
 }
@@ -346,6 +354,66 @@ function computeRange(period: Period) {
   return { start, end };
 }
 
+function startOfWeek(d: Date) {
+  const date = new Date(d);
+  const day = (date.getDay() + 6) % 7; // Monday=0
+  date.setDate(date.getDate() - day);
+  date.setHours(0,0,0,0);
+  return date;
+}
+
+function startOfMonth(d: Date) {
+  const date = new Date(d.getFullYear(), d.getMonth(), 1);
+  date.setHours(0,0,0,0);
+  return date;
+}
+
+function enumerateBins(start: Date, end: Date, granularity: Granularity) {
+  const bins: { start: Date; key: string }[] = [];
+  if (granularity === 'day') {
+    for (const d of enumerateDays(start, end)) {
+      bins.push({ start: d, key: d.toISOString().slice(0,10) });
+    }
+    return bins;
+  }
+  if (granularity === 'week') {
+    let cur = startOfWeek(start);
+    const endWeek = startOfWeek(end);
+    while (cur <= endWeek) {
+      bins.push({ start: new Date(cur), key: binKeyForDate(cur, 'week') });
+      cur.setDate(cur.getDate() + 7);
+    }
+    return bins;
+  }
+  // month
+  let cur = startOfMonth(start);
+  const endMonth = startOfMonth(end);
+  while (cur <= endMonth) {
+    bins.push({ start: new Date(cur), key: binKeyForDate(cur, 'month') });
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  return bins;
+}
+
+function binKeyForDate(d: Date, granularity: Granularity) {
+  if (granularity === 'day') return d.toISOString().slice(0,10);
+  if (granularity === 'week') {
+    const w = getISOWeek(d);
+    return `${d.getFullYear()}-W${String(w).padStart(2,'0')}`;
+    }
+  // month
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+function getISOWeek(date: Date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  // Thursday in current week decides the year.
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return weekNo;
+}
 function computePreviousRange(cur: { start: Date; end: Date }) {
   const rangeMs = cur.end.getTime() - cur.start.getTime();
   const prevEnd = new Date(cur.start.getTime() - 1);
