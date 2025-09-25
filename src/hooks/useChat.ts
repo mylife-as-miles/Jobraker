@@ -121,7 +121,7 @@ export const useChat = (opts: UseChatOptions = {}) => {
       '\n\nLet me know if you want a tailored resume bullet rewrite or interview prep next.'
     ];
 
-    if (openAIStreamHandler) {
+  if (openAIStreamHandler) {
       // Real backend integration path
       try {
         const history = messages.filter(m => m.role !== 'system');
@@ -146,7 +146,6 @@ export const useChat = (opts: UseChatOptions = {}) => {
     if (!stream) {
       await new Promise(r => setTimeout(r, 600));
       setMessages(m => m.map(msg => msg.id === baseId ? { ...msg, content: tokens.join(''), streaming: false } : msg));
-      onMessage?.({ id: baseId, role: 'assistant', content: tokens.join(''), createdAt: Date.now() });
       return;
     }
 
@@ -157,7 +156,7 @@ export const useChat = (opts: UseChatOptions = {}) => {
       // eslint-disable-next-line no-await-in-loop
       await new Promise(r => setTimeout(r, delay));
     }
-    onMessage?.({ id: baseId, role: 'assistant', content: tokens.join(''), createdAt: Date.now() });
+    // Assistant final message persisted via external effect watcher if desired.
   }, [stream]);
 
   const parseSlash = (text: string): string => {
