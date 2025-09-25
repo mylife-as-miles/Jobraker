@@ -5,6 +5,8 @@ import { Send, Paperclip, Smile, MoreVertical, X, StopCircle, Trash2, History, L
 import { useChat } from '../../../hooks/useChat';
 import { TypingIndicator } from '../../../components/chat/TypingIndicator';
 import { ScrollToBottom } from '../../../components/chat/ScrollToBottom';
+import { ChatSearchPalette } from '../../../components/chat/ChatSearchPalette';
+import { useChatSessions } from '../../../stores/chatSessions';
 import clsx from 'clsx';
 
 // Skeleton shimmer for streaming tokens
@@ -94,7 +96,20 @@ const MessageBubble = ({ role, content, createdAt, streaming, attachments, error
 };
 
 export const ChatPage = (): JSX.Element => {
-  const { messages, input, setInput, send, stop, clear, isSending, attachFiles, removeAttachment, pendingAttachments } = useChat();
+  const { sessions, activeSessionId, createSession, setActiveSession, messages: sessionMessages, addMessage } = useChatSessions();
+  const [searchOpen, setSearchOpen] = useState(false);
+  // Ensure at least one session exists
+  useEffect(() => {
+    if (!activeSessionId) {
+      const first = createSession('Primary Session');
+      setActiveSession(first);
+    }
+  }, [activeSessionId, createSession, setActiveSession]);
+
+  const { messages, input, setInput, send, stop, clear, isSending, attachFiles, removeAttachment, pendingAttachments } = useChat({
+    initialMessages: activeSessionId ? sessionMessages[activeSessionId] : undefined,
+    onMessage: (msg) => { if (activeSessionId) addMessage(activeSessionId, msg); },
+  });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [showSessions, setShowSessions] = useState(true);
@@ -127,7 +142,7 @@ export const ChatPage = (): JSX.Element => {
         <div className="absolute top-1/4 -right-1/4 w-[55vw] h-[55vw] bg-[#0a8246]/20 rounded-full blur-[160px] animate-[pulse_9s_ease-in-out_infinite]" />
       </div>
       <div className="flex-1 flex flex-row w-full max-w-7xl mx-auto relative z-10">
-        {/* Sessions Sidebar (placeholder for future) */}
+  {/* Sessions Sidebar */}
         <motion.aside
           initial={false}
           animate={{ width: showSessions ? 240 : 0, opacity: showSessions ? 1 : 0 }}
@@ -139,15 +154,21 @@ export const ChatPage = (): JSX.Element => {
             <button onClick={toggleSessions} className="p-1.5 rounded-md hover:bg-[#1dff00]/10 text-neutral-400 hover:text-[#1dff00] transition" aria-label="Collapse sidebar"><ChevronLeft className="w-4 h-4" /></button>
           </div>
           <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <button key={i} className="w-full group flex flex-col items-start gap-1 px-3 py-2 rounded-lg border border-transparent hover:border-[#1dff00]/30 bg-[#0c0c0c]/40 hover:bg-[#0f1f0f]/60 transition text-left">
-                <span className="text-[11px] font-medium text-neutral-200 truncate w-full">Session {i + 1}</span>
-                <span className="text-[10px] text-neutral-500 group-hover:text-neutral-400">0 msgs • draft</span>
+            {Object.values(sessions).sort((a,b)=>b.updatedAt - a.updatedAt).map(s => (
+              <button
+                key={s.id}
+                onClick={()=>setActiveSession(s.id)}
+                className={clsx('w-full group flex flex-col items-start gap-1 px-3 py-2 rounded-lg border transition text-left',
+                  s.id === activeSessionId ? 'border-[#1dff00]/50 bg-[#132313]/80' : 'border-transparent hover:border-[#1dff00]/30 bg-[#0c0c0c]/40 hover:bg-[#0f1f0f]/60'
+                )}
+              >
+                <span className="text-[11px] font-medium text-neutral-200 truncate w-full">{s.title}</span>
+                <span className="text-[10px] text-neutral-500 group-hover:text-neutral-400">{s.messageCount} msgs • {new Date(s.updatedAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
               </button>
             ))}
           </div>
           <div className="p-3 border-t border-[#1dff00]/10">
-            <button className="w-full text-[11px] font-semibold tracking-wide px-3 py-2 rounded-md bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black shadow ring-1 ring-[#1dff00]/40 hover:shadow-lg hover:shadow-[#1dff00]/30 transition">New Session</button>
+            <button onClick={()=>createSession('Session ' + (Object.keys(sessions).length+1))} className="w-full text-[11px] font-semibold tracking-wide px-3 py-2 rounded-md bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black shadow ring-1 ring-[#1dff00]/40 hover:shadow-lg hover:shadow-[#1dff00]/30 transition">New Session</button>
           </div>
         </motion.aside>
         {/* Main column */}
@@ -166,8 +187,9 @@ export const ChatPage = (): JSX.Element => {
             </div>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={toggleSessions} className="w-9 h-9 p-0 text-neutral-400 hover:text-[#1dff00] hover:bg-[#1dff00]/10 hidden md:inline-flex">{showSessions ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}</Button>
-              <Button variant="ghost" size="sm" onClick={clear} className="w-9 h-9 p-0 text-neutral-400 hover:text-[#1dff00] hover:bg-[#1dff00]/10"><History className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="sm" onClick={clear} className="w-9 h-9 p-0 text-neutral-400 hover:text-[#1dff00] hover:bg-[#1dff00]/10" title="Reset current session messages"><History className="w-4 h-4" /></Button>
               <Button variant="ghost" size="sm" onClick={stop} disabled={!messages.some(m=>m.streaming)} className="w-9 h-9 p-0 text-neutral-400 hover:text-red-400 hover:bg-red-400/10 disabled:opacity-30"><StopCircle className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="sm" onClick={()=>setSearchOpen(true)} className="w-9 px-2 h-9 text-[10px] font-semibold tracking-wide text-neutral-400 hover:text-[#1dff00] hover:bg-[#1dff00]/10" title="Search (Ctrl+K)">⌘K</Button>
               <Button variant="ghost" size="sm" className="w-9 h-9 p-0 text-neutral-400 hover:text-[#1dff00] hover:bg-[#1dff00]/10"><MoreVertical className="w-4 h-4" /></Button>
             </div>
           </div>
@@ -266,6 +288,7 @@ export const ChatPage = (): JSX.Element => {
           <Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating
         </motion.div>
       )}
+      <ChatSearchPalette open={searchOpen} onClose={()=>setSearchOpen(false)} />
     </div>
   );
 };
