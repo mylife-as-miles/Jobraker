@@ -12,7 +12,8 @@ export const NotificationPage = (): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNotification, setSelectedNotification] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
-  const { items, loading, hasMore, loadMore, markRead, markAllRead, bulkMarkRead, bulkRemove, toggleStar, remove, supportsStar } = useNotifications(30);
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const { items, loading, hasMore, loadMore, markRead, markAllRead, bulkMarkRead, bulkRemove, toggleStar, remove, supportsStar, markSeen } = useNotifications(30);
   const notifications = useMemo(() => items.map(n => {
     const getNotificationAppearance = (
       type: string,
@@ -47,7 +48,7 @@ export const NotificationPage = (): JSX.Element => {
       }
     };
 
-    const { bgColor, icon } = getNotificationAppearance(n.type, n.company);
+  const { bgColor, icon } = getNotificationAppearance(n.type, n.company || undefined);
 
     return {
       id: n.id,
@@ -57,13 +58,14 @@ export const NotificationPage = (): JSX.Element => {
       message: n.message || '',
       timestamp: new Date(n.created_at).toLocaleString(),
       isRead: n.read,
-  isStarred: !!n.is_starred,
-  action_url: n.action_url,
-      priority: 'medium' as const,
+      isStarred: !!n.is_starred,
+      action_url: n.action_url,
+      priority: (n as any).priority || 'medium',
       company: n.company || undefined,
       hasDetailedContent: !!n.message,
       detailedContent: n.message || undefined,
-    };
+      seen_at: (n as any).seen_at || null,
+    } as const;
   }), [items]);
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -74,7 +76,8 @@ export const NotificationPage = (): JSX.Element => {
     const matchesFilter = filter === "all" || 
                          (filter === "unread" && !notification.isRead) ||
                          (filter === "starred" && notification.isStarred);
-    return matchesSearch && matchesFilter;
+    const matchesType = typeFilter === 'all' || notification.type === typeFilter;
+    return matchesSearch && matchesFilter && matchesType;
   });
 
   const selectedNotificationData = notifications.find(n => n.id === selectedNotification);
@@ -152,7 +155,7 @@ export const NotificationPage = (): JSX.Element => {
               </div>
               
               {/* Filter buttons */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap items-center">
                 {[
                   { key: "all", label: "All" },
                   { key: "unread", label: "Unread" },
@@ -172,6 +175,17 @@ export const NotificationPage = (): JSX.Element => {
                     {filterOption.label}
                   </Button>
                 ))}
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="text-xs bg-[#ffffff1a] border border-[#ffffff33] rounded px-2 py-1 text-white focus:border-[#1dff00]"
+                >
+                  <option value="all">All Types</option>
+                  <option value="application">Application</option>
+                  <option value="interview">Interview</option>
+                  <option value="company">Company</option>
+                  <option value="system">System</option>
+                </select>
               </div>
             </div>
 
@@ -191,7 +205,10 @@ export const NotificationPage = (): JSX.Element => {
               {filteredNotifications.map((notification, index) => (
                 <motion.div
                   key={notification.id}
-                  onClick={() => setSelectedNotification(notification.id)}
+                  onClick={() => {
+                    setSelectedNotification(notification.id);
+                    if (!notification.seen_at) markSeen(notification.id);
+                  }}
                   className={`p-4 sm:p-5 border-b border-[#ffffff0d] cursor-pointer transition-all duration-300 border-l-4 ${getPriorityColor(notification.priority)} ${
                     selectedNotification === notification.id
                       ? "bg-white/15 border-r-2 border-r-white"
@@ -248,7 +265,12 @@ export const NotificationPage = (): JSX.Element => {
                           </Button>
                         </div>
                       </div>
-                      <p className="text-xs text-[#ffffff60]">{notification.timestamp}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-[#ffffff60]">{notification.timestamp}</p>
+                        {notification.priority && (
+                          <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/5 border ${notification.priority === 'high' ? 'border-red-500 text-red-400' : notification.priority === 'medium' ? 'border-yellow-500 text-yellow-400' : 'border-green-500 text-green-400'}`}>{notification.priority}</span>
+                        )}
+                      </div>
                       {!notification.isRead && (
                         <div className="w-2 h-2 bg-[#1dff00] rounded-full mt-1"></div>
                       )}
@@ -285,6 +307,9 @@ export const NotificationPage = (): JSX.Element => {
                       <p className="text-sm text-[#ffffff60]">
                         {selectedNotificationData.timestamp}
                       </p>
+                      {selectedNotificationData.priority && (
+                        <p className="mt-1 text-xs text-[#ffffff80]">Priority: <span className={`font-semibold ${selectedNotificationData.priority === 'high' ? 'text-red-400' : selectedNotificationData.priority === 'medium' ? 'text-yellow-400' : 'text-green-400'}`}>{selectedNotificationData.priority}</span></p>
+                      )}
                     </div>
                     <div className="flex items-center space-x-2">
                       <Button
@@ -326,15 +351,17 @@ export const NotificationPage = (): JSX.Element => {
 
                       {/* Action buttons */}
                       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-[#ffffff1a]">
-                        <Button 
-                          className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
-                          onClick={() => {
-                            const item = items.find(i => i.id === selectedNotification);
-                            if (item?.action_url) window.open(item.action_url, '_blank');
-                          }}
-                        >
-                          Open Link
-                        </Button>
+                        {selectedNotificationData.action_url && (
+                          <Button 
+                            className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
+                            onClick={() => {
+                              const item = items.find(i => i.id === selectedNotification);
+                              if (item?.action_url) window.open(item.action_url, '_blank');
+                            }}
+                          >
+                            Open Link
+                          </Button>
+                        )}
                         <Button 
                           variant="outline"
                           onClick={() => selectedNotification && markRead(selectedNotification, true)}

@@ -15,6 +15,8 @@ export interface NotificationRow {
   // Optional fields added by later migration
   is_starred?: boolean | null;
   action_url?: string | null;
+  priority?: 'low' | 'medium' | 'high';
+  seen_at?: string | null;
   created_at: string;
 }
 
@@ -28,6 +30,8 @@ export function useNotifications(limit: number = 10) {
   const [hasMore, setHasMore] = useState(true);
   // Feature capability flags (in case migration not applied yet)
   const [supportsStar, setSupportsStar] = useState(true);
+  const [supportsPriority, setSupportsPriority] = useState(true);
+  const [supportsSeen, setSupportsSeen] = useState(true);
 
   // Resolve user id
   useEffect(() => {
@@ -150,6 +154,21 @@ export function useNotifications(limit: number = 10) {
     await bulkStar([id], !(current.is_starred ?? false));
   }, [items, bulkStar]);
 
+  const markSeen = useCallback(async (id: string) => {
+    try {
+      const { data, error } = await supabase.from('notifications').update({ seen_at: new Date().toISOString() }).eq('id', id).select('*').single();
+      if (error) throw error;
+      setItems(prev => prev.map(n => n.id === id ? (data as any) : n));
+    } catch (e: any) {
+      const msg = String(e?.message || '');
+      if (/column "?seen_at"? does not exist/i.test(msg)) {
+        setSupportsSeen(false);
+        return;
+      }
+      toastError('Update failed', e.message);
+    }
+  }, [supabase, toastError]);
+
   const loadMore = useCallback(async () => {
     if (!userId || !hasMore) return;
     try {
@@ -190,7 +209,9 @@ export function useNotifications(limit: number = 10) {
     loading,
     error,
     hasMore,
-  supportsStar,
+    supportsStar,
+    supportsPriority,
+    supportsSeen,
     loadMore,
     refresh: fetchItems,
     add,
@@ -200,5 +221,6 @@ export function useNotifications(limit: number = 10) {
     markAllRead,
     remove,
     bulkRemove,
+    markSeen,
   } as const;
 }
