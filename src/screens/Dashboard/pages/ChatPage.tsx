@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '../../../components/ui/button';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
-import { Send, Paperclip, Smile, MoreVertical, X, StopCircle, Trash2, History, Loader2, Copy, Check, Sparkles, Edit3, BookmarkPlus, Pin, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Send, Paperclip, Smile, MoreVertical, X, StopCircle, Trash2, History, Loader2, Copy, Check, Sparkles, Edit3, BookmarkPlus, Pin, ChevronLeft, ChevronRight, Trash, Pencil, PanelRightClose } from 'lucide-react';
 import { useChat } from '../../../hooks/useChat';
 import { TypingIndicator } from '../../../components/chat/TypingIndicator';
 import { ScrollToBottom } from '../../../components/chat/ScrollToBottom';
 import { ChatSearchPalette } from '../../../components/chat/ChatSearchPalette';
+import { PinnedAndSnippetsPanel } from '../../../components/chat/PinnedAndSnippetsPanel';
 import { useChatSessions } from '../../../stores/chatSessions';
 import clsx from 'clsx';
 
@@ -30,7 +31,7 @@ interface MessageBubbleProps {
   error?: string;
 }
 
-const MessageBubble = ({ role, content, createdAt, streaming, attachments, error }: MessageBubbleProps) => {
+const MessageBubble = ({ role, content, createdAt, streaming, attachments, error, id }: MessageBubbleProps) => {
   const isUser = role === 'user';
   const isAssistant = role === 'assistant';
   const isSystem = role === 'system';
@@ -84,8 +85,8 @@ const MessageBubble = ({ role, content, createdAt, streaming, attachments, error
                   {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                 </button>
                 <button className="p-1.5 rounded-md bg-black/20 hover:bg-black/40 border border-[#1dff00]/20 text-[#1dff00] transition" aria-label="Refine"><Edit3 className="w-3 h-3" /></button>
-                <button className="p-1.5 rounded-md bg-black/20 hover:bg-black/40 border border-[#1dff00]/20 text-[#1dff00] transition" aria-label="Save snippet"><BookmarkPlus className="w-3 h-3" /></button>
-                <button className="p-1.5 rounded-md bg-black/20 hover:bg-black/40 border border-[#1dff00]/20 text-[#1dff00] transition" aria-label="Pin"><Pin className="w-3 h-3" /></button>
+                <button data-action="snippet" data-id={id} className="p-1.5 rounded-md bg-black/20 hover:bg-black/40 border border-[#1dff00]/20 text-[#1dff00] transition" aria-label="Save snippet"><BookmarkPlus className="w-3 h-3" /></button>
+                <button data-action="pin" data-id={id} className="p-1.5 rounded-md bg-black/20 hover:bg-black/40 border border-[#1dff00]/20 text-[#1dff00] transition" aria-label="Pin"><Pin className="w-3 h-3" /></button>
               </div>
             )}
           </div>
@@ -96,8 +97,11 @@ const MessageBubble = ({ role, content, createdAt, streaming, attachments, error
 };
 
 export const ChatPage = (): JSX.Element => {
-  const { sessions, activeSessionId, createSession, setActiveSession, messages: sessionMessages, addMessage } = useChatSessions();
+  const { sessions, activeSessionId, createSession, setActiveSession, messages: sessionMessages, addMessage, pinMessage, saveSnippet, deleteSession, renameSession } = useChatSessions() as any;
   const [searchOpen, setSearchOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   // Ensure at least one session exists
   useEffect(() => {
     if (!activeSessionId) {
@@ -154,7 +158,7 @@ export const ChatPage = (): JSX.Element => {
             <button onClick={toggleSessions} className="p-1.5 rounded-md hover:bg-[#1dff00]/10 text-neutral-400 hover:text-[#1dff00] transition" aria-label="Collapse sidebar"><ChevronLeft className="w-4 h-4" /></button>
           </div>
           <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
-            {Object.values(sessions).sort((a,b)=>b.updatedAt - a.updatedAt).map(s => (
+            {(Object.values(sessions) as any[]).sort((a:any,b:any)=>b.updatedAt - a.updatedAt).map((s:any) => (
               <button
                 key={s.id}
                 onClick={()=>setActiveSession(s.id)}
@@ -162,7 +166,22 @@ export const ChatPage = (): JSX.Element => {
                   s.id === activeSessionId ? 'border-[#1dff00]/50 bg-[#132313]/80' : 'border-transparent hover:border-[#1dff00]/30 bg-[#0c0c0c]/40 hover:bg-[#0f1f0f]/60'
                 )}
               >
-                <span className="text-[11px] font-medium text-neutral-200 truncate w-full">{s.title}</span>
+                {renamingId === s.id ? (
+                  <input
+                    autoFocus
+                    value={renameValue}
+                    onChange={(e)=>setRenameValue(e.target.value)}
+                    onBlur={()=>{renameSession(s.id, renameValue.trim() || 'Untitled'); setRenamingId(null);}}
+                    onKeyDown={(e)=>{ if(e.key==='Enter'){ e.preventDefault(); renameSession(s.id, renameValue.trim()||'Untitled'); setRenamingId(null);} if(e.key==='Escape'){ setRenamingId(null);} }}
+                    className="w-full text-[11px] bg-black/30 border border-[#1dff00]/40 rounded px-1.5 py-1 outline-none text-[#1dff00]"
+                  />
+                ) : (
+                  <span className="text-[11px] font-medium text-neutral-200 truncate w-full flex items-center gap-1">
+                    {s.title}
+                    <Pencil onClick={(e)=>{e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.title);}} className="w-3 h-3 opacity-0 group-hover:opacity-100 text-neutral-500 hover:text-[#1dff00]" />
+                    <Trash onClick={(e)=>{e.stopPropagation(); deleteSession(s.id);}} className="w-3 h-3 opacity-0 group-hover:opacity-100 text-neutral-500 hover:text-red-400" />
+                  </span>
+                )}
                 <span className="text-[10px] text-neutral-500 group-hover:text-neutral-400">{s.messageCount} msgs • {new Date(s.updatedAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
               </button>
             ))}
@@ -190,6 +209,7 @@ export const ChatPage = (): JSX.Element => {
               <Button variant="ghost" size="sm" onClick={clear} className="w-9 h-9 p-0 text-neutral-400 hover:text-[#1dff00] hover:bg-[#1dff00]/10" title="Reset current session messages"><History className="w-4 h-4" /></Button>
               <Button variant="ghost" size="sm" onClick={stop} disabled={!messages.some(m=>m.streaming)} className="w-9 h-9 p-0 text-neutral-400 hover:text-red-400 hover:bg-red-400/10 disabled:opacity-30"><StopCircle className="w-4 h-4" /></Button>
               <Button variant="ghost" size="sm" onClick={()=>setSearchOpen(true)} className="w-9 px-2 h-9 text-[10px] font-semibold tracking-wide text-neutral-400 hover:text-[#1dff00] hover:bg-[#1dff00]/10" title="Search (Ctrl+K)">⌘K</Button>
+              <Button variant="ghost" size="sm" onClick={()=>setPanelOpen(p=>!p)} className="w-9 h-9 p-0 text-neutral-400 hover:text-[#1dff00] hover:bg-[#1dff00]/10" title="Pinned & Snippets"><PanelRightClose className="w-4 h-4" /></Button>
               <Button variant="ghost" size="sm" className="w-9 h-9 p-0 text-neutral-400 hover:text-[#1dff00] hover:bg-[#1dff00]/10"><MoreVertical className="w-4 h-4" /></Button>
             </div>
           </div>
@@ -199,7 +219,21 @@ export const ChatPage = (): JSX.Element => {
           <LayoutGroup>
             <AnimatePresence initial={false}>
               {messages.filter(m => m.role !== 'system').map(m => (
-                <MessageBubble key={m.id} {...m} />
+                <div key={m.id} onClick={(e)=>{
+                  const target = e.target as HTMLElement;
+                  if (target.closest('button[data-action="pin"]')) {
+                    const id = target.closest('button')?.getAttribute('data-id');
+                    if (id && activeSessionId) pinMessage(activeSessionId, id);
+                  } else if (target.closest('button[data-action="snippet"]')) {
+                    const id = target.closest('button')?.getAttribute('data-id');
+                    if (id) {
+                      const msg = messages.find(mm=>mm.id===id);
+                      if (msg) saveSnippet(id, msg.content);
+                    }
+                  }
+                }}>
+                  <MessageBubble {...m} />
+                </div>
               ))}
             </AnimatePresence>
           </LayoutGroup>
@@ -289,6 +323,7 @@ export const ChatPage = (): JSX.Element => {
         </motion.div>
       )}
       <ChatSearchPalette open={searchOpen} onClose={()=>setSearchOpen(false)} />
+      <PinnedAndSnippetsPanel open={panelOpen} onClose={()=>setPanelOpen(false)} />
     </div>
   );
 };

@@ -29,12 +29,13 @@ interface ChatSessionsState {
   createSession: (title?: string) => string;
   renameSession: (id: string, title: string) => void;
   deleteSession: (id: string) => void;
+  // soft rename already included; add explicit updater for pinned
   setActiveSession: (id: string) => void;
   addMessage: (sessionId: string, msg: ChatMessageRecord) => void;
   replaceMessages: (sessionId: string, msgs: ChatMessageRecord[]) => void;
   pinMessage: (sessionId: string, messageId: string) => void;
   unpinMessage: (sessionId: string, messageId: string) => void;
-  saveSnippet: (sessionId: string, messageId: string, content: string) => void;
+  saveSnippet: (messageId: string, content: string) => void;
   deleteSnippet: (id: string) => void;
   search: (sessionId: string, query: string) => { message: ChatMessageRecord; score: number }[];
 }
@@ -75,7 +76,7 @@ export const useChatSessions = create<ChatSessionsState>()(persist((set, get) =>
   })),
   pinMessage: (sessionId, messageId) => set(s => ({ sessions: { ...s.sessions, [sessionId]: { ...s.sessions[sessionId], pinned: Array.from(new Set([...(s.sessions[sessionId].pinned||[]), messageId])) }}})),
   unpinMessage: (sessionId, messageId) => set(s => ({ sessions: { ...s.sessions, [sessionId]: { ...s.sessions[sessionId], pinned: (s.sessions[sessionId].pinned||[]).filter(id => id !== messageId) }}})),
-  saveSnippet: (sessionId, messageId, content) => set(s => ({ snippets: [...s.snippets, { id: uuid(), messageId, content, createdAt: Date.now(), tags: [], title: content.slice(0, 48) + (content.length>48?'…':'') }] })),
+  saveSnippet: (messageId, content) => set(s => ({ snippets: [...s.snippets, { id: uuid(), messageId, content, createdAt: Date.now(), tags: [], title: content.slice(0, 48) + (content.length>48?'…':'') }] })),
   deleteSnippet: (id) => set(s => ({ snippets: s.snippets.filter(sn => sn.id !== id) })),
   search: (sessionId, query) => {
     const qTokens = tokenize(query);
