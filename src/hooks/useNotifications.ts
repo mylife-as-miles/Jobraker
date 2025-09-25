@@ -185,6 +185,42 @@ export function useNotifications(limit: number = 10) {
     }
   }, [supabase, toastError]);
 
+  // Batched markSeen to avoid spamming API when scrolling fast
+  const pendingSeenRef = useRef<Set<string>>(new Set());
+  const flushSeenRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushSeen = useCallback(async () => {
+    const ids = Array.from(pendingSeenRef.current);
+    if (!ids.length) return;
+    pendingSeenRef.current.clear();
+    flushSeenRef.current && clearTimeout(flushSeenRef.current);
+    flushSeenRef.current = null;
+    try {
+      const ts = new Date().toISOString();
+      const { error } = await supabase.from('notifications').update({ seen_at: ts }).in('id', ids).is('seen_at', null);
+      if (error) throw error;
+      setItems(prev => prev.map(n => ids.includes(n.id) ? { ...n, seen_at: n.seen_at ?? ts } : n));
+    } catch (e: any) {
+      const msg = String(e?.message || '');
+      if (/column "?seen_at"? does not exist/i.test(msg)) {
+        setSupportsSeen(false);
+        return;
+      }
+      toastError('Update failed', e.message);
+    }
+  }, [supabase, toastError]);
+
+  const markSeenMany = useCallback((ids: string[]) => {
+    if (!ids.length || !supportsSeen) return;
+    ids.forEach(id => pendingSeenRef.current.add(id));
+    if (!flushSeenRef.current) {
+      flushSeenRef.current = setTimeout(flushSeen, 180); // debounce window
+    }
+  }, [flushSeen, supportsSeen]);
+
+  // Cleanup on unmount
+  useEffect(() => () => { if (flushSeenRef.current) clearTimeout(flushSeenRef.current); }, []);
+
   const loadMore = useCallback(async () => {
     if (!userId || !hasMore) return;
     try {
@@ -238,5 +274,6 @@ export function useNotifications(limit: number = 10) {
     remove,
     bulkRemove,
     markSeen,
+    markSeenMany,
   } as const;
 }

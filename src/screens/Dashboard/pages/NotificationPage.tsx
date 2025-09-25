@@ -16,7 +16,7 @@ export const NotificationPage = (): JSX.Element => {
   const [autoMarkSeen, setAutoMarkSeen] = useState<boolean>(() => {
     try { return localStorage.getItem('notifications:autoMarkSeen') !== 'false'; } catch { return true; }
   });
-  const { items, loading, hasMore, loadMore, markRead, markAllRead, bulkMarkRead, bulkRemove, toggleStar, remove, supportsStar, markSeen } = useNotifications(30);
+  const { items, loading, hasMore, loadMore, markRead, markAllRead, bulkMarkRead, bulkRemove, toggleStar, remove, supportsStar, markSeen, markSeenMany } = useNotifications(30);
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
@@ -36,23 +36,23 @@ export const NotificationPage = (): JSX.Element => {
     };
     observerRef.current?.disconnect();
     observerRef.current = new IntersectionObserver((entries) => {
+      const newlyVisible: string[] = [];
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           const el = entry.target as HTMLElement;
-            const id = el.getAttribute('data-notification-id');
-            if (!id) return;
-            const n = items.find(i => i.id === id);
-            if (n && !n.seen_at) {
-              markSeen(id);
-            }
+          const id = el.getAttribute('data-notification-id');
+          if (!id) return;
+          const n = items.find(i => i.id === id);
+          if (n && !n.seen_at) newlyVisible.push(id);
         }
       });
+      if (newlyVisible.length) markSeenMany(newlyVisible);
     }, options);
     const obs = observerRef.current;
     // observe current rendered cards
     container.querySelectorAll('[data-notification-id]').forEach(el => obs.observe(el));
     return () => { obs.disconnect(); };
-  }, [items, autoMarkSeen, markSeen]);
+  }, [items, autoMarkSeen, markSeenMany]);
   const notifications = useMemo(() => items.map(n => {
     const getNotificationAppearance = (
       type: string,
