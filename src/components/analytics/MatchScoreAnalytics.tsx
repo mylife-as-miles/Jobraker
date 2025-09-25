@@ -107,7 +107,7 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
           >
             {metrics.matchScore}%
           </motion.div>
-          <p className="text-sm text-white/70 leading-relaxed">Average match score in {period.toUpperCase()}.</p>
+          <p className="text-sm text-white/70 leading-relaxed">Average match score in {String(period ?? '').toUpperCase()}.</p>
         </div>
 
         <div className="flex-1 min-h-0">

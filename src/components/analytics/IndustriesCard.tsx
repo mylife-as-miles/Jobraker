@@ -139,7 +139,7 @@ export function IndustriesCard({ period, data }: { period: Period; data: any }) 
         <div className="relative z-10 flex flex-col h-full">
           <div className="flex items-center justify-between mb-4 sm:mb-6">
             <h3 className="text-lg sm:text-xl font-bold text-white drop-shadow-lg">Sources & activity</h3>
-            <span className="text-xs text-white/70">Period: {period.toUpperCase()}</span>
+            <span className="text-xs text-white/70">Period: {String(period ?? '').toUpperCase()}</span>
           </div>
 
           {/* Enhanced metrics grid - responsive layout */}

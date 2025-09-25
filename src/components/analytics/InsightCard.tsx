@@ -173,7 +173,7 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
               {data?.metrics?.avgMatchScore ? `${data.metrics.avgMatchScore}%` : (data?.metrics?.jobsFound ?? 0)}
             </motion.div>
             <p className="text-white/95 text-sm sm:text-base lg:text-lg mb-1 sm:mb-2 font-medium leading-relaxed">{headline}</p>
-            <p className="text-white/80 text-xs sm:text-sm lg:text-base leading-relaxed">Period: {period.toUpperCase()}</p>
+            <p className="text-white/80 text-xs sm:text-sm lg:text-base leading-relaxed">Period: {String(period ?? '').toUpperCase()}</p>
           </div>
 
           <div className="flex-shrink-0 h-16 sm:h-20 lg:h-24 xl:h-28 relative">

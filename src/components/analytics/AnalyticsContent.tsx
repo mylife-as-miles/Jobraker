@@ -6,7 +6,7 @@ import { IndustriesCard } from "./IndustriesCard"
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 
-export function AnalyticsContent({ period, data }: { period: Period; data: any }) {
+export function AnalyticsContent({ period = "30d", data = {} as any }: { period?: Period; data?: any }) {
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8 p-1 sm:p-2">
       {/* Top row - Insight and Industries cards with consistent heights */}
