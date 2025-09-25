@@ -2,13 +2,19 @@
 
 import { useEffect, useRef } from "react"
 import { Card } from "../ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { useRealTimeData } from "../../hooks/useRealTimeData"
+// removed unused Select imports
 import { motion } from "framer-motion"
 
-export function IndustriesCard() {
+type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
+
+export function IndustriesCard({ period, data }: { period: Period; data: any }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const { chartData, metrics } = useRealTimeData()
+  const chartData = data?.chartDataJobs || []
+  const metrics = {
+    applications: data?.metrics?.applications ?? 0,
+    industries: data?.metrics?.sources ?? 0,
+    interviews: data?.metrics?.interviews ?? 0,
+  }
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -25,11 +31,12 @@ export function IndustriesCard() {
     ctx.clearRect(0, 0, rect.width, rect.height)
 
     // Convert chart data to points for trend line
-    const maxValue = Math.max(...chartData.map(d => d.value))
-    const minValue = Math.min(...chartData.map(d => d.value))
+    if (!chartData.length) return
+    const maxValue = Math.max(...chartData.map((d: any) => d.value))
+    const minValue = Math.min(...chartData.map((d: any) => d.value))
     const valueRange = maxValue - minValue || 1
 
-    const points = chartData.map((data, index) => ({
+    const points = chartData.map((data: any, index: number) => ({
       x: (rect.width / (chartData.length - 1)) * index,
       y: rect.height * 0.8 - ((data.value - minValue) / valueRange) * (rect.height * 0.6)
     }))
@@ -94,7 +101,7 @@ export function IndustriesCard() {
     ctx.fill()
 
     // Draw data points with animation
-    points.forEach((point, index) => {
+  points.forEach((point: { x: number; y: number }, index: number) => {
       ctx.beginPath()
       ctx.arc(point.x, point.y, index === points.length - 1 ? 5 : 3, 0, 2 * Math.PI)
       ctx.fillStyle = index === points.length - 1 ? "#ffffff" : "#1dff00"
@@ -109,7 +116,7 @@ export function IndustriesCard() {
     ctx.font = "10px Inter, sans-serif"
     ctx.textAlign = "center"
 
-    chartData.forEach((data, index) => {
+  chartData.forEach((data: any, index: number) => {
       const x = (rect.width / (chartData.length - 1)) * index
       ctx.fillText(data.name, x, rect.height - 5)
     })
@@ -131,18 +138,8 @@ export function IndustriesCard() {
 
         <div className="relative z-10 flex flex-col h-full">
           <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h3 className="text-lg sm:text-xl font-bold text-white drop-shadow-lg">Industries</h3>
-            <Select defaultValue="1">
-              <SelectTrigger className="w-[120px] sm:w-[140px] text-xs sm:text-sm">
-                <SelectValue placeholder="Select period" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">1 Month</SelectItem>
-                <SelectItem value="3">3 Months</SelectItem>
-                <SelectItem value="6">6 Months</SelectItem>
-                <SelectItem value="12">1 Year</SelectItem>
-              </SelectContent>
-            </Select>
+            <h3 className="text-lg sm:text-xl font-bold text-white drop-shadow-lg">Sources & activity</h3>
+            <span className="text-xs text-white/70">Period: {period.toUpperCase()}</span>
           </div>
 
           {/* Enhanced metrics grid - responsive layout */}
@@ -170,7 +167,7 @@ export function IndustriesCard() {
               <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-1 group-hover:text-[#1dff00] transition-colors duration-300 drop-shadow-lg">
                 {metrics.industries}
               </div>
-              <div className="text-xs sm:text-sm text-white/80 font-medium">Industries</div>
+              <div className="text-xs sm:text-sm text-white/80 font-medium">Sources</div>
             </motion.div>
             
             <motion.div 

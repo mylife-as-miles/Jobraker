@@ -2,12 +2,13 @@
 
 import { useEffect, useRef } from "react"
 import { Card } from "../ui/card"
-import { useRealTimeData } from "../../hooks/useRealTimeData"
 import { motion } from "framer-motion"
 
-export function ResumeVersionSuccess() {
+type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
+
+export function ResumeVersionSuccess({ period: _period, data }: { period: Period; data: any }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const { donutData } = useRealTimeData()
+  const donutData = data?.donutData || []
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -28,10 +29,11 @@ export function ResumeVersionSuccess() {
     const radius = Math.min(centerX, centerY) - 25
 
     let currentAngle = -Math.PI / 2
-    const total = donutData.reduce((sum, item) => sum + item.value, 0)
+  if (!donutData.length) return
+  const total = donutData.reduce((sum: number, item: any) => sum + item.value, 0)
 
     // Draw background glow rings
-    donutData.forEach((item) => {
+    donutData.forEach((item: any) => {
       const sliceAngle = (item.value / total) * 2 * Math.PI
 
       ctx.beginPath()
@@ -47,7 +49,7 @@ export function ResumeVersionSuccess() {
     // Reset angle for main arcs
     currentAngle = -Math.PI / 2
 
-    donutData.forEach((item) => {
+    donutData.forEach((item: any) => {
       const sliceAngle = (item.value / total) * 2 * Math.PI
 
       // Draw main arc with enhanced styling
@@ -111,7 +113,7 @@ export function ResumeVersionSuccess() {
           </div>
 
           <div className="space-y-4 flex-1 w-full">
-            {donutData.map((item, index) => (
+            {donutData.map((item: any, index: number) => (
               <motion.div
                 key={item.name}
                 initial={{ opacity: 0, x: 20 }}

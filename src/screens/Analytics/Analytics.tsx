@@ -3,9 +3,11 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { RefreshCw, Link2 } from "lucide-react";
 import { AnalyticsContent } from "../../components/analytics/AnalyticsContent";
+import { useAnalyticsData } from "../../hooks/useAnalyticsData";
 
 export const Analytics = (): JSX.Element => {
   const [period, setPeriod] = useState<string>("30d");
+  const analytics = useAnalyticsData(period as any);
 
   // Initialize from URL
   useEffect(() => {
@@ -88,7 +90,7 @@ export const Analytics = (): JSX.Element => {
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
         <Card className="rounded-xl border border-white/15 bg-gradient-to-br from-white/[0.04] via-white/[0.06] to-white/[0.03] backdrop-blur-xl shadow-[0_0_0_1px_rgba(29,255,0,0.05)]">
           <CardContent className="p-4 sm:p-6">
-            <AnalyticsContent />
+            <AnalyticsContent period={period as any} data={analytics} />
           </CardContent>
         </Card>
       </main>
