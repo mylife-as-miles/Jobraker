@@ -65,6 +65,7 @@
     "tailwind-merge": "2.5.4",
     "three": "^0.180.0",
     "three-stdlib": "^2.36.0",
+    "uuid": "^13.0.0",
     "webfontloader": "^1.6.28",
     "zod": "^3.23.8",
     "zustand": "^5.0.7"
