@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
-import { RefreshCw, Link2 } from "lucide-react";
+import { RefreshCw, Link2, Download } from "lucide-react";
 import { AnalyticsContent } from "../../components/analytics/AnalyticsContent";
 import { useAnalyticsData } from "../../hooks/useAnalyticsData";
 
@@ -69,10 +69,18 @@ export const Analytics = (): JSX.Element => {
             <Button
               variant="outline"
               className="border-white/30 text-white hover:bg-white/10"
-              onClick={() => window.location.reload()}
+              onClick={() => analytics.refresh?.({ bypassCache: true })}
               title="Refresh"
             >
-              <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+              <RefreshCw className={`w-4 h-4 mr-2 ${analytics.loading ? 'animate-spin' : ''}`} /> {analytics.loading ? 'Refreshing' : 'Refresh'}
+            </Button>
+            <Button
+              variant="outline"
+              className="border-white/30 text-white hover:bg-white/10"
+              onClick={() => analytics.exportCSV?.()}
+              title="Export CSV"
+            >
+              <Download className="w-4 h-4 mr-2" /> Export
             </Button>
             <Button
               variant="outline"
@@ -84,6 +92,11 @@ export const Analytics = (): JSX.Element => {
             </Button>
           </div>
         </div>
+        {analytics.lastUpdated && (
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-2">
+            <p className="text-[11px] sm:text-xs text-white/50">Last updated {new Date(analytics.lastUpdated).toLocaleString()}</p>
+          </div>
+        )}
       </div>
 
       {/* Content */}

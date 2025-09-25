@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react"
 import { Card } from "../ui/card"
 // removed unused Select imports
 import { motion } from "framer-motion"
+import { ArrowDownRight, ArrowUpRight } from "lucide-react"
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 
@@ -14,6 +15,21 @@ export function IndustriesCard({ period, data }: { period: Period; data: any }) 
     applications: data?.metrics?.applications ?? 0,
     industries: data?.metrics?.sources ?? 0,
     interviews: data?.metrics?.interviews ?? 0,
+  }
+  const comparisons = {
+    applicationsDeltaPct: data?.comparisons?.applicationsDeltaPct ?? 0,
+    interviewsDeltaPct: data?.comparisons?.interviewsDeltaPct ?? 0,
+  }
+
+  const Delta = ({ value }: { value: number }) => {
+    if (value === 0) return <span className="text-[11px] text-white/60">0%</span>
+    const positive = value > 0
+    return (
+      <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
+        {positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+        {positive ? '+' : ''}{value}%
+      </span>
+    )
   }
 
   useEffect(() => {
@@ -154,7 +170,10 @@ export function IndustriesCard({ period, data }: { period: Period; data: any }) 
               <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-1 group-hover:text-[#1dff00] transition-colors duration-300 drop-shadow-lg">
                 {metrics.applications}
               </div>
-              <div className="text-xs sm:text-sm text-white/80 font-medium">Applications</div>
+              <div className="flex items-center justify-center gap-2">
+                <div className="text-xs sm:text-sm text-white/80 font-medium">Applications</div>
+                <Delta value={comparisons.applicationsDeltaPct} />
+              </div>
             </motion.div>
             
             <motion.div 
@@ -180,7 +199,10 @@ export function IndustriesCard({ period, data }: { period: Period; data: any }) 
               <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-1 group-hover:text-[#1dff00] transition-colors duration-300 drop-shadow-lg">
                 {metrics.interviews}
               </div>
-              <div className="text-xs sm:text-sm text-white/80 font-medium">Interviews</div>
+              <div className="flex items-center justify-center gap-2">
+                <div className="text-xs sm:text-sm text-white/80 font-medium">Interviews</div>
+                <Delta value={comparisons.interviewsDeltaPct} />
+              </div>
             </motion.div>
           </div>
 

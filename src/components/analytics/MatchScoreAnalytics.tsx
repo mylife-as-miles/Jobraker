@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react"
 import { Card } from "../ui/card"
 import { motion } from "framer-motion"
+import { ArrowDownRight, ArrowUpRight } from "lucide-react"
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 
@@ -10,6 +11,7 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const barData = data?.barData || []
   const metrics = { matchScore: data?.metrics?.avgMatchScore ?? 0 }
+  const delta = data?.comparisons?.avgMatchDelta ?? 0
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -107,7 +109,15 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
           >
             {metrics.matchScore}%
           </motion.div>
-          <p className="text-sm text-white/70 leading-relaxed">Average match score in {String(period ?? '').toUpperCase()}.</p>
+          <div className="flex items-center gap-2 text-sm text-white/70 leading-relaxed">
+            <span>Average match score in {String(period ?? '').toUpperCase()}.</span>
+            {delta !== 0 && (
+              <span className={`inline-flex items-center gap-1 text-xs font-medium ${delta > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {delta > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                {delta > 0 ? '+' : ''}{delta}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 min-h-0">

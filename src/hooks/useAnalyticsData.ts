@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "../lib/supabaseClient";
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
@@ -20,114 +20,285 @@ export function useAnalyticsData(period: Period) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [comparisons, setComparisons] = useState({
+    applicationsDeltaPct: 0,
+    interviewsDeltaPct: 0,
+    jobsFoundDeltaPct: 0,
+    avgMatchDelta: 0,
+  });
+
+  // Abort and debounce helpers
+  const abortRef = useRef<AbortController | null>(null);
+  const refreshRequestedRef = useRef(false);
 
   const range = useMemo(() => computeRange(period), [period]);
+  const prevRange = useMemo(() => computePreviousRange(range), [range.start, range.end]);
 
+  const cacheKeyRef = useRef<string>("");
   useEffect(() => {
+    cacheKeyRef.current = ""; // reset on period change to recompute after user known
+  }, [period]);
+
+  const readCache = (key: string) => {
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      const ttl = 5 * 60 * 1000; // 5 minutes
+      if (!parsed || Date.now() - parsed.savedAt > ttl) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+
+  const writeCache = (key: string, payload: any) => {
+    try {
+      sessionStorage.setItem(key, JSON.stringify({ ...payload, savedAt: Date.now() }));
+    } catch {}
+  };
+
+  const exportCSV = (filename = `analytics-${period}-${new Date().toISOString().slice(0,19).replace(/[:T]/g, "-")}.csv`) => {
+    try {
+      const rows: string[] = [];
+      const push = (line: (string|number)[]) => rows.push(line.map(cell => typeof cell === 'string' && cell.includes(',') ? `"${cell.replace(/"/g,'""')}"` : String(cell)).join(','));
+      // Metrics
+      push(["Metric","Value"]);
+      push(["Applications", metrics.applications]);
+      push(["Interviews", metrics.interviews]);
+      push(["Jobs Found", metrics.jobsFound]);
+      push(["Sources", metrics.sources]);
+      push(["Avg Match Score", metrics.avgMatchScore]);
+      push(["Applications Δ%", comparisons.applicationsDeltaPct]);
+      push(["Interviews Δ%", comparisons.interviewsDeltaPct]);
+      push(["Jobs Found Δ%", comparisons.jobsFoundDeltaPct]);
+      push(["Avg Match Δ", comparisons.avgMatchDelta]);
+      rows.push("");
+      // Time series
+      push(["Date","Applications","Jobs Found"]);
+      const byTs = new Map<number, {apps:number;jobs:number;label:string}>();
+      for (const d of chartDataApps) byTs.set(d.timestamp, { apps: d.value, jobs: 0, label: d.name });
+      for (const d of chartDataJobs) {
+        const prev = byTs.get(d.timestamp) || { apps: 0, jobs: 0, label: d.name };
+        prev.jobs = d.value;
+        byTs.set(d.timestamp, prev);
+      }
+      for (const [, v] of Array.from(byTs.entries()).sort((a,b)=>a[0]-b[0])) {
+        push([v.label, v.apps, v.jobs]);
+      }
+      rows.push("");
+      // Bar data
+      push(["Bar Name","Value","Color"]);
+      for (const b of barData) push([b.name, b.value, b.color]);
+      rows.push("");
+      // Donut data
+      push(["Status","Percent","Color"]);
+      for (const d of donutData) push([d.name, d.value, d.color]);
+
+      const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {}
+  };
+
+  const refresh = (options?: { bypassCache?: boolean }) => {
+    refreshRequestedRef.current = true;
+    loadData(options);
+  };
+
+  async function loadData(options?: { bypassCache?: boolean }) {
     let mounted = true;
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          if (mounted) {
-            setChartDataApps([]);
-            setChartDataJobs([]);
-            setBarData([]);
-            setDonutData([]);
-            setMetrics({ applications: 0, interviews: 0, sources: 0, jobsFound: 0, avgMatchScore: 0 });
-          }
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      setLoading(true);
+      setError(null);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (controller.signal.aborted) return;
+      if (!user) {
+        setChartDataApps([]);
+        setChartDataJobs([]);
+        setBarData([]);
+        setDonutData([]);
+        setMetrics({ applications: 0, interviews: 0, sources: 0, jobsFound: 0, avgMatchScore: 0 });
+        setComparisons({ applicationsDeltaPct: 0, interviewsDeltaPct: 0, jobsFoundDeltaPct: 0, avgMatchDelta: 0 });
+        setLastUpdated(Date.now());
+        return;
+      }
+
+      // Build cache key after we know user
+      if (!cacheKeyRef.current) cacheKeyRef.current = `analytics:${user.id}:${period}:v1`;
+      const cacheKey = cacheKeyRef.current;
+      if (!options?.bypassCache) {
+        const cached = readCache(cacheKey);
+        if (cached) {
+          setChartDataApps(cached.chartDataApps || []);
+          setChartDataJobs(cached.chartDataJobs || []);
+          setBarData(cached.barData || []);
+          setDonutData(cached.donutData || []);
+          setMetrics(cached.metrics || metrics);
+          setComparisons(cached.comparisons || comparisons);
+          setLastUpdated(cached.lastUpdated || Date.now());
+          setLoading(false);
           return;
         }
-
-        // Fetch applications (filter client-side to handle null applied_date)
-        const { data: appsRaw, error: appsErr } = await supabase
-          .from("applications")
-          .select("id, applied_date, created_at, status, match_score, updated_at")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: true });
-        if (appsErr) throw appsErr;
-
-        // Fetch jobs
-        const { data: jobsRaw, error: jobsErr } = await supabase
-          .from("user_jobs")
-          .select("id, created_at, source_type")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: true });
-        if (jobsErr) throw jobsErr;
-
-        const startTs = range.start.getTime();
-        const endTs = range.end.getTime();
-
-        const apps = (appsRaw ?? []).filter((a: any) => {
-          const t = new Date(a.applied_date || a.created_at).getTime();
-          return t >= startTs && t <= endTs;
-        });
-        const jobs = (jobsRaw ?? []).filter((j: any) => {
-          const t = new Date(j.created_at).getTime();
-          return t >= startTs && t <= endTs;
-        });
-
-        // KPIs
-        const applications = apps.length;
-        const interviews = apps.filter((a: any) => String(a.status).toLowerCase() === "interview").length;
-        const jobsFound = jobs.length;
-        const sourcesSet = new Set<string>();
-        for (const j of jobs) { if (j.source_type) sourcesSet.add(j.source_type); }
-        const sources = sourcesSet.size;
-        const matchScores = apps.map((a: any) => a.match_score).filter((v: any) => typeof v === 'number');
-        const avgMatchScore = matchScores.length ? Math.round(matchScores.reduce((s: number, v: number) => s + v, 0) / matchScores.length) : 0;
-
-        // Time series by day
-        const days = enumerateDays(range.start, range.end);
-        const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const byDay = (arr: any[], dateSelector: (x: any) => Date) => {
-          const m = new Map<string, number>();
-          for (const day of days) m.set(day.toISOString().slice(0,10), 0);
-          for (const x of arr) {
-            const d = dateSelector(x);
-            const key = d.toISOString().slice(0,10);
-            if (m.has(key)) m.set(key, (m.get(key) || 0) + 1);
-          }
-          return days.map(d => ({ name: fmt(d), value: m.get(d.toISOString().slice(0,10)) || 0, timestamp: d.getTime() }));
-        };
-
-        const appsSeries = byDay(apps, (a: any) => new Date(a.applied_date || a.created_at));
-        const jobsSeries = byDay(jobs, (j: any) => new Date(j.created_at));
-
-        // Bars and donut
-        const bar = [
-          { name: 'Jobs found', value: jobsFound, color: '#3B82F6' },
-          { name: 'Applications', value: applications, color: '#1dff00' },
-          { name: 'Interviews', value: interviews, color: '#F59E0B' },
-        ];
-
-        const statusCounts = groupCounts(apps.map((a: any) => a.status || 'Unknown'));
-        const totalStatus = Array.from(statusCounts.values()).reduce((s, v) => s + v, 0) || 1;
-        const donut = Array.from(statusCounts.entries()).map(([name, count]) => ({
-          name,
-          value: Math.round((count / totalStatus) * 100),
-          color: pickColor(name),
-        }));
-
-        if (!mounted) return;
-        setMetrics({ applications, interviews, sources, jobsFound, avgMatchScore });
-        setChartDataApps(appsSeries);
-        setChartDataJobs(jobsSeries);
-        setBarData(bar);
-        setDonutData(donut);
-      } catch (e: any) {
-        if (mounted) setError(e.message || 'Failed to load analytics');
-      } finally {
-        if (mounted) setLoading(false);
       }
+
+      // Fetch applications (filter client-side to handle null applied_date)
+      const { data: appsRaw, error: appsErr } = await supabase
+        .from("applications")
+        .select("id, applied_date, created_at, status, match_score, updated_at, user_id")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
+      if (controller.signal.aborted) return;
+      if (appsErr) throw appsErr;
+
+      // Fetch jobs
+      const { data: jobsRaw, error: jobsErr } = await supabase
+        .from("user_jobs")
+        .select("id, created_at, source_type, user_id")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
+      if (controller.signal.aborted) return;
+      if (jobsErr) throw jobsErr;
+
+      const startTs = range.start.getTime();
+      const endTs = range.end.getTime();
+
+      const appsAll = appsRaw ?? [];
+      const jobsAll = jobsRaw ?? [];
+
+      const apps = appsAll.filter((a: any) => {
+        const t = new Date(a.applied_date || a.created_at).getTime();
+        return t >= startTs && t <= endTs;
+      });
+      const jobs = jobsAll.filter((j: any) => {
+        const t = new Date(j.created_at).getTime();
+        return t >= startTs && t <= endTs;
+      });
+
+      // KPIs current
+      const applications = apps.length;
+      const interviews = apps.filter((a: any) => String(a.status).toLowerCase() === "interview").length;
+      const jobsFound = jobs.length;
+      const sourcesSet = new Set<string>();
+      for (const j of jobs) { if (j.source_type) sourcesSet.add(j.source_type); }
+      const sources = sourcesSet.size;
+      const matchScores = apps.map((a: any) => a.match_score).filter((v: any) => typeof v === 'number');
+      const avgMatchScore = matchScores.length ? Math.round(matchScores.reduce((s: number, v: number) => s + v, 0) / matchScores.length) : 0;
+
+      // Previous period comparisons
+      const prevStartTs = prevRange.start.getTime();
+      const prevEndTs = prevRange.end.getTime();
+      const prevApps = appsAll.filter((a: any) => {
+        const t = new Date(a.applied_date || a.created_at).getTime();
+        return t >= prevStartTs && t <= prevEndTs;
+      });
+      const prevJobs = jobsAll.filter((j: any) => {
+        const t = new Date(j.created_at).getTime();
+        return t >= prevStartTs && t <= prevEndTs;
+      });
+      const prevApplications = prevApps.length;
+      const prevInterviews = prevApps.filter((a: any) => String(a.status).toLowerCase() === "interview").length;
+      const prevJobsFound = prevJobs.length;
+      const prevMatchScores = prevApps.map((a: any) => a.match_score).filter((v: any) => typeof v === 'number');
+      const prevAvgMatch = prevMatchScores.length ? Math.round(prevMatchScores.reduce((s:number,v:number)=>s+v,0) / prevMatchScores.length) : 0;
+
+      const applicationsDeltaPct = pctDelta(prevApplications, applications);
+      const interviewsDeltaPct = pctDelta(prevInterviews, interviews);
+      const jobsFoundDeltaPct = pctDelta(prevJobsFound, jobsFound);
+      const avgMatchDelta = avgMatchScore - prevAvgMatch;
+
+      // Time series by day
+      const days = enumerateDays(range.start, range.end);
+      const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const byDay = (arr: any[], dateSelector: (x: any) => Date) => {
+        const m = new Map<string, number>();
+        for (const day of days) m.set(day.toISOString().slice(0,10), 0);
+        for (const x of arr) {
+          const d = dateSelector(x);
+          const key = d.toISOString().slice(0,10);
+          if (m.has(key)) m.set(key, (m.get(key) || 0) + 1);
+        }
+        return days.map(d => ({ name: fmt(d), value: m.get(d.toISOString().slice(0,10)) || 0, timestamp: d.getTime() }));
+      };
+
+      const appsSeries = byDay(apps, (a: any) => new Date(a.applied_date || a.created_at));
+      const jobsSeries = byDay(jobs, (j: any) => new Date(j.created_at));
+
+      // Bars and donut
+      const bar = [
+        { name: 'Jobs found', value: jobsFound, color: '#3B82F6' },
+        { name: 'Applications', value: applications, color: '#1dff00' },
+        { name: 'Interviews', value: interviews, color: '#F59E0B' },
+      ];
+
+      const statusCounts = groupCounts(apps.map((a: any) => a.status || 'Unknown'));
+      const totalStatus = Array.from(statusCounts.values()).reduce((s, v) => s + v, 0) || 1;
+      const donut = Array.from(statusCounts.entries()).map(([name, count]) => ({
+        name,
+        value: Math.round((count / totalStatus) * 100),
+        color: pickColor(name),
+      }));
+
+      if (!mounted || controller.signal.aborted) return;
+      const nextMetrics = { applications, interviews, sources, jobsFound, avgMatchScore };
+      const nextComparisons = { applicationsDeltaPct, interviewsDeltaPct, jobsFoundDeltaPct, avgMatchDelta };
+      setMetrics(nextMetrics);
+      setComparisons(nextComparisons);
+      setChartDataApps(appsSeries);
+      setChartDataJobs(jobsSeries);
+      setBarData(bar);
+      setDonutData(donut);
+      setLastUpdated(Date.now());
+      // Cache
+      writeCache(cacheKey, {
+        chartDataApps: appsSeries,
+        chartDataJobs: jobsSeries,
+        barData: bar,
+        donutData: donut,
+        metrics: nextMetrics,
+        comparisons: nextComparisons,
+        lastUpdated: Date.now(),
+      });
+    } catch (e: any) {
+      if (!abortRef.current?.signal.aborted) setError(e?.message || 'Failed to load analytics');
+    } finally {
+      if (!abortRef.current?.signal.aborted) setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadData();
+
+    // Realtime updates for changes to user's rows
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        channel = supabase
+          .channel(`analytics:${user.id}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'applications', filter: `user_id=eq.${user.id}` }, () => refresh({ bypassCache: true }))
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'user_jobs', filter: `user_id=eq.${user.id}` }, () => refresh({ bypassCache: true }))
+          .subscribe();
+      } catch {}
     })();
 
-    return () => { mounted = false; };
+    return () => {
+      try { channel && supabase.removeChannel(channel); } catch {}
+      abortRef.current?.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, range.start, range.end]);
 
-  return { chartDataApps, chartDataJobs, barData, donutData, metrics, loading, error } as const;
+  return { chartDataApps, chartDataJobs, barData, donutData, metrics, comparisons, loading, error, lastUpdated, refresh, exportCSV } as const;
 }
 
 function computeRange(period: Period) {
@@ -145,6 +316,15 @@ function computeRange(period: Period) {
   start.setHours(0,0,0,0);
   end.setHours(23,59,59,999);
   return { start, end };
+}
+
+function computePreviousRange(cur: { start: Date; end: Date }) {
+  const rangeMs = cur.end.getTime() - cur.start.getTime();
+  const prevEnd = new Date(cur.start.getTime() - 1);
+  const prevStart = new Date(prevEnd.getTime() - rangeMs);
+  prevStart.setHours(0,0,0,0);
+  prevEnd.setHours(23,59,59,999);
+  return { start: prevStart, end: prevEnd };
 }
 
 function enumerateDays(start: Date, end: Date) {
@@ -171,4 +351,9 @@ function pickColor(name: string) {
   if (/withdraw/.test(key)) return '#94A3B8';
   if (/pending|appl/.test(key)) return '#1dff00';
   return '#3B82F6';
+}
+
+function pctDelta(prev: number, curr: number) {
+  if (prev === 0) return curr > 0 ? 100 : 0;
+  return Math.round(((curr - prev) / prev) * 100);
 }
