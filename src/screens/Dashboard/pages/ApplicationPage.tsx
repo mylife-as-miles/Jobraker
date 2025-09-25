@@ -23,13 +23,23 @@ function ApplicationPage() {
   // Restore preferences on mount
   useEffect(() => {
     try {
+      // Read deep-link filters first
+      const u = new URL(window.location.href);
+      const qsStatus = u.searchParams.get('status');
+      const qsQuery = u.searchParams.get('q');
+      const qsView = u.searchParams.get('view');
+      if (qsStatus && ["All","Pending","Applied","Interview","Offer","Rejected","Withdrawn"].includes(qsStatus)) setSelectedStatus(qsStatus as any);
+      if (typeof qsQuery === 'string' && qsQuery.length) setSearchQuery(qsQuery);
+      if (qsView && (qsView === 'grid' || qsView === 'list' || qsView === 'kanban')) setViewMode(qsView);
+
       const raw = localStorage.getItem("jr.apps.prefs.v1");
       if (raw) {
         const p = JSON.parse(raw);
-        if (p.viewMode === "grid" || p.viewMode === "list" || p.viewMode === "kanban") setViewMode(p.viewMode);
-        if (["All","Pending","Applied","Interview","Offer","Rejected","Withdrawn"].includes(p.selectedStatus)) setSelectedStatus(p.selectedStatus as any);
+        // Only apply stored prefs if not overridden by query params
+        if (!qsView && (p.viewMode === "grid" || p.viewMode === "list" || p.viewMode === "kanban")) setViewMode(p.viewMode);
+        if (!qsStatus && ["All","Pending","Applied","Interview","Offer","Rejected","Withdrawn"].includes(p.selectedStatus)) setSelectedStatus(p.selectedStatus as any);
         if (["score","recent","company","status"].includes(p.sortBy)) setSortBy(p.sortBy);
-        if (typeof p.searchQuery === 'string') setSearchQuery(p.searchQuery);
+        if (!qsQuery && typeof p.searchQuery === 'string') setSearchQuery(p.searchQuery);
       }
     } catch {}
   }, []);

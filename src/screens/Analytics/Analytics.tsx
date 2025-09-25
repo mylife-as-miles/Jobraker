@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
-import { RefreshCw, Link2, Download } from "lucide-react";
+import { RefreshCw, Link2, Download, Printer } from "lucide-react";
 import { AnalyticsContent } from "../../components/analytics/AnalyticsContent";
 import { useAnalyticsData } from "../../hooks/useAnalyticsData";
 
@@ -59,6 +59,11 @@ export const Analytics = (): JSX.Element => {
 
   const copyLink = async () => {
     try { await navigator.clipboard.writeText(window.location.href); } catch {}
+  };
+  const exportPDF = () => {
+    try {
+      window.print();
+    } catch {}
   };
 
   return (
@@ -123,6 +128,14 @@ export const Analytics = (): JSX.Element => {
               disabled={!hasData}
             >
               <Download className="w-4 h-4 mr-2" /> JSON
+            </Button>
+            <Button
+              variant="outline"
+              className="border-white/30 text-white hover:bg-white/10"
+              onClick={exportPDF}
+              title="Export PDF (Print)"
+            >
+              <Printer className="w-4 h-4 mr-2" /> PDF
             </Button>
             <Button
               variant="outline"
