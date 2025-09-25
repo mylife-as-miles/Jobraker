@@ -21,7 +21,7 @@ import {
   Mail
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { AnalyticsContent } from "../../components/analytics/AnalyticsContent";
+import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { useProfileSettings } from "../../hooks/useProfileSettings";
 import { createClient } from "../../lib/supabaseClient";
 
@@ -218,7 +218,7 @@ export const Dashboard = (): JSX.Element => {
       case "overview":
         return <OverviewPage />;
       case "analytics":
-        return <AnalyticsContent />;
+        return <AnalyticsPage />;
       case "jobs":
         return <JobPage />;
       case "application":
