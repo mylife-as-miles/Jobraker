@@ -14,7 +14,7 @@ export const Analytics = (): JSX.Element => {
   useEffect(() => {
     try {
       const usp = new URLSearchParams(window.location.search);
-      const p = usp.get("period");
+      const p = usp.get("period") || localStorage.getItem('analytics:period') || undefined;
       if (p && ["7d","30d","90d","ytd","12m"].includes(p)) setPeriod(p);
     } catch {}
   }, []);
@@ -25,6 +25,7 @@ export const Analytics = (): JSX.Element => {
       const url = new URL(window.location.href);
       url.searchParams.set("period", p);
       window.history.replaceState({}, "", url.toString());
+      localStorage.setItem('analytics:period', p);
     } catch {}
   };
 
@@ -83,6 +84,15 @@ export const Analytics = (): JSX.Element => {
               disabled={!hasData}
             >
               <Download className="w-4 h-4 mr-2" /> Export
+            </Button>
+            <Button
+              variant="outline"
+              className="border-white/30 text-white hover:bg-white/10"
+              onClick={() => analytics.exportJSON?.()}
+              title="Export JSON"
+              disabled={!hasData}
+            >
+              <Download className="w-4 h-4 mr-2" /> JSON
             </Button>
             <Button
               variant="outline"

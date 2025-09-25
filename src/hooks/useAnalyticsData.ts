@@ -106,6 +106,34 @@ export function useAnalyticsData(period: Period) {
     } catch {}
   };
 
+  const snapshot = () => ({
+    meta: {
+      period,
+      range: { start: range.start.toISOString(), end: range.end.toISOString() },
+      lastUpdated,
+      generatedAt: new Date().toISOString(),
+    },
+    metrics,
+    comparisons,
+    series: { applications: chartDataApps, jobs: chartDataJobs },
+    barData,
+    donutData,
+    error,
+  });
+
+  const exportJSON = (filename = `analytics-${period}-${new Date().toISOString().slice(0,19).replace(/[:T]/g, "-")}.json`) => {
+    try {
+      const data = snapshot();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {}
+  };
+
   const refresh = (options?: { bypassCache?: boolean }) => {
     refreshRequestedRef.current = true;
     loadData(options);
@@ -298,7 +326,7 @@ export function useAnalyticsData(period: Period) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, range.start, range.end]);
 
-  return { chartDataApps, chartDataJobs, barData, donutData, metrics, comparisons, loading, error, lastUpdated, refresh, exportCSV } as const;
+  return { chartDataApps, chartDataJobs, barData, donutData, metrics, comparisons, loading, error, lastUpdated, refresh, exportCSV, exportJSON, snapshot } as const;
 }
 
 function computeRange(period: Period) {
