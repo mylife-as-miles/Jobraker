@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
@@ -13,7 +13,46 @@ export const NotificationPage = (): JSX.Element => {
   const [selectedNotification, setSelectedNotification] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [autoMarkSeen, setAutoMarkSeen] = useState<boolean>(() => {
+    try { return localStorage.getItem('notifications:autoMarkSeen') !== 'false'; } catch { return true; }
+  });
   const { items, loading, hasMore, loadMore, markRead, markAllRead, bulkMarkRead, bulkRemove, toggleStar, remove, supportsStar, markSeen } = useNotifications(30);
+  const listContainerRef = useRef<HTMLDivElement | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  // Auto-mark seen when scrolled into view
+  useEffect(() => {
+    if (!autoMarkSeen) {
+      // disconnect if disabled
+      observerRef.current?.disconnect();
+      observerRef.current = null;
+      return;
+    }
+    const container = listContainerRef.current;
+    if (!container) return;
+    const options: IntersectionObserverInit = {
+      root: container,
+      threshold: 0.4,
+    };
+    observerRef.current?.disconnect();
+    observerRef.current = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const el = entry.target as HTMLElement;
+            const id = el.getAttribute('data-notification-id');
+            if (!id) return;
+            const n = items.find(i => i.id === id);
+            if (n && !n.seen_at) {
+              markSeen(id);
+            }
+        }
+      });
+    }, options);
+    const obs = observerRef.current;
+    // observe current rendered cards
+    container.querySelectorAll('[data-notification-id]').forEach(el => obs.observe(el));
+    return () => { obs.disconnect(); };
+  }, [items, autoMarkSeen, markSeen]);
   const notifications = useMemo(() => items.map(n => {
     const getNotificationAppearance = (
       type: string,
@@ -186,11 +225,22 @@ export const NotificationPage = (): JSX.Element => {
                   <option value="company">Company</option>
                   <option value="system">System</option>
                 </select>
+                <label className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-[#ffffff80] cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="accent-[#1dff00] w-3 h-3"
+                    checked={autoMarkSeen}
+                    onChange={(e) => {
+                      const v = e.target.checked; setAutoMarkSeen(v); try { localStorage.setItem('notifications:autoMarkSeen', v ? 'true' : 'false'); } catch {}
+                    }}
+                  />
+                  Auto-Seen
+                </label>
               </div>
             </div>
 
             {/* Notifications List */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto" ref={listRef => { listContainerRef.current = listRef; }}>
               {filteredNotifications.length === 0 && !loading && (
                 <div className="p-8 flex items-center justify-center">
                   <div className="text-center">
@@ -205,6 +255,7 @@ export const NotificationPage = (): JSX.Element => {
               {filteredNotifications.map((notification, index) => (
                 <motion.div
                   key={notification.id}
+                  data-notification-id={notification.id}
                   onClick={() => {
                     setSelectedNotification(notification.id);
                     if (!notification.seen_at) markSeen(notification.id);
@@ -405,3 +456,6 @@ export const NotificationPage = (): JSX.Element => {
     </div>
   );
 };
+
+// Auto-mark seen: attach after component definition to keep file tidy (hook inside component not extracted earlier)
+// We place the effect inside component but need logic - moved here would require refactor; instead integrate inside component above.
