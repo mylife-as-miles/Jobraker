@@ -59,6 +59,11 @@ function ApplicationPage() {
       const matchesStatus = selectedStatus === "All" || a.status === selectedStatus;
       return matchesQ && matchesStatus;
     });
+    const extractScore = (rec: any) => {
+      if (typeof rec.match_score === 'number') return rec.match_score;
+      if (rec.notes && /match[:=]\s*(\d{1,3})/i.test(rec.notes)) return Number(RegExp.$1);
+      return 0;
+    };
     switch (sortBy) {
       case "recent":
         list = list.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
@@ -71,7 +76,7 @@ function ApplicationPage() {
         break;
       case "score":
       default:
-        list = list.sort((a, b) => (b.match_score ?? 0) - (a.match_score ?? 0));
+        list = list.sort((a, b) => extractScore(b) - extractScore(a));
     }
     return list;
   }, [applications, searchQuery, selectedStatus, sortBy]);

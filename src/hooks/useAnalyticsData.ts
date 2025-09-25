@@ -184,7 +184,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
       // Fetch applications (filter client-side to handle null applied_date)
       const { data: appsRaw, error: appsErr } = await supabase
         .from("applications")
-        .select("id, applied_date, created_at, status, match_score, updated_at, user_id")
+        .select("id, applied_date, created_at, status, updated_at, user_id")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true });
       if (controller.signal.aborted) return;
@@ -221,7 +221,9 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
       const sourcesSet = new Set<string>();
       for (const j of jobs) { if (j.source_type) sourcesSet.add(j.source_type); }
       const sources = sourcesSet.size;
-      const matchScores = apps.map((a: any) => a.match_score).filter((v: any) => typeof v === 'number');
+      const matchScores = apps
+        .map((a: any) => (a.match_score !== undefined ? a.match_score : (a.notes && /match[:=]\s*(\d{1,3})/i.test(a.notes) ? Number(RegExp.$1) : undefined)))
+        .filter((v: any) => typeof v === 'number');
       const avgMatchScore = matchScores.length ? Math.round(matchScores.reduce((s: number, v: number) => s + v, 0) / matchScores.length) : 0;
 
       // Previous period comparisons
@@ -238,7 +240,9 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
       const prevApplications = prevApps.length;
       const prevInterviews = prevApps.filter((a: any) => String(a.status).toLowerCase() === "interview").length;
       const prevJobsFound = prevJobs.length;
-      const prevMatchScores = prevApps.map((a: any) => a.match_score).filter((v: any) => typeof v === 'number');
+      const prevMatchScores = prevApps
+        .map((a: any) => (a.match_score !== undefined ? a.match_score : (a.notes && /match[:=]\s*(\d{1,3})/i.test(a.notes) ? Number(RegExp.$1) : undefined)))
+        .filter((v: any) => typeof v === 'number');
       const prevAvgMatch = prevMatchScores.length ? Math.round(prevMatchScores.reduce((s:number,v:number)=>s+v,0) / prevMatchScores.length) : 0;
 
       const applicationsDeltaPct = pctDelta(prevApplications, applications);
