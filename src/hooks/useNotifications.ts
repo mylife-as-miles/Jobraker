@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/toast';
 
@@ -22,7 +22,7 @@ export interface NotificationRow {
 
 export function useNotifications(limit: number = 10) {
   const supabase = createClient();
-  const { error: toastError } = useToast();
+  const { error: toastError, warning, info } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [items, setItems] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -30,7 +30,7 @@ export function useNotifications(limit: number = 10) {
   const [hasMore, setHasMore] = useState(true);
   // Feature capability flags (in case migration not applied yet)
   const [supportsStar, setSupportsStar] = useState(true);
-  const [supportsPriority, setSupportsPriority] = useState(true);
+  const [supportsPriority] = useState(true); // reserved for future conditional UI, setter removed to avoid unused var
   const [supportsSeen, setSupportsSeen] = useState(true);
 
   // Resolve user id
@@ -73,7 +73,11 @@ export function useNotifications(limit: number = 10) {
 
   useEffect(() => { if (userId) fetchItems(); }, [userId, fetchItems]);
 
-  // realtime subscription
+  // Track first load to avoid toasting historical items
+  const initialLoadRef = useRef(true);
+  useEffect(() => { initialLoadRef.current = true; }, [userId]);
+
+  // realtime subscription with toast feedback
   useEffect(() => {
     if (!userId) return;
     const channel = (supabase as any)
@@ -81,7 +85,17 @@ export function useNotifications(limit: number = 10) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, (payload: any) => {
         const { eventType } = payload;
         if (eventType === 'INSERT') {
-          setItems(prev => [payload.new as NotificationRow, ...prev].slice(0, limit));
+          const inserted = payload.new as NotificationRow;
+            // Push new item local state
+          setItems(prev => [inserted, ...prev].slice(0, limit));
+          // Only toast if not part of the initial hydration
+          if (!initialLoadRef.current) {
+            if (inserted.priority === 'high') {
+              warning?.(inserted.title || 'High priority notification', inserted.message || undefined, 6000);
+            } else if (inserted.priority === 'medium') {
+              info?.(inserted.title || 'New notification', inserted.message || undefined, 4500);
+            }
+          }
         } else if (eventType === 'UPDATE') {
           setItems(prev => prev.map(n => n.id === payload.new.id ? (payload.new as NotificationRow) : n));
         } else if (eventType === 'DELETE') {
@@ -89,8 +103,10 @@ export function useNotifications(limit: number = 10) {
         }
       })
       .subscribe();
-    return () => { try { (supabase as any).removeChannel(channel); } catch {} };
-  }, [supabase, userId, limit]);
+    // After a small delay mark initial load complete so subsequent inserts toast
+    const t = setTimeout(() => { initialLoadRef.current = false; }, 1000);
+    return () => { try { (supabase as any).removeChannel(channel); } catch {} clearTimeout(t); };
+  }, [supabase, userId, limit, warning, info]);
 
   // CRUD helpers
   const add = useCallback(async (row: Omit<NotificationRow, 'id' | 'created_at'>) => {

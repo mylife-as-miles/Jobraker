@@ -266,7 +266,14 @@ export const NotificationPage = (): JSX.Element => {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <p className="text-xs text-[#ffffff60]">{notification.timestamp}</p>
+                        <p className="text-xs text-[#ffffff60] flex items-center gap-1">
+                          {notification.timestamp}
+                          {!notification.seen_at && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#1dff00]/15 text-[#1dff00] text-[10px] font-semibold tracking-wide animate-pulse">
+                              New
+                            </span>
+                          )}
+                        </p>
                         {notification.priority && (
                           <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/5 border ${notification.priority === 'high' ? 'border-red-500 text-red-400' : notification.priority === 'medium' ? 'border-yellow-500 text-yellow-400' : 'border-green-500 text-green-400'}`}>{notification.priority}</span>
                         )}
