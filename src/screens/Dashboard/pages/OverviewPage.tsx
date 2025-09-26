@@ -345,6 +345,7 @@ export const OverviewPage = (): JSX.Element => {
                   viewMode={calendarViewMode}
                   onViewModeChange={setCalendarViewMode}
                   heatmap
+                  showLegend
                 />
                 {selectedRange && (
                   <div className="mt-3 text-center text-[10px] sm:text-xs text-[#888]">

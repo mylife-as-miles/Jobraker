@@ -28,6 +28,7 @@ export interface CalendarProps {
   onViewModeChange?: (mode: 'month' | 'week') => void;
   showDayEventCount?: boolean;
   heatmap?: boolean; // color intensity based on event density
+  showLegend?: boolean;
 }
 
 function startOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 1); }
@@ -51,6 +52,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
   onViewModeChange,
   showDayEventCount = true,
   heatmap = false,
+  showLegend = false,
 }) => {
   const today = new Date();
   const viewMonth = startOfMonth(month || today);
@@ -59,6 +61,15 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
   // Range selection state
   const [rangeStart, setRangeStart] = useState<Date | null>(null);
   const [rangeEnd, setRangeEnd] = useState<Date | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  // Mouse up listener for drag selection
+  React.useEffect(() => {
+    if (!rangeSelectable) return;
+    const up = () => setDragging(false);
+    window.addEventListener('mouseup', up);
+    return () => window.removeEventListener('mouseup', up);
+  }, [rangeSelectable]);
 
   const grid = useMemo(() => {
     if (viewMode === 'week' && selectedDate) {
@@ -143,6 +154,21 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
     }
   };
 
+  const beginDrag = (date: Date) => {
+    if (!rangeSelectable) return;
+    setRangeStart(date);
+    setRangeEnd(date);
+    setDragging(true);
+    onSelectRange?.(null);
+  };
+  const dragOver = (date: Date) => {
+    if (!dragging || !rangeSelectable || !rangeStart) return;
+    setRangeEnd(date);
+    const s = rangeStart < date ? rangeStart : date;
+    const e = rangeStart < date ? date : rangeStart;
+    onSelectRange?.({ start: s, end: e });
+  };
+
   return (
     <div className={"w-full " + className}>
       {showHeader && (
@@ -182,6 +208,16 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
           </div>
         </div>
       )}
+      {showLegend && (
+        <div className="flex flex-wrap gap-2 mb-2 text-[10px] sm:text-xs">
+          {['Pending','Applied','Interview','Offer','Rejected','Withdrawn'].map(s => (
+            <span key={s} className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-white/10 bg-white/5 text-white/60">
+              <span style={{ background: statusColor(s), width:8, height:8 }} className="inline-block rounded-full" /> {s}
+            </span>
+          ))}
+          {heatmap && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-[#1dff00]/20 bg-[#1dff00]/5 text-[#1dff00]/70">Heatmap</span>}
+        </div>
+      )}
 
       {/* Week header */}
       <div className="grid grid-cols-7 gap-1 mb-2">
@@ -217,6 +253,8 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               key={cell.date.toISOString()+idx}
               type="button"
               onClick={() => handleDayClick(cell.date)}
+              onMouseDown={() => beginDrag(cell.date)}
+              onMouseEnter={() => dragOver(cell.date)}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.94 }}
               className={[
