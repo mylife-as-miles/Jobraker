@@ -4,7 +4,8 @@ import { Switch } from "../../../components/ui/switch";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
-import { Building2, AlertCircle, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
+import { Building2, AlertCircle, Inbox } from "lucide-react";
+import KiboCalendar, { CalendarEvent } from "../../../components/ui/kibo-ui/calendar";
 import { useNotifications } from "../../../hooks/useNotifications";
 import { useApplications } from "../../../hooks/useApplications";
 import { SplitLineAreaChart } from "./SplitLineAreaChart";
@@ -56,9 +57,7 @@ export const OverviewPage = (): JSX.Element => {
     return () => clearInterval(id);
   }, []);
 
-  const monthLabel = useMemo(() =>
-    viewDate.toLocaleString(undefined, { month: 'long', year: 'numeric' }),
-  [viewDate]);
+  // monthLabel removed (handled by KiboCalendar header internally now)
 
   const timeLabel = useMemo(() =>
     now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
@@ -198,28 +197,24 @@ export const OverviewPage = (): JSX.Element => {
   return { seriesData: data, seriesMeta: series, appliedCount: applied, interviewCount: interviews, totals: { totalInWindow } }
   }, [applications, now, selectedPeriod])
 
-  // Build a 6x7 calendar grid (42 cells)
-  const monthGrid = useMemo(() => {
-    const year = viewDate.getFullYear();
-    const month = viewDate.getMonth();
-    const firstOfMonth = new Date(year, month, 1);
-    const startDay = firstOfMonth.getDay(); // 0=Sun..6=Sat
-    const cells: { date: Date; inCurrentMonth: boolean }[] = [];
-    for (let i = 0; i < 42; i++) {
-      const dayNum = i - startDay + 1; // can be <=0 or > daysInMonth
-      const cellDate = new Date(year, month, dayNum);
-      cells.push({
-        date: cellDate,
-        inCurrentMonth: cellDate.getMonth() === month,
-      });
-    }
-    return cells;
-  }, [viewDate]);
+  // Calendar selection (optional future feature)
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
 
-  const isToday = (d: Date) =>
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate();
+  // Derive calendar events from applications: use interview_date if present else applied_date as end indicator
+  const calendarEvents: CalendarEvent[] = useMemo(() => {
+    return applications.map(app => {
+      const dateStr = app.interview_date || app.applied_date;
+      let date: Date;
+      try { date = new Date(dateStr); } catch { date = new Date(); }
+      return {
+        id: app.id,
+        date,
+        title: app.job_title.slice(0, 24),
+        status: app.status,
+      };
+    });
+  }, [applications]);
 
   return (
     <div className="min-h-screen bg-black">
@@ -321,7 +316,11 @@ export const OverviewPage = (): JSX.Element => {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Recent Match Scores</h2>
                 </div>
-                <MatchScoreAnalytics />
+                <MatchScoreAnalytics period="30d" data={{
+                  barData: [],
+                  metrics: { avgMatchScore: 0 },
+                  comparisons: { avgMatchDelta: 0 }
+                }} />
               </Card>
             </motion.div>
           </div>
@@ -380,7 +379,7 @@ export const OverviewPage = (): JSX.Element => {
               </Card>
             </motion.div>
 
-            {/* Calendar */}
+            {/* Calendar (Kibo UI) */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -389,71 +388,25 @@ export const OverviewPage = (): JSX.Element => {
               className="transition-transform duration-300"
             >
               <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
-                <div className="flex items-center justify-between mb-2 sm:mb-4">
-                  <div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
-                      className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-1 sm:p-2 transition-all duration-300"
-                    >
-                      <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </Button>
-                  </div>
-                  <h2 className="text-sm sm:text-lg lg:text-xl font-bold text-white">{monthLabel}</h2>
-                  <div className="flex items-center gap-1 sm:gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setViewDate(new Date(now.getFullYear(), now.getMonth(), 1))}
-                      className="text-white border border-white/10 hover:border-[#1dff00]/40 hover:bg-white/5 hover:text-[#1dff00] transition-all duration-300 px-2 py-1"
-                    >
-                      Today
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
-                      className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-1 sm:p-2 transition-all duration-300"
-                    >
-                      <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Live current time */}
-                <div className="text-center text-[10px] sm:text-xs text-[#888888] mb-3">
+                <div className="mb-3 text-center text-[10px] sm:text-xs text-[#888888]">
                   Current time: <span className="text-[#1dff00] font-medium">{timeLabel}</span>
                 </div>
-
-                {/* Calendar Header */}
-                <div className="grid grid-cols-7 gap-1 mb-2">
-                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day) => (
-                    <div key={day} className="text-center text-xs text-[#666666] font-medium py-1 sm:py-2">
-                      {day}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Calendar Days */}
-                <div className="grid grid-cols-7 gap-1">
-                  {monthGrid.map(({ date, inCurrentMonth }, idx) => (
-                    <motion.div
-                      key={`${date.toISOString()}-${idx}`}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.97 }}
-                      className={`relative text-center text-xs py-1 sm:py-2 rounded-lg transition-all duration-200 cursor-pointer ${
-                        isToday(date) && inCurrentMonth
-                          ? 'bg-[#1dff00] text-black font-bold shadow-lg'
-                          : inCurrentMonth
-                          ? 'text-[#888888] hover:bg-[#1dff00]/10 hover:text-[#1dff00]'
-                          : 'text-[#333333] hover:bg-[#1dff00]/10'
-                      }`}
-                    >
-                      {date.getDate()}
-                    </motion.div>
-                  ))}
-                </div>
+                <KiboCalendar
+                  month={viewDate}
+                  selectedDate={selectedDate || undefined}
+                  onMonthChange={(d) => setViewDate(d)}
+                  onSelectDate={(d) => setSelectedDate(d)}
+                  events={calendarEvents}
+                  maxVisibleEventsPerDay={3}
+                  rangeSelectable
+                  onSelectRange={setSelectedRange}
+                  locale={Intl.DateTimeFormat().resolvedOptions().locale}
+                />
+                {selectedRange && (
+                  <div className="mt-3 text-center text-[10px] sm:text-xs text-[#888]">
+                    Range: <span className="text-[#1dff00] font-medium">{selectedRange.start.toLocaleDateString()} → {selectedRange.end.toLocaleDateString()}</span>
+                  </div>
+                )}
               </Card>
             </motion.div>
           </div>
