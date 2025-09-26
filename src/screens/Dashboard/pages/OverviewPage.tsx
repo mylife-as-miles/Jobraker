@@ -9,6 +9,7 @@ import KiboCalendar, { CalendarEvent } from "../../../components/ui/kibo-ui/cale
 import CalendarDayDetail from "../../../components/ui/kibo-ui/CalendarDayDetail";
 import { useNotifications } from "../../../hooks/useNotifications";
 import { useApplications } from "../../../hooks/useApplications";
+import { Skeleton } from "../../../components/ui/skeleton";
 import { SplitLineAreaChart } from "./SplitLineAreaChart";
 // SplitLineAreaChart removed; chart moved to Application section
 
@@ -20,7 +21,7 @@ export const OverviewPage = (): JSX.Element => {
   const [stackedTouched, setStackedTouched] = useState(false);
   const [visibleSeries, setVisibleSeries] = useState<string[]>([]);
   const { items: notifItems, loading: notifLoading } = useNotifications(6);
-  const { applications, update, create } = useApplications();
+  const { applications, loading: appsLoading, update, create } = useApplications();
   const mappedNotifs = useMemo(() => {
     return notifItems.map(n => ({
       id: n.id,
@@ -291,18 +292,26 @@ export const OverviewPage = (): JSX.Element => {
                 </div>
 
                 {/* Applications Chart (real data, status series) */}
-                <div className="mt-4 sm:mt-6 w-full max-h-96 overflow-hidden">
-                  <SplitLineAreaChart
-                    data={seriesData}
-                    xKey="label"
-          series={seriesMeta}
-                    stacked={stacked}
-          showLegend
-                    onVisibleChange={setVisibleSeries}
-                    defaultVisible={visibleSeries}
-                    tickFormatter={(v) => String(v).slice(0, 3)}
-                    className="h-64 sm:h-72 lg:h-80 xl:h-96 w-full"
-                  />
+                <div className="mt-4 sm:mt-6 w-full max-h-96 overflow-hidden min-h-[16rem] relative">
+                  {appsLoading && (
+                    <div className="absolute inset-0 flex flex-col gap-4">
+                      <Skeleton className="h-6 w-40" />
+                      <Skeleton className="h-full w-full" />
+                    </div>
+                  )}
+                  {!appsLoading && (
+                    <SplitLineAreaChart
+                      data={seriesData}
+                      xKey="label"
+                      series={seriesMeta}
+                      stacked={stacked}
+                      showLegend
+                      onVisibleChange={setVisibleSeries}
+                      defaultVisible={visibleSeries}
+                      tickFormatter={(v) => String(v).slice(0, 3)}
+                      className="h-64 sm:h-72 lg:h-80 xl:h-96 w-full"
+                    />
+                  )}
                 </div>
               </Card>
             </motion.div>
@@ -386,7 +395,20 @@ export const OverviewPage = (): JSX.Element => {
                   </Button>
                 </div>
 
-                <div className="space-y-3 sm:space-y-4">
+                <div className="space-y-3 sm:space-y-4 min-h-[120px] relative">
+                  {notifLoading && (
+                    <div className="grid grid-cols-1 gap-3 sm:gap-4">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="flex items-start space-x-3 p-2 sm:p-3 rounded-lg border border-white/10 bg-white/5">
+                          <Skeleton className="h-8 w-8 rounded-full" />
+                          <div className="flex-1 space-y-2 py-1">
+                            <Skeleton className="h-3 w-1/2" />
+                            <Skeleton className="h-3 w-1/3" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {mappedNotifs.length === 0 && !notifLoading && (
                     <div className="flex items-center justify-center p-8 border border-dashed border-[#1dff00]/30 rounded-xl bg-[#0b0b0b]">
                       <div className="text-center">
@@ -398,7 +420,7 @@ export const OverviewPage = (): JSX.Element => {
                       </div>
                     </div>
                   )}
-                  {mappedNotifs.map((notification, index) => (
+                  {!notifLoading && mappedNotifs.map((notification, index) => (
                     <motion.div
                       key={notification.id}
                       initial={{ opacity: 0, x: 20 }}
