@@ -21,8 +21,7 @@ export const OverviewPage = (): JSX.Element => {
   const [stackedTouched, setStackedTouched] = useState(false);
   const [visibleSeries, setVisibleSeries] = useState<string[]>([]);
   const { items: notifItems, loading: notifLoading } = useNotifications(6);
-  const { applications, loading: appsLoading, update, create, exportCSV, stats } = useApplications();
-  const [searchQuery, setSearchQuery] = useState("");
+  const { applications, loading: appsLoading, update, create, stats } = useApplications();
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus[] | null>(null); // null => all
   const mappedNotifs = useMemo(() => {
     return notifItems.map(n => {
@@ -107,16 +106,8 @@ export const OverviewPage = (): JSX.Element => {
   const { seriesData, seriesMeta, appliedCount, interviewCount, totals } = useMemo(() => {
     const period = selectedPeriod
 
-    // Apply search & status filtering before aggregation
+    // Apply status filtering (search removed per request)
     let filtered = applications;
-    if (searchQuery.trim()) {
-      const needle = searchQuery.trim().toLowerCase();
-      filtered = filtered.filter(a =>
-        a.job_title.toLowerCase().includes(needle) ||
-        a.company.toLowerCase().includes(needle) ||
-        a.location.toLowerCase().includes(needle)
-      );
-    }
     if (statusFilter && statusFilter.length) {
       const set = new Set(statusFilter);
       filtered = filtered.filter(a => set.has(a.status));
@@ -228,7 +219,7 @@ export const OverviewPage = (): JSX.Element => {
     }))
 
   return { seriesData: data, seriesMeta: series, appliedCount: applied, interviewCount: interviews, totals: { totalInWindow } }
-  }, [applications, now, selectedPeriod, searchQuery, statusFilter])
+  }, [applications, now, selectedPeriod, statusFilter])
 
   // Calendar selection & view state
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -299,30 +290,9 @@ export const OverviewPage = (): JSX.Element => {
                       {period}
                     </Button>
                   ))}
-                  {/* Spacer */}
                   <div className="flex-1" />
-                  {/* Search */}
-                  <div className="relative">
-                    <input
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      placeholder="Search applications..."
-                      className="bg-black/40 text-xs sm:text-sm px-3 py-1.5 rounded-md border border-white/10 focus:border-[#1dff00]/50 outline-none text-white placeholder:text-white/30 w-44 sm:w-56"
-                      aria-label="Search applications"
-                    />
-                  </div>
-                  {/* Export */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => exportCSV()}
-                    className="text-xs sm:text-sm text-white hover:text-black hover:bg-[#1dff00] border border-[#1dff00]/30 hover:border-[#1dff00]"
-                    aria-label="Export applications CSV"
-                  >
-                    Export
-                  </Button>
-                  {/* Stacked toggle */}
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-[#888] pl-1">
+                  {/* Stacked toggle (repositioned after removal of search/export) */}
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-[#888]">
                     <span>Stacked</span>
                     <Switch
                       checked={stacked && visibleSeries.length > 1}
