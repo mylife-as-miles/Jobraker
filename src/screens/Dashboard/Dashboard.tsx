@@ -261,6 +261,8 @@ export const Dashboard = (): JSX.Element => {
               size="sm"
               className="lg:hidden text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2"
               onClick={() => setSidebarOpen(false)}
+              title="Close sidebar"
+              aria-label="Close sidebar"
             >
               <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
@@ -281,6 +283,8 @@ export const Dashboard = (): JSX.Element => {
                     navigate(path);
                     setSidebarOpen(false);
                   }}
+                  title={item.label}
+                  aria-label={`Go to ${item.label}`}
                   className={`w-full justify-start rounded-xl transition-colors duration-200 text-xs sm:text-sm lg:text-base px-3 py-2 sm:px-4 sm:py-3 h-auto ${
                     isActive
                       ? "text-white bg-[#1dff00]/10 border border-[#1dff00]/30 shadow-[0_0_20px_rgba(29,255,0,0.15)]"
@@ -330,6 +334,8 @@ export const Dashboard = (): JSX.Element => {
                   size="sm"
                   className="lg:hidden text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2"
                   onClick={() => setSidebarOpen(true)}
+                  title="Open sidebar navigation"
+                  aria-label="Open sidebar"
                 >
                   <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Button>
@@ -362,6 +368,8 @@ export const Dashboard = (): JSX.Element => {
                 size="sm" 
                 className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 hidden sm:flex p-1 sm:p-2"
                 onClick={() => navigate("/dashboard/settings")}
+                title="Settings"
+                aria-label="Open settings"
               >
                 <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
@@ -371,6 +379,8 @@ export const Dashboard = (): JSX.Element => {
                 size="sm" 
                 className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 relative p-1 sm:p-2"
                 onClick={() => navigate("/dashboard/notifications")}
+                title={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
+                aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Open notifications'}
               >
                 <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
                 {unreadCount > 0 && (
@@ -396,6 +406,8 @@ export const Dashboard = (): JSX.Element => {
                   size="sm"
                   className="hidden sm:flex items-center space-x-2 sm:space-x-3 text-[#888888] hover:text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 p-1 sm:p-2"
                   onClick={() => navigate("/dashboard/profile")}
+                  title="Profile"
+                  aria-label="Open profile"
                 >
                   <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300">
                     {avatarUrl ? (
@@ -418,6 +430,8 @@ export const Dashboard = (): JSX.Element => {
                 size="sm"
                 className="sm:hidden text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 p-1"
                 onClick={() => navigate("/dashboard/profile")}
+                title="Profile"
+                aria-label="Open profile"
               >
                 <div className="w-6 h-6 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center">
                   {avatarUrl ? (

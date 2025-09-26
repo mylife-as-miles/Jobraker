@@ -281,6 +281,8 @@ export const OverviewPage = (): JSX.Element => {
                       variant="ghost"
                       size="sm"
                       onClick={() => setSelectedPeriod(period)}
+                      title={`Show data for ${period}`}
+                      aria-label={`Select period ${period}`}
                       className={`text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${
                         selectedPeriod === period
                           ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
@@ -292,12 +294,13 @@ export const OverviewPage = (): JSX.Element => {
                   ))}
                   <div className="flex-1" />
                   {/* Stacked toggle (repositioned after removal of search/export) */}
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-[#888]">
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-[#888]" title="Toggle stacked / overlapping series" aria-label="Stacked toggle">
                     <span>Stacked</span>
                     <Switch
                       checked={stacked && visibleSeries.length > 1}
                       onCheckedChange={(v: boolean) => { setStackedTouched(true); setStacked(!!v); }}
                       disabled={visibleSeries.length <= 1}
+                      aria-label="Toggle stacked chart mode"
                     />
                   </div>
                 </div>
@@ -328,6 +331,8 @@ export const OverviewPage = (): JSX.Element => {
                           });
                         }}
                         className={`text-[10px] sm:text-xs px-2 py-1 rounded-md border transition-all duration-300 font-medium tracking-wide ${baseColors[s]} ${active ? 'ring-1 ring-white/40 scale-105' : 'opacity-70'} focus:outline-none focus:ring-2 focus:ring-[#1dff00]/50`}
+                        title={s === 'All' ? 'Show all statuses' : `${active ? 'Hide' : 'Show'} ${s} applications`}
+                        aria-label={s === 'All' ? 'Filter: All statuses' : `Filter: ${s}`}
                         aria-pressed={active}
                       >{s}</button>
                     );
