@@ -1,21 +1,34 @@
 // Clean AI-elements only Chat Page implementation
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 // Temporary lightweight chat hook placeholder (remove when real ai/react is available)
-interface BasicMessage { id: string; role: 'user' | 'assistant'; content: string; parts?: { type: 'text'; text: string }[] }
+interface BasicMessage { id: string; role: 'user' | 'assistant'; content: string; parts?: { type: 'text'; text: string }[]; streaming?: boolean; createdAt: number }
 interface UseChatReturn { messages: BasicMessage[]; status: 'idle' | 'in_progress'; append: (m: { role: 'user'; content: string }) => void }
 const useChat = (_opts: { api: string }): UseChatReturn => {
   const [messages, setMessages] = useState<BasicMessage[]>([]);
   const [status, setStatus] = useState<'idle' | 'in_progress'>('idle');
-  const append = (m: { role: 'user'; content: string }) => {
-    const id = Math.random().toString(36).slice(2);
-    setMessages(prev => [...prev, { id, role: m.role, content: m.content, parts: [{ type: 'text', text: m.content }] }]);
-    // Simulate assistant echo
-    setStatus('in_progress');
-    setTimeout(()=>{
-      const aId = Math.random().toString(36).slice(2);
-      setMessages(prev => [...prev, { id: aId, role: 'assistant', content: `Echo: ${m.content}`, parts: [{ type: 'text', text: `Echo: ${m.content}` }] }]);
+
+  const streamAssistant = (assistantId: string, tokens: string[], i: number) => {
+    setMessages(prev => prev.map(msg => msg.id === assistantId
+      ? { ...msg, parts: [{ type: 'text', text: tokens.slice(0, i + 1).join(' ') }], streaming: i + 1 < tokens.length }
+      : msg));
+    if (i + 1 < tokens.length) {
+      setTimeout(() => streamAssistant(assistantId, tokens, i + 1), 40 + Math.random()*60);
+    } else {
       setStatus('idle');
-    }, 600);
+    }
+  };
+
+  const append = (m: { role: 'user'; content: string }) => {
+    const userId = Math.random().toString(36).slice(2);
+  setMessages(prev => [...prev, { id: userId, role: m.role, content: m.content, createdAt: Date.now(), parts: [{ type: 'text', text: m.content }] }]);
+    // Simulated streaming assistant reply
+    setStatus('in_progress');
+    const assistantId = Math.random().toString(36).slice(2);
+    const reply = `You said: "${m.content}". This is a simulated streaming response demonstrating incremental token updates.`;
+    const tokens = reply.split(/\s+/);
+  setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: reply, createdAt: Date.now(), parts: [{ type: 'text', text: '' }], streaming: true }]);
+    // start token streaming
+    setTimeout(() => streamAssistant(assistantId, tokens, 0), 120);
   };
   return { messages, status, append };
 };
@@ -44,6 +57,7 @@ import {
 import { Conversation, ConversationContent, ConversationScrollButton } from '@/components/ai-elements/conversation';
 import { Message, MessageContent } from '@/components/ai-elements/message';
 import { Response } from '@/components/ai-elements/response';
+
 
 const models = [
   { id: 'gpt-4o', name: 'GPT-4o' },
@@ -74,9 +88,9 @@ export const ChatPage = () => {
               <Message key={m.id} from={m.role}>
                 <MessageContent>
                   {Array.isArray(m.parts)
-                    ? m.parts.map((p: { type: 'text'; text: string }, i: number) =>
-                        p.type === 'text' ? <Response key={i}>{p.text}</Response> : null
-                      )
+                    ? m.parts.map((p: { type: 'text'; text: string }, i: number) => p.type === 'text' ? (
+                        <Response key={i}>{`${p.text}${m.streaming && i === m.parts!.length - 1 ? ' ▌' : ''}`}</Response>
+                      ) : null)
                     : m.content}
                 </MessageContent>
               </Message>
