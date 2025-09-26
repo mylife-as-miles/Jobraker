@@ -30,20 +30,29 @@ export async function createNotification(input: CreateNotificationInput) {
     const payload = {
       user_id: input.user_id,
       type: input.type,
-      title: input.title.slice(0, 200), // defensive limits
+      title: input.title.slice(0, 200),
       message: input.message?.slice(0, 2000) ?? null,
       company: input.company?.slice(0, 120) ?? null,
       action_url: input.action_url ?? null,
     } as const;
-    const { error } = await (supabase as any)
+    const { data, error } = await (supabase as any)
       .from('notifications')
-      .insert(payload);
+      .insert(payload)
+      .select('*')
+      .single();
     if (error) throw error;
-    return true;
-  } catch (e) {
-    // Silent fail – we don't want user-facing errors here; console for diagnostics.
+    // Optimistic local event so UI updates even if realtime channel is delayed/misconfigured
+    if (typeof window !== 'undefined' && data) {
+      window.dispatchEvent(new CustomEvent('notification:insert', { detail: data }));
+    }
+    return data;
+  } catch (e: any) {
+    const msg = e?.message || String(e);
     // eslint-disable-next-line no-console
-    console.warn('[notifications] create failed', e);
+    console.warn('[notifications] create failed', msg, e);
+    if (/policy|rls|row level/i.test(msg)) {
+      console.warn('[notifications] RLS policy rejection. Ensure user is authenticated and user_id matches auth.uid().');
+    }
     return null;
   }
 }

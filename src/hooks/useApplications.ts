@@ -5,7 +5,7 @@ import { createNotification } from "../utils/notifications";
 
 export type ApplicationStatus = "Pending" | "Applied" | "Interview" | "Offer" | "Rejected" | "Withdrawn";
 
-export interface ApplicationRecord {any notifications on 
+export interface ApplicationRecord {
   id: string;
   user_id: string;
   job_title: string;

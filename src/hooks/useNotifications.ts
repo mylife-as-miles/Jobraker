@@ -108,6 +108,21 @@ export function useNotifications(limit: number = 10) {
     return () => { try { (supabase as any).removeChannel(channel); } catch {} clearTimeout(t); };
   }, [supabase, userId, limit, warning, info]);
 
+  // Listen for local optimistic creation events (in case realtime not yet delivered)
+  useEffect(() => {
+    function onLocalInsert(ev: Event) {
+      const detail: any = (ev as CustomEvent).detail;
+      if (!detail || !detail.id) return;
+      if (detail.user_id !== userId) return;
+      setItems(prev => {
+        if (prev.some(n => n.id === detail.id)) return prev; // already present (maybe via realtime)
+        return [detail as NotificationRow, ...prev].slice(0, limit);
+      });
+    }
+    window.addEventListener('notification:insert', onLocalInsert as EventListener);
+    return () => window.removeEventListener('notification:insert', onLocalInsert as EventListener);
+  }, [userId, limit]);
+
   // CRUD helpers
   const add = useCallback(async (row: Omit<NotificationRow, 'id' | 'created_at'>) => {
     try {
