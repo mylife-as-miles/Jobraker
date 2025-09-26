@@ -23,27 +23,34 @@ export const OverviewPage = (): JSX.Element => {
   const { items: notifItems, loading: notifLoading } = useNotifications(6);
   const { applications, loading: appsLoading, update, create } = useApplications();
   const mappedNotifs = useMemo(() => {
-    return notifItems.map(n => ({
-      id: n.id,
-      type: n.type as any,
-      title: n.title,
-      message: n.message || '',
-      time: new Date(n.created_at).toLocaleString(),
-      icon: (
-        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center"
-             style={{ backgroundColor: n.type === 'company' ? '#000' : n.type === 'application' ? '#4285f4' : n.type === 'interview' ? '#0077b5' : '#ff6b6b' }}>
-          {n.type === 'company' ? (
-            <span className="text-[#1dff00] font-bold text-xs sm:text-sm">{(n.company || 'C').charAt(0).toUpperCase()}</span>
-          ) : n.type === 'application' ? (
-            <span className="text-[#1dff00] font-bold text-xs sm:text-sm">{(n.company || 'A').charAt(0).toUpperCase()}</span>
-          ) : n.type === 'interview' ? (
-            <Building2 className="w-3 h-3 sm:w-4 sm:h-4 text-[#1dff00]" />
-          ) : (
-            <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-[#1dff00]" />
-          )}
-        </div>
-      )
-    }));
+    return notifItems.map(n => {
+      // Per-type style mapping for visual differentiation & accessibility
+      const baseSize = 'w-9 h-9 sm:w-10 sm:h-10';
+      const shared = 'rounded-xl flex items-center justify-center font-bold text-xs sm:text-sm shadow-inner transition ring-1';
+      let className = '';
+      let inner: JSX.Element | string;
+      if (n.type === 'application') {
+        className = `${baseSize} ${shared} bg-[#1dff00]/15 ring-[#1dff00]/40 text-[#b6ffb6] group-hover:ring-[#1dff00]/60`;
+        inner = (n.company || 'A').charAt(0).toUpperCase();
+      } else if (n.type === 'interview') {
+        className = `${baseSize} ${shared} bg-[#0d4d66]/40 ring-[#56c2ff]/30 text-[#56c2ff] group-hover:ring-[#56c2ff]/60`;
+        inner = <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />;
+      } else if (n.type === 'company') {
+        className = `${baseSize} ${shared} bg-[#1e1e1e] ring-white/10 text-white group-hover:ring-[#1dff00]/50`;
+        inner = (n.company || 'C').charAt(0).toUpperCase();
+      } else { // system / fallback
+        className = `${baseSize} ${shared} bg-[#3a1212] ring-[#ff6b6b]/40 text-[#ff9e9e] group-hover:ring-[#ff6b6b]/70`;
+        inner = <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />;
+      }
+      return {
+        id: n.id,
+        type: n.type as any,
+        title: n.title,
+        message: n.message || '',
+        time: new Date(n.created_at).toLocaleString(),
+        icon: <div className={className}>{inner}</div>
+      };
+    });
   }, [notifItems]);
 
   // Realtime clock and dynamic calendar state
@@ -467,9 +474,7 @@ export const OverviewPage = (): JSX.Element => {
                       whileTap={{ scale: 0.985 }}
                       className="w-full text-left flex items-start gap-3 p-2.5 sm:p-3 rounded-xl border border-white/10 bg-gradient-to-br from-[#121212] via-[#0d0d0d] to-[#060606] hover:from-[#1dff00]/10 hover:via-[#0a8246]/10 hover:to-[#060606] hover:border-[#1dff00]/40 transition-all duration-400 group relative overflow-hidden"
                     >
-                      <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-[#1dff00] font-bold text-xs sm:text-sm bg-[#1dff00]/10 border border-[#1dff00]/30 shadow-inner group-hover:shadow-[#1dff00]/30 transition">
-                        {notification.icon}
-                      </div>
+                      {notification.icon}
                       <div className="flex-1 min-w-0">
                         <p className="text-[11px] sm:text-sm text-white font-medium leading-relaxed tracking-tight truncate flex items-center gap-2">
                           {notification.title}
