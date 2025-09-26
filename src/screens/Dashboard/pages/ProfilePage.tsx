@@ -3,6 +3,7 @@ import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
 import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award, GraduationCap, Briefcase } from "lucide-react";
+import { Skeleton } from "../../../components/ui/skeleton";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useProfileCollections } from "../../../hooks/useProfileCollections";
 import type { ProfileEducation as TProfileEducation, ProfileExperience as TProfileExperience, ProfileSkill as TProfileSkill } from "../../../hooks/useProfileCollections";
@@ -148,18 +149,25 @@ const ProfilePage = (): JSX.Element => {
               <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <div className="text-center">
                   <div className="relative inline-block mb-4">
-                    <div className="w-24 h-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full flex items-center justify-center text-black font-bold text-2xl overflow-hidden">
-                      {avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        <span>{initials}</span>
-                      )}
-                    </div>
-                    <label className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-110 transition-all duration-300 p-0 flex items-center justify-center cursor-pointer">
-                      <Edit className="w-4 h-4" />
-                      <input type="file" accept="image/*" className="hidden" onChange={onAvatarPick} />
-                    </label>
+                    {profile === null && (
+                      <Skeleton className="w-24 h-24 rounded-full" />
+                    )}
+                    {profile !== null && (
+                      <>
+                        <div className="w-24 h-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full flex items-center justify-center text-black font-bold text-2xl overflow-hidden">
+                          {avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                          ) : (
+                            <span>{initials}</span>
+                          )}
+                        </div>
+                        <label className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-110 transition-all duration-300 p-0 flex items-center justify-center cursor-pointer">
+                          <Edit className="w-4 h-4" />
+                          <input type="file" accept="image/*" className="hidden" onChange={onAvatarPick} />
+                        </label>
+                      </>
+                    )}
                   </div>
                   
                   <h2 className="text-xl font-bold text-white mb-1">
@@ -215,7 +223,12 @@ const ProfilePage = (): JSX.Element => {
               <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <h3 className="text-lg font-semibold text-white mb-4">Quick Stats</h3>
                 {appsLoading ? (
-                  <p className="text-sm text-[#ffffff60]">Loading stats…</p>
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
                 ) : appsError ? (
                   <p className="text-sm text-red-400">{appsError}</p>
                 ) : (

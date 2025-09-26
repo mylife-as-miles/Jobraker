@@ -22,6 +22,7 @@ import {
 import { motion } from "framer-motion";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { useProfileSettings } from "../../hooks/useProfileSettings";
+import { Skeleton } from "../../components/ui/skeleton";
 import { createClient } from "../../lib/supabaseClient";
 import { useNotifications } from "../../hooks/useNotifications";
 
@@ -381,25 +382,35 @@ export const Dashboard = (): JSX.Element => {
               </Button>
               
               {/* Profile Button - Responsive */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="hidden sm:flex items-center space-x-2 sm:space-x-3 text-[#888888] hover:text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 p-1 sm:p-2"
-                onClick={() => navigate("/dashboard/profile")}
-              >
-                <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300">
-                  {avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-black font-bold text-xs sm:text-sm lg:text-base">{initials}</span>
-                  )}
+              {profile === null ? (
+                <div className="hidden sm:flex items-center space-x-3">
+                  <Skeleton className="w-8 h-8 lg:w-10 lg:h-10 rounded-full" />
+                  <div className="hidden lg:flex flex-col space-y-1">
+                    <Skeleton className="h-3 w-28" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
                 </div>
-                <div className="text-right hidden lg:block max-w-[200px] overflow-hidden">
-                  <p className="text-white font-medium text-xs sm:text-sm truncate">{`${(profile?.first_name || '').trim()} ${(profile?.last_name || '').trim()}`.trim() || 'Your Name'}</p>
-                  <p className="text-[#666666] text-xs truncate">{email || 'your@email'}</p>
-                </div>
-              </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden sm:flex items-center space-x-2 sm:space-x-3 text-[#888888] hover:text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 p-1 sm:p-2"
+                  onClick={() => navigate("/dashboard/profile")}
+                >
+                  <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300">
+                    {avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-black font-bold text-xs sm:text-sm lg:text-base">{initials}</span>
+                    )}
+                  </div>
+                  <div className="text-right hidden lg:block max-w-[200px] overflow-hidden">
+                    <p className="text-white font-medium text-xs sm:text-sm truncate">{`${(profile?.first_name || '').trim()} ${(profile?.last_name || '').trim()}`.trim() || 'Your Name'}</p>
+                    <p className="text-[#666666] text-xs truncate">{email || 'your@email'}</p>
+                  </div>
+                </Button>
+              )}
               
               {/* Mobile profile button */}
               <Button

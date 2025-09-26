@@ -357,8 +357,14 @@ export const OverviewPage = (): JSX.Element => {
                   showLegend
                 />
                 {selectedRange && (
-                  <div className="mt-3 text-center text-[10px] sm:text-xs text-[#888]">
-                    Range: <span className="text-[#1dff00] font-medium">{selectedRange.start.toLocaleDateString()} → {selectedRange.end.toLocaleDateString()}</span>
+                  <div className="mt-3 text-center text-[10px] sm:text-xs text-[#888] flex flex-col items-center gap-1">
+                    <div>
+                      Range: <span className="text-[#1dff00] font-medium">{selectedRange.start.toLocaleDateString()} → {selectedRange.end.toLocaleDateString()}</span>
+                    </div>
+                    <button
+                      onClick={() => { setSelectedRange(null); localStorage.removeItem('calendar_last_range'); }}
+                      className="px-2 py-0.5 rounded border border-white/10 hover:border-[#1dff00]/40 hover:text-[#1dff00] hover:bg-[#1dff00]/10 text-[10px]"
+                    >Clear</button>
                   </div>
                 )}
                 <CalendarDayDetail

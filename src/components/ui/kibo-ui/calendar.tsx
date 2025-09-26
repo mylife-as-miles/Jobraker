@@ -62,6 +62,25 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
   const [rangeStart, setRangeStart] = useState<Date | null>(null);
   const [rangeEnd, setRangeEnd] = useState<Date | null>(null);
   const [dragging, setDragging] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+
+  // Load persisted range on mount (internal only; outer component may also persist)
+  React.useEffect(() => {
+    if (!rangeSelectable) return;
+    try {
+      const raw = localStorage.getItem('calendar_last_range');
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.start && parsed.end) {
+        const s = new Date(parsed.start);
+        const e = new Date(parsed.end);
+        setRangeStart(s);
+        setRangeEnd(e);
+        onSelectRange?.({ start: s < e ? s : e, end: e > s ? e : s });
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Mouse up listener for drag selection
   React.useEffect(() => {
@@ -167,10 +186,38 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
     const s = rangeStart < date ? rangeStart : date;
     const e = rangeStart < date ? date : rangeStart;
     onSelectRange?.({ start: s, end: e });
+    try { localStorage.setItem('calendar_last_range', JSON.stringify({ start: s, end: e })); } catch {}
+  };
+
+  const handleKey = (e: React.KeyboardEvent) => {
+    if (!rangeSelectable) return;
+    if (!e.shiftKey) return; // only act with Shift for safety
+    const deltas: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+    if (!(e.key in deltas)) return;
+    e.preventDefault();
+    const base = rangeEnd || rangeStart || selectedDate || today;
+    if (!base) return;
+    const next = new Date(base);
+    next.setDate(next.getDate() + deltas[e.key]);
+    if (!rangeStart) {
+      setRangeStart(base);
+    }
+    setRangeEnd(next);
+    const s = (rangeStart || base) < next ? (rangeStart || base) : next;
+    const eDate = (rangeStart || base) < next ? next : (rangeStart || base);
+    onSelectRange?.({ start: s, end: eDate });
+    try { localStorage.setItem('calendar_last_range', JSON.stringify({ start: s, end: eDate })); } catch {}
   };
 
   return (
-    <div className={"w-full " + className}>
+    <div
+      ref={containerRef}
+      tabIndex={rangeSelectable ? 0 : -1}
+      onKeyDown={handleKey}
+      className={"w-full outline-none focus-visible:ring-2 ring-[#1dff00]/40 rounded " + className}
+      aria-label="Calendar"
+      aria-describedby={rangeSelectable ? 'calendar-range-hint' : undefined}
+    >
       {showHeader && (
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <button
