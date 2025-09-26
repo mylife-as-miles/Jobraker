@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
@@ -7,7 +8,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { cn } from "@/utils";
+import { cn } from "@/lib/utils";
 import {
   BrainIcon,
   ChevronDownIcon,

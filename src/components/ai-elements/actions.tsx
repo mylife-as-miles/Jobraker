@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/utils";
+import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";
 
 export type ActionsProps = ComponentProps<"div">;

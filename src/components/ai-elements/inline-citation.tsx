@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +13,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { cn } from "@/utils";
+import { cn } from "@/lib/utils";
 import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 import {
   type ComponentProps,

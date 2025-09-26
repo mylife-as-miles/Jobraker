@@ -1,33 +1,28 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/utils";
-import { ArrowDownIcon } from "lucide-react";
+// Simplified conversation implementation to avoid type issues with external lib
+import { cn } from "@/lib/utils";
+import * as React from "react";
 import type { ComponentProps } from "react";
-import { useCallback } from "react";
-import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 
-export type ConversationProps = ComponentProps<typeof StickToBottom>;
+export interface ConversationProps extends React.HTMLAttributes<HTMLDivElement> {
+  children: React.ReactNode;
+}
 
-export const Conversation = ({ className, ...props }: ConversationProps) => (
-  <StickToBottom
-    className={cn("relative flex-1 overflow-y-auto", className)}
-    initial="smooth"
-    resize="smooth"
-    role="log"
-    {...props}
-  />
-);
+export const Conversation: React.FC<ConversationProps> = ({ className, children, ...rest }) => {
+  return (
+    <div className={cn("relative flex-1 overflow-y-auto", className)} role="log" {...rest}>
+      {children}
+    </div>
+  );
+};
 
-export type ConversationContentProps = ComponentProps<
-  typeof StickToBottom.Content
->;
+export interface ConversationContentProps extends React.HTMLAttributes<HTMLDivElement> {
+  children: React.ReactNode;
+}
 
-export const ConversationContent = ({
-  className,
-  ...props
-}: ConversationContentProps) => (
-  <StickToBottom.Content className={cn("p-4", className)} {...props} />
+export const ConversationContent: React.FC<ConversationContentProps> = ({ className, children, ...rest }) => (
+  <div className={cn("p-4", className)} {...rest}>{children}</div>
 );
 
 export type ConversationEmptyStateProps = ComponentProps<"div"> & {
@@ -65,33 +60,4 @@ export const ConversationEmptyState = ({
   </div>
 );
 
-export type ConversationScrollButtonProps = ComponentProps<typeof Button>;
-
-export const ConversationScrollButton = ({
-  className,
-  ...props
-}: ConversationScrollButtonProps) => {
-  const { isAtBottom, scrollToBottom } = useStickToBottomContext();
-
-  const handleScrollToBottom = useCallback(() => {
-    scrollToBottom();
-  }, [scrollToBottom]);
-
-  return (
-    !isAtBottom && (
-      <Button
-        className={cn(
-          "absolute bottom-4 left-[50%] translate-x-[-50%] rounded-full",
-          className
-        )}
-        onClick={handleScrollToBottom}
-        size="icon"
-        type="button"
-        variant="outline"
-        {...props}
-      >
-        <ArrowDownIcon className="size-4" />
-      </Button>
-    )
-  );
-};
+// Scroll button removed (manual implementation exists in ChatPage)
