@@ -20,7 +20,7 @@ export const OverviewPage = (): JSX.Element => {
   const [stackedTouched, setStackedTouched] = useState(false);
   const [visibleSeries, setVisibleSeries] = useState<string[]>([]);
   const { items: notifItems, loading: notifLoading } = useNotifications(6);
-  const { applications, update } = useApplications();
+  const { applications, update, create } = useApplications();
   const mappedNotifs = useMemo(() => {
     return notifItems.map(n => ({
       id: n.id,
@@ -353,9 +353,11 @@ export const OverviewPage = (): JSX.Element => {
                 )}
                 <CalendarDayDetail
                   date={selectedDate}
-                  onClose={() => setSelectedDate(null)}
+                  range={selectedRange}
+                  onClose={() => { setSelectedDate(null); setSelectedRange(null); }}
                   applications={applications}
                   onUpdateApplication={update}
+                  onCreateApplication={async (input) => { await create({ job_title: input.job_title, company: input.company, status: input.status as any, applied_date: input.applied_date }); }}
                 />
               </Card>
             </motion.div>

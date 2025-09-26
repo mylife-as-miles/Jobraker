@@ -1,21 +1,23 @@
 "use client";
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarDays, Briefcase, Clock, Building2 } from 'lucide-react';
+import { X, CalendarDays, Briefcase, Clock, Building2, BellPlus } from 'lucide-react';
 import MatchScoreBadge from '../../jobs/MatchScoreBadge';
 import { ApplicationRecord } from '../../../hooks/useApplications';
 
 export interface CalendarDayDetailProps {
   date: Date | null;
+  range?: { start: Date; end: Date } | null;
   onClose: () => void;
   applications: ApplicationRecord[];
   onUpdateApplication?: (id: string, patch: Partial<ApplicationRecord>) => Promise<void> | void;
+  onCreateApplication?: (input: Partial<ApplicationRecord> & { job_title: string; company: string }) => Promise<any> | any;
 }
 
 
 const ALL_STATUSES: ApplicationRecord['status'][] = ["Pending","Applied","Interview","Offer","Rejected","Withdrawn"];
 
-export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onClose, applications, onUpdateApplication }) => {
+export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, range, onClose, applications, onUpdateApplication, onCreateApplication }) => {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const [activeStatuses, setActiveStatuses] = useState<Record<string, boolean>>(() => Object.fromEntries(ALL_STATUSES.map(s => [s, true])));
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
@@ -51,11 +53,12 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onCl
     try { localStorage.setItem('calendar_day_filters', JSON.stringify(activeStatuses)); } catch {}
   }, [activeStatuses]);
 
+  const active = !!date || !!range;
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
-    if (date) window.addEventListener('keydown', onKey);
+    if (active) window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [date, onClose]);
+  }, [active, onClose]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -63,32 +66,77 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onCl
         onClose();
       }
     }
-    if (date) document.addEventListener('mousedown', handleClick);
+    if (active) document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [date, onClose]);
+  }, [active, onClose]);
 
-  const { dayApplications, interviews, statusCounts, topCompanies } = useMemo(() => {
-    if (!date) return { dayApplications: [], interviews: [], statusCounts: {}, topCompanies: [] as string[] };
+  const { dayApplications, interviews, statusCounts, topCompanies, rangeApplications } = useMemo(() => {
+    if (range) {
+      const s = new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate());
+      const e = new Date(range.end.getFullYear(), range.end.getMonth(), range.end.getDate(), 23,59,59,999);
+      const rangeApplications = applications.filter(a => {
+        const d = new Date(a.applied_date);
+        return d >= s && d <= e;
+      });
+      const interviews = rangeApplications.filter(a => a.interview_date && (() => { const d = new Date(a.interview_date as string); return d >= s && d <= e; })());
+      const statusCounts: Record<string, number> = {};
+      rangeApplications.forEach(a => { statusCounts[a.status] = (statusCounts[a.status]||0)+1; });
+      const companyMap: Record<string, number> = {};
+      rangeApplications.forEach(a => { if (a.company) companyMap[a.company] = (companyMap[a.company]||0)+1; });
+      const topCompanies = Object.entries(companyMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(e=>e[0]);
+      return { dayApplications: [], interviews, statusCounts, topCompanies, rangeApplications };
+    }
+    if (!date) return { dayApplications: [], interviews: [], statusCounts: {}, topCompanies: [], rangeApplications: [] };
     const key = date.toISOString().slice(0,10);
-    const dayApplications = applications.filter(a => {
-      try { return a.applied_date.slice(0,10) === key; } catch { return false; }
-    });
-    const interviews = applications.filter(a => {
-      if (!a.interview_date) return false; 
-      try { return a.interview_date.slice(0,10) === key; } catch { return false; }
-    });
+    const dayApplications = applications.filter(a => { try { return a.applied_date.slice(0,10) === key; } catch { return false; } });
+    const interviews = applications.filter(a => { if (!a.interview_date) return false; try { return a.interview_date.slice(0,10) === key; } catch { return false; } });
     const statusCounts: Record<string, number> = {};
     dayApplications.forEach(a => { statusCounts[a.status] = (statusCounts[a.status] || 0) + 1; });
     const companyMap: Record<string, number> = {};
     dayApplications.forEach(a => { if (a.company) companyMap[a.company] = (companyMap[a.company] || 0) + 1; });
     const topCompanies = Object.entries(companyMap).sort((a,b) => b[1]-a[1]).slice(0,5).map(e => e[0]);
-    return { dayApplications, interviews, statusCounts, topCompanies };
-  }, [date, applications]);
+    return { dayApplications, interviews, statusCounts, topCompanies, rangeApplications: [] };
+  }, [date, range, applications]);
 
-  const total = Object.values(statusCounts).reduce((a,b) => a + b, 0);
 
-  const filteredApplications = dayApplications.filter(a => activeStatuses[a.status] !== false);
+  const baseApps = range ? rangeApplications : dayApplications;
+  const filteredApplications = baseApps.filter(a => activeStatuses[a.status] !== false);
   const filteredInterviews = interviews.filter(a => activeStatuses[a.status] !== false);
+
+  // Sparkline (last 7 days or range span up to 14 days) using application counts
+  const sparkline = useMemo(() => {
+    const points: number[] = [];
+    const labels: string[] = [];
+    const refDate = date || range?.end || new Date();
+    const days = range ? Math.min(14, Math.ceil((range.end.getTime()-range.start.getTime())/86400000)+1) : 7;
+    for (let i = days -1; i >=0; i--) {
+      const d = new Date(refDate as Date);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0,10);
+      const count = applications.filter(a => a.applied_date.slice(0,10) === key).length;
+      points.push(count);
+      labels.push(key.slice(5));
+    }
+    const max = Math.max(1, ...points);
+    const path = points.map((v,i) => {
+      const x = (i / (points.length -1)) * 100;
+      const y = 100 - (v / max) * 100;
+      return `${i===0?'M':'L'}${x},${y}`;
+    }).join(' ');
+    return { path, points, labels, max };
+  }, [applications, date, range]);
+
+  // Match score distribution buckets
+  const scoreBuckets = useMemo(() => {
+    const buckets = [0,0,0,0]; // 0-24,25-49,50-74,75-100
+    filteredApplications.forEach(a => {
+      if (typeof a.match_score !== 'number') return;
+      const s = a.match_score;
+      if (s < 25) buckets[0]++; else if (s < 50) buckets[1]++; else if (s < 75) buckets[2]++; else buckets[3]++;
+    });
+    const total = buckets.reduce((a,b)=>a+b,0) || 1;
+    return { buckets, total };
+  }, [filteredApplications]);
 
   const copySummary = async () => {
     if (!date) return;
@@ -139,22 +187,18 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onCl
   };
 
   const handleQuickAdd = async () => {
-    if (!onUpdateApplication) return; // create not provided
+    if (!onCreateApplication) return;
     if (!qaJob.trim() || !qaCompany.trim()) return;
-    if (!(window as any).supabaseCreateApplication) return; // injection hook later if needed
     try {
       setQaSaving(true);
-      const createFn = (window as any).supabaseCreateApplication as (input: any)=>Promise<any>;
-      await createFn({ job_title: qaJob.trim(), company: qaCompany.trim(), status: qaStatus, applied_date: date?.toISOString() });
+      await onCreateApplication({ job_title: qaJob.trim(), company: qaCompany.trim(), status: qaStatus as any, applied_date: (date||range?.start|| new Date()).toISOString() });
       setQaJob(''); setQaCompany('');
-    } finally {
-      setQaSaving(false);
-    }
+    } finally { setQaSaving(false); }
   };
 
   return (
     <AnimatePresence>
-      {date && (
+      {active && (
         <motion.div
           ref={overlayRef}
           key="calendar-day-detail"
@@ -168,7 +212,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onCl
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 40, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 160, damping: 18 }}
-            className="relative w-full max-w-3xl rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#0b0b0b] via-[#111111] to-[#050505] shadow-2xl p-6 overflow-hidden"
+            className="relative w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#0b0b0b] via-[#111111] to-[#050505] shadow-2xl p-6 flex flex-col"
           >
             <div className="absolute inset-0 pointer-events-none opacity-40" style={{ background: 'radial-gradient(circle at 30% 20%, rgba(29,255,0,0.08), transparent 60%)' }} />
             <button
@@ -178,14 +222,24 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onCl
             >
               <X className="w-4 h-4" />
             </button>
-            <div className="relative z-10">
-              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+            <div className="relative z-10 flex-1 overflow-y-auto pr-1 custom-scroll">
+              <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
                     <CalendarDays className="w-5 h-5 text-[#1dff00]" />
-                    {date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                    {range ? `${range.start.toLocaleDateString(undefined,{ month:'short', day:'numeric'})} → ${range.end.toLocaleDateString(undefined,{ month:'short', day:'numeric', year:'numeric'})}` : date?.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                   </h2>
-                  <p className="text-xs text-[#888] mt-1">{total} application{total === 1 ? '' : 's'} • {interviews.length} interview{interviews.length === 1 ? '' : 's'}</p>
+                  <p className="text-xs text-[#888] mt-1">{filteredApplications.length} application{filteredApplications.length === 1 ? '' : 's'} • {filteredInterviews.length} interview{filteredInterviews.length === 1 ? '' : 's'}</p>
+                  <div className="mt-3">
+                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-8">
+                      <path d={sparkline.path} fill="none" stroke="#1dff00" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+                      {sparkline.points.map((v,i)=>{
+                        const x = (i/(sparkline.points.length-1))*100;
+                        const y = 100 - (v/ (sparkline.max||1))*100;
+                        return <circle key={i} cx={x} cy={y} r={1.8} fill="#1dff00" />;
+                      })}
+                    </svg>
+                  </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <div className="flex flex-wrap gap-2 justify-end max-w-[320px]">
@@ -316,6 +370,15 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onCl
                                 title="Cycle status"
                               >↻</button>
                             )}
+                          <button
+                            className="opacity-0 group-hover:opacity-100 transition text-[10px] px-2 py-0.5 rounded border border-white/10 hover:border-[#1dff00]/40 hover:text-[#1dff00]"
+                            title="Add follow-up reminder"
+                            onClick={() => {
+                              if (!onUpdateApplication) return;
+                              const followup = prompt('Enter follow-up note (saved to next_step)');
+                              if (followup) onUpdateApplication(a.id, { next_step: `Follow-up: ${followup}` });
+                            }}
+                          ><BellPlus className="w-3 h-3" /></button>
                         </div>
                       </div>
                       {typeof a.match_score === 'number' && <MatchScoreBadge score={a.match_score} />}
@@ -325,6 +388,26 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onCl
               ) : (
                 <div className="p-6 border border-dashed border-white/10 rounded-xl text-center text-white/60 text-sm">No applications on this day.</div>
               )}
+
+              {/* Match Score Distribution */}
+              <div className="mt-8 mb-4">
+                <h3 className="text-sm font-semibold text-white mb-3">Match Score Distribution</h3>
+                <div className="grid grid-cols-4 gap-3">
+                  {['0-24','25-49','50-74','75-100'].map((label,i)=>{
+                    const count = scoreBuckets.buckets[i];
+                    const pct = Math.round((count / (scoreBuckets.total||1))*100);
+                    return (
+                      <div key={label} className="flex flex-col gap-1">
+                        <div className="text-[10px] text-white/60">{label}</div>
+                        <div className="h-6 rounded bg-white/5 border border-white/10 overflow-hidden relative">
+                          <div style={{ width: pct+'%' }} className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#1dff00] to-[#0a8246]" />
+                          <div className="absolute inset-0 flex items-center justify-center text-[10px] text-white/80 font-medium">{count}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
 
             </div>
           </motion.div>
