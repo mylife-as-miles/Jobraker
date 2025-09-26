@@ -27,6 +27,7 @@ export interface CalendarProps {
   viewMode?: 'month' | 'week';
   onViewModeChange?: (mode: 'month' | 'week') => void;
   showDayEventCount?: boolean;
+  heatmap?: boolean; // color intensity based on event density
 }
 
 function startOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 1); }
@@ -49,6 +50,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
   viewMode = 'month',
   onViewModeChange,
   showDayEventCount = true,
+  heatmap = false,
 }) => {
   const today = new Date();
   const viewMonth = startOfMonth(month || today);
@@ -98,6 +100,13 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
     Object.values(map).forEach(list => list.sort((a,b) => (a.status||'').localeCompare(b.status||'') || a.title.localeCompare(b.title)));
     return map;
   }, [events]);
+
+  const heatmapMax = useMemo(() => {
+    if (!heatmap) return 0;
+    let m = 0;
+    Object.values(eventsByDay).forEach(list => { if (list.length > m) m = list.length; });
+    return m;
+  }, [eventsByDay, heatmap]);
 
   const statusColor = (status?: string) => {
     if (!status) return '#444';
@@ -197,6 +206,12 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
           const dayKey = cell.date.toISOString().slice(0,10);
           const dayEvents = eventsByDay[dayKey] || [];
           const extra = dayEvents.length - maxVisibleEventsPerDay;
+          let heatmapStyle: React.CSSProperties = {};
+          if (heatmap && dayEvents.length > 0 && !isToday) {
+            const ratio = heatmapMax ? Math.min(1, dayEvents.length / heatmapMax) : 0;
+            const alpha = 0.05 + ratio * 0.35; // up to 40% tint
+            heatmapStyle.background = (isSelected ? 'linear-gradient(135deg, rgba(29,255,0,'+alpha+'), rgba(29,255,0,'+ (alpha*0.6)+'))' : 'rgba(29,255,0,'+alpha+')');
+          }
           return (
             <motion.button
               key={cell.date.toISOString()+idx}
@@ -214,6 +229,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                 isSelected && !isToday ? 'border border-[#1dff00]/60' : 'border border-transparent',
                 inSelectedRange(cell.date) ? 'bg-[#1dff00]/15' : ''
               ].join(' ')}
+              style={heatmapStyle}
             >
               <div className='flex items-center justify-between w-full'>
                 <div className='text-[10px] sm:text-xs leading-none mb-0.5'>{cell.date.getDate()}</div>

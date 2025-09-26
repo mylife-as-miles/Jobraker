@@ -19,16 +19,37 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onCl
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const [activeStatuses, setActiveStatuses] = useState<Record<string, boolean>>(() => Object.fromEntries(ALL_STATUSES.map(s => [s, true])));
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [qaJob, setQaJob] = useState('');
+  const [qaCompany, setQaCompany] = useState('');
+  const [qaStatus, setQaStatus] = useState<ApplicationRecord['status']>('Applied');
+  const [qaSaving, setQaSaving] = useState(false);
 
   const toggleStatus = (s: string) => {
     setActiveStatuses(prev => ({ ...prev, [s]: !prev[s] }));
   };
 
+  // Load persisted filters
   useEffect(() => {
-    // Reset filters when date changes
-    setActiveStatuses(Object.fromEntries(ALL_STATUSES.map(s => [s, true])));
+    try {
+      const raw = localStorage.getItem('calendar_day_filters');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') setActiveStatuses(parsed);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    // Reset ephemeral UI when date changes
     setCopyState('idle');
+    setQuickAddOpen(false);
   }, [date]);
+
+  // Persist filters when they change
+  useEffect(() => {
+    try { localStorage.setItem('calendar_day_filters', JSON.stringify(activeStatuses)); } catch {}
+  }, [activeStatuses]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
@@ -101,6 +122,36 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onCl
     onUpdateApplication(a.id, { status: next });
   };
 
+  const exportDayCSV = () => {
+    if (!date) return;
+    const headers = ['job_title','company','status','applied_date','interview_date','match_score'];
+    const rows = filteredApplications.map(a => [a.job_title, a.company, a.status, a.applied_date, a.interview_date||'', (a.match_score??'')]);
+    const csv = [headers.join(','), ...rows.map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `applications-${date.toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleQuickAdd = async () => {
+    if (!onUpdateApplication) return; // create not provided
+    if (!qaJob.trim() || !qaCompany.trim()) return;
+    if (!(window as any).supabaseCreateApplication) return; // injection hook later if needed
+    try {
+      setQaSaving(true);
+      const createFn = (window as any).supabaseCreateApplication as (input: any)=>Promise<any>;
+      await createFn({ job_title: qaJob.trim(), company: qaCompany.trim(), status: qaStatus, applied_date: date?.toISOString() });
+      setQaJob(''); setQaCompany('');
+    } finally {
+      setQaSaving(false);
+    }
+  };
+
   return (
     <AnimatePresence>
       {date && (
@@ -162,9 +213,51 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onCl
                       {copyState === 'copied' && 'Copied!'}
                       {copyState === 'error' && 'Copy Failed'}
                     </button>
+                    <button
+                      onClick={exportDayCSV}
+                      className="text-[10px] px-3 py-1 rounded border border-white/10 bg-white/5 text-white/70 hover:text-[#1dff00] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10 transition"
+                    >CSV</button>
+                    <button
+                      onClick={() => setQuickAddOpen(o=>!o)}
+                      className="text-[10px] px-3 py-1 rounded border border-[#1dff00]/30 bg-[#1dff00]/5 text-[#1dff00] hover:border-[#1dff00]/60 hover:bg-[#1dff00]/15 transition"
+                    >{quickAddOpen ? 'Close' : 'Quick Add'}</button>
                   </div>
                 </div>
               </div>
+
+              {quickAddOpen && (
+                <div className="mb-6 p-4 rounded-xl border border-white/10 bg-white/[0.04] flex flex-col gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      placeholder="Job title"
+                      value={qaJob}
+                      onChange={e=>setQaJob(e.target.value)}
+                      className="flex-1 bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-[#1dff00]/50"
+                    />
+                    <input
+                      placeholder="Company"
+                      value={qaCompany}
+                      onChange={e=>setQaCompany(e.target.value)}
+                      className="flex-1 bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-[#1dff00]/50"
+                    />
+                    <select
+                      value={qaStatus}
+                      onChange={e=>setQaStatus(e.target.value as any)}
+                      className="bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#1dff00]/50"
+                    >
+                      {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      disabled={qaSaving || !qaJob.trim() || !qaCompany.trim()}
+                      onClick={handleQuickAdd}
+                      className="text-[11px] px-4 py-2 rounded-md border border-[#1dff00]/40 bg-[#1dff00]/15 text-[#1dff00] hover:bg-[#1dff00]/25 hover:border-[#1dff00]/60 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium"
+                    >{qaSaving ? 'Saving...' : 'Add'}</button>
+                  </div>
+                  <p className="text-[10px] text-white/40">Quick add uses the selected day as applied date. (Creation relies on injected create function.)</p>
+                </div>
+              )}
 
               {topCompanies.length > 0 && (
                 <div className="mb-6">

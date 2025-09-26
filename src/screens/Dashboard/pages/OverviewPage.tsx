@@ -344,6 +344,7 @@ export const OverviewPage = (): JSX.Element => {
                   locale={Intl.DateTimeFormat().resolvedOptions().locale}
                   viewMode={calendarViewMode}
                   onViewModeChange={setCalendarViewMode}
+                  heatmap
                 />
                 {selectedRange && (
                   <div className="mt-3 text-center text-[10px] sm:text-xs text-[#888]">
