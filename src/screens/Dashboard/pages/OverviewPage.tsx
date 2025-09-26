@@ -20,7 +20,7 @@ export const OverviewPage = (): JSX.Element => {
   const [stackedTouched, setStackedTouched] = useState(false);
   const [visibleSeries, setVisibleSeries] = useState<string[]>([]);
   const { items: notifItems, loading: notifLoading } = useNotifications(6);
-  const { applications } = useApplications();
+  const { applications, update } = useApplications();
   const mappedNotifs = useMemo(() => {
     return notifItems.map(n => ({
       id: n.id,
@@ -354,6 +354,7 @@ export const OverviewPage = (): JSX.Element => {
                   date={selectedDate}
                   onClose={() => setSelectedDate(null)}
                   applications={applications}
+                  onUpdateApplication={update}
                 />
               </Card>
             </motion.div>

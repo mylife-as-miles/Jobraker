@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CalendarDays, Briefcase, Clock, Building2 } from 'lucide-react';
 import MatchScoreBadge from '../../jobs/MatchScoreBadge';
@@ -9,11 +9,26 @@ export interface CalendarDayDetailProps {
   date: Date | null;
   onClose: () => void;
   applications: ApplicationRecord[];
+  onUpdateApplication?: (id: string, patch: Partial<ApplicationRecord>) => Promise<void> | void;
 }
 
 
-export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onClose, applications }) => {
+const ALL_STATUSES: ApplicationRecord['status'][] = ["Pending","Applied","Interview","Offer","Rejected","Withdrawn"];
+
+export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onClose, applications, onUpdateApplication }) => {
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  const [activeStatuses, setActiveStatuses] = useState<Record<string, boolean>>(() => Object.fromEntries(ALL_STATUSES.map(s => [s, true])));
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
+
+  const toggleStatus = (s: string) => {
+    setActiveStatuses(prev => ({ ...prev, [s]: !prev[s] }));
+  };
+
+  useEffect(() => {
+    // Reset filters when date changes
+    setActiveStatuses(Object.fromEntries(ALL_STATUSES.map(s => [s, true])));
+    setCopyState('idle');
+  }, [date]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
@@ -51,6 +66,41 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onCl
 
   const total = Object.values(statusCounts).reduce((a,b) => a + b, 0);
 
+  const filteredApplications = dayApplications.filter(a => activeStatuses[a.status] !== false);
+  const filteredInterviews = interviews.filter(a => activeStatuses[a.status] !== false);
+
+  const copySummary = async () => {
+    if (!date) return;
+    try {
+      const lines: string[] = [];
+      lines.push(`Date: ${date.toDateString()}`);
+      lines.push(`Total applications: ${filteredApplications.length}`);
+      const counts: Record<string, number> = {};
+      filteredApplications.forEach(a => { counts[a.status] = (counts[a.status]||0)+1; });
+      Object.entries(counts).forEach(([s,c]) => lines.push(`${s}: ${c}`));
+      if (filteredInterviews.length) lines.push(`Interviews: ${filteredInterviews.length}`);
+      lines.push('--- Applications ---');
+      filteredApplications.slice(0,50).forEach(a => {
+        lines.push(`${a.job_title} @ ${a.company} [${a.status}]${typeof a.match_score==='number' ? ` (${a.match_score}%)` : ''}`);
+      });
+      const text = lines.join('\n');
+      await navigator.clipboard.writeText(text);
+      setCopyState('copied');
+      setTimeout(() => setCopyState('idle'), 2500);
+    } catch {
+      setCopyState('error');
+      setTimeout(() => setCopyState('idle'), 3000);
+    }
+  };
+
+  const cycleStatus = (a: ApplicationRecord) => {
+    if (!onUpdateApplication) return;
+    const order = ALL_STATUSES;
+    const idx = order.indexOf(a.status);
+    const next = order[(idx + 1) % order.length];
+    onUpdateApplication(a.id, { status: next });
+  };
+
   return (
     <AnimatePresence>
       {date && (
@@ -86,15 +136,33 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onCl
                   </h2>
                   <p className="text-xs text-[#888] mt-1">{total} application{total === 1 ? '' : 's'} • {interviews.length} interview{interviews.length === 1 ? '' : 's'}</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(statusCounts).map(([status, count]) => (
-                    <span key={status} className="px-2 py-1 rounded-full text-[11px] font-medium border border-[#1dff00]/30 bg-[#1dff00]/10 text-[#1dff00]">
-                      {status}: {count}
-                    </span>
-                  ))}
-                  {!total && (
-                    <span className="px-3 py-1 rounded-full text-[11px] font-medium border border-white/10 bg-white/5 text-white/70">No activity</span>
-                  )}
+                <div className="flex flex-col items-end gap-2">
+                  <div className="flex flex-wrap gap-2 justify-end max-w-[320px]">
+                    {ALL_STATUSES.map(s => {
+                      const count = statusCounts[s] || 0;
+                      const active = activeStatuses[s] !== false;
+                      return (
+                        <button
+                          key={s}
+                          onClick={() => toggleStatus(s)}
+                          className={`px-2 py-1 rounded-full text-[10px] font-medium border transition ${active ? 'border-[#1dff00]/40 bg-[#1dff00]/10 text-[#1dff00]' : 'border-white/10 bg-white/5 text-white/40 line-through'}`}
+                          aria-pressed={active}
+                        >
+                          {s}{count ? `:${count}` : ''}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={copySummary}
+                      className="text-[10px] px-3 py-1 rounded border border-[#1dff00]/30 bg-[#1dff00]/10 text-[#1dff00] hover:border-[#1dff00]/60 hover:bg-[#1dff00]/20 transition"
+                    >
+                      {copyState === 'idle' && 'Copy Summary'}
+                      {copyState === 'copied' && 'Copied!'}
+                      {copyState === 'error' && 'Copy Failed'}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -110,11 +178,11 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onCl
               )}
 
               {/* Interviews */}
-              {interviews.length > 0 && (
+              {filteredInterviews.length > 0 && (
                 <div className="mb-8">
                   <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-[#1dff00]" /> Interviews</h3>
                   <div className="space-y-2">
-                    {interviews.map(a => (
+                    {filteredInterviews.map(a => (
                       <div key={a.id} className="group p-3 rounded-xl border border-[#1dff00]/20 bg-[#1dff00]/5 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/10 transition flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-[#1dff00]/15 border border-[#1dff00]/30 flex items-center justify-center text-[#1dff00] font-bold text-xs">
                           {(a.company||'')[0] || '•'}
@@ -133,12 +201,12 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onCl
 
               {/* Applications */}
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white flex items-center gap-2"><Briefcase className="w-4 h-4 text-[#1dff00]" /> Applications ({dayApplications.length})</h3>
+                <h3 className="text-sm font-semibold text-white flex items-center gap-2"><Briefcase className="w-4 h-4 text-[#1dff00]" /> Applications ({filteredApplications.length})</h3>
               </div>
-              {dayApplications.length > 0 ? (
+                {filteredApplications.length > 0 ? (
                 <div className="grid gap-2 max-h-72 overflow-auto pr-1 styled-scroll">
-                  {dayApplications.map(a => (
-                    <div key={a.id} className="p-3 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-[#1dff00]/40 transition flex items-center gap-3">
+                    {filteredApplications.map(a => (
+                      <div key={a.id} className="p-3 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-[#1dff00]/40 transition flex items-center gap-3 group">
                       <div className="w-10 h-10 rounded-xl bg-[#1dff00]/10 border border-[#1dff00]/30 flex items-center justify-center text-[#1dff00] font-bold text-xs">
                         {(a.company||'')[0] || '•'}
                       </div>
@@ -148,6 +216,13 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, onCl
                         <div className="mt-1 flex items-center gap-2 text-[10px]">
                           <span className="px-1.5 py-0.5 rounded border border-[#1dff00]/30 bg-[#1dff00]/10 text-[#1dff00] font-medium">{a.status}</span>
                           {a.location && <span className="text-white/40 truncate max-w-[120px]">{a.location}</span>}
+                            {onUpdateApplication && (
+                              <button
+                                onClick={() => cycleStatus(a)}
+                                className="opacity-0 group-hover:opacity-100 transition text-[10px] px-2 py-0.5 rounded border border-white/10 hover:border-[#1dff00]/40 hover:text-[#1dff00]"
+                                title="Cycle status"
+                              >↻</button>
+                            )}
                         </div>
                       </div>
                       {typeof a.match_score === 'number' && <MatchScoreBadge score={a.match_score} />}
