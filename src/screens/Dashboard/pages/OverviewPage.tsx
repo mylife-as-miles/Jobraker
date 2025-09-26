@@ -6,6 +6,7 @@ import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
 import { Building2, AlertCircle, Inbox } from "lucide-react";
 import KiboCalendar, { CalendarEvent } from "../../../components/ui/kibo-ui/calendar";
+import CalendarDayDetail from "../../../components/ui/kibo-ui/CalendarDayDetail";
 import { useNotifications } from "../../../hooks/useNotifications";
 import { useApplications } from "../../../hooks/useApplications";
 import { SplitLineAreaChart } from "./SplitLineAreaChart";
@@ -349,6 +350,11 @@ export const OverviewPage = (): JSX.Element => {
                     Range: <span className="text-[#1dff00] font-medium">{selectedRange.start.toLocaleDateString()} → {selectedRange.end.toLocaleDateString()}</span>
                   </div>
                 )}
+                <CalendarDayDetail
+                  date={selectedDate}
+                  onClose={() => setSelectedDate(null)}
+                  applications={applications}
+                />
               </Card>
             </motion.div>
           </div>
