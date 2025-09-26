@@ -410,26 +410,35 @@ export const OverviewPage = (): JSX.Element => {
               whileHover={{ scale: 1.02 }}
               className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
-                <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Notification</h2>
+              <Card className="relative overflow-hidden bg-[#0c0c0c] border border-[#1dff00]/25 backdrop-blur-xl p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-[#1dff00]/20 hover:border-[#1dff00]/50 transition-all duration-500 group">
+                <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-[#1dff00]/5 blur-3xl group-hover:bg-[#1dff00]/10 transition" />
+                <div className="flex items-center justify-between mb-4 sm:mb-5 relative z-10">
+                  <div>
+                    <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+                      <span className="relative inline-flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 border border-[#1dff00]/30 text-[#1dff00] shadow-inner">
+                        🔔
+                      </span>
+                      Notifications
+                    </h2>
+                    <p className="mt-1 text-[11px] sm:text-xs text-white/40">Recent activity & status changes</p>
+                  </div>
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="text-white hover:text-white/80 hover:bg-white/10 hover:scale-105 transition-all duration-300 text-xs sm:text-sm"
+                    className="text-white/70 hover:text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-105 transition-all duration-300 text-xs sm:text-sm font-medium border border-transparent hover:border-[#1dff00]/40 px-3"
                   >
-                    See more
+                    View all
                   </Button>
                 </div>
 
-                <div className="space-y-3 sm:space-y-4 min-h-[120px] relative">
+                <div className="space-y-2.5 sm:space-y-3 min-h-[140px] relative z-10">
                   {notifLoading && (
-                    <div className="grid grid-cols-1 gap-3 sm:gap-4">
-                      {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="flex items-start space-x-3 p-2 sm:p-3 rounded-lg border border-white/10 bg-white/5">
-                          <Skeleton className="h-8 w-8 rounded-full" />
-                          <div className="flex-1 space-y-2 py-1">
-                            <Skeleton className="h-3 w-1/2" />
+                    <div className="grid grid-cols-1 gap-2.5 sm:gap-3">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="flex items-start gap-3 p-2.5 sm:p-3 rounded-xl border border-white/10 bg-white/[0.04]">
+                          <Skeleton className="h-9 w-9 rounded-xl" />
+                          <div className="flex-1 space-y-2 py-0.5">
+                            <Skeleton className="h-3 w-2/3" />
                             <Skeleton className="h-3 w-1/3" />
                           </div>
                         </div>
@@ -448,20 +457,28 @@ export const OverviewPage = (): JSX.Element => {
                     </div>
                   )}
                   {!notifLoading && mappedNotifs.map((notification, index) => (
-                    <motion.div
+                    <motion.button
+                      type="button"
                       key={notification.id}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.4, delay: 0.1 * index }}
-                      whileHover={{ scale: 1.02, x: 4 }}
-                      className="flex items-start space-x-2 sm:space-x-3 p-2 sm:p-3 bg-gradient-to-r from-[#111111] to-[#0a0a0a] rounded-lg border border-[#1dff00]/10 hover:bg-gradient-to-r hover:from-[#1dff00]/10 hover:to-[#0a8246]/10 hover:border-[#1dff00]/30 transition-all duration-300 cursor-pointer"
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.45, delay: 0.05 * index, ease: 'easeOut' }}
+                      whileHover={{ scale: 1.015 }}
+                      whileTap={{ scale: 0.985 }}
+                      className="w-full text-left flex items-start gap-3 p-2.5 sm:p-3 rounded-xl border border-white/10 bg-gradient-to-br from-[#121212] via-[#0d0d0d] to-[#060606] hover:from-[#1dff00]/10 hover:via-[#0a8246]/10 hover:to-[#060606] hover:border-[#1dff00]/40 transition-all duration-400 group relative overflow-hidden"
                     >
-                      {notification.icon}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs sm:text-sm text-[#1dff00] font-medium leading-relaxed">{notification.title}</p>
-                        <p className="text-xs text-[#666666] mt-1">{notification.time}</p>
+                      <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-[#1dff00] font-bold text-xs sm:text-sm bg-[#1dff00]/10 border border-[#1dff00]/30 shadow-inner group-hover:shadow-[#1dff00]/30 transition">
+                        {notification.icon}
                       </div>
-                    </motion.div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] sm:text-sm text-white font-medium leading-relaxed tracking-tight truncate flex items-center gap-2">
+                          {notification.title}
+                          <span className="hidden md:inline-flex text-[9px] px-1.5 py-0.5 rounded bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] font-semibold tracking-wide">NEW</span>
+                        </p>
+                        <p className="text-[10px] sm:text-xs text-white/40 mt-1 font-mono tracking-wide">{notification.time}</p>
+                      </div>
+                      <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-gradient-to-r from-transparent via-[#1dff00]/5 to-transparent" />
+                    </motion.button>
                   ))}
                 </div>
               </Card>
