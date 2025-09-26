@@ -8,7 +8,7 @@ import { Building2, AlertCircle, Inbox } from "lucide-react";
 import KiboCalendar, { CalendarEvent } from "../../../components/ui/kibo-ui/calendar";
 import CalendarDayDetail from "../../../components/ui/kibo-ui/CalendarDayDetail";
 import { useNotifications } from "../../../hooks/useNotifications";
-import { useApplications } from "../../../hooks/useApplications";
+import { useApplications, ApplicationStatus } from "../../../hooks/useApplications";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { SplitLineAreaChart } from "./SplitLineAreaChart";
 // SplitLineAreaChart removed; chart moved to Application section
@@ -21,7 +21,9 @@ export const OverviewPage = (): JSX.Element => {
   const [stackedTouched, setStackedTouched] = useState(false);
   const [visibleSeries, setVisibleSeries] = useState<string[]>([]);
   const { items: notifItems, loading: notifLoading } = useNotifications(6);
-  const { applications, loading: appsLoading, update, create } = useApplications();
+  const { applications, loading: appsLoading, update, create, exportCSV, stats } = useApplications();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ApplicationStatus[] | null>(null); // null => all
   const mappedNotifs = useMemo(() => {
     return notifItems.map(n => {
       // Per-type style mapping for visual differentiation & accessibility
@@ -105,6 +107,21 @@ export const OverviewPage = (): JSX.Element => {
   const { seriesData, seriesMeta, appliedCount, interviewCount, totals } = useMemo(() => {
     const period = selectedPeriod
 
+    // Apply search & status filtering before aggregation
+    let filtered = applications;
+    if (searchQuery.trim()) {
+      const needle = searchQuery.trim().toLowerCase();
+      filtered = filtered.filter(a =>
+        a.job_title.toLowerCase().includes(needle) ||
+        a.company.toLowerCase().includes(needle) ||
+        a.location.toLowerCase().includes(needle)
+      );
+    }
+    if (statusFilter && statusFilter.length) {
+      const set = new Set(statusFilter);
+      filtered = filtered.filter(a => set.has(a.status));
+    }
+
     type Bucket = { key: string; label: string; start: Date; end: Date }
     const buckets: Bucket[] = []
 
@@ -165,7 +182,7 @@ export const OverviewPage = (): JSX.Element => {
     let applied = 0
     let interviews = 0
     let totalInWindow = 0
-    for (const app of applications) {
+  for (const app of filtered) {
       const d = new Date(app.applied_date)
       if (period === "Today") {
         const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -197,14 +214,21 @@ export const OverviewPage = (): JSX.Element => {
       totalInWindow++
     }
 
-    const series = statuses.map((s, i) => ({
+    // Improved distinctive palette for accessibility / color meaning
+    const palette: Record<string, string> = {
+      Applied: "#1dff00",
+      Interview: "#00b2ff",
+      Offer: "#ffd700",
+      Rejected: "#ff4d4d",
+    };
+    const series = statuses.map((s) => ({
       key: s,
       label: s,
-      color: i === 0 ? "#1dff00" : i === 1 ? "#00ff7f" : i === 2 ? "#32cd32" : i === 3 ? "#00ff00" : "#90ee90",
+      color: palette[s] || "#999999",
     }))
 
   return { seriesData: data, seriesMeta: series, appliedCount: applied, interviewCount: interviews, totals: { totalInWindow } }
-  }, [applications, now, selectedPeriod])
+  }, [applications, now, selectedPeriod, searchQuery, statusFilter])
 
   // Calendar selection & view state
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -275,18 +299,72 @@ export const OverviewPage = (): JSX.Element => {
                       {period}
                     </Button>
                   ))}
-
-          <div className="ml-auto flex items-center gap-2 text-xs sm:text-sm text-[#888]">
+                  {/* Spacer */}
+                  <div className="flex-1" />
+                  {/* Search */}
+                  <div className="relative">
+                    <input
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      placeholder="Search applications..."
+                      className="bg-black/40 text-xs sm:text-sm px-3 py-1.5 rounded-md border border-white/10 focus:border-[#1dff00]/50 outline-none text-white placeholder:text-white/30 w-44 sm:w-56"
+                      aria-label="Search applications"
+                    />
+                  </div>
+                  {/* Export */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => exportCSV()}
+                    className="text-xs sm:text-sm text-white hover:text-black hover:bg-[#1dff00] border border-[#1dff00]/30 hover:border-[#1dff00]"
+                    aria-label="Export applications CSV"
+                  >
+                    Export
+                  </Button>
+                  {/* Stacked toggle */}
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-[#888] pl-1">
                     <span>Stacked</span>
                     <Switch
-            checked={stacked && visibleSeries.length > 1}
-            onCheckedChange={(v: boolean) => { setStackedTouched(true); setStacked(!!v); }}
-            disabled={visibleSeries.length <= 1}
+                      checked={stacked && visibleSeries.length > 1}
+                      onCheckedChange={(v: boolean) => { setStackedTouched(true); setStacked(!!v); }}
+                      disabled={visibleSeries.length <= 1}
                     />
                   </div>
                 </div>
+                {/* Status Filter Pills */}
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-4 sm:mb-6">
+                  {['All','Applied','Interview','Offer','Rejected'].map(s => {
+                    const active = s === 'All' ? !statusFilter : statusFilter?.includes(s as ApplicationStatus);
+                    const baseColors: Record<string,string> = {
+                      Applied: 'bg-[#1dff00]/15 text-[#1dff00] border-[#1dff00]/40 hover:bg-[#1dff00]/25',
+                      Interview: 'bg-[#00b2ff]/15 text-[#56c2ff] border-[#00b2ff]/40 hover:bg-[#00b2ff]/25',
+                      Offer: 'bg-[#ffd700]/15 text-[#ffd700] border-[#ffd700]/40 hover:bg-[#ffd700]/25',
+                      Rejected: 'bg-[#ff4d4d]/15 text-[#ff9e9e] border-[#ff4d4d]/40 hover:bg-[#ff4d4d]/25',
+                      All: 'bg-white/5 text-white border-white/20 hover:bg-white/10'
+                    };
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => {
+                          if (s === 'All') { setStatusFilter(null); return; }
+                          setStatusFilter(prev => {
+                            if (!prev) return [s as ApplicationStatus];
+                            if (prev.includes(s as ApplicationStatus)) {
+                              const next = prev.filter(p => p !== s);
+                              return next.length ? next : null;
+                            }
+                            return [...prev, s as ApplicationStatus];
+                          });
+                        }}
+                        className={`text-[10px] sm:text-xs px-2 py-1 rounded-md border transition-all duration-300 font-medium tracking-wide ${baseColors[s]} ${active ? 'ring-1 ring-white/40 scale-105' : 'opacity-70'} focus:outline-none focus:ring-2 focus:ring-[#1dff00]/50`}
+                        aria-pressed={active}
+                      >{s}</button>
+                    );
+                  })}
+                </div>
 
-                {/* Stats */}
+                {/* Stats & Conversion Metrics */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-8 space-y-4 sm:space-y-0 mb-4 sm:mb-6">
                   <motion.div 
                     className="text-center sm:text-left"
@@ -303,6 +381,22 @@ export const OverviewPage = (): JSX.Element => {
                   >
           <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1dff00] mb-1">{interviewCount}</div>
                     <div className="text-xs sm:text-sm text-[#888888]">Interviews</div>
+                  </motion.div>
+                  <motion.div 
+                    className="text-center sm:text-left"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#ffd700] mb-1">{Math.round(stats.offerRate * 100)}%</div>
+                    <div className="text-[10px] sm:text-xs text-[#888888]">Offer Rate</div>
+                  </motion.div>
+                  <motion.div 
+                    className="text-center sm:text-left"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#ff4d4d] mb-1">{Math.round(stats.rejectionRate * 100)}%</div>
+                    <div className="text-[10px] sm:text-xs text-[#888888]">Rejection Rate</div>
                   </motion.div>
                 </div>
 
