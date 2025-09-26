@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Conversation, ConversationContent, ConversationEmptyState } from '@/components/ai-elements/conversation';
+import { Message as AIMessage, MessageContent as AIMessageContent, MessageAvatar as AIMessageAvatar } from '@/components/ai-elements/message';
 import { Button } from '../../../components/ui/button';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { Send, Paperclip, Smile, MoreVertical, X, StopCircle, Trash2, History, Loader2, Copy, Check, Sparkles, Edit3, BookmarkPlus, Pin, ChevronLeft, ChevronRight, Trash, Pencil, PanelRightClose } from 'lucide-react';
@@ -100,6 +102,23 @@ const MessageBubble = ({ role, content, createdAt, streaming, attachments, error
 
 export const ChatPage = (): JSX.Element => {
   const { sessions, activeSessionId, createSession, setActiveSession, messages: sessionMessages, addMessage, pinMessage, saveSnippet, deleteSession, renameSession } = useChatSessions() as any;
+  // Experimental ai-elements integration toggle
+  const [experimentalUI, setExperimentalUI] = useState(false);
+  const aiElements = useMemo(() => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const mod = require('ai-elements');
+      return mod;
+    } catch {
+      return null;
+    }
+  }, []);
+  const AIEChatComponent = useMemo(() => {
+    if (!aiElements) return null;
+    return (
+      aiElements.Chat || aiElements.AIChat || aiElements.ChatUI || aiElements.ChatContainer || null
+    );
+  }, [aiElements]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -144,6 +163,13 @@ export const ChatPage = (): JSX.Element => {
     'Help me negotiate an offer with a competing opportunity'
   ], []);
 
+  // Adapter to feed ai-elements (if present) simple messages & handle send
+  const handleExperimentalSend = async (text: string) => {
+    if (!text.trim()) return;
+    setInput(text);
+    await send();
+  };
+
   return (
     <div className="relative h-full flex flex-col bg-black min-h-[100dvh] overflow-hidden">
       {/* Ambient animated gradient background */}
@@ -152,6 +178,78 @@ export const ChatPage = (): JSX.Element => {
         <div className="absolute top-1/4 -right-1/4 w-[55vw] h-[55vw] bg-[#0a8246]/20 rounded-full blur-[160px] animate-[pulse_9s_ease-in-out_infinite]" />
       </div>
       <div className="flex-1 flex flex-row w-full max-w-7xl mx-auto relative z-10">
+  {/* If experimental UI enabled AND component available, short-circuit to ai-elements chat */}
+        {experimentalUI ? (
+          <div className="flex-1 flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1dff00]/30 bg-[#060606]/80 backdrop-blur">
+              <h2 className="text-[#1dff00] font-semibold text-sm flex items-center gap-2">Experimental Chat UI <span className="text-[10px] px-2 py-0.5 rounded bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] uppercase tracking-wider">BETA</span></h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={()=>setExperimentalUI(false)}
+                  className="text-[11px] px-2 py-1 rounded-md border border-[#1dff00]/40 text-[#1dff00] hover:bg-[#1dff00]/10 transition"
+                >Exit</button>
+              </div>
+            </div>
+            <div className="flex-1 min-h-0 flex flex-col relative">
+              {/* @ts-ignore Unexpected prop resolution issue – Conversation has proper types but TS can't match here */}
+              <Conversation>
+                {/* @ts-ignore See above note */}
+                <ConversationContent className="space-y-2 pb-16">
+                  {messages.filter(m=>m.role!=='system').length === 0 && (
+                    <ConversationEmptyState title="No messages" description="Ask your first question to get started" />
+                  )}
+                  {messages.filter(m=>m.role!=='system').map(m => (
+                    <AIMessage key={m.id} from={m.role}>
+                      <AIMessageAvatar src={m.role==='assistant' ? '/icon/light.svg' : '/favicon.svg'} name={m.role==='assistant' ? 'AI' : 'You'} />
+                      <AIMessageContent variant="contained">
+                        <div className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</div>
+                        {m.streaming && <div className="mt-1"><StreamingCursor /></div>}
+                      </AIMessageContent>
+                    </AIMessage>
+                  ))}
+                </ConversationContent>
+              </Conversation>
+              {/* Manual scroll-to-bottom button */}
+              <button
+                onClick={()=>{ const el = document.querySelector('[role="log"]'); if (el) el.scrollTo({ top: el.scrollHeight, behavior:'smooth'}); }}
+                className="hidden md:inline-flex items-center justify-center rounded-full h-9 w-9 border border-[#1dff00]/40 bg-[#0d0d0d]/80 text-[#1dff00] hover:bg-[#132313] hover:border-[#1dff00]/70 transition shadow-lg shadow-black/40 absolute bottom-4 left-1/2 -translate-x-1/2"
+                aria-label="Scroll to bottom"
+              >▼</button>
+              {/* Composer (reuse existing input logic) */}
+              <div className="border-t border-[#1dff00]/20 bg-[#060606]/80 backdrop-blur px-4 py-3">
+                <form onSubmit={(e)=>{e.preventDefault(); handleExperimentalSend(input || '');}} className="flex items-end gap-2">
+                  <div className="flex-1 relative">
+                    <textarea
+                      value={input}
+                      onChange={e=>setInput(e.target.value)}
+                      rows={1}
+                      placeholder="Type a message..."
+                      className="w-full resize-none bg-[#0d0d0d]/90 border border-[#1dff00]/30 focus:border-[#1dff00] rounded-md px-3 py-2 text-sm text-white placeholder:text-neutral-500 outline-none"
+                    />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                      <Button variant="ghost" size="sm" type="button" className="h-8 w-8 p-0 text-neutral-400 hover:text-[#1dff00] hover:bg-[#1dff00]/10" onClick={()=>fileInputRef.current?.click()} aria-label="Attach file"><Paperclip className="w-4 h-4" /></Button>
+                      <Button disabled={!input.trim()} size="sm" type="submit" className="h-8 w-8 p-0 bg-gradient-to-br from-[#1dff00] to-[#0a8246] text-black hover:shadow-lg hover:shadow-[#1dff00]/30 disabled:opacity-30" aria-label="Send message"><Send className="w-4 h-4" /></Button>
+                    </div>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={clear} className="border-[#1dff00]/40 text-neutral-300 hover:text-white hover:border-[#1dff00] bg-[#0d0d0d]">Reset</Button>
+                </form>
+                <input ref={fileInputRef} type="file" multiple hidden onChange={e=>attachFiles(e.target.files)} />
+                {pendingAttachments.length>0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {pendingAttachments.map(a => (
+                      <motion.div layout key={a.id} className="group flex items-center gap-2 pl-2 pr-1 py-1 rounded-lg bg-[#101010] border border-[#1dff00]/30 text-[#1dff00] text-xs">
+                        <span className="max-w-[140px] truncate font-mono">{a.name}</span>
+                        <button onClick={() => removeAttachment(a.id)} className="p-1 rounded-md hover:bg-[#1dff00]/10 text-neutral-400 hover:text-white transition" aria-label="Remove attachment"><X className="w-3 h-3" /></button>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="px-4 py-2 text-[10px] text-neutral-500 font-mono border-t border-[#1dff00]/20">ai-elements experimental integration • <button onClick={()=>setExperimentalUI(false)} className="underline hover:text-[#1dff00]">switch back</button></div>
+          </div>
+        ) : (
+      <>
   {/* Sessions Sidebar */}
         <motion.aside
           initial={false}
@@ -339,6 +437,8 @@ export const ChatPage = (): JSX.Element => {
           </div>
         </div>
         </div>
+        </>
+        )}
       </div>
       {/* Floating Clear (mobile) */}
       <motion.button
@@ -356,6 +456,14 @@ export const ChatPage = (): JSX.Element => {
       )}
       <ChatSearchPalette open={searchOpen} onClose={()=>setSearchOpen(false)} />
       <PinnedAndSnippetsPanel open={panelOpen} onClose={()=>setPanelOpen(false)} />
+      {!experimentalUI && (
+        <button
+          onClick={() => setExperimentalUI(true)}
+          className="fixed bottom-5 left-5 z-40 px-3 py-1.5 rounded-md text-[11px] font-medium tracking-wide bg-[#101410] border border-[#1dff00]/30 text-[#1dff00] hover:bg-[#122b12] hover:border-[#1dff00]/60 transition"
+          title={aiElements ? 'Enable experimental ai-elements UI' : 'ai-elements not available'}
+          disabled={!AIEChatComponent}
+        >New UI</button>
+      )}
     </div>
   );
 };
