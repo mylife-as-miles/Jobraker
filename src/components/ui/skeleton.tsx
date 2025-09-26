@@ -15,20 +15,31 @@ export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
   ({ className, pulse = true, ...props }, ref) => {
+    const [allowed, setAllowed] = React.useState(true);
+    React.useEffect(() => {
+      try {
+        const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const update = () => setAllowed(!mq.matches);
+        update();
+        mq.addEventListener('change', update);
+        return () => mq.removeEventListener('change', update);
+      } catch { setAllowed(true); }
+    }, []);
     return (
       <div
         ref={ref}
         className={cx(
           "bg-white/5 border border-white/10 rounded-md relative overflow-hidden",
-          pulse && "animate-pulse",
+          pulse && allowed && "animate-pulse",
           className
         )}
         {...props}
       >
-        {/* optional shimmer layer */}
-        <div className="pointer-events-none absolute inset-0 opacity-0 [animation:fade-in_0.4s_ease forwards]">
-          <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2s_infinite]" />
-        </div>
+        {allowed && (
+          <div className="pointer-events-none absolute inset-0 opacity-0 [animation:fade-in_0.4s_ease forwards]">
+            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2s_infinite]" />
+          </div>
+        )}
       </div>
     );
   }

@@ -203,6 +203,14 @@ export const OverviewPage = (): JSX.Element => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
   const [calendarViewMode, setCalendarViewMode] = useState<'month' | 'week'>('month');
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === '?' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setShowShortcuts(s=>!s); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   // Derive calendar events from applications: use interview_date if present else applied_date as end indicator
   const calendarEvents: CalendarEvent[] = useMemo(() => {
@@ -292,25 +300,27 @@ export const OverviewPage = (): JSX.Element => {
                 </div>
 
                 {/* Applications Chart (real data, status series) */}
-                <div className="mt-4 sm:mt-6 w-full max-h-96 overflow-hidden min-h-[16rem] relative">
+                <div className="mt-4 sm:mt-6 w-full max-h-96 overflow-hidden min-h-[16rem] relative" aria-live="polite">
+                  <div className={`transition-opacity duration-500 ${appsLoading ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                    {!appsLoading && (
+                      <SplitLineAreaChart
+                        data={seriesData}
+                        xKey="label"
+                        series={seriesMeta}
+                        stacked={stacked}
+                        showLegend
+                        onVisibleChange={setVisibleSeries}
+                        defaultVisible={visibleSeries}
+                        tickFormatter={(v) => String(v).slice(0, 3)}
+                        className="h-64 sm:h-72 lg:h-80 xl:h-96 w-full"
+                      />
+                    )}
+                  </div>
                   {appsLoading && (
                     <div className="absolute inset-0 flex flex-col gap-4">
                       <Skeleton className="h-6 w-40" />
                       <Skeleton className="h-full w-full" />
                     </div>
-                  )}
-                  {!appsLoading && (
-                    <SplitLineAreaChart
-                      data={seriesData}
-                      xKey="label"
-                      series={seriesMeta}
-                      stacked={stacked}
-                      showLegend
-                      onVisibleChange={setVisibleSeries}
-                      defaultVisible={visibleSeries}
-                      tickFormatter={(v) => String(v).slice(0, 3)}
-                      className="h-64 sm:h-72 lg:h-80 xl:h-96 w-full"
-                    />
                   )}
                 </div>
               </Card>
@@ -376,6 +386,17 @@ export const OverviewPage = (): JSX.Element => {
                   onCreateApplication={async (input) => { await create({ job_title: input.job_title, company: input.company, status: input.status as any, applied_date: input.applied_date }); }}
                 />
               </Card>
+              {showShortcuts && (
+                <div className="mt-4 text-[10px] sm:text-xs text-[#888] border border-white/10 rounded-lg p-3 bg-black/40">
+                  <div className="flex justify-between mb-2"><span className="text-white/80 font-medium">Shortcuts</span><button onClick={()=>setShowShortcuts(false)} className="text-[#1dff00] hover:underline">Close</button></div>
+                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+                    <li><kbd className="px-1 py-0.5 bg-white/10 rounded">Ctrl/⌘ + ?</kbd> Toggle help</li>
+                    <li><kbd className="px-1 py-0.5 bg-white/10 rounded">Shift + ←/→/↑/↓</kbd> Expand range</li>
+                    <li><kbd className="px-1 py-0.5 bg-white/10 rounded">Click + drag</kbd> Select range</li>
+                    <li><kbd className="px-1 py-0.5 bg-white/10 rounded">Esc</kbd> Close popup</li>
+                  </ul>
+                </div>
+              )}
             </motion.div>
           </div>
 
