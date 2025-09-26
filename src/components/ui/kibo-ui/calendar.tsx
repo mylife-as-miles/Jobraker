@@ -6,6 +6,7 @@ export interface CalendarEvent {
   id: string;
   date: Date; // event (end) date
   title: string;
+  subtitle?: string; // secondary label (e.g. company)
   status?: string; // used for color-coding
 }
 
@@ -23,6 +24,9 @@ export interface CalendarProps {
   maxVisibleEventsPerDay?: number;
   rangeSelectable?: boolean;
   onSelectRange?: (range: { start: Date; end: Date } | null) => void;
+  viewMode?: 'month' | 'week';
+  onViewModeChange?: (mode: 'month' | 'week') => void;
+  showDayEventCount?: boolean;
 }
 
 function startOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 1); }
@@ -42,6 +46,9 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
   maxVisibleEventsPerDay = 3,
   rangeSelectable = false,
   onSelectRange,
+  viewMode = 'month',
+  onViewModeChange,
+  showDayEventCount = true,
 }) => {
   const today = new Date();
   const viewMonth = startOfMonth(month || today);
@@ -52,6 +59,19 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
   const [rangeEnd, setRangeEnd] = useState<Date | null>(null);
 
   const grid = useMemo(() => {
+    if (viewMode === 'week' && selectedDate) {
+      const base = selectedDate;
+      const weekday = (base.getDay() - weekStartsOn + 7) % 7;
+      const start = new Date(base);
+      start.setDate(base.getDate() - weekday);
+      const cells: { date: Date; inCurrent: boolean }[] = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        cells.push({ date: d, inCurrent: d.getMonth() === viewMonth.getMonth() });
+      }
+      return cells;
+    }
     const first = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1);
     const startDayRaw = first.getDay();
     const offset = (startDayRaw - weekStartsOn + 7) % 7;
@@ -62,7 +82,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
       cells.push({ date: d, inCurrent: d.getMonth() === viewMonth.getMonth() });
     }
     return cells;
-  }, [viewMonth, weekStartsOn]);
+  }, [viewMonth, weekStartsOn, viewMode, selectedDate]);
 
   const monthLabel = viewMonth.toLocaleString(usedLocale, { month: 'long', year: 'numeric' });
   const isSameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -117,7 +137,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
   return (
     <div className={"w-full " + className}>
       {showHeader && (
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <button
             type="button"
             aria-label="Previous month"
@@ -142,6 +162,13 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-2 rounded transition"
             >
               →
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewModeChange?.(viewMode === 'month' ? 'week' : 'month')}
+              className="ml-1 text-xs px-2 py-1 rounded border border-white/10 hover:border-[#1dff00]/40 text-white/80 hover:text-[#1dff00] transition"
+            >
+              {viewMode === 'month' ? 'Week' : 'Month'}
             </button>
           </div>
         </div>
@@ -188,15 +215,18 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                 inSelectedRange(cell.date) ? 'bg-[#1dff00]/15' : ''
               ].join(' ')}
             >
-              <div className={['text-[10px] sm:text-xs leading-none mb-0.5', isToday ? 'text-black' : ''].join(' ')}>
-                {cell.date.getDate()}
+              <div className='flex items-center justify-between w-full'>
+                <div className='text-[10px] sm:text-xs leading-none mb-0.5'>{cell.date.getDate()}</div>
+                {showDayEventCount && dayEvents.length > 0 && (
+                  <span className='text-[9px] px-1 rounded bg-[#1dff00]/15 text-[#1dff00] font-semibold'>{dayEvents.length}</span>
+                )}
               </div>
               <div className="flex-1 w-full overflow-hidden flex flex-col">
                 {dayEvents.slice(0, maxVisibleEventsPerDay).map(ev => (
                   <div
                     key={ev.id}
-                    title={ev.title}
-                    className="truncate rounded px-1 py-[1px] text-[9px] sm:text-[10px] font-medium mb-[2px] last:mb-0"
+                    title={ev.subtitle ? ev.title + ' — ' + ev.subtitle : ev.title}
+                    className="relative group truncate rounded px-1 py-[1px] text-[9px] sm:text-[10px] font-medium mb-[2px] last:mb-0"
                     style={{
                       background: statusColor(ev.status) + '20',
                       color: statusColor(ev.status),
@@ -204,6 +234,12 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                     }}
                   >
                     {ev.title}
+                    <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute z-20 left-0 top-full mt-1 min-w-[140px] max-w-[200px] p-2 rounded-md border border-[#1dff00]/30 bg-black/80 backdrop-blur text-[10px] leading-snug text-white shadow-lg">
+                      <div className="font-semibold text-[#1dff00] mb-0.5 truncate">{ev.title}</div>
+                      {ev.subtitle && <div className="text-white/70 truncate">{ev.subtitle}</div>}
+                      {ev.status && <div className="mt-0.5 text-[9px] uppercase tracking-wide" style={{ color: statusColor(ev.status) }}>{ev.status}</div>}
+                      <div className="mt-0.5 text-[9px] text-white/50">{cell.date.toLocaleDateString(usedLocale)}</div>
+                    </div>
                   </div>
                 ))}
                 {extra > 0 && (

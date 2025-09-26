@@ -197,9 +197,10 @@ export const OverviewPage = (): JSX.Element => {
   return { seriesData: data, seriesMeta: series, appliedCount: applied, interviewCount: interviews, totals: { totalInWindow } }
   }, [applications, now, selectedPeriod])
 
-  // Calendar selection (optional future feature)
+  // Calendar selection & view state
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
+  const [calendarViewMode, setCalendarViewMode] = useState<'month' | 'week'>('month');
 
   // Derive calendar events from applications: use interview_date if present else applied_date as end indicator
   const calendarEvents: CalendarEvent[] = useMemo(() => {
@@ -211,6 +212,7 @@ export const OverviewPage = (): JSX.Element => {
         id: app.id,
         date,
         title: app.job_title.slice(0, 24),
+        subtitle: app.company?.slice(0, 24) || '',
         status: app.status,
       };
     });
@@ -304,7 +306,7 @@ export const OverviewPage = (): JSX.Element => {
               </Card>
             </motion.div>
 
-            {/* Match Score Analytics Card */}
+            {/* Calendar (Kibo UI) - moved up, swapping with Match Scores */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -313,19 +315,45 @@ export const OverviewPage = (): JSX.Element => {
               className="transition-transform duration-300"
             >
               <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Recent Match Scores</h2>
+                <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[10px] sm:text-xs text-[#888888]">
+                  <div>
+                    Current time: <span className="text-[#1dff00] font-medium">{timeLabel}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#666] hidden sm:inline">View:</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCalendarViewMode(m => m === 'month' ? 'week' : 'month')}
+                      className="text-[10px] sm:text-xs px-2 py-1 border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/10 text-[#1dff00]"
+                    >
+                      {calendarViewMode === 'month' ? 'Switch to Week' : 'Switch to Month'}
+                    </Button>
+                  </div>
                 </div>
-                <MatchScoreAnalytics period="30d" data={{
-                  barData: [],
-                  metrics: { avgMatchScore: 0 },
-                  comparisons: { avgMatchDelta: 0 }
-                }} />
+                <KiboCalendar
+                  month={viewDate}
+                  selectedDate={selectedDate || undefined}
+                  onMonthChange={(d) => setViewDate(d)}
+                  onSelectDate={(d) => setSelectedDate(d)}
+                  events={calendarEvents}
+                  maxVisibleEventsPerDay={3}
+                  rangeSelectable
+                  onSelectRange={setSelectedRange}
+                  locale={Intl.DateTimeFormat().resolvedOptions().locale}
+                  viewMode={calendarViewMode}
+                  onViewModeChange={setCalendarViewMode}
+                />
+                {selectedRange && (
+                  <div className="mt-3 text-center text-[10px] sm:text-xs text-[#888]">
+                    Range: <span className="text-[#1dff00] font-medium">{selectedRange.start.toLocaleDateString()} → {selectedRange.end.toLocaleDateString()}</span>
+                  </div>
+                )}
               </Card>
             </motion.div>
           </div>
 
-          {/* Right Column - Notifications and Calendar */}
+          {/* Right Column - Notifications and Match Scores */}
           <div className="space-y-4 sm:space-y-6">
             {/* Notifications */}
             <motion.div
@@ -379,7 +407,7 @@ export const OverviewPage = (): JSX.Element => {
               </Card>
             </motion.div>
 
-            {/* Calendar (Kibo UI) */}
+            {/* Match Score Analytics Card (moved below notifications) */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -388,25 +416,14 @@ export const OverviewPage = (): JSX.Element => {
               className="transition-transform duration-300"
             >
               <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
-                <div className="mb-3 text-center text-[10px] sm:text-xs text-[#888888]">
-                  Current time: <span className="text-[#1dff00] font-medium">{timeLabel}</span>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Recent Match Scores</h2>
                 </div>
-                <KiboCalendar
-                  month={viewDate}
-                  selectedDate={selectedDate || undefined}
-                  onMonthChange={(d) => setViewDate(d)}
-                  onSelectDate={(d) => setSelectedDate(d)}
-                  events={calendarEvents}
-                  maxVisibleEventsPerDay={3}
-                  rangeSelectable
-                  onSelectRange={setSelectedRange}
-                  locale={Intl.DateTimeFormat().resolvedOptions().locale}
-                />
-                {selectedRange && (
-                  <div className="mt-3 text-center text-[10px] sm:text-xs text-[#888]">
-                    Range: <span className="text-[#1dff00] font-medium">{selectedRange.start.toLocaleDateString()} → {selectedRange.end.toLocaleDateString()}</span>
-                  </div>
-                )}
+                <MatchScoreAnalytics period="30d" data={{
+                  barData: [],
+                  metrics: { avgMatchScore: 0 },
+                  comparisons: { avgMatchDelta: 0 }
+                }} />
               </Card>
             </motion.div>
           </div>
