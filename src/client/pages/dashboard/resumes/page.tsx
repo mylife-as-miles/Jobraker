@@ -48,6 +48,10 @@ export const ResumesPage = () => {
       </Helmet>
 
       <div className="space-y-6">
+        <div className="rounded-lg border border-[#1dff00]/20 bg-[#1dff00]/5 px-4 py-3 text-[11px] text-[#1dff00]/80 flex flex-wrap items-center gap-2">
+          <span className="font-medium text-[#1dff00]">Tip:</span>
+          <span>Select or import a resume below to open the full builder canvas. You can always come back here to manage versions and imports.</span>
+        </div>
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <motion.h1
             initial={{ opacity: 0, x: -30 }}

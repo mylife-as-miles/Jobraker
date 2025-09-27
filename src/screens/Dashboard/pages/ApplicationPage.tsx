@@ -557,6 +557,29 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
   type ApplicationRow = typeof data[number];
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const tableRef = useState(() => ({ current: null as null | HTMLDivElement }))[0];
+
+  // Close status editor on outside click or ESC
+  useEffect(() => {
+    if (!editingStatusId) return;
+    const onDown = (e: MouseEvent) => {
+      const root = tableRef.current;
+      if (!root) return;
+      if (!(e.target instanceof Node)) return;
+      if (!root.contains(e.target)) {
+        setEditingStatusId(null);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setEditingStatusId(null);
+    };
+    window.addEventListener('mousedown', onDown, true);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onDown, true);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [editingStatusId]);
   // Pull update fn via hook avoidance: pass through window global? Simpler: reuse useApplications? Instead we rely on outer closure? We'll attach to (window as any) temporary if needed.
   // Since this component is defined inside the same file as ApplicationPage, it has access to nothing from parent.
   // We'll accept mutation through a custom event dispatched by parent for decoupling; simpler: we can attach updater on window in ApplicationPage before definition.
@@ -655,7 +678,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
   ], []);
 
   return (
-    <div className="rounded-xl border border-white/10 bg-black/30 overflow-hidden">
+    <div ref={(n)=> (tableRef.current = n)} className="rounded-xl border border-white/10 bg-black/30 overflow-hidden">
       <div className="overflow-auto">
         <TableProvider<ApplicationRow, any> data={data} columns={columns} className="min-w-full">
           <KTableHeader className="bg-white/5">
