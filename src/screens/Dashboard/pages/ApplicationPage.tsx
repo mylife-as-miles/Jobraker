@@ -28,6 +28,8 @@ function ApplicationPage() {
   const [showFuture, setShowFuture] = useState(() => localStorage.getItem('jr.apps.gantt.future') !== '0');
   const [detailId, setDetailId] = useState<string | null>(null);
   const [calendarSelectedDate, setCalendarSelectedDate] = useState<Date | null>(null);
+  const [calendarRange, setCalendarRange] = useState<{ start: Date; end: Date } | null>(null);
+  const [calendarStatusFilters, setCalendarStatusFilters] = useState<string[] | null>(null); // null = uncontrolled default all
   const detailApp = useMemo(() => applications.find(a => a.id === detailId) || null, [detailId, applications]);
 
   // Restore preferences on mount
@@ -40,7 +42,11 @@ function ApplicationPage() {
       const qsView = u.searchParams.get('view');
       if (qsStatus && ["All","Pending","Applied","Interview","Offer","Rejected","Withdrawn"].includes(qsStatus)) setSelectedStatus(qsStatus as any);
       if (typeof qsQuery === 'string' && qsQuery.length) setSearchQuery(qsQuery);
-  if (qsView && (qsView === 'gantt' || qsView === 'list' || qsView === 'kanban' || qsView === 'calendar')) setViewMode(qsView as any);
+      if (qsView && (qsView === 'gantt' || qsView === 'list' || qsView === 'kanban' || qsView === 'calendar')) setViewMode(qsView as any);
+      const qsDate = u.searchParams.get('date');
+      if (qsDate && /^\d{4}-\d{2}-\d{2}$/.test(qsDate)) {
+        try { setCalendarSelectedDate(new Date(qsDate + 'T00:00:00')); } catch {}
+      }
 
       const raw = localStorage.getItem("jr.apps.prefs.v1");
       if (raw) {
@@ -57,10 +63,28 @@ function ApplicationPage() {
   // Persist preferences when they change
   useEffect(() => {
     try {
-  const payload = { viewMode, selectedStatus, sortBy, searchQuery };
+      const payload = { viewMode, selectedStatus, sortBy, searchQuery };
       localStorage.setItem("jr.apps.prefs.v1", JSON.stringify(payload));
     } catch {}
   }, [viewMode, selectedStatus, sortBy, searchQuery]);
+
+  // Sync date to query param for deep-link when calendar view active
+  useEffect(() => {
+    if (viewMode !== 'calendar') return;
+    const url = new URL(window.location.href);
+    if (calendarSelectedDate) url.searchParams.set('date', calendarSelectedDate.toISOString().slice(0,10)); else url.searchParams.delete('date');
+    window.history.replaceState(null, '', url.toString());
+  }, [calendarSelectedDate, viewMode]);
+
+  // Calendar legend colors map to existing status colors (defined here so it's in scope for JSX below)
+  const statusColorMap = useMemo(() => ({
+    Pending: { bg: 'from-[#71717a] to-[#27272a]', gradient: 'bg-gradient-to-r from-[#71717a] to-[#27272a]' },
+    Applied: { bg: 'from-[#1dff00] to-[#0a8246]', gradient: 'bg-gradient-to-r from-[#1dff00] to-[#0a8246]' },
+    Interview: { bg: 'from-[#fbbf24] to-[#a16207]', gradient: 'bg-gradient-to-r from-[#fbbf24] to-[#a16207]' },
+    Offer: { bg: 'from-[#84cc16] to-[#166534]', gradient: 'bg-gradient-to-r from-[#84cc16] to-[#166534]' },
+    Rejected: { bg: 'from-[#fb7185] to-[#881337]', gradient: 'bg-gradient-to-r from-[#fb7185] to-[#881337]' },
+    Withdrawn: { bg: 'from-[#94a3b8] to-[#334155]', gradient: 'bg-gradient-to-r from-[#94a3b8] to-[#334155]' },
+  }), []);
 
   useEffect(() => { try { localStorage.setItem('jr.apps.gantt.zoom', String(ganttZoom)); } catch {} }, [ganttZoom]);
   useEffect(() => { try { localStorage.setItem('jr.apps.gantt.future', showFuture ? '1' : '0'); } catch {} }, [showFuture]);
@@ -214,6 +238,31 @@ function ApplicationPage() {
                   <input type="checkbox" className="accent-[#1dff00]" checked={showFuture} onChange={e => setShowFuture(e.target.checked)} />
                   <span>Extend active bars to today</span>
                 </label>
+              </div>
+            )}
+            {viewMode === 'calendar' && (
+              <div className="m-1 flex items-center gap-3 text-[10px] text-white/60 border-l border-white/10 pl-3 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {Object.keys(statusColorMap).map(st => (
+                    <button
+                      key={st}
+                      onClick={() => setCalendarStatusFilters(prev => {
+                        const current = prev ?? Object.keys(statusColorMap);
+                        const has = current.includes(st);
+                        const next = has ? current.filter(x=>x!==st) : [...current, st];
+                        return next.length === Object.keys(statusColorMap).length ? null : next; // null means all
+                      })}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${ (calendarStatusFilters ? calendarStatusFilters.includes(st) : true) ? 'border-white/20 text-white/80' : 'border-white/10 text-white/30 line-through'} bg-white/5 hover:bg-white/10 transition`}
+                    >{st}</button>
+                  ))}
+                </div>
+                {calendarRange && (
+                  <div className="flex items-center gap-2 text-white/50">
+                    <span className="text-[10px]">Range:</span>
+                    <span className="text-[10px]">{calendarRange.start.toLocaleDateString()} → {calendarRange.end.toLocaleDateString()}</span>
+                    <button onClick={()=>setCalendarRange(null)} className="text-[10px] underline decoration-dotted">Clear</button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -381,14 +430,20 @@ function ApplicationPage() {
                 enableQuickCreate={false}
                 selectedDate={calendarSelectedDate}
                 onSelectDate={(d) => setCalendarSelectedDate(d)}
+                rangeSelectable
+                onSelectRange={(r) => setCalendarRange(r)}
+                statusFilters={calendarStatusFilters || undefined}
+                onStatusFiltersChange={(sts) => setCalendarStatusFilters(sts.length === 0 ? [] : sts)}
                 className="border border-white/10 rounded-lg bg-black/40"
               />
               <CalendarDayDetail
-                date={calendarSelectedDate}
-                range={null}
+                date={calendarRange ? null : calendarSelectedDate}
+                range={calendarRange}
                 applications={applications}
                 onClose={() => setCalendarSelectedDate(null)}
                 onUpdateApplication={(id, patch) => update(id, patch as any)}
+                activeStatusFilters={calendarStatusFilters || undefined}
+                onActiveStatusFiltersChange={(sts) => setCalendarStatusFilters(sts.length === Object.keys(statusColorMap).length ? null : sts)}
               />
             </div>
           ) : (
