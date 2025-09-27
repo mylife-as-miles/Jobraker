@@ -276,12 +276,24 @@ export const ChatPage = () => {
 
   // (activeSession derived if needed in future multi-session isolation)
 
+  // Command palette-like inline helper for slash commands
+  const [showCommands, setShowCommands] = useState(false);
+  const commandList = [
+    { key: '/summary', desc: "Summarize today's job applications" },
+    { key: '/followup', desc: 'Draft a professional follow-up email' },
+    { key: '/plan', desc: 'Create a weekly job search action plan' },
+    { key: '/improve', desc: 'Suggest resume improvement points' },
+    { key: '/interview', desc: 'Generate interview prep checklist' },
+  ];
+
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,#1dff0040,transparent_60%),radial-gradient(circle_at_80%_70%,#0a824640,transparent_55%)]" />
-      <div className="mx-auto flex h-full w-full max-w-7xl gap-4 px-4 py-4 sm:px-6 lg:px-8">
+    <div className="relative flex h-full w-full flex-col overflow-hidden font-sans">
+      {/* Ambient gradients */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_18%,#1dff0026,transparent_65%),radial-gradient(circle_at_85%_80%,#0a824626,transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/40 via-black/10 to-transparent" />
+      <div className="mx-auto flex h-full w-full max-w-7xl gap-4 px-3 sm:px-5 lg:px-8 py-4">
         {/* Sidebar */}
-        <aside className="hidden md:flex w-60 flex-col rounded-xl border border-neutral-800/70 bg-neutral-950/60 backdrop-blur-md overflow-hidden">
+  <aside className="hidden md:flex w-60 flex-col rounded-2xl border border-neutral-800/60 bg-neutral-950/70 backdrop-blur-xl overflow-hidden shadow-[0_4px_18px_-4px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.03)] relative before:absolute before:inset-0 before:pointer-events-none before:rounded-2xl before:border before:border-white/5">
           <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800/70">
             <h3 className="text-xs font-semibold tracking-wide text-neutral-300">Sessions</h3>
             <button onClick={createSession} className="text-[11px] px-2 py-1 rounded-md bg-neutral-800/70 hover:bg-neutral-700 border border-neutral-700/70 text-neutral-300">New</button>
@@ -311,14 +323,15 @@ export const ChatPage = () => {
         </aside>
         {/* Main Column */}
         <div className="flex flex-1 flex-col gap-4">
-          <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between rounded-xl border border-neutral-800/60 bg-neutral-950/70 backdrop-blur-md px-4 sm:px-6 py-4 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_4px_18px_-2px_rgba(0,0,0,0.6)]">
+          <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between rounded-2xl border border-neutral-800/60 bg-neutral-950/70 backdrop-blur-xl px-4 sm:px-6 py-4 shadow-[0_4px_24px_-6px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.04)] relative overflow-hidden">
+            <div className="pointer-events-none absolute inset-0 opacity-[0.35] [mask-image:radial-gradient(circle_at_30%_30%,black,transparent_70%)] bg-[conic-gradient(from_140deg,rgba(29,255,0,0.12),rgba(10,130,70,0.05),transparent_70%)]" />
             <div className="flex flex-col">
-              <h1 className="text-sm sm:text-base font-semibold tracking-wide bg-gradient-to-r from-[#1dff00] via-[#6dffb0] to-[#1dff00] bg-clip-text text-transparent">Intelligent Assistant</h1>
-              <p className="text-[11px] sm:text-xs text-neutral-400">Ask about applications, resumes, interviews & more.</p>
+              <h1 className="text-sm sm:text-base font-semibold tracking-wide bg-gradient-to-r from-[#1dff00] via-[#6dffb0] to-[#1dff00] bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(29,255,0,0.25)]">Intelligent Assistant</h1>
+              <p className="text-[11px] sm:text-xs text-neutral-400/80">Ask about applications, resumes, interviews & more.</p>
             </div>
             <div className="flex flex-wrap items-center gap-3 text-[10px] sm:text-xs text-neutral-400">
               <div className="flex items-center gap-2">
-                <span className={status === 'in_progress' ? 'text-[#1dff00]' : ''}>{status === 'in_progress' ? 'Generating…' : 'Idle'}</span>
+                <span className={status === 'in_progress' ? 'text-[#1dff00] animate-pulse' : ''}>{status === 'in_progress' ? 'Generating…' : 'Idle'}</span>
                 <span className="h-4 w-px bg-neutral-800" />
                 <span>{messages.filter(m=>m.role==='user').length} msg</span>
               </div>
@@ -327,6 +340,10 @@ export const ChatPage = () => {
                 <select value={persona} onChange={e=>setPersona(e.target.value as Persona)} className="bg-neutral-900/70 border border-neutral-700/60 rounded-md px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-[#1dff00]/60">
                   {Object.entries(personaLabel).map(([val,label]) => <option key={val} value={val}>{label}</option>)}
                 </select>
+                <span className="ml-1 inline-flex items-center gap-1 rounded-full border border-neutral-700/60 bg-neutral-900/60 px-2 py-0.5 text-[10px] text-neutral-400">
+                  <span className="inline-block h-2 w-2 rounded-full bg-gradient-to-br from-[#1dff00] to-[#0a8246] shadow-[0_0_0_2px_rgba(29,255,0,0.25)]" />
+                  {personaLabel[persona]}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 {status === 'in_progress' && <button onClick={stop} className="px-2 py-1 rounded-md text-[10px] bg-red-600/20 text-red-300 border border-red-500/30 hover:bg-red-600/30 transition">Stop</button>}
@@ -334,9 +351,11 @@ export const ChatPage = () => {
               </div>
             </div>
           </header>
-          <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-neutral-800/60 bg-neutral-950/60 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_8px_30px_-4px_rgba(0,0,0,0.65)] overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col rounded-3xl border border-neutral-800/60 bg-neutral-950/70 backdrop-blur-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_12px_40px_-10px_rgba(0,0,0,0.7)] overflow-hidden relative">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-black/60 to-transparent z-10" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent z-10" />
             <Conversation className="flex-1">
-              <ConversationContent className="px-3 sm:px-6 py-6 space-y-6">
+              <ConversationContent className="px-3 sm:px-6 py-8 space-y-7">
                 {messages.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-24 text-center gap-6">
                     <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#1dff00]/20 to-[#0a8246]/10 border border-[#1dff00]/25 flex items-center justify-center shadow-inner"><GlobeIcon className="w-9 h-9 text-[#1dff00]" /></div>
@@ -351,27 +370,48 @@ export const ChatPage = () => {
                 )}
                 {messages.map((msg, idx) => {
                   const isUser = msg.role==='user';
-                  const bubble = isUser ? 'bg-gradient-to-br from-[#1dff00] via-[#45d86e] to-[#0a8246] text-black shadow-[0_4px_16px_-2px_rgba(29,255,0,0.35)]' : 'bg-neutral-900/70 text-neutral-100 border border-neutral-800';
+                  const bubble = isUser
+                    ? 'bg-gradient-to-br from-[#1dff00] via-[#45d86e] to-[#0a8246] text-black shadow-[0_8px_24px_-6px_rgba(29,255,0,0.35)]'
+                    : 'bg-neutral-900/80 text-neutral-100 border border-neutral-800/70 shadow-[0_4px_18px_-4px_rgba(0,0,0,0.55)]';
                   const time = new Date(msg.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                   const textContent = msg.parts?.[0]?.text || msg.content;
                   const lastUserIdLocal = lastUserId;
                   const prev = messages[idx-1];
                   const showAvatar = !prev || prev.role !== msg.role;
                   const isLastUser = isUser && msg.id === lastUserIdLocal;
+                  const next = messages[idx+1];
+                  const isGroupedTop = prev && prev.role === msg.role;
+                  const isGroupedBottom = next && next.role === msg.role;
+                  const radius = isUser
+                    ? `${isGroupedTop ? 'rounded-tr-md' : 'rounded-tr-2xl'} ${isGroupedBottom ? 'rounded-br-md' : 'rounded-br-2xl'} rounded-tl-2xl rounded-bl-2xl`
+                    : `${isGroupedTop ? 'rounded-tl-md' : 'rounded-tl-2xl'} ${isGroupedBottom ? 'rounded-bl-md' : 'rounded-bl-2xl'} rounded-tr-2xl rounded-br-2xl`;
                   return (
                     <div key={msg.id} className="group relative flex flex-col gap-2">
-                      <div className={`flex items-end gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}> 
-                        {!isUser && showAvatar && <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#1dff00]/40 to-[#0a8246]/40 text-[11px] font-semibold text-[#1dff00] border border-[#1dff00]/40 shadow-inner">AI</div>}
-                        {isUser && showAvatar && <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-800/80 text-[11px] font-semibold text-neutral-200 border border-neutral-700 shadow-inner">You</div>}
-                        <div className={`relative max-w-[92%] md:max-w-3xl rounded-2xl px-4 py-3 text-sm leading-relaxed tracking-wide backdrop-blur-sm transition-shadow ${bubble}`}> 
-                          {msg.streaming ? <div className="whitespace-pre-wrap break-words selection:bg-[#1dff00]/30">{`${textContent} ▌`}</div> : renderRichText(textContent)}
-                          <div className="absolute -bottom-5 left-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-neutral-500">
+                      <div className={`flex items-end gap-3 ${isUser ? 'justify-end' : 'justify-start'} animate-[fadeIn_0.5s_ease]`}> 
+                        {!isUser && showAvatar && <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#1dff00]/30 to-[#0a8246]/30 text-[11px] font-semibold text-[#1dff00] border border-[#1dff00]/30 shadow-inner backdrop-blur-sm">AI</div>}
+                        {isUser && showAvatar && <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-800/80 text-[11px] font-semibold text-neutral-200 border border-neutral-700 shadow-inner">You</div>}
+                        <div className={`relative max-w-[92%] md:max-w-3xl ${radius} px-4 py-3 text-sm leading-relaxed tracking-wide backdrop-blur-sm transition-shadow ${bubble}`}> 
+                          {msg.streaming ? (
+                            <div className="whitespace-pre-wrap break-words selection:bg-[#1dff00]/30 flex items-center gap-1">
+                              <span>{textContent}</span>
+                              <span className="inline-flex items-center gap-0.5">
+                                <span className="h-1.5 w-1.5 rounded-full bg-black/60 animate-pulse" />
+                                <span className="h-1.5 w-1.5 rounded-full bg-black/40 animate-pulse delay-150" />
+                                <span className="h-1.5 w-1.5 rounded-full bg-black/20 animate-pulse delay-300" />
+                              </span>
+                            </div>
+                          ) : renderRichText(textContent)}
+                          <div className="absolute -bottom-6 left-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-neutral-500">
                             <button onClick={()=>copyMessage(msg.id, textContent)} className="px-1.5 py-0.5 rounded-md bg-neutral-800/70 hover:bg-neutral-700 text-neutral-300 hover:text-white border border-neutral-700/70 shadow-inner">{copiedId===msg.id ? 'Copied' : 'Copy'}</button>
                             {isLastUser && !editing && <button onClick={()=>{ setText(textContent); setEditing(true); }} className="px-1.5 py-0.5 rounded-md bg-neutral-800/70 hover:bg-neutral-700 text-neutral-300 hover:text-white border border-neutral-700/70 shadow-inner">Edit</button>}
-                            <span className="select-none">{isUser ? 'You' : 'AI'} • {time}</span>
+                            {!isUser && <>
+                              <button className="px-1.5 py-0.5 rounded-md bg-neutral-800/70 hover:bg-neutral-700 text-neutral-300 border border-neutral-700/70 shadow-inner">👍</button>
+                              <button className="px-1.5 py-0.5 rounded-md bg-neutral-800/70 hover:bg-neutral-700 text-neutral-300 border border-neutral-700/70 shadow-inner">👎</button>
+                            </>}
+                            <span className="select-none hidden sm:inline">{isUser ? 'You' : 'AI'} • {time}</span>
                           </div>
                         </div>
-                        {isUser && showAvatar && <div className="w-8" />}
+                        {isUser && showAvatar && <div className="w-9" />}
                       </div>
                     </div>
                   );
@@ -380,16 +420,35 @@ export const ChatPage = () => {
               </ConversationContent>
             </Conversation>
           </div>
-          <div className="rounded-xl border border-neutral-800/70 bg-neutral-950/70 backdrop-blur-md shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_6px_24px_-4px_rgba(0,0,0,0.6)]">
+          <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/80 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_10px_36px_-8px_rgba(0,0,0,0.65)] relative overflow-hidden">
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(29,255,0,0.07),transparent_35%,transparent_65%,rgba(10,130,70,0.08))] opacity-80" />
             {messages.length > 0 && (
               <div className="flex flex-wrap gap-2 px-4 pt-4 -mb-1">
                 {quickPrompts.map(q => <button key={q} onClick={()=>{ setText(q); setEditing(false); }} className="px-3 py-1.5 rounded-full text-[11px] bg-neutral-900/70 hover:bg-neutral-800 border border-neutral-700/70 text-neutral-300 hover:text-white transition">{q}</button>)}
               </div>
             )}
             <PromptInput onSubmit={handleSubmit} className="p-3 sm:p-4" multiple globalDrop>
-              <PromptInputBody className="rounded-xl border border-neutral-800/70 bg-neutral-900/70 focus-within:border-[#1dff00]/50 transition-colors">
+              <PromptInputBody className="relative rounded-xl border border-neutral-800/70 bg-neutral-900/70 focus-within:border-[#1dff00]/50 transition-colors shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_4px_18px_-6px_rgba(0,0,0,0.7)]">
+                <div className="pointer-events-none absolute inset-0 rounded-xl bg-[radial-gradient(circle_at_70%_30%,rgba(29,255,0,0.18),transparent_70%)] opacity-30" />
                 <PromptInputAttachments>{file => <PromptInputAttachment data={file} />}</PromptInputAttachments>
-                <PromptInputTextarea value={text} onChange={e=>setText(e.target.value)} placeholder={editing ? 'Edit your message…' : 'Ask anything about your applications, resumes, interviews...'} className="min-h-[64px]" ref={textareaRef} />
+                <PromptInputTextarea value={text} onChange={e=>{ setText(e.target.value); setShowCommands(e.target.value.startsWith('/') && e.target.value.length <= 30); }} placeholder={editing ? 'Edit your message…' : 'Ask anything about your applications, resumes, interviews...'} className="min-h-[64px]" ref={textareaRef} />
+                {showCommands && !text.includes(' ') && (
+                  <div className="absolute left-2 right-2 top-2 z-20 rounded-lg border border-neutral-800/70 bg-neutral-950/95 backdrop-blur-md p-2 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.65)] animate-[fadeIn_0.18s_ease]">
+                    <ul className="flex flex-col gap-1 max-h-52 overflow-auto text-[11px]">
+                      {commandList.map(c => (
+                        <li key={c.key}>
+                          <button
+                            onClick={()=>{ setText(c.key + ' '); setShowCommands(false); textareaRef.current?.focus(); }}
+                            className="w-full flex items-start gap-2 rounded-md px-2 py-1.5 text-left hover:bg-neutral-800/80 transition group"
+                          >
+                            <span className="font-mono text-[#1dff00] group-hover:translate-x-px transition-transform">{c.key}</span>
+                            <span className="text-neutral-400 group-hover:text-neutral-300">{c.desc}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </PromptInputBody>
               <PromptInputToolbar className="mt-2 flex flex-wrap gap-2 justify-between">
                 <PromptInputTools className="flex items-center gap-1.5">
@@ -417,7 +476,12 @@ export const ChatPage = () => {
                 <PromptInputSubmit disabled={!text && status !== 'in_progress'} status={status === 'in_progress' ? 'in_progress' : undefined as any} className="shadow-[0_0_0_1px_#1dff00,0_4px_18px_-4px_rgba(29,255,0,0.45)] hover:shadow-[0_0_0_1px_#1dff00,0_6px_24px_-4px_rgba(29,255,0,0.65)] transition-shadow" />
               </PromptInputToolbar>
               <div className="pt-1 text-[10px] tracking-wider text-neutral-500 flex justify-between font-mono opacity-70">
-                <span>{editing ? 'Editing – submit to resend' : status === 'in_progress' ? 'Generating response… (Esc to stop)' : 'Idle (Ctrl+Enter to send)'}</span>
+                <span className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1">
+                    <span className={`h-2 w-2 rounded-full ${status==='in_progress' ? 'bg-[#1dff00] animate-pulse' : 'bg-neutral-600'}`} />
+                    {editing ? 'Editing – submit to resend' : status === 'in_progress' ? 'Generating response… (Esc to stop)' : 'Idle (Ctrl+Enter to send)'}
+                  </span>
+                </span>
                 <span>{text.length}/2000 · ~{tokenEstimate} tokens</span>
               </div>
             </PromptInput>
