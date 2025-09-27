@@ -153,3 +153,6 @@ export const ListProvider = ({
     <div className={cn("flex size-full flex-col", className)}>{children}</div>
   </DndContext>
 );
+
+// Re-export DragEndEvent for convenience (consumer imports from this module)
+export type { DragEndEvent };
