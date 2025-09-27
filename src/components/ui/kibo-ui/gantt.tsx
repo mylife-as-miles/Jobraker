@@ -23,6 +23,7 @@ interface GanttProps {
   onZoomChange?: (z: number) => void;
   groupBy?: (item: GanttItem) => string | undefined | null;
   dateRange?: { start: Date; end: Date }; // explicit range override
+  onBarClick?: (item: GanttItem, evt: React.MouseEvent) => void;
 }
 
 // Lightweight, dependency-free Gantt renderer (horizontal timeline bars)
@@ -38,6 +39,7 @@ export const Gantt: React.FC<GanttProps> = ({
   onZoomChange,
   groupBy,
   dateRange,
+  onBarClick,
 }) => {
   const [uncontrolledZoom, setUncontrolledZoom] = React.useState(1); // default mid tier
   const zoom = controlledZoom ?? uncontrolledZoom;
@@ -165,10 +167,13 @@ export const Gantt: React.FC<GanttProps> = ({
                         <div className="absolute inset-y-0 left-48" style={{ right: 0 }}>
                           <div className="relative h-full">
                             <div
-                              className="absolute group rounded-md overflow-hidden ring-1 ring-white/10 shadow-sm hover:ring-white/30 hover:shadow-lg transition-all cursor-default"
+                              className="absolute group rounded-md overflow-hidden ring-1 ring-white/10 shadow-sm hover:ring-white/30 hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1dff00]/50"
                               style={{ left: `calc(${left}% + 0px)`, width: widthPct + '%', top: height*0.2, height: height*0.6, background: color.bg }}
                               title={`${item.label}\n${item.start.toLocaleDateString()} → ${item.end.toLocaleDateString()} (${days}d)`}
                               aria-label={`Timeline for ${item.label}`}
+                              tabIndex={0}
+                              onClick={(e) => onBarClick?.(item, e)}
+                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onBarClick?.(item, e as any); } }}
                             >
                               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-white/5 transition" />
                               <div className="flex h-full w-full items-center px-2 text-[10px] font-medium tracking-wide" style={{ color: color.fg }}>

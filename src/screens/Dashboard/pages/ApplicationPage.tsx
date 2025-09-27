@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useApplications, type ApplicationStatus } from "../../../hooks/useApplications";
 import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
 
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { List as ListIcon, Search, Columns, ExternalLink, Link2, Clipboard, RefreshCw, GanttChart } from "lucide-react";
 import { KanbanProvider, KanbanBoard, KanbanHeader, KanbanCards, KanbanCard } from "../../../components/ui/kibo-ui/kanban";
 import Gantt, { GanttItem } from "../../../components/ui/kibo-ui/gantt";
+import Modal from "../../../components/ui/modal";
 
 function ApplicationPage() {
   const { applications, exportCSV, update, refresh } = useApplications();
@@ -18,8 +19,13 @@ function ApplicationPage() {
   const [selectedStatus, setSelectedStatus] = useState<"All" | ApplicationStatus>("All");
   const [sortBy, setSortBy] = useState<"score" | "recent" | "company" | "status">("score");
   const [viewMode, setViewMode] = useState<"gantt" | "list" | "kanban">("gantt");
-  const [ganttZoom, setGanttZoom] = useState(1);
-  const [showFuture, setShowFuture] = useState(true);
+  const [ganttZoom, setGanttZoom] = useState(() => {
+    const z = Number(localStorage.getItem('jr.apps.gantt.zoom') || '1');
+    return Number.isFinite(z) ? Math.min(4, Math.max(0, z)) : 1;
+  });
+  const [showFuture, setShowFuture] = useState(() => localStorage.getItem('jr.apps.gantt.future') !== '0');
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const detailApp = useMemo(() => applications.find(a => a.id === detailId) || null, [detailId, applications]);
 
   // Restore preferences on mount
   useEffect(() => {
@@ -48,10 +54,30 @@ function ApplicationPage() {
   // Persist preferences when they change
   useEffect(() => {
     try {
-  const payload = { viewMode, selectedStatus, sortBy, searchQuery };
+      const payload = { viewMode, selectedStatus, sortBy, searchQuery };
       localStorage.setItem("jr.apps.prefs.v1", JSON.stringify(payload));
     } catch {}
   }, [viewMode, selectedStatus, sortBy, searchQuery]);
+
+  useEffect(() => { try { localStorage.setItem('jr.apps.gantt.zoom', String(ganttZoom)); } catch {} }, [ganttZoom]);
+  useEffect(() => { try { localStorage.setItem('jr.apps.gantt.future', showFuture ? '1' : '0'); } catch {} }, [showFuture]);
+
+  // Keyboard shortcuts for Gantt view
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (viewMode !== 'gantt') return;
+      if (e.key === '+' || (e.key === '=' && e.shiftKey)) { setGanttZoom(z => Math.min(4, z+1)); }
+      else if (e.key === '-' ) { setGanttZoom(z => Math.max(0, z-1)); }
+      else if (e.key.toLowerCase() === 'f') { setShowFuture(f => !f); }
+      else if (e.key === 'Escape' && detailId) { setDetailId(null); }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [viewMode, detailId]);
+
+  const handleBarClick = useCallback((item: GanttItem) => {
+    setDetailId(item.id);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -200,6 +226,7 @@ function ApplicationPage() {
                 onZoomChange={setGanttZoom}
                 showToday
                 groupBy={(item) => item.status}
+                onBarClick={(item) => handleBarClick(item)}
                 items={filtered.map<GanttItem>(a => {
                   const applied = new Date(a.applied_date);
                   const updated = new Date(a.updated_at || a.applied_date || Date.now());
@@ -373,6 +400,65 @@ function ApplicationPage() {
           )}
         </CardContent>
       </Card>
+      <Modal open={!!detailApp} onClose={() => setDetailId(null)} title={detailApp?.job_title} side="right" size="lg">
+        {detailApp ? (
+          <div className="space-y-4 text-sm text-white/80">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-white/40 text-xs uppercase tracking-wide mb-1">Company</div>
+                <div>{detailApp.company}</div>
+              </div>
+              <div>
+                <div className="text-white/40 text-xs uppercase tracking-wide mb-1">Status</div>
+                <div>{detailApp.status}</div>
+              </div>
+              <div>
+                <div className="text-white/40 text-xs uppercase tracking-wide mb-1">Applied</div>
+                <div>{new Date(detailApp.applied_date).toLocaleString()}</div>
+              </div>
+              <div>
+                <div className="text-white/40 text-xs uppercase tracking-wide mb-1">Updated</div>
+                <div>{new Date(detailApp.updated_at).toLocaleString()}</div>
+              </div>
+              {detailApp.interview_date && (
+                <div>
+                  <div className="text-white/40 text-xs uppercase tracking-wide mb-1">Interview</div>
+                  <div>{new Date(detailApp.interview_date).toLocaleString()}</div>
+                </div>
+              )}
+              {detailApp.salary && (
+                <div>
+                  <div className="text-white/40 text-xs uppercase tracking-wide mb-1">Salary</div>
+                  <div>{detailApp.salary}</div>
+                </div>
+              )}
+            </div>
+            {detailApp.notes && (
+              <div>
+                <div className="text-white/40 text-xs uppercase tracking-wide mb-1">Notes</div>
+                <div className="whitespace-pre-wrap text-white/70 text-xs border border-white/10 rounded p-2 bg-white/5 max-h-60 overflow-auto">{detailApp.notes}</div>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2 pt-2">
+              {detailApp.app_url && (
+                <a href={detailApp.app_url} target="_blank" rel="noreferrer" className="text-[#1dff00] hover:underline text-xs">Open Application</a>
+              )}
+              {detailApp.recording_url && (
+                <a href={detailApp.recording_url} target="_blank" rel="noreferrer" className="text-white/70 hover:text-white text-xs">Recording</a>
+              )}
+              {detailApp.run_id && (
+                <button
+                  onClick={() => navigator.clipboard?.writeText(detailApp.run_id!)}
+                  className="text-white/60 hover:text-white text-xs underline decoration-dotted"
+                >Copy Run ID</button>
+              )}
+            </div>
+            <div className="pt-4 flex gap-2">
+              <Button size="sm" variant="outline" className="border-white/20" onClick={() => setDetailId(null)}>Close</Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }
