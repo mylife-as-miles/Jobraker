@@ -219,3 +219,393 @@ function statusColor(status?: string): { bg: string; fg: string } {
 }
 
 export default Gantt;
+
+/* -------------------------------------------------------------------------------------------------
+ * Advanced (non-breaking) Gantt Design Primitives
+ * -----------------------------------------------------------------------------------------------
+ * These components implement an API similar to the example snippet the user provided
+ * (GanttProvider, GanttSidebar, GanttFeatureItem, markers, etc.) while preserving the
+ * existing lightweight <Gantt /> export used elsewhere. They are intentionally self‑contained
+ * and do not alter the original Gantt logic above. The intent is to offer a richer, more
+ * product‑roadmap style UI without forcing a migration.
+ *
+ * Notes:
+ * - Minimal styling; tailwind utility classes only (consistent with existing design).
+ * - Drag/move interaction is simplified to horizontal dragging of the bar; movement snaps
+ *   to whole days. Resizing handles can be added later.
+ * - Feature registration feeds the provider so the header scale auto-expands to encompass
+ *   all registered items unless an explicit customRange is provided.
+ * - Marker creation/removal callbacks are surfaced but state is left to the consumer (stateless markers).
+ * - Types intentionally broad to accommodate evolving data model.
+ */
+
+// Region: Context & Provider
+interface AdvancedGanttFeatureBase {
+  id: string;
+  name: string;
+  startAt: Date;
+  endAt: Date;
+  status?: any;
+  owner?: any;
+  [k: string]: any; // flexible extension
+}
+
+interface GanttProviderProps {
+  children: React.ReactNode;
+  className?: string;
+  /** A coarse range hint; monthly ~90d window, quarterly ~180d window. */
+  range?: 'monthly' | 'quarterly' | 'custom';
+  /** Explicit custom range override */
+  customRange?: { start: Date; end: Date };
+  zoom?: number; // percentage scaling base (initial)
+  onZoomChange?: (z: number) => void;
+  onAddItem?: (date: Date) => void;
+  /** Fixed pixel width per day (overrides internal calc) */
+  dayWidth?: number;
+}
+
+interface InternalFeatureRegistration {
+  id: string;
+  startAt: Date;
+  endAt: Date;
+}
+
+interface AdvancedGanttContextValue {
+  range: 'monthly' | 'quarterly' | 'custom';
+  start: Date;
+  end: Date;
+  dayWidth: number;
+  zoomPct: number; // raw zoom percent (e.g., 100)
+  setZoomPct: (v: number) => void;
+  percent: (d: Date) => number;
+  registerFeature: (f: InternalFeatureRegistration) => void;
+  unregisterFeature: (id: string) => void;
+  onAddItem?: (date: Date) => void;
+}
+
+const AdvancedGanttContext = React.createContext<AdvancedGanttContextValue | null>(null);
+
+export const GanttProvider: React.FC<GanttProviderProps> = ({
+  children,
+  className = '',
+  range = 'monthly',
+  customRange,
+  zoom = 100,
+  onZoomChange,
+  onAddItem,
+  dayWidth,
+}) => {
+  const [zoomPct, setZoomPctState] = React.useState(zoom);
+  const setZoomPct = React.useCallback((v: number) => {
+    const clamped = Math.min(400, Math.max(25, Math.round(v)));
+    setZoomPctState(clamped);
+    onZoomChange?.(clamped);
+  }, [onZoomChange]);
+
+  const featuresRef = React.useRef<Map<string, InternalFeatureRegistration>>(new Map());
+  const [, force] = React.useReducer(x => x + 1, 0);
+
+  const registerFeature = React.useCallback((f: InternalFeatureRegistration) => {
+    const prev = featuresRef.current.get(f.id);
+    if (!prev || prev.startAt.getTime() !== f.startAt.getTime() || prev.endAt.getTime() !== f.endAt.getTime()) {
+      featuresRef.current.set(f.id, f);
+      force();
+    }
+  }, []);
+  const unregisterFeature = React.useCallback((id: string) => {
+    if (featuresRef.current.delete(id)) force();
+  }, []);
+
+  // Derive dynamic range if not customRange
+  const computedRange = React.useMemo(() => {
+    if (customRange) return customRange;
+    // If we have features, expand to min/max plus padding
+    const feats = Array.from(featuresRef.current.values());
+    if (feats.length) {
+      let min = feats[0].startAt.getTime();
+      let max = feats[0].endAt.getTime();
+      for (const f of feats) {
+        if (f.startAt.getTime() < min) min = f.startAt.getTime();
+        if (f.endAt.getTime() > max) max = f.endAt.getTime();
+      }
+      const pad = 5 * 86400000; // 5 day padding each side
+      return { start: new Date(min - pad), end: new Date(max + pad) };
+    }
+    // fallback windows
+    const now = new Date();
+    const startBase = new Date(now.getFullYear(), now.getMonth(), 1);
+    const days = range === 'quarterly' ? 180 : 90;
+    return { start: startBase, end: new Date(startBase.getTime() + days * 86400000) };
+  }, [customRange, range, featuresRef.current.size]);
+
+  // totalDays retained conceptually via container width calc; local variable removed to avoid unused warning.
+  const effectiveDayWidth = dayWidth ?? Math.max(4, Math.round((zoomPct / 100) * 24));
+
+  const percent = React.useCallback((d: Date) => {
+    const { start, end } = computedRange;
+    return (d.getTime() - start.getTime()) / (end.getTime() - start.getTime());
+  }, [computedRange.start, computedRange.end]);
+
+  const ctx: AdvancedGanttContextValue = React.useMemo(() => ({
+    range,
+    start: computedRange.start,
+    end: computedRange.end,
+    dayWidth: effectiveDayWidth,
+    zoomPct,
+    setZoomPct,
+    percent,
+    registerFeature,
+    unregisterFeature,
+    onAddItem,
+  }), [range, computedRange.start, computedRange.end, effectiveDayWidth, zoomPct, percent, registerFeature, unregisterFeature, onAddItem]);
+
+  return (
+    <div className={"relative w-full bg-black/40 rounded-lg border border-white/10 overflow-hidden " + className}>
+      <AdvancedGanttContext.Provider value={ctx}>{children}</AdvancedGanttContext.Provider>
+    </div>
+  );
+};
+
+function useAdvancedGantt() {
+  const v = React.useContext(AdvancedGanttContext);
+  if (!v) throw new Error('Gantt advanced primitives must be used inside <GanttProvider>');
+  return v;
+}
+
+// Region: Layout primitives
+export const GanttSidebar: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => {
+  return (
+    <div className={"absolute top-0 left-0 bottom-0 w-48 overflow-y-auto thin-scrollbar bg-black/30 backdrop-blur-sm border-r border-white/10 " + className}>
+      {children}
+    </div>
+  );
+};
+
+export const GanttSidebarGroup: React.FC<{ name: string; children: React.ReactNode }> = ({ name, children }) => (
+  <div className="border-b border-white/5 last:border-b-0">
+    <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-white/40 font-medium">{name}</div>
+    <div className="flex flex-col gap-0.5 px-1 pb-1">{children}</div>
+  </div>
+);
+
+export const GanttSidebarItem: React.FC<{ feature: AdvancedGanttFeatureBase; onSelectItem?: (id: string) => void; className?: string }> = ({ feature, onSelectItem, className = '' }) => (
+  <button
+    type="button"
+    onClick={() => onSelectItem?.(feature.id)}
+    className={"text-left px-2 py-1 rounded-md text-xs bg-white/5 hover:bg-white/10 text-white/70 focus:outline-none focus:ring-1 focus:ring-white/30 transition " + className}
+  >
+    <span className="block truncate">{feature.name}</span>
+  </button>
+);
+
+export const GanttTimeline: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => {
+  const { start, end, dayWidth } = useAdvancedGantt();
+  const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+  return (
+    <div className={"relative ml-48 overflow-auto " + className} style={{ width: 'calc(100% - 12rem)' }}>
+      <div className="relative" style={{ width: totalDays * dayWidth }}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+export const GanttHeader: React.FC<{ className?: string }> = ({ className = '' }) => {
+  const { start, end, dayWidth, zoomPct, setZoomPct } = useAdvancedGantt();
+  const days: Date[] = [];
+  const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+  for (let i = 0; i <= totalDays; i++) days.push(new Date(start.getTime() + i * 86400000));
+  return (
+    <div className={"sticky top-0 z-20 bg-black/60 backdrop-blur border-b border-white/10 " + className}>
+      <div className="flex items-stretch select-none">
+        <div className="w-full">
+          <div className="flex h-7 text-[10px] font-medium text-white/50">
+            {days.map((d, i) => (
+              <div key={i} style={{ width: dayWidth }} className="flex items-center justify-center border-r border-white/5 last:border-r-0">
+                {d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="absolute top-1 right-2 flex items-center gap-1">
+        <button aria-label="Zoom out" onClick={() => setZoomPct(zoomPct - 10)} className="h-5 w-5 text-[10px] rounded bg-white/10 hover:bg-white/20 text-white/70">-</button>
+        <span className="px-1 tabular-nums text-[10px] text-white/60">{zoomPct}%</span>
+        <button aria-label="Zoom in" onClick={() => setZoomPct(zoomPct + 10)} className="h-5 w-5 text-[10px] rounded bg-white/10 hover:bg-white/20 text-white/70">+</button>
+      </div>
+    </div>
+  );
+};
+
+export const GanttFeatureList: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={"relative " + className}>{children}</div>
+);
+
+export const GanttFeatureListGroup: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={"relative border-b border-white/5 last:border-b-0 " + className}>{children}</div>
+);
+
+interface GanttFeatureItemProps extends AdvancedGanttFeatureBase {
+  onMove?: (id: string, startAt: Date, endAt: Date | null) => void;
+  className?: string;
+  children?: React.ReactNode;
+}
+
+export const GanttFeatureItem: React.FC<GanttFeatureItemProps> = ({
+  id,
+  name,
+  startAt,
+  endAt,
+  status,
+  onMove,
+  children,
+  className = '',
+  ...rest
+}) => {
+  const { percent, dayWidth, registerFeature, unregisterFeature } = useAdvancedGantt();
+  const barRef = React.useRef<HTMLDivElement | null>(null);
+  // Register feature for dynamic range calculation
+  React.useEffect(() => {
+    registerFeature({ id, startAt, endAt });
+    return () => unregisterFeature(id);
+  }, [id, startAt, endAt, registerFeature, unregisterFeature]);
+
+  const startP = percent(startAt);
+  const endP = percent(endAt);
+  const left = startP * 100;
+  const widthPct = Math.max(0.25, (endP - startP) * 100);
+  const color = statusColor(typeof status === 'string' ? status : undefined);
+  const days = Math.max(1, Math.round((endAt.getTime() - startAt.getTime()) / 86400000));
+
+  // Drag logic (horizontal move only)
+  React.useEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    let dragging = false;
+    let originX = 0;
+    let origStart = startAt.getTime();
+    let origEnd = endAt.getTime();
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      dragging = true;
+      originX = e.clientX;
+      origStart = startAt.getTime();
+      origEnd = endAt.getTime();
+      el.setPointerCapture(e.pointerId);
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (!dragging) return;
+      const dx = e.clientX - originX;
+      const dayDelta = Math.round(dx / dayWidth);
+      if (dayDelta !== 0) {
+        const newStart = new Date(origStart + dayDelta * 86400000);
+        const newEnd = new Date(origEnd + dayDelta * 86400000);
+        onMove?.(id, newStart, newEnd);
+      }
+    };
+    const onPointerUp = (e: PointerEvent) => {
+      if (dragging) {
+        dragging = false;
+        try { el.releasePointerCapture(e.pointerId); } catch {}
+      }
+    };
+    el.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    return () => {
+      el.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, [id, startAt, endAt, dayWidth, onMove]);
+
+  return (
+    <div className={"relative h-8 " + className} {...rest}>
+      <div
+        ref={barRef}
+        className="group absolute top-1/2 -translate-y-1/2 rounded-md ring-1 ring-white/10 hover:ring-white/30 hover:shadow-lg shadow-sm cursor-grab active:cursor-grabbing focus:outline-none focus:ring-2 focus:ring-[#1dff00]/60"
+        style={{ left: `calc(${left}% + 0px)`, width: widthPct + '%', height: '60%', background: color.bg }}
+        title={`${name}\n${startAt.toLocaleDateString()} → ${endAt.toLocaleDateString()} (${days}d)`}
+        tabIndex={0}
+      >
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-white/5 transition" />
+        <div className="flex h-full w-full items-center px-2 text-[10px] font-medium tracking-wide" style={{ color: color.fg }}>
+          {children ? children : (typeof status === 'string' ? status : '')}
+        </div>
+        <div className="absolute z-30 hidden group-hover:flex -top-2 left-1/2 -translate-y-full -translate-x-1/2 min-w-[180px] max-w-[240px] flex-col rounded-md border border-white/15 bg-black/80 backdrop-blur p-2 shadow-lg text-[10px] text-white/70">
+          <div className="font-medium text-white truncate mb-1">{name}</div>
+          <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+            <span className="text-white/40">Start</span><span>{startAt.toLocaleDateString()}</span>
+            <span className="text-white/40">End</span><span>{endAt.toLocaleDateString()}</span>
+            <span className="text-white/40">Length</span><span>{days}d</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Region: Markers & utilities
+export interface GanttMarkerProps {
+  id: string;
+  date: Date;
+  label: string;
+  className?: string;
+  onRemove?: (id: string) => void;
+}
+
+export const GanttMarker: React.FC<GanttMarkerProps> = ({ id, date, label, onRemove, className = '' }) => {
+  const { start, end, percent } = useAdvancedGantt();
+  if (date < start || date > end) return null;
+  const p = percent(date) * 100;
+  return (
+    <div className="absolute inset-y-0 pointer-events-none" style={{ left: p + '%' }}>
+      <div className="relative h-full">
+        <div className="absolute top-0 bottom-0 w-px bg-cyan-400/70" />
+        <div className={"absolute -top-2 -translate-y-full -translate-x-1/2 flex items-center gap-1 rounded bg-cyan-400 text-black px-1.5 py-0.5 text-[9px] font-semibold pointer-events-auto " + className}>
+          <span className="truncate max-w-[140px]">{label}</span>
+          {onRemove && (
+            <button onClick={() => onRemove(id)} className="text-black/70 hover:text-black" aria-label="Remove marker">×</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const GanttToday: React.FC = () => {
+  const { start, end, percent } = useAdvancedGantt();
+  const today = new Date();
+  if (today < start || today > end) return null;
+  const p = percent(today) * 100;
+  return (
+    <div className="absolute inset-y-0 pointer-events-none" style={{ left: p + '%' }}>
+      <div className="h-full w-px bg-[#1dff00] shadow-[0_0_0_1px_rgba(29,255,0,0.4)]" />
+      <div className="absolute -top-2 -translate-y-full -translate-x-1/2 px-1 py-0.5 rounded bg-[#1dff00] text-black text-[9px] font-semibold">Today</div>
+    </div>
+  );
+};
+
+export const GanttCreateMarkerTrigger: React.FC<{ onCreateMarker?: (date: Date) => void }> = ({ onCreateMarker }) => {
+  const { start, end } = useAdvancedGantt();
+  const ref = React.useRef<HTMLDivElement | null>(null);
+  const handleDbl = React.useCallback((e: React.MouseEvent) => {
+    if (!ref.current) return;
+    const bounds = ref.current.getBoundingClientRect();
+    const x = e.clientX - bounds.left; // relative
+    const totalMs = end.getTime() - start.getTime();
+    const totalW = bounds.width;
+    const ratio = x / totalW;
+    const date = new Date(start.getTime() + totalMs * ratio);
+    // snap to day start
+    date.setHours(0,0,0,0);
+    onCreateMarker?.(date);
+  }, [start, end, onCreateMarker]);
+  return (
+    <div ref={ref} className="absolute inset-0" onDoubleClick={handleDbl} aria-label="Double click to create marker" />
+  );
+};
+
+// Convenience re-exports for naming parity in user example
+export { GanttProvider as GanttContextProvider };
+
