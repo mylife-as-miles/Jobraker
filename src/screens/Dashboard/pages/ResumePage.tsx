@@ -1,4 +1,5 @@
 import { BuilderPage } from "@/client/pages/builder/page";
+import { Providers } from "@/client/providers";
 import { ResumesPage } from "@/client/pages/dashboard/resumes/page";
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -40,16 +41,18 @@ export const ResumePage = (): JSX.Element => {
   }
 
   return (
-    <div className="h-full w-full flex flex-col">
-      <div className="flex items-center justify-between p-3 sm:p-4 border-b border-[#1dff00]/20 bg-[#0a0a0a]/80 backdrop-blur supports-[backdrop-filter]:bg-[#0a0a0a]/60">
-        <h1 className="text-lg sm:text-xl font-semibold text-white">Resume Builder</h1>
+    <Providers>
+      <div className="h-full w-full flex flex-col">
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b border-[#1dff00]/20 bg-[#0a0a0a]/80 backdrop-blur supports-[backdrop-filter]:bg-[#0a0a0a]/60">
+          <h1 className="text-lg sm:text-xl font-semibold text-white">Resume Builder</h1>
+        </div>
+        <div className="flex-1 min-h-[60vh]">
+          {loading && (
+            <div className="p-4 text-sm text-[#a3a3a3]">Loading…</div>
+          )}
+          <BuilderPage />
+        </div>
       </div>
-      <div className="flex-1 min-h-[60vh]">
-        {loading && (
-          <div className="p-4 text-sm text-[#a3a3a3]">Loading…</div>
-        )}
-        <BuilderPage />
-      </div>
-    </div>
+    </Providers>
   );
 };

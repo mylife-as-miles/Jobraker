@@ -70,7 +70,7 @@ function App() {
           <Route path={ROUTES.ONBOARDING} element={<RequireAuth><Onboarding /></RequireAuth>} />
         
         {/* Step 3: Dashboard Page (after onboarding completion) - Now serves as main container */}
-          <Route path={ROUTES.DASHBOARD_WILDCARD} element={<RequireAuth><Dashboard /></RequireAuth>} />
+          <Route path={ROUTES.DASHBOARD_WILDCARD} element={<RequireAuth><Providers><Dashboard /></Providers></RequireAuth>} />
         
   {/* Standalone Analytics Page (for backward compatibility) */}
           <Route path={ROUTES.ANALYTICS} element={<RequireAuth><Analytics /></RequireAuth>} />
