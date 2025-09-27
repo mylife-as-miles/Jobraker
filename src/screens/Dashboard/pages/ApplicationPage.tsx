@@ -7,9 +7,10 @@ import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 
-import { List as ListIcon, Search, Columns, ExternalLink, Link2, Clipboard, RefreshCw, GanttChart } from "lucide-react";
+import { List as ListIcon, Search, Columns, ExternalLink, Link2, Clipboard, RefreshCw, GanttChart, Calendar as CalendarIcon } from "lucide-react";
 import { KanbanProvider, KanbanBoard, KanbanHeader, KanbanCards, KanbanCard } from "../../../components/ui/kibo-ui/kanban";
 import Gantt, { GanttItem } from "../../../components/ui/kibo-ui/gantt";
+import KiboCalendar, { CalendarEvent } from "../../../components/ui/kibo-ui/calendar";
 import Modal from "../../../components/ui/modal";
 
 function ApplicationPage() {
@@ -18,7 +19,7 @@ function ApplicationPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<"All" | ApplicationStatus>("All");
   const [sortBy, setSortBy] = useState<"score" | "recent" | "company" | "status">("score");
-  const [viewMode, setViewMode] = useState<"gantt" | "list" | "kanban">("gantt");
+  const [viewMode, setViewMode] = useState<"gantt" | "list" | "kanban" | "calendar">("gantt");
   const [ganttZoom, setGanttZoom] = useState(() => {
     const z = Number(localStorage.getItem('jr.apps.gantt.zoom') || '1');
     return Number.isFinite(z) ? Math.min(4, Math.max(0, z)) : 1;
@@ -37,13 +38,13 @@ function ApplicationPage() {
       const qsView = u.searchParams.get('view');
       if (qsStatus && ["All","Pending","Applied","Interview","Offer","Rejected","Withdrawn"].includes(qsStatus)) setSelectedStatus(qsStatus as any);
       if (typeof qsQuery === 'string' && qsQuery.length) setSearchQuery(qsQuery);
-  if (qsView && (qsView === 'gantt' || qsView === 'list' || qsView === 'kanban')) setViewMode(qsView as any);
+  if (qsView && (qsView === 'gantt' || qsView === 'list' || qsView === 'kanban' || qsView === 'calendar')) setViewMode(qsView as any);
 
       const raw = localStorage.getItem("jr.apps.prefs.v1");
       if (raw) {
         const p = JSON.parse(raw);
         // Only apply stored prefs if not overridden by query params
-  if (!qsView && (p.viewMode === "gantt" || p.viewMode === "list" || p.viewMode === "kanban")) setViewMode(p.viewMode);
+  if (!qsView && (p.viewMode === "gantt" || p.viewMode === "list" || p.viewMode === "kanban" || p.viewMode === 'calendar')) setViewMode(p.viewMode);
         if (!qsStatus && ["All","Pending","Applied","Interview","Offer","Rejected","Withdrawn"].includes(p.selectedStatus)) setSelectedStatus(p.selectedStatus as any);
         if (["score","recent","company","status"].includes(p.sortBy)) setSortBy(p.sortBy);
         if (!qsQuery && typeof p.searchQuery === 'string') setSearchQuery(p.searchQuery);
@@ -54,7 +55,7 @@ function ApplicationPage() {
   // Persist preferences when they change
   useEffect(() => {
     try {
-      const payload = { viewMode, selectedStatus, sortBy, searchQuery };
+  const payload = { viewMode, selectedStatus, sortBy, searchQuery };
       localStorage.setItem("jr.apps.prefs.v1", JSON.stringify(payload));
     } catch {}
   }, [viewMode, selectedStatus, sortBy, searchQuery]);
@@ -65,7 +66,7 @@ function ApplicationPage() {
   // Keyboard shortcuts for Gantt view
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (viewMode !== 'gantt') return;
+  if (viewMode !== 'gantt') return;
       if (e.key === '+' || (e.key === '=' && e.shiftKey)) { setGanttZoom(z => Math.min(4, z+1)); }
       else if (e.key === '-' ) { setGanttZoom(z => Math.max(0, z-1)); }
       else if (e.key.toLowerCase() === 'f') { setShowFuture(f => !f); }
@@ -107,6 +108,22 @@ function ApplicationPage() {
     }
     return list;
   }, [applications, searchQuery, selectedStatus, sortBy]);
+
+  // Calendar events derived from applications (interview dates prioritized, else applied date)
+  const calendarEvents: CalendarEvent[] = useMemo(() => {
+    return filtered.map(a => {
+      const interview = a.interview_date ? new Date(a.interview_date) : null;
+      const applied = new Date(a.applied_date);
+      const evDate = interview && !isNaN(interview.getTime()) ? interview : applied;
+      return {
+        id: a.id,
+        date: evDate,
+        title: a.job_title || a.company || 'Application',
+        subtitle: a.company || undefined,
+        status: a.status,
+      } as CalendarEvent;
+    });
+  }, [filtered]);
 
   return (
     <div className="space-y-8">
@@ -166,6 +183,13 @@ function ApplicationPage() {
                   onClick={() => setViewMode('kanban')}
                 >
                   <Columns className="w-4 h-4" />
+                </button>
+                <button
+                  className={`px-3 py-2 text-sm text-white/70 hover:text-white transition border-l border-white/15 ${viewMode==='calendar' ? 'bg-white/20 text-white' : ''}`}
+                  title="Calendar view"
+                  onClick={() => setViewMode('calendar')}
+                >
+                  <CalendarIcon className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -339,6 +363,22 @@ function ApplicationPage() {
                   )}
                 </div>
               ))}
+            </div>
+          ) : viewMode === 'calendar' ? (
+            <div className="relative">
+              <KiboCalendar
+                events={calendarEvents}
+                showLegend
+                highlightToday
+                showHeader
+                enableAnalyticsRibbon={false}
+                enableICSExport
+                heatmap
+                densityMode="compact"
+                onQuickCreate={(partial) => console.log('quick create', partial)}
+                enableQuickCreate={false}
+                className="border border-white/10 rounded-lg bg-black/40"
+              />
             </div>
           ) : (
             <KanbanProvider
