@@ -6,7 +6,6 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
-import { useToast } from "../../../components/ui/toast-provider";
 
 import { LayoutGrid, List as ListIcon, Search, Columns, ExternalLink, Link2, Clipboard, RefreshCw } from "lucide-react";
 import { KanbanProvider, KanbanBoard, KanbanHeader, KanbanCards, KanbanCard } from "../../../components/ui/kibo-ui/kanban";
@@ -15,7 +14,6 @@ import { Skeleton } from '../../../components/ui/skeleton';
 
 function ApplicationPage() {
   const { applications, exportCSV, update, refresh } = useApplications();
-  useToast();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<"All" | ApplicationStatus>("All");
