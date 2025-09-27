@@ -110,20 +110,38 @@ function ApplicationPage() {
     return list;
   }, [applications, searchQuery, selectedStatus, sortBy]);
 
-  // Calendar events derived from applications (interview dates prioritized, else applied date)
+  // Calendar events aggregated by date & status so each day shows Pending / Applied / etc with counts
   const calendarEvents: CalendarEvent[] = useMemo(() => {
-    return filtered.map(a => {
-      const interview = a.interview_date ? new Date(a.interview_date) : null;
-      const applied = new Date(a.applied_date);
-      const evDate = interview && !isNaN(interview.getTime()) ? interview : applied;
-      return {
-        id: a.id,
-        date: evDate,
-        title: a.job_title || a.company || 'Application',
-        subtitle: a.company || undefined,
-        status: a.status,
-      } as CalendarEvent;
+    const dateStatus: Record<string, Record<ApplicationStatus, number>> = {};
+    filtered.forEach(a => {
+      const appliedKey = a.applied_date.slice(0,10);
+      dateStatus[appliedKey] = dateStatus[appliedKey] || { Pending:0, Applied:0, Interview:0, Offer:0, Rejected:0, Withdrawn:0 };
+      dateStatus[appliedKey][a.status]++;
+      // If interview date exists (may differ from applied date) surface an Interview status marker on that day too
+      if (a.interview_date) {
+        const ikey = a.interview_date.slice(0,10);
+        dateStatus[ikey] = dateStatus[ikey] || { Pending:0, Applied:0, Interview:0, Offer:0, Rejected:0, Withdrawn:0 };
+        dateStatus[ikey].Interview++;
+      }
     });
+    const events: CalendarEvent[] = [];
+    Object.entries(dateStatus).forEach(([dateKey, counts]) => {
+      const d = new Date(dateKey + 'T00:00:00');
+      (Object.keys(counts) as ApplicationStatus[]).forEach(status => {
+        const c = counts[status];
+        if (!c) return;
+        events.push({
+          id: dateKey + '-' + status,
+          date: d,
+          title: `${status} (${c})`,
+          status,
+        });
+      });
+    });
+    // Sort events so higher activity statuses appear first (Interview/Offer) then others
+    const priority: ApplicationStatus[] = ['Interview','Offer','Applied','Pending','Rejected','Withdrawn'];
+    events.sort((a,b)=> priority.indexOf(a.status as ApplicationStatus) - priority.indexOf(b.status as ApplicationStatus));
+    return events;
   }, [filtered]);
 
   // Calendar selection state (single day or range) for detail overlay
