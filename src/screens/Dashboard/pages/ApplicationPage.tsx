@@ -7,8 +7,9 @@ import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 
-import { LayoutGrid, List as ListIcon, Search, Columns, ExternalLink, Link2, Clipboard, RefreshCw } from "lucide-react";
+import { List as ListIcon, Search, Columns, ExternalLink, Link2, Clipboard, RefreshCw, GanttChart } from "lucide-react";
 import { KanbanProvider, KanbanBoard, KanbanHeader, KanbanCards, KanbanCard } from "../../../components/ui/kibo-ui/kanban";
+import Gantt from "../../../components/ui/kibo-ui/gantt";
 
 function ApplicationPage() {
   const { applications, exportCSV, update, refresh } = useApplications();
@@ -16,7 +17,7 @@ function ApplicationPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<"All" | ApplicationStatus>("All");
   const [sortBy, setSortBy] = useState<"score" | "recent" | "company" | "status">("score");
-  const [viewMode, setViewMode] = useState<"grid" | "list" | "kanban">("grid");
+  const [viewMode, setViewMode] = useState<"gantt" | "list" | "kanban">("gantt");
 
   // Restore preferences on mount
   useEffect(() => {
@@ -28,13 +29,13 @@ function ApplicationPage() {
       const qsView = u.searchParams.get('view');
       if (qsStatus && ["All","Pending","Applied","Interview","Offer","Rejected","Withdrawn"].includes(qsStatus)) setSelectedStatus(qsStatus as any);
       if (typeof qsQuery === 'string' && qsQuery.length) setSearchQuery(qsQuery);
-      if (qsView && (qsView === 'grid' || qsView === 'list' || qsView === 'kanban')) setViewMode(qsView);
+  if (qsView && (qsView === 'gantt' || qsView === 'list' || qsView === 'kanban')) setViewMode(qsView as any);
 
       const raw = localStorage.getItem("jr.apps.prefs.v1");
       if (raw) {
         const p = JSON.parse(raw);
         // Only apply stored prefs if not overridden by query params
-        if (!qsView && (p.viewMode === "grid" || p.viewMode === "list" || p.viewMode === "kanban")) setViewMode(p.viewMode);
+  if (!qsView && (p.viewMode === "gantt" || p.viewMode === "list" || p.viewMode === "kanban")) setViewMode(p.viewMode);
         if (!qsStatus && ["All","Pending","Applied","Interview","Offer","Rejected","Withdrawn"].includes(p.selectedStatus)) setSelectedStatus(p.selectedStatus as any);
         if (["score","recent","company","status"].includes(p.sortBy)) setSortBy(p.sortBy);
         if (!qsQuery && typeof p.searchQuery === 'string') setSearchQuery(p.searchQuery);
@@ -45,7 +46,7 @@ function ApplicationPage() {
   // Persist preferences when they change
   useEffect(() => {
     try {
-      const payload = { viewMode, selectedStatus, sortBy, searchQuery };
+  const payload = { viewMode, selectedStatus, sortBy, searchQuery };
       localStorage.setItem("jr.apps.prefs.v1", JSON.stringify(payload));
     } catch {}
   }, [viewMode, selectedStatus, sortBy, searchQuery]);
@@ -118,11 +119,11 @@ function ApplicationPage() {
               </Select>
               <div className="inline-flex rounded-lg border border-white/20 overflow-hidden bg-white/5 backdrop-blur-sm">
                 <button
-                  className={`px-3 py-2 text-sm text-white/70 hover:text-white transition ${viewMode==='grid' ? 'bg-white/20 text-white' : ''}`}
-                  title="Grid view"
-                  onClick={() => setViewMode('grid')}
+                  className={`px-3 py-2 text-sm text-white/70 hover:text-white transition ${viewMode==='gantt' ? 'bg-white/20 text-white' : ''}`}
+                  title="Gantt view"
+                  onClick={() => setViewMode('gantt')}
                 >
-                  <LayoutGrid className="w-4 h-4" />
+                  <GanttChart className="w-4 h-4" />
                 </button>
                 <button
                   className={`px-3 py-2 text-sm text-white/70 hover:text-white transition border-l border-white/15 ${viewMode==='list' ? 'bg-white/20 text-white' : ''}`}
@@ -174,79 +175,109 @@ function ApplicationPage() {
               </div>
             </div>
           )}
-          {viewMode !== 'kanban' ? (
-          <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5" : "space-y-4"}>
-            {filtered.map((a) => (
-              <div key={a.id} className={viewMode === 'grid' ?
-                "bg-white/[0.05] border border-white/10 rounded-xl p-4 hover:bg-white/[0.08] transition" :
-                "bg-white/[0.05] border border-white/10 rounded-xl p-3 hover:bg-white/[0.08] transition"}>
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-sm flex-shrink-0">
-                    {(a.logo && a.logo.length > 1 ? a.logo : (((a.company || a.job_title || "")
-                      .toString()
-                      .split(/\s+/)
-                      .filter(Boolean)
-                      .slice(0, 2)
-                      .map((w: string) => w[0] || "")
-                      .join("") || "").toUpperCase()))}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className="text-white font-medium truncate">{a.job_title}</div>
-                      <span className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] border border-white/15 bg-white/10 text-white/70">
-                        {a.status}
-                      </span>
-                    </div>
-                    <div className="text-white/80 text-sm truncate">{a.company}</div>
-                    <div className="flex items-center gap-2 text-[11px] text-white/50 mt-1">
-                      <span>{new Date(a.applied_date).toLocaleDateString()}</span>
-                      <span>•</span>
-                      <span>{a.location}</span>
-                    </div>
-                  </div>
-                  <MatchScoreBadge score={a.match_score ?? 0} />
-                </div>
-                {(a.app_url || a.run_id || a.recording_url) && (
-                  <div className="mt-3 flex items-center gap-4 text-[11px]">
-                    {a.app_url && (
-                      <a
-                        href={a.app_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[#1dff00] hover:underline"
-                        title="Open application"
-                        aria-label="Open application"
-                      >
-                        <ExternalLink className="w-3 h-3" /> Open
-                      </a>
-                    )}
-                    {a.run_id && (
-                      <button
-                        className="inline-flex items-center gap-1 text-white/70 hover:text-white"
-                        onClick={() => navigator.clipboard?.writeText(a.run_id!)}
-                        title="Copy run id"
-                        aria-label="Copy run id"
-                      >
-                        <Clipboard className="w-3 h-3" /> Run
-                      </button>
-                    )}
-                    {a.recording_url && (
-                      <a
-                        href={a.recording_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs inline-flex items-center gap-1 text-white/70 hover:text-white"
-                        title="Open recording"
-                        aria-label="Open recording"
-                      >
-                        <Link2 className="w-3 h-3" /> Recording
-                      </a>
-                    )}
+          {viewMode === 'gantt' ? (
+            <div className="space-y-4">
+              <div className="text-xs text-white/60 flex flex-wrap gap-3">
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#71717a] to-[#27272a]" /> Pending</span>
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#1dff00] to-[#0a8246]" /> Applied</span>
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#fbbf24] to-[#a16207]" /> Interview</span>
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#84cc16] to-[#166534]" /> Offer</span>
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#fb7185] to-[#881337]" /> Rejected</span>
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#94a3b8] to-[#334155]" /> Withdrawn</span>
+              </div>
+              <Gantt
+                items={filtered.map(a => ({
+                  id: a.id,
+                  label: a.job_title || a.company || 'Untitled',
+                  start: new Date(a.applied_date),
+                  end: new Date(a.updated_at || a.applied_date || Date.now()),
+                  status: a.status,
+                  extra: a.company
+                }))}
+                renderLabel={(item: any) => (
+                  <div className="flex flex-col truncate">
+                    <span className="truncate font-medium text-white/80 text-xs">{item.label}</span>
+                    {item.extra && <span className="truncate text-[10px] text-white/40">{item.extra}</span>}
                   </div>
                 )}
-              </div>
-            ))}
-          </div>
+                renderBarContent={(item: any) => (
+                  <div className="flex items-center gap-1 w-full truncate">
+                    <span className="truncate">{item.status}</span>
+                  </div>
+                )}
+              />
+            </div>
+          ) : viewMode === 'list' ? (
+            <div className="space-y-4">
+              {filtered.map(a => (
+                <div key={a.id} className="bg-white/[0.05] border border-white/10 rounded-xl p-3 hover:bg-white/[0.08] transition">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-sm flex-shrink-0">
+                      {(a.logo && a.logo.length > 1 ? a.logo : (((a.company || a.job_title || "")
+                        .toString()
+                        .split(/\s+/)
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((w: string) => w[0] || "")
+                        .join("") || "").toUpperCase()))}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className="text-white font-medium truncate">{a.job_title}</div>
+                        <span className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] border border-white/15 bg-white/10 text-white/70">
+                          {a.status}
+                        </span>
+                      </div>
+                      <div className="text-white/80 text-sm truncate">{a.company}</div>
+                      <div className="flex items-center gap-2 text-[11px] text-white/50 mt-1">
+                        <span>{new Date(a.applied_date).toLocaleDateString()}</span>
+                        <span>•</span>
+                        <span>{a.location}</span>
+                      </div>
+                    </div>
+                    <MatchScoreBadge score={a.match_score ?? 0} />
+                  </div>
+                  {(a.app_url || a.run_id || a.recording_url) && (
+                    <div className="mt-3 flex items-center gap-4 text-[11px]">
+                      {a.app_url && (
+                        <a
+                          href={a.app_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[#1dff00] hover:underline"
+                          title="Open application"
+                          aria-label="Open application"
+                        >
+                          <ExternalLink className="w-3 h-3" /> Open
+                        </a>
+                      )}
+                      {a.run_id && (
+                        <button
+                          className="inline-flex items-center gap-1 text-white/70 hover:text-white"
+                          onClick={() => navigator.clipboard?.writeText(a.run_id!)}
+                          title="Copy run id"
+                          aria-label="Copy run id"
+                        >
+                          <Clipboard className="w-3 h-3" /> Run
+                        </button>
+                      )}
+                      {a.recording_url && (
+                        <a
+                          href={a.recording_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs inline-flex items-center gap-1 text-white/70 hover:text-white"
+                          title="Open recording"
+                          aria-label="Open recording"
+                        >
+                          <Link2 className="w-3 h-3" /> Recording
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           ) : (
             <KanbanProvider
               columns={[
