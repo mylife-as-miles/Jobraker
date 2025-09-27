@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useApplications, type ApplicationStatus } from "../../../hooks/useApplications";
 import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
 
@@ -11,6 +11,7 @@ import { useToast } from "../../../components/ui/toast-provider";
 import { LayoutGrid, List as ListIcon, Search, Columns, ExternalLink, Link2, Clipboard, RefreshCw } from "lucide-react";
 import { KanbanProvider, KanbanBoard, KanbanHeader, KanbanCards, KanbanCard } from "../../../components/ui/kibo-ui/kanban";
 import Roadmap, { RoadmapColumn, RoadmapGroup, RoadmapItem } from '../../../components/ui/kibo-ui/roadmap';
+import { Skeleton } from '../../../components/ui/skeleton';
 
 function ApplicationPage() {
   const { applications, exportCSV, update, refresh } = useApplications();
@@ -102,6 +103,85 @@ function ApplicationPage() {
   const percent = (s: ApplicationStatus) => (statusCounts[s] / total) * 100;
 
   const SHOW_ROADMAP = true; // toggle integration
+  const ENABLE_VIRTUAL = true;
+  const ROW_ESTIMATE = 138; // px approximate card height
+
+  // Local loading simulation (could be replaced with isLoading from hook if available)
+  const [initialLoading, setInitialLoading] = useState(false);
+  useEffect(() => {
+    if (!applications.length) {
+      setInitialLoading(true);
+      const t = setTimeout(() => setInitialLoading(false), 300); // brief skeleton flash
+      return () => clearTimeout(t);
+    }
+  }, [applications.length]);
+
+  // Virtualization (simple windowing) for grid/list
+  const scrollParentRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const onScroll = useCallback(() => {
+    if (!scrollParentRef.current) return;
+    setScrollTop(scrollParentRef.current.scrollTop);
+  }, []);
+  useEffect(() => {
+    const el = scrollParentRef.current;
+    if (!el) return;
+    const handle = () => setViewportHeight(el.clientHeight);
+    handle();
+    el.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', handle);
+    return () => { el.removeEventListener('scroll', onScroll); window.removeEventListener('resize', handle); };
+  }, [onScroll]);
+
+  const virtual = useMemo(() => {
+    if (!ENABLE_VIRTUAL || viewMode === 'kanban') return { start: 0, end: filtered.length, padTop: 0, padBottom: 0 };
+    const total = filtered.length;
+    const vh = viewportHeight || window.innerHeight * 0.6;
+    const overscan = 6;
+    const startIndex = Math.max(0, Math.floor(scrollTop / ROW_ESTIMATE) - overscan);
+    const visibleCount = Math.ceil(vh / ROW_ESTIMATE) + overscan * 2;
+    const endIndex = Math.min(total, startIndex + visibleCount);
+    const padTop = startIndex * ROW_ESTIMATE;
+    const padBottom = Math.max(0, (total - endIndex) * ROW_ESTIMATE);
+    return { start: startIndex, end: endIndex, padTop, padBottom };
+  }, [filtered.length, viewportHeight, scrollTop, viewMode]);
+
+  const visibleSlice = ENABLE_VIRTUAL && viewMode !== 'kanban'
+    ? filtered.slice(virtual.start, virtual.end)
+    : filtered;
+
+  // Persist collapsed roadmap groups (id pattern: roadmap:group:<label>)
+  const [roadmapCollapsed, setRoadmapCollapsed] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('jr.roadmap.collapsed.v1');
+      if (raw) setRoadmapCollapsed(JSON.parse(raw));
+    } catch {}
+  }, []);
+  const setGroupOpen = (label: string, open: boolean) => {
+    setRoadmapCollapsed(prev => {
+      const next = { ...prev, [label]: !open }; // store collapsed state
+      try { localStorage.setItem('jr.roadmap.collapsed.v1', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
+  const CollapsibleGroup: typeof RoadmapGroup = (props: any) => (
+    <RoadmapGroup
+      {...props}
+      defaultOpen={!roadmapCollapsed[props.label]}
+      collapsible
+      onClick={(e: any) => {
+        // Allow original onClick if passed
+        if (props.onClick) props.onClick(e);
+        if ((e.target as HTMLElement).closest('button')) {
+          setGroupOpen(props.label, roadmapCollapsed[props.label] ? false : true);
+        }
+      }}
+    />
+  );
 
   return (
     <div className="space-y-7 sm:space-y-9">
@@ -229,7 +309,7 @@ function ApplicationPage() {
       </Card>
 
       {/* Content */}
-      <Card className="bg-transparent border-none shadow-none">
+      <Card className="bg-transparent border-none shadow-none" ref={scrollParentRef}>
         <CardContent className="p-0">
           {SHOW_ROADMAP && (
             <div className="mb-10 mt-2 rounded-2xl border border-white/10 bg-white/[0.02] p-5 backdrop-blur-xl">
@@ -241,25 +321,25 @@ function ApplicationPage() {
               </div>
               <Roadmap condensed columns={[{id:'now',label:'Now'},{id:'next',label:'Next'},{id:'later',label:'Later'}]} className="mt-2">
                 <RoadmapColumn id="now" label="Now" description="Active focus">
-                  <RoadmapGroup label="Platform" collapsible defaultOpen>
+                  <CollapsibleGroup label="Platform">
                     <RoadmapItem title="Application distribution bar" status="done" progress={100} tags={['ui','analytics']} description="Visual aggregate of statuses using animated stacked segments." />
                     <RoadmapItem title="Enhanced cards" status="in-progress" progress={70} tags={['design']} description="Gradient shells, depth, consistent typography, hover accent ring." />
-                  </RoadmapGroup>
-                  <RoadmapGroup label="Performance" collapsible defaultOpen>
+                  </CollapsibleGroup>
+                  <CollapsibleGroup label="Performance">
                     <RoadmapItem title="List virtualization" status="planned" tags={['perf']} description="Window large result sets to reduce layout + paint cost." />
-                  </RoadmapGroup>
+                  </CollapsibleGroup>
                 </RoadmapColumn>
                 <RoadmapColumn id="next" label="Next" description="Near-term">
-                  <RoadmapGroup label="Insights" collapsible defaultOpen>
+                  <CollapsibleGroup label="Insights">
                     <RoadmapItem title="Time-to-stage metrics" status="planned" tags={['metrics']} description="Derive average days between stages and sparkline trends." />
                     <RoadmapItem title="Status forecasting" status="planned" tags={['ml','predict']} description="Heuristic scoring predicting chance of advancing to next stage." />
-                  </RoadmapGroup>
+                  </CollapsibleGroup>
                 </RoadmapColumn>
                 <RoadmapColumn id="later" label="Later" description="Exploratory">
-                  <RoadmapGroup label="Collaboration" collapsible defaultOpen>
+                  <CollapsibleGroup label="Collaboration">
                     <RoadmapItem title="Shared workspace" status="blocked" tags={['team']} description="Invite collaborators to comment + propose edits." />
                     <RoadmapItem title="Change history" status="planned" tags={['audit']} description="Stage transitions with diff + timeline view." />
-                  </RoadmapGroup>
+                  </CollapsibleGroup>
                 </RoadmapColumn>
               </Roadmap>
             </div>
@@ -279,8 +359,29 @@ function ApplicationPage() {
             </div>
           )}
           {viewMode !== 'kanban' ? (
-          <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5" : "space-y-4"}>
-            {filtered.map((a) => (
+          <div ref={containerRef} className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5" : "space-y-4"}>
+            {initialLoading && !filtered.length && (
+              <>
+                {Array.from({length: viewMode==='grid'?6:4}).map((_,i)=>(
+                  <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="w-11 h-11 rounded-xl" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                        <Skeleton className="h-3 w-2/3" />
+                      </div>
+                      <Skeleton className="h-6 w-10 rounded-md" />
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+            {/* Virtual padding top */}
+            {ENABLE_VIRTUAL && (viewMode === 'grid' || viewMode === 'list') && virtual.padTop > 0 && (
+              <div style={{height: virtual.padTop}} aria-hidden />
+            )}
+            {visibleSlice.map((a) => (
               <div key={a.id} className={viewMode === 'grid' ?
                 "group relative bg-gradient-to-br from-white/[0.05] via-white/[0.06] to-white/[0.04] border border-white/10 rounded-2xl p-4 hover:border-[#1dff00]/50 hover:shadow-[0_0_0_1px_rgba(29,255,0,0.35),0_6px_28px_-6px_rgba(0,0,0,0.55)] transition-all overflow-hidden" :
                 "group relative bg-gradient-to-br from-white/[0.05] via-white/[0.06] to-white/[0.04] border border-white/10 rounded-2xl p-3 hover:border-[#1dff00]/50 hover:shadow-[0_0_0_1px_rgba(29,255,0,0.35),0_6px_28px_-6px_rgba(0,0,0,0.55)] transition-all overflow-hidden"}>
@@ -356,6 +457,9 @@ function ApplicationPage() {
                 )}
               </div>
             ))}
+            {ENABLE_VIRTUAL && (viewMode === 'grid' || viewMode === 'list') && virtual.padBottom > 0 && (
+              <div style={{height: virtual.padBottom}} aria-hidden />
+            )}
           </div>
           ) : (
             <KanbanProvider
