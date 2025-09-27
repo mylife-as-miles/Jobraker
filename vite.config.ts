@@ -42,7 +42,9 @@ export default defineConfig({
   "@radix-ui/react-separator": path.resolve(__dirname, "src/lib/mocks/radix-separator.tsx"),
   "@sindresorhus/slugify": path.resolve(__dirname, "src/lib/mocks/slugify.ts"),
   "react-parallax-tilt": path.resolve(__dirname, "src/lib/mocks/react-parallax-tilt.tsx"),
-      "prismjs": path.resolve(__dirname, "src/lib/mocks/prismjs.ts"),
+  "prismjs": path.resolve(__dirname, "src/lib/mocks/prismjs.ts"),
+  // Refractor sometimes imports 'prismjs/components/prism-core'; map that path root to our mock dir
+  "prismjs/components": path.resolve(__dirname, "src/lib/mocks/prismjs-components"),
   "react-colorful": path.resolve(__dirname, "src/lib/mocks/react-colorful.tsx"),
   "react-simple-code-editor": path.resolve(__dirname, "src/lib/mocks/react-simple-code-editor.tsx"),
   "openai": path.resolve(__dirname, "src/lib/mocks/openai.ts"),
