@@ -1,5 +1,5 @@
-import { Providers as ClientProviders } from "@/client/providers";
 import { BuilderPage } from "@/client/pages/builder/page";
+import { ResumesPage } from "@/client/pages/dashboard/resumes/page";
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { queryClient } from "@/client/libs/query-client";
@@ -14,7 +14,7 @@ export const ResumePage = (): JSX.Element => {
   useEffect(() => {
     let active = true;
     const load = async () => {
-      if (!id) return;
+      if (!id) return; // no id -> list view handled below
       try {
         setLoading(true);
         const resume = await queryClient.fetchQuery({
@@ -25,16 +25,19 @@ export const ResumePage = (): JSX.Element => {
         useResumeStore.setState({ resume });
       } catch (e) {
         console.error("Failed to load resume", e);
-        if (active) navigate("/dashboard", { replace: true });
+        if (active) navigate("/dashboard/resumes", { replace: true });
       } finally {
         if (active) setLoading(false);
       }
     };
     void load();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [id, navigate]);
+
+  // If no id param present, show the resume list page instead of a blank builder
+  if (!id) {
+    return <ResumesPage />;
+  }
 
   return (
     <div className="h-full w-full flex flex-col">
@@ -45,9 +48,7 @@ export const ResumePage = (): JSX.Element => {
         {loading && (
           <div className="p-4 text-sm text-[#a3a3a3]">Loading…</div>
         )}
-        <ClientProviders>
-          <BuilderPage />
-        </ClientProviders>
+        <BuilderPage />
       </div>
     </div>
   );
