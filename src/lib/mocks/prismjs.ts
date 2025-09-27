@@ -1,16 +1,8 @@
-// Minimal Prism mock to satisfy refractor / prismjs consumer expectations in build.
-// Refractor tries to require('prismjs/components/prism-core') and individual language files.
-// By aliasing 'prismjs' to this file we provide just enough surface so that downstream code
-// using highlight(...) does not explode during SSR / build on Vercel.
+// Minimal Prism mock (JS compatible) to satisfy refractor / prismjs consumer expectations in build.
+// Avoid TypeScript-only constructs so Node can evaluate it if needed pre-transpile.
 
-interface PrismLike {
-  languages: Record<string, any>;
-  highlight: (code: string, grammar?: any, lang?: string) => string;
-  util: { clone: (o: any) => any };
-  plugins?: Record<string, any>;
-}
-
-const Prism: PrismLike = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const Prism: any = {
   languages: { plaintext: {}, css: {}, javascript: {}, typescript: {}, json: {} },
   highlight(code: string) {
     return code; // no-op highlight
