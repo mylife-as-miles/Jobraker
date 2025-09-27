@@ -27,6 +27,8 @@
     "db:create-core": "npm run -s db:create-job-listings; npm run -s db:create-bookmarks"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/modifiers": "^9.0.0",
     "@hookform/resolvers": "^3.3.4",
     "@lingui/core": "^4.11.3",
     "@lingui/macro": "^4.11.3",

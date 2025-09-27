@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 
 import { List as ListIcon, Search, Columns, ExternalLink, Link2, Clipboard, RefreshCw, GanttChart, Calendar as CalendarIcon } from "lucide-react";
 import { KanbanProvider, KanbanBoard, KanbanHeader, KanbanCards, KanbanCard } from "../../../components/ui/kibo-ui/kanban";
+import { ListProvider, ListGroup, ListHeader, ListItems, ListItem, type DragEndEvent as ListDragEndEvent } from "../../../components/ui/kibo-ui/list";
 import Gantt, { GanttItem } from "../../../components/ui/kibo-ui/gantt";
 import KiboCalendar, { CalendarEvent } from "../../../components/ui/kibo-ui/calendar";
 import CalendarDayDetail from "../../../components/ui/kibo-ui/CalendarDayDetail";
@@ -304,75 +305,74 @@ function ApplicationPage() {
               />
             </div>
           ) : viewMode === 'list' ? (
-            <div className="space-y-4">
-              {filtered.map(a => (
-                <div key={a.id} className="bg-white/[0.05] border border-white/10 rounded-xl p-3 hover:bg-white/[0.08] transition">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-sm flex-shrink-0">
-                      {(a.logo && a.logo.length > 1 ? a.logo : (((a.company || a.job_title || "")
-                        .toString()
-                        .split(/\s+/)
-                        .filter(Boolean)
-                        .slice(0, 2)
-                        .map((w: string) => w[0] || "")
-                        .join("") || "").toUpperCase()))}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <div className="text-white font-medium truncate">{a.job_title}</div>
-                        <span className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] border border-white/15 bg-white/10 text-white/70">
-                          {a.status}
-                        </span>
-                      </div>
-                      <div className="text-white/80 text-sm truncate">{a.company}</div>
-                      <div className="flex items-center gap-2 text-[11px] text-white/50 mt-1">
-                        <span>{new Date(a.applied_date).toLocaleDateString()}</span>
-                        <span>•</span>
-                        <span>{a.location}</span>
-                      </div>
-                    </div>
-                    <MatchScoreBadge score={a.match_score ?? 0} />
-                  </div>
-                  {(a.app_url || a.run_id || a.recording_url) && (
-                    <div className="mt-3 flex items-center gap-4 text-[11px]">
-                      {a.app_url && (
-                        <a
-                          href={a.app_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-[#1dff00] hover:underline"
-                          title="Open application"
-                          aria-label="Open application"
-                        >
-                          <ExternalLink className="w-3 h-3" /> Open
-                        </a>
-                      )}
-                      {a.run_id && (
-                        <button
-                          className="inline-flex items-center gap-1 text-white/70 hover:text-white"
-                          onClick={() => navigator.clipboard?.writeText(a.run_id!)}
-                          title="Copy run id"
-                          aria-label="Copy run id"
-                        >
-                          <Clipboard className="w-3 h-3" /> Run
-                        </button>
-                      )}
-                      {a.recording_url && (
-                        <a
-                          href={a.recording_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs inline-flex items-center gap-1 text-white/70 hover:text-white"
-                          title="Open recording"
-                          aria-label="Open recording"
-                        >
-                          <Link2 className="w-3 h-3" /> Recording
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div className="border border-white/10 rounded-xl bg-black/30 overflow-hidden">
+              <ListProvider
+                onDragEnd={async (e: ListDragEndEvent) => {
+                  const active = e.active?.data?.current as any;
+                  const over = e.over?.id as string | undefined;
+                  if (!active || !over || active.parent === over) return;
+                  const appId = active.id as string;
+                  // Move status to the group id (over)
+                  try {
+                    await update(appId, { status: over as ApplicationStatus });
+                  } catch { await refresh(); }
+                }}
+                className="divide-y divide-white/5"
+              >
+                {(['Pending','Applied','Interview','Offer','Rejected','Withdrawn'] as ApplicationStatus[]).map(status => {
+                  const rows = filtered.filter(a => a.status === status);
+                  const color = (
+                    status === 'Applied' ? '#1dff00' :
+                    status === 'Interview' ? '#F59E0B' :
+                    status === 'Offer' ? '#10B981' :
+                    status === 'Rejected' ? '#EF4444' :
+                    status === 'Withdrawn' ? '#94A3B8' : '#6B7280'
+                  );
+                  return (
+                    <ListGroup key={status} id={status} className="flex flex-col">
+                      <ListHeader name={status} color={color} className="sticky top-0 z-10 backdrop-blur supports-[backdrop-filter]:bg-black/40" />
+                      <ListItems className="p-2 sm:p-3 grid gap-2">
+                        {rows.length === 0 && (
+                          <div className="text-[11px] text-white/40 italic px-1 py-2">No {status.toLowerCase()} applications</div>
+                        )}
+                        {rows.map((a, idx) => (
+                          <ListItem key={a.id} id={a.id} name={a.job_title} index={idx} parent={status} className="group relative">
+                            <div className="flex items-center gap-3 w-full">
+                              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-[10px] sm:text-xs flex-shrink-0">
+                                {(a.logo && a.logo.length > 1 ? a.logo : (((a.company || a.job_title || '')).split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('') || '').toUpperCase())}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <div className="text-white text-sm font-medium truncate" title={a.job_title}>{a.job_title}</div>
+                                  <MatchScoreBadge score={a.match_score ?? 0} />
+                                  <span className="ml-auto hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] border border-white/15 bg-white/5 text-white/60 group-hover:border-[#1dff00]/40 group-hover:text-[#1dff00] transition">{a.status}</span>
+                                </div>
+                                <div className="text-[#ffffff80] text-[11px] sm:text-xs truncate">{a.company}</div>
+                                <div className="flex items-center gap-2 text-[10px] text-white/40 mt-1">
+                                  <span>{new Date(a.applied_date).toLocaleDateString()}</span>
+                                  {a.location && <><span>•</span><span className="truncate max-w-[120px]">{a.location}</span></>}
+                                  {a.interview_date && <><span>•</span><span className="text-[#F59E0B]">Interview {new Date(a.interview_date).toLocaleDateString()}</span></>}
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end gap-1">
+                                {a.app_url && (
+                                  <a href={a.app_url} target="_blank" rel="noreferrer" className="text-[10px] text-[#1dff00] hover:underline inline-flex items-center gap-1"><ExternalLink className="w-3 h-3" />Open</a>
+                                )}
+                                {a.run_id && (
+                                  <button onClick={()=>navigator.clipboard?.writeText(a.run_id!)} className="text-[10px] text-white/60 hover:text-white inline-flex items-center gap-1"><Clipboard className="w-3 h-3" />Run</button>
+                                )}
+                                {a.recording_url && (
+                                  <a href={a.recording_url} target="_blank" rel="noreferrer" className="text-[10px] text-white/60 hover:text-white inline-flex items-center gap-1"><Link2 className="w-3 h-3" />Rec</a>
+                                )}
+                              </div>
+                            </div>
+                          </ListItem>
+                        ))}
+                      </ListItems>
+                    </ListGroup>
+                  );
+                })}
+              </ListProvider>
             </div>
           ) : viewMode === 'calendar' ? (
             <div className="relative">
