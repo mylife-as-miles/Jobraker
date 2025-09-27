@@ -28,5 +28,14 @@ export const DndContext: React.FC<DndContextProps> = ({ children }) => {
   return <Ctx.Provider value={null}>{children}</Ctx.Provider>;
 };
 
-export const useDroppable = (_opts: { id: string }) => ({ setNodeRef: () => {} });
+export const useDroppable = (_opts: { id: string }) => ({ setNodeRef: () => {}, isOver: false });
+export const useDraggable = (_opts: { id: string; data?: any }) => ({
+  attributes: {},
+  listeners: {},
+  setNodeRef: () => {},
+  transform: null,
+  isDragging: false,
+});
+export const rectIntersection = () => null as any;
+export const restrictToVerticalAxis = () => null as any;
 export const DragOverlay: React.FC<React.PropsWithChildren> = ({ children }) => <>{children}</>;

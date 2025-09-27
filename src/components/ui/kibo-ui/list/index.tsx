@@ -1,12 +1,7 @@
 "use client";
 
-import {
-  DndContext,
-  type DragEndEvent,
-  rectIntersection,
-  useDraggable,
-  useDroppable,
-} from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import { DndContext, rectIntersection, useDraggable, useDroppable } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import type { ReactNode } from "react";
 // Local minimal classNames utility (mirrors usage pattern elsewhere)
@@ -17,7 +12,6 @@ function cn(...classes: Array<any>) {
     .join(" ");
 }
 
-export type { DragEndEvent } from "@dnd-kit/core";
 
 type Status = {
   id: string;
