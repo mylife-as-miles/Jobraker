@@ -8,12 +8,13 @@ import { Input } from "../../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { useToast } from "../../../components/ui/toast-provider";
 
-import { LayoutGrid, List as ListIcon, Search, Columns, ExternalLink, Link2, Clipboard, AlertCircle, RefreshCw } from "lucide-react";
+import { LayoutGrid, List as ListIcon, Search, Columns, ExternalLink, Link2, Clipboard, RefreshCw } from "lucide-react";
 import { KanbanProvider, KanbanBoard, KanbanHeader, KanbanCards, KanbanCard } from "../../../components/ui/kibo-ui/kanban";
+import Roadmap, { RoadmapColumn, RoadmapGroup, RoadmapItem } from '../../../components/ui/kibo-ui/roadmap';
 
 function ApplicationPage() {
   const { applications, exportCSV, update, refresh } = useApplications();
-  const { error: toastError } = useToast();
+  useToast();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<"All" | ApplicationStatus>("All");
@@ -81,19 +82,69 @@ function ApplicationPage() {
     return list;
   }, [applications, searchQuery, selectedStatus, sortBy]);
 
+  // Roadmap / status distribution (design-only enhancement)
+  const statusOrder: ApplicationStatus[] = ["Pending", "Applied", "Interview", "Offer", "Rejected", "Withdrawn"]; // stable order
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const s of statusOrder) counts[s] = 0;
+    for (const a of applications) if (counts[a.status] != null) counts[a.status]++;
+    return counts;
+  }, [applications]);
+  const total = applications.length || 1;
+  const statusColors: Record<ApplicationStatus, { base: string; fg: string; ring: string }> = {
+    Pending:   { base: 'from-zinc-700/50 via-zinc-800/60 to-zinc-900/60', fg: 'text-zinc-200', ring: 'ring-zinc-400/30' },
+    Applied:   { base: 'from-emerald-500/30 via-emerald-600/25 to-emerald-900/40', fg: 'text-emerald-100', ring: 'ring-emerald-400/40' },
+    Interview: { base: 'from-amber-400/35 via-amber-500/25 to-amber-900/40', fg: 'text-amber-100', ring: 'ring-amber-400/40' },
+    Offer:     { base: 'from-lime-400/40 via-lime-500/30 to-emerald-900/40', fg: 'text-lime-100', ring: 'ring-lime-300/40' },
+    Rejected:  { base: 'from-rose-500/35 via-rose-600/25 to-rose-900/40', fg: 'text-rose-100', ring: 'ring-rose-400/40' },
+    Withdrawn: { base: 'from-slate-500/30 via-slate-600/25 to-slate-900/40', fg: 'text-slate-200', ring: 'ring-slate-400/30' },
+  };
+  const percent = (s: ApplicationStatus) => (statusCounts[s] / total) * 100;
+
+  const SHOW_ROADMAP = true; // toggle integration
+
   return (
-    <div className="space-y-6 sm:space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white flex items-center gap-3">
-          <span className="bg-gradient-to-r from-white to-[#1dff00] bg-clip-text text-transparent">Applications</span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-white/20 px-2 py-0.5 text-[10px] text-white/70">
-            {filtered.length} results
-          </span>
-        </h1>
-        <div className="flex items-center gap-2">
+    <div className="space-y-7 sm:space-y-9">
+      {/* Heading + actions */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight bg-gradient-to-r from-white via-white to-[#1dff00] bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(29,255,0,0.25)]">Applications</h1>
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] text-white/70 backdrop-blur-sm">
+              {filtered.length} results
+            </span>
+          </div>
+          {/* Roadmap style distribution bar */}
+          <div className="flex flex-col gap-2">
+            <div className="relative h-3 w-full overflow-hidden rounded-full bg-gradient-to-r from-white/5 via-white/10 to-white/5 ring-1 ring-white/10">
+              <div className="absolute inset-0 flex">
+                {statusOrder.map(s => (
+                  <div
+                    key={s}
+                    className={`h-full transition-all duration-500 ease-out bg-gradient-to-tr ${statusColors[s].base} ${percent(s)===0 ? 'opacity-0' : 'opacity-90'} hover:opacity-100`}
+                    style={{ width: percent(s)+ '%' }}
+                    title={`${s}: ${statusCounts[s]} (${percent(s).toFixed(1)}%)`}
+                    aria-label={`${s} ${statusCounts[s]} applications`}
+                  />
+                ))}
+              </div>
+              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent)] mix-blend-overlay" />
+            </div>
+            <div className="flex flex-wrap gap-2 text-[10px] text-white/60">
+              {statusOrder.map(s => (
+                <span key={s} className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 border border-white/10">
+                  <span className={`h-1.5 w-1.5 rounded-full bg-gradient-to-tr ${statusColors[s].base.replace(/\s.*$/, '')} brightness-125`} />
+                  {s}
+                  <span className="text-white/40">{statusCounts[s]}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 self-end md:self-start">
           <Button
             variant="outline"
-            className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
+            className="border-white/20 bg-white/[0.04] text-white hover:bg-white/10 hover:border-[#1dff00]/40 transition-colors"
             onClick={exportCSV}
             title="Export as CSV"
           >
@@ -101,7 +152,7 @@ function ApplicationPage() {
           </Button>
           <Button
             variant="outline"
-            className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
+            className="border-white/20 bg-white/[0.04] text-white hover:bg-white/10 hover:border-[#1dff00]/40 transition-colors"
             onClick={() => refresh()}
             title="Refresh applications"
           >
@@ -111,7 +162,8 @@ function ApplicationPage() {
       </div>
 
       {/* Toolbar */}
-      <Card className="bg-gradient-to-br from-white/[0.04] via-white/[0.06] to-white/[0.03] border border-white/[0.12] backdrop-blur-xl p-4 sm:p-6 rounded-xl shadow-[0_0_0_1px_rgba(29,255,0,0.05)]">
+      <Card className="relative overflow-hidden bg-gradient-to-br from-white/[0.05] via-white/[0.09] to-white/[0.03] border border-white/[0.12] backdrop-blur-xl p-4 sm:p-6 rounded-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_4px_28px_-8px_rgba(0,0,0,0.55)]">
+        <div className="pointer-events-none absolute inset-0 opacity-60 [mask-image:radial-gradient(circle_at_25%_20%,black,transparent_70%)] bg-[conic-gradient(from_160deg,rgba(29,255,0,0.15),rgba(10,130,70,0.05),transparent_65%)]" />
         <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="flex-1 relative">
@@ -120,38 +172,38 @@ function ApplicationPage() {
                 placeholder="Search applications..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-white/[0.10] border-white/30 text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d]"
+                className="pl-10 bg-white/[0.08] border-white/25 text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00]/50 hover:border-[#1dff00]/40 transition-colors"
               />
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
-                <SelectTrigger className="w-[170px] bg-white/[0.10] border-white/30 text-white">
+                <SelectTrigger className="w-[170px] bg-white/[0.08] border-white/25 text-white focus:border-[#1dff00] focus:ring-[#1dff00]/40">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
-                <SelectContent className="bg-black text-white border-white/30">
+                <SelectContent className="bg-black/95 backdrop-blur-md text-white border-white/20 shadow-lg">
                   <SelectItem value="score">Best match</SelectItem>
                   <SelectItem value="recent">Most recent</SelectItem>
                   <SelectItem value="company">Company</SelectItem>
                   <SelectItem value="status">Status</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="inline-flex rounded-lg border border-white/20 overflow-hidden">
+              <div className="inline-flex rounded-lg border border-white/20 overflow-hidden bg-white/5 backdrop-blur-sm">
                 <button
-                  className={`px-3 py-2 text-sm text-white/80 hover:text-white transition ${viewMode==='grid' ? 'bg-white/15' : ''}`}
+                  className={`px-3 py-2 text-sm text-white/80 hover:text-white transition ${viewMode==='grid' ? 'bg-[#1dff00]/20 text-[#1dff00]' : ''}`}
                   title="Grid view"
                   onClick={() => setViewMode('grid')}
                 >
                   <LayoutGrid className="w-4 h-4" />
                 </button>
                 <button
-                  className={`px-3 py-2 text-sm text-white/80 hover:text-white transition border-l border-white/15 ${viewMode==='list' ? 'bg-white/15' : ''}`}
+                  className={`px-3 py-2 text-sm text-white/80 hover:text-white transition border-l border-white/15 ${viewMode==='list' ? 'bg-[#1dff00]/20 text-[#1dff00]' : ''}`}
                   title="List view"
                   onClick={() => setViewMode('list')}
                 >
                   <ListIcon className="w-4 h-4" />
                 </button>
                 <button
-                  className={`px-3 py-2 text-sm text-white/80 hover:text-white transition border-l border-white/15 ${viewMode==='kanban' ? 'bg-white/15' : ''}`}
+                  className={`px-3 py-2 text-sm text-white/80 hover:text-white transition border-l border-white/15 ${viewMode==='kanban' ? 'bg-[#1dff00]/20 text-[#1dff00]' : ''}`}
                   title="Kanban view"
                   onClick={() => setViewMode('kanban')}
                 >
@@ -167,7 +219,7 @@ function ApplicationPage() {
                 size="sm"
                 variant="ghost"
                 onClick={() => setSelectedStatus(s)}
-                className={`m-1 text-xs sm:text-sm rounded-full ${selectedStatus===s ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90' : 'text-white hover:text-white hover:bg-white/15'}`}
+                className={`m-1 text-xs sm:text-sm rounded-full relative overflow-hidden ${selectedStatus===s ? 'bg-[#1dff00] text-black ring-1 ring-[#1dff00]/60 shadow-[0_0_0_1px_rgba(29,255,0,0.3),0_4px_22px_-6px_rgba(29,255,0,0.45)]' : 'text-white hover:text-white hover:bg-white/10'} transition-all`}
               >
                 {s}
               </Button>
@@ -179,6 +231,39 @@ function ApplicationPage() {
       {/* Content */}
       <Card className="bg-transparent border-none shadow-none">
         <CardContent className="p-0">
+          {SHOW_ROADMAP && (
+            <div className="mb-10 mt-2 rounded-2xl border border-white/10 bg-white/[0.02] p-5 backdrop-blur-xl">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold tracking-wide text-white/80 flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#1dff00] animate-pulse" /> Roadmap Preview
+                </h2>
+                <span className="text-[10px] text-white/40">Design scaffold</span>
+              </div>
+              <Roadmap condensed columns={[{id:'now',label:'Now'},{id:'next',label:'Next'},{id:'later',label:'Later'}]} className="mt-2">
+                <RoadmapColumn id="now" label="Now" description="Active focus">
+                  <RoadmapGroup label="Platform" collapsible defaultOpen>
+                    <RoadmapItem title="Application distribution bar" status="done" progress={100} tags={['ui','analytics']} description="Visual aggregate of statuses using animated stacked segments." />
+                    <RoadmapItem title="Enhanced cards" status="in-progress" progress={70} tags={['design']} description="Gradient shells, depth, consistent typography, hover accent ring." />
+                  </RoadmapGroup>
+                  <RoadmapGroup label="Performance" collapsible defaultOpen>
+                    <RoadmapItem title="List virtualization" status="planned" tags={['perf']} description="Window large result sets to reduce layout + paint cost." />
+                  </RoadmapGroup>
+                </RoadmapColumn>
+                <RoadmapColumn id="next" label="Next" description="Near-term">
+                  <RoadmapGroup label="Insights" collapsible defaultOpen>
+                    <RoadmapItem title="Time-to-stage metrics" status="planned" tags={['metrics']} description="Derive average days between stages and sparkline trends." />
+                    <RoadmapItem title="Status forecasting" status="planned" tags={['ml','predict']} description="Heuristic scoring predicting chance of advancing to next stage." />
+                  </RoadmapGroup>
+                </RoadmapColumn>
+                <RoadmapColumn id="later" label="Later" description="Exploratory">
+                  <RoadmapGroup label="Collaboration" collapsible defaultOpen>
+                    <RoadmapItem title="Shared workspace" status="blocked" tags={['team']} description="Invite collaborators to comment + propose edits." />
+                    <RoadmapItem title="Change history" status="planned" tags={['audit']} description="Stage transitions with diff + timeline view." />
+                  </RoadmapGroup>
+                </RoadmapColumn>
+              </Roadmap>
+            </div>
+          )}
           {applications.length === 0 && !searchQuery && selectedStatus === 'All' && (
             <div className="border border-white/15 bg-black/30 rounded-xl p-8 text-center text-[#ffffffb3]">
               <div className="mx-auto w-12 h-12 rounded-full bg-[#1dff00]/15 grid place-items-center mb-4">
@@ -194,13 +279,14 @@ function ApplicationPage() {
             </div>
           )}
           {viewMode !== 'kanban' ? (
-          <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4" : "space-y-3"}>
+          <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5" : "space-y-4"}>
             {filtered.map((a) => (
               <div key={a.id} className={viewMode === 'grid' ?
-                "group bg-black/30 border border-white/15 rounded-xl p-4 hover:border-[#1dff00]/40 hover:shadow-[0_0_0_1px_rgba(29,255,0,0.15)] transition-all" :
-                "group bg-black/30 border border-white/15 rounded-xl p-3 hover:border-[#1dff00]/40 hover:shadow-[0_0_0_1px_rgba(29,255,0,0.15)] transition-all"}>
+                "group relative bg-gradient-to-br from-white/[0.05] via-white/[0.06] to-white/[0.04] border border-white/10 rounded-2xl p-4 hover:border-[#1dff00]/50 hover:shadow-[0_0_0_1px_rgba(29,255,0,0.35),0_6px_28px_-6px_rgba(0,0,0,0.55)] transition-all overflow-hidden" :
+                "group relative bg-gradient-to-br from-white/[0.05] via-white/[0.06] to-white/[0.04] border border-white/10 rounded-2xl p-3 hover:border-[#1dff00]/50 hover:shadow-[0_0_0_1px_rgba(29,255,0,0.35),0_6px_28px_-6px_rgba(0,0,0,0.55)] transition-all overflow-hidden"}>
+                <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-[radial-gradient(circle_at_75%_20%,rgba(29,255,0,0.25),transparent_60%)]" />
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-sm flex-shrink-0 overflow-hidden">
+                  <div className="w-11 h-11 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-sm flex-shrink-0 overflow-hidden ring-2 ring-[#1dff00]/40 shadow-[0_4px_18px_-4px_rgba(29,255,0,0.5)]">
                     {/* Show initials if not a URL or image; keep simple */}
                     <span className="select-none">
                       {(a.logo && a.logo.length > 1 ? a.logo : (((a.company || a.job_title || "")
@@ -213,14 +299,16 @@ function ApplicationPage() {
                     </span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className="text-white font-medium truncate">{a.job_title}</div>
-                      <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-white/20 px-2 py-0.5 text-[10px] text-white/70">
+                    <div className="flex items-start gap-2">
+                      <div className="text-white font-medium truncate leading-tight">
+                        {a.job_title}
+                      </div>
+                      <span className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide border border-white/15 bg-white/5 text-white/70 backdrop-blur-sm">
                         {a.status}
                       </span>
                     </div>
-                    <div className="text-[#ffffff80] text-sm truncate">{a.company}</div>
-                    <div className="flex items-center gap-2 text-xs text-[#ffffff60] mt-1">
+                    <div className="text-[#ffffffb0] text-sm truncate font-medium">{a.company}</div>
+                    <div className="flex items-center gap-2 text-[11px] text-[#ffffff60] mt-1">
                       <span>{new Date(a.applied_date).toLocaleDateString()}</span>
                       <span>•</span>
                       <span>{a.location}</span>
@@ -229,13 +317,13 @@ function ApplicationPage() {
                   <MatchScoreBadge score={a.match_score ?? 0} />
                 </div>
                 {(a.app_url || a.run_id || a.recording_url) && (
-                  <div className="mt-2 flex items-center gap-3">
+                  <div className="mt-3 flex items-center gap-4 text-[11px]">
                     {a.app_url && (
                       <a
                         href={a.app_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs inline-flex items-center gap-1 text-[#1dff00] hover:underline"
+                        className="inline-flex items-center gap-1 text-[#1dff00] hover:underline"
                         title="Open application"
                         aria-label="Open application"
                       >
@@ -244,7 +332,7 @@ function ApplicationPage() {
                     )}
                     {a.run_id && (
                       <button
-                        className="text-xs inline-flex items-center gap-1 text-[#ffffff99] hover:text-white"
+                        className="inline-flex items-center gap-1 text-[#ffffff99] hover:text-white"
                         onClick={() => navigator.clipboard?.writeText(a.run_id!)}
                         title="Copy run id"
                         aria-label="Copy run id"
@@ -286,9 +374,7 @@ function ApplicationPage() {
                 if (rec.status === toColumn) return;
                 try {
                   await update(id, { status: toColumn as ApplicationStatus });
-                } catch (e) {
-                  // useApplications.update already toasts and refreshes, but add a subtle note
-                  toastError?.("Move failed", (e as any)?.message ?? "");
+                } catch {
                   await refresh();
                 }
               }}
@@ -321,38 +407,6 @@ function ApplicationPage() {
                           <span>{new Date(a.applied_date).toLocaleDateString()}</span>
                           <span>•</span>
                           <span>{a.location}</span>
-                          {a.provider_status && (
-                            <span className="ml-auto inline-flex items-center gap-1 rounded px-1.5 py-0.5 border border-[#ffffff22] text-[10px] text-[#ffffffa0]">
-                              <span className={`h-1.5 w-1.5 rounded-full ${a.provider_status.match(/succeed|complete/i) ? 'bg-[#1dff00]' : a.provider_status.match(/fail|error|cancel/i) ? 'bg-[#ef4444]' : 'bg-[#f59e0b]'}`} />
-                              {a.provider_status}
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-2 flex items-center gap-2">
-                          {a.app_url && (
-                            <a href={a.app_url} target="_blank" rel="noreferrer" className="text-xs inline-flex items-center gap-1 text-[#1dff00] hover:underline">
-                              <ExternalLink className="w-3 h-3" /> Open app
-                            </a>
-                          )}
-                          {a.run_id && (
-                            <button
-                              className="text-xs inline-flex items-center gap-1 text-[#ffffff99] hover:text-white"
-                              onClick={() => navigator.clipboard?.writeText(a.run_id!)}
-                              title="Copy run id"
-                            >
-                              <Clipboard className="w-3 h-3" /> Run
-                            </button>
-                          )}
-                          {a.recording_url && (
-                            <a href={a.recording_url} target="_blank" rel="noreferrer" className="text-xs inline-flex items-center gap-1 text-[#ffffff99] hover:text-white">
-                              <Link2 className="w-3 h-3" /> Recording
-                            </a>
-                          )}
-                          {a.failure_reason && (
-                            <span className="ml-auto text-[10px] inline-flex items-center gap-1 text-[#ef4444]" title={a.failure_reason}>
-                              <AlertCircle className="w-3 h-3" /> Failed
-                            </span>
-                          )}
                         </div>
                       </KanbanCard>
                     )}
