@@ -112,6 +112,12 @@ function ApplicationPage() {
     return list;
   }, [applications, searchQuery, selectedStatus, sortBy]);
 
+  // Expose update for inline table editing (scoped simple bridge) - cleaned on unmount
+  useEffect(() => {
+    (window as any).__apps_update = update;
+    return () => { try { delete (window as any).__apps_update; } catch {} };
+  }, [update]);
+
   // Calendar events (Overview style): one per application using interview date if present else applied date
   const calendarEvents: CalendarEvent[] = useMemo(() => {
     return filtered.map(a => {
@@ -549,6 +555,13 @@ interface ApplicationsTableProps {
 
 function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
   type ApplicationRow = typeof data[number];
+  const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  // Pull update fn via hook avoidance: pass through window global? Simpler: reuse useApplications? Instead we rely on outer closure? We'll attach to (window as any) temporary if needed.
+  // Since this component is defined inside the same file as ApplicationPage, it has access to nothing from parent.
+  // We'll accept mutation through a custom event dispatched by parent for decoupling; simpler: we can attach updater on window in ApplicationPage before definition.
+  // For brevity & low risk, we'll look for a global set by parent: (window as any).__apps_update.
+
   const columns = useMemo<ColumnDef<ApplicationRow, any>[]>(() => [
     {
       id: 'title',
@@ -565,7 +578,49 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
       id: 'status',
       header: ({ column }) => <TableColumnHeader column={column} title="Status" />,
       accessorKey: 'status',
-      cell: info => <span className="text-[11px] font-medium text-white/70">{info.getValue() as string}</span>,
+      cell: info => {
+        const row = info.row.original as ApplicationRow & { id: string };
+        const value = info.getValue() as string;
+        const isEditing = editingStatusId === row.id;
+        const selectableStatuses: ApplicationStatus[] = ['Pending','Applied','Interview','Offer','Rejected','Withdrawn'];
+        return (
+          <div className="relative">
+            {!isEditing && (
+              <button
+                type="button"
+                onClick={() => setEditingStatusId(row.id)}
+                className="inline-flex items-center rounded-full bg-white/5 hover:bg-white/10 border border-white/10 px-2 py-0.5 text-[10px] font-medium text-white/70 focus:outline-none focus:ring-1 focus:ring-[#1dff00]/40"
+              >{value}</button>
+            )}
+            {isEditing && (
+              <div className="absolute z-30 top-0 left-0 min-w-[120px] rounded-md border border-white/15 bg-black/80 backdrop-blur p-2 shadow-lg flex flex-col gap-1">
+                {selectableStatuses.map(s => (
+                  <button
+                    key={s}
+                    disabled={busyId === row.id || s === value}
+                    onClick={async () => {
+                      if (s === value) { setEditingStatusId(null); return; }
+                      try {
+                        setBusyId(row.id);
+                        const updater = (window as any).__apps_update as undefined | ((id: string, patch: any)=>Promise<any>);
+                        if (updater) await updater(row.id, { status: s });
+                      } finally {
+                        setBusyId(null);
+                        setEditingStatusId(null);
+                      }
+                    }}
+                    className={`text-left text-[11px] px-2 py-1 rounded-md border border-transparent hover:border-white/10 hover:bg-white/5 ${s===value ? 'bg-[#1dff00]/20 text-[#1dff00] font-semibold' : 'text-white/70'}`}
+                  >{s}</button>
+                ))}
+                <button
+                  onClick={() => setEditingStatusId(null)}
+                  className="mt-1 w-full text-center text-[10px] text-white/40 hover:text-white/70"
+                >Cancel</button>
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       id: 'applied',
