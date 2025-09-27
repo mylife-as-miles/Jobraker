@@ -47,23 +47,32 @@ export const Gantt: React.FC<GanttProps> = ({
   };
 
   const valid = items.filter(i => i.start instanceof Date && !isNaN(i.start.getTime()) && i.end instanceof Date && !isNaN(i.end.getTime()) && i.end >= i.start);
-  if (valid.length === 0) return <div className="text-xs text-white/50">No timeline data.</div>;
 
-  let min = dateRange?.start ?? valid.reduce((a,i)=> i.start < a ? i.start : a, valid[0].start);
-  let max = dateRange?.end ?? valid.reduce((a,i)=> i.end > a ? i.end : a, valid[0].end);
-  if (min.getTime() === max.getTime()) {
-    max = new Date(min.getTime() + 24*3600*1000);
+  // Derive timeline boundaries only if we have data
+  let min: Date | null = null;
+  let max: Date | null = null;
+  if (valid.length) {
+    min = dateRange?.start ?? valid.reduce((a,i)=> i.start < a ? i.start : a, valid[0].start);
+    max = dateRange?.end ?? valid.reduce((a,i)=> i.end > a ? i.end : a, valid[0].end);
+    if (min.getTime() === max.getTime()) {
+      max = new Date(min.getTime() + 24*3600*1000);
+    }
   }
 
-  const totalDays = Math.max(1, Math.ceil((max.getTime() - min.getTime()) / (24*3600*1000)));
+  const totalDays = min && max ? Math.max(1, Math.ceil((max.getTime() - min.getTime()) / (24*3600*1000))) : 1;
   const tierWidths = [10, 18, 28, 42, 64]; // increasingly wider per day
   const autoDayWidth = dayWidth ?? tierWidths[zoom] ?? 28;
   const timelineWidth = totalDays * autoDayWidth;
 
   const gridDays: Date[] = [];
-  for (let d = 0; d <= totalDays; d++) gridDays.push(new Date(min.getTime() + d*24*3600*1000));
+  if (min) {
+    for (let d = 0; d <= totalDays; d++) gridDays.push(new Date(min.getTime() + d*24*3600*1000));
+  }
 
-  const percent = (date: Date) => (date.getTime() - min.getTime()) / (max.getTime() - min.getTime());
+  const percent = (date: Date) => {
+    if (!min || !max) return 0;
+    return (date.getTime() - min.getTime()) / (max.getTime() - min.getTime());
+  };
 
   // Grouping
   const groups = React.useMemo(() => {
@@ -77,8 +86,8 @@ export const Gantt: React.FC<GanttProps> = ({
     return Array.from(map.entries()).map(([key, rows]) => ({ key, label: key, rows }));
   }, [valid, groupBy]);
 
-  const todayPercent = showToday ? percent(new Date()) : null;
-  const showTodayMarker = showToday && todayPercent! >= 0 && todayPercent! <= 1;
+  const todayPercent = showToday && min && max ? percent(new Date()) : null;
+  const showTodayMarker = showToday && todayPercent != null && todayPercent >= 0 && todayPercent <= 1;
 
   return (
     <div className={"relative w-full overflow-auto rounded-lg border border-white/10 bg-white/[0.03] " + className} style={{ WebkitOverflowScrolling: 'touch' }}>
@@ -93,20 +102,25 @@ export const Gantt: React.FC<GanttProps> = ({
               <button aria-label="Zoom in" className="h-5 w-5 rounded bg-white/10 text-white/60 hover:text-white hover:bg-white/20 text-[10px]" onClick={() => setZoom(zoom+1)}>+</button>
             </div>
           </div>
-          <div className="relative" style={{ width: timelineWidth }}>
-            <div className="flex text-[10px] font-medium text-white/50 select-none">
-              {gridDays.map((d,i) => (
-                <div key={i} style={{ width: autoDayWidth }} className="py-1 text-center border-r border-white/5 last:border-r-0">
-                  {d.toLocaleDateString(undefined,{ month:'short', day:'numeric' })}
-                </div>
-              ))}
+          {min && max ? (
+            <div className="relative" style={{ width: timelineWidth }}>
+              <div className="flex text-[10px] font-medium text-white/50 select-none">
+                {gridDays.map((d,i) => (
+                  <div key={i} style={{ width: autoDayWidth }} className="py-1 text-center border-r border-white/5 last:border-r-0">
+                    {d.toLocaleDateString(undefined,{ month:'short', day:'numeric' })}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex-1 flex items-center px-3 text-[11px] text-white/40">No data</div>
+          )}
         </div>
       </div>
-      <div className="relative" style={{ width: timelineWidth + 48 }}>
+      <div className="relative" style={{ width: (min && max ? timelineWidth : 0) + 48 }}>
         <div className="absolute inset-y-0 left-48 w-px bg-white/10" />
         {/* vertical grid beyond label gutter */}
+        {min && max && (
         <div className="absolute inset-y-0 left-48 right-0 pointer-events-none select-none">
           <div className="flex h-full w-full">
             {gridDays.map((_,i) => (
@@ -120,8 +134,12 @@ export const Gantt: React.FC<GanttProps> = ({
             </div>
           )}
         </div>
+        )}
         <div className="relative">
-          {groups.map(g => (
+          {valid.length === 0 && (
+            <div className="p-4 text-xs text-white/50">No timeline data.</div>
+          )}
+          {valid.length > 0 && groups.map(g => (
             <div key={g.key} className="relative">
               {groups.length > 1 && (
                 <div className="sticky left-0 z-10 w-48 bg-black/30 backdrop-blur-sm border-r border-white/10 py-1 px-2 text-[11px] font-medium text-white/70">
