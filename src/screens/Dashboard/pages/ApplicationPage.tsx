@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 
 import { List as ListIcon, Search, Columns, ExternalLink, Link2, Clipboard, RefreshCw, GanttChart } from "lucide-react";
 import { KanbanProvider, KanbanBoard, KanbanHeader, KanbanCards, KanbanCard } from "../../../components/ui/kibo-ui/kanban";
-import Gantt from "../../../components/ui/kibo-ui/gantt";
+import Gantt, { GanttItem } from "../../../components/ui/kibo-ui/gantt";
 
 function ApplicationPage() {
   const { applications, exportCSV, update, refresh } = useApplications();
@@ -18,6 +18,8 @@ function ApplicationPage() {
   const [selectedStatus, setSelectedStatus] = useState<"All" | ApplicationStatus>("All");
   const [sortBy, setSortBy] = useState<"score" | "recent" | "company" | "status">("score");
   const [viewMode, setViewMode] = useState<"gantt" | "list" | "kanban">("gantt");
+  const [ganttZoom, setGanttZoom] = useState(1);
+  const [showFuture, setShowFuture] = useState(true);
 
   // Restore preferences on mount
   useEffect(() => {
@@ -142,7 +144,7 @@ function ApplicationPage() {
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 -m-1">
+          <div className="flex flex-wrap gap-2 -m-1 items-center">
             {(["All", "Pending", "Applied", "Interview", "Offer", "Rejected", "Withdrawn"] as const).map((s) => (
               <Button
                 key={s}
@@ -154,6 +156,14 @@ function ApplicationPage() {
                 {s}
               </Button>
             ))}
+            {viewMode === 'gantt' && (
+              <div className="m-1 flex items-center gap-2 text-[10px] text-white/60 border-l border-white/10 pl-3">
+                <label className="inline-flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" className="accent-[#1dff00]" checked={showFuture} onChange={e => setShowFuture(e.target.checked)} />
+                  <span>Extend active bars to today</span>
+                </label>
+              </div>
+            )}
           </div>
         </div>
       </Card>
@@ -186,14 +196,39 @@ function ApplicationPage() {
                 <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#94a3b8] to-[#334155]" /> Withdrawn</span>
               </div>
               <Gantt
-                items={filtered.map(a => ({
-                  id: a.id,
-                  label: a.job_title || a.company || 'Untitled',
-                  start: new Date(a.applied_date),
-                  end: new Date(a.updated_at || a.applied_date || Date.now()),
-                  status: a.status,
-                  extra: a.company
-                }))}
+                zoom={ganttZoom}
+                onZoomChange={setGanttZoom}
+                showToday
+                groupBy={(item) => item.status}
+                items={filtered.map<GanttItem>(a => {
+                  const applied = new Date(a.applied_date);
+                  const updated = new Date(a.updated_at || a.applied_date || Date.now());
+                  // Active statuses extend to today optionally
+                  const activeStatuses: ApplicationStatus[] = ['Pending','Applied','Interview'];
+                  let end: Date;
+                  if (activeStatuses.includes(a.status) && showFuture) {
+                    end = new Date();
+                  } else if (a.interview_date && a.status === 'Interview') {
+                    const idate = new Date(a.interview_date);
+                    end = idate > applied ? idate : updated;
+                  } else {
+                    end = updated > applied ? updated : new Date(applied.getTime() + 24*3600*1000);
+                  }
+                  // Ensure minimum visual length (add ~6h if same day)
+                  if (end.getTime() === applied.getTime()) {
+                    end = new Date(end.getTime() + 6*3600*1000);
+                  }
+                  return {
+                    id: a.id,
+                    label: a.job_title || a.company || 'Untitled',
+                    start: applied,
+                    end,
+                    status: a.status,
+                    extra: a.company,
+                    groupKey: a.status,
+                    raw: a,
+                  };
+                })}
                 renderLabel={(item: any) => (
                   <div className="flex flex-col truncate">
                     <span className="truncate font-medium text-white/80 text-xs">{item.label}</span>
