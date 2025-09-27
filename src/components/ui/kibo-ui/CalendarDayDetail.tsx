@@ -12,16 +12,12 @@ export interface CalendarDayDetailProps {
   applications: ApplicationRecord[];
   onUpdateApplication?: (id: string, patch: Partial<ApplicationRecord>) => Promise<void> | void;
   onCreateApplication?: (input: Partial<ApplicationRecord> & { job_title: string; company: string }) => Promise<any> | any;
-  /** Optional externally controlled active status filters. When provided, internal toggle state syncs to it. */
-  activeStatusFilters?: string[];
-  /** Callback when internal status set changes (only fires if controlled prop present or consumer wants sync). */
-  onActiveStatusFiltersChange?: (statuses: string[]) => void;
 }
 
 
 const ALL_STATUSES: ApplicationRecord['status'][] = ["Pending","Applied","Interview","Offer","Rejected","Withdrawn"];
 
-export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, range, onClose, applications, onUpdateApplication, onCreateApplication, activeStatusFilters, onActiveStatusFiltersChange }) => {
+export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, range, onClose, applications, onUpdateApplication, onCreateApplication }) => {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const [activeStatuses, setActiveStatuses] = useState<Record<string, boolean>>(() => Object.fromEntries(ALL_STATUSES.map(s => [s, true])));
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
@@ -32,17 +28,11 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
   const [qaSaving, setQaSaving] = useState(false);
 
   const toggleStatus = (s: string) => {
-    setActiveStatuses(prev => {
-      const next = { ...prev, [s]: !prev[s] };
-      const activeList = ALL_STATUSES.filter(st => next[st] !== false);
-      onActiveStatusFiltersChange?.(activeList);
-      return next;
-    });
+    setActiveStatuses(prev => ({ ...prev, [s]: !prev[s] }));
   };
 
-  // Load persisted filters only if uncontrolled
+  // Load persisted filters
   useEffect(() => {
-    if (activeStatusFilters) return; // controlled; skip load
     try {
       const raw = localStorage.getItem('calendar_day_filters');
       if (raw) {
@@ -50,13 +40,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
         if (parsed && typeof parsed === 'object') setActiveStatuses(parsed);
       }
     } catch {}
-  }, [activeStatusFilters]);
-
-  // Controlled prop sync -> internal
-  useEffect(() => {
-    if (!activeStatusFilters) return;
-    setActiveStatuses(Object.fromEntries(ALL_STATUSES.map(s => [s, activeStatusFilters.includes(s)])) as any);
-  }, [activeStatusFilters]);
+  }, []);
 
   useEffect(() => {
     // Reset ephemeral UI when date changes
@@ -64,11 +48,10 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
     setQuickAddOpen(false);
   }, [date]);
 
-  // Persist filters when they change only if uncontrolled
+  // Persist filters when they change
   useEffect(() => {
-    if (activeStatusFilters) return; // don't persist controlled
     try { localStorage.setItem('calendar_day_filters', JSON.stringify(activeStatuses)); } catch {}
-  }, [activeStatuses, activeStatusFilters]);
+  }, [activeStatuses]);
 
   const active = !!date || !!range;
   useEffect(() => {
