@@ -7,9 +7,10 @@ import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 
-import { List as ListIcon, Search, Columns, ExternalLink, Link2, Clipboard, RefreshCw, GanttChart, Calendar as CalendarIcon } from "lucide-react";
+import { List as ListIcon, Search, Columns, ExternalLink, Link2, Clipboard, RefreshCw, GanttChart, Calendar as CalendarIcon, Table as TableIcon } from "lucide-react";
 import { KanbanProvider, KanbanBoard, KanbanHeader, KanbanCards, KanbanCard } from "../../../components/ui/kibo-ui/kanban";
 import { ListProvider, ListGroup, ListHeader, ListItems, ListItem, type DragEndEvent as ListDragEndEvent } from "../../../components/ui/kibo-ui/list";
+import { TableProvider, TableHeader as KTableHeader, TableHeaderGroup, TableHead as KTableHead, TableColumnHeader, TableBody as KTableBody, TableRow as KTableRow, TableCell as KTableCell, type ColumnDef } from "../../../components/ui/kibo-ui/table";
 import Gantt, { GanttItem } from "../../../components/ui/kibo-ui/gantt";
 import KiboCalendar, { CalendarEvent } from "../../../components/ui/kibo-ui/calendar";
 import CalendarDayDetail from "../../../components/ui/kibo-ui/CalendarDayDetail";
@@ -21,7 +22,7 @@ function ApplicationPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<"All" | ApplicationStatus>("All");
   const [sortBy, setSortBy] = useState<"score" | "recent" | "company" | "status">("score");
-  const [viewMode, setViewMode] = useState<"gantt" | "list" | "kanban" | "calendar">("gantt");
+  const [viewMode, setViewMode] = useState<"gantt" | "list" | "kanban" | "calendar" | "table">("gantt");
   const [ganttZoom, setGanttZoom] = useState(() => {
     const z = Number(localStorage.getItem('jr.apps.gantt.zoom') || '1');
     return Number.isFinite(z) ? Math.min(4, Math.max(0, z)) : 1;
@@ -40,13 +41,13 @@ function ApplicationPage() {
       const qsView = u.searchParams.get('view');
       if (qsStatus && ["All","Pending","Applied","Interview","Offer","Rejected","Withdrawn"].includes(qsStatus)) setSelectedStatus(qsStatus as any);
       if (typeof qsQuery === 'string' && qsQuery.length) setSearchQuery(qsQuery);
-  if (qsView && (qsView === 'gantt' || qsView === 'list' || qsView === 'kanban' || qsView === 'calendar')) setViewMode(qsView as any);
+  if (qsView && (qsView === 'gantt' || qsView === 'list' || qsView === 'kanban' || qsView === 'calendar' || qsView === 'table')) setViewMode(qsView as any);
 
       const raw = localStorage.getItem("jr.apps.prefs.v1");
       if (raw) {
         const p = JSON.parse(raw);
         // Only apply stored prefs if not overridden by query params
-  if (!qsView && (p.viewMode === "gantt" || p.viewMode === "list" || p.viewMode === "kanban" || p.viewMode === 'calendar')) setViewMode(p.viewMode);
+  if (!qsView && (p.viewMode === "gantt" || p.viewMode === "list" || p.viewMode === "kanban" || p.viewMode === 'calendar' || p.viewMode === 'table')) setViewMode(p.viewMode);
         if (!qsStatus && ["All","Pending","Applied","Interview","Offer","Rejected","Withdrawn"].includes(p.selectedStatus)) setSelectedStatus(p.selectedStatus as any);
         if (["score","recent","company","status"].includes(p.sortBy)) setSortBy(p.sortBy);
         if (!qsQuery && typeof p.searchQuery === 'string') setSearchQuery(p.searchQuery);
@@ -201,6 +202,13 @@ function ApplicationPage() {
                   onClick={() => setViewMode('calendar')}
                 >
                   <CalendarIcon className="w-4 h-4" />
+                </button>
+                <button
+                  className={`px-3 py-2 text-sm text-white/70 hover:text-white transition border-l border-white/15 ${viewMode==='table' ? 'bg-white/20 text-white' : ''}`}
+                  title="Table view"
+                  onClick={() => setViewMode('table')}
+                >
+                  <TableIcon className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -402,6 +410,11 @@ function ApplicationPage() {
                 onCreateApplication={async () => { /* create not injected on ApplicationPage calendar detail */ }}
               />
             </div>
+          ) : viewMode === 'table' ? (
+            <ApplicationsTable
+              data={filtered}
+              onRowClick={(id) => setDetailId(id)}
+            />
           ) : (
             <KanbanProvider
               columns={[
@@ -527,3 +540,86 @@ function ApplicationPage() {
 
 export default ApplicationPage;
 export { ApplicationPage };
+
+// --- Table View Component ---
+interface ApplicationsTableProps {
+  data: any[];
+  onRowClick: (id: string) => void;
+}
+
+function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
+  type ApplicationRow = typeof data[number];
+  const columns = useMemo<ColumnDef<ApplicationRow, any>[]>(() => [
+    {
+      id: 'title',
+      header: () => 'Position',
+      accessorFn: row => row.job_title || '—',
+      cell: info => (
+        <div className="flex flex-col">
+          <span className="truncate font-medium text-white/80 text-xs sm:text-sm">{info.getValue()}</span>
+          {info.row.original.company && <span className="text-[10px] text-white/40 truncate">{info.row.original.company}</span>}
+        </div>
+      ),
+    },
+    {
+      id: 'status',
+      header: ({ column }) => <TableColumnHeader column={column} title="Status" />,
+      accessorKey: 'status',
+      cell: info => <span className="text-[11px] font-medium text-white/70">{info.getValue() as string}</span>,
+    },
+    {
+      id: 'applied',
+      header: ({ column }) => <TableColumnHeader column={column} title="Applied" />,
+      accessorFn: row => new Date(row.applied_date),
+      cell: info => <span className="text-[11px] text-white/60">{(info.getValue<Date>()).toLocaleDateString()}</span>,
+      sortingFn: (a,b,columnId) => (a.getValue<Date>(columnId).getTime() - b.getValue<Date>(columnId).getTime()),
+    },
+    {
+      id: 'updated',
+      header: ({ column }) => <TableColumnHeader column={column} title="Updated" />,
+      accessorFn: row => new Date(row.updated_at || row.applied_date),
+      cell: info => <span className="text-[11px] text-white/60">{(info.getValue<Date>()).toLocaleDateString()}</span>,
+      sortingFn: (a,b,columnId) => (a.getValue<Date>(columnId).getTime() - b.getValue<Date>(columnId).getTime()),
+    },
+    {
+      id: 'score',
+      header: ({ column }) => <TableColumnHeader column={column} title="Score" />,
+      accessorFn: row => row.match_score ?? 0,
+      cell: info => <MatchScoreBadge score={info.getValue<number>()} />,
+      sortingFn: (a,b,columnId) => (a.getValue<number>(columnId) - b.getValue<number>(columnId)),
+    },
+  ], []);
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/30 overflow-hidden">
+      <div className="overflow-auto">
+        <TableProvider<ApplicationRow, any> data={data} columns={columns} className="min-w-full">
+          <KTableHeader className="bg-white/5">
+            {(headerGroup) => (
+              <TableHeaderGroup headerGroup={headerGroup.headerGroup}>
+                {({ header }) => (
+                  <KTableHead header={header} className="text-white/60 text-[11px] uppercase tracking-wide" />
+                )}
+              </TableHeaderGroup>
+            )}
+          </KTableHeader>
+          <KTableBody>
+            {(row) => {
+              const original = row.row.original as ApplicationRow & { id: string };
+              return (
+                <KTableRow row={row.row} className="cursor-pointer hover:bg-white/5" onClick={() => onRowClick(original.id)}>
+                  {({ cell }) => (
+                    <KTableCell cell={cell} />
+                  )}
+                </KTableRow>
+              );
+            }}
+          </KTableBody>
+        </TableProvider>
+      </div>
+      <div className="p-2 text-[10px] text-white/30 flex justify-end border-t border-white/10">
+        {data.length} records
+      </div>
+    </div>
+  );
+}
