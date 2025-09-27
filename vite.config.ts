@@ -42,9 +42,12 @@ export default defineConfig({
   "@radix-ui/react-separator": path.resolve(__dirname, "src/lib/mocks/radix-separator.tsx"),
   "@sindresorhus/slugify": path.resolve(__dirname, "src/lib/mocks/slugify.ts"),
   "react-parallax-tilt": path.resolve(__dirname, "src/lib/mocks/react-parallax-tilt.tsx"),
-  "prismjs": path.resolve(__dirname, "src/lib/mocks/prismjs.ts"),
-  // Refractor sometimes imports 'prismjs/components/prism-core'; map that path root to our mock dir
+  // Refractor performs dynamic requires like 'prismjs/components/prism-core'. If we alias 'prismjs' directly
+  // to a file, Vite's commonjs resolver was expanding that to '<mock-file>/components/prism-core' (ENOTDIR).
+  // Solution: provide a directory alias for the components subpath first, and use a regex-style terminal match
+  // ('prismjs$') for the core mock so that only bare 'prismjs' is replaced.
   "prismjs/components": path.resolve(__dirname, "src/lib/mocks/prismjs-components"),
+  "prismjs$": path.resolve(__dirname, "src/lib/mocks/prismjs.ts"),
   "react-colorful": path.resolve(__dirname, "src/lib/mocks/react-colorful.tsx"),
   "react-simple-code-editor": path.resolve(__dirname, "src/lib/mocks/react-simple-code-editor.tsx"),
   "openai": path.resolve(__dirname, "src/lib/mocks/openai.ts"),
