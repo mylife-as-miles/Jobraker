@@ -11,6 +11,7 @@ import { List as ListIcon, Search, Columns, ExternalLink, Link2, Clipboard, Refr
 import { KanbanProvider, KanbanBoard, KanbanHeader, KanbanCards, KanbanCard } from "../../../components/ui/kibo-ui/kanban";
 import Gantt, { GanttItem } from "../../../components/ui/kibo-ui/gantt";
 import KiboCalendar, { CalendarEvent } from "../../../components/ui/kibo-ui/calendar";
+import CalendarDayDetail from "../../../components/ui/kibo-ui/CalendarDayDetail";
 import Modal from "../../../components/ui/modal";
 
 function ApplicationPage() {
@@ -26,6 +27,7 @@ function ApplicationPage() {
   });
   const [showFuture, setShowFuture] = useState(() => localStorage.getItem('jr.apps.gantt.future') !== '0');
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState<Date | null>(null);
   const detailApp = useMemo(() => applications.find(a => a.id === detailId) || null, [detailId, applications]);
 
   // Restore preferences on mount
@@ -377,7 +379,16 @@ function ApplicationPage() {
                 densityMode="compact"
                 onQuickCreate={(partial) => console.log('quick create', partial)}
                 enableQuickCreate={false}
+                selectedDate={calendarSelectedDate}
+                onSelectDate={(d) => setCalendarSelectedDate(d)}
                 className="border border-white/10 rounded-lg bg-black/40"
+              />
+              <CalendarDayDetail
+                date={calendarSelectedDate}
+                range={null}
+                applications={applications}
+                onClose={() => setCalendarSelectedDate(null)}
+                onUpdateApplication={(id, patch) => update(id, patch as any)}
               />
             </div>
           ) : (
