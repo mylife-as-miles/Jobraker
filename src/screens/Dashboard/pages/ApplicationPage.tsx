@@ -584,11 +584,19 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
         const isEditing = editingStatusId === row.id;
         const selectableStatuses: ApplicationStatus[] = ['Pending','Applied','Interview','Offer','Rejected','Withdrawn'];
         return (
-          <div className="relative">
+          <div
+            className="relative"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              // Prevent Enter / Space in dropdown from triggering row onKey handlers higher up
+              if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+            }}
+          >
             {!isEditing && (
               <button
                 type="button"
-                onClick={() => setEditingStatusId(row.id)}
+                onClick={(e) => { e.stopPropagation(); setEditingStatusId(row.id); }}
                 className="inline-flex items-center rounded-full bg-white/5 hover:bg-white/10 border border-white/10 px-2 py-0.5 text-[10px] font-medium text-white/70 focus:outline-none focus:ring-1 focus:ring-[#1dff00]/40"
               >{value}</button>
             )}
@@ -598,7 +606,8 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
                   <button
                     key={s}
                     disabled={busyId === row.id || s === value}
-                    onClick={async () => {
+                    onClick={async (e) => {
+                      e.stopPropagation();
                       if (s === value) { setEditingStatusId(null); return; }
                       try {
                         setBusyId(row.id);
@@ -613,7 +622,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
                   >{s}</button>
                 ))}
                 <button
-                  onClick={() => setEditingStatusId(null)}
+                  onClick={(e) => { e.stopPropagation(); setEditingStatusId(null); }}
                   className="mt-1 w-full text-center text-[10px] text-white/40 hover:text-white/70"
                 >Cancel</button>
               </div>
