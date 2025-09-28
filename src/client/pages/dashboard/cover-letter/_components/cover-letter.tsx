@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2, Check, Trash2, ArrowUp, ArrowDown, Printer, X } from "lucide-react";
+import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2, Check, Trash2, ArrowUp, ArrowDown, Printer, X, FileText, FileType } from "lucide-react";
 import { Button, Card } from "@reactive-resume/ui";
 import { createClient } from "@/lib/supabaseClient";
 import { useToast } from "@/components/ui/toast-provider";
@@ -43,6 +43,9 @@ export const CoverLetter = () => {
   const [aiLoading, setAiLoading] = useState(false);
   const [inlineEdit, setInlineEdit] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [exportBusy, setExportBusy] = useState<string | null>(null);
+  const LAST_EXPORT_KEY = "jr.coverLetter.lastExport";
+  const [lastExport, setLastExport] = useState<string>(() => localStorage.getItem(LAST_EXPORT_KEY) || "");
   const previewRef = useRef<HTMLDivElement | null>(null);
   // Local Library for multiple cover letters
   type LibraryEntry = { id: string; name: string; updatedAt: string; data: any };
@@ -256,9 +259,80 @@ export const CoverLetter = () => {
         URL.revokeObjectURL(url);
       });
       success('Download started', 'TXT file is being saved');
+      setLastExport('txt');
+      localStorage.setItem(LAST_EXPORT_KEY, 'txt');
     } catch (e) {
       console.error('TXT export failed', e);
       toastError('Export failed', 'Could not create TXT file');
+    }
+  };
+
+  const exportPdf = async () => {
+    if (exportBusy) return;
+    setExportBusy('pdf');
+    try {
+      const serialized = serializeLetter();
+      if (!serialized.trim()) throw new Error('Nothing to export');
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+      const marginX = 54; // 0.75 inch
+      const marginY = 54;
+      const lineHeight = 16;
+      const maxWidth = doc.internal.pageSize.getWidth() - marginX * 2;
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(12);
+      let y = marginY;
+      const lines = serialized.replace(/\r/g,'').split('\n');
+      lines.forEach((line) => {
+        if (y > doc.internal.pageSize.getHeight() - marginY) {
+          doc.addPage();
+          y = marginY;
+        }
+        if (!line.trim()) { y += lineHeight; return; }
+        const wrapped = doc.splitTextToSize(line, maxWidth);
+        wrapped.forEach((wLine: string) => {
+          if (y > doc.internal.pageSize.getHeight() - marginY) { doc.addPage(); y = marginY; }
+            doc.text(wLine, marginX, y);
+            y += lineHeight;
+        });
+      });
+      const fileName = `Cover_Letter_${(company||'Company').replace(/[^a-z0-9]+/gi,'_')}_${(role||'Role').replace(/[^a-z0-9]+/gi,'_')}.pdf`;
+      doc.save(fileName);
+      success('PDF exported', 'Your PDF is downloading');
+      setLastExport('pdf');
+      localStorage.setItem(LAST_EXPORT_KEY, 'pdf');
+    } catch (e:any) {
+      console.error('PDF export failed', e);
+      toastError('PDF failed', e?.message || 'Could not generate PDF');
+    } finally {
+      setExportBusy(null);
+    }
+  };
+
+  const exportDocx = async () => {
+    if (exportBusy) return;
+    setExportBusy('docx');
+    try {
+      const serialized = serializeLetter();
+      if (!serialized.trim()) throw new Error('Nothing to export');
+      const mod = await import('docx');
+      const { Document, Packer, Paragraph } = mod as any;
+      const paragraphs = serialized.split(/\n\n+/).map((block: string) => new Paragraph({ children: block.split('\n').map(line => mod ? new mod.TextRun(line) : line) }));
+      const doc = new Document({ sections: [{ properties: {}, children: paragraphs }] });
+      const blob = await Packer.toBlob(doc);
+      const fileName = `Cover_Letter_${(company||'Company').replace(/[^a-z0-9]+/gi,'_')}_${(role||'Role').replace(/[^a-z0-9]+/gi,'_')}.docx`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName; document.body.appendChild(a); a.click();
+      requestAnimationFrame(() => { document.body.removeChild(a); URL.revokeObjectURL(url); });
+      success('DOCX exported', 'Your DOCX is downloading');
+      setLastExport('docx');
+      localStorage.setItem(LAST_EXPORT_KEY, 'docx');
+    } catch (e:any) {
+      console.error('DOCX export failed', e);
+      toastError('DOCX failed', e?.message || 'Could not generate DOCX');
+    } finally {
+      setExportBusy(null);
     }
   };
 
@@ -662,20 +736,27 @@ export const CoverLetter = () => {
             </div>
             <p className="text-xs opacity-70 mb-4">Choose a format or action below. Use Print to save as PDF.</p>
             <div className="grid gap-2">
-              <Button variant="outline" className="justify-start rounded-xl" onClick={() => { exportTxt(); setExportOpen(false); }}>
-                <Download className="w-4 h-4 mr-2"/> Download .TXT
+              <Button variant="outline" disabled={!!exportBusy} data-active={lastExport==='txt'} className="justify-start rounded-xl data-[active=true]:border-primary data-[active=true]:bg-primary/5" onClick={async () => { exportTxt(); setExportOpen(false); }}>
+                <FileText className="w-4 h-4 mr-2"/> Download .TXT {lastExport==='txt' && <span className="ml-auto text-[10px] uppercase tracking-wide text-primary">Last</span>}
               </Button>
-              <Button variant="outline" className="justify-start rounded-xl" onClick={() => { printLetter(); setExportOpen(false); }}>
-                <Printer className="w-4 h-4 mr-2"/> Print / Save as PDF
+              <Button variant="outline" disabled={!!exportBusy} data-active={lastExport==='pdf'} className="justify-start rounded-xl data-[active=true]:border-primary data-[active=true]:bg-primary/5" onClick={async () => { await exportPdf(); setExportOpen(false); }}>
+                <Printer className="w-4 h-4 mr-2"/> Export PDF {exportBusy==='pdf' && <span className="ml-auto text-[10px] animate-pulse">…</span>} {lastExport==='pdf' && exportBusy!=='pdf' && <span className="ml-auto text-[10px] uppercase tracking-wide text-primary">Last</span>}
               </Button>
-              <Button variant="outline" className="justify-start rounded-xl" onClick={() => { copyPlain(); setExportOpen(false); }}>
+              <Button variant="outline" disabled={!!exportBusy} data-active={lastExport==='docx'} className="justify-start rounded-xl data-[active=true]:border-primary data-[active=true]:bg-primary/5" onClick={async () => { await exportDocx(); setExportOpen(false); }}>
+                <FileType className="w-4 h-4 mr-2"/> Export DOCX {exportBusy==='docx' && <span className="ml-auto text-[10px] animate-pulse">…</span>} {lastExport==='docx' && exportBusy!=='docx' && <span className="ml-auto text-[10px] uppercase tracking-wide text-primary">Last</span>}
+              </Button>
+              <Button variant="outline" disabled={!!exportBusy} className="justify-start rounded-xl" onClick={() => { printLetter(); setExportOpen(false); }}>
+                <Printer className="w-4 h-4 mr-2"/> Print View
+              </Button>
+              <Button variant="outline" disabled={!!exportBusy} className="justify-start rounded-xl" onClick={() => { copyPlain(); setExportOpen(false); }}>
                 {copied ? <Check className="w-4 h-4 mr-2"/> : <Share2 className="w-4 h-4 mr-2 rotate-90"/>} Copy Plain Text
               </Button>
-              <Button variant="outline" className="justify-start rounded-xl" onClick={() => { share(); setExportOpen(false); }}>
+              <Button variant="outline" disabled={!!exportBusy} className="justify-start rounded-xl" onClick={() => { share(); setExportOpen(false); }}>
                 <Share2 className="w-4 h-4 mr-2"/> Share (system)
               </Button>
-              <div className="pt-2">
-                <p className="text-[11px] opacity-60">More formats (PDF/DOCX) coming soon.</p>
+              <div className="pt-2 flex items-center justify-between text-[11px] opacity-60">
+                <span>Default highlights last used format.</span>
+                {exportBusy && <span className="text-primary">Exporting…</span>}
               </div>
             </div>
           </div>

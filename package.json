@@ -70,6 +70,8 @@
     "lucide-react": "^0.453.0",
     "nanoid": "^5.1.6",
     "pdfjs-dist": "^4.3.136",
+  "jspdf": "^2.5.1",
+  "docx": "^9.0.3",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
