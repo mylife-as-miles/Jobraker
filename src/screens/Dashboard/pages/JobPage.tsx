@@ -300,6 +300,34 @@ export const JobPage = (): JSX.Element => {
     }
   }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType]);
 
+  // Placeholder: fetch user profile preferences (skills, titles, preferred location) for first load
+  const [initializedFromProfile, setInitializedFromProfile] = useState(false);
+  useEffect(() => {
+    if (initializedFromProfile) return;
+    try {
+      // Attempt to hydrate from stored profile preferences (mock keys)
+      const raw = localStorage.getItem('jr.profile.prefs');
+      if (raw) {
+        const prefs = JSON.parse(raw);
+        if (prefs?.defaultRole && !searchQuery) setSearchQuery(prefs.defaultRole);
+        if (prefs?.defaultLocation && !selectedLocation) setSelectedLocation(prefs.defaultLocation);
+      }
+    } catch {}
+    setInitializedFromProfile(true);
+  }, [initializedFromProfile, searchQuery, selectedLocation]);
+
+  // Trigger initial search automatically when profile hydration done & no jobs yet
+  useEffect(() => {
+    if (initializedFromProfile && jobs.length === 0 && !loading) {
+      performSearch();
+    }
+  }, [initializedFromProfile, jobs.length, loading, performSearch]);
+
+  // Manual refresh from job sources (e.g., re-run scraping or DB query) ignoring current filter state except core query/location/type
+  const refreshFromSources = useCallback(() => {
+    performSearch();
+  }, [performSearch]);
+
   // Bookmarks removed (loadBookmarks stub deleted)
 
   // Helper: map DB rows to Job shape
@@ -893,7 +921,8 @@ export const JobPage = (): JSX.Element => {
     applyFacetFilters([], []);
   }, [applyFacetFilters]);
 
-  const filteredJobs = jobs.filter(job => (selectedType === 'All' || job.type === selectedType));
+  // Exclude already applied jobs from the visible list
+  const filteredJobs = jobs.filter(job => !job.isApplied && (selectedType === 'All' || job.type === selectedType));
 
   const sortedJobs = (() => {
     if (sortBy === 'posted_desc') {
@@ -1027,6 +1056,17 @@ export const JobPage = (): JSX.Element => {
               </Button>
               {/* Auto Apply Controls (bookmarks removed) */}
               <AutoApplyControls />
+            </div>
+            <div className="flex items-center gap-3">
+              <AutoApplyControls />
+              <Button
+                variant="ghost"
+                onClick={refreshFromSources}
+                className="text-[#1dff00] hover:bg-[#1dff00]/10"
+                title="Fetch new jobs from sources"
+              >
+                Refresh Jobs
+              </Button>
             </div>
           </div>
         </div>
@@ -1457,9 +1497,7 @@ export const JobPage = (): JSX.Element => {
                       
                         <div className="flex items-center space-x-2">
                         <span className="px-2 py-1 bg-[#ffffff1a] text-white text-xs rounded border border-[#ffffff33]">{job.type}</span>
-                        {job.isApplied && (
-                          <span className="px-2 py-1 bg-[#1dff0020] text-[#1dff00] text-xs rounded border border-[#1dff00]/30">Applied</span>
-                        )}
+                        {/* Applied badge removed (applied jobs hidden) */}
                         {/* Match indicator */}
                         {activeFacetCount > 0 && (() => { const ms = getMatchScore(job); return (
                           <span className="inline-flex items-center gap-2 px-2 py-1 rounded border border-[#ffffff2a] text-xs text-[#ffffffb3] bg-[#ffffff10]" title={`Matches ${ms.matched}/${ms.total} selected filters`}>
