@@ -18,6 +18,9 @@ import { PreviewLayout } from "./pages/preview";
 import { Providers } from "./providers"; // Artboard/local providers (Helmet + artboard state)
 import { Providers as ClientProviders } from "@/client/providers"; // Client app providers (QueryClient, Theme, Locale, Dialog, Toast)
 import { ClientBuilderRoute } from "@/client/pages/builder/route-bridge";
+import { builderNewLoader } from "@/client/pages/builder/page";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/client/libs/query-client";
 import { BuilderLayout } from "@/client/pages/builder/layout";
 import { ROUTES } from "./routes";
 import { ToastEventBridge } from "./components/system/ToastEventBridge";
@@ -90,7 +93,8 @@ function App() {
 
         {/* Client builder route with layout (protected) */}
         <Route element={<RequireAuth><Providers/></RequireAuth>}>
-          <Route path="/builder" element={<BuilderLayout/>}>
+          <Route path="/builder" element={<QueryClientProvider client={queryClient}><BuilderLayout /></QueryClientProvider>}>
+            <Route path="new" element={<ClientBuilderRoute/>} loader={builderNewLoader as any} />
             <Route path=":id" element={<ClientBuilderRoute/>} />
           </Route>
         </Route>
