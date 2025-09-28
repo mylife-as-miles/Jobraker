@@ -1,7 +1,6 @@
 import { t } from "@lingui/macro";
 import { Lock } from "@phosphor-icons/react";
-import { Eye, Download, Copy, Star, StarOff, Trash2, Pencil, MoreVertical, CheckSquare2, Square } from "lucide-react";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Eye, Download, Copy, Star, StarOff, Trash2, Pencil, CheckSquare2, Square } from "lucide-react";
 import dayjs from "dayjs";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -127,10 +126,6 @@ export const SbResumeCard = ({ resume }: Props) => {
   const [renaming, setRenaming] = useState(false);
   const [draftName, setDraftName] = useState(resume.name);
   const cardRef = useRef<HTMLDivElement | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [previewContent, setPreviewContent] = useState<string | null>(null);
   const { selected, toggle, selectOnly, lastSelected } = useResumeSelection();
   const isSelected = selected.includes(resume.id);
 
@@ -188,38 +183,8 @@ export const SbResumeCard = ({ resume }: Props) => {
     setRenaming(false);
   };
 
-  const buildPreview = async () => {
-    if (!resume.file_ext || !resume.file_path) { setPreviewContent('(No file)'); return; }
-    if (resume.file_ext === 'pdf') { setPreviewContent('(Full PDF preview coming soon)'); return; }
-    try {
-      setPreviewLoading(true); setPreviewError(null); setPreviewContent(null);
-      const { getSignedUrl } = useResumes();
-      const url = await getSignedUrl(resume.file_path);
-      if (!url) throw new Error('Signed URL unavailable');
-      if (['txt','text','md','json'].includes(resume.file_ext)) {
-        const raw = await (await fetch(url)).text();
-        const content = resume.file_ext === 'json' ? (()=>{ try { return JSON.stringify(JSON.parse(raw), null, 2);} catch { return raw; } })() : raw;
-        setPreviewContent(content.slice(0, 30000));
-      } else if (resume.file_ext === 'docx') {
-        const blob = await (await fetch(url)).blob();
-  const JSZipMod: any = await import('jszip');
-  const JSZip = JSZipMod.default || JSZipMod;
-        const zip = await JSZip.loadAsync(blob);
-        const xml = await zip.file('word/document.xml')?.async('string');
-        if (!xml) throw new Error('DOCX content missing');
-        const text = xml.replace(/<w:p[^>]*>/g,'\n').replace(/<[^>]+>/g,'').replace(/\n+/g,'\n').trim();
-        setPreviewContent(text.slice(0, 30000));
-      } else {
-        setPreviewContent('(Preview not supported for this format)');
-      }
-    } catch (e:any) {
-      setPreviewError(e.message || 'Preview failed');
-    } finally {
-      setPreviewLoading(false);
-    }
-  };
 
-  const openPreview = async () => { setPreviewOpen(true); await buildPreview(); };
+  // Preview trigger removed with three-dot menu; keep buildPreview for future integration.
 
   return (
     <BaseCard
@@ -337,30 +302,7 @@ export const SbResumeCard = ({ resume }: Props) => {
         </button>
       </div>
 
-      {/* Three dots menu */}
-      <div className="absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
-        <DropdownMenu>
-          <DropdownMenuTrigger>
-            <button
-              onClick={(e)=> e.stopPropagation()}
-              className="p-1.5 rounded-md bg-black/60 border border-white/10 hover:border-[#1dff00]/60 hover:bg-black/80 text-white flex items-center justify-center shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1dff00]/60"
-              aria-label="More actions"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur px-1 py-1 rounded-lg shadow-xl min-w-44">
-            <DropdownMenuItem onClick={(e)=>{ e.stopPropagation(); openPreview(); }}>Preview</DropdownMenuItem>
-            <DropdownMenuItem onClick={(e)=>{ e.stopPropagation(); onOpen(); }}>Open File</DropdownMenuItem>
-            <DropdownMenuItem onClick={(e)=>{ e.stopPropagation(); download(resume); }}>Download</DropdownMenuItem>
-            <DropdownMenuItem onClick={(e)=>{ e.stopPropagation(); duplicate(resume); }}>Duplicate</DropdownMenuItem>
-            <DropdownMenuItem onClick={(e)=>{ e.stopPropagation(); setRenaming(true); setDraftName(resume.name); }}>Rename</DropdownMenuItem>
-            <DropdownMenuItem onClick={(e)=>{ e.stopPropagation(); toggleFavorite(resume.id, !resume.is_favorite); }}>{resume.is_favorite ? 'Unfavorite' : 'Favorite'}</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={(e)=>{ e.stopPropagation(); remove(resume); }} className="text-red-400">Delete</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      {/* (Removed three-dot menu) */}
 
       <div className="relative w-full h-full">
         {/* PDF preview if available */}
@@ -388,70 +330,6 @@ export const SbResumeCard = ({ resume }: Props) => {
         )}
       </div>
 
-      {previewOpen && (
-        <div
-          className="fixed inset-0 z-[300] flex items-center justify-center p-6"
-          onClick={()=> setPreviewOpen(false)}
-        >
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-          <div
-            className="relative w-full max-w-5xl max-h-[85vh] rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#050505] via-[#0d0d0d] to-[#050505] shadow-[0_0_40px_-10px_rgba(29,255,0,0.5)] overflow-hidden flex flex-col"
-            onClick={(e)=> e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#1dff00]/20 bg-black/40 backdrop-blur">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 flex items-center justify-center text-[#1dff00] font-bold">
-                  {resume.name.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-white leading-tight">{resume.name}</h2>
-                  <p className="text-xs text-[#1dff00]/60">Preview • Last updated {lastUpdated}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={()=> toggleFavorite(resume.id, !resume.is_favorite)}
-                  className={`px-3 py-1.5 text-xs rounded-md border ${resume.is_favorite ? 'border-[#1dff00] text-[#1dff00] bg-[#1dff00]/10' : 'border-white/15 text-white hover:border-[#1dff00]/40'} transition`}
-                >
-                  {resume.is_favorite ? 'Unfavorite' : 'Favorite'}
-                </button>
-                <button
-                  onClick={()=> setPreviewOpen(false)}
-                  className="px-3 py-1.5 text-xs rounded-md border border-white/15 text-white hover:border-[#1dff00]/40 hover:text-[#1dff00] transition"
-                >Close</button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-auto thin-scrollbar p-6 space-y-6">
-              {resume.file_ext === 'pdf' && (
-                <div className="w-full h-[70vh] rounded-lg overflow-hidden border border-[#1dff00]/20 bg-black/40 flex items-center justify-center text-sm text-[#1dff00]/60">
-                  <p className="text-xs">(Full multi-page PDF preview placeholder)</p>
-                </div>
-              )}
-              {previewLoading && <div className="animate-pulse text-[#1dff00]/60 text-sm">Building preview…</div>}
-              {previewError && <div className="text-red-400 text-sm">{previewError}</div>}
-              {previewContent && (
-                <pre className="text-xs leading-relaxed whitespace-pre-wrap font-mono bg-black/40 p-4 rounded-lg border border-[#1dff00]/10 text-[#d1d1d1] max-h-[70vh] overflow-auto thin-scrollbar">
-                  {previewContent}
-                </pre>
-              )}
-              {!previewLoading && !previewError && !previewContent && resume.file_ext !== 'pdf' && (
-                <div className="text-xs text-[#666]">(No preview available)</div>
-              )}
-            </div>
-            <div className="px-6 py-4 border-t border-[#1dff00]/20 bg-black/30 flex items-center justify-between">
-              <div className="flex gap-2 text-[10px] text-[#888]">
-                <span>ID: {resume.id.slice(0,8)}…</span>
-                <span>Size: {resume.size ? (resume.size/1024).toFixed(1)+' KB' : '—'}</span>
-                <span>Status: {resume.status}</span>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={()=> duplicate(resume)} className="px-3 py-1.5 text-xs rounded-md border border-white/15 text-white hover:border-[#1dff00]/40 transition">Duplicate</button>
-                <button onClick={()=> download(resume)} className="px-3 py-1.5 text-xs rounded-md border border-white/15 text-white hover:border-[#1dff00]/40 transition">Download</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </BaseCard>
   );
 };
