@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 export const CreateResumeCard = () => {
   const navigate = useNavigate();
   return (
-    <BaseCard onClick={() => navigate("/dashboard/resumes/new")} onDoubleClick={() => navigate("/dashboard/resumes/new")}
+    <BaseCard onClick={() => navigate("/builder/new")} onDoubleClick={() => navigate("/builder/new")}
       className="group">
       <div className="flex flex-col items-center justify-center gap-2 text-center">
         <div className="flex size-10 items-center justify-center rounded-full bg-[#1dff00]/10 group-hover:bg-[#1dff00]/20 transition-colors">

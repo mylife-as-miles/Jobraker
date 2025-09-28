@@ -1,7 +1,7 @@
 import { createBrowserRouter, createRoutesFromElements, Navigate, Route } from "react-router-dom";
 
 import { BuilderLayout } from "@/client/pages/builder/layout";
-import { builderLoader, BuilderPage } from "@/client/pages/builder/page";
+import { builderLoader, builderNewLoader, BuilderPage } from "@/client/pages/builder/page";
 import { CoverLetterPage } from "@/client/pages/dashboard/cover-letter/page";
 import { DashboardLayout } from "@/client/pages/dashboard/layout";
 import { ResumesPage } from "@/client/pages/dashboard/resumes/page";
@@ -37,6 +37,7 @@ export const routes = createRoutesFromElements(
       <Route path="builder">
         <Route element={<AuthGuard />}>
           <Route element={<BuilderLayout />}>
+            <Route path="new" loader={builderNewLoader} element={<BuilderPage />} />
             <Route path=":id" loader={builderLoader} element={<BuilderPage />} />
 
             <Route index element={<Navigate replace to="/dashboard/resumes" />} />

@@ -3,6 +3,9 @@ import { useEffect, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import type { LoaderFunction } from "react-router-dom";
 import { redirect } from "react-router-dom";
+import slugify from "@sindresorhus/slugify";
+import { generateRandomName } from "@reactive-resume/utils";
+import { createResume as createResumeRequest } from "@/client/services/resume/create";
 
 import { queryClient } from "@/client/libs/query-client";
 import { findResumeById } from "@/client/services/resume";
@@ -104,5 +107,24 @@ export const builderLoader: LoaderFunction<ResumeDto> = async ({ params }) => {
     return resume;
   } catch {
     return redirect("/dashboard");
+  }
+};
+
+// Loader used for /builder/new – creates a resume then redirects to /builder/:id
+export const builderNewLoader: LoaderFunction = async () => {
+  try {
+    const title = generateRandomName();
+    const slug = slugify(title);
+    const resume = await createResumeRequest({ title, slug, visibility: "private" } as any);
+    // Prime caches & store so redirected page renders instantly
+    queryClient.setQueryData<ResumeDto>(["resume", { id: resume.id }], resume);
+    queryClient.setQueryData<ResumeDto[]>(["resumes"], (cache) => {
+      if (!cache) return [resume];
+      return [...cache, resume];
+    });
+    useResumeStore.setState({ resume });
+    return redirect(`/builder/${resume.id}`);
+  } catch {
+    return redirect("/dashboard/resumes");
   }
 };
