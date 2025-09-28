@@ -1,6 +1,6 @@
 import { t } from "@lingui/macro";
 import { Lock } from "@phosphor-icons/react";
-import { Eye, Download, Copy, Star, StarOff, Trash2, Pencil, MoreVertical } from "lucide-react";
+import { Eye, Download, Copy, Star, StarOff, Trash2, Pencil, MoreVertical, CheckSquare2, Square } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import dayjs from "dayjs";
 import { AnimatePresence, motion } from "framer-motion";
@@ -9,7 +9,8 @@ import { BaseCard } from "./base-card";
 import { useToast } from "@/client/hooks/use-toast";
 import type { ResumeRecord } from "@/hooks/useResumes";
 import { useResumes } from "@/hooks/useResumes";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useResumeSelection } from '@/client/stores/resumeSelection';
 
 type Props = { resume: ResumeRecord };
 
@@ -130,6 +131,34 @@ export const SbResumeCard = ({ resume }: Props) => {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
+  const { selected, toggle, selectOnly, lastSelected } = useResumeSelection();
+  const isSelected = selected.includes(resume.id);
+
+  // Shift + click range selection support (delegated in Grid container but basic here)
+  const onSelectClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (e.shiftKey && lastSelected && lastSelected !== resume.id) {
+      // We'll dispatch a custom event the grid can listen to in future for range calculation
+      const ev = new CustomEvent('resume-range-select', { detail: { anchor: lastSelected, target: resume.id } });
+      window.dispatchEvent(ev);
+      toggle(resume.id); // still toggle current
+      return;
+    }
+    if (e.metaKey || e.ctrlKey) {
+      toggle(resume.id);
+      return;
+    }
+    // Plain click: if already sole selected keep; else select only
+    if (!isSelected || selected.length > 1) selectOnly(resume.id); else toggle(resume.id); // allow deselect
+  }, [toggle, selectOnly, isSelected, selected.length, resume.id, lastSelected]);
+
+  // Keyboard select (focus not yet managed; placeholder for future a11y)
+  const onKeyDownCard = (e: React.KeyboardEvent) => {
+    if ((e.key === ' ' || e.key === 'Enter') && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      toggle(resume.id);
+    }
+  };
 
   // Observe element for lazy-loading preview
   useEffect(() => {
@@ -195,8 +224,11 @@ export const SbResumeCard = ({ resume }: Props) => {
   return (
     <BaseCard
       ref={cardRef as any}
-      className="cursor-pointer space-y-0 group"
+      className={`cursor-pointer space-y-0 group relative ${isSelected ? 'ring-2 ring-[#1dff00] ring-offset-2 ring-offset-black/40' : ''}`}
       onDoubleClick={onOpen}
+  onKeyDown={onKeyDownCard}
+      aria-pressed={isSelected}
+      aria-label={`Resume ${resume.name}${isSelected ? ' selected' : ''}`}
     >
       <AnimatePresence>
         {/* Placeholder: lock state not present on ResumeRecord; remove overlay */}
@@ -212,6 +244,15 @@ export const SbResumeCard = ({ resume }: Props) => {
         )}
       </AnimatePresence>
 
+      {/* Selection checkbox (always visible when selected; appears on hover otherwise) */}
+      <button
+        type="button"
+        onClick={onSelectClick}
+        className={`absolute top-2 left-2 z-30 p-1 rounded-md border transition shadow ${isSelected ? 'bg-[#1dff00] border-[#1dff00] text-black' : 'bg-black/60 border-white/10 text-white opacity-0 group-hover:opacity-100'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1dff00]/70`}
+        aria-label={isSelected ? 'Deselect resume' : 'Select resume'}
+      >
+        {isSelected ? <CheckSquare2 className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+      </button>
       <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end space-y-1 p-3 pt-12 bg-gradient-to-t from-black/80 to-transparent">
         {renaming ? (
           <input
@@ -241,8 +282,8 @@ export const SbResumeCard = ({ resume }: Props) => {
         <p className="line-clamp-1 text-[10px] opacity-70">{t`Last updated ${lastUpdated}`}</p>
       </div>
 
-  {/* Hover action toolbar */}
-  <div className="absolute top-2 left-2 z-20 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
+  {/* Hover action toolbar (shift to below checkbox) */}
+  <div className="absolute top-12 left-2 z-20 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
         <button
           onClick={(e)=>{ e.stopPropagation(); onOpen(); }}
           className="p-1.5 rounded-md bg-black/60 border border-white/10 hover:border-[#1dff00]/60 hover:bg-black/80 text-white transition flex items-center justify-center"
