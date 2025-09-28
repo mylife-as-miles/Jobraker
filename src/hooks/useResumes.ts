@@ -517,20 +517,34 @@ export function useResumes() {
   }, [supabase, list, success, toastError]);
 
   const remove = useCallback(async (rec: ResumeRecord) => {
+    // Support undo by performing optimistic removal and deferring actual deletion briefly
+    const DEFER_MS = 6500; // window to undo
+    let timer: number | undefined;
     try {
+      // Optimistic remove
       setResumes((p) => p.filter((r) => r.id !== rec.id));
-      if (rec.file_path) {
-        await (supabase as any).storage.from("resumes").remove([rec.file_path]);
-      }
-      const { error } = await (supabase as any)
-        .from("resumes")
-        .delete()
-        .eq("id", rec.id);
-      if (error) throw error;
-      const cached = objectUrlMap.current.get(rec.id);
-      if (cached) URL.revokeObjectURL(cached);
-      objectUrlMap.current.delete(rec.id);
       success("Deleted", rec.name);
+      // Schedule actual deletion
+      timer = window.setTimeout(async () => {
+        try {
+          if (rec.file_path) {
+            await (supabase as any).storage.from("resumes").remove([rec.file_path]);
+          }
+          const { error } = await (supabase as any)
+            .from("resumes")
+            .delete()
+            .eq("id", rec.id);
+          if (error) throw error;
+          const cached = objectUrlMap.current.get(rec.id);
+          if (cached) URL.revokeObjectURL(cached);
+          objectUrlMap.current.delete(rec.id);
+        } catch (inner) {
+          // If backend deletion fails, refetch list to sync
+          await list();
+        }
+      }, DEFER_MS);
+      (window as any).__resumeUndoBuffer = (window as any).__resumeUndoBuffer || new Map();
+      (window as any).__resumeUndoBuffer.set(rec.id, { rec, timer });
     } catch (e: any) {
       const msg = e.message || "Failed to delete";
       setError(msg);
@@ -538,6 +552,17 @@ export function useResumes() {
       await list();
     }
   }, [supabase, list, success, toastError]);
+
+  const undoRemove = useCallback((id: string) => {
+    const store: Map<string, any> | undefined = (window as any).__resumeUndoBuffer;
+    if (!store || !store.has(id)) return false;
+    const { rec, timer } = store.get(id);
+    if (timer) window.clearTimeout(timer);
+    setResumes((p) => [rec as ResumeRecord, ...p]);
+    store.delete(id);
+    info("Restored", (rec as ResumeRecord).name);
+    return true;
+  }, [info]);
 
   const duplicate = useCallback(async (rec: ResumeRecord) => {
     try {
@@ -653,6 +678,7 @@ export function useResumes() {
     toggleFavorite,
     rename,
     remove,
+  undoRemove,
     duplicate,
     view,
     download,

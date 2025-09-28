@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { BaseCard } from "./base-card";
+import { useToast } from "@/client/hooks/use-toast";
 import type { ResumeRecord } from "@/hooks/useResumes";
 import { useResumes } from "@/hooks/useResumes";
 import React, { useEffect, useRef, useState } from "react";
@@ -34,7 +35,8 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord; active: boolean }> = ({ res
     }
     (async () => {
       try {
-        const url = await getSignedUrl(resume.file_path!);
+  performance.mark(`resume:${resume.id}:preview:start`);
+  const url = await getSignedUrl(resume.file_path!);
         if (!url) throw new Error('No signed URL');
         // Dynamic import to avoid bloating initial bundle
         const pdfjs = await import('pdfjs-dist');
@@ -61,13 +63,27 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord; active: boolean }> = ({ res
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
+        // Low-quality placeholder render
+        try {
+          const lqScale = 0.08 * scale;
+          const lqViewport = page.getViewport({ scale: lqScale });
+          const off = document.createElement('canvas');
+          off.width = lqViewport.width; off.height = lqViewport.height;
+          await page.render({ canvasContext: off.getContext('2d')!, viewport: lqViewport, }).promise;
+          // Draw scaled-up blurred placeholder
+          canvas.width = viewport.width; canvas.height = viewport.height;
+          ctx.filter = 'blur(3px) saturate(1.2)';
+          ctx.drawImage(off, 0, 0, viewport.width, viewport.height);
+          ctx.filter = 'none';
+        } catch {}
+        // High-quality render over it
         await page.render({ canvasContext: ctx, viewport }).promise;
         try {
           const urlData = canvas.toDataURL('image/png');
           pdfPreviewCache.set(resume.id, urlData);
           if (!cancelled) setDataUrl(urlData);
+          performance.mark(`resume:${resume.id}:preview:end`);
+          performance.measure(`resume:${resume.id}:preview:duration`, `resume:${resume.id}:preview:start`, `resume:${resume.id}:preview:end`);
         } catch {}
       } catch (e: any) {
         if (!cancelled) setError(e.message || 'Preview failed');
@@ -101,7 +117,8 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord; active: boolean }> = ({ res
 };
 
 export const SbResumeCard = ({ resume }: Props) => {
-  const { view, download, duplicate, toggleFavorite, remove, rename } = useResumes();
+  const { view, download, duplicate, toggleFavorite, remove, rename, undoRemove } = useResumes() as any;
+  const { toast } = useToast();
   const template = resume.template || "Modern";
   const lastUpdated = dayjs().to(new Date(resume.updated_at));
   const [inView, setInView] = useState(false);
@@ -217,9 +234,25 @@ export const SbResumeCard = ({ resume }: Props) => {
           {resume.is_favorite ? <Star className="w-3.5 h-3.5" /> : <StarOff className="w-3.5 h-3.5" />}
         </button>
         <button
-          onClick={(e)=>{ e.stopPropagation(); remove(resume); }}
+          onClick={(e)=>{ 
+            e.stopPropagation(); 
+            const id = resume.id;
+            const name = resume.name;
+            remove(resume);
+            toast({
+              title: 'Resume deleted',
+              description: name,
+              action: (
+                <button
+                  onClick={(ev)=>{ ev.stopPropagation(); undoRemove(id); }}
+                  className="px-2 py-1 text-[10px] rounded bg-[#1dff00]/20 border border-[#1dff00]/40 text-[#1dff00] hover:bg-[#1dff00]/30 transition"
+                >Undo</button>
+              )
+            });
+          }}
           className="p-1.5 rounded-md bg-black/60 border border-white/10 hover:border-red-500/70 hover:text-red-400 hover:bg-black/80 text-white transition flex items-center justify-center"
           title="Delete"
+          aria-label="Delete resume"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
