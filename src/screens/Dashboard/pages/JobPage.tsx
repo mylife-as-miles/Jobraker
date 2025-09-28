@@ -1054,19 +1054,18 @@ export const JobPage = (): JSX.Element => {
                 <Filter className="w-4 h-4 mr-2" />
                 {activeFacetCount > 0 ? `Filters (${activeFacetCount})` : 'Filters'}
               </Button>
-              {/* Auto Apply Controls (bookmarks removed) */}
-              <AutoApplyControls />
-            </div>
-            <div className="flex items-center gap-3">
-              <AutoApplyControls />
-              <Button
-                variant="ghost"
-                onClick={refreshFromSources}
-                className="text-[#1dff00] hover:bg-[#1dff00]/10"
-                title="Fetch new jobs from sources"
-              >
-                Refresh Jobs
-              </Button>
+              {/* Auto Apply & Search Controls */}
+              <div className="flex items-center gap-3">
+                <AutoApplyControls />
+                <Button
+                  variant="ghost"
+                  onClick={refreshFromSources}
+                  className="text-[#1dff00] hover:bg-[#1dff00]/10"
+                  title="Run a new job search from sources"
+                >
+                  Search Jobs
+                </Button>
+              </div>
             </div>
           </div>
         </div>
