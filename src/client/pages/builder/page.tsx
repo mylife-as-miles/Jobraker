@@ -6,6 +6,7 @@ import { redirect } from "react-router-dom";
 import slugify from "@sindresorhus/slugify";
 import { generateRandomName } from "@reactive-resume/utils";
 import { createResume as createResumeRequest } from "@/client/services/resume/create";
+import { buildDefaultResumeData, normalizeResume } from "@/client/utils/normalize-resume";
 
 import { queryClient } from "@/client/libs/query-client";
 import { findResumeById } from "@/client/services/resume";
@@ -101,10 +102,9 @@ export const builderLoader: LoaderFunction<ResumeDto> = async ({ params }) => {
       queryKey: ["resume", { id }],
       queryFn: () => findResumeById({ id }),
     });
-
-  useResumeStore.setState({ resume });
-
-    return resume;
+  const { resume: normalized } = normalizeResume(resume);
+  useResumeStore.setState({ resume: normalized });
+  return normalized;
   } catch {
     return redirect("/dashboard");
   }
@@ -115,16 +115,21 @@ export const builderNewLoader: LoaderFunction = async () => {
   try {
     const title = generateRandomName();
     const slug = slugify(title);
-    const resume = await createResumeRequest({ title, slug, visibility: "private" } as any);
+  const seed = buildDefaultResumeData();
+  const resume = await createResumeRequest({ title, slug, visibility: "private", data: seed } as any);
+  const { resume: normalized } = normalizeResume(resume);
     // Prime caches & store so redirected page renders instantly
-    queryClient.setQueryData<ResumeDto>(["resume", { id: resume.id }], resume);
+    queryClient.setQueryData<ResumeDto>(["resume", { id: normalized.id }], normalized);
     queryClient.setQueryData<ResumeDto[]>(["resumes"], (cache) => {
-      if (!cache) return [resume];
-      return [...cache, resume];
+      if (!cache) return [normalized];
+      return [...cache, normalized];
     });
-    useResumeStore.setState({ resume });
-    return redirect(`/builder/${resume.id}`);
+    useResumeStore.setState({ resume: normalized });
+    return redirect(`/builder/${normalized.id}`);
   } catch {
     return redirect("/dashboard/resumes");
   }
 };
+
+// --- helpers ---------------------------------------------------------------
+// local helpers removed in favor of shared utility
