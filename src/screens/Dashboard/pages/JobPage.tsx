@@ -1,9 +1,9 @@
-import { Briefcase, Bookmark, Building2, DollarSign, Heart, Share, Star, Users, CheckCircle2, FileText, UploadCloud, Pencil } from "lucide-react";
+import { Briefcase, Building2, DollarSign, Share, Star, Users, CheckCircle2, FileText, UploadCloud, Pencil, Play, Square, MapPin, Clock, MoreVertical, Filter, X } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
-import { Search, MapPin, Clock, MoreVertical, Filter, X } from "lucide-react";
+import { Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { createClient } from "../../../lib/supabaseClient";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
@@ -159,11 +159,7 @@ export const JobPage = (): JSX.Element => {
   const [facetPulse, setFacetPulse] = useState(false);
   // Drawers
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [savedDrawerOpen, setSavedDrawerOpen] = useState(false);
-  const [savedItems, setSavedItems] = useState<Array<{ source_url: string; job_title: string; company: string; location: string | null; logo: string | null; created_at: string }>>([]);
-  const [savedLoading, setSavedLoading] = useState(false);
-  // Saved details cache keyed by source_url
-  const [savedDetails, setSavedDetails] = useState<Record<string, { loading: boolean; row?: any; error?: string; expanded?: boolean }>>({});
+  // Bookmark drawer/state removed
   // Quick presets (lightweight helpers)
   const [selectedPresets, setSelectedPresets] = useState<Set<string>>(() => {
     try {
@@ -173,16 +169,17 @@ export const JobPage = (): JSX.Element => {
       return new Set(Array.isArray(arr) ? arr : []);
     } catch { return new Set(); }
   });
-  // Saved-only toggle
-  const [savedOnly, setSavedOnly] = useState<boolean>(() => {
-    try { return localStorage.getItem('job_saved_only') === '1'; } catch { return false; }
-  });
+  // Saved/bookmark feature removed (always false)
+  const savedOnly = false;
   // Salary and time filters
   const [minSalary, setMinSalary] = useState<string>("");
   const [maxSalary, setMaxSalary] = useState<string>("");
   const [postedSince, setPostedSince] = useState<string>(""); // days: 3,7,14,30
   const { success, error: toastError, info } = useToast();
   const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
+  // Auto-apply state
+  const [autoApplying, setAutoApplying] = useState(false);
+  const [autoProgress, setAutoProgress] = useState<{ index: number; total: number; currentTitle?: string } | null>(null);
   const [readiness, setReadiness] = useState<{ profile: boolean; resume: boolean } | null>(null);
   // Display density removed (simplified UI)
 
@@ -297,26 +294,7 @@ export const JobPage = (): JSX.Element => {
     }
   }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType]);
 
-  // Load bookmarks for drawer
-  const loadBookmarks = useCallback(async () => {
-    try {
-      setSavedLoading(true);
-      const { data: userData } = await (supabase as any).auth.getUser();
-      const uid = (userData as any)?.user?.id;
-      if (!uid) { setSavedItems([]); return; }
-      const { data, error } = await (supabase as any)
-        .from('bookmarks')
-        .select('source_url, job_title, company, location, logo, created_at')
-        .eq('user_id', uid)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setSavedItems(Array.isArray(data) ? data as any : []);
-    } catch (e) {
-      // ignore
-    } finally {
-      setSavedLoading(false);
-    }
-  }, []);
+  // Bookmarks removed (loadBookmarks stub deleted)
 
   // Helper: map DB rows to Job shape
   const mapDbRowsToJobs = useCallback((rows: any[]): Job[] => {
@@ -431,139 +409,15 @@ export const JobPage = (): JSX.Element => {
     }
   }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, lastLiveJobs, mapDbRowsToJobs, performSearch, fetchFacets, minSalary, maxSalary, postedSince]);
 
-  // Load existing bookmarks for the user to hydrate isBookmarked
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data: userData } = await (supabase as any).auth.getUser();
-        const uid = (userData as any)?.user?.id;
-        if (!uid) return;
-        const { data } = await (supabase as any)
-          .from('bookmarks')
-          .select('source_url')
-          .eq('user_id', uid)
-          .order('created_at', { ascending: false });
-        const bookmarked = new Set((data || []).map((r: any) => r.source_url));
-        setJobs((prev) => prev.map((j) => ({ ...j, isBookmarked: j.sourceUrl ? bookmarked.has(j.sourceUrl) : j.isBookmarked })));
-      } catch {}
-    })();
-  }, []);
-
-  // When saved drawer opens, fetch bookmarks fresh
-  useEffect(() => {
-    if (savedDrawerOpen) loadBookmarks();
-  }, [savedDrawerOpen, loadBookmarks]);
+  // Bookmarks hydration removed
 
   // Toggle and fetch details for a saved job from job_listings
-  const toggleSavedDetails = useCallback(async (url: string) => {
-    setSavedDetails((m) => ({ ...m, [url]: { ...(m[url] || {}), expanded: !m[url]?.expanded } }));
-    const current = savedDetails[url];
-    if (!current || (!current.row && !current.loading)) {
-      try {
-        setSavedDetails((m) => ({ ...m, [url]: { ...(m[url] || {}), loading: true } }));
-        const { data, error } = await (supabase as any)
-          .from('job_listings')
-          .select('job_title, company_name, location, work_type, full_job_description, source_url, posted_at, salary_min, salary_max, salary_period, salary_currency, requirements, benefits')
-          .eq('source_url', url)
-          .limit(1)
-          .maybeSingle();
-        if (error) throw error;
-        setSavedDetails((m) => ({ ...m, [url]: { loading: false, row: data || null, expanded: true } }));
-      } catch (e: any) {
-        setSavedDetails((m) => ({ ...m, [url]: { loading: false, error: e.message || 'Failed to load', expanded: true } }));
-      }
-    }
-  }, [savedDetails]);
+  // toggleSavedDetails removed
 
   // Convert a job_listings row to local Job shape for applying from Saved drawer
-  const listingRowToJob = useCallback((r: any): Job => {
-    const salary = (typeof r?.salary_min === 'number' || typeof r?.salary_max === 'number')
-      ? `$${r?.salary_min ?? ''}${(r?.salary_min && r?.salary_max) ? ' - ' : ''}${r?.salary_max ?? ''}${r?.salary_period ? ` / ${r?.salary_period}` : ''}`
-      : 'N/A';
-    const id = r?.source_url || `${r?.job_title}-${r?.company_name}`;
-    return {
-      jobTitle: r?.job_title || '',
-      companyName: r?.company_name || '',
-      fullJobDescription: r?.full_job_description || '',
-      sourceUrl: r?.source_url || '',
-      id,
-      title: r?.job_title || '',
-      company: r?.company_name || '',
-      location: r?.location || '',
-      type: r?.work_type || 'N/A',
-      salary,
-      postedDate: r?.posted_at ? new Date(r.posted_at).toLocaleDateString() : 'N/A',
-      rawPostedAt: r?.posted_at ? new Date(r.posted_at).getTime() : null,
-      description: r?.full_job_description || '',
-      requirements: Array.isArray(r?.requirements) ? r.requirements : extractSectionBullets(r?.full_job_description || '', ['requirements', 'qualifications', "what you'll need", 'what you will need']),
-      benefits: Array.isArray(r?.benefits) ? r.benefits : extractSectionBullets(r?.full_job_description || '', ['benefits', 'perks', 'what we offer', 'what you get', 'compensation & benefits']),
-      isBookmarked: true,
-      isApplied: false,
-      logo: (r?.company_name?.[0] || '?').toUpperCase(),
-      logoUrl: getCompanyLogoUrl(r?.company_name, r?.source_url),
-      source: 'db',
-    } as Job;
-  }, []);
+  // listingRowToJob helper removed with bookmark feature
 
-  const toggleBookmark = useCallback(async (job: Job) => {
-    try {
-      const { data: userData } = await (supabase as any).auth.getUser();
-      const uid = (userData as any)?.user?.id;
-      if (!uid) {
-        toastError('Login required', 'Sign in to save jobs');
-        return;
-      }
-      const isBookmarked = job.isBookmarked;
-      // optimistic UI
-      setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isBookmarked: !isBookmarked } : j)));
-      if (!isBookmarked) {
-        const payload = {
-          user_id: uid,
-          source_url: job.sourceUrl,
-          job_title: job.title,
-          company: job.company,
-          location: job.location,
-          logo: job.logoUrl ?? null,
-        };
-        const { error } = await (supabase as any)
-          .from('bookmarks')
-          .insert(payload);
-        if (error) throw error;
-        success('Saved', `${job.title} @ ${job.company}`);
-      } else {
-        const { error } = await (supabase as any)
-          .from('bookmarks')
-          .delete()
-          .eq('source_url', job.sourceUrl)
-          .then(async (res: any) => res);
-        if (error) throw error;
-        info('Removed bookmark');
-      }
-      // Refresh saved drawer list if it's open
-      if (savedDrawerOpen) loadBookmarks();
-    } catch (e: any) {
-      toastError('Bookmark failed', e.message || 'Try again');
-      // revert
-      setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isBookmarked: job.isBookmarked } : j)));
-    }
-  }, [supabase, success, toastError, info, savedDrawerOpen, loadBookmarks]);
-
-  // Remove bookmark by URL (used in Saved Drawer)
-  const removeBookmarkByUrl = useCallback(async (url: string) => {
-    try {
-      const { error } = await (supabase as any)
-        .from('bookmarks')
-        .delete()
-        .eq('source_url', url);
-      if (error) throw error;
-      setSavedItems(prev => prev.filter(it => it.source_url !== url));
-      // Also reflect on current jobs list
-      setJobs(prev => prev.map(j => j.sourceUrl === url ? { ...j, isBookmarked: false } : j));
-      info('Removed bookmark');
-    } catch (e: any) {
-      toastError('Failed to remove', e.message || 'Try again');
-    }
-  }, [info, toastError]);
+  // toggleBookmark & removeBookmarkByUrl helpers removed
 
   // Cover letter library selection (available before quickApply uses it)
   type LibEntry = { id: string; name: string; updatedAt: string; data: any };
@@ -772,6 +626,51 @@ export const JobPage = (): JSX.Element => {
     }
   }, [supabase, success, toastError, info, applyingJobId, selectedCoverId]);
 
+  // Sequential auto-apply (applies to current filteredJobs one after the other)
+  const autoApplyAll = useCallback(async () => {
+    if (autoApplying) return;
+    const targetJobs = jobs.filter(j => !j.isApplied); // apply only not yet applied
+    if (!targetJobs.length) {
+      info('No pending jobs', 'All listed jobs already applied');
+      return;
+    }
+    setAutoApplying(true);
+    setAutoProgress({ index: 0, total: targetJobs.length, currentTitle: targetJobs[0].title });
+    for (let i = 0; i < targetJobs.length; i++) {
+      if (!autoApplying) break; // in case we implement cancel later
+      const job = targetJobs[i];
+      setAutoProgress({ index: i, total: targetJobs.length, currentTitle: job.title });
+      try {
+        await quickApply(job);
+      } catch {
+        // continue to next
+      }
+    }
+    setAutoApplying(false);
+    setTimeout(() => setAutoProgress(null), 1500);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs, quickApply, autoApplying]);
+
+  const AutoApplyControls = () => (
+    <div className="flex items-center gap-2">
+      <Button
+        variant={autoApplying ? 'destructive' : 'outline'}
+        onClick={() => { if (!autoApplying) autoApplyAll(); else setAutoApplying(false); }}
+        className={`border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 ${autoApplying ? 'bg-red-600/20 border-red-500/50 hover:bg-red-600/30' : ''}`}
+        disabled={applyingJobId !== null}
+        title={autoApplying ? 'Cancel auto apply' : 'Auto apply sequentially to all visible jobs'}
+      >
+        {autoApplying ? <Square className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
+        {autoApplying ? 'Stop Auto Apply' : 'Auto Apply All'}
+      </Button>
+      {autoProgress && (
+        <span className="text-xs text-[#ffffffb3] whitespace-nowrap">
+          {autoProgress.index + 1}/{autoProgress.total} {autoProgress.currentTitle}
+        </span>
+      )}
+    </div>
+  );
+
   // ==== Resume Picker (Modern UI) ====
   const { resumes: resumeOptions, getSignedUrl } = useResumes();
   const [resumePickerOpen, setResumePickerOpen] = useState(false);
@@ -867,9 +766,7 @@ export const JobPage = (): JSX.Element => {
   useEffect(() => {
     try { localStorage.setItem('job_quick_presets', JSON.stringify(Array.from(selectedPresets))); } catch {}
   }, [selectedPresets]);
-  useEffect(() => {
-    try { localStorage.setItem('job_saved_only', savedOnly ? '1' : '0'); } catch {}
-  }, [savedOnly]);
+  // savedOnly persistence removed
 
   // Toggle a preset and update corresponding filters conservatively
   const togglePreset = (key: 'remote' | 'gt100k' | 'last7') => {
@@ -902,7 +799,7 @@ export const JobPage = (): JSX.Element => {
       const min = u.searchParams.get('minSalary');
       const max = u.searchParams.get('maxSalary');
       const posted = u.searchParams.get('posted');
-      const saved = u.searchParams.get('saved');
+  // saved removed
       if (q) setSearchQuery(q);
       if (loc) setSelectedLocation(loc);
       if (type) setSelectedType(type);
@@ -911,7 +808,7 @@ export const JobPage = (): JSX.Element => {
       if (min) setMinSalary(min);
       if (max) setMaxSalary(max);
       if (posted) setPostedSince(posted);
-      if (saved === '1' || saved === 'true') setSavedOnly(true);
+  // ignore saved flag
     } catch {}
   }, []);
 
@@ -931,7 +828,7 @@ export const JobPage = (): JSX.Element => {
       setOrDel('minSalary', minSalary);
       setOrDel('maxSalary', maxSalary);
       setOrDel('posted', postedSince);
-      if (savedOnly) sp.set('saved', '1'); else sp.delete('saved');
+  // saved flag omitted from URL
       const next = u.toString();
       if (next !== window.location.href) window.history.replaceState({}, '', next);
     } catch {}
@@ -944,7 +841,7 @@ export const JobPage = (): JSX.Element => {
   const hasMin = !!minSalary;
   const hasMax = !!maxSalary;
   const hasPosted = !!postedSince;
-  const hasSavedOnly = !!savedOnly;
+  // bookmarks fully removed
 
   const toggleReq = (value: string) => {
     const next = new Set(selectedReq);
@@ -985,11 +882,7 @@ export const JobPage = (): JSX.Element => {
     applyFacetFilters([], []);
   }, [applyFacetFilters]);
 
-  const filteredJobs = jobs.filter(job => {
-    const matchesType = selectedType === "All" || job.type === selectedType;
-    const matchesSaved = !savedOnly || job.isBookmarked;
-    return matchesType && matchesSaved;
-  });
+  const filteredJobs = jobs.filter(job => (selectedType === 'All' || job.type === selectedType));
 
   const sortedJobs = (() => {
     if (sortBy === 'posted_desc') {
@@ -1121,18 +1014,8 @@ export const JobPage = (): JSX.Element => {
                 <Filter className="w-4 h-4 mr-2" />
                 {activeFacetCount > 0 ? `Filters (${activeFacetCount})` : 'Filters'}
               </Button>
-              {/* Saved jobs */}
-              <Button
-                variant="outline"
-                onClick={() => setSavedDrawerOpen(true)}
-                className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300"
-              >
-                <Bookmark className="w-4 h-4 mr-2" />
-                Saved
-                {savedItems.length > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center text-xs rounded px-1.5 py-0.5 bg-[#1dff00]/20 text-[#1dff00] border border-[#1dff00]/40">{savedItems.length}</span>
-                )}
-              </Button>
+              {/* Auto Apply Controls (bookmarks removed) */}
+              <AutoApplyControls />
             </div>
           </div>
         </div>
@@ -1211,14 +1094,7 @@ export const JobPage = (): JSX.Element => {
             >
               Last 7 days
             </button>
-            <button
-              type="button"
-              onClick={() => setSavedOnly(s => !s)}
-              className={`px-2 py-1 rounded border text-xs transition ${savedOnly ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}
-              title="Show only saved jobs"
-            >
-              Saved only
-            </button>
+            {/* Saved only preset removed */}
           </div>
           {/* Salary & Time filters row */}
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -1289,8 +1165,8 @@ export const JobPage = (): JSX.Element => {
           </div>
         </Card>
 
-        {/* Active Filters (non-facet) */}
-        {(hasType || hasMin || hasMax || hasPosted || hasSavedOnly) && (
+  {/* Active Filters (non-facet) */}
+  {(hasType || hasMin || hasMax || hasPosted) && (
           <div className="mb-4 flex items-center gap-2 flex-wrap">
             <span className="text-xs uppercase tracking-wide text-[#ffffff80] mr-1">Active:</span>
             {hasType && (
@@ -1317,13 +1193,6 @@ export const JobPage = (): JSX.Element => {
                 <span className="ml-2 text-white/60 group-hover:text-white">×</span>
               </button>
             )}
-            {hasSavedOnly && (
-              <button onClick={() => setSavedOnly(false)} className="px-2 py-1 rounded border border-white/20 bg-white/5 text-xs text-white/80 hover:border-[#1dff00]/40 group" title="Show all jobs">
-                Saved only
-                <span className="ml-2 text-white/60 group-hover:text-white">×</span>
-              </button>
-            )}
-            <button onClick={clearAllFilters} className="ml-2 text-xs text-[#1dff00] hover:underline">Clear all</button>
           </div>
         )}
 
@@ -1486,11 +1355,7 @@ export const JobPage = (): JSX.Element => {
                     Reset query
                   </Button>
                   <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={clearAllFilters}>Clear all filters</Button>
-                  {hasSavedOnly && (
-                    <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={() => setSavedDrawerOpen(true)}>
-                      Open Saved jobs
-                    </Button>
-                  )}
+                  {/* Saved jobs button removed */}
                 </div>
               </Card>
             )}
@@ -1541,16 +1406,6 @@ export const JobPage = (): JSX.Element => {
                       </div>
                       
                       <div className="flex items-center space-x-2 flex-shrink-0">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={(e) => { e.stopPropagation(); toggleBookmark(job); }}
-                          className={`text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300 ${
-                            job.isBookmarked ? "text-[#1dff00]" : ""
-                          }`}
-                        >
-                          <Bookmark className={`w-4 h-4 ${job.isBookmarked ? "fill-current" : ""}`} />
-                        </Button>
                         <Button 
                           variant="ghost" 
                           size="sm" 
@@ -1686,15 +1541,6 @@ export const JobPage = (): JSX.Element => {
                             >
                               <Share className="w-4 h-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => toggleBookmark(job)}
-                              className={`text-[#ffffff80] hover:text-white hover:scale-110 transition-all duration-300 ${job.isBookmarked ? 'text-[#1dff00]' : ''}`}
-                              aria-label={job.isBookmarked ? 'Unsave job' : 'Save job'}
-                            >
-                              <Heart className="w-4 h-4" />
-                            </Button>
                           </div>
                         </div>
                         
@@ -1715,14 +1561,6 @@ export const JobPage = (): JSX.Element => {
                           </div>
                           
                           <div className="flex items-center space-x-3 w-full sm:w-auto">
-                            <Button 
-                              variant="outline" 
-                              onClick={() => toggleBookmark(job)}
-                              className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300 flex-1 sm:flex-none"
-                            >
-                              <Bookmark className="w-4 h-4 mr-2" />
-                              {job.isBookmarked ? 'Unsave' : 'Save Job'}
-                            </Button>
                             <Button 
                               onClick={() => openResumePicker(job)}
                               disabled={!!applyingJobId || job.isApplied}
@@ -1898,7 +1736,7 @@ export const JobPage = (): JSX.Element => {
                     <button type="button" onClick={() => togglePreset('remote')} className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('remote') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>Remote</button>
                     <button type="button" onClick={() => togglePreset('gt100k')} className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('gt100k') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>{`>$100k`}</button>
                     <button type="button" onClick={() => togglePreset('last7')} className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('last7') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>Last 7 days</button>
-                    <button type="button" onClick={() => setSavedOnly(s => !s)} className={`px-2 py-1 rounded border text-xs transition ${savedOnly ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>Saved only</button>
+                    {/* Saved only preset removed */}
                   </div>
                 </div>
                 {/* Salary & posted */}
@@ -1953,126 +1791,7 @@ export const JobPage = (): JSX.Element => {
           </div>
         )}
 
-        {/* Saved Jobs Drawer */}
-        {savedDrawerOpen && (
-          <div className="fixed inset-0 z-50">
-            <div className="absolute inset-0 bg-black/60" onClick={() => setSavedDrawerOpen(false)} />
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', stiffness: 260, damping: 30 }}
-              className="absolute right-0 top-0 h-full w-full sm:w-[540px] bg-gradient-to-br from-[#0a0a0a] via-[#0b0b0b] to-[#050505] border-l border-white/10 shadow-2xl flex flex-col"
-              role="dialog"
-              aria-label="Saved jobs"
-            >
-              <div className="flex items-center justify-between p-4 border-b border-white/10">
-                <div className="text-white font-semibold">Saved Jobs {savedLoading ? <span className="text-xs text-white/50 ml-2">Loading…</span> : savedItems.length ? <span className="text-xs text-white/50 ml-2">({savedItems.length})</span> : null}</div>
-                <button className="text-white/70 hover:text-white" onClick={() => setSavedDrawerOpen(false)} aria-label="Close saved">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="p-4 space-y-3 overflow-auto">
-                {(!savedLoading && savedItems.length === 0) && (
-                  <Card className="border border-white/10 bg-white/5 p-6 text-center">
-                    <Bookmark className="w-10 h-10 text-white/40 mx-auto mb-2" />
-                    <div className="text-white/80 font-medium">No saved jobs</div>
-                    <div className="text-white/60 text-sm">Tap the bookmark on a job to save it here.</div>
-                  </Card>
-                )}
-                {savedItems.map((it) => (
-                  <Card key={it.source_url} className="border border-white/10 bg-white/5 p-4">
-                    <div className="flex items-start gap-3">
-                      {it.logo ? (
-                        <img src={it.logo} alt={it.company} className="w-12 h-12 rounded-lg bg-white object-contain" />
-                      ) : (
-                        <div className="w-12 h-12 rounded-lg bg-[#1dff00]/20 flex items-center justify-center text-[#1dff00] font-bold">{(it.company?.[0] || '?').toUpperCase()}</div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-white font-medium truncate">{it.job_title}</div>
-                        <div className="text-white/70 text-sm truncate">{it.company}{it.location ? ` • ${it.location}` : ''}</div>
-                        <div className="text-xs text-white/50 mt-1">Saved {new Date(it.created_at).toLocaleString()}</div>
-                        <div className="mt-3 flex items-center gap-2 flex-wrap">
-                          <a href={it.source_url} target="_blank" rel="noopener noreferrer nofollow" className="px-2 py-1 rounded border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff0033] hover:bg-[#1dff004d] text-xs">Open posting</a>
-                          <button onClick={() => removeBookmarkByUrl(it.source_url)} className="px-2 py-1 rounded border border-red-400/40 text-red-300 bg-red-500/10 hover:bg-red-500/20 text-xs">Remove</button>
-                          <button onClick={() => toggleSavedDetails(it.source_url)} className="px-2 py-1 rounded border border-white/20 text-white/80 hover:border-[#1dff00]/40 text-xs">{savedDetails[it.source_url]?.expanded ? 'Hide details' : 'View details'}</button>
-                          {/* Try to locate job in current list to quick-apply */}
-                          <button
-                            onClick={() => {
-                              const job = jobs.find(j => j.sourceUrl === it.source_url);
-                              if (job) {
-                                setSelectedJob(job.id);
-                                openResumePicker(job);
-                              } else {
-                                const row = savedDetails[it.source_url]?.row;
-                                if (row) {
-                                  const temp = listingRowToJob(row);
-                                  openResumePicker(temp);
-                                } else {
-                                  window.open(it.source_url, '_blank', 'noopener,noreferrer');
-                                }
-                              }
-                            }}
-                            className="px-2 py-1 rounded bg-[#1dff00] text-black hover:bg-[#1dff00]/90 text-xs"
-                          >
-                            Apply Now
-                          </button>
-                        </div>
-                        {savedDetails[it.source_url]?.expanded && (
-                          <div className="mt-3 rounded border border-white/10 bg-white/5 p-3 text-sm">
-                            {savedDetails[it.source_url]?.loading && (
-                              <div className="text-white/70">Loading details…</div>
-                            )}
-                            {!!savedDetails[it.source_url]?.error && (
-                              <div className="text-red-300">{savedDetails[it.source_url]?.error}</div>
-                            )}
-                            {savedDetails[it.source_url]?.row && (() => {
-                              const r: any = savedDetails[it.source_url]!.row;
-                              const salaryStr = (typeof r.salary_min === 'number' || typeof r.salary_max === 'number')
-                                ? `$${r.salary_min ?? ''}${(r.salary_min && r.salary_max) ? ' - ' : ''}${r.salary_max ?? ''}${r.salary_period ? ` / ${r.salary_period}` : ''}`
-                                : 'N/A';
-                              return (
-                                <div className="space-y-2">
-                                  <div className="flex flex-wrap items-center gap-3 text-white/80">
-                                    {r.location && <span className="px-2 py-0.5 rounded border border-white/15 bg-white/5">{r.location}</span>}
-                                    {r.work_type && <span className="px-2 py-0.5 rounded border border-white/15 bg-white/5">{r.work_type}</span>}
-                                    <span className="px-2 py-0.5 rounded border border-white/15 bg-white/5">Salary: {salaryStr}</span>
-                                    {r.posted_at && <span className="px-2 py-0.5 rounded border border-white/15 bg-white/5">Posted {new Date(r.posted_at).toLocaleDateString()}</span>}
-                                  </div>
-                                  <div className="prose prose-invert max-w-none text-white/80">
-                                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(r.full_job_description || '') }} />
-                                  </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    {Array.isArray(r.requirements) && r.requirements.length > 0 && (
-                                      <div>
-                                        <div className="text-white font-medium mb-1">Requirements</div>
-                                        <ul className="list-disc list-inside text-white/80 space-y-1">
-                                          {r.requirements.slice(0, 6).map((x: string, idx: number) => <li key={idx}>{x}</li>)}
-                                        </ul>
-                                      </div>
-                                    )}
-                                    {Array.isArray(r.benefits) && r.benefits.length > 0 && (
-                                      <div>
-                                        <div className="text-white font-medium mb-1">Benefits</div>
-                                        <ul className="list-disc list-inside text-white/80 space-y-1">
-                                          {r.benefits.slice(0, 6).map((x: string, idx: number) => <li key={idx}>{x}</li>)}
-                                        </ul>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-        )}
+        {/* Saved Jobs Drawer removed */}
       </div>
     </div>
   );
