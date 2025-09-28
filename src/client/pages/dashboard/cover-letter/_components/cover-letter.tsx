@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2, Check, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2, Check, Trash2, ArrowUp, ArrowDown, Printer, X } from "lucide-react";
 import { Button, Card } from "@reactive-resume/ui";
 import { createClient } from "@/lib/supabaseClient";
 import { useToast } from "@/components/ui/toast-provider";
@@ -42,6 +42,7 @@ export const CoverLetter = () => {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [inlineEdit, setInlineEdit] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const previewRef = useRef<HTMLDivElement | null>(null);
   // Local Library for multiple cover letters
   type LibraryEntry = { id: string; name: string; updatedAt: string; data: any };
@@ -238,30 +239,65 @@ export const CoverLetter = () => {
 
   const zoomIn = () => setFontSize((size) => Math.min(28, size + 1));
   const zoomOut = () => setFontSize((size) => Math.max(12, size - 1));
-  const download = () => {
+  const exportTxt = () => {
+    try {
+      const text = serializeLetter();
+      if (!text.trim()) return;
+      const fileName = `Cover_Letter_${(company||'Company').replace(/[^a-z0-9]+/gi,'_')}_${(role||'Role').replace(/[^a-z0-9]+/gi,'_')}.txt`;
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      requestAnimationFrame(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+      success('Download started', 'TXT file is being saved');
+    } catch (e) {
+      console.error('TXT export failed', e);
+      toastError('Export failed', 'Could not create TXT file');
+    }
+  };
+
+  const printLetter = () => {
     try {
       const node = previewRef.current;
       if (!node) return;
       const html = node.innerHTML;
-      const win = window.open("", "_blank", "noopener,noreferrer,width=900,height=1200");
+      const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1200');
       if (!win) return;
       win.document.write(`<!doctype html><html><head><title>Cover Letter</title>
         <meta charset=\"utf-8\" />
         <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
         <style>
-          @page { margin: 24mm; }
+          @page { margin: 22mm; }
           body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial, sans-serif; }
-          .doc { max-width: 800px; margin: 0 auto; }
-          pre { white-space: pre-wrap; font-family: inherit; }
+          .doc { max-width: 820px; margin: 0 auto; }
+          p { orphans: 3; widows: 3; }
         </style>
       </head><body><div class="doc">${html}</div></body></html>`);
       win.document.close();
       win.focus();
-      win.print();
-      setTimeout(() => { try { win.close(); } catch {} }, 300);
+      setTimeout(() => { try { win.print(); } catch {} }, 50);
+      setTimeout(() => { try { win.close(); } catch {} }, 500);
+      success('Print ready', 'Use system dialog to save as PDF');
     } catch (e) {
-      console.error(e);
-      alert("Failed to prepare PDF. Use your browser's Print to PDF as a fallback.");
+      console.error('Print failed', e);
+      toastError('Print failed', 'Could not prepare print view');
+    }
+  };
+
+  const copyPlain = async () => {
+    try {
+      await navigator.clipboard.writeText(serializeLetter());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+      success('Copied', 'Letter copied to clipboard');
+    } catch (e) {
+      toastError('Copy failed', 'Clipboard not available');
     }
   };
   const saveToLibrary = (name?: string) => {
@@ -612,10 +648,39 @@ export const CoverLetter = () => {
           <Button variant="outline" onClick={() => setInlineEdit((v)=>!v)} className={`rounded-xl whitespace-nowrap ${inlineEdit ? 'bg-primary/10 border-primary text-primary' : ''}`}> <Pencil className="w-4 h-4 mr-2"/> {inlineEdit ? 'Edit in Preview: On' : 'Edit in Preview'} </Button>
           <Button variant="outline" disabled={aiLoading} onClick={aiPolish} className="rounded-xl whitespace-nowrap"> <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> {aiLoading ? 'Polishing…' : 'AI Polish'}</Button>
           <Button variant="outline" disabled={aiLoading} onClick={aiWriteFull} className="rounded-xl whitespace-nowrap"> <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> {aiLoading ? 'Writing…' : 'AI Write (Full)'}</Button>
-          <Button variant="outline" onClick={share} className="rounded-xl whitespace-nowrap"> {copied ? <><Check className="w-4 h-4 mr-2"/> Copied</> : <><Share2 className="w-4 h-4 mr-2"/> Share</>} </Button>
-          <Button onClick={download} className="rounded-xl whitespace-nowrap"> <Download className="w-4 h-4 mr-2"/> Download</Button>
+          <Button variant="outline" onClick={() => setExportOpen(true)} className="rounded-xl whitespace-nowrap"> <Download className="w-4 h-4 mr-2"/> Export</Button>
         </div>
       </div>
+
+      {exportOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={() => setExportOpen(false)} />
+          <div role="dialog" aria-modal="true" className="relative z-10 w-full max-w-md rounded-xl border border-border bg-popover shadow-lg p-4 sm:p-6 animate-in fade-in-0 zoom-in-95">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-semibold">Export Cover Letter</h2>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setExportOpen(false)}><X className="w-4 h-4"/></Button>
+            </div>
+            <p className="text-xs opacity-70 mb-4">Choose a format or action below. Use Print to save as PDF.</p>
+            <div className="grid gap-2">
+              <Button variant="outline" className="justify-start rounded-xl" onClick={() => { exportTxt(); setExportOpen(false); }}>
+                <Download className="w-4 h-4 mr-2"/> Download .TXT
+              </Button>
+              <Button variant="outline" className="justify-start rounded-xl" onClick={() => { printLetter(); setExportOpen(false); }}>
+                <Printer className="w-4 h-4 mr-2"/> Print / Save as PDF
+              </Button>
+              <Button variant="outline" className="justify-start rounded-xl" onClick={() => { copyPlain(); setExportOpen(false); }}>
+                {copied ? <Check className="w-4 h-4 mr-2"/> : <Share2 className="w-4 h-4 mr-2 rotate-90"/>} Copy Plain Text
+              </Button>
+              <Button variant="outline" className="justify-start rounded-xl" onClick={() => { share(); setExportOpen(false); }}>
+                <Share2 className="w-4 h-4 mr-2"/> Share (system)
+              </Button>
+              <div className="pt-2">
+                <p className="text-[11px] opacity-60">More formats (PDF/DOCX) coming soon.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Workspace */}
       <div className="grid gap-4 grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)]">
