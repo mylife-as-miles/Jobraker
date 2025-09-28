@@ -1,4 +1,5 @@
 import React, { StrictMode } from "react";
+import '@/client/analytics/telemetry';
 import { createRoot } from "react-dom/client";
 import "../tailwind.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";

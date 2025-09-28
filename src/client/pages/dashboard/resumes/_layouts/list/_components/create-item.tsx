@@ -15,24 +15,36 @@ export const CreateResumeListItem = () => {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(() => generateRandomName());
-  const [template, setTemplate] = useState("Modern");
+  const STORAGE_KEY = 'resume:last-template';
+  const [template, setTemplate] = useState(() => {
+    try { return localStorage.getItem(STORAGE_KEY) || 'Modern'; } catch { return 'Modern'; }
+  });
   const inputRef = useRef<HTMLInputElement | null>(null);
   const templates = ["Modern", "Classic", "Minimal", "Elegant", "Professional"];
 
   useEffect(()=> { if (editing) setTimeout(()=> inputRef.current?.focus(), 10); }, [editing]);
 
-  const resetForm = () => { setTitle(generateRandomName()); setTemplate("Modern"); };
+  const resetForm = () => {
+    setTitle(generateRandomName());
+    try { const saved = localStorage.getItem(STORAGE_KEY); setTemplate(saved || 'Modern'); } catch { setTemplate('Modern'); }
+  };
+
+  useEffect(()=> { try { localStorage.setItem(STORAGE_KEY, template); } catch {} }, [template]);
+  useEffect(()=> { if (editing) { import('@/client/pages/builder/page').catch(()=>{}); } }, [editing]);
 
   const createNow = useCallback(async (val: string) => {
     try {
       setCreating(true);
       const used = val.trim() || generateRandomName();
       const slug = slugify(used);
+      window.dispatchEvent(new CustomEvent('analytics', { detail: { type: 'resume_create_start', title: used, template } }));
       const res = await createResume({ title: used, slug, visibility: "private" as const } as any);
       toast({ variant: "success", title: t`Resume created`, description: used });
+      window.dispatchEvent(new CustomEvent('analytics', { detail: { type: 'resume_create_success', id: res.id, title: used, template } }));
       navigate(`/builder/${res.id}`, { state: { resume: res } });
     } catch (e: any) {
       toast({ variant: "error", title: t`Creation failed`, description: e?.message || t`Please try again.` });
+      window.dispatchEvent(new CustomEvent('analytics', { detail: { type: 'resume_create_error', message: e?.message } }));
     } finally {
       setCreating(false); setEditing(false); resetForm();
     }

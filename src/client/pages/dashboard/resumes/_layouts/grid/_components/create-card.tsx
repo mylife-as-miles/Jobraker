@@ -16,7 +16,10 @@ export const CreateResumeCard = () => {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(() => generateRandomName());
-  const [template, setTemplate] = useState("Modern");
+  const STORAGE_KEY = 'resume:last-template';
+  const [template, setTemplate] = useState(() => {
+    try { return localStorage.getItem(STORAGE_KEY) || 'Modern'; } catch { return 'Modern'; }
+  });
   const inputRef = useRef<HTMLInputElement | null>(null);
   const templates = ["Modern", "Classic", "Minimal", "Elegant", "Professional"];
 
@@ -24,8 +27,24 @@ export const CreateResumeCard = () => {
 
   const resetForm = () => {
     setTitle(generateRandomName());
-    setTemplate("Modern");
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      setTemplate(saved || 'Modern');
+    } catch { setTemplate('Modern'); }
   };
+
+  // Persist template selection
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, template); } catch {}
+  }, [template]);
+
+  // Preload builder bundle once editing is opened (best-effort)
+  useEffect(() => {
+    if (editing) {
+      // Fire and forget dynamic import to warm cache
+      import('@/client/pages/builder/page').catch(()=>{});
+    }
+  }, [editing]);
 
   const actuallyCreate = useCallback(async (finalTitle: string) => {
     performance.mark('resume:create:start');
@@ -33,13 +52,17 @@ export const CreateResumeCard = () => {
       setCreating(true);
       const usedTitle = finalTitle.trim() || generateRandomName();
       const slug = slugify(usedTitle);
-      const res = await createResume({ title: usedTitle, slug, visibility: "private" as const, /* template not in DTO maybe but kept local */ } as any);
+      // Analytics: dispatch custom event before mutation
+      window.dispatchEvent(new CustomEvent('analytics', { detail: { type: 'resume_create_start', title: usedTitle, template } }));
+      const res = await createResume({ title: usedTitle, slug, visibility: "private" as const } as any);
       performance.mark('resume:create:end');
       try { performance.measure('resume:create:duration','resume:create:start','resume:create:end'); } catch {}
       toast({ variant: "success", title: t`Resume created`, description: usedTitle });
+      window.dispatchEvent(new CustomEvent('analytics', { detail: { type: 'resume_create_success', id: res.id, title: usedTitle, template } }));
       navigate(`/builder/${res.id}`, { replace: false, state: { resume: res } });
     } catch (e: any) {
       toast({ variant: "error", title: t`Creation failed`, description: e?.message || t`Please try again.` });
+      window.dispatchEvent(new CustomEvent('analytics', { detail: { type: 'resume_create_error', message: e?.message } }));
     } finally {
       setCreating(false);
       setEditing(false);

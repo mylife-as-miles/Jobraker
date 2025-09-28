@@ -26,7 +26,7 @@ interface GanttProps {
   onBarClick?: (item: GanttItem, evt: React.MouseEvent) => void;
 }
 
-// Lightweight, dependency-free Gantt renderer (horizontal timeline bars)
+// Lightweight, dependency-free Gantt renderer (horizontal tiproceed to possibe furtger meline bars)
 export const Gantt: React.FC<GanttProps> = ({
   items,
   className = '',
