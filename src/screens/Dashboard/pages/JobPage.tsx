@@ -1,4 +1,4 @@
-import { Briefcase, Building2, DollarSign, Share, Star, Users, CheckCircle2, FileText, UploadCloud, Pencil, Play, Square, MapPin, Clock, MoreVertical, Filter, X } from "lucide-react";
+import { Briefcase, Building2, DollarSign, Share, Star, Users, CheckCircle2, FileText, UploadCloud, Pencil, Play, MapPin, Clock, MoreVertical, Filter, X, Loader2 } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
@@ -177,9 +177,15 @@ export const JobPage = (): JSX.Element => {
   const [postedSince, setPostedSince] = useState<string>(""); // days: 3,7,14,30
   const { success, error: toastError, info } = useToast();
   const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
-  // Auto-apply state
+  // Resume data (moved up so dependent hooks below can safely reference)
+  const { resumes: resumeOptions, getSignedUrl } = useResumes();
+  // Auto-apply state & advanced animation overlay
   const [autoApplying, setAutoApplying] = useState(false);
-  const [autoProgress, setAutoProgress] = useState<{ index: number; total: number; currentTitle?: string } | null>(null);
+  const [autoApplyStatuses, setAutoApplyStatuses] = useState<Record<string, { status: 'pending' | 'applying' | 'success' | 'error'; error?: string }>>({});
+  const [autoApplyQueue, setAutoApplyQueue] = useState<Job[]>([]);
+  const [autoApplyVisible, setAutoApplyVisible] = useState(false);
+  const [autoApplyCancelRequested, setAutoApplyCancelRequested] = useState(false);
+  const [pendingAutoApplyStart, setPendingAutoApplyStart] = useState(false);
   const [readiness, setReadiness] = useState<{ profile: boolean; resume: boolean } | null>(null);
   // Display density removed (simplified UI)
 
@@ -435,17 +441,18 @@ export const JobPage = (): JSX.Element => {
     } catch {}
   }, []);
 
-  const quickApply = useCallback(async (job: Job) => {
-  // NOTE: This function may receive a resume URL override via closure (state)
-    if (applyingJobId) return; // prevent parallel
+  const quickApply = useCallback(async (job: Job): Promise<boolean> => {
+    // prevent parallel
+    if (applyingJobId) return false;
     setApplyingJobId(job.id);
+    let successFlag = false;
     try {
       const { data: userData } = await (supabase as any).auth.getUser();
       const uid = (userData as any)?.user?.id;
       if (!uid) {
         toastError('Login required', 'Sign in to apply');
         setApplyingJobId(null);
-        return;
+        return false;
       }
       // Preflight: capture readiness result
       try {
@@ -561,8 +568,9 @@ export const JobPage = (): JSX.Element => {
           .single();
         if (error) throw error;
         const applicationId = (inserted as any)?.id as string | undefined;
-        success('Application started', appUrl ? 'Skyvern workflow triggered' : `${job.title} @ ${job.company}`);
-        setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isApplied: true } : j)));
+  success('Application started', appUrl ? 'Skyvern workflow triggered' : `${job.title} @ ${job.company}`);
+  setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isApplied: true } : j)));
+  successFlag = true;
 
         if (runId && applicationId) {
           const stop = new Set(['succeeded','failed','error','cancelled','completed']);
@@ -610,6 +618,7 @@ export const JobPage = (): JSX.Element => {
         if (error) throw error;
         info('Saved application', 'Apply trigger failed; saved locally');
         setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isApplied: true } : j)));
+        successFlag = true;
       }
     } catch (e: any) {
       const msg = e.message || 'Try again';
@@ -624,68 +633,17 @@ export const JobPage = (): JSX.Element => {
       } catch {}
       setApplyingJobId(null);
     }
+    return successFlag;
   }, [supabase, success, toastError, info, applyingJobId, selectedCoverId]);
 
-  // Sequential auto-apply (applies to current filteredJobs one after the other)
-  const autoApplyAll = useCallback(async () => {
+  // Start auto-apply flow (opens resume picker first)
+  const startAutoApplyFlow = useCallback(() => {
     if (autoApplying) return;
-    const targetJobs = jobs.filter(j => !j.isApplied); // apply only not yet applied
-    if (!targetJobs.length) {
-      info('No pending jobs', 'All listed jobs already applied');
-      return;
-    }
-    setAutoApplying(true);
-    setAutoProgress({ index: 0, total: targetJobs.length, currentTitle: targetJobs[0].title });
-    for (let i = 0; i < targetJobs.length; i++) {
-      if (!autoApplying) break; // in case we implement cancel later
-      const job = targetJobs[i];
-      setAutoProgress({ index: i, total: targetJobs.length, currentTitle: job.title });
-      try {
-        await quickApply(job);
-      } catch {
-        // continue to next
-      }
-    }
-    setAutoApplying(false);
-    setTimeout(() => setAutoProgress(null), 1500);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobs, quickApply, autoApplying]);
-
-  const AutoApplyControls = () => (
-    <div className="flex items-center gap-2">
-      <Button
-        variant={autoApplying ? 'destructive' : 'outline'}
-        onClick={() => { if (!autoApplying) autoApplyAll(); else setAutoApplying(false); }}
-        className={`border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300 ${autoApplying ? 'bg-red-600/20 border-red-500/50 hover:bg-red-600/30' : ''}`}
-        disabled={applyingJobId !== null}
-        title={autoApplying ? 'Cancel auto apply' : 'Auto apply sequentially to all visible jobs'}
-      >
-        {autoApplying ? <Square className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
-        {autoApplying ? 'Stop Auto Apply' : 'Auto Apply All'}
-      </Button>
-      {autoProgress && (
-        <span className="text-xs text-[#ffffffb3] whitespace-nowrap">
-          {autoProgress.index + 1}/{autoProgress.total} {autoProgress.currentTitle}
-        </span>
-      )}
-    </div>
-  );
-
-  // ==== Resume Picker (Modern UI) ====
-  const { resumes: resumeOptions, getSignedUrl } = useResumes();
-  const [resumePickerOpen, setResumePickerOpen] = useState(false);
-  const [jobPendingApply, setJobPendingApply] = useState<Job | null>(null);
-  const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
-  const selectedResumeSignedUrl = useRef<string | null>(null);
-  // Cover letter (cover page) attach options
-  const [attachCoverLetter, setAttachCoverLetter] = useState(false);
-  const [selectedCoverTemplate, setSelectedCoverTemplate] = useState<string | null>('Standard');
-  const selectedCoverAttachRef = useRef<boolean>(false);
-  const selectedCoverTemplateRef = useRef<string | null>(null);
-
-  const openResumePicker = useCallback((job: Job) => {
-    setJobPendingApply(job);
-    // Preselect favorite or most recent
+    const targets = jobs.filter(j => !j.isApplied);
+    if (!targets.length) { info('No pending jobs', 'All listed jobs already applied'); return; }
+    setPendingAutoApplyStart(true);
+    setAutoApplyQueue(targets);
+    // Preselect resume like single apply
     const pick = (resumeOptions || []).slice().sort((a, b) => {
       const favA = (a as any).is_favorite ? 1 : 0;
       const favB = (b as any).is_favorite ? 1 : 0;
@@ -694,42 +652,95 @@ export const JobPage = (): JSX.Element => {
     })[0];
     setSelectedResumeId(pick?.id ?? null);
     setResumePickerOpen(true);
-  }, [resumeOptions]);
+  }, [autoApplying, jobs, info, resumeOptions]);
+
+  // Run the auto-apply queue sequentially with animated status updates
+  const runAutoApplyQueue = useCallback(async () => {
+    if (!autoApplyQueue.length) return;
+    setAutoApplyCancelRequested(false);
+    // initialize statuses
+    const init: Record<string, {status:'pending'|'applying'|'success'|'error'; error?: string}> = {};
+    for (const j of autoApplyQueue) init[j.id] = { status: 'pending' };
+    setAutoApplyStatuses(init);
+    setAutoApplyVisible(true);
+    setAutoApplying(true);
+    for (let i = 0; i < autoApplyQueue.length; i++) {
+      if (autoApplyCancelRequested) break;
+      const job = autoApplyQueue[i];
+      setAutoApplyStatuses(s => ({ ...s, [job.id]: { status: 'applying' } }));
+      const ok = await quickApply(job);
+      setAutoApplyStatuses(s => ({ ...s, [job.id]: { status: ok ? 'success' : 'error' } }));
+      // small stagger for visual rhythm
+      await new Promise(r => setTimeout(r, 450));
+    }
+    setAutoApplying(false);
+    // auto hide after delay unless there are errors
+    setTimeout(() => {
+      setAutoApplyVisible(false);
+      setAutoApplyStatuses({});
+      setAutoApplyQueue([]);
+    }, Object.values(autoApplyStatuses).some(v => v.status === 'error') ? 6000 : 2500);
+  }, [autoApplyQueue, quickApply, autoApplyCancelRequested, autoApplyStatuses]);
+
+  const AutoApplyControls = () => (
+    <div className="flex items-center gap-3">
+      <Button
+        variant='outline'
+        onClick={startAutoApplyFlow}
+        className={`border-[#1dff00]/40 text-[#1dff00] hover:bg-[#1dff00]/10 hover:border-[#1dff00] transition-all duration-300 relative overflow-hidden group ${autoApplying ? 'pointer-events-none opacity-70' : ''}`}
+        title='Choose a resume and auto apply to all pending jobs'
+      >
+        <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-r from-[#1dff0066] via-transparent to-[#1dff0066] animate-[pulse_3s_linear_infinite]" />
+        <Play className="w-4 h-4 mr-2" /> Auto Apply All
+      </Button>
+      {autoApplying && (
+        <div className="flex items-center gap-2 text-xs text-white/70">
+          <Loader2 className="w-4 h-4 animate-spin" /> Applying...
+        </div>
+      )}
+    </div>
+  );
+
+  // ==== Resume Picker (Modern UI) ====
+  const [resumePickerOpen, setResumePickerOpen] = useState(false);
+  const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
+  const selectedResumeSignedUrl = useRef<string | null>(null);
+  // Cover letter (cover page) attach options
+  const [attachCoverLetter, setAttachCoverLetter] = useState(false);
+  const [selectedCoverTemplate, setSelectedCoverTemplate] = useState<string | null>('Standard');
+  const selectedCoverAttachRef = useRef<boolean>(false);
+  const selectedCoverTemplateRef = useRef<string | null>(null);
+
+  // Single job open picker disabled (auto apply only)
 
   const cancelResumePicker = useCallback(() => {
     setResumePickerOpen(false);
-    setJobPendingApply(null);
     setSelectedResumeId(null);
     selectedResumeSignedUrl.current = null;
   }, []);
 
   const confirmResumePicker = useCallback(async () => {
-    if (!jobPendingApply) return;
     try {
       selectedResumeSignedUrl.current = null;
       if (selectedResumeId) {
         const chosen = (resumeOptions || []).find(r => r.id === selectedResumeId);
         if (chosen?.file_path) {
-          // Longer expiry to be safe for backend call
           const url = await getSignedUrl(chosen.file_path);
-          if (url) selectedResumeSignedUrl.current = url;
-          else info?.('Using latest resume', 'Could not sign selected; falling back');
+          if (url) selectedResumeSignedUrl.current = url; else info?.('Using latest resume', 'Could not sign selected; falling back');
         }
       }
-      // Preserve cover letter selection across apply
       selectedCoverAttachRef.current = !!attachCoverLetter;
       selectedCoverTemplateRef.current = selectedCoverTemplate;
       setResumePickerOpen(false);
-      // Trigger apply with possible override
-      await quickApply(jobPendingApply);
-      // Note: cover selection is passed inside quickApply payload below
+      if (pendingAutoApplyStart) {
+        setPendingAutoApplyStart(false);
+        runAutoApplyQueue();
+      }
     } finally {
-      // reset override to avoid leaking into other applies
       setTimeout(() => { selectedResumeSignedUrl.current = null; }, 0);
       setTimeout(() => { selectedCoverAttachRef.current = false; selectedCoverTemplateRef.current = null; }, 0);
-      setJobPendingApply(null);
     }
-  }, [jobPendingApply, selectedResumeId, resumeOptions, getSignedUrl, quickApply, info, attachCoverLetter, selectedCoverTemplate]);
+  }, [attachCoverLetter, selectedCoverTemplate, getSignedUrl, info, pendingAutoApplyStart, resumeOptions, runAutoApplyQueue, selectedResumeId]);
 
   const shareJob = useCallback(async (job: Job) => {
     try {
@@ -1560,15 +1571,7 @@ export const JobPage = (): JSX.Element => {
                             ); })()}
                           </div>
                           
-                          <div className="flex items-center space-x-3 w-full sm:w-auto">
-                            <Button 
-                              onClick={() => openResumePicker(job)}
-                              disabled={!!applyingJobId || job.isApplied}
-                              className={`bg-[#1dff00] text-black hover:bg-[#1dff00]/90 transition-all duration-300 flex-1 sm:flex-none ${(applyingJobId || job.isApplied) ? 'opacity-70 cursor-not-allowed hover:scale-100' : 'hover:scale-105'}`}
-                            >
-                              {job.isApplied ? 'Applied' : (applyingJobId === job.id ? 'Applying…' : 'Apply Now')}
-                            </Button>
-                          </div>
+                          {/* Per-job apply removed - auto apply only */}
                         </div>
                       </Card>
 
@@ -1691,6 +1694,109 @@ export const JobPage = (): JSX.Element => {
           selectedCoverId={selectedCoverId}
           onSelectCoverId={(id) => setSelectedCoverId(id)}
         />
+
+        {/* Auto Apply Overlay */}
+        {autoApplyVisible && (
+          <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 pointer-events-none">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 40 }}
+              className="relative w-full max-w-3xl pointer-events-auto rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#0d0d0d] via-[#060606] to-[#030303] shadow-[0_0_0_1px_rgba(29,255,0,0.15)] overflow-hidden"
+            >
+              <div className="px-6 py-4 flex items-center justify-between border-b border-[#1dff00]/20">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-[#1dff00]/15 flex items-center justify-center shadow-inner shadow-[#1dff00]/40">
+                    <Play className="w-4 h-4 text-[#1dff00]" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold leading-tight">Auto Applying {autoApplyQueue.length} Jobs</h3>
+                    <p className="text-xs text-white/50">Sit tight – we’ll run through each posting with your chosen resume.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {autoApplying && (
+                    <button onClick={() => setAutoApplyCancelRequested(true)} className="text-xs px-3 py-1.5 rounded-md border border-white/15 text-white/70 hover:text-white hover:border-[#ff5252]/50 hover:bg-[#ff5252]/10 transition">Cancel Remaining</button>
+                  )}
+                  <button onClick={() => { if (!autoApplying) { setAutoApplyVisible(false); } }} className="text-white/60 hover:text-white">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              {/* Progress Bar */}
+              {(() => {
+                const total = autoApplyQueue.length || 1;
+                const done = Object.values(autoApplyStatuses).filter(s => s.status === 'success' || s.status === 'error').length;
+                const pct = Math.min(100, Math.round((done / total) * 100));
+                return (
+                  <div className="px-6 pt-4">
+                    <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-[#1dff00] via-[#00ffa3] to-[#1dff00] animate-[progress_6s_linear_infinite]" style={{ width: `${pct}%` }} />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-[10px] uppercase tracking-wide text-white/50">
+                      <span>{pct}% Complete</span>
+                      <span>{done} / {total} processed</span>
+                    </div>
+                  </div>
+                );
+              })()}
+              {/* Job Status List */}
+              <div className="max-h-[50vh] overflow-auto p-4 sm:p-6 grid grid-cols-1 gap-3">
+                {autoApplyQueue.map((job, idx) => {
+                  const st = autoApplyStatuses[job.id]?.status || 'pending';
+                  return (
+                    <motion.div
+                      key={job.id}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.06 }}
+                      className={`relative rounded-xl border p-4 flex items-start gap-4 bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-sm overflow-hidden ${st === 'success' ? 'border-emerald-500/40' : st === 'error' ? 'border-red-500/40' : st === 'applying' ? 'border-[#1dff00]/60' : 'border-white/10'}`}
+                    >
+                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center text-xs font-semibold ${st === 'success' ? 'bg-emerald-500/15 text-emerald-300' : st === 'error' ? 'bg-red-500/15 text-red-300' : 'bg-[#1dff00]/10 text-[#1dff00]' }`}>
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-white font-medium truncate">{job.title}</span>
+                          <span className="text-white/40 text-xs truncate">@ {job.company}</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[11px] text-white/50">
+                          <span>{job.location}</span>
+                          <span className="hidden sm:inline">•</span>
+                          <span className="truncate">{job.type}</span>
+                        </div>
+                        <div className="mt-2 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                          <div className={`h-full transition-all duration-500 ${st === 'success' ? 'bg-emerald-400' : st === 'error' ? 'bg-red-400' : st === 'applying' ? 'bg-[#1dff00] animate-pulse' : 'bg-white/20 w-2/12'}`} style={{ width: st === 'success' ? '100%' : st === 'error' ? '100%' : st === 'applying' ? '65%' : '15%' }} />
+                        </div>
+                      </div>
+                      <div className="w-8 flex items-center justify-center">
+                        {st === 'pending' && <div className="h-3 w-3 rounded-full bg-white/30" />}
+                        {st === 'applying' && <Loader2 className="w-4 h-4 animate-spin text-[#1dff00]" />}
+                        {st === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
+                        {st === 'error' && <X className="w-5 h-5 text-red-400" />}
+                      </div>
+                      {st === 'applying' && (
+                        <motion.div
+                          className="absolute inset-0 pointer-events-none"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 0.6 }}
+                          exit={{ opacity: 0 }}
+                          style={{ background: 'radial-gradient(circle at 20% 20%, rgba(29,255,0,0.12), transparent 60%)' }}
+                        />
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+              {!autoApplying && (
+                <div className="px-6 pb-5 flex items-center justify-end gap-3">
+                  <button onClick={() => { setAutoApplyVisible(false); }} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium hover:bg-[#1dff00]/90">Close</button>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
 
         {/* Mobile Filters Drawer */}
         {mobileFiltersOpen && (
