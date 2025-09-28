@@ -1,5 +1,6 @@
 import { t } from "@lingui/macro";
 import { Lock } from "@phosphor-icons/react";
+import { Eye, Download, Copy, Star, StarOff, Trash2, Pencil } from "lucide-react";
 import dayjs from "dayjs";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -14,7 +15,7 @@ type Props = { resume: ResumeRecord };
 const pdfPreviewCache = new Map<string, string>();
 
 // Lightweight PDF first-page preview component (lazy loads pdfjs only when needed)
-const PdfFirstPage: React.FC<{ resume: ResumeRecord }> = ({ resume }) => {
+const PdfFirstPage: React.FC<{ resume: ResumeRecord; active: boolean }> = ({ resume, active }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +24,8 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord }> = ({ resume }) => {
 
   useEffect(() => {
     let cancelled = false;
-    if (resume.file_ext !== 'pdf' || !resume.file_path) { setLoading(false); return; }
+  if (!active) return; // Wait until card observed in viewport
+  if (resume.file_ext !== 'pdf' || !resume.file_path) { setLoading(false); return; }
     // Serve from cache if available
     if (pdfPreviewCache.has(resume.id)) {
       setDataUrl(pdfPreviewCache.get(resume.id)!);
@@ -74,7 +76,7 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord }> = ({ resume }) => {
       }
     })();
     return () => { cancelled = true; };
-  }, [resume.file_ext, resume.file_path, getSignedUrl]);
+  }, [active, resume.file_ext, resume.file_path, getSignedUrl]);
 
   if (error) return null; // Let parent fallback show
   return (
@@ -99,17 +101,48 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord }> = ({ resume }) => {
 };
 
 export const SbResumeCard = ({ resume }: Props) => {
-  const { view } = useResumes();
+  const { view, download, duplicate, toggleFavorite, remove, rename } = useResumes();
   const template = resume.template || "Modern";
   const lastUpdated = dayjs().to(new Date(resume.updated_at));
+  const [inView, setInView] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [draftName, setDraftName] = useState(resume.name);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
+  // Observe element for lazy-loading preview
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          observer.disconnect();
+        }
+      });
+    }, { rootMargin: '200px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const onOpen = async () => {
     // For now open the stored file (signed URL or local object URL if set)
     await view(resume);
   };
 
+  const commitRename = async () => {
+    const next = draftName.trim();
+    if (!next || next === resume.name) { setRenaming(false); setDraftName(resume.name); return; }
+    await rename(resume.id, next);
+    setRenaming(false);
+  };
+
   return (
-    <BaseCard className="cursor-pointer space-y-0" onDoubleClick={onOpen}>
+    <BaseCard
+      ref={cardRef as any}
+      className="cursor-pointer space-y-0 group"
+      onDoubleClick={onOpen}
+    >
       <AnimatePresence>
         {/* Placeholder: lock state not present on ResumeRecord; remove overlay */}
         {false && (
@@ -124,19 +157,78 @@ export const SbResumeCard = ({ resume }: Props) => {
         )}
       </AnimatePresence>
 
-      <div
-        className={
-          "absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end space-y-0.5 p-4 pt-12 bg-gradient-to-t from-black/80 to-transparent"
-        }
-      >
-        <h4 className="line-clamp-2 font-medium">{resume.name}</h4>
-        <p className="line-clamp-1 text-xs opacity-75">{t`Last updated ${lastUpdated}`}</p>
+      <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end space-y-1 p-3 pt-12 bg-gradient-to-t from-black/80 to-transparent">
+        {renaming ? (
+          <input
+            autoFocus
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+              if (e.key === 'Escape') { e.preventDefault(); setRenaming(false); setDraftName(resume.name); }
+            }}
+            className="text-sm font-medium bg-black/40 border border-white/20 rounded px-1.5 py-1 outline-none focus:border-[#1dff00]"
+          />
+        ) : (
+          <h4 className="line-clamp-2 font-medium flex items-center gap-1">
+            {resume.name}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setRenaming(true); setDraftName(resume.name); }}
+              className="opacity-0 group-hover:opacity-70 hover:opacity-100 transition text-xs text-white/70"
+              aria-label="Rename resume"
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
+          </h4>
+        )}
+        <p className="line-clamp-1 text-[10px] opacity-70">{t`Last updated ${lastUpdated}`}</p>
+      </div>
+
+      {/* Hover action toolbar */}
+  <div className="absolute top-2 left-2 z-20 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
+        <button
+          onClick={(e)=>{ e.stopPropagation(); onOpen(); }}
+          className="p-1.5 rounded-md bg-black/60 border border-white/10 hover:border-[#1dff00]/60 hover:bg-black/80 text-white transition flex items-center justify-center"
+          title="Open"
+        >
+          <Eye className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={(e)=>{ e.stopPropagation(); download(resume); }}
+          className="p-1.5 rounded-md bg-black/60 border border-white/10 hover:border-[#1dff00]/60 hover:bg-black/80 text-white transition flex items-center justify-center"
+          title="Download"
+        >
+          <Download className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={(e)=>{ e.stopPropagation(); duplicate(resume); }}
+          className="p-1.5 rounded-md bg-black/60 border border-white/10 hover:border-[#1dff00]/60 hover:bg-black/80 text-white transition flex items-center justify-center"
+          title="Duplicate"
+        >
+          <Copy className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={(e)=>{ e.stopPropagation(); toggleFavorite(resume.id, !resume.is_favorite); }}
+          className={`p-1.5 rounded-md bg-black/60 border ${resume.is_favorite ? 'border-[#1dff00] text-[#1dff00]' : 'border-white/10 text-white'} hover:border-[#1dff00]/60 hover:text-[#1dff00] hover:bg-black/80 transition flex items-center justify-center`}
+          title={resume.is_favorite ? 'Unfavorite' : 'Favorite'}
+        >
+          {resume.is_favorite ? <Star className="w-3.5 h-3.5" /> : <StarOff className="w-3.5 h-3.5" />}
+        </button>
+        <button
+          onClick={(e)=>{ e.stopPropagation(); remove(resume); }}
+          className="p-1.5 rounded-md bg-black/60 border border-white/10 hover:border-red-500/70 hover:text-red-400 hover:bg-black/80 text-white transition flex items-center justify-center"
+          title="Delete"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       <div className="relative w-full h-full">
         {/* PDF preview if available */}
         {resume.file_ext === 'pdf' && resume.file_path && (
-          <PdfFirstPage resume={resume} />
+          <PdfFirstPage resume={resume} active={inView} />
         )}
         {/* Fallback image (shows underneath the canvas or if PDF not available) */}
         <img
@@ -148,7 +240,7 @@ export const SbResumeCard = ({ resume }: Props) => {
           }}
         />
         {resume.file_ext === 'pdf' && resume.file_path && (
-          <div className="absolute top-1.5 right-1.5 z-20 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur text-[9px] font-medium border border-[#1dff00]/40 text-[#1dff00]">
+          <div className="absolute top-1.5 right-1.5 z-20 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur text-[9px] font-medium border border-[#1dff00]/40 text-[#1dff00] shadow-[0_0_4px_rgba(29,255,0,0.4)]">
             PDF
           </div>
         )}
