@@ -10,16 +10,26 @@ import React, { useEffect, useRef, useState } from "react";
 
 type Props = { resume: ResumeRecord };
 
+// In-memory cache for rendered PDF first-page previews (data URLs)
+const pdfPreviewCache = new Map<string, string>();
+
 // Lightweight PDF first-page preview component (lazy loads pdfjs only when needed)
 const PdfFirstPage: React.FC<{ resume: ResumeRecord }> = ({ resume }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
   const { getSignedUrl } = useResumes();
 
   useEffect(() => {
     let cancelled = false;
     if (resume.file_ext !== 'pdf' || !resume.file_path) { setLoading(false); return; }
+    // Serve from cache if available
+    if (pdfPreviewCache.has(resume.id)) {
+      setDataUrl(pdfPreviewCache.get(resume.id)!);
+      setLoading(false);
+      return;
+    }
     (async () => {
       try {
         const url = await getSignedUrl(resume.file_path!);
@@ -40,7 +50,11 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord }> = ({ resume }) => {
         const doc = await pdfjs.getDocument({ url, verbosity: 0 }).promise;
         const page = await doc.getPage(1);
         if (cancelled) return;
-        const viewport = page.getViewport({ scale: 0.35 }); // scale down for card
+        // Determine scale relative to desired card width (~260px) for sharper image
+        const targetWidth = 260;
+        const unscaled = page.getViewport({ scale: 1 });
+        const scale = Math.min(1, targetWidth / unscaled.width);
+        const viewport = page.getViewport({ scale });
         const canvas = canvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
@@ -48,6 +62,11 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord }> = ({ resume }) => {
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         await page.render({ canvasContext: ctx, viewport }).promise;
+        try {
+          const urlData = canvas.toDataURL('image/png');
+          pdfPreviewCache.set(resume.id, urlData);
+          if (!cancelled) setDataUrl(urlData);
+        } catch {}
       } catch (e: any) {
         if (!cancelled) setError(e.message || 'Preview failed');
       } finally {
@@ -58,12 +77,25 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord }> = ({ resume }) => {
   }, [resume.file_ext, resume.file_path, getSignedUrl]);
 
   if (error) return null; // Let parent fallback show
-  if (loading) return (
-    <div className="absolute inset-0 flex items-center justify-center text-[10px] text-[#1dff00]/60 animate-pulse select-none">
-      Loading…
-    </div>
+  return (
+    <>
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center text-[10px] text-[#1dff00]/60 animate-pulse select-none">
+          Loading…
+        </div>
+      )}
+      {/* When cached, show <img>; otherwise canvas until captured */}
+      {dataUrl ? (
+        <img
+          src={dataUrl}
+            alt="PDF Preview"
+            className="absolute inset-0 w-full h-full object-cover rounded-sm will-change-transform opacity-0 animate-in fade-in zoom-in-50 duration-500"
+        />
+      ) : (
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover rounded-sm opacity-0 animate-in fade-in duration-300" />
+      )}
+    </>
   );
-  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover rounded-sm" />;
 };
 
 export const SbResumeCard = ({ resume }: Props) => {
@@ -115,6 +147,11 @@ export const SbResumeCard = ({ resume }: Props) => {
             (e.currentTarget as HTMLImageElement).src = "/templates/jpg/Modern.jpg";
           }}
         />
+        {resume.file_ext === 'pdf' && resume.file_path && (
+          <div className="absolute top-1.5 right-1.5 z-20 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur text-[9px] font-medium border border-[#1dff00]/40 text-[#1dff00]">
+            PDF
+          </div>
+        )}
       </div>
     </BaseCard>
   );
