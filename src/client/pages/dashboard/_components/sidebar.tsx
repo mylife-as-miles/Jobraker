@@ -1,5 +1,5 @@
 import { t } from "@lingui/macro";
-import { Article, FadersHorizontal, ReadCvLogo, Plus } from "@phosphor-icons/react";
+import { FadersHorizontal, ReadCvLogo, Plus } from "@phosphor-icons/react";
 import { Button, KeyboardShortcut, Separator } from "@reactive-resume/ui";
 import { cn } from "@reactive-resume/utils";
 import { motion } from "framer-motion";
@@ -118,7 +118,7 @@ export const Sidebar = ({ setOpen }: SidebarProps) => {
 
   const sidebarItems: SidebarItem[] = [
     {
-      path: "/dashboard/resumes/new",
+      path: "/builder/new",
       name: t`New Resume`,
       shortcut: "⇧N",
       icon: <Plus />,
@@ -135,12 +135,7 @@ export const Sidebar = ({ setOpen }: SidebarProps) => {
       shortcut: "⇧R",
       icon: <ReadCvLogo />,
     },
-    {
-      path: "/dashboard/cover-letter",
-      name: t`Cover Letter`,
-      shortcut: "⇧C",
-      icon: <Article />,
-    },
+    // Cover letter temporarily disabled (icon removed due to missing export in phosphor build)
     {
       path: "/dashboard/settings",
       name: t`Settings`,
@@ -153,7 +148,7 @@ export const Sidebar = ({ setOpen }: SidebarProps) => {
     <div className="flex h-full flex-col gap-y-4">
   <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt,.json" hidden onChange={onImportFile} />
       <div className="ml-12 flex justify-center lg:ml-0">
-        <Button asChild size="icon" variant="ghost" className="size-10 p-0">
+  <Button asChild size="lg" variant="ghost" className="size-10 p-0">
           <Link to="/">
             <Icon size={24} className="mx-auto hidden lg:block" />
           </Link>
