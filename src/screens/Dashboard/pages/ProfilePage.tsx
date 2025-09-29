@@ -3,6 +3,7 @@ import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
 import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award, GraduationCap, Briefcase, Lightbulb } from "lucide-react";
+import { EmptyState } from "../../../components/ui/empty-state";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useProfileCollections } from "../../../hooks/useProfileCollections";
@@ -34,7 +35,7 @@ const ProfilePage = (): JSX.Element => {
     })();
   }, [supabase]);
 
-  // resolve signed avatar URL from private storage
+  // resolve signed avatar URL from private storage (refresh every 8 mins)
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -53,7 +54,7 @@ const ProfilePage = (): JSX.Element => {
     return () => { active = false; clearInterval(id); };
   }, [supabase, (profile as any)?.avatar_url]);
 
-  // Consolidated collections hook: data + CRUD are from the same instance
+  // Collections (experiences, education, skills)
   const collections = useProfileCollections();
   const {
     experiences,
@@ -69,6 +70,8 @@ const ProfilePage = (): JSX.Element => {
     updateEducation,
     updateSkill,
   } = collections as any;
+
+  // Local UI state for creation / editing
   const [showAddExperience, setShowAddExperience] = useState(false);
   const [showAddEducation, setShowAddEducation] = useState(false);
   const [showAddSkill, setShowAddSkill] = useState(false);
@@ -83,6 +86,7 @@ const ProfilePage = (): JSX.Element => {
   const offers = applications?.filter(a => a.status === 'Offer').length ?? 0;
   const successRate = totalApps > 0 ? Math.round((offers / totalApps) * 100) : 0;
 
+  // skill level helpers
   const getSkillLevelColor = (level: string) => {
     switch (level) {
       case "Expert":
@@ -818,72 +822,3 @@ function AboutEditor({ profile, onSave, onCancel }: { profile: { job_title: stri
 }
 
 export default ProfilePage;
-// Reusable enterprise-grade empty state component
-// Lightweight local component (could be promoted to shared/ui later)
-import type { LucideIcon } from "lucide-react";
-function EmptyState({
-  icon: Icon,
-  title,
-  description,
-  primaryAction,
-  secondaryAction,
-  secondaryChips = [],
-  tone = "neutral"
-}: {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  primaryAction?: { label: string; onClick: () => void };
-  secondaryAction?: { label: string; onClick: () => void };
-  secondaryChips?: string[];
-  tone?: "neutral" | "info" | "primary" | "success" | "warning" | "danger";
-}) {
-  const toneStyles: Record<string, { ring: string; glow: string; accent: string; icon: string; pill: string }> = {
-    neutral: { ring: 'ring-[#ffffff22]', glow: 'from-[#ffffff10] to-[#ffffff05]', accent: 'text-white', icon: 'text-white', pill: 'bg-[#ffffff12] text-[#ffffff99]' },
-    info: { ring: 'ring-sky-400/30', glow: 'from-sky-500/10 to-sky-500/0', accent: 'text-sky-300', icon: 'text-sky-300', pill: 'bg-sky-500/15 text-sky-300' },
-    primary: { ring: 'ring-[#1dff00]/40', glow: 'from-[#1dff00]/15 to-transparent', accent: 'text-[#1dff00]', icon: 'text-[#1dff00]', pill: 'bg-[#1dff00]/20 text-[#1dff00]' },
-    success: { ring: 'ring-emerald-400/30', glow: 'from-emerald-500/15 to-transparent', accent: 'text-emerald-300', icon: 'text-emerald-300', pill: 'bg-emerald-500/15 text-emerald-300' },
-    warning: { ring: 'ring-amber-400/30', glow: 'from-amber-500/15 to-transparent', accent: 'text-amber-300', icon: 'text-amber-300', pill: 'bg-amber-500/15 text-amber-300' },
-    danger: { ring: 'ring-rose-400/30', glow: 'from-rose-500/15 to-transparent', accent: 'text-rose-300', icon: 'text-rose-300', pill: 'bg-rose-500/15 text-rose-300' },
-  };
-  const s = toneStyles[tone] || toneStyles.neutral;
-  return (
-    <div className={`relative overflow-hidden rounded-xl border border-[#ffffff18] bg-gradient-to-b ${s.glow} p-6 ring-1 ${s.ring} backdrop-blur-xl group transition-all duration-500 hover:shadow-[0_0_0_1px_#1dff00]`}> 
-      <div className="absolute inset-px rounded-[11px] bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.08),transparent_60%)] pointer-events-none" />
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 relative">
-        <div className="flex gap-4">
-          <div className={`relative w-14 h-14 rounded-xl flex items-center justify-center bg-[#ffffff08] ring-1 ${s.ring} ${s.icon} shadow-inner`}> 
-            <Icon className="w-7 h-7 drop-shadow" />
-            <div className={`absolute inset-0 rounded-xl bg-gradient-to-br ${s.glow} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
-          </div>
-          <div className="space-y-2 max-w-xl">
-            <h4 className={`text-lg font-semibold tracking-tight ${s.accent}`}>{title}</h4>
-            <p className="text-sm text-[#ffffff99] leading-relaxed">{description}</p>
-            {secondaryChips.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-1">
-                {secondaryChips.slice(0,6).map(ch => (
-                  <span key={ch} className={`text-[10px] uppercase tracking-wide px-2 py-1 rounded-full font-medium ${s.pill} border border-white/5 backdrop-blur-sm`}>
-                    {ch}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="flex flex-col sm:items-end gap-2 shrink-0">
-          {primaryAction && (
-            <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:shadow-lg hover:shadow-[#1dff00]/25 transition-all duration-300" onClick={primaryAction.onClick}>
-              {primaryAction.label}
-            </Button>
-          )}
-          {secondaryAction && (
-            <Button size="sm" variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff14]" onClick={secondaryAction.onClick}>
-              {secondaryAction.label}
-            </Button>
-          )}
-        </div>
-      </div>
-      <div className="absolute -right-10 -top-10 w-40 h-40 bg-[conic-gradient(from_90deg_at_50%_50%,#1dff00_0deg,transparent_140deg)] opacity-10 blur-2xl group-hover:opacity-20 transition-opacity" />
-    </div>
-  );
-}
