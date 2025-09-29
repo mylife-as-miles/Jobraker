@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ROUTES } from '../routes'
 import { createClient } from '../lib/supabaseClient'
+import { events } from '@/lib/analytics'
 
 type Props = { children: React.ReactNode }
 
@@ -37,15 +38,23 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
         // Non-fatal; treat as not complete
         setOnboardingCheck({ done: true, complete: false });
       } else {
-        setOnboardingCheck({ done: true, complete: !!profile?.onboarding_complete });
+        const complete = !!profile?.onboarding_complete;
+        setOnboardingCheck({ done: true, complete });
         // If not complete and we're not already on onboarding route -> redirect
-        if (!profile?.onboarding_complete && window.location.pathname !== ROUTES.ONBOARDING) {
+        if (!complete && window.location.pathname !== ROUTES.ONBOARDING) {
           navigate(ROUTES.ONBOARDING, { replace: true });
         }
         // If complete and user is on onboarding, push to dashboard
-        if (profile?.onboarding_complete && window.location.pathname === ROUTES.ONBOARDING) {
+        if (complete && window.location.pathname === ROUTES.ONBOARDING) {
           navigate('/dashboard/overview', { replace: true });
         }
+        // Fire profile_completed if we newly observe completion and haven't emitted yet (hard refresh safety)
+        try {
+          if (complete && !(window as any).__profileCompletedTracked) {
+            events.profileCompleted();
+            (window as any).__profileCompletedTracked = true;
+          }
+        } catch {}
       }
       setChecking(false)
     }

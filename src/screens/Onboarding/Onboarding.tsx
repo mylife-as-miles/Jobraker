@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
 import { parsePdfFile } from '@/utils/parsePdf';
 import { analyzeResumeText } from '@/utils/analyzeResume';
+import { events } from '@/lib/analytics';
 
 interface OnboardingStep {
   id: number;
@@ -473,6 +474,7 @@ export const Onboarding = (): JSX.Element => {
           return;
         }
         // Upsert profile information and mark onboarding complete
+        const startedAt = (user as any).created_at ? new Date((user as any).created_at).getTime() : undefined;
         const { error } = await supabase.from('profiles').upsert({
           id: user.id,
           first_name: formData.firstName || null,
@@ -488,6 +490,14 @@ export const Onboarding = (): JSX.Element => {
             updated_at: new Date().toISOString(),
         }, { onConflict: 'id' });
         if (error) throw error;
+        // Analytics: profile completed (fire once per session)
+        try {
+          if (!(window as any).__profileCompletedTracked) {
+            const elapsed = startedAt ? Date.now() - startedAt : undefined;
+            events.profileCompleted(elapsed);
+            (window as any).__profileCompletedTracked = true;
+          }
+        } catch {}
   navigate("/dashboard/overview");
       } catch (err) {
         console.error('Failed to save onboarding:', err);
