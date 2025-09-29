@@ -9,6 +9,7 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
   const navigate = useNavigate()
   const supabase = createClient()
   const [checking, setChecking] = useState(true)
+  const [onboardingCheck, setOnboardingCheck] = useState<{ done: boolean; complete: boolean }>({ done: false, complete: false });
 
   useEffect(() => {
     let mounted = true
@@ -23,10 +24,30 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
       const { data } = await supabase.auth.getUser()
       if (!mounted) return
       if (!data.user) {
-  navigate(ROUTES.SIGNIN, { replace: true })
-      } else {
-        setChecking(false)
+        navigate(ROUTES.SIGNIN, { replace: true })
+        return;
       }
+      // Fetch profile to determine onboarding status
+      const { data: profile, error: profErr } = await supabase
+        .from('profiles')
+        .select('onboarding_complete')
+        .eq('id', data.user.id)
+        .single();
+      if (profErr) {
+        // Non-fatal; treat as not complete
+        setOnboardingCheck({ done: true, complete: false });
+      } else {
+        setOnboardingCheck({ done: true, complete: !!profile?.onboarding_complete });
+        // If not complete and we're not already on onboarding route -> redirect
+        if (!profile?.onboarding_complete && window.location.pathname !== ROUTES.ONBOARDING) {
+          navigate(ROUTES.ONBOARDING, { replace: true });
+        }
+        // If complete and user is on onboarding, push to dashboard
+        if (profile?.onboarding_complete && window.location.pathname === ROUTES.ONBOARDING) {
+          navigate('/dashboard/overview', { replace: true });
+        }
+      }
+      setChecking(false)
     }
     check()
 
@@ -40,7 +61,7 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
     }
   }, [navigate, supabase])
 
-  if (checking) {
+  if (checking || !onboardingCheck.done) {
     return (
       <div className="min-h-screen grid place-items-center bg-black">
         <div className="w-6 h-6 border-2 border-white/20 border-t-[#1dff00] rounded-full animate-spin" />
