@@ -208,9 +208,9 @@ Stretch: Application outcome tagging + success ratio widget.
 [ ] (Optional) Add story/demo page for EmptyState.
 [x] Add `analytics.ts` abstraction.
 [x] Wire analytics events in resume parsing & profile completion.
-[ ] Introduce `scripts/lint-migrations.ts` (node) + CI hook placeholder.
-[ ] Generate Supabase types → `src/types/supabase.ts`.
-[ ] Define `zod` schemas for parse result.
+[x] Introduce `scripts/lint-migrations.ts` (node) + CI hook placeholder.
+[x] Generate Supabase types → `src/types/supabase.ts` (placeholder added, replace via CLI gen).
+[x] Define `zod` schemas for parse result.
 [ ] Create `resume_versions` migration.
 [ ] Scaffold cover letter v2 builder module.
 [ ] Skill frequency aggregator prototype reading existing parsed fields.
