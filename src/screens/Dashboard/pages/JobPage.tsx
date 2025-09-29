@@ -1,4 +1,4 @@
-import { Briefcase, Building2, DollarSign, Share, Star, Users, CheckCircle2, FileText, UploadCloud, Pencil, Play, MapPin, Clock, MoreVertical, Filter, X, Loader2 } from "lucide-react";
+import { Briefcase, Building2, DollarSign, Share, Star, Users, CheckCircle2, FileText, UploadCloud, Pencil, Play, MapPin, Clock, MoreVertical, Filter, X, Loader2, Sparkles, Plus, ArrowRight } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
@@ -1986,7 +1986,59 @@ function ResumePickerModal({
         </div>
         <div className="p-5 max-h-[60vh] overflow-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
           {resumes.length === 0 && (
-            <div className="text-center text-white/70 py-8">No resumes yet. Import one from the Resumes page.</div>
+            <div className="sm:col-span-2 relative overflow-hidden rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-[#0f0f0f] via-[#0a0a0a] to-black p-8">
+              <div className="pointer-events-none absolute inset-0 opacity-40 [mask-image:radial-gradient(circle_at_30%_20%,white,transparent_70%)]">
+                <div className="absolute -top-32 -left-32 h-64 w-64 rounded-full bg-[#1dff00]/20 blur-3xl" />
+                <div className="absolute -bottom-32 -right-32 h-64 w-64 rounded-full bg-[#1dff00]/10 blur-3xl" />
+              </div>
+              <div className="relative flex flex-col items-center text-center gap-6">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#1dff00]/30 bg-[#1dff00]/10 px-4 py-1 text-[11px] font-medium tracking-wide text-[#1dff00] shadow-[0_0_0_1px_rgba(29,255,0,0.25)]">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Boost Apply Success</span>
+                </div>
+                <div className="max-w-xl mx-auto flex flex-col gap-3">
+                  <h4 className="text-2xl font-semibold bg-gradient-to-r from-white via-white to-[#1dff00] bg-clip-text text-transparent leading-tight">
+                    Create a standout resume to power Auto Apply
+                  </h4>
+                  <p className="text-white/70 text-sm leading-relaxed">
+                    You haven’t added any resumes yet. Build a modern, ATS-optimized resume in minutes or import an existing one
+                    to start applying at scale.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <button
+                    onClick={() => { try { window.location.href = '/builder/new'; } catch { /* noop */ } }}
+                    className="group relative inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#1dff00] via-[#7dff5c] to-[#1dff00] px-6 py-3 font-medium text-black focus:outline-none focus:ring-2 focus:ring-[#1dff00]/40 shadow-[0_8px_24px_-4px_rgba(29,255,0,0.4)] hover:shadow-[0_4px_18px_-2px_rgba(29,255,0,0.55)] transition"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Build New Resume</span>
+                    <ArrowRight className="w-4 h-4 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition" />
+                  </button>
+                  <button
+                    onClick={() => { try { window.location.href = '/dashboard/resumes'; } catch { /* noop */ } }}
+                    className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-white/80 hover:text-white hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10 focus:outline-none focus:ring-2 focus:ring-[#1dff00]/30 transition"
+                  >
+                    <UploadCloud className="w-4 h-4" />
+                    Import Existing
+                  </button>
+                </div>
+                <ul className="grid sm:grid-cols-3 gap-3 w-full max-w-3xl mt-2 text-left">
+                  {[
+                    ['Optimized Formatting','Designed to pass Applicant Tracking Systems'],
+                    ['Smart Sections','Drag & refine experience, projects, skills'],
+                    ['Instant Updates','Edit once & reuse across applications']
+                  ].map(([title,desc]) => (
+                    <li key={title} className="group relative rounded-lg border border-white/10 bg-white/[0.02] p-3 hover:border-[#1dff00]/30 transition">
+                      <div className="mb-1 flex items-center gap-2 text-[13px] font-medium text-white">
+                        <div className="h-1.5 w-1.5 rounded-full bg-[#1dff00] animate-pulse" /> {title}
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-white/60">{desc}</p>
+                      <div className="pointer-events-none absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-[#1dff00]/5 via-transparent to-transparent transition" />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           )}
           {resumes.map((r) => {
             const active = selectedId === r.id;
