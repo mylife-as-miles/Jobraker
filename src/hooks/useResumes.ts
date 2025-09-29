@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parsePdfFile } from '@/utils/parsePdf';
 import { analyzeResumeText } from '@/utils/analyzeResume';
 import { hashEmbedding } from '@/utils/hashEmbedding';
+import { events } from '@/lib/analytics';
 import { createClient } from "../lib/supabaseClient";
 import { useToast } from "../components/ui/toast";
 
@@ -131,6 +132,14 @@ export function useResumes() {
         try {
           // Use a stable in-memory Blob to avoid Chromium ERR_UPLOAD_FILE_CHANGED
           const bytes = await file.arrayBuffer();
+          // Lightweight hash prefix (first 10 hex chars of sha256) for dedupe analytics; ignore failures if subtle unsupported
+          let hashPrefix: string | undefined = undefined;
+          try {
+            if ((window as any).crypto?.subtle) {
+              const digest = await crypto.subtle.digest('SHA-256', bytes);
+              hashPrefix = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0,10);
+            }
+          } catch {}
           const blob = new Blob([bytes], { type: file.type || "application/octet-stream" });
           const { error: upErr } = await (supabase as any)
             .storage
@@ -164,6 +173,7 @@ export function useResumes() {
           objectUrlMap.current.set(rec.id, url);
           setResumes((prev) => [rec, ...prev]);
           success("Resume uploaded", `${rec.name}.${rec.file_ext ?? ""}`);
+          events.resumeUploaded(file, hashPrefix);
         } catch (e: any) {
           const msg = e.message || "Upload failed";
           setError(msg);
@@ -213,6 +223,13 @@ export function useResumes() {
       const path = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
   // Use a stable in-memory Blob to avoid Chromium ERR_UPLOAD_FILE_CHANGED
   const bytes = await file.arrayBuffer();
+  let hashPrefix: string | undefined = undefined;
+  try {
+    if ((window as any).crypto?.subtle) {
+      const digest = await crypto.subtle.digest('SHA-256', bytes);
+      hashPrefix = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0,10);
+    }
+  } catch {}
   const blob = new Blob([bytes], { type: file.type || 'application/octet-stream' });
   const { error: upErr } = await (supabase as any).storage.from('resumes').upload(path, blob, { upsert: false, contentType: file.type || undefined });
       if (upErr) throw upErr;
@@ -234,6 +251,7 @@ export function useResumes() {
       const rec = data as ResumeRecord;
       setResumes((prev) => [rec, ...prev]);
       success('Resume imported', `${rec.name}.${rec.file_ext ?? ''}`);
+      events.resumeUploaded(file, hashPrefix);
       if (progressTimers.current.has(tempId)) {
         clearInterval(progressTimers.current.get(tempId)!);
         progressTimers.current.delete(tempId);
@@ -243,6 +261,7 @@ export function useResumes() {
   if (ext === 'pdf') {
         (async () => {
           try {
+            const t0 = performance.now();
             const parsed = await parsePdfFile(file);
             const analyzed = analyzeResumeText(parsed.text);
             const embedding = hashEmbedding(parsed.text);
@@ -255,7 +274,14 @@ export function useResumes() {
               skills: analyzed.skills,
               embedding
             });
-          } catch {}
+            events.resumeParsedSuccess({
+              duration_ms: Math.round(performance.now() - t0),
+              skills_count: analyzed.skills.length,
+              education_count: Array.isArray(analyzed.structured?.education) ? analyzed.structured.education.length : 0,
+            });
+          } catch (err: any) {
+            events.resumeParsedFailure(err?.name || err?.message || 'parse_error');
+          }
         })();
       }
       return rec;
@@ -293,6 +319,13 @@ export function useResumes() {
       const path = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
   // Use a stable in-memory Blob to avoid Chromium ERR_UPLOAD_FILE_CHANGED
   const bytes = await file.arrayBuffer();
+  let hashPrefix: string | undefined = undefined;
+  try {
+    if ((window as any).crypto?.subtle) {
+      const digest = await crypto.subtle.digest('SHA-256', bytes);
+      hashPrefix = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0,10);
+    }
+  } catch {}
   const blob = new Blob([bytes], { type: file.type || 'application/octet-stream' });
   const { error: upErr } = await (supabase as any).storage.from('resumes').upload(path, blob, { upsert: false, contentType: file.type || undefined });
       if (upErr) throw upErr;
@@ -314,10 +347,12 @@ export function useResumes() {
       const rec = data as ResumeRecord;
       setResumes((prev) => [rec, ...prev]);
       success('Resume imported', `${rec.name}.${rec.file_ext ?? ''}`);
+      events.resumeUploaded(file, hashPrefix);
       setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'done', completedAt: Date.now(), progress: 100 } : st));
   if (ext === 'pdf') {
         (async () => {
           try {
+            const t0 = performance.now();
             const parsed = await parsePdfFile(file);
             const analyzed = analyzeResumeText(parsed.text);
             const embedding = hashEmbedding(parsed.text);
@@ -330,7 +365,14 @@ export function useResumes() {
               skills: analyzed.skills,
               embedding
             });
-          } catch {}
+            events.resumeParsedSuccess({
+              duration_ms: Math.round(performance.now() - t0),
+              skills_count: analyzed.skills.length,
+              education_count: Array.isArray(analyzed.structured?.education) ? analyzed.structured.education.length : 0,
+            });
+          } catch (err: any) {
+            events.resumeParsedFailure(err?.name || err?.message || 'parse_error');
+          }
         })();
       }
       return rec;
@@ -427,6 +469,7 @@ export function useResumes() {
       const resp = await fetch(data.signedUrl);
       const blob = await resp.blob();
       const file = new File([blob], `${resume.name}.${resume.file_ext}`, { type: 'application/pdf' });
+      const t0 = performance.now();
       const parsed = await parsePdfFile(file);
       const analyzed = analyzeResumeText(parsed.text);
       const embedding = hashEmbedding(parsed.text);
@@ -440,8 +483,14 @@ export function useResumes() {
         embedding
       });
       success('Re-parsed', resume.name);
+      events.resumeParsedSuccess({
+        duration_ms: Math.round(performance.now() - t0),
+        skills_count: analyzed.skills.length,
+        education_count: Array.isArray(analyzed.structured?.education) ? analyzed.structured.education.length : 0,
+      });
       return true;
     } catch (e: any) {
+      events.resumeParsedFailure(e?.name || e?.message || 'reparse_error');
       toastError('Re-parse failed', e.message || 'Unknown error');
       return false;
     }

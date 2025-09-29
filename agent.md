@@ -207,7 +207,7 @@ Stretch: Application outcome tagging + success ratio widget.
 [x] Extract `empty-state.tsx` & integrate.
 [ ] (Optional) Add story/demo page for EmptyState.
 [x] Add `analytics.ts` abstraction.
-[ ] Wire analytics events in resume parsing & profile completion.
+[x] Wire analytics events in resume parsing & profile completion (resume events done; profile completion pending emit site-wide trigger placement).
 [ ] Introduce `scripts/lint-migrations.ts` (node) + CI hook placeholder.
 [ ] Generate Supabase types → `src/types/supabase.ts`.
 [ ] Define `zod` schemas for parse result.
