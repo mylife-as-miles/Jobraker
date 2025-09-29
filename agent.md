@@ -211,7 +211,7 @@ Stretch: Application outcome tagging + success ratio widget.
 [x] Introduce `scripts/lint-migrations.ts` (node) + CI hook placeholder.
 [x] Generate Supabase types → `src/types/supabase.ts` (placeholder added, replace via CLI gen).
 [x] Define `zod` schemas for parse result.
-[ ] Create `resume_versions` migration.
+[x] Create `resume_versions` migration (initial table + policies) & DAO skeleton.
 [ ] Scaffold cover letter v2 builder module.
 [ ] Skill frequency aggregator prototype reading existing parsed fields.
 
