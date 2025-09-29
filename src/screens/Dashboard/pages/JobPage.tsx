@@ -1,4 +1,5 @@
 import { Briefcase, Building2, DollarSign, Share, Star, Users, CheckCircle2, FileText, UploadCloud, Pencil, Play, MapPin, Clock, MoreVertical, Filter, X, Loader2, Sparkles, Plus, ArrowRight } from "lucide-react";
+import { events as analyticsEvents } from "../../../lib/analytics";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
@@ -692,16 +693,32 @@ export const JobPage = (): JSX.Element => {
     setAutoApplyStatuses(init);
     setAutoApplyVisible(true);
     setAutoApplying(true);
+    // analytics: queue start
+    try { analyticsEvents.autoApplyStarted(autoApplyQueue.length, selectedResumeId || undefined); } catch {}
+    let successCount = 0;
+    let failCount = 0;
     for (let i = 0; i < autoApplyQueue.length; i++) {
       if (autoApplyCancelRequested) break;
       const job = autoApplyQueue[i];
       setAutoApplyStatuses(s => ({ ...s, [job.id]: { status: 'applying' } }));
+      const started = performance.now();
       const ok = await quickApply(job);
+      const duration = Math.round(performance.now() - started);
       setAutoApplyStatuses(s => ({ ...s, [job.id]: { status: ok ? 'success' : 'error' } }));
+      try {
+        if (ok) {
+          successCount += 1;
+          analyticsEvents.autoApplyJobSuccess(job.id, job.source || 'unknown', duration);
+        } else {
+          failCount += 1;
+          analyticsEvents.autoApplyJobFailed(job.id, job.source || 'unknown', 'apply_failed');
+        }
+      } catch {}
       // small stagger for visual rhythm
       await new Promise(r => setTimeout(r, 450));
     }
     setAutoApplying(false);
+    try { analyticsEvents.autoApplyFinished(successCount, failCount); } catch {}
     // auto hide after delay unless there are errors
     setTimeout(() => {
       setAutoApplyVisible(false);

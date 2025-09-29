@@ -18,8 +18,8 @@ This document captures forward-looking implementation tracks, priorities, conven
 ---
 ## 2. Immediate Next Sprint (Suggested)
 Balanced 10–12 day scope:
-1. Extract & document `EmptyState` component + demo page.
-2. Core analytics event scaffold + log key funnel events.
+1. Core analytics event scaffold + log key funnel events. (IN PROGRESS)
+2. Resume versioning (hashing + rollback UI skeleton).
 3. Resume versioning (hashing + rollback UI skeleton).
 4. Tailored Cover Letter Generator v2 (prompt + fact-check layer).
 5. Supabase schema → generated TypeScript types + Zod validation for parsed resume object.
@@ -30,7 +30,6 @@ Stretch: Application outcome tagging + success ratio widget.
 
 ---
 ## 3. Quick Wins (≤ 1 Day Each)
-- Extract `EmptyState` → `src/components/ui/empty-state.tsx` (tree-shakable, tone variants documented).
 - Add skeleton loaders: job list, resume parse preview.
 - Optimistic auto-apply queue shrink (animate instead of sudden removal).
 - Clipboard utility: copy application status summary.
@@ -107,7 +106,7 @@ Stretch: Application outcome tagging + success ratio widget.
 ## 11. Component Extraction Plan
 | Component | Source | Destination | Notes |
 |-----------|--------|-------------|-------|
-| EmptyState | ProfilePage.tsx | `src/components/ui/empty-state.tsx` | Keep tone semantic classes stable |
+| (DONE) EmptyState | ProfilePage.tsx | `src/components/ui/empty-state.tsx` | Extracted & unified |
 | SkeletonList | (create) | `src/components/ui/skeleton-list.tsx` | Generic rows placeholder |
 | AnimatedQueue | (create) | `src/components/automation/animated-queue.tsx` | For auto-apply job progress |
 | SkillTagCloud | (create) | `src/components/insights/skill-tag-cloud.tsx` | Highlight top vs. missing |
@@ -205,8 +204,10 @@ Stretch: Application outcome tagging + success ratio widget.
 
 ---
 ## 22. Next Action Checklist (If Sprint Starts Now)
-[ ] Create `empty-state.tsx` + story/demo page.
-[ ] Add `analytics.ts` abstraction + wire 5 core events.
+[x] Extract `empty-state.tsx` & integrate.
+[ ] (Optional) Add story/demo page for EmptyState.
+[x] Add `analytics.ts` abstraction.
+[ ] Wire analytics events in resume parsing & profile completion.
 [ ] Introduce `scripts/lint-migrations.ts` (node) + CI hook placeholder.
 [ ] Generate Supabase types → `src/types/supabase.ts`.
 [ ] Define `zod` schemas for parse result.
