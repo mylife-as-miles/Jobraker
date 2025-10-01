@@ -17,6 +17,7 @@ import { BuilderLayout as ArtboardCanvasLayout } from "./pages/builder";
 import { PreviewLayout } from "./pages/preview";
 import { Providers } from "./providers"; // Artboard/local providers (Helmet + artboard state)
 import { Providers as ClientProviders } from "@/client/providers"; // Client app providers (QueryClient, Theme, Locale, Dialog, Toast)
+import { TourProvider } from "./providers/TourProvider"; // Product tour context for dashboard pages
 import { ClientBuilderRoute } from "@/client/pages/builder/route-bridge";
 import { builderNewLoader } from "@/client/pages/builder/page";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -75,7 +76,19 @@ function App() {
           <Route path={ROUTES.ONBOARDING} element={<RequireAuth><Onboarding /></RequireAuth>} />
         
         {/* Step 3: Dashboard Page (after onboarding completion) - Now serves as main container */}
-          <Route path={ROUTES.DASHBOARD_WILDCARD} element={<RequireAuth><ClientProviders><Dashboard /></ClientProviders></RequireAuth>} />
+          <Route 
+            path={ROUTES.DASHBOARD_WILDCARD} 
+            element={
+              <RequireAuth>
+                <ClientProviders>
+                  {/* Inject TourProvider so all dashboard subpages can use useProductTour */}
+                  <TourProvider>
+                    <Dashboard />
+                  </TourProvider>
+                </ClientProviders>
+              </RequireAuth>
+            } 
+          />
         
   {/* Standalone Analytics Page (for backward compatibility) */}
           <Route path={ROUTES.ANALYTICS} element={<RequireAuth><Analytics /></RequireAuth>} />

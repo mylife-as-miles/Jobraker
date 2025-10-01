@@ -73,7 +73,19 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const resolveElements = useCallback((marks: RegistryEntry[]) => {
-    return marks.map(m => ({ ...m, element: m.element || (m.selector ? document.querySelector<HTMLElement>(m.selector) : null) }));
+    return marks.map(m => {
+      let el: HTMLElement | null = m.element || null;
+      if (!el && m.selector) {
+        try {
+          // Prefer data-tour selector exact match if user passed shorthand like application-search
+          const direct = document.querySelector<HTMLElement>(m.selector.startsWith('[data-tour=') || m.selector.startsWith('.') || m.selector.startsWith('#') || m.selector.includes(' ')
+            ? m.selector
+            : `[data-tour="${m.selector}"]`);
+          el = direct;
+        } catch { el = null; }
+      }
+      return { ...m, element: el };
+    });
   }, []);
 
   const start = useCallback((pageId: string) => {
@@ -109,6 +121,22 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const active = activeIndex >= 0 ? order[activeIndex] : null;
 
+  // Auto-scroll into view & re-measure when active changes
+  useEffect(() => {
+    if (!active || !isRunning) return;
+    const el = active.element;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const fullyVisible = rect.top >= 64 && rect.bottom <= window.innerHeight - 32; // small padding
+    if (!fullyVisible) {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      setTimeout(() => {
+        // force reflow for overlay reposition
+        setOrder(prev => prev.map(m => m.id === active.id ? { ...m, element: el } : m));
+      }, 380);
+    }
+  }, [active?.id, isRunning]);
+
   const value = useMemo<TourContextValue>(() => ({
     activeId: active?.id || null,
     start,
@@ -134,7 +162,24 @@ const CoachMarkOverlay: React.FC<{ mark: RegistryEntry; onNext: () => void; onSk
   useEffect(() => {
     const el = mark.element || (mark.selector ? document.querySelector(mark.selector) : null);
     if (el) setRect(el.getBoundingClientRect());
+    const ro = new ResizeObserver(() => {
+      if (!el) return;
+      setRect(el.getBoundingClientRect());
+    });
+    if (el) ro.observe(el);
+    return () => { try { ro.disconnect(); } catch {} };
   }, [mark]);
+
+  // Inject pulse animation stylesheet once
+  useEffect(() => {
+    const id = '__tour_pulse_style';
+    if (!document.getElementById(id)) {
+      const style = document.createElement('style');
+      style.id = id;
+      style.textContent = `@keyframes tourPulse { 0% { box-shadow: 0 0 0 0 rgba(29,255,0,0.55); } 70% { box-shadow: 0 0 0 12px rgba(29,255,0,0); } 100% { box-shadow: 0 0 0 0 rgba(29,255,0,0); } }`;
+      document.head.appendChild(style);
+    }
+  }, []);
 
   const box = rect;
   const style: React.CSSProperties = box ? {
@@ -151,7 +196,7 @@ const CoachMarkOverlay: React.FC<{ mark: RegistryEntry; onNext: () => void; onSk
     <>
       <div className="fixed inset-0 z-[9998] bg-black/70 backdrop-blur-sm" />
       {box && (
-        <div style={style} className="rounded-lg ring-2 ring-[#1dff00] shadow-[0_0_0_4px_rgba(0,0,0,0.6)] transition-all" />
+        <div style={style} className="rounded-lg ring-2 ring-[#1dff00] shadow-[0_0_0_4px_rgba(0,0,0,0.6)] transition-all animate-[tourPulse_2.4s_ease-in-out_infinite]" />
       )}
       <div className="fixed z-[10000] inset-x-0 bottom-6 flex justify-center px-4">
         <div className="max-w-xl w-full rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#102210] via-[#060a06] to-black p-6 shadow-[0_0_0_1px_rgba(29,255,0,0.25),0_20px_40px_-10px_rgba(0,0,0,0.7)] text-white relative">
