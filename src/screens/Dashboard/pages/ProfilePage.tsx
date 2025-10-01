@@ -14,7 +14,7 @@ import { createClient } from "../../../lib/supabaseClient";
 
 const ProfilePage = (): JSX.Element => {
   const [isEditing, setIsEditing] = useState(false);
-  const { profile, updateProfile } = useProfileSettings();
+  const { profile, updateProfile, loading: profileLoading } = useProfileSettings();
   const supabase = useMemo(() => createClient(), []);
   const [email, setEmail] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -67,7 +67,7 @@ const ProfilePage = (): JSX.Element => {
     updateExperience,
     updateEducation,
     updateSkill,
-  } = useProfileSettings() as any; // Casting to reuse existing local variable typing
+  } = useProfileSettings() as any; // NOTE: duplicate hook invocation; consider consolidating later
 
   // Local UI state for creation / editing
   const [showAddExperience, setShowAddExperience] = useState(false);
@@ -281,7 +281,13 @@ const ProfilePage = (): JSX.Element => {
                     <Edit className="w-4 h-4" />
                   </Button>
                 </div>
-                {isEditing ? (
+                {profileLoading && !isEditing && profile === null ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-64" />
+                    <Skeleton className="h-3 w-56" />
+                  </div>
+                ) : isEditing ? (
                   <AboutEditor
                     profile={{
                       job_title: profile?.job_title ?? "",
@@ -383,7 +389,19 @@ const ProfilePage = (): JSX.Element => {
                 )}
                 <div className="space-y-4">
                   {experiences.loading && (
-                    <p className="text-sm text-[#ffffff60]">Loading experiences...</p>
+                    <div className="space-y-4">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="border-l-2 border-[#1dff00] pl-4 pb-4 relative p-3 rounded-r-lg">
+                          <Skeleton className="absolute -left-2 top-3 w-4 h-4 rounded-full" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-40" />
+                            <Skeleton className="h-3 w-32" />
+                            <Skeleton className="h-3 w-24" />
+                            <Skeleton className="h-3 w-full" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                   {!experiences.loading && experiences.error && (
                     <p className="text-sm text-red-400">{experiences.error}</p>
@@ -538,7 +556,19 @@ const ProfilePage = (): JSX.Element => {
                 )}
                 <div className="space-y-4">
                   {education.loading && (
-                    <p className="text-sm text-[#ffffff60]">Loading education...</p>
+                    <div className="space-y-4">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="border-l-2 border-[#1dff00] pl-4 pb-4 relative p-3 rounded-r-lg">
+                          <Skeleton className="absolute -left-2 top-3 w-4 h-4 rounded-full" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-52" />
+                            <Skeleton className="h-3 w-40" />
+                            <Skeleton className="h-3 w-28" />
+                            <Skeleton className="h-3 w-24" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                   {!education.loading && education.error && (
                     <p className="text-sm text-red-400">{education.error}</p>
@@ -687,7 +717,15 @@ const ProfilePage = (): JSX.Element => {
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {skills.loading && (
-                    <p className="text-sm text-[#ffffff60] col-span-full">Loading skills...</p>
+                    <>
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="space-y-2 p-3 bg-[#ffffff0a] rounded-lg col-span-1 md:col-span-1">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-2 w-full" />
+                          <Skeleton className="h-3 w-20" />
+                        </div>
+                      ))}
+                    </>
                   )}
                   {!skills.loading && skills.error && (
                     <p className="text-sm text-red-400 col-span-full">{skills.error}</p>
