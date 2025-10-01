@@ -11,6 +11,15 @@ export interface Profile {
   location: string | null;
   goals: string[];
   updated_at: string;
+  // Walkthrough completion flags (added via migration 20251001100000)
+  walkthrough_overview?: boolean;
+  walkthrough_applications?: boolean;
+  walkthrough_jobs?: boolean;
+  walkthrough_resume?: boolean;
+  walkthrough_analytics?: boolean;
+  walkthrough_settings?: boolean;
+  walkthrough_profile?: boolean;
+  walkthrough_notifications?: boolean;
 }
 
 // Lightweight collection record types (duplicated from useProfileCollections to avoid coupling)
@@ -243,6 +252,15 @@ export function useProfileSettings() {
     }
   }, [supabase, userId, success, toastError]);
 
+  // Mark a specific walkthrough flag as complete (idempotent)
+  const completeWalkthrough = useCallback(async (key: keyof Profile) => {
+    if (!userId) return;
+    if (!key.startsWith('walkthrough_')) return;
+    try {
+      await updateProfile({ [key]: true } as any);
+    } catch {}
+  }, [updateProfile, userId]);
+
   // Create profile (onboarding)
   const createProfile = useCallback(async (payload: Partial<Profile>) => {
     if (!userId) return;
@@ -279,5 +297,6 @@ export function useProfileSettings() {
     refresh: fetchProfile,
     updateProfile,
     createProfile,
+    completeWalkthrough,
   } as const;
 }

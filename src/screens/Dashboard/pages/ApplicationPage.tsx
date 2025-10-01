@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useApplications, type ApplicationStatus } from "../../../hooks/useApplications";
 import { Skeleton } from "../../../components/ui/skeleton";
+import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
 
 import { Button } from "../../../components/ui/button";
@@ -147,6 +148,36 @@ function ApplicationPage() {
   // Calendar selection state (single day or range) for detail overlay
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
+  // Register coach marks (selectors depend on existing structure). These will be highlighted for first-time users.
+  useRegisterCoachMarks({
+    page: 'application',
+    marks: [
+      {
+        id: 'toolbar-search',
+        selector: 'input[placeholder="Search applications..."]',
+        title: 'Search Your Applications',
+        body: 'Quickly filter your applications by title, company, location or status keywords.'
+      },
+      {
+        id: 'view-toggle',
+        selector: 'button[title="Gantt view"]',
+        title: 'Multiple Visual Views',
+        body: 'Switch between Gantt timeline, list, Kanban, calendar and table views to analyze your pipeline from different angles.'
+      },
+      {
+        id: 'status-filters',
+        selector: 'button:has(.w-4.h-4) ~ div button.rounded-full',
+        title: 'Status Filters',
+        body: 'Focus on a specific stage like Interview or Offer to reduce noise and act faster.'
+      },
+      {
+        id: 'gantt-surface',
+        selector: '.rdg',
+        title: 'Timeline Insight',
+        body: 'The Gantt view shows lifecycle duration per application. Active stages extend to today for quick aging awareness.'
+      }
+    ]
+  });
 
   // Clear selections when leaving calendar view to avoid stray overlay when returning
   useEffect(() => {

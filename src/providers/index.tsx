@@ -4,6 +4,7 @@ import { Outlet } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 
 import { helmetContext } from "../constants/helmet";
+import { TourProvider } from "./TourProvider";
 import { useArtboardStore } from "../store/artboard";
 
 export const Providers = () => {
@@ -33,7 +34,9 @@ export const Providers = () => {
 
   return (
     <HelmetProvider context={helmetContext}>
-      <Outlet />
+      <TourProvider>
+        <Outlet />
+      </TourProvider>
     </HelmetProvider>
   );
 };

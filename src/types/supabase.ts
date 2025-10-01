@@ -17,6 +17,14 @@ export interface Tables {
       base_resume_id?: string | null;
       created_at?: string;
       updated_at?: string;
+      walkthrough_overview?: boolean | null;
+      walkthrough_applications?: boolean | null;
+      walkthrough_jobs?: boolean | null;
+      walkthrough_resume?: boolean | null;
+      walkthrough_analytics?: boolean | null;
+      walkthrough_settings?: boolean | null;
+      walkthrough_profile?: boolean | null;
+      walkthrough_notifications?: boolean | null;
     };
   };
   resumes: {
