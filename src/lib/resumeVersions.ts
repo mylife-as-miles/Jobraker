@@ -1,5 +1,6 @@
 import { createClient } from './supabaseClient';
 import { hashEmbedding } from '@/utils/hashEmbedding';
+import { events } from '@/lib/analytics';
 
 export interface ResumeVersionRecord {
   id: string;
@@ -63,9 +64,11 @@ export async function createResumeVersion(opts: {
       .select('*')
       .single();
     if (error) throw error;
+    events.resumeVersionCreated(opts.resumeId, !!opts.parentId, diff.approx_added, diff.approx_removed);
     return data as ResumeVersionRecord;
   } catch (e) {
     console.warn('createResumeVersion failed', e);
+    try { events.resumeVersionCreateFailed(opts?.resumeId, (e as any)?.name || (e as any)?.message || 'error'); } catch {}
     return null;
   }
 }

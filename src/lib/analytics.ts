@@ -48,4 +48,6 @@ export const events = {
   autoApplyFinished: (success_count: number, fail_count: number) => track("auto_apply_finished", { success_count, fail_count }),
   coverLetterGenerated: (removedUnsupportedCount: number) => track("cover_letter_generated", { method: 'v2', factcheck_removed_count: removedUnsupportedCount }),
   outcomeTagged: (job_id: string, outcome: string) => track("outcome_tagged", { job_id, outcome }),
+  resumeVersionCreated: (resume_id: string, is_duplicate: boolean, approx_added?: number, approx_removed?: number) => track("resume_version_created", { resume_id, is_duplicate, approx_added, approx_removed }),
+  resumeVersionCreateFailed: (resume_id: string | undefined, error_type: string) => track("resume_version_create_failed", { resume_id, error_type }),
 };
