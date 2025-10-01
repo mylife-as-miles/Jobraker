@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Skeleton } from "../../../components/ui/skeleton";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
@@ -36,12 +37,13 @@ export const SettingsPage = (): JSX.Element => {
     { id: 6, type: "trulyremote", query: "backend engineer", enabled: false },
   ]), []);
   const [jobSources, setJobSources] = useState(defaultJobSources);
-  const { profile, updateProfile, createProfile, refresh: refreshProfile } = useProfileSettings();
-  const { settings: notif, updateSettings, createSettings, refresh: refreshNotif } = useNotificationSettings();
-  const { settings: privacy, createSettings: createPrivacy, updateSettings: updatePrivacy, refresh: refreshPrivacy } = usePrivacySettings();
+  const { profile, updateProfile, createProfile, refresh: refreshProfile, loading: profileLoading } = useProfileSettings();
+  const { settings: notif, updateSettings, createSettings, refresh: refreshNotif, loading: notifLoading } = useNotificationSettings() as any;
+  const { settings: privacy, createSettings: createPrivacy, updateSettings: updatePrivacy, refresh: refreshPrivacy, loading: privacyLoading } = usePrivacySettings() as any;
   const security = useSecuritySettings();
   const appearance = useAppearanceSettings();
   const appearanceSettings = (appearance as any).settings;
+  const appearanceLoading = (appearance as any).loading || false;
   const {
     settings: sec,
     updateSecurity,
@@ -57,6 +59,7 @@ export const SettingsPage = (): JSX.Element => {
     trustDevice,
     revokeDevice,
   } = security as any;
+  const securityLoading = (security as any).loading || false;
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -196,9 +199,43 @@ export const SettingsPage = (): JSX.Element => {
     { id: "billing", label: "Billing", icon: <CreditCard className="w-4 h-4" /> }
   ];
 
+  const activeLoading = (
+    (activeTab === 'profile' && profileLoading) ||
+    (activeTab === 'notifications' && notifLoading) ||
+    (activeTab === 'privacy' && privacyLoading) ||
+    (activeTab === 'appearance' && appearanceLoading) ||
+    (activeTab === 'security' && securityLoading)
+  );
+
+  const TabSkeleton = () => (
+    <div className="space-y-6">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Card key={i} className="bg-white/5 border-white/10 p-6 rounded-xl">
+          <div className="space-y-4">
+            <Skeleton className="h-5 w-48" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {Array.from({ length: 4 }).map((__, j) => (
+                <div key={j} className="space-y-2">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Skeleton className="h-9 w-24" />
+              <Skeleton className="h-9 w-20" />
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  // ... existing rendering logic below will conditionally use activeLoading & TabSkeleton
 
   const handleNotificationChange = async (setting: string, value: boolean) => {
     try {

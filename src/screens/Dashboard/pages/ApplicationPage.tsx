@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { motion } from "framer-motion";
 import { useApplications, type ApplicationStatus } from "../../../hooks/useApplications";
 import { Skeleton } from "../../../components/ui/skeleton";
 import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
@@ -20,6 +21,8 @@ import Modal from "../../../components/ui/modal";
 function ApplicationPage() {
   const { applications, exportCSV, update, refresh, loading: appsLoading } = useApplications();
 
+  // Debounced search state: raw input updates immediately; searchQuery drives filters.
+  const [rawSearch, setRawSearch] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<"All" | ApplicationStatus>("All");
   const [sortBy, setSortBy] = useState<"score" | "recent" | "company" | "status">("score");
@@ -113,6 +116,12 @@ function ApplicationPage() {
     return list;
   }, [applications, searchQuery, selectedStatus, sortBy]);
 
+  // Debounce raw search input -> searchQuery
+  useEffect(() => {
+    const id = setTimeout(() => setSearchQuery(rawSearch), 250);
+    return () => clearTimeout(id);
+  }, [rawSearch]);
+
   // Expose update for inline table editing (scoped simple bridge) - cleaned on unmount
   useEffect(() => {
     (window as any).__apps_update = update;
@@ -166,8 +175,8 @@ function ApplicationPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
               <Input
                 placeholder="Search applications..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={rawSearch}
+                onChange={(e) => setRawSearch(e.target.value)}
                 className="pl-10 bg-white/10 border-white/15 text-white placeholder:text-white/50 focus:border-white focus:ring-0"
               />
             </div>
@@ -266,7 +275,9 @@ function ApplicationPage() {
               </div>
             </div>
           )}
+          {/* Animated content swap after skeleton */}
           {!initialLoading && viewMode === 'gantt' ? (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
             <div className="space-y-4">
               <div className="text-xs text-white/60 flex flex-wrap gap-3">
                 <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#71717a] to-[#27272a]" /> Pending</span>
@@ -324,8 +335,9 @@ function ApplicationPage() {
                 )}
               />
             </div>
+            </motion.div>
           ) : !initialLoading && viewMode === 'list' ? (
-            <div className="border border-white/10 rounded-xl bg-black/30 overflow-hidden">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }} className="border border-white/10 rounded-xl bg-black/30 overflow-hidden">
               <ListProvider
                 onDragEnd={async (e: ListDragEndEvent) => {
                   const active = e.active?.data?.current as any;
@@ -393,9 +405,9 @@ function ApplicationPage() {
                   );
                 })}
               </ListProvider>
-            </div>
+            </motion.div>
           ) : !initialLoading && viewMode === 'calendar' ? (
-            <div className="relative">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }} className="relative">
               <KiboCalendar
                 events={calendarEvents}
                 showLegend
@@ -421,13 +433,16 @@ function ApplicationPage() {
                 onUpdateApplication={update}
                 onCreateApplication={async () => { /* create not injected on ApplicationPage calendar detail */ }}
               />
-            </div>
+            </motion.div>
           ) : !initialLoading && viewMode === 'table' ? (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
             <ApplicationsTable
               data={filtered}
               onRowClick={(id) => setDetailId(id)}
             />
+            </motion.div>
           ) : !initialLoading ? (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
             <KanbanProvider
               columns={[
                 { id: 'Pending', name: 'Pending', color: '#6B7280' },
@@ -484,6 +499,7 @@ function ApplicationPage() {
                 </KanbanBoard>
               )}
             </KanbanProvider>
+            </motion.div>
           ) : null}
         </CardContent>
       </Card>
