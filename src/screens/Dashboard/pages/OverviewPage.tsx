@@ -11,6 +11,7 @@ import { useNotifications } from "../../../hooks/useNotifications";
 import { useApplications, ApplicationStatus } from "../../../hooks/useApplications";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { SplitLineAreaChart } from "./SplitLineAreaChart";
+import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 // SplitLineAreaChart removed; chart moved to Application section
 
 // Using realtime notifications; no local interface needed here
@@ -249,6 +250,37 @@ export const OverviewPage = (): JSX.Element => {
       };
     });
   }, [applications]);
+
+  // Product tour coach marks for overview dashboard
+  useRegisterCoachMarks({
+    page: 'overview',
+    marks: [
+      {
+        id: 'apps-chart',
+        selector: '#overview-apps-chart',
+        title: 'Application Velocity',
+        body: 'Track how many applications you submit over time and spot trends early.'
+      },
+      {
+        id: 'status-toggle',
+        selector: '#overview-status-filter-buttons',
+        title: 'Focus by Status',
+        body: 'Filter the dataset to highlight specific pipeline stages like Interview or Offers.'
+      },
+      {
+        id: 'calendar-pane',
+        selector: '#overview-calendar',
+        title: 'Calendar Insight',
+        body: 'Interviews and applied dates appear here so you can plan your week effectively.'
+      },
+      {
+        id: 'notifications-panel',
+        selector: '#overview-notifications',
+        title: 'Recent Notifications',
+        body: 'Stay on top of interview scheduling, offers, and important system updates.'
+      }
+    ]
+  });
 
   return (
     <div className="min-h-screen bg-black">
