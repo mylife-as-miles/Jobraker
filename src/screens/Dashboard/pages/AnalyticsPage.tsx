@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useRegisterCoachMarks } from '../../../providers/TourProvider';
 import { Card, CardContent } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { RefreshCw } from 'lucide-react';
@@ -56,6 +57,14 @@ export function AnalyticsPage() {
       default: return 'Custom';
     }
   }, [period]);
+
+  useRegisterCoachMarks({
+    page: 'analytics',
+    marks: [
+      { id: 'analytics-controls', selector: 'div.flex.flex-wrap.items-center', title: 'Adjust Time & Detail', body: 'Switch period and granularity to zoom into recent patterns or long-term trends.' },
+      { id: 'analytics-main-card', selector: '.rounded-xl.border', title: 'Performance Insights', body: 'This section aggregates application outcomes, velocity and conversion metrics.' }
+    ]
+  });
 
   return (
     <div className="space-y-4 sm:space-y-6 p-2 sm:p-4">

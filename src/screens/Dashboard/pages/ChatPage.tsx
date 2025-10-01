@@ -1,6 +1,7 @@
 // Clean AI-elements only Chat Page implementation
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { nanoid } from 'nanoid';
+import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 // Temporary lightweight chat hook placeholder (remove when real ai/react is available)
@@ -111,6 +112,14 @@ export const ChatPage = () => {
   const [sessions, setSessions] = useState<{ id: string; title: string; createdAt: number; updatedAt: number; messages: BasicMessage[] }[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [renamingSession, setRenamingSession] = useState<string | null>(null);
+  useRegisterCoachMarks({
+    page: 'chat',
+    marks: [
+      { id: 'chat-model-select', selector: '[data-chat-model-select]', title: 'Model Selection', body: 'Choose the intelligence model best aligned with your current task.' },
+      { id: 'chat-transcript', selector: '.conversation-scroll-area, .conversation-container', title: 'Conversation History', body: 'Scroll to review prior exchanges. Context improves follow-up quality.' },
+      { id: 'chat-input', selector: 'textarea', title: 'Prompt Input', body: 'Craft clear, specific prompts. Use the toolbar for attachments or settings.' }
+    ]
+  });
   
   // Chat logic
   const chat = useChat({ api: '/api/chat' });

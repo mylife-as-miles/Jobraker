@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
+import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
@@ -133,6 +134,15 @@ export const NotificationPage = (): JSX.Element => {
         return "border-l-gray-500";
     }
   };
+
+  useRegisterCoachMarks({
+    page: 'notifications',
+    marks: [
+      { id: 'notifications-search', selector: 'input[placeholder="Search Messages"]', title: 'Find Messages Fast', body: 'Filter notifications by keyword to quickly surface important updates.' },
+      { id: 'notifications-filters', selector: 'div.flex.gap-2.flex-wrap.items-center', title: 'Filter & Focus', body: 'Toggle unread, starred or by type to reduce noise.' },
+      { id: 'notifications-detail', selector: '.lg\\:col-span-2', title: 'Detailed View', body: 'Select a notification to read full context and available actions.' }
+    ]
+  });
 
   return (
     <div className="min-h-screen bg-black">

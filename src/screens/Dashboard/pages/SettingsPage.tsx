@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
@@ -198,6 +199,15 @@ export const SettingsPage = (): JSX.Element => {
     { id: "job-sources", label: "Job Sources", icon: <SettingsIcon className="w-4 h-4" /> },
     { id: "billing", label: "Billing", icon: <CreditCard className="w-4 h-4" /> }
   ];
+
+  useRegisterCoachMarks({
+    page: 'settings',
+    marks: [
+      { id: 'settings-tabs', selector: 'button[role="tab"]', title: 'Manage Preferences', body: 'Switch between profile, notifications, security, appearance and more.' },
+      { id: 'settings-profile-form', selector: 'form input[name="firstName"], input[placeholder="First Name"]', title: 'Profile Basics', body: 'Keep your name and contact details current for personalized matching.' },
+      { id: 'settings-job-sources', selector: 'div:has(button svg.w-4.h-4)', title: 'Job Ingestion Sources', body: 'Enable or disable job feeds and reorder priority for searching.' }
+    ]
+  });
 
   const activeLoading = (
     (activeTab === 'profile' && profileLoading) ||

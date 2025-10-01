@@ -2,6 +2,7 @@ import { BuilderPage } from "@/client/pages/builder/page";
 import { ResumesPage } from "@/client/pages/dashboard/resumes/page";
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { queryClient } from "@/client/libs/query-client";
 import { findResumeById } from "@/client/services/resume";
 import { useResumeStore } from "@/client/stores/resume";
@@ -10,6 +11,14 @@ export const ResumePage = (): JSX.Element => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+
+  useRegisterCoachMarks({
+    page: 'resume',
+    marks: [
+      { id: 'resume-builder-header', selector: 'h1:text("Resume Builder")', title: 'Build & Refine', body: 'Edit your active resume here. Changes can sync with application context.' },
+      { id: 'resume-canvas', selector: '#resume-root, .resume-canvas', title: 'Live Preview', body: 'See changes instantly as you adjust sections, layout and styling.' }
+    ]
+  });
 
   useEffect(() => {
     let active = true;

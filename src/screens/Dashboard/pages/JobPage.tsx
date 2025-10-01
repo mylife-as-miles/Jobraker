@@ -1,4 +1,5 @@
 import { Briefcase, Building2, DollarSign, Share, Star, Users, CheckCircle2, FileText, UploadCloud, Pencil, Play, MapPin, Clock, MoreVertical, Filter, X, Loader2, Sparkles, Plus, ArrowRight } from "lucide-react";
+import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { events as analyticsEvents } from "../../../lib/analytics";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
@@ -192,6 +193,16 @@ export const JobPage = (): JSX.Element => {
 
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const debouncedSelectedLocation = useDebounce(selectedLocation, 500);
+
+  // Coach marks for jobs page
+  useRegisterCoachMarks({
+    page: 'jobs',
+    marks: [
+      { id: 'job-search-box', selector: 'input[placeholder="Search jobs"]', title: 'Search Jobs', body: 'Enter keywords to fetch and match roles using your profile context.' },
+      { id: 'job-filters', selector: 'button:has(svg.w-4.h-4)', title: 'Fine-Tune Results', body: 'Filter by location, type, requirements and benefits to narrow down opportunities.' },
+      { id: 'job-auto-apply', selector: 'button:has(svg.w-4.h-4)+button', title: 'Accelerate Applications', body: 'Use the automated apply flow (when available) to submit multiple tailored applications.' }
+    ]
+  });
 
   const performSearch = useCallback(async () => {
     if (!debouncedSearchQuery) {
