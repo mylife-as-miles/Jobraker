@@ -72,6 +72,23 @@ export const DialogContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ 
   const ctx = React.useContext(DialogCtx);
   const isOpen = !!ctx?.open;
   const contentRef = React.useRef<HTMLDivElement>(null);
+  const previouslyFocused = React.useRef<HTMLElement | null>(null);
+
+  // Focus trap & restore
+  React.useEffect(() => {
+    if (isOpen) {
+      previouslyFocused.current = document.activeElement as HTMLElement;
+      // focus first focusable
+      setTimeout(() => {
+        const focusable = contentRef.current?.querySelector<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        focusable?.focus();
+      }, 0);
+    } else if (previouslyFocused.current) {
+      previouslyFocused.current.focus();
+    }
+  }, [isOpen]);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -91,6 +108,8 @@ export const DialogContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ 
         ref={contentRef}
         role="dialog"
         aria-modal="true"
+        aria-labelledby="dialog-title"
+        aria-describedby="dialog-description"
         className={[
           "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]",
           "w-[90vw] max-w-2xl max-h-[85vh] overflow-auto",
@@ -100,7 +119,10 @@ export const DialogContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ 
         style={style as any}
         {...props}
       >
+        {/* Focus trap sentinels */}
+        <span tabIndex={0} aria-hidden="true" />
         {children}
+        <span tabIndex={0} aria-hidden="true" />
       </div>
     </div>,
     document.body

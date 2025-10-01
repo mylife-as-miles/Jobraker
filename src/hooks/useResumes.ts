@@ -5,6 +5,8 @@ import { hashEmbedding } from '@/utils/hashEmbedding';
 import { events } from '@/lib/analytics';
 import { createClient } from "../lib/supabaseClient";
 import { useToast } from "../components/ui/toast";
+import { createResumeVersion, latestResumeVersion } from '@/lib/resumeVersions';
+import { validateParsedResume } from '@/types/resume-parse-schemas';
 
 export type ResumeStatus = "Active" | "Draft" | "Archived";
 
@@ -173,6 +175,7 @@ export function useResumes() {
           objectUrlMap.current.set(rec.id, url);
           setResumes((prev) => [rec, ...prev]);
           success("Resume uploaded", `${rec.name}.${rec.file_ext ?? ""}`);
+          (async () => { try { await createResumeVersion({ resumeId: rec.id, userId: userId!, storagePath: path, rawText: undefined }); } catch {} })();
           events.resumeUploaded(file, hashPrefix);
         } catch (e: any) {
           const msg = e.message || "Upload failed";
@@ -264,6 +267,8 @@ export function useResumes() {
             const t0 = performance.now();
             const parsed = await parsePdfFile(file);
             const analyzed = analyzeResumeText(parsed.text);
+            const validated = validateParsedResume({ ...analyzed, sections: analyzed.sections, structured: analyzed.structured, entities: analyzed.entities, emails: analyzed.emails||[], phones: analyzed.phones||[], urls: analyzed.urls||[], skills: analyzed.skills });
+            if (!validated) { events.resumeParsedFailure('validation_failed'); return; }
             const embedding = hashEmbedding(parsed.text);
             await (supabase as any).from('parsed_resumes').insert({
               resume_id: rec.id,
@@ -355,6 +360,8 @@ export function useResumes() {
             const t0 = performance.now();
             const parsed = await parsePdfFile(file);
             const analyzed = analyzeResumeText(parsed.text);
+            const validated = validateParsedResume({ ...analyzed, sections: analyzed.sections, structured: analyzed.structured, entities: analyzed.entities, emails: analyzed.emails||[], phones: analyzed.phones||[], urls: analyzed.urls||[], skills: analyzed.skills });
+            if (!validated) { events.resumeParsedFailure('validation_failed'); return; }
             const embedding = hashEmbedding(parsed.text);
             await (supabase as any).from('parsed_resumes').insert({
               resume_id: rec.id,
@@ -472,6 +479,8 @@ export function useResumes() {
       const t0 = performance.now();
       const parsed = await parsePdfFile(file);
       const analyzed = analyzeResumeText(parsed.text);
+      const validated = validateParsedResume({ ...analyzed, sections: analyzed.sections, structured: analyzed.structured, entities: analyzed.entities, emails: analyzed.emails||[], phones: analyzed.phones||[], urls: analyzed.urls||[], skills: analyzed.skills });
+      if (!validated) { events.resumeParsedFailure('validation_failed'); return false; }
       const embedding = hashEmbedding(parsed.text);
       await (supabase as any).from('parsed_resumes').insert({
         resume_id: resume.id,
@@ -758,7 +767,8 @@ export function useResumes() {
   const blob = new Blob([bytes], { type: file.type || 'application/octet-stream' });
   const { error: upErr } = await (supabase as any).storage.from("resumes").upload(path, blob, { upsert: false, contentType: file.type || undefined });
         if (upErr) throw upErr;
-        await (supabase as any).from("resumes").update({ file_path: path, file_ext: ext, size: file.size }).eq("id", id);
+  await (supabase as any).from("resumes").update({ file_path: path, file_ext: ext, size: file.size }).eq("id", id);
+  (async () => { try { const prev = await latestResumeVersion(id); await createResumeVersion({ resumeId: id, userId: userId!, parentId: prev?.id, storagePath: path, rawText: undefined, previousRawText: undefined }); } catch {} })();
         setResumes((p) => p.map((r) => (r.id === id ? { ...r, file_path: path, file_ext: ext, size: file.size } : r)));
         success("File replaced", `${rec.name}.${ext ?? ""}`);
       } catch (e: any) {

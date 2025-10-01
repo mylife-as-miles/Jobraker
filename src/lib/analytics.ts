@@ -22,16 +22,37 @@ class ConsoleSink implements AnalyticsSink {
 
 let sink: AnalyticsSink = new ConsoleSink();
 
+// Offline buffer (simple in-memory + localStorage persistence) to survive transient failures.
+const LS_KEY = 'analytics-buffer-v1';
+let buffer: AnalyticsEvent[] = [];
+try {
+  const raw = localStorage.getItem(LS_KEY);
+  if (raw) buffer = JSON.parse(raw) || [];
+} catch {}
+
+async function flushBuffer() {
+  if (!buffer.length) return;
+  const pending = [...buffer];
+  buffer = [];
+  for (const evt of pending) {
+    try { sink.track(evt); } catch { buffer.push(evt); }
+  }
+  try { localStorage.setItem(LS_KEY, JSON.stringify(buffer)); } catch {}
+}
+
+export async function flushAnalytics() { await flushBuffer(); }
+
 export function setAnalyticsSink(custom: AnalyticsSink) {
   sink = custom;
 }
 
 export function track(name: string, props?: Record<string, any>) {
+  const evt: AnalyticsEvent = { name, props, ts: Date.now() };
   try {
-    sink.track({ name, props, ts: Date.now() });
+    sink.track(evt);
   } catch (e) {
-    // eslint-disable-next-line no-console
-    console.warn("analytics track failed", e);
+    buffer.push(evt);
+    try { localStorage.setItem(LS_KEY, JSON.stringify(buffer)); } catch {}
   }
 }
 

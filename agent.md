@@ -212,6 +212,13 @@ Stretch: Application outcome tagging + success ratio widget.
 [x] Generate Supabase types → `src/types/supabase.ts` (placeholder added, replace via CLI gen).
 [x] Define `zod` schemas for parse result.
 [x] Create `resume_versions` migration (initial table + policies) & DAO skeleton.
+[x] Integrate resume version creation (upload/replace) (basic fire-and-forget).
+[x] Add parse validation + failure analytics (validation_failed).
+[x] Dialog accessibility (focus trap, aria attributes, restore focus, cancel auto close).
+[x] Analytics buffering (offline queue) + new version events.
+[x] Cover letter v2 scaffold (prompt builder + placeholder generator).
+[x] Skill frequency aggregation prototype.
+[x] Add lint:migrations script.
 [ ] Scaffold cover letter v2 builder module.
 [ ] Skill frequency aggregator prototype reading existing parsed fields.
 
