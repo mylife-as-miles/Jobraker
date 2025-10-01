@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { JoyrideAdapter } from './JoyrideAdapter';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { useProfileSettings } from '../hooks/useProfileSettings';
@@ -18,6 +19,7 @@ interface TourContextValue {
   activeId: string | null;
   start: (page: string) => void;
   next: () => void;
+  back: () => void;
   skip: () => void;
   register: (mark: Omit<CoachMark, 'element'>) => void;
   page: string | null;
@@ -102,7 +104,6 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActiveIndex(idx => {
       const nextIdx = idx + 1;
       if (nextIdx >= order.length) {
-        // complete
         if (page) completeWalkthrough(walkthroughFlagForPage(page) as any);
         setIsRunning(false);
         setPage(null);
@@ -111,6 +112,13 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return nextIdx;
     });
   }, [order, page, completeWalkthrough]);
+
+  const back = useCallback(() => {
+    setActiveIndex(idx => {
+      const prev = idx - 1;
+      return prev < 0 ? 0 : prev;
+    });
+  }, []);
 
   const skip = useCallback(() => {
     if (page) completeWalkthrough(walkthroughFlagForPage(page) as any);
@@ -141,24 +149,39 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     activeId: active?.id || null,
     start,
     next,
+    back,
     skip,
     register,
     page,
     isRunning,
-  }), [active?.id, start, next, skip, register, page, isRunning]);
+  }), [active?.id, start, next, back, skip, register, page, isRunning]);
 
   return (
     <TourContext.Provider value={value}>
       {children}
-      {active && isRunning && <CoachMarkOverlay mark={active} onNext={next} onSkip={skip} index={activeIndex} total={order.length} />}
+      {/* Legacy custom overlay (kept for highlight); JoyrideAdapter adds richer tooltip flow */}
+      {active && isRunning && (
+        <CoachMarkOverlay 
+          mark={active} 
+          onNext={next} 
+          onBack={back}
+          onSkip={skip} 
+          index={activeIndex} 
+          total={order.length} 
+        />
+      )}
+      {/* Joyride overlay (auto-built from data-tour attributes) */}
+      <JoyrideAdapter />
     </TourContext.Provider>
   );
 };
 
 // ---------------- Overlay Components -----------------
 
-const CoachMarkOverlay: React.FC<{ mark: RegistryEntry; onNext: () => void; onSkip: () => void; index: number; total: number; }> = ({ mark, onNext, onSkip, index, total }) => {
+const CoachMarkOverlay: React.FC<{ mark: RegistryEntry; onNext: () => void; onBack: () => void; onSkip: () => void; index: number; total: number; }> = ({ mark, onNext, onBack, onSkip, index, total }) => {
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{top: number; left: number; placement: string} | null>(null);
+  const bubbleRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = mark.element || (mark.selector ? document.querySelector(mark.selector) : null);
     if (el) setRect(el.getBoundingClientRect());
@@ -181,6 +204,42 @@ const CoachMarkOverlay: React.FC<{ mark: RegistryEntry; onNext: () => void; onSk
     }
   }, []);
 
+  // Compute tooltip position after render to know bubble size for collision handling
+  useEffect(() => {
+    if (!rect || !bubbleRef.current) return;
+    const desired = mark.placement || 'bottom';
+    const pad = 12;
+    const bubble = bubbleRef.current.getBoundingClientRect();
+  let placement: 'top' | 'bottom' | 'left' | 'right' | 'center' = (['top','bottom','left','right','center'].includes(desired) ? desired : 'bottom') as any;
+    const vw = window.innerWidth; const vh = window.innerHeight;
+    const r = rect;
+    const scrollY = window.scrollY; const scrollX = window.scrollX;
+    const compute = (pl: string) => {
+      let t = r.bottom + pad; let l = r.left + r.width/2 - bubble.width/2; // bottom default
+      if (pl === 'top') { t = r.top - bubble.height - pad; l = r.left + r.width/2 - bubble.width/2; }
+      if (pl === 'left') { t = r.top + r.height/2 - bubble.height/2; l = r.left - bubble.width - pad; }
+      if (pl === 'right') { t = r.top + r.height/2 - bubble.height/2; l = r.right + pad; }
+      if (pl === 'center') { t = r.top + r.height + pad; l = r.left + r.width/2 - bubble.width/2; }
+      return { t, l };
+    };
+    let { t, l } = compute(placement);
+    // Flip logic if off-screen
+    const fitsVertically = (t >= scrollY) && (t + bubble.height <= scrollY + vh);
+    const fitsHorizontally = (l >= scrollX + 4) && (l + bubble.width <= scrollX + vw - 4);
+    if (!fitsVertically || !fitsHorizontally) {
+      const order: string[] = ['bottom','right','left','top'];
+      for (const alt of order) {
+        const { t: tt, l: ll } = compute(alt);
+        if (tt >= scrollY && tt + bubble.height <= scrollY + vh && ll >= scrollX + 4 && ll + bubble.width <= scrollX + vw - 4) {
+          placement = alt as any; t = tt; l = ll; break;
+        }
+      }
+    }
+    // clamp
+    l = Math.max(scrollX + 4, Math.min(l, scrollX + vw - bubble.width - 4));
+    setTooltipPos({ top: t + scrollY, left: l + scrollX, placement });
+  }, [rect, mark.id, mark.placement]);
+
   const box = rect;
   const style: React.CSSProperties = box ? {
     position: 'fixed',
@@ -188,36 +247,95 @@ const CoachMarkOverlay: React.FC<{ mark: RegistryEntry; onNext: () => void; onSk
     left: box.left + window.scrollX,
     width: box.width,
     height: box.height,
-    pointerEvents: 'none',
+    pointerEvents: 'auto',
     zIndex: 9999,
   } : { display: 'none' };
 
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); onNext(); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); onBack(); }
+      if (e.key === 'Escape') { e.preventDefault(); onSkip(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onNext, onBack, onSkip]);
+
+  // focus first actionable on step change
+  useEffect(() => {
+    setTimeout(() => {
+      const btn = bubbleRef.current?.querySelector('[data-tour-action]') as HTMLElement | null;
+      btn?.focus();
+    }, 10);
+  }, [mark.id]);
+
   return createPortal(
     <>
-      <div className="fixed inset-0 z-[9998] bg-black/70 backdrop-blur-sm" />
+      <div className="fixed inset-0 z-[9998] bg-black/55 backdrop-blur-sm" onClick={onSkip} aria-hidden="true" />
       {box && (
-        <div style={style} className="rounded-lg ring-2 ring-[#1dff00] shadow-[0_0_0_4px_rgba(0,0,0,0.6)] transition-all animate-[tourPulse_2.4s_ease-in-out_infinite]" />
+        <div 
+          role="presentation"
+          onClick={onNext}
+          title="Click to continue"
+          style={style} 
+          className="rounded-lg ring-2 ring-[#1dff00] shadow-[0_0_0_4px_rgba(0,0,0,0.55)] transition-all animate-[tourPulse_2.4s_ease-in-out_infinite] cursor-pointer"
+        />
       )}
-      <div className="fixed z-[10000] inset-x-0 bottom-6 flex justify-center px-4">
-        <div className="max-w-xl w-full rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#102210] via-[#060a06] to-black p-6 shadow-[0_0_0_1px_rgba(29,255,0,0.25),0_20px_40px_-10px_rgba(0,0,0,0.7)] text-white relative">
-          <div className="absolute -top-2 -right-2">
-            <button onClick={onSkip} className="h-8 w-8 rounded-full bg-[#1dff00]/10 hover:bg-[#1dff00]/20 text-[#1dff00] text-sm font-semibold shadow-inner">×</button>
+      {/* Inline tooltip bubble */}
+      {tooltipPos && (
+        <div 
+          ref={bubbleRef}
+          role="dialog"
+          aria-live="polite"
+          className="fixed z-[10000] max-w-sm w-[min(360px,90vw)] rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#132313] via-[#060a06] to-black p-5 shadow-[0_4px_28px_-4px_rgba(0,0,0,0.65),0_0_0_1px_rgba(29,255,0,0.25)] text-white focus:outline-none"
+          style={{ top: tooltipPos.top, left: tooltipPos.left }}
+        >
+          {/* Arrow */}
+          <span 
+            aria-hidden="true"
+            className="absolute block w-3 h-3 rotate-45 bg-[#132313] border border-[#1dff00]/30"
+            style={{
+              top: tooltipPos.placement === 'bottom' ? -6 : tooltipPos.placement === 'top' ? 'auto' : '50%',
+              bottom: tooltipPos.placement === 'top' ? -6 : 'auto',
+              left: tooltipPos.placement === 'left' ? 'auto' : tooltipPos.placement === 'right' ? -6 : '50%',
+              right: tooltipPos.placement === 'left' ? -6 : 'auto',
+              transform: tooltipPos.placement === 'left' || tooltipPos.placement === 'right' ? 'translateY(-50%) rotate(45deg)' : 'translateX(-50%) rotate(45deg)'
+            }}
+          />
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-7 w-7 rounded-lg bg-[#1dff00]/15 border border-[#1dff00]/30 flex items-center justify-center text-[#1dff00] text-[11px] font-bold">{index+1}</div>
+            <h3 className="text-base font-semibold bg-gradient-to-r from-white to-[#1dff00] bg-clip-text text-transparent leading-snug">{mark.title}</h3>
+            <button 
+              onClick={onSkip} 
+              className="ml-auto h-7 w-7 rounded-md bg-[#1dff00]/10 hover:bg-[#1dff00]/25 text-[#1dff00] text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#1dff00]/60"
+              aria-label="Skip tour"
+            >×</button>
           </div>
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-lg bg-[#1dff00]/15 border border-[#1dff00]/30 flex items-center justify-center text-[#1dff00] text-xs font-bold">{index+1}</div>
-              <h3 className="text-lg font-semibold bg-gradient-to-r from-white to-[#1dff00] bg-clip-text text-transparent">{mark.title}</h3>
+          <p className="text-xs text-white/70 leading-relaxed mb-4">{mark.body}</p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1" aria-hidden="true">
+              {Array.from({ length: total }).map((_, i) => (
+                <span key={i} className={`h-1.5 w-3 rounded-sm ${i <= index ? 'bg-[#1dff00]' : 'bg-[#1dff00]/25'}`} />
+              ))}
             </div>
-            <p className="text-sm text-white/70 leading-relaxed">{mark.body}</p>
-            <div className="flex items-center justify-between pt-2">
-              <div className="text-[11px] text-white/40 tracking-wide uppercase">Step {index+1} of {total}</div>
-              <div className="flex gap-2">
-                <button onClick={onNext} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium hover:brightness-110">{index+1 === total ? 'Finish' : 'Next'}</button>
-              </div>
+            <div className="flex gap-2">
+              <button 
+                data-tour-action
+                onClick={onBack} 
+                disabled={index === 0}
+                className="px-3 py-1.5 rounded-md text-xs font-medium border border-[#1dff00]/30 text-[#1dff00]/80 disabled:opacity-30 hover:text-black hover:bg-[#1dff00] transition-all"
+              >Back</button>
+              <button 
+                data-tour-action
+                onClick={onNext} 
+                className="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#1dff00] text-black hover:brightness-110 transition-all"
+              >{index+1 === total ? 'Finish' : 'Next'}</button>
             </div>
           </div>
+          <div className="sr-only" aria-live="assertive">Step {index+1} of {total}. {mark.title}</div>
         </div>
-      </div>
+      )}
     </>,
     document.body
   );
