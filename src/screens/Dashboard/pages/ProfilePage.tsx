@@ -6,8 +6,7 @@ import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award,
 import { EmptyState } from "../../../components/ui/empty-state";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
-import { useProfileCollections } from "../../../hooks/useProfileCollections";
-import type { ProfileEducation as TProfileEducation, ProfileExperience as TProfileExperience, ProfileSkill as TProfileSkill } from "../../../hooks/useProfileCollections";
+import type { ProfileEducationRecord as TProfileEducation, ProfileExperienceRecord as TProfileExperience, ProfileSkillRecord as TProfileSkill } from "../../../hooks/useProfileSettings";
 import { useApplications } from "../../../hooks/useApplications";
 import { createClient } from "../../../lib/supabaseClient";
 
@@ -54,8 +53,7 @@ const ProfilePage = (): JSX.Element => {
     return () => { active = false; clearInterval(id); };
   }, [supabase, (profile as any)?.avatar_url]);
 
-  // Collections (experiences, education, skills)
-  const collections = useProfileCollections();
+  // Collections now sourced directly from useProfileSettings (centralized hook)
   const {
     experiences,
     education,
@@ -69,7 +67,7 @@ const ProfilePage = (): JSX.Element => {
     updateExperience,
     updateEducation,
     updateSkill,
-  } = collections as any;
+  } = useProfileSettings() as any; // Casting to reuse existing local variable typing
 
   // Local UI state for creation / editing
   const [showAddExperience, setShowAddExperience] = useState(false);
