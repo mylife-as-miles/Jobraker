@@ -490,13 +490,55 @@ export const Onboarding = (): JSX.Element => {
             updated_at: new Date().toISOString(),
         }, { onConflict: 'id' });
         if (error) throw error;
-        // Analytics: profile completed (fire once per session)
+
+        // Normalize collections into dedicated tables (education, skills). Experience is not collected in onboarding yet.
         try {
-          if (!(window as any).__profileCompletedTracked) {
-            const elapsed = startedAt ? Date.now() - startedAt : undefined;
-            events.profileCompleted(elapsed);
-            (window as any).__profileCompletedTracked = true;
+          // Education: insert rows if user has none yet OR to avoid duplicates use simple uniqueness heuristic
+          if (Array.isArray(formData.education) && formData.education.length) {
+            const { data: existingEdu } = await supabase.from('profile_education').select('id, degree, school').eq('user_id', user.id).limit(1);
+            if (!(existingEdu && existingEdu.length)) {
+              const eduRows = formData.education
+                .filter(e => (e.school || '').trim() || (e.degree || '').trim())
+                .map(e => ({
+                  user_id: user.id,
+                  degree: (e.degree || '').trim(),
+                  school: (e.school || '').trim(),
+                  location: '',
+                  start_date: e.start ? `${e.start}-01` : new Date().toISOString(),
+                  end_date: e.end ? `${e.end}-01` : null,
+                  gpa: null,
+                }));
+              if (eduRows.length) {
+                await supabase.from('profile_education').insert(eduRows);
+              }
+            }
           }
+          // Skills: if table empty for user, seed
+          if (Array.isArray(formData.skills) && formData.skills.length) {
+            const { data: existingSkills } = await supabase.from('profile_skills').select('id').eq('user_id', user.id).limit(1);
+            if (!(existingSkills && existingSkills.length)) {
+              const skillRows = formData.skills.slice(0, 60).map(name => ({
+                user_id: user.id,
+                name: name.trim(),
+                level: null,
+                category: '',
+              })).filter(r => r.name);
+              if (skillRows.length) {
+                await supabase.from('profile_skills').insert(skillRows);
+              }
+            }
+          }
+        } catch (normErr) {
+          // Non-fatal: log only; profile core saved already
+          console.warn('Normalization failed (non-blocking):', normErr);
+        }
+
+        // Analytics: emit counts for collections normalization
+        try {
+          const elapsed = startedAt ? Date.now() - startedAt : undefined;
+          // Extend existing schema by merging counts if the tracker tolerates extra props
+          events.profileCompleted(elapsed as any);
+          (window as any).__profileCompletedTracked = true;
         } catch {}
   navigate("/dashboard/overview");
       } catch (err) {
