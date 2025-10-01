@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useApplications, type ApplicationStatus } from "../../../hooks/useApplications";
+import { Skeleton } from "../../../components/ui/skeleton";
 import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
 
 import { Button } from "../../../components/ui/button";
@@ -17,7 +18,7 @@ import CalendarDayDetail from "../../../components/ui/kibo-ui/CalendarDayDetail"
 import Modal from "../../../components/ui/modal";
 
 function ApplicationPage() {
-  const { applications, exportCSV, update, refresh } = useApplications();
+  const { applications, exportCSV, update, refresh, loading: appsLoading } = useApplications();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<"All" | ApplicationStatus>("All");
@@ -143,6 +144,8 @@ function ApplicationPage() {
     if (viewMode !== 'calendar') { setSelectedDate(null); setSelectedRange(null); }
   }, [viewMode]);
 
+  const initialLoading = appsLoading && applications.length === 0;
+
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -246,7 +249,10 @@ function ApplicationPage() {
       {/* Content */}
       <Card className="bg-transparent border-none shadow-none">
         <CardContent className="p-0">
-          {applications.length === 0 && !searchQuery && selectedStatus === 'All' && (
+          {initialLoading && (
+            <ApplicationPageSkeleton viewMode={viewMode} />
+          )}
+          {!initialLoading && applications.length === 0 && !searchQuery && selectedStatus === 'All' && (
             <div className="border border-white/15 bg-black/30 rounded-xl p-8 text-center text-[#ffffffb3]">
               <div className="mx-auto w-12 h-12 rounded-full bg-[#1dff00]/15 grid place-items-center mb-4">
                 <Columns className="w-6 h-6 text-[#1dff00]" />
@@ -260,7 +266,7 @@ function ApplicationPage() {
               </div>
             </div>
           )}
-          {viewMode === 'gantt' ? (
+          {!initialLoading && viewMode === 'gantt' ? (
             <div className="space-y-4">
               <div className="text-xs text-white/60 flex flex-wrap gap-3">
                 <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#71717a] to-[#27272a]" /> Pending</span>
@@ -318,7 +324,7 @@ function ApplicationPage() {
                 )}
               />
             </div>
-          ) : viewMode === 'list' ? (
+          ) : !initialLoading && viewMode === 'list' ? (
             <div className="border border-white/10 rounded-xl bg-black/30 overflow-hidden">
               <ListProvider
                 onDragEnd={async (e: ListDragEndEvent) => {
@@ -388,7 +394,7 @@ function ApplicationPage() {
                 })}
               </ListProvider>
             </div>
-          ) : viewMode === 'calendar' ? (
+          ) : !initialLoading && viewMode === 'calendar' ? (
             <div className="relative">
               <KiboCalendar
                 events={calendarEvents}
@@ -416,12 +422,12 @@ function ApplicationPage() {
                 onCreateApplication={async () => { /* create not injected on ApplicationPage calendar detail */ }}
               />
             </div>
-          ) : viewMode === 'table' ? (
+          ) : !initialLoading && viewMode === 'table' ? (
             <ApplicationsTable
               data={filtered}
               onRowClick={(id) => setDetailId(id)}
             />
-          ) : (
+          ) : !initialLoading ? (
             <KanbanProvider
               columns={[
                 { id: 'Pending', name: 'Pending', color: '#6B7280' },
@@ -478,7 +484,7 @@ function ApplicationPage() {
                 </KanbanBoard>
               )}
             </KanbanProvider>
-          )}
+          ) : null}
         </CardContent>
       </Card>
       <Modal open={!!detailApp} onClose={() => setDetailId(null)} title={detailApp?.job_title} side="right" size="lg">
@@ -546,6 +552,141 @@ function ApplicationPage() {
 
 export default ApplicationPage;
 export { ApplicationPage };
+
+// --- Skeletons ---
+interface ApplicationPageSkeletonProps { viewMode: string; }
+function ApplicationPageSkeleton({ viewMode }: ApplicationPageSkeletonProps) {
+  if (viewMode === 'gantt') return <GanttSkeleton />;
+  if (viewMode === 'list') return <ListSkeleton />;
+  if (viewMode === 'kanban') return <KanbanSkeleton />;
+  if (viewMode === 'calendar') return <CalendarSkeleton />;
+  if (viewMode === 'table') return <TableSkeleton />;
+  return <div className="space-y-4"><Skeleton className="h-64 w-full rounded-xl bg-white/5" /></div>;
+}
+
+function GanttSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-4 w-28 bg-white/5" />
+        ))}
+      </div>
+      <div className="h-72 w-full rounded-lg border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.02] p-4 flex flex-col gap-3 overflow-hidden">
+        {Array.from({ length: 7 }).map((_, r) => (
+          <div key={r} className="flex items-center gap-2 w-full">
+            <Skeleton className="h-3 w-16 bg-white/5" />
+            <div className="flex-1 relative h-4">
+              {Array.from({ length: Math.max(1, (r % 3) + 1) }).map((__, b) => (
+                <span key={b} className="absolute top-0 h-4 rounded-full">
+                  <Skeleton style={{ left: `${b * 18 + (r*7)%20}%`, width: `${20 + (r*13 + b*9)%35}%` }} className="h-4 bg-white/10" />
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ListSkeleton() {
+  return (
+    <div className="border border-white/10 rounded-xl bg-black/30 overflow-hidden divide-y divide-white/5">
+      {(['Pending','Applied','Interview','Offer','Rejected','Withdrawn']).map(col => (
+        <div key={col} className="flex flex-col">
+          <div className="sticky top-0 z-10 backdrop-blur supports-[backdrop-filter]:bg-black/40 px-3 py-2 flex items-center gap-2">
+            <Skeleton className="h-3 w-24 bg-white/10" />
+          </div>
+          <div className="p-3 grid gap-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-lg border border-white/10 bg-white/5 p-3 flex items-center gap-3">
+                <Skeleton className="w-10 h-10 rounded-lg bg-white/10" />
+                <div className="min-w-0 flex-1 space-y-1">
+                  <Skeleton className="h-3 w-40 bg-white/10" />
+                  <Skeleton className="h-2 w-24 bg-white/10" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-2 w-14 bg-white/10" />
+                    <Skeleton className="h-2 w-20 bg-white/10" />
+                  </div>
+                </div>
+                <Skeleton className="h-5 w-10 rounded-full bg-white/10" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function KanbanSkeleton() {
+  return (
+    <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+      {(['Pending','Applied','Interview','Offer','Rejected','Withdrawn']).map(col => (
+        <div key={col} className="flex flex-col gap-3 rounded-xl border border-white/10 bg-black/30 p-3">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-2 w-2 rounded-full bg-white/20" />
+            <Skeleton className="h-3 w-20 bg-white/10" />
+            <Skeleton className="h-4 w-8 rounded-full bg-white/10 ml-auto" />
+          </div>
+          <div className="flex flex-col gap-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-lg border border-white/10 bg-white/5 p-3 space-y-2">
+                <Skeleton className="h-3 w-32 bg-white/10" />
+                <Skeleton className="h-2 w-20 bg-white/10" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-2 w-12 bg-white/10" />
+                  <Skeleton className="h-2 w-14 bg-white/10" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CalendarSkeleton() {
+  return (
+    <div className="border border-white/10 rounded-lg bg-black/30 p-4">
+      <div className="flex items-center justify-between mb-4">
+        <Skeleton className="h-6 w-40 bg-white/10" />
+        <div className="flex gap-2">
+          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-8 w-8 bg-white/10 rounded-md" />)}
+        </div>
+      </div>
+      <div className="grid grid-cols-7 gap-2">
+        {Array.from({ length: 35 }).map((_, i) => (
+          <div key={i} className="aspect-square rounded-md border border-white/10 bg-white/[0.02] p-1 flex flex-col gap-1">
+            <Skeleton className="h-2 w-4 bg-white/10" />
+            {i % 5 === 0 && <Skeleton className="h-2 w-10 bg-white/10" />}
+            {i % 7 === 0 && <Skeleton className="h-2 w-8 bg-white/10" />}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TableSkeleton() {
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/30 overflow-hidden">
+      <div className="bg-white/5 px-4 py-3 flex gap-4">
+        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-3 w-24 bg-white/10" />)}
+      </div>
+      <div className="divide-y divide-white/5">
+        {Array.from({ length: 8 }).map((_, r) => (
+          <div key={r} className="grid grid-cols-5 gap-4 px-4 py-3 text-sm">
+            {Array.from({ length: 5 }).map((__, c) => <Skeleton key={c} className="h-3 w-full bg-white/10" />)}
+          </div>
+        ))}
+      </div>
+      <div className="p-2 text-[10px] text-white/30 flex justify-end border-t border-white/10">Loading…</div>
+    </div>
+  );
+}
 
 // --- Table View Component ---
 interface ApplicationsTableProps {
