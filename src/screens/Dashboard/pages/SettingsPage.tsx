@@ -1381,7 +1381,7 @@ export const SettingsPage = (): JSX.Element => {
             >
               <Card className="bg-card/50 border-border/20 backdrop-blur-sm hover:shadow-lg transition-all duration-300">
                 <CardContent className="p-6">
-                  {renderTabContent()}
+                  {activeLoading ? <TabSkeleton /> : renderTabContent()}
                 </CardContent>
               </Card>
             </motion.div>
