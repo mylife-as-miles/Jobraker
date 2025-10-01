@@ -110,6 +110,11 @@ export const DialogDescription: React.FC<React.HTMLAttributes<HTMLParagraphEleme
 export const DialogFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
 export const DialogHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children }) => <div>{children}</div>;
 export const DialogTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({ children }) => <h3>{children}</h3>;
+// Internal: access dialog context for cancel buttons
+function useDialogCtx() {
+  return React.useContext(DialogCtx);
+}
+
 // Alias AlertDialog components to Dialog primitives for compatibility
 export const AlertDialog = Dialog;
 export const AlertDialogContent = DialogContent;
@@ -118,7 +123,35 @@ export const AlertDialogFooter = DialogFooter;
 export const AlertDialogHeader = DialogHeader;
 export const AlertDialogTitle = DialogTitle;
 export const AlertDialogAction: React.FC<ButtonProps> = (props) => <Button {...props} />;
-export const AlertDialogCancel: React.FC<ButtonProps> = (props) => <Button {...props} />;
+export const AlertDialogCancel: React.FC<ButtonProps> = ({ onClick, type, ...rest }) => {
+  const ctx = useDialogCtx();
+  return (
+    <Button
+      {...rest}
+      type={type || 'button'}
+      variant={rest.variant || 'outline'}
+      onClick={(e) => {
+        onClick?.(e);
+        if (!e.defaultPrevented) ctx?.onOpenChange?.(false);
+      }}
+    />
+  );
+};
+
+export const DialogCancel: React.FC<ButtonProps> = ({ onClick, type, ...rest }) => {
+  const ctx = useDialogCtx();
+  return (
+    <Button
+      {...rest}
+      type={type || 'button'}
+      variant={rest.variant || 'outline'}
+      onClick={(e) => {
+        onClick?.(e);
+        if (!e.defaultPrevented) ctx?.onOpenChange?.(false);
+      }}
+    />
+  );
+};
 
 export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>((props, ref) => (
   <input ref={ref} {...props} className={(props.className ?? "") + " rounded border px-2 py-1"} />

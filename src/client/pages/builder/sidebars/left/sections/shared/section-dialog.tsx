@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
+  DialogCancel,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -161,6 +162,7 @@ export const SectionDialog = <T extends SectionItem>({
               {children}
 
               <DialogFooter>
+                <DialogCancel>{t`Cancel`}</DialogCancel>
                 <Button type="submit">
                   {isCreate && t`Create`}
                   {isUpdate && t`Save Changes`}
