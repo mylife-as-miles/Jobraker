@@ -203,9 +203,9 @@ export const SettingsPage = (): JSX.Element => {
   useRegisterCoachMarks({
     page: 'settings',
     marks: [
-      { id: 'settings-tabs', selector: 'button[role="tab"]', title: 'Manage Preferences', body: 'Switch between profile, notifications, security, appearance and more.' },
-      { id: 'settings-profile-form', selector: 'form input[name="firstName"], input[placeholder="First Name"]', title: 'Profile Basics', body: 'Keep your name and contact details current for personalized matching.' },
-      { id: 'settings-job-sources', selector: 'div:has(button svg.w-4.h-4)', title: 'Job Ingestion Sources', body: 'Enable or disable job feeds and reorder priority for searching.' }
+      { id: 'settings-tabs', selector: '#settings-tablist', title: 'Manage Preferences', body: 'Switch between profile, notifications, security, appearance and more.' },
+      { id: 'settings-profile-form', selector: '#settings-profile-form', title: 'Profile Basics', body: 'Keep name and contact details current for personalized matching.' },
+      { id: 'settings-job-sources', selector: '#settings-job-sources', title: 'Job Ingestion Sources', body: 'Enable/disable job feeds and drag to reprioritize search sourcing.' }
     ]
   });
 
@@ -1344,7 +1344,7 @@ export const SettingsPage = (): JSX.Element => {
       <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 sm:gap-8">
           {/* Settings Navigation */}
-          <div className="lg:col-span-1 space-y-2">
+          <div className="lg:col-span-1 space-y-2" id="settings-tablist" data-tour="settings-tabs">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-6 flex items-center">
               <SettingsIcon className="w-6 h-6 mr-2" />
               Settings
@@ -1391,7 +1391,9 @@ export const SettingsPage = (): JSX.Element => {
             >
               <Card className="bg-card/50 border-border/20 backdrop-blur-sm hover:shadow-lg transition-all duration-300">
                 <CardContent className="p-6">
-                  {activeLoading ? <TabSkeleton /> : renderTabContent()}
+                  <div id="settings-profile-form" data-tour="settings-profile-form">
+                    {activeLoading ? <TabSkeleton /> : renderTabContent()}
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>

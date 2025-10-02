@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
@@ -136,6 +137,17 @@ const ProfilePage = (): JSX.Element => {
 
   const showAboutEmpty = !isEditing && !profile?.job_title && !profile?.location && !profile?.experience_years;
 
+  // Register profile coach marks with stable IDs
+  useRegisterCoachMarks({
+    page: 'profile',
+    marks: [
+      { id: 'profile-avatar', selector: '#profile-avatar', title: 'Personal Brand', body: 'Upload or update your avatar to personalize applications.' },
+      { id: 'profile-quick-stats', selector: '#profile-quick-stats', title: 'Live Outcomes', body: 'Track total applications, interviews and offers to measure progress.' },
+      { id: 'profile-about', selector: '#profile-about', title: 'Tell Your Story', body: 'Summarize your role, location and experience to give context at a glance.' },
+      { id: 'profile-experience', selector: '#profile-experience', title: 'Experience Timeline', body: 'Add roles highlighting impact, scope and achievements.' }
+    ]
+  });
+
   return (
     <div className="min-h-screen bg-black">
       <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -150,7 +162,7 @@ const ProfilePage = (): JSX.Element => {
               whileHover={{ scale: 1.02 }}
               className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
+              <Card id="profile-avatar" data-tour="profile-avatar" className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <div className="text-center">
                   <div className="relative inline-block mb-4">
                     {profile === null && (
@@ -224,7 +236,7 @@ const ProfilePage = (): JSX.Element => {
               whileHover={{ scale: 1.02 }}
               className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
+              <Card id="profile-quick-stats" data-tour="profile-quick-stats" className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <h3 className="text-lg font-semibold text-white mb-4">Quick Stats</h3>
                 {appsLoading ? (
                   <div className="space-y-3">
@@ -269,7 +281,7 @@ const ProfilePage = (): JSX.Element => {
               whileHover={{ scale: 1.01 }}
               className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
+              <Card id="profile-about" data-tour="profile-about" className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                   <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white">About</h3>
                   <Button 
@@ -336,7 +348,7 @@ const ProfilePage = (): JSX.Element => {
               whileHover={{ scale: 1.01 }}
               className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
+              <Card id="profile-experience" data-tour="profile-experience" className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white flex items-center">
                     <Briefcase className="w-5 h-5 mr-2 text-white" />

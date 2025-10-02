@@ -61,15 +61,15 @@ export function AnalyticsPage() {
   useRegisterCoachMarks({
     page: 'analytics',
     marks: [
-      { id: 'analytics-controls', selector: 'div.flex.flex-wrap.items-center', title: 'Adjust Time & Detail', body: 'Switch period and granularity to zoom into recent patterns or long-term trends.' },
-      { id: 'analytics-main-card', selector: '.rounded-xl.border', title: 'Performance Insights', body: 'This section aggregates application outcomes, velocity and conversion metrics.' }
+      { id: 'analytics-controls', selector: '#analytics-controls', title: 'Adjust Time & Detail', body: 'Switch period and granularity to zoom into recent patterns or long-term trends.' },
+      { id: 'analytics-main-card', selector: '#analytics-main-card', title: 'Performance Insights', body: 'Aggregated application outcomes, velocity and conversion metrics live here.' }
     ]
   });
 
   return (
     <div className="space-y-4 sm:space-y-6 p-2 sm:p-4">
       {/* Local controls (compact to fit inside dashboard shell) */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3" id="analytics-controls" data-tour="analytics-controls">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs uppercase tracking-wide text-white/50">Granularity:</span>
           {(['day','week','month'] as const).map(g => (
@@ -115,7 +115,7 @@ export function AnalyticsPage() {
       {analytics.error && (
         <div className="text-xs text-red-400">{analytics.error}</div>
       )}
-      <Card className="rounded-xl border border-white/15 bg-gradient-to-br from-white/[0.04] via-white/[0.06] to-white/[0.03] backdrop-blur-xl shadow-[0_0_0_1px_rgba(29,255,0,0.05)]">
+  <Card id="analytics-main-card" data-tour="analytics-main-card" className="rounded-xl border border-white/15 bg-gradient-to-br from-white/[0.04] via-white/[0.06] to-white/[0.03] backdrop-blur-xl shadow-[0_0_0_1px_rgba(29,255,0,0.05)]">
         <CardContent className="p-3 sm:p-4 lg:p-6">
           <AnalyticsContent period={period} data={analytics} />
         </CardContent>
