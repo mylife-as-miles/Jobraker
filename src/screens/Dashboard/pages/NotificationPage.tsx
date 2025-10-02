@@ -138,9 +138,9 @@ export const NotificationPage = (): JSX.Element => {
   useRegisterCoachMarks({
     page: 'notifications',
     marks: [
-      { id: 'notifications-search', selector: 'input[placeholder="Search Messages"]', title: 'Find Messages Fast', body: 'Filter notifications by keyword to quickly surface important updates.' },
-      { id: 'notifications-filters', selector: 'div.flex.gap-2.flex-wrap.items-center', title: 'Filter & Focus', body: 'Toggle unread, starred or by type to reduce noise.' },
-      { id: 'notifications-detail', selector: '.lg\\:col-span-2', title: 'Detailed View', body: 'Select a notification to read full context and available actions.' }
+      { id: 'notifications-search', selector: '#notifications-search', title: 'Find Messages Fast', body: 'Filter notifications by keyword to quickly surface important updates.' },
+      { id: 'notifications-filters', selector: '#notifications-filters', title: 'Filter & Focus', body: 'Toggle unread, starred or by type to reduce noise.' },
+      { id: 'notifications-detail', selector: '#notifications-detail', title: 'Detailed View', body: 'Select a notification to read full context and available actions.' }
     ]
   });
 
@@ -196,6 +196,8 @@ export const NotificationPage = (): JSX.Element => {
               <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
                 <Input
+                  id="notifications-search"
+                  data-tour="notifications-search"
                   placeholder="Search Messages"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -204,7 +206,7 @@ export const NotificationPage = (): JSX.Element => {
               </div>
               
               {/* Filter buttons */}
-              <div className="flex gap-2 flex-wrap items-center">
+              <div id="notifications-filters" data-tour="notifications-filters" className="flex gap-2 flex-wrap items-center">
                 {[
                   { key: "all", label: "All" },
                   { key: "unread", label: "Unread" },
@@ -359,7 +361,7 @@ export const NotificationPage = (): JSX.Element => {
           </div>
 
           {/* Right Content Area */}
-          <div className="lg:col-span-2 flex flex-col bg-black">
+          <div id="notifications-detail" data-tour="notifications-detail" className="lg:col-span-2 flex flex-col bg-black">
             {selectedNotificationData ? (
               <>
                 {/* Header */}
