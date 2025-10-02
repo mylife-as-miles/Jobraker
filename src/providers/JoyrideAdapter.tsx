@@ -10,7 +10,7 @@ import { useProductTour } from './TourProvider';
 */
 
 // Brand-styled tooltip component overriding Joyride default UI
-const BrandedTooltip: React.FC<TooltipRenderProps> = ({
+const BrandedTooltip: React.FC<TooltipRenderProps & { waiting?: boolean; internalStep?: any; onCta?: () => void; }> = ({
   backProps,
   closeProps,
   primaryProps,
@@ -20,7 +20,21 @@ const BrandedTooltip: React.FC<TooltipRenderProps> = ({
   index,
   size,
   isLastStep,
+  waiting,
+  internalStep,
+  onCta,
 }) => {
+  const raw = (step.content as any) as string | undefined;
+  let formatted: React.ReactNode = step.content as any;
+  if (typeof raw === 'string' && raw.includes('\n')) {
+    const lines = raw.split(/\n+/).map(l => l.trim()).filter(Boolean);
+    const allBullets = lines.every(l => l.startsWith('- '));
+    if (allBullets) {
+      formatted = <ul className="list-disc ml-5 space-y-1 text-white/75 text-sm">{lines.map((l,i)=><li key={i}>{l.replace(/^-\s+/, '')}</li>)}</ul>;
+    } else {
+      formatted = <div className="space-y-2 text-white/75 text-sm">{lines.map((l,i)=><p key={i}>{l}</p>)}</div>;
+    }
+  }
   return (
     <div
       {...tooltipProps}
@@ -45,8 +59,31 @@ const BrandedTooltip: React.FC<TooltipRenderProps> = ({
         )}
       </div>
       {step.content && (
-        <div className="text-sm leading-relaxed text-white/75 mb-4">
-          {step.content as any}
+        <div className="leading-relaxed mb-4 space-y-3">
+          {internalStep?.media && (
+            <div className="rounded-lg overflow-hidden border border-[#1dff00]/25 shadow-inner">
+              {internalStep.media.type === 'image' && (
+                <img src={internalStep.media.src} alt={internalStep.media.alt || ''} className="max-h-40 w-full object-cover" />
+              )}
+              {internalStep.media.type === 'video' && (
+                <video src={internalStep.media.src} className="max-h-40 w-full object-cover" autoPlay muted loop playsInline />
+              )}
+            </div>
+          )}
+          {formatted}
+          {internalStep?.cta && (
+            <button
+              onClick={() => {
+                if (internalStep.cta.event) {
+                  try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'cta', id: internalStep.id, event: internalStep.cta.event } })); } catch {}
+                }
+                if (internalStep.cta.advanceOnClick) onCta?.();
+              }}
+              className="mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#1dff00]/15 hover:bg-[#1dff00]/25 border border-[#1dff00]/30 text-[#1dff00] text-xs font-medium transition-colors"
+            >
+              {internalStep.cta.label}
+            </button>
+          )}
         </div>
       )}
       <div className="flex items-center justify-between gap-3">
@@ -68,9 +105,10 @@ const BrandedTooltip: React.FC<TooltipRenderProps> = ({
           </button>
           <button
             {...primaryProps}
+            disabled={waiting}
             className="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#1dff00] text-black hover:brightness-110 shadow-[0_0_0_1px_rgba(29,255,0,0.4)] transition-all"
           >
-            {isLastStep ? 'Finish' : 'Next'}
+            {waiting ? 'Complete action…' : isLastStep ? 'Finish' : 'Next'}
           </button>
         </div>
       </div>
@@ -80,7 +118,7 @@ const BrandedTooltip: React.FC<TooltipRenderProps> = ({
 };
 
 export const JoyrideAdapter: React.FC = () => {
-  const { activeId, page, isRunning, next, back, skip, steps: internalSteps } = useProductTour();
+  const { activeId, page, isRunning, next, back, skip, steps: internalSteps, activeIndex, waiting } = useProductTour();
   const [steps, setSteps] = React.useState<Step[]>([]);
 
   // Build Joyride steps from DOM data-tour elements for current page when running.
@@ -94,17 +132,37 @@ export const JoyrideAdapter: React.FC = () => {
       if (!el && m.selector) {
         try { el = document.querySelector<HTMLElement>(m.selector.startsWith('[') ? m.selector : `[data-tour="${m.selector}"]`); } catch { el = null; }
       }
-      return {
-        target: el || 'body',
-        title: m.title,
-        content: m.body,
-        placement: (m.placement as any) || 'auto',
-        disableBeacon: true,
-        styles: { options: { zIndex: 10050 } },
-      } as Step;
+      // Smart placement if not provided: choose side with most available space
+      let placement = (m.placement as any) || 'auto';
+      if (el && (!m.placement || m.placement === 'center')) {
+        const r = el.getBoundingClientRect();
+        const vw = window.innerWidth; const vh = window.innerHeight;
+        const spaceTop = r.top; const spaceBottom = vh - r.bottom; const spaceLeft = r.left; const spaceRight = vw - r.right;
+        const verticalMax = Math.max(spaceTop, spaceBottom); const horizontalMax = Math.max(spaceLeft, spaceRight);
+        if (verticalMax >= horizontalMax) placement = spaceBottom >= spaceTop ? 'bottom' : 'top'; else placement = spaceRight >= spaceLeft ? 'right' : 'left';
+      }
+      return { target: el || 'body', title: m.title, content: m.body, placement, disableBeacon: true, styles: { options: { zIndex: 10050 } } } as Step;
     }).filter(s => !!s.target);
     setSteps(built);
   }, [page, isRunning, activeId, internalSteps]);
+
+  // Ensure current target is visible when step changes
+  React.useEffect(() => {
+    if (!isRunning || activeIndex < 0) return;
+    const step = internalSteps[activeIndex];
+    if (!step) return;
+    let el: HTMLElement | null = step.element || null;
+    if (!el && step.selector) {
+      try { el = document.querySelector<HTMLElement>(step.selector.startsWith('[') ? step.selector : `[data-tour="${step.selector}"]`); } catch { el = null; }
+    }
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      const fullyVisible = rect.top >= 56 && rect.bottom <= window.innerHeight - 40;
+      if (!fullyVisible) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [activeIndex, isRunning, internalSteps]);
 
   const handleCallback = (data: CallBackProps) => {
     const { status, action, type } = data;
@@ -130,8 +188,8 @@ export const JoyrideAdapter: React.FC = () => {
       const style = document.createElement('style');
       style.id = id;
       style.textContent = `
-  .react-joyride__overlay { backdrop-filter: blur(1.5px); }
-        .react-joyride__spotlight { box-shadow: 0 0 0 2px #1dff00, 0 0 0 6px rgba(29,255,0,0.25), 0 0 0 10000px rgba(0,0,0,0.55) !important; border-radius: 12px !important; }
+  .react-joyride__overlay { backdrop-filter: blur(0.4px); }
+    .react-joyride__spotlight { box-shadow: 0 0 0 2px #1dff00, 0 0 0 6px rgba(29,255,0,0.25), 0 0 0 10000px rgba(0,0,0,0.45) !important; border-radius: 12px !important; }
         .react-joyride__tooltip { background: transparent !important; box-shadow: none !important; }
         .react-joyride__beacon { box-shadow: 0 0 0 0 rgba(29,255,0,0.65); animation: joyPulse 2.4s ease-in-out infinite; }
         @keyframes joyPulse { 0%{ box-shadow:0 0 0 0 rgba(29,255,0,0.45);} 70%{ box-shadow:0 0 0 14px rgba(29,255,0,0);} 100%{ box-shadow:0 0 0 0 rgba(29,255,0,0);} }
@@ -141,6 +199,7 @@ export const JoyrideAdapter: React.FC = () => {
   }, []);
 
   if (!isRunning || !steps.length) return null;
+  const internalStep = activeIndex >= 0 ? internalSteps[activeIndex] : null;
   return (
     <Joyride
       steps={steps}
@@ -151,7 +210,7 @@ export const JoyrideAdapter: React.FC = () => {
       hideCloseButton
       scrollToFirstStep
       spotlightClicks
-      tooltipComponent={BrandedTooltip as any}
+      tooltipComponent={(p: any) => <BrandedTooltip {...p} waiting={waiting} internalStep={internalStep} onCta={() => next()} />}
       styles={{
         options: {
           zIndex: 10040,

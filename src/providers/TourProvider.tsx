@@ -12,6 +12,9 @@ type CoachMark = {
   placement?: 'top' | 'bottom' | 'left' | 'right' | 'center';
   next?: string;            // id of next mark (for branching later)
   page?: string;            // logical page id (overview, application, etc.)
+  media?: { type: 'image' | 'video'; src: string; alt?: string; }; // optional media asset
+  cta?: { label: string; event?: string; advanceOnClick?: boolean }; // simple CTA button
+  condition?: { type: 'click' | 'inputFilled'; selector?: string; autoNext?: boolean }; // gating condition
 };
 
 interface TourContextValue {
@@ -25,6 +28,8 @@ interface TourContextValue {
   isRunning: boolean;
   steps: RegistryEntry[]; // ordered steps with resolved elements
   activeIndex: number;
+  waiting: boolean; // true if current step is gated by a condition
+  labels: { back: string; next: string; finish: string; skip: string; close: string };
 }
 
 const TourContext = createContext<TourContextValue | null>(null);
@@ -50,6 +55,8 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeIndex, setActiveIndex] = useState<number>(-1);
   const [isRunning, setIsRunning] = useState(false);
   const { profile, completeWalkthrough } = useProfileSettings();
+  const [waiting, setWaiting] = useState(false);
+  const labels = { back: 'Back', next: 'Next', finish: 'Finish', skip: 'Skip', close: 'Close' };
 
   const walkthroughFlagForPage = (p: string) => `walkthrough_${p}` as const;
   const isPageCompleted = (p: string) => (profile as any)?.[walkthroughFlagForPage(p)] === true;
@@ -175,6 +182,42 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {}
   }, [isRunning, page, activeIndex]);
 
+  // Condition gating effect (click or input fill) determines if user can proceed.
+  useEffect(() => {
+    if (!isRunning || activeIndex < 0) { setWaiting(false); return; }
+    const step = order[activeIndex];
+    if (!step?.condition) { setWaiting(false); return; }
+    const cond = step.condition;
+    let target: HTMLElement | null = null;
+    if (cond.selector) {
+      try { target = document.querySelector<HTMLElement>(cond.selector); } catch { target = null; }
+    } else {
+      target = step.element || null;
+    }
+    if (!target) { setWaiting(false); return; }
+    setWaiting(true);
+    const handler = () => {
+      if (cond.type === 'click') {
+        setWaiting(false);
+        if (cond.autoNext) next();
+      } else if (cond.type === 'inputFilled') {
+        const val = (target as HTMLInputElement).value;
+        if (val && val.trim().length > 0) {
+          setWaiting(false);
+          if (cond.autoNext) next();
+        }
+      }
+    };
+    if (cond.type === 'click') target.addEventListener('click', handler, { once: cond.autoNext || false });
+    if (cond.type === 'inputFilled') target.addEventListener('input', handler);
+    // Immediate check (pre-filled input case)
+    if (cond.type === 'inputFilled') handler();
+    return () => {
+      if (cond.type === 'click') target?.removeEventListener('click', handler as any);
+      if (cond.type === 'inputFilled') target?.removeEventListener('input', handler as any);
+    };
+  }, [isRunning, activeIndex, order, next]);
+
   // Analytics: step advance
   useEffect(() => {
     if (!isRunning || activeIndex < 0 || !page) return;
@@ -196,7 +239,9 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isRunning,
     steps: order,
     activeIndex,
-  }), [active?.id, start, next, back, skip, register, page, isRunning, order, activeIndex]);
+    waiting,
+    labels,
+  }), [active?.id, start, next, back, skip, register, page, isRunning, order, activeIndex, waiting]);
 
   return (
     <TourContext.Provider value={value}>
