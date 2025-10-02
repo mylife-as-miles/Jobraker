@@ -205,7 +205,15 @@ export const SettingsPage = (): JSX.Element => {
     marks: [
       { id: 'settings-tabs', selector: '#settings-tablist', title: 'Manage Preferences', body: 'Switch between profile, notifications, security, appearance and more.' },
       { id: 'settings-profile-form', selector: '#settings-profile-form', title: 'Profile Basics', body: 'Keep name and contact details current for personalized matching.' },
-      { id: 'settings-job-sources', selector: '#settings-job-sources', title: 'Job Ingestion Sources', body: 'Enable/disable job feeds and drag to reprioritize search sourcing.' }
+      { id: 'settings-profile-tab', selector: '#settings-tab-profile', title: 'Profile Tab', body: 'Manage personal info, avatar and contact details here.' },
+      { id: 'settings-notifications-tab', selector: '#settings-tab-notifications', title: 'Notifications', body: 'Control which updates you receive via email or browser.' },
+      { id: 'settings-security-tab', selector: '#settings-tab-security', title: 'Security Overview', body: 'Update password and manage two-factor authentication.' },
+      { id: 'settings-security-password', selector: '#settings-security-update-password', title: 'Set a Strong Password', body: 'Meet strength rules then click Update Password to proceed.', condition: { type: 'click', autoNext: true } },
+      { id: 'settings-appearance-tab', selector: '#settings-tab-appearance', title: 'Appearance', body: 'Customize UI theme and density preferences.' },
+      { id: 'settings-privacy-tab', selector: '#settings-tab-privacy', title: 'Privacy', body: 'Adjust visibility and data sharing preferences.' },
+      { id: 'settings-job-sources-tab', selector: '#settings-tab-job-sources', title: 'Job Sources', body: 'Enable, disable or reorder job ingestion sources & scheduling.' },
+      { id: 'settings-billing-tab', selector: '#settings-tab-billing', title: 'Billing', body: 'Manage subscription and payment information (future).', },
+      { id: 'settings-tour-complete', selector: '#settings-tablist', title: 'All Set', body: 'You can revisit any section or restart this tour from the tour menu.' },
     ]
   });
 
@@ -391,7 +399,7 @@ export const SettingsPage = (): JSX.Element => {
     switch (activeTab) {
       case "profile":
         return (
-          <div className="space-y-6">
+          <div id="settings-tab-profile" data-tour="settings-tab-profile" className="space-y-6">
             <div className="flex items-center space-x-6">
               <div className="w-24 h-24 rounded-full overflow-hidden bg-primary/20 border border-primary flex items-center justify-center text-primary-foreground font-bold text-2xl">
                 {avatarUrl ? (
@@ -487,7 +495,7 @@ export const SettingsPage = (): JSX.Element => {
 
       case "notifications":
         return (
-          <div className="space-y-6">
+          <div id="settings-tab-notifications" data-tour="settings-tab-notifications" className="space-y-6">
             <div className="space-y-4">
               {[
                 { key: "email_notifications", label: "Email Notifications", description: "Receive notifications via email" },
@@ -526,7 +534,7 @@ export const SettingsPage = (): JSX.Element => {
 
       case "security":
         return (
-          <div className="space-y-6">
+          <div id="settings-tab-security" data-tour="settings-tab-security" className="space-y-6">
             {/* Change Password */}
             <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
@@ -598,6 +606,7 @@ export const SettingsPage = (): JSX.Element => {
                     </div>
                   </div>
                   <Button
+                    id="settings-security-update-password"
                     onClick={handleChangePassword}
                     disabled={!passwordCheck.valid || formData.newPassword !== formData.confirmPassword}
                     className="bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 transition-all duration-300 disabled:opacity-60"
@@ -799,7 +808,7 @@ export const SettingsPage = (): JSX.Element => {
 
       case "appearance":
         return (
-          <div className="space-y-6">
+          <div id="settings-tab-appearance" data-tour="settings-tab-appearance" className="space-y-8">
             <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
                 <h3 className="text-foreground font-medium mb-4">Theme</h3>
@@ -885,7 +894,7 @@ export const SettingsPage = (): JSX.Element => {
 
       case "privacy":
         return (
-          <div className="space-y-6">
+          <div id="settings-tab-privacy" data-tour="settings-tab-privacy" className="space-y-6">
             <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
                 <h3 className="text-foreground font-medium mb-4">Data & Privacy</h3>
@@ -991,7 +1000,7 @@ export const SettingsPage = (): JSX.Element => {
 
       case "job-sources":
         return (
-          <div className="space-y-6">
+          <div id="settings-tab-job-sources" data-tour="settings-tab-job-sources" className="space-y-8">
             {/* Quick Defaults for source flags that integrate with process-and-match */}
             <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4 space-y-4">
@@ -1298,7 +1307,7 @@ export const SettingsPage = (): JSX.Element => {
 
       case "billing":
         return (
-          <div className="space-y-6">
+          <div id="settings-tab-billing" data-tour="settings-tab-billing" className="space-y-8">
             <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
                 <h3 className="text-foreground font-medium mb-4">Current Plan</h3>
@@ -1354,7 +1363,10 @@ export const SettingsPage = (): JSX.Element => {
               <Button
                 key={tab.id}
                 variant="ghost"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'settings_tab_switch', tab: tab.id } })); } catch {}
+                }}
                 className={`w-full justify-start transition-all duration-300 hover:scale-105 ${
                   activeTab === tab.id
                     ? "text-foreground bg-primary/10 border-r-2 border-primary"
