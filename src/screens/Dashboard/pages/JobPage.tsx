@@ -198,9 +198,40 @@ export const JobPage = (): JSX.Element => {
   useRegisterCoachMarks({
     page: 'jobs',
     marks: [
-      { id: 'job-search-box', selector: '#job-search-box', title: 'Search Jobs', body: 'Enter keywords to fetch and match roles using your profile context.' },
-      { id: 'job-filters', selector: '#job-filters', title: 'Fine-Tune Results', body: 'Filter by location, type, requirements and benefits to narrow down opportunities.' },
-      { id: 'job-auto-apply', selector: '#job-auto-apply', title: 'Accelerate Applications', body: 'Use the automated apply flow (when available) to submit multiple tailored applications.' }
+      {
+        id: 'job-search-box',
+        selector: '#job-search-box',
+        title: 'Search Jobs',
+        body: 'Enter keywords to fetch and match roles using your profile context.'
+      },
+      {
+        id: 'job-filters',
+        selector: '#job-filters',
+        title: 'Fine-Tune Results',
+        body: 'Filter by location, type, quick presets, salary and time windows to narrow down opportunities.'
+      },
+      {
+        id: 'job-facet-panel',
+        selector: '#job-facet-panel',
+        title: 'Facet Filters',
+        body: 'Refine by requirements & benefits. Click a chip to toggle it; Clear restores live results.'
+      },
+      {
+        id: 'job-auto-apply',
+        selector: '#job-auto-apply',
+        title: 'Accelerate Applications',
+        body: readiness && readiness.profile && readiness.resume
+          ? 'Great — your profile & resume are ready. Start Auto Apply to batch tailored applications.'
+          : 'Auto Apply batches roles with your chosen resume. Complete your profile & upload a resume to enable this.',
+        // Gate advancing until user intentionally clicks (confirmation) and readiness is true
+        condition: { type: 'click', autoNext: true }
+      },
+      {
+        id: 'job-tour-complete',
+        selector: '#job-search-box',
+        title: 'You\'re Ready',
+        body: 'Explore job details on the right, then switch to Applications to track progress. You can revisit this tour anytime from the tour menu.',
+      }
     ]
   });
 
@@ -1284,7 +1315,7 @@ export const JobPage = (): JSX.Element => {
           {/* Job List */}
           <div className="space-y-4" role="region" aria-label="Filters and results list">
             {/* Facet Panel */}
-            <Card ref={facetPanelRef} className={`bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border backdrop-blur-[25px] p-4 ${facetPulse ? 'border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.3)]' : 'border-[#ffffff15]'}` }>
+            <Card id="job-facet-panel" data-tour="job-facet-panel" ref={facetPanelRef} className={`bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border backdrop-blur-[25px] p-4 ${facetPulse ? 'border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.3)]' : 'border-[#ffffff15]'}` }>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-white font-semibold text-sm">Facet Filters</h3>
                 <div className="flex items-center gap-2">
@@ -1305,7 +1336,7 @@ export const JobPage = (): JSX.Element => {
                       return (
                         <button
                           key={`req-${f.value}`}
-                          onClick={() => toggleReq(f.value)}
+                          onClick={() => { toggleReq(f.value); try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'facet_toggle', facet: 'requirement', value: f.value, active: !active } })); } catch {} }}
                           className={`px-2 py-1 rounded border text-xs transition ${active ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}
                           title={`${f.value} (${f.count})`}
                         >
@@ -1324,7 +1355,7 @@ export const JobPage = (): JSX.Element => {
                       return (
                         <button
                           key={`ben-${f.value}`}
-                          onClick={() => toggleBen(f.value)}
+                          onClick={() => { toggleBen(f.value); try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'facet_toggle', facet: 'benefit', value: f.value, active: !active } })); } catch {} }}
                           className={`px-2 py-1 rounded border text-xs transition ${active ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/10 hover:bg-[#1dff00]/10'}`}
                           title={`${f.value} (${f.count})`}
                         >
