@@ -81,7 +81,7 @@ export const DialogContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ 
       // focus first focusable
       setTimeout(() => {
         const focusable = contentRef.current?.querySelector<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          'button, [href], input, select, textarea, [tabindex]:not(abindexxx="-1"])'
         );
         focusable?.focus();
       }, 0);
