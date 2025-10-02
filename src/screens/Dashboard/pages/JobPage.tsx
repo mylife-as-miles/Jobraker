@@ -198,9 +198,9 @@ export const JobPage = (): JSX.Element => {
   useRegisterCoachMarks({
     page: 'jobs',
     marks: [
-      { id: 'job-search-box', selector: 'input[placeholder="Search jobs"]', title: 'Search Jobs', body: 'Enter keywords to fetch and match roles using your profile context.' },
-      { id: 'job-filters', selector: 'button:has(svg.w-4.h-4)', title: 'Fine-Tune Results', body: 'Filter by location, type, requirements and benefits to narrow down opportunities.' },
-      { id: 'job-auto-apply', selector: 'button:has(svg.w-4.h-4)+button', title: 'Accelerate Applications', body: 'Use the automated apply flow (when available) to submit multiple tailored applications.' }
+      { id: 'job-search-box', selector: '#job-search-box', title: 'Search Jobs', body: 'Enter keywords to fetch and match roles using your profile context.' },
+      { id: 'job-filters', selector: '#job-filters', title: 'Fine-Tune Results', body: 'Filter by location, type, requirements and benefits to narrow down opportunities.' },
+      { id: 'job-auto-apply', selector: '#job-auto-apply', title: 'Accelerate Applications', body: 'Use the automated apply flow (when available) to submit multiple tailored applications.' }
     ]
   });
 
@@ -1063,6 +1063,8 @@ export const JobPage = (): JSX.Element => {
                 variant="outline"
                 onClick={() => setMobileFiltersOpen(true)}
                 className="sm:hidden border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300"
+                id="job-filters"
+                data-tour="job-filters"
               >
                 <Filter className="w-4 h-4 mr-2" />
                 {activeFacetCount > 0 ? `Filters (${activeFacetCount})` : 'Filters'}
@@ -1078,13 +1080,16 @@ export const JobPage = (): JSX.Element => {
                   }
                 }}
                 className="hidden sm:inline-flex border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                id="job-filters-desktop"
               >
                 <Filter className="w-4 h-4 mr-2" />
                 {activeFacetCount > 0 ? `Filters (${activeFacetCount})` : 'Filters'}
               </Button>
               {/* Auto Apply & Search Controls */}
               <div className="flex items-center gap-3">
-                <AutoApplyControls />
+                <div id="job-auto-apply" data-tour="job-auto-apply">
+                  <AutoApplyControls />
+                </div>
                 <Button
                   variant="ghost"
                   onClick={refreshFromSources}
@@ -1102,7 +1107,7 @@ export const JobPage = (): JSX.Element => {
         <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 mb-6 sm:mb-8" role="region" aria-label="Search and filters">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* Search Input */}
-            <div className="lg:col-span-2 relative">
+            <div id="job-search-box" data-tour="job-search-box" className="lg:col-span-2 relative">
               <label htmlFor="job-search" className="sr-only">Search jobs</label>
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
               <Input

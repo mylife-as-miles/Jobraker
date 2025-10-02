@@ -148,31 +148,31 @@ function ApplicationPage() {
   // Calendar selection state (single day or range) for detail overlay
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
-  // Register coach marks (selectors depend on existing structure). These will be highlighted for first-time users.
+  // Register coach marks with stable IDs (replaces brittle structural selectors)
   useRegisterCoachMarks({
     page: 'application',
     marks: [
       {
-        id: 'toolbar-search',
-        selector: 'input[placeholder="Search applications..."]',
+        id: 'application-search',
+        selector: '#application-search',
         title: 'Search Your Applications',
         body: 'Quickly filter your applications by title, company, location or status keywords.'
       },
       {
-        id: 'view-toggle',
-        selector: 'button[title="Gantt view"]',
+        id: 'application-view-toggle',
+        selector: '#application-view-toggle',
         title: 'Multiple Visual Views',
-        body: 'Switch between Gantt timeline, list, Kanban, calendar and table views to analyze your pipeline from different angles.'
+        body: 'Switch between Gantt, List, Kanban, Calendar and Table to analyze your pipeline from different angles.'
       },
       {
-        id: 'status-filters',
-        selector: 'button:has(.w-4.h-4) ~ div button.rounded-full',
+        id: 'application-status-filters',
+        selector: '#application-status-filters',
         title: 'Status Filters',
         body: 'Focus on a specific stage like Interview or Offer to reduce noise and act faster.'
       },
       {
-        id: 'gantt-surface',
-        selector: '.rdg',
+        id: 'application-gantt',
+        selector: '#application-gantt',
         title: 'Timeline Insight',
         body: 'The Gantt view shows lifecycle duration per application. Active stages extend to today for quick aging awareness.'
       }
@@ -205,6 +205,7 @@ function ApplicationPage() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
                 <Input
+                  id="application-search"
                   data-tour="application-search"
                   placeholder="Search applications..."
                   value={rawSearch}
@@ -224,7 +225,7 @@ function ApplicationPage() {
                   <SelectItem value="status">Status</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="inline-flex rounded-lg border border-white/20 overflow-hidden bg-white/5 backdrop-blur-sm" data-tour="application-view-toggle">
+              <div id="application-view-toggle" className="inline-flex rounded-lg border border-white/20 overflow-hidden bg-white/5 backdrop-blur-sm" data-tour="application-view-toggle">
                 <button
                   className={`px-3 py-2 text-sm text-white/70 hover:text-white transition ${viewMode==='gantt' ? 'bg-white/20 text-white' : ''}`}
                   title="Gantt view"
@@ -263,7 +264,7 @@ function ApplicationPage() {
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 -m-1 items-center">
+          <div id="application-status-filters" className="flex flex-wrap gap-2 -m-1 items-center" data-tour="application-status-filters">
             {(["All", "Pending", "Applied", "Interview", "Offer", "Rejected", "Withdrawn"] as const).map((s) => (
               <Button
                 key={s}
@@ -319,6 +320,7 @@ function ApplicationPage() {
                 <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#fb7185] to-[#881337]" /> Rejected</span>
                 <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#94a3b8] to-[#334155]" /> Withdrawn</span>
               </div>
+              <div id="application-gantt" data-tour="application-gantt">
               <Gantt
                 zoom={ganttZoom}
                 onZoomChange={setGanttZoom}
@@ -366,6 +368,7 @@ function ApplicationPage() {
                   </div>
                 )}
               />
+              </div>
             </div>
             </motion.div>
           ) : !initialLoading && viewMode === 'list' ? (

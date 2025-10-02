@@ -709,9 +709,9 @@ export const CoverLetter = () => {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] flex-col gap-4 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+    <div id="cover-page-root" className="flex min-h-[calc(100vh-4rem)] flex-col gap-4 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
       {/* Header */}
-      <div className="flex items-center justify-between sticky top-0 z-10 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-xl border border-border px-3 sm:px-4 py-2 sm:py-3">
+  <div id="cover-header" data-tour="cover-header" className="flex items-center justify-between sticky top-0 z-10 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-xl border border-border px-3 sm:px-4 py-2 sm:py-3">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" className="h-9 w-9 p-0" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4" />
@@ -727,7 +727,7 @@ export const CoverLetter = () => {
       </div>
 
       {exportOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div id="cover-actions" data-tour="cover-actions" className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={() => setExportOpen(false)} />
           <div role="dialog" aria-modal="true" className="relative z-10 w-full max-w-md rounded-xl border border-border bg-popover shadow-lg p-4 sm:p-6 animate-in fade-in-0 zoom-in-95">
             <div className="flex items-center justify-between mb-2">
@@ -764,9 +764,9 @@ export const CoverLetter = () => {
       )}
 
       {/* Workspace */}
-      <div className="grid gap-4 grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)]">
+  <div id="cover-main-layout" className="grid gap-4 grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)]">
         {/* Left: Controls */}
-        <Card className="p-4 rounded-xl">
+  <Card id="cover-meta-panel" data-tour="cover-meta-panel" className="p-4 rounded-xl">
           <div className="grid gap-4">
             {/* Saved Letters (Library) */}
             <div className="grid gap-2">
