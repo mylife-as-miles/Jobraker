@@ -1,6 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { JoyrideAdapter } from './JoyrideAdapter';
-import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { useProfileSettings } from '../hooks/useProfileSettings';
 
@@ -24,6 +23,8 @@ interface TourContextValue {
   register: (mark: Omit<CoachMark, 'element'>) => void;
   page: string | null;
   isRunning: boolean;
+  steps: RegistryEntry[]; // ordered steps with resolved elements
+  activeIndex: number;
 }
 
 const TourContext = createContext<TourContextValue | null>(null);
@@ -96,15 +97,35 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!resolved.length) return;
     setPage(pageId);
     setOrder(resolved);
-    setActiveIndex(0);
+    // Resume persisted progress if available and valid
+    const persistedRaw = localStorage.getItem(`tour_state:${pageId}`);
+    let resumeIndex = 0;
+    if (persistedRaw) {
+      try {
+        const parsed = JSON.parse(persistedRaw);
+        if (typeof parsed.index === 'number' && parsed.index >= 0 && parsed.index < resolved.length) {
+          resumeIndex = parsed.index;
+        }
+      } catch { /* ignore */ }
+    }
+    setActiveIndex(resumeIndex);
     setIsRunning(true);
   }, [resolveElements]);
 
   const next = useCallback(() => {
     setActiveIndex(idx => {
       const nextIdx = idx + 1;
+      const current = order[idx];
+      // Branching: if current has explicit next id, jump there
+      if (current?.next) {
+        const branchIndex = order.findIndex(m => m.id === current.next);
+        if (branchIndex !== -1) return branchIndex;
+      }
       if (nextIdx >= order.length) {
         if (page) completeWalkthrough(walkthroughFlagForPage(page) as any);
+        // Analytics: completed
+        try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'completed', page } })); } catch {}
+        localStorage.removeItem(`tour_state:${page}`);
         setIsRunning(false);
         setPage(null);
         return -1;
@@ -122,6 +143,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const skip = useCallback(() => {
     if (page) completeWalkthrough(walkthroughFlagForPage(page) as any);
+    try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'skipped', page } })); } catch {}
     setIsRunning(false);
     setPage(null);
     setActiveIndex(-1);
@@ -145,6 +167,24 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [active?.id, isRunning]);
 
+  // Persist active step progress
+  useEffect(() => {
+    if (!isRunning || !page || activeIndex < 0) return;
+    try {
+      localStorage.setItem(`tour_state:${page}`, JSON.stringify({ index: activeIndex, at: Date.now() }));
+    } catch {}
+  }, [isRunning, page, activeIndex]);
+
+  // Analytics: step advance
+  useEffect(() => {
+    if (!isRunning || activeIndex < 0 || !page) return;
+    const step = order[activeIndex];
+    if (!step) return;
+    try {
+      window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'step', page, id: step.id, index: activeIndex } }));
+    } catch {}
+  }, [isRunning, activeIndex, page, order]);
+
   const value = useMemo<TourContextValue>(() => ({
     activeId: active?.id || null,
     start,
@@ -154,192 +194,23 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     register,
     page,
     isRunning,
-  }), [active?.id, start, next, back, skip, register, page, isRunning]);
+    steps: order,
+    activeIndex,
+  }), [active?.id, start, next, back, skip, register, page, isRunning, order, activeIndex]);
 
   return (
     <TourContext.Provider value={value}>
       {children}
-      {/* Legacy custom overlay (kept for highlight); JoyrideAdapter adds richer tooltip flow */}
-      {active && isRunning && (
-        <CoachMarkOverlay 
-          mark={active} 
-          onNext={next} 
-          onBack={back}
-          onSkip={skip} 
-          index={activeIndex} 
-          total={order.length} 
-        />
-      )}
+      {/* Legacy overlay removed to avoid double blur & duplicate messaging; Joyride handles spotlight & tooltips */}
       {/* Joyride overlay (auto-built from data-tour attributes) */}
       <JoyrideAdapter />
+      <FloatingTourMenu registry={registry} start={start} page={page} isRunning={isRunning} profile={profile} />
     </TourContext.Provider>
   );
 };
 
 // ---------------- Overlay Components -----------------
 
-const CoachMarkOverlay: React.FC<{ mark: RegistryEntry; onNext: () => void; onBack: () => void; onSkip: () => void; index: number; total: number; }> = ({ mark, onNext, onBack, onSkip, index, total }) => {
-  const [rect, setRect] = useState<DOMRect | null>(null);
-  const [tooltipPos, setTooltipPos] = useState<{top: number; left: number; placement: string} | null>(null);
-  const bubbleRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const el = mark.element || (mark.selector ? document.querySelector(mark.selector) : null);
-    if (el) setRect(el.getBoundingClientRect());
-    const ro = new ResizeObserver(() => {
-      if (!el) return;
-      setRect(el.getBoundingClientRect());
-    });
-    if (el) ro.observe(el);
-    return () => { try { ro.disconnect(); } catch {} };
-  }, [mark]);
-
-  // Inject pulse animation stylesheet once
-  useEffect(() => {
-    const id = '__tour_pulse_style';
-    if (!document.getElementById(id)) {
-      const style = document.createElement('style');
-      style.id = id;
-      style.textContent = `@keyframes tourPulse { 0% { box-shadow: 0 0 0 0 rgba(29,255,0,0.55); } 70% { box-shadow: 0 0 0 12px rgba(29,255,0,0); } 100% { box-shadow: 0 0 0 0 rgba(29,255,0,0); } }`;
-      document.head.appendChild(style);
-    }
-  }, []);
-
-  // Compute tooltip position after render to know bubble size for collision handling
-  useEffect(() => {
-    if (!rect || !bubbleRef.current) return;
-    const desired = mark.placement || 'bottom';
-    const pad = 12;
-    const bubble = bubbleRef.current.getBoundingClientRect();
-  let placement: 'top' | 'bottom' | 'left' | 'right' | 'center' = (['top','bottom','left','right','center'].includes(desired) ? desired : 'bottom') as any;
-    const vw = window.innerWidth; const vh = window.innerHeight;
-    const r = rect;
-    const scrollY = window.scrollY; const scrollX = window.scrollX;
-    const compute = (pl: string) => {
-      let t = r.bottom + pad; let l = r.left + r.width/2 - bubble.width/2; // bottom default
-      if (pl === 'top') { t = r.top - bubble.height - pad; l = r.left + r.width/2 - bubble.width/2; }
-      if (pl === 'left') { t = r.top + r.height/2 - bubble.height/2; l = r.left - bubble.width - pad; }
-      if (pl === 'right') { t = r.top + r.height/2 - bubble.height/2; l = r.right + pad; }
-      if (pl === 'center') { t = r.top + r.height + pad; l = r.left + r.width/2 - bubble.width/2; }
-      return { t, l };
-    };
-    let { t, l } = compute(placement);
-    // Flip logic if off-screen
-    const fitsVertically = (t >= scrollY) && (t + bubble.height <= scrollY + vh);
-    const fitsHorizontally = (l >= scrollX + 4) && (l + bubble.width <= scrollX + vw - 4);
-    if (!fitsVertically || !fitsHorizontally) {
-      const order: string[] = ['bottom','right','left','top'];
-      for (const alt of order) {
-        const { t: tt, l: ll } = compute(alt);
-        if (tt >= scrollY && tt + bubble.height <= scrollY + vh && ll >= scrollX + 4 && ll + bubble.width <= scrollX + vw - 4) {
-          placement = alt as any; t = tt; l = ll; break;
-        }
-      }
-    }
-    // clamp
-    l = Math.max(scrollX + 4, Math.min(l, scrollX + vw - bubble.width - 4));
-    setTooltipPos({ top: t + scrollY, left: l + scrollX, placement });
-  }, [rect, mark.id, mark.placement]);
-
-  const box = rect;
-  const style: React.CSSProperties = box ? {
-    position: 'fixed',
-    top: box.top + window.scrollY,
-    left: box.left + window.scrollX,
-    width: box.width,
-    height: box.height,
-    pointerEvents: 'auto',
-    zIndex: 9999,
-  } : { display: 'none' };
-
-  // Keyboard navigation
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); onNext(); }
-      if (e.key === 'ArrowLeft') { e.preventDefault(); onBack(); }
-      if (e.key === 'Escape') { e.preventDefault(); onSkip(); }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onNext, onBack, onSkip]);
-
-  // focus first actionable on step change
-  useEffect(() => {
-    setTimeout(() => {
-      const btn = bubbleRef.current?.querySelector('[data-tour-action]') as HTMLElement | null;
-      btn?.focus();
-    }, 10);
-  }, [mark.id]);
-
-  return createPortal(
-    <>
-      <div className="fixed inset-0 z-[9998] bg-black/55 backdrop-blur-sm" onClick={onSkip} aria-hidden="true" />
-      {box && (
-        <div 
-          role="presentation"
-          onClick={onNext}
-          title="Click to continue"
-          style={style} 
-          className="rounded-lg ring-2 ring-[#1dff00] shadow-[0_0_0_4px_rgba(0,0,0,0.55)] transition-all animate-[tourPulse_2.4s_ease-in-out_infinite] cursor-pointer"
-        />
-      )}
-      {/* Inline tooltip bubble */}
-      {tooltipPos && (
-        <div 
-          ref={bubbleRef}
-          role="dialog"
-          aria-live="polite"
-          className="fixed z-[10000] max-w-sm w-[min(360px,90vw)] rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#132313] via-[#060a06] to-black p-5 shadow-[0_4px_28px_-4px_rgba(0,0,0,0.65),0_0_0_1px_rgba(29,255,0,0.25)] text-white focus:outline-none"
-          style={{ top: tooltipPos.top, left: tooltipPos.left }}
-        >
-          {/* Arrow */}
-          <span 
-            aria-hidden="true"
-            className="absolute block w-3 h-3 rotate-45 bg-[#132313] border border-[#1dff00]/30"
-            style={{
-              top: tooltipPos.placement === 'bottom' ? -6 : tooltipPos.placement === 'top' ? 'auto' : '50%',
-              bottom: tooltipPos.placement === 'top' ? -6 : 'auto',
-              left: tooltipPos.placement === 'left' ? 'auto' : tooltipPos.placement === 'right' ? -6 : '50%',
-              right: tooltipPos.placement === 'left' ? -6 : 'auto',
-              transform: tooltipPos.placement === 'left' || tooltipPos.placement === 'right' ? 'translateY(-50%) rotate(45deg)' : 'translateX(-50%) rotate(45deg)'
-            }}
-          />
-          <div className="flex items-center gap-3 mb-2">
-            <div className="h-7 w-7 rounded-lg bg-[#1dff00]/15 border border-[#1dff00]/30 flex items-center justify-center text-[#1dff00] text-[11px] font-bold">{index+1}</div>
-            <h3 className="text-base font-semibold bg-gradient-to-r from-white to-[#1dff00] bg-clip-text text-transparent leading-snug">{mark.title}</h3>
-            <button 
-              onClick={onSkip} 
-              className="ml-auto h-7 w-7 rounded-md bg-[#1dff00]/10 hover:bg-[#1dff00]/25 text-[#1dff00] text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#1dff00]/60"
-              aria-label="Skip tour"
-            >×</button>
-          </div>
-          <p className="text-xs text-white/70 leading-relaxed mb-4">{mark.body}</p>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-1" aria-hidden="true">
-              {Array.from({ length: total }).map((_, i) => (
-                <span key={i} className={`h-1.5 w-3 rounded-sm ${i <= index ? 'bg-[#1dff00]' : 'bg-[#1dff00]/25'}`} />
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <button 
-                data-tour-action
-                onClick={onBack} 
-                disabled={index === 0}
-                className="px-3 py-1.5 rounded-md text-xs font-medium border border-[#1dff00]/30 text-[#1dff00]/80 disabled:opacity-30 hover:text-black hover:bg-[#1dff00] transition-all"
-              >Back</button>
-              <button 
-                data-tour-action
-                onClick={onNext} 
-                className="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#1dff00] text-black hover:brightness-110 transition-all"
-              >{index+1 === total ? 'Finish' : 'Next'}</button>
-            </div>
-          </div>
-          <div className="sr-only" aria-live="assertive">Step {index+1} of {total}. {mark.title}</div>
-        </div>
-      )}
-    </>,
-    document.body
-  );
-};
 
 // ---------------- Helper Hook Component -----------------
 
@@ -354,4 +225,68 @@ export const useRegisterCoachMarks = ({ page, marks }: UseRegisterCoachMarksArgs
   useEffect(() => {
     marks.forEach(m => register({ ...m, page }));
   }, [marks, page, register]);
+};
+
+// Floating restart / tour selector menu
+const pageLabels: Record<string, string> = {
+  overview: 'Overview',
+  application: 'Applications',
+  analytics: 'Analytics',
+  jobs: 'Jobs',
+  resume: 'Resume',
+  'cover-letter': 'Cover Letter',
+  settings: 'Settings',
+  notifications: 'Notifications',
+  profile: 'Profile',
+  chat: 'Chat'
+};
+
+const FloatingTourMenu: React.FC<{ registry: React.MutableRefObject<Map<string, any[]>>; start: (p: string) => void; page: string | null; isRunning: boolean; profile: any; }> = ({ registry, start, page, isRunning, profile }) => {
+  const [open, setOpen] = useState(false);
+  const pages = Array.from(registry.current.keys()).filter(k => k !== '*');
+  // Determine completion via profile walkthrough flags
+  const completion = (p: string) => (profile as any)?.[`walkthrough_${p}`] === true;
+  return (
+    <div className="fixed z-[12000] bottom-4 right-4 flex flex-col items-end gap-2">
+      {open && (
+        <div className="w-60 rounded-2xl border border-[#1dff00]/30 bg-[#0b150b]/95 backdrop-blur-md shadow-[0_0_0_1px_rgba(29,255,0,0.25),0_14px_32px_-8px_rgba(0,0,0,0.65)] p-3 flex flex-col gap-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-semibold tracking-wide text-[#1dff00] uppercase">Guided Tours</span>
+            <button onClick={() => setOpen(false)} className="text-[#1dff00]/70 hover:text-[#1dff00] text-xs">×</button>
+          </div>
+          <div className="max-h-64 overflow-auto pr-1 custom-scrollbar">
+            {pages.map(p => (
+              <button
+                key={p}
+                onClick={() => { start(p); setOpen(false); }}
+                className={`w-full text-left px-2 py-1.5 rounded-md text-xs flex items-center justify-between group transition ${page === p && isRunning ? 'bg-[#1dff00]/15' : 'hover:bg-[#1dff00]/10'}`}
+              >
+                <span className="truncate text-white/80 group-hover:text-white">{pageLabels[p] || p}</span>
+                {completion(p) ? (
+                  <span className="text-[10px] text-[#1dff00] font-medium">Done</span>
+                ) : (
+                  <span className="text-[10px] text-[#1dff00]/60">Start</span>
+                )}
+              </button>
+            ))}
+            {pages.length === 0 && (
+              <div className="text-[11px] text-white/40 italic py-4 text-center">No tours registered</div>
+            )}
+          </div>
+          <div className="flex justify-end">
+            <button onClick={() => setOpen(false)} className="text-[10px] px-2 py-1 rounded-md border border-[#1dff00]/30 text-[#1dff00]/70 hover:text-black hover:bg-[#1dff00] transition">Close</button>
+          </div>
+        </div>
+      )}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={`h-11 px-4 rounded-full font-semibold text-sm flex items-center gap-2 shadow-[0_0_0_1px_rgba(29,255,0,0.3),0_8px_18px_-6px_rgba(0,0,0,0.6)] transition-colors ${open ? 'bg-[#1dff00] text-black' : 'bg-[#0c170c] text-[#1dff00] hover:bg-[#132413]'}`}
+        aria-expanded={open}
+        aria-label="Open guided tour menu"
+      >
+        <span className="h-2 w-2 rounded-full bg-[#1dff00] animate-pulse" />
+        {open ? 'Close Tours' : 'Guided Tours'}
+      </button>
+    </div>
+  );
 };

@@ -80,25 +80,31 @@ const BrandedTooltip: React.FC<TooltipRenderProps> = ({
 };
 
 export const JoyrideAdapter: React.FC = () => {
-  const { activeId, page, isRunning, next, back, skip } = useProductTour();
+  const { activeId, page, isRunning, next, back, skip, steps: internalSteps } = useProductTour();
   const [steps, setSteps] = React.useState<Step[]>([]);
 
   // Build Joyride steps from DOM data-tour elements for current page when running.
   React.useEffect(() => {
     if (!isRunning) { setSteps([]); return; }
     // Query all current data-tour registered nodes with ordering attribute if present
-    const nodes = Array.from(document.querySelectorAll('[data-tour]')) as HTMLElement[];
-    const filtered = nodes.filter(n => !!n.getAttribute('data-tour'));
-  const built: Step[] = filtered.map((el) => ({
-      target: el,
-      title: el.getAttribute('data-tour-title') || undefined,
-      content: el.getAttribute('data-tour-desc') || el.getAttribute('aria-description') || el.getAttribute('title') || 'Feature',
-      placement: 'auto',
-      disableBeacon: true,
-      styles: { options: { zIndex: 10050 } },
-    }));
+    // Map internal registry order to Joyride steps so descriptions match coach mark definitions.
+    const built: Step[] = internalSteps.map(m => {
+      // Resolve element again (in case Joyride re-renders after dynamic layout shift)
+      let el: HTMLElement | null = m.element || null;
+      if (!el && m.selector) {
+        try { el = document.querySelector<HTMLElement>(m.selector.startsWith('[') ? m.selector : `[data-tour="${m.selector}"]`); } catch { el = null; }
+      }
+      return {
+        target: el || 'body',
+        title: m.title,
+        content: m.body,
+        placement: (m.placement as any) || 'auto',
+        disableBeacon: true,
+        styles: { options: { zIndex: 10050 } },
+      } as Step;
+    }).filter(s => !!s.target);
     setSteps(built);
-  }, [page, isRunning, activeId]);
+  }, [page, isRunning, activeId, internalSteps]);
 
   const handleCallback = (data: CallBackProps) => {
     const { status, action, type } = data;
@@ -124,7 +130,7 @@ export const JoyrideAdapter: React.FC = () => {
       const style = document.createElement('style');
       style.id = id;
       style.textContent = `
-        .react-joyride__overlay { backdrop-filter: blur(4px); }
+  .react-joyride__overlay { backdrop-filter: blur(1.5px); }
         .react-joyride__spotlight { box-shadow: 0 0 0 2px #1dff00, 0 0 0 6px rgba(29,255,0,0.25), 0 0 0 10000px rgba(0,0,0,0.55) !important; border-radius: 12px !important; }
         .react-joyride__tooltip { background: transparent !important; box-shadow: none !important; }
         .react-joyride__beacon { box-shadow: 0 0 0 0 rgba(29,255,0,0.65); animation: joyPulse 2.4s ease-in-out infinite; }
