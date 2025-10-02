@@ -203,17 +203,14 @@ export const SettingsPage = (): JSX.Element => {
   useRegisterCoachMarks({
     page: 'settings',
     marks: [
-      { id: 'settings-tabs', selector: '#settings-tablist', title: 'Manage Preferences', body: 'Switch between profile, notifications, security, appearance and more.' },
-      { id: 'settings-profile-form', selector: '#settings-profile-form', title: 'Profile Basics', body: 'Keep name and contact details current for personalized matching.' },
-      { id: 'settings-profile-tab', selector: '#settings-tab-profile', title: 'Profile Tab', body: 'Manage personal info, avatar and contact details here.' },
-      { id: 'settings-notifications-tab', selector: '#settings-tab-notifications', title: 'Notifications', body: 'Control which updates you receive via email or browser.' },
-      { id: 'settings-security-tab', selector: '#settings-tab-security', title: 'Security Overview', body: 'Update password and manage two-factor authentication.' },
-      { id: 'settings-security-password', selector: '#settings-security-update-password', title: 'Set a Strong Password', body: 'Meet strength rules then click Update Password to proceed.', condition: { type: 'click', autoNext: true } },
-      { id: 'settings-appearance-tab', selector: '#settings-tab-appearance', title: 'Appearance', body: 'Customize UI theme and density preferences.' },
-      { id: 'settings-privacy-tab', selector: '#settings-tab-privacy', title: 'Privacy', body: 'Adjust visibility and data sharing preferences.' },
-      { id: 'settings-job-sources-tab', selector: '#settings-tab-job-sources', title: 'Job Sources', body: 'Enable, disable or reorder job ingestion sources & scheduling.' },
-      { id: 'settings-billing-tab', selector: '#settings-tab-billing', title: 'Billing', body: 'Manage subscription and payment information (future).', },
-      { id: 'settings-tour-complete', selector: '#settings-tablist', title: 'All Set', body: 'You can revisit any section or restart this tour from the tour menu.' },
+      { id: 'settings-tab-profile', selector: '#settings-tab-btn-profile', title: 'Profile Settings', body: 'Manage your personal information & contact details here.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-notifications' },
+      { id: 'settings-tab-notifications', selector: '#settings-tab-btn-notifications', title: 'Notifications', body: 'Control which updates you receive via email or browser.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-security' },
+      { id: 'settings-tab-security', selector: '#settings-tab-btn-security', title: 'Security', body: 'Update password & manage two-factor authentication for stronger protection.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-appearance' },
+      { id: 'settings-tab-appearance', selector: '#settings-tab-btn-appearance', title: 'Appearance', body: 'Customize UI theme and visual preferences.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-privacy' },
+      { id: 'settings-tab-privacy', selector: '#settings-tab-btn-privacy', title: 'Privacy', body: 'Adjust visibility and data sharing preferences.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-job-sources' },
+      { id: 'settings-tab-job-sources', selector: '#settings-tab-btn-job-sources', title: 'Job Sources', body: 'Enable/disable and prioritize job ingestion sources.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-billing' },
+      { id: 'settings-tab-billing', selector: '#settings-tab-btn-billing', title: 'Billing', body: 'Manage subscription and payment information (coming soon).', condition: { type: 'click', autoNext: true }, next: 'settings-tour-complete' },
+      { id: 'settings-tour-complete', selector: '#settings-tablist', title: 'All Set', body: 'That’s the settings navigation. You can restart this tour anytime from the tour menu.' }
     ]
   });
 
@@ -1367,6 +1364,8 @@ export const SettingsPage = (): JSX.Element => {
                   setActiveTab(tab.id);
                   try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'settings_tab_switch', tab: tab.id } })); } catch {}
                 }}
+                id={`settings-tab-btn-${tab.id}`}
+                data-tour={`settings-tab-btn-${tab.id}`}
                 className={`w-full justify-start transition-all duration-300 hover:scale-105 ${
                   activeTab === tab.id
                     ? "text-foreground bg-primary/10 border-r-2 border-primary"
