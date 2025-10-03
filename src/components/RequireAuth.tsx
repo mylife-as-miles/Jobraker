@@ -35,13 +35,25 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
         .eq('id', data.user.id)
         .single();
       if (profErr) {
-        // Non-fatal; treat as not complete
+        // Profile row not found yet — create a stub so onboarding flow can safely upsert details
+        try {
+          if (data.user?.id) {
+            await supabase.from('profiles').upsert({ id: data.user.id, onboarding_complete: false }, { onConflict: 'id' });
+            try { events.onboardingStubProfileCreated(); } catch {}
+          }
+        } catch {}
         setOnboardingCheck({ done: true, complete: false });
+        // Ensure redirect to onboarding if we're not already there
+        if (window.location.pathname !== ROUTES.ONBOARDING) {
+          try { events.onboardingRedirect('missing_profile'); } catch {}
+          navigate(ROUTES.ONBOARDING, { replace: true });
+        }
       } else {
         const complete = !!profile?.onboarding_complete;
         setOnboardingCheck({ done: true, complete });
         // If not complete and we're not already on onboarding route -> redirect
         if (!complete && window.location.pathname !== ROUTES.ONBOARDING) {
+          try { events.onboardingRedirect('incomplete'); } catch {}
           navigate(ROUTES.ONBOARDING, { replace: true });
         }
         // If complete and user is on onboarding, push to dashboard
