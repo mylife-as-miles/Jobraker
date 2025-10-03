@@ -1,2 +1,4 @@
-// prism-core mock referenced by refractor dynamic imports.
-module.exports = require('../prismjs.js');
+import Prism from "../prismjs.js";
+
+export default Prism;
+export { Prism };
