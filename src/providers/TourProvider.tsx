@@ -24,6 +24,7 @@ interface TourContextValue {
   back: () => void;
   skip: () => void;
   register: (mark: Omit<CoachMark, 'element'>) => void;
+  updateMark: (page: string, id: string, patch: Partial<Omit<CoachMark, 'id' | 'page'>>) => void;
   page: string | null;
   isRunning: boolean;
   steps: RegistryEntry[]; // ordered steps with resolved elements
@@ -81,6 +82,27 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
       registry.current.set(mark.page || '*', list);
     }
   }, []);
+
+  // Allow dynamic updates (e.g., readiness-driven copy) without re-registering order.
+  const updateMark = useCallback((pageId: string, id: string, patch: Partial<Omit<CoachMark, 'id' | 'page'>>) => {
+    const list = registry.current.get(pageId || '*');
+    if (!list) return;
+    let changed = false;
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].id === id) {
+        list[i] = { ...list[i], ...patch } as any;
+        changed = true;
+        break;
+      }
+    }
+    if (changed) {
+      registry.current.set(pageId || '*', list);
+      // If we are currently on this page, refresh resolved order to trigger Joyride re-render
+      if (page === pageId) {
+        setOrder(prev => prev.map(m => (m.id === id ? { ...m, ...patch } as any : m)));
+      }
+    }
+  }, [page]);
 
   const resolveElements = useCallback((marks: RegistryEntry[]) => {
     return marks.map(m => {
@@ -235,13 +257,14 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     back,
     skip,
     register,
+    updateMark,
     page,
     isRunning,
     steps: order,
     activeIndex,
     waiting,
     labels,
-  }), [active?.id, start, next, back, skip, register, page, isRunning, order, activeIndex, waiting]);
+  }), [active?.id, start, next, back, skip, register, updateMark, page, isRunning, order, activeIndex, waiting]);
 
   return (
     <TourContext.Provider value={value}>

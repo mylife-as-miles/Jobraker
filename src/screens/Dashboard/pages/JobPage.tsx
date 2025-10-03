@@ -1,5 +1,6 @@
 import { Briefcase, Building2, DollarSign, Share, Star, Users, CheckCircle2, FileText, UploadCloud, Pencil, Play, MapPin, Clock, MoreVertical, Filter, X, Loader2, Sparkles, Plus, ArrowRight } from "lucide-react";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
+import { useProductTour } from "../../../providers/TourProvider";
 import { events as analyticsEvents } from "../../../lib/analytics";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
@@ -195,6 +196,7 @@ export const JobPage = (): JSX.Element => {
   const debouncedSelectedLocation = useDebounce(selectedLocation, 500);
 
   // Coach marks for jobs page
+  const { updateMark } = useProductTour();
   useRegisterCoachMarks({
     page: 'jobs',
     marks: [
@@ -220,10 +222,7 @@ export const JobPage = (): JSX.Element => {
         id: 'job-auto-apply',
         selector: '#job-auto-apply',
         title: 'Accelerate Applications',
-        body: readiness && readiness.profile && readiness.resume
-          ? 'Great — your profile & resume are ready. Start Auto Apply to batch tailored applications.'
-          : 'Auto Apply batches roles with your chosen resume. Complete your profile & upload a resume to enable this.',
-        // Gate advancing until user intentionally clicks (confirmation) and readiness is true
+        body: 'Checking readiness…',
         condition: { type: 'click', autoNext: true }
       },
       {
@@ -231,9 +230,22 @@ export const JobPage = (): JSX.Element => {
         selector: '#job-search-box',
         title: 'You\'re Ready',
         body: 'Explore job details on the right, then switch to Applications to track progress. You can revisit this tour anytime from the tour menu.',
+        cta: { label: 'Go to Applications', event: 'jobs_complete_to_app', advanceOnClick: true },
+        next: undefined
       }
     ]
   });
+
+  // Dynamic readiness-driven copy update
+  useEffect(() => {
+    if (!updateMark) return;
+    const ready = readiness && readiness.profile && readiness.resume;
+    updateMark('jobs', 'job-auto-apply', {
+      body: ready
+        ? 'Great — your profile & resume are ready. Start Auto Apply to batch tailored applications.'
+        : 'Auto Apply batches roles with your chosen resume. Complete your profile & upload a resume to enable this.'
+    });
+  }, [readiness, updateMark]);
 
   const performSearch = useCallback(async () => {
     if (!debouncedSearchQuery) {
