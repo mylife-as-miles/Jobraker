@@ -19,6 +19,7 @@ interface Issue { level: 'ERROR' | 'WARN'; file: string; message: string; }
 const ROOT = path.resolve(__dirname, '..');
 const LEGACY_DIR = path.resolve(ROOT, 'migrations');
 const SUPABASE_DIR = path.resolve(ROOT, 'supabase/migrations');
+const ARCHIVE_DIR = path.resolve(ROOT, 'supabase/migrations-archived');
 
 const CANON = /^(\d{14})_([a-z0-9_]+)\.sql$/;
 
@@ -27,7 +28,11 @@ function collect(dir: string): string[] {
   return fs.readdirSync(dir).filter(f => f.endsWith('.sql')).map(f => path.join(dir, f));
 }
 
-const files = [...collect(LEGACY_DIR), ...collect(SUPABASE_DIR)];
+const files = [
+  ...collect(LEGACY_DIR),
+  ...collect(SUPABASE_DIR)
+  // ARCHIVE_DIR intentionally excluded from lint checks to reduce noise
+];
 const issues: Issue[] = [];
 
 interface MigMeta { file: string; name: string; ts?: number; tsRaw?: string; slug?: string; dir: string; }
