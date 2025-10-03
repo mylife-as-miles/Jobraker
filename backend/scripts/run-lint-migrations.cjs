@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Thin wrapper to execute the TypeScript migration lint under ESM settings.
-// Avoids needing a global ts-node; relies on ts-node/register/transpile-only.
+// Wrapper to execute the TypeScript migration lint script with ts-node in an ESM project.
+// Uses CommonJS loader hook to support .ts without modifying Node startup flags.
 
-import('ts-node/register/transpile-only')
-  .then(() => import('./lint-migrations.ts'))
-  .catch(err => {
-    console.error('Failed to execute migration lint:', err);
-    process.exit(1);
-  });
+try {
+  require('ts-node').register({ transpileOnly: true, compilerOptions: { module: 'commonjs' } });
+  require('./lint-migrations.ts');
+} catch (err) {
+  console.error('Failed to execute migration lint:', err);
+  process.exit(1);
+}
