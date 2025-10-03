@@ -1,1 +1,4 @@
-module.exports = require('../prismjs.js');
+import Prism from "../prismjs.js";
+
+export default Prism;
+export { Prism };
