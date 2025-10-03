@@ -1,7 +1,10 @@
 import { createBrowserClient } from '@supabase/ssr'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient, AuthError } from '@supabase/supabase-js'
+
+let _cached: SupabaseClient | null = null;
 
 export function createClient(): SupabaseClient {
+  if (_cached) return _cached;
   // Get environment variables from Vite
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -54,40 +57,36 @@ export function createClient(): SupabaseClient {
   const client = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
   // Avoid noisy 403s: if there is no session, don’t call /auth/v1/user
+  // Attach a lightweight auth state listener once to capture invalid refresh scenarios
   try {
-    const authAny = (client as any).auth;
-    const originalGetUser = authAny.getUser.bind(authAny);
-    authAny.getUser = async (...args: any[]) => {
-      try {
-        const { data: { session } } = await client.auth.getSession();
-        if (!session?.access_token) {
-          return { data: { user: null }, error: null };
-        }
-      } catch {
-        // fall through to original call if session check fails
+    let handledInvalid = false;
+    client.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'TOKEN_REFRESHED') return; // normal path
+      if (event === 'SIGNED_OUT') return;
+      // If session is null but we previously had one, sign out fully
+      if (!session && !handledInvalid) {
+        handledInvalid = true;
+        return;
       }
-      // If there is a token, try getUser; on 401/403 attempt refresh then retry once.
-      const exec = async () => originalGetUser(...args);
-      const res = await exec();
-      const err = (res as any)?.error;
-      const isAuthErr = err && (String(err.status || '').startsWith('40') || /forbidden|unauthorized/i.test(String(err.message || '')));
-      if (isAuthErr) {
-        try {
-          await client.auth.refreshSession();
-          const retry = await exec();
-          const retryErr = (retry as any)?.error;
-          const retryAuthErr = retryErr && (String(retryErr.status || '').startsWith('40') || /forbidden|unauthorized/i.test(String(retryErr.message || '')));
-          if (!retryAuthErr) return retry;
-        } catch {}
-        // Clear bad session to stop repeated 403s
-        try { await client.auth.signOut(); } catch {}
-        return { data: { user: null }, error: null };
-      }
-      return res;
-    };
-  } catch {
-    // non-fatal; keep default behavior
-  }
+    });
+  } catch {}
 
-  return client;
+  // Wrap refreshSession to detect invalid refresh token errors and force sign-out once.
+  const originalRefresh = client.auth.refreshSession.bind(client.auth);
+  (client.auth as any).refreshSession = async (...args: any[]) => {
+    try {
+      return await originalRefresh(...args);
+    } catch (e: any) {
+      const msg = (e as AuthError)?.message || '';
+      if (/invalid refresh token/i.test(msg) || /refresh token not found/i.test(msg)) {
+        try { await client.auth.signOut(); } catch {}
+        // Surface a normalized object so callers treat it as logged out instead of looping
+        return { data: { session: null }, error: null };
+      }
+      throw e;
+    }
+  };
+
+  _cached = client;
+  return _cached;
 }
