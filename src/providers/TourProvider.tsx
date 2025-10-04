@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { JoyrideAdapter } from './JoyrideAdapter';
 import { useLocation } from 'react-router-dom';
-import { Profile, useProfileSettings } from '../hooks/useProfileSettings';
+import { useProfileSettings } from '../hooks/useProfileSettings';
 
 type CoachMark = {
   id: string;               // unique id within page
@@ -59,24 +59,8 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [waiting, setWaiting] = useState(false);
   const labels = { back: 'Back', next: 'Next', finish: 'Finish', skip: 'Skip', close: 'Close' };
 
-  const walkthroughFlagForPage = useCallback((p: string): keyof Profile | null => {
-    const map: Record<string, keyof Profile> = {
-      overview: 'walkthrough_overview',
-      applications: 'walkthrough_applications',
-      jobs: 'walkthrough_jobs',
-      resume: 'walkthrough_resume',
-      analytics: 'walkthrough_analytics',
-      settings: 'walkthrough_settings',
-      profile: 'walkthrough_profile',
-      notifications: 'walkthrough_notifications',
-    };
-    return map[p] || null;
-  }, []);
-
-  const isPageCompleted = useCallback((p: string) => {
-    const flag = walkthroughFlagForPage(p);
-    return flag ? profile?.[flag] === true : false;
-  }, [profile, walkthroughFlagForPage]);
+  const walkthroughFlagForPage = (p: string) => `walkthrough_${p}` as const;
+  const isPageCompleted = (p: string) => (profile as any)?.[walkthroughFlagForPage(p)] === true;
 
   // Re-evaluate when page changes: auto-start if user is new & not completed & onboarding complete
   useEffect(() => {
@@ -167,10 +151,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (branchIndex !== -1) return branchIndex;
       }
       if (nextIdx >= order.length) {
-        if (page) {
-          const flag = walkthroughFlagForPage(page);
-          if (flag) completeWalkthrough(flag);
-        }
+        if (page) completeWalkthrough(walkthroughFlagForPage(page) as any);
         // Analytics: completed
         try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'completed', page } })); } catch {}
         localStorage.removeItem(`tour_state:${page}`);
@@ -180,7 +161,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return nextIdx;
     });
-  }, [order, page, completeWalkthrough, walkthroughFlagForPage]);
+  }, [order, page, completeWalkthrough]);
 
   const back = useCallback(() => {
     setActiveIndex(idx => {
@@ -190,15 +171,12 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const skip = useCallback(() => {
-    if (page) {
-      const flag = walkthroughFlagForPage(page);
-      if (flag) completeWalkthrough(flag);
-    }
+    if (page) completeWalkthrough(walkthroughFlagForPage(page) as any);
     try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'skipped', page } })); } catch {}
     setIsRunning(false);
     setPage(null);
     setActiveIndex(-1);
-  }, [page, completeWalkthrough, walkthroughFlagForPage]);
+  }, [page, completeWalkthrough]);
 
   const active = activeIndex >= 0 ? order[activeIndex] : null;
 
@@ -334,7 +312,8 @@ const pageLabels: Record<string, string> = {
 const FloatingTourMenu: React.FC<{ registry: React.MutableRefObject<Map<string, any[]>>; start: (p: string) => void; page: string | null; isRunning: boolean; profile: any; }> = ({ registry, start, page, isRunning, profile }) => {
   const [open, setOpen] = useState(false);
   const pages = Array.from(registry.current.keys()).filter(k => k !== '*');
-  const completion = isPageCompleted;
+  // Determine completion via profile walkthrough flags
+  const completion = (p: string) => (profile as any)?.[`walkthrough_${p}`] === true;
   return (
     <div className="fixed z-[12000] bottom-4 right-4 flex flex-col items-end gap-2">
       {open && (
