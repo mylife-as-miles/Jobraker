@@ -208,77 +208,6 @@ export const Onboarding = (): JSX.Element => {
   ];
 
   // ================= Resume Upload & Parse =================
-  const saveAndNavigateDashboard = useCallback(async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/signIn');
-        return;
-      }
-      const startedAt = (user as any).created_at ? new Date((user as any).created_at).getTime() : undefined;
-      const { error } = await supabase.from('profiles').upsert({
-        id: user.id,
-        first_name: formData.firstName || null,
-        last_name: formData.lastName || null,
-        job_title: formData.jobTitle || null,
-        experience_years: formData.experience ? Number(formData.experience) : null,
-        location: formData.location || null,
-        goals: formData.goals,
-        about: formData.about || null,
-        skills: formData.skills.length ? formData.skills : [],
-        education: formData.education && formData.education.length ? JSON.stringify(formData.education) : null,
-        onboarding_complete: true,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' });
-      if (error) throw error;
-
-      try {
-        if (Array.isArray(formData.education) && formData.education.length) {
-          const { data: existingEdu } = await supabase.from('profile_education').select('id, degree, school').eq('user_id', user.id).limit(1);
-          if (!(existingEdu && existingEdu.length)) {
-            const eduRows = formData.education
-              .filter(e => (e.school || '').trim() || (e.degree || '').trim())
-              .map(e => ({
-                user_id: user.id,
-                degree: (e.degree || '').trim(),
-                school: (e.school || '').trim(),
-                location: '',
-                start_date: e.start ? `${e.start}-01` : new Date().toISOString(),
-                end_date: e.end ? `${e.end}-01` : null,
-                gpa: null,
-              }));
-            if (eduRows.length) await supabase.from('profile_education').insert(eduRows);
-          }
-        }
-        if (Array.isArray(formData.skills) && formData.skills.length) {
-          const { data: existingSkills } = await supabase.from('profile_skills').select('id').eq('user_id', user.id).limit(1);
-          if (!(existingSkills && existingSkills.length)) {
-            const skillRows = formData.skills.slice(0, 60).map(name => ({
-              user_id: user.id,
-              name: name.trim(),
-              level: null,
-              category: '',
-            })).filter(r => r.name);
-            if (skillRows.length) await supabase.from('profile_skills').insert(skillRows);
-          }
-        }
-      } catch (normErr) {
-        console.warn('Normalization failed (non-blocking):', normErr);
-      }
-
-      try {
-        const elapsed = startedAt ? Date.now() - startedAt : undefined;
-        events.profileCompleted(elapsed as any);
-        (window as any).__profileCompletedTracked = true;
-      } catch {}
-
-      navigate("/dashboard/overview");
-    } catch (err) {
-      console.error('Failed to save onboarding:', err);
-      alert('Failed to save onboarding info. Please try again.');
-    }
-  }, [supabase, formData, navigate]);
-
   const handleResumeFiles = useCallback(async (fileList: FileList | null) => {
     if (!fileList || !fileList.length) return;
     const file = fileList[0];
@@ -350,6 +279,8 @@ export const Onboarding = (): JSX.Element => {
       setUploadProgress(100);
       setParsed(true);
       setParsing(false);
+      // Move user into step flow (start from first standard step so they can refine names etc.)
+      setCurrentStep(0);
     } catch (e: any) {
       setParseError(e.message || 'Failed to process resume');
     } finally {
@@ -456,7 +387,7 @@ export const Onboarding = (): JSX.Element => {
                 <div className="flex flex-wrap gap-3">
                   <button onClick={() => setMode(null)} className="px-4 py-2 rounded-md border border-white/20 text-white/70 hover:text-white hover:border-white/40 text-sm">Back</button>
                   {parseError && <button onClick={() => setParseError(null)} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium">Try Again</button>}
-                  {parsed && <button onClick={saveAndNavigateDashboard} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium">Continue to Dashboard</button>}
+                  {parsed && <button onClick={() => setMode('manual')} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium">Continue to Profile</button>}
                 </div>
               </div>
               {/* Preview / Extraction Panel */}
@@ -504,7 +435,7 @@ export const Onboarding = (): JSX.Element => {
                     <div className="flex gap-2 flex-wrap text-[10px] text-white/40">
                       <button onClick={() => setParsed(false)} className="underline hover:text-white/70">Replace File</button>
                       <button onClick={() => { setFormData(p=>({...p, about:'', skills:[], education:[]})); setParsed(false); }} className="underline hover:text-white/70">Reset Extraction</button>
-                      <button onClick={saveAndNavigateDashboard} className="underline text-[#1dff00] hover:text-[#7dff5c]">Accept & Continue</button>
+                      <button onClick={() => setMode('manual')} className="underline text-[#1dff00] hover:text-[#7dff5c]">Accept & Continue</button>
                     </div>
                   </div>
                 )}

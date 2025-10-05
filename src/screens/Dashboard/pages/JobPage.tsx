@@ -17,6 +17,7 @@ import { SafeSelect } from "../../../components/ui/safe-select";
 import { useToast } from "../../../components/ui/toast";
 import { ensureApplyReadiness } from "../../../utils/applyPreflight";
 import { useResumes } from "@/hooks/useResumes";
+import { useProfileSettings } from "../../../hooks/useProfileSettings";
 // import { createClient as createSbClient } from "@/lib/supabaseClient";
 
 interface Job extends JobListing {
@@ -138,7 +139,7 @@ const useDebounce = (value: string, delay: number) => {
 };
 
 export const JobPage = (): JSX.Element => {
-  const [searchQuery, setSearchQuery] = useState("Software Engineer");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("Remote");
   const [selectedType, setSelectedType] = useState("All");
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
@@ -182,6 +183,7 @@ export const JobPage = (): JSX.Element => {
   const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
   // Resume data (moved up so dependent hooks below can safely reference)
   const { resumes: resumeOptions, getSignedUrl } = useResumes();
+  const { profile } = useProfileSettings();
   // Auto-apply state & advanced animation overlay
   const [autoApplying, setAutoApplying] = useState(false);
   const [autoApplyStatuses, setAutoApplyStatuses] = useState<Record<string, { status: 'pending' | 'applying' | 'success' | 'error'; error?: string }>>({});
@@ -355,21 +357,19 @@ export const JobPage = (): JSX.Element => {
     }
   }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType]);
 
-  // Placeholder: fetch user profile preferences (skills, titles, preferred location) for first load
+  // Hydrate search from profile on first load
   const [initializedFromProfile, setInitializedFromProfile] = useState(false);
   useEffect(() => {
-    if (initializedFromProfile) return;
-    try {
-      // Attempt to hydrate from stored profile preferences (mock keys)
-      const raw = localStorage.getItem('jr.profile.prefs');
-      if (raw) {
-        const prefs = JSON.parse(raw);
-        if (prefs?.defaultRole && !searchQuery) setSearchQuery(prefs.defaultRole);
-        if (prefs?.defaultLocation && !selectedLocation) setSelectedLocation(prefs.defaultLocation);
+    if (profile && !initializedFromProfile) {
+      if (profile.job_title) {
+        setSearchQuery(profile.job_title);
       }
-    } catch {}
-    setInitializedFromProfile(true);
-  }, [initializedFromProfile, searchQuery, selectedLocation]);
+      if (profile.location) {
+        setSelectedLocation(profile.location);
+      }
+      setInitializedFromProfile(true);
+    }
+  }, [profile, initializedFromProfile]);
 
   // Trigger initial search automatically when profile hydration done & no jobs yet
   useEffect(() => {
