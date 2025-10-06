@@ -1,11 +1,11 @@
 // @ts-nocheck
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders, JobListing } from '../_shared/types.ts';
+import { corsHeaders } from '../_shared/types.ts';
 
 // Use the admin client for elevated privileges to delete/insert into the jobs table.
 const supabaseAdmin = createClient(
-  Deno.env.get('SUPABASE_URL') || 'https://yquhsllwrwfvrwolqywh.supabase.co',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY')!
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 );
 
 async function firecrawlFetch(path: string, apiKey: string, body: any) {
@@ -37,26 +37,26 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 50
 }
 
 Deno.serve(async (req) => {
+  // Immediately handle CORS preflight requests.
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  // Step 1: Authenticate the user and get their ID.
-  const authHeader = req.headers.get('authorization') || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!token) {
-    return new Response(JSON.stringify({ error: 'Unauthorized: Missing token' }), { status: 401, headers: { ...corsHeaders, 'content-type': 'application/json' } });
-  }
-
-  const supabaseAuthed = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
-  const { data: { user }, error: userError } = await supabaseAuthed.auth.getUser();
-
-  if (userError || !user) {
-    return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token' }), { status: 401, headers: { ...corsHeaders, 'content-type': 'application/json' } });
-  }
-  const userId = user.id;
-
   try {
+    // Step 1: Authenticate the user and get their ID.
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized: Missing token' }), { status: 401, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    }
+
+    const supabaseAuthed = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
+    const { data: { user }, error: userError } = await supabaseAuthed.auth.getUser();
+
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token' }), { status: 401, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    }
+    const userId = user.id;
+
     // Step 2: Parse request parameters
     const body = await req.json().catch(() => ({}));
     const searchQuery = (body?.searchQuery || '').trim();
@@ -101,8 +101,6 @@ Deno.serve(async (req) => {
         companyName: { type: 'string' },
         location: { type: 'string' },
         workType: { type: 'string', enum: ['On-site', 'Remote', 'Hybrid'] },
-        experienceLevel: { type: 'string' },
-        salaryRange: { type: 'string' },
         fullJobDescription: { type: 'string' },
         postedDate: { type: 'string' },
       },
@@ -111,8 +109,8 @@ Deno.serve(async (req) => {
 
     const scrapePromises = scrapedUrls.map((url: string) =>
       withRetry(() => firecrawlFetch('/v1/scrape', firecrawlApiKey, { url, pageOptions: { extractionSchema: jobSchema } }), 2, 500)
-        .then(res => ({ ...res, sourceUrl: url })) // Attach sourceUrl to result
-        .catch(() => null) // Ignore failed scrapes
+        .then(res => ({ ...res, sourceUrl: url }))
+        .catch(() => null)
     );
     const scrapeResults = (await Promise.all(scrapePromises)).filter(res => res?.success && res?.data);
 

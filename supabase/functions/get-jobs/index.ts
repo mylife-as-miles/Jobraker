@@ -4,6 +4,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/types.ts";
 
 Deno.serve(async (req) => {
+  // Immediately handle CORS preflight requests.
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -23,33 +24,31 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token' }), { status: 401, headers: { ...corsHeaders, 'content-type': 'application/json' } });
-    }
-
     // Step 2: Fetch all jobs for the current user from the 'jobs' table.
-    // No complex filtering is needed here anymore, as this function's role is just to return the user's pre-filtered queue.
+    // The RLS policy ensures only the user's own jobs are returned.
     const { data: jobs, error: jobsError } = await supabase
       .from("jobs")
       .select("*")
       .order("posted_at", { ascending: false });
 
     if (jobsError) {
-      throw jobsError;
+      // Log the actual error for debugging, but return a generic message to the client.
+      console.error('get-jobs error:', jobsError.message);
+      return new Response(JSON.stringify({ error: 'Failed to retrieve jobs.' }), {
+        status: 500,
+        headers: { ...corsHeaders, "content-type": "application/json" },
+      });
     }
 
     // Step 3: Return the user's job queue.
-    // The 'facets' logic is removed as it's no longer applicable to a small, personalized queue.
     return new Response(JSON.stringify({ jobs: jobs || [] }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
       status: 200,
     });
 
   } catch (e) {
-    console.error('get-jobs error:', e.message);
-    return new Response(JSON.stringify({ error: e.message }), {
+    console.error('get-jobs unexpected error:', e.message);
+    return new Response(JSON.stringify({ error: 'An unexpected error occurred.' }), {
       status: 500,
       headers: { ...corsHeaders, "content-type": "application/json" },
     });
