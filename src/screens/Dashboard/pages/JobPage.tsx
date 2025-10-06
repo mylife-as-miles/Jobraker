@@ -183,7 +183,7 @@ export const JobPage = (): JSX.Element => {
   const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
   // Resume data (moved up so dependent hooks below can safely reference)
   const { resumes: resumeOptions, getSignedUrl } = useResumes();
-  const { profile } = useProfileSettings();
+  const { profile, loading: profileLoading } = useProfileSettings();
   // Auto-apply state & advanced animation overlay
   const [autoApplying, setAutoApplying] = useState(false);
   const [autoApplyStatuses, setAutoApplyStatuses] = useState<Record<string, { status: 'pending' | 'applying' | 'success' | 'error'; error?: string }>>({});
@@ -355,9 +355,9 @@ export const JobPage = (): JSX.Element => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType]);
+  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, minSalary, maxSalary, postedSince, supabase]);
 
-  // Hydrate search from profile on first load
+  // Hydrate search from profile on first load, then trigger initial search.
   const [initializedFromProfile, setInitializedFromProfile] = useState(false);
   useEffect(() => {
     if (profile && !initializedFromProfile) {
@@ -371,12 +371,19 @@ export const JobPage = (): JSX.Element => {
     }
   }, [profile, initializedFromProfile]);
 
-  // Trigger initial search automatically when profile hydration done & no jobs yet
+  // This effect now handles all automatic searches.
+  // It waits for profile loading to finish, then runs the first search.
+  // Subsequent searches are triggered by debounced filter changes.
   useEffect(() => {
-    if (initializedFromProfile && jobs.length === 0 && !loading) {
+    // Don't run any search until the profile has been checked.
+    if (profileLoading) {
+      return;
+    }
+    // If we have a query (from profile or user input), perform the search.
+    if (debouncedSearchQuery) {
       performSearch();
     }
-  }, [initializedFromProfile, jobs.length, loading, performSearch]);
+  }, [profileLoading, debouncedSearchQuery, debouncedSelectedLocation, selectedType, minSalary, maxSalary, postedSince, performSearch]);
 
   // Manual refresh from job sources (e.g., re-run scraping or DB query) ignoring current filter state except core query/location/type
   const refreshFromSources = useCallback(() => {
