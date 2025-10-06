@@ -8,7 +8,7 @@ export interface ChatContextOptions {
 
 export interface BuiltContext {
   applications: { id: string; company?: string; role?: string; status?: string; created_at?: string; updated_at?: string }[];
-  jobs: { id: string; title?: string; company?: string; source?: string; created_at?: string }[];
+  jobs: { id: string; title?: string; company?: string; source_type?: string; created_at?: string }[];
   summary: string;
 }
 
@@ -23,8 +23,8 @@ export async function buildContext(opts: ChatContextOptions = {}): Promise<Built
         .select('id,company,role,status,created_at,updated_at')
         .order('updated_at', { ascending: false })
         .limit(maxApplications),
-      supabase.from('user_jobs')
-        .select('id,title,company,source,created_at')
+      supabase.from('jobs')
+        .select('id,title,company,source_type,created_at')
         .order('created_at', { ascending: false })
         .limit(maxJobs),
     ]);
