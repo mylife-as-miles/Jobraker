@@ -20,9 +20,21 @@ interface Job {
   apply_url: string | null;
   posted_at: string | null;
   raw_data?: any;
+  logoUrl?: string;
+  logo: string;
 }
 
 const supabase = createClient();
+
+const getCompanyLogoUrl = (companyName?: string, sourceUrl?: string): string | undefined => {
+    if (!companyName) return undefined;
+    try {
+        const domain = new URL(sourceUrl || `https://www.${companyName.toLowerCase().replace(/\s/g, '')}.com`).hostname;
+        return `https://logo.clearbit.com/${domain}`;
+    } catch {
+        return undefined;
+    }
+};
 
 // Helper to map a DB row from the `jobs` table to the frontend `Job` interface
 const mapDbJobToUiJob = (dbJob: any): Job => {
@@ -45,22 +57,12 @@ const sanitizeHtml = (html: string) => {
     return out;
 };
 
-const getCompanyLogoUrl = (companyName?: string, sourceUrl?: string): string | undefined => {
-    if (!companyName) return undefined;
-    try {
-        const domain = new URL(sourceUrl || `https://www.${companyName.toLowerCase().replace(/\s/g, '')}.com`).hostname;
-        return `https://logo.clearbit.com/${domain}`;
-    } catch {
-        return undefined;
-    }
-};
-
 export const JobPage = (): JSX.Element => {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedLocation, setSelectedLocation] = useState("Remote");
     const [selectedJob, setSelectedJob] = useState<string | null>(null);
     const [jobs, setJobs] = useState<Job[]>([]);
-    const [queueStatus, setQueueStatus] = useState<'idle' | 'loading' | 'populating' | 'ready' | 'empty'>('idle');
+    const [queueStatus, setQueueStatus] = useState<'idle' | 'loading' | 'populating' | 'ready' | 'empty'>('loading');
     const [error, setError] = useState<string | null>(null);
     const [logoError, setLogoError] = useState<Record<string, boolean>>({});
     const [currentPage, setCurrentPage] = useState(1);
@@ -69,77 +71,80 @@ export const JobPage = (): JSX.Element => {
     const { profile, loading: profileLoading } = useProfileSettings();
     const { info } = useToast();
 
-    // Fetches jobs from the user's personal 'jobs' table
     const fetchJobQueue = useCallback(async () => {
-      setQueueStatus('loading');
-      setError(null);
-      try {
-        const { data, error: fetchError } = await supabase.functions.invoke('get-jobs');
-        if (fetchError) throw fetchError;
+        setQueueStatus('loading');
+        setError(null);
+        try {
+          const { data, error: fetchError } = await supabase.functions.invoke('get-jobs');
+          if (fetchError) throw fetchError;
 
-        const jobList = (data.jobs || []).map(mapDbJobToUiJob);
-        setJobs(jobList);
+          const jobList = (data.jobs || []).map(mapDbJobToUiJob);
+          setJobs(jobList);
 
-        if (jobList.length > 0) {
-          setQueueStatus('ready');
-          setSelectedJob(jobList[0].id);
-        } else {
-          setQueueStatus('empty');
+          if (jobList.length > 0) {
+            setQueueStatus('ready');
+            setSelectedJob(jobList[0].id);
+          } else {
+            setQueueStatus('empty');
+          }
+          return jobList; // Return the list for chaining
+        } catch (e: any) {
+          setError(e.message);
+          setQueueStatus('idle');
+          return []; // Return empty array on error
         }
-      } catch (e: any) {
-        setError(e.message);
-        setQueueStatus('idle');
-      }
     }, [supabase]);
 
-    // Populates the queue by calling the backend, then fetches the results
     const populateQueue = useCallback(async (query: string, location?: string) => {
-      setQueueStatus('populating');
-      setError(null);
-      try {
-        const { error: processError } = await supabase.functions.invoke('process-and-match', {
-          body: { searchQuery: query, location: location || 'Remote' },
-        });
-        if (processError) throw processError;
-        // The real-time subscription will handle updating the job list.
-        // No need to call fetchJobQueue() here as it would be redundant.
-        info("Job queue is being updated...", "New jobs will appear shortly.");
-      } catch (e: any) {
-        setError(`Failed to build job feed: ${e.message}`);
-        setQueueStatus('idle');
-      }
-    }, [supabase, info]);
+        setQueueStatus('populating');
+        setError(null);
+        try {
+          const { error: processError } = await supabase.functions.invoke('process-and-match', {
+            body: { searchQuery: query, location: location || 'Remote' },
+          });
+          if (processError) throw processError;
+          // CRITICAL FIX: Directly fetch the queue after the populating call completes.
+          await fetchJobQueue();
+        } catch (e: any) {
+          setError(`Failed to build job feed: ${e.message}`);
+          setQueueStatus('idle');
+        }
+    }, [supabase, fetchJobQueue]);
 
-    // Effect for initial load and auto-population
+    // Unified effect for initial load and real-time updates
     useEffect(() => {
         if (profileLoading) {
             setQueueStatus('loading');
             return;
         }
 
-        // Once profile is loaded, check if we need to auto-populate
-        if (queueStatus === 'empty' && profile?.job_title) {
-            info("Your queue is empty. Building a personalized job feed...", "This may take a moment.");
-            populateQueue(profile.job_title, profile.location);
-        }
-    }, [profileLoading, profile, queueStatus, populateQueue, info]);
+        // Define the initial loading sequence
+        const initialLoad = async () => {
+            const initialJobs = await fetchJobQueue();
+            // If the queue is empty AND we have a profile with a job title, auto-populate it.
+            if (initialJobs.length === 0 && profile?.job_title) {
+                info("Your queue is empty. Building a personalized job feed...", "This may take a moment.");
+                await populateQueue(profile.job_title, profile.location);
+            }
+        };
 
-    // Initial fetch and real-time subscription
-    useEffect(() => {
-      fetchJobQueue(); // Initial fetch
+        initialLoad();
 
-      const channel = supabase
-        .channel('jobs-queue-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, () => {
-          fetchJobQueue(); // Refetch whenever a change occurs
-        })
-        .subscribe();
+        // Set up the real-time subscription
+        const channel = supabase
+            .channel('jobs-queue-changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, (payload) => {
+                // Refetch the entire queue to ensure UI is in sync
+                fetchJobQueue();
+            })
+            .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }, [supabase, fetchJobQueue]);
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [profileLoading, profile, fetchJobQueue, populateQueue, supabase, info]);
 
+    // Effect to pre-fill search query from profile
     useEffect(() => {
         if (profile && !searchQuery) {
             setSearchQuery(profile.job_title || '');
@@ -176,7 +181,7 @@ export const JobPage = (): JSX.Element => {
                     onClick={() => populateQueue(searchQuery, selectedLocation)}
                     className="text-[#1dff00] hover:bg-[#1dff00]/10"
                     title="Find a fresh batch of jobs"
-                    disabled={queueStatus === 'populating'}
+                    disabled={queueStatus === 'populating' || queueStatus === 'loading'}
                   >
                     {queueStatus === 'populating' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Search className="w-4 h-4 mr-2" />}
                     {queueStatus === 'populating' ? 'Building new queue...' : 'Find New Jobs'}
