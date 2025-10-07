@@ -165,7 +165,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      const { error: insertError } = await supabaseAdmin.from('jobs').insert(jobsToInsert);
+      // Upsert to avoid duplicate entries for the same source URL for this user (requires unique index on (user_id, source_id)).
+      const { error: insertError } = await supabaseAdmin.from('jobs')
+        .upsert(jobsToInsert, { onConflict: 'user_id,source_id' });
       if (insertError) {
         throw new Error(`Failed to insert new jobs: ${insertError.message}`);
       }

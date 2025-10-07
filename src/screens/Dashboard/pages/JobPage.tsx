@@ -1,4 +1,5 @@
 import { Briefcase, Search, MapPin, Loader2 } from "lucide-react";
+import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
@@ -64,6 +65,7 @@ export const JobPage = (): JSX.Element => {
   const [queueStatus, setQueueStatus] = useState<'idle' | 'loading' | 'populating' | 'ready' | 'empty'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [lastReason, setLastReason] = useState<string | null>(null);
+  const [debugMode, setDebugMode] = useState(false);
     const [logoError, setLogoError] = useState<Record<string, boolean>>({});
   const [currentPage] = useState(1); // (Pagination placeholder; future enhancement)
     const [pageSize] = useState(10);
@@ -122,7 +124,7 @@ export const JobPage = (): JSX.Element => {
                 location: location || 'Remote',
                 clearExisting: true,
                 relaxSchema: attemptedRelax, // second attempt relaxes schema
-                debug: attemptedRelax // only log prompt/sample on retry to save noise
+                debug: debugMode || attemptedRelax // enable prompt/sample logging if user toggle or retry
               },
             });
             if (processError) throw processError;
@@ -237,6 +239,10 @@ export const JobPage = (): JSX.Element => {
                 <p className="text-[#ffffff80] text-sm sm:text-base">A personalized list of jobs waiting for you.</p>
               </div>
               <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
+                    <span>Diagnostics</span>
+                    <Switch checked={debugMode} onCheckedChange={setDebugMode} />
+                  </div>
                   <Button
                     variant="ghost"
                     onClick={() => populateQueue(searchQuery, selectedLocation)}
@@ -333,6 +339,12 @@ export const JobPage = (): JSX.Element => {
                   </Card>
                 </motion.div>
               ))}
+              {queueStatus === 'ready' && jobs.length > pageSize && (
+                <div className="flex items-center justify-between pt-4 text-xs text-[#ffffff80]">
+                  <span>{jobs.length} total</span>
+                  <span>Showing first {pageSize} (pagination UI TBD)</span>
+                </div>
+              )}
             </div>
 
             <div className="lg:sticky lg:top-6 lg:h-fit">

@@ -100,6 +100,15 @@ The `jobs-cron` function upserts to `public.job_listings` with fields:
 
 ## 7) UI behavior
 - The Job Search page first tries live scraping via `process-and-match`.
+ - The Job Search page first tries live scraping via `process-and-match`.
+   - It now supports advanced flags: `debug`, `clearExisting`, `relaxSchema`.
+   - Automatic retry: if structured extraction fails (`no_structured_results`), it retries once with `relaxSchema=true`.
+   - Response reason codes:
+     - `no_sources` (deep research found zero candidate URLs)
+     - `no_structured_results` (URLs found but schema extraction failed)
+     - `deep_research_failed` (provider/network error)
+   - Safe insertion: existing jobs are only cleared when `clearExisting=true` AND new jobs were scraped.
+   - Duplicate prevention: an upsert ensures `(user_id, source_id)` pairs are unique.
 - If no results, it falls back to `get-jobs` (DB), and shows a small `Source` badge derived from the stored `source`.
 
 ### Include LinkedIn and search listing pages
@@ -115,7 +124,10 @@ Example body:
   "searchQuery": "software engineer",
   "location": "Remote",
   "includeLinkedIn": true,
-  "includeSearch": true
+  "includeSearch": true,
+  "clearExisting": true,
+  "debug": false,
+  "relaxSchema": false
 }
 ```
 
