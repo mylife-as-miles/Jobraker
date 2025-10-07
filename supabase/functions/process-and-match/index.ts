@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/types.ts';
+import { parseSalaryRangeToMinMax, inferSalaryMeta } from '../_shared/salary.ts';
 
 // Use the admin client for elevated privileges to delete/insert into the jobs table.
 const supabaseAdmin = createClient(
@@ -123,6 +124,7 @@ Deno.serve(async (req) => {
         workType: { type: 'string', enum: ['On-site', 'Remote', 'Hybrid'] },
         fullJobDescription: { type: 'string' },
         postedDate: { type: 'string' },
+        salaryRange: { type: 'string' },
       },
       required: relaxSchema ? ['jobTitle','companyName'] : ['jobTitle','companyName','location','fullJobDescription'],
     };
@@ -143,20 +145,28 @@ Deno.serve(async (req) => {
 
     // Step 5: Map scraped data and insert into the user's personal 'jobs' table.
     if (scrapeResults.length > 0) {
-      const jobsToInsert = scrapeResults.map(({ data, sourceUrl }) => ({
-        user_id: userId,
-        source_type: 'deepresearch',
-        source_id: sourceUrl,
-        title: data.jobTitle,
-        company: data.companyName,
-        description: data.fullJobDescription,
-        location: data.location,
-        remote_type: data.workType,
-        apply_url: sourceUrl,
-        posted_at: data.postedDate ? new Date(data.postedDate).toISOString() : new Date().toISOString(),
-        status: 'active',
-        raw_data: data,
-      }));
+      const jobsToInsert = scrapeResults.map(({ data, sourceUrl }) => {
+        const salaryText = data.salaryRange || data.fullJobDescription || '';
+        const { min: salary_min, max: salary_max } = parseSalaryRangeToMinMax(salaryText);
+        const meta = inferSalaryMeta(salaryText);
+        return {
+          user_id: userId,
+          source_type: 'deepresearch',
+          source_id: sourceUrl,
+          title: data.jobTitle,
+          company: data.companyName,
+            description: data.fullJobDescription,
+          location: data.location,
+          remote_type: data.workType,
+          apply_url: sourceUrl,
+          posted_at: data.postedDate ? new Date(data.postedDate).toISOString() : new Date().toISOString(),
+          status: 'active',
+          raw_data: data,
+          salary_min: salary_min,
+          salary_max: salary_max,
+          salary_currency: meta.currency || (salary_min || salary_max ? 'USD' : null),
+        };
+      });
 
       if (clearExisting) {
         const { error: deleteError } = await supabaseAdmin.from('jobs').delete().eq('user_id', userId);
