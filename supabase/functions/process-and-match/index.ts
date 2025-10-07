@@ -57,11 +57,14 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
-    // Step 2: Parse request parameters
-    const body = await req.json().catch(() => ({}));
-    const searchQuery = (body?.searchQuery || '').trim();
-    const location = (body?.location || '').trim();
-    const types = Array.isArray(body?.type) ? body.type : (typeof body?.type === 'string' ? [body.type] : []);
+  // Step 2: Parse request parameters & feature flags
+  const body = await req.json().catch(() => ({}));
+  const searchQuery = (body?.searchQuery || '').trim();
+  const location = (body?.location || '').trim();
+  const types = Array.isArray(body?.type) ? body.type : (typeof body?.type === 'string' ? [body.type] : []);
+  const debug = Boolean(body?.debug);
+  const clearExisting = Boolean(body?.clearExisting); // Clear only after confirming new jobs
+  const relaxSchema = Boolean(body?.relaxSchema); // Less strict required fields for debugging
 
     if (!searchQuery) {
         return new Response(JSON.stringify({ error: 'Search query is required.' }), { status: 400, headers: { ...corsHeaders, 'content-type': 'application/json' } });
@@ -72,28 +75,45 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: 'FIRECRAWL_API_KEY not configured' }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
-    // Step 3: Clear the user's existing job queue in the 'jobs' table.
-    const { error: deleteError } = await supabaseAdmin.from('jobs').delete().eq('user_id', userId);
-    if (deleteError) {
-      console.error(`Failed to clear job queue for user ${userId}:`, deleteError.message);
-      // Non-fatal, proceed with fetching new jobs.
-    }
-
-    // Step 4: Perform the deep research and scraping with Firecrawl.
+    // Step 3: Perform the deep research and scraping with Firecrawl (defer deletion until success)
     const locText = location ? ` in ${location}` : '';
     const typeText = types.length ? `\n• Prefer work type: ${types.join(', ')}` : '';
     const buildPrompt = (q: string) => `Find current job opportunities for: ${q}${locText}.${typeText}`;
 
     const firecrawlParams = { maxDepth: 3, timeLimit: 90, maxUrls: 20 };
-    const { data: firecrawlData } = await withRetry(() => firecrawlFetch('/v1/deep-research', firecrawlApiKey, { query: buildPrompt(searchQuery), ...firecrawlParams }), 2, 600);
-
-    const scrapedUrls = (firecrawlData?.sources || []).map((s: any) => s?.url).filter(Boolean);
-
-    if (!scrapedUrls.length) {
-      return new Response(JSON.stringify({ success: true, jobs_added: 0, message: "No new job sources found." }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    let deepResearchData: any = null;
+    try {
+      const deepResearchResp: any = await withRetry(() => firecrawlFetch('/v1/deep-research', firecrawlApiKey, { query: buildPrompt(searchQuery), ...firecrawlParams }), 2, 600);
+      deepResearchData = deepResearchResp?.data || deepResearchResp;
+    } catch (e: any) {
+      console.error('firecrawl.deep_research_error', { user_id: userId, message: e?.message });
+      return new Response(JSON.stringify({ error: 'deep_research_failed', detail: e?.message }), { status: 502, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
-    // Step 5: Scrape structured data from the found URLs.
+    const sources = Array.isArray(deepResearchData?.sources) ? deepResearchData.sources : [];
+    const scrapedUrls = sources
+      .map((s: any) => s?.url || s?.link || s?.source_url || s?.page_url)
+      .filter((u: any) => typeof u === 'string')
+      .map((u: string) => { try { const uo = new URL(u); uo.hash=''; return uo.toString(); } catch { return u.trim(); } })
+      .filter((u, i, arr) => arr.indexOf(u) === i);
+
+    console.info('firecrawl.deep_research', {
+      user_id: userId,
+      query: searchQuery,
+      location,
+      types,
+      params: firecrawlParams,
+      raw_source_count: sources.length,
+      unique_url_count: scrapedUrls.length,
+      sample_sources: debug ? sources.slice(0,3) : undefined,
+      prompt: debug ? buildPrompt(searchQuery) : undefined,
+    });
+
+    if (!scrapedUrls.length) {
+      return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_sources', raw_source_count: sources.length }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    }
+
+    // Step 4: Scrape structured data from the found URLs.
     const jobSchema = {
       type: 'object',
       properties: {
@@ -104,17 +124,24 @@ Deno.serve(async (req) => {
         fullJobDescription: { type: 'string' },
         postedDate: { type: 'string' },
       },
-      required: ['jobTitle', 'companyName', 'location', 'fullJobDescription'],
+      required: relaxSchema ? ['jobTitle','companyName'] : ['jobTitle','companyName','location','fullJobDescription'],
     };
 
     const scrapePromises = scrapedUrls.map((url: string) =>
       withRetry(() => firecrawlFetch('/v1/scrape', firecrawlApiKey, { url, pageOptions: { extractionSchema: jobSchema } }), 2, 500)
         .then(res => ({ ...res, sourceUrl: url }))
-        .catch(() => null)
+        .catch((err) => { if (debug) console.warn('scrape_failed', { url, err: err?.message }); return null; })
     );
     const scrapeResults = (await Promise.all(scrapePromises)).filter(res => res?.success && res?.data);
 
-    // Step 6: Map scraped data and insert into the user's personal 'jobs' table.
+    console.info('firecrawl.scrape_summary', {
+      user_id: userId,
+      attempted: scrapedUrls.length,
+      succeeded: scrapeResults.length,
+      relaxSchema,
+    });
+
+    // Step 5: Map scraped data and insert into the user's personal 'jobs' table.
     if (scrapeResults.length > 0) {
       const jobsToInsert = scrapeResults.map(({ data, sourceUrl }) => ({
         user_id: userId,
@@ -131,18 +158,25 @@ Deno.serve(async (req) => {
         raw_data: data,
       }));
 
+      if (clearExisting) {
+        const { error: deleteError } = await supabaseAdmin.from('jobs').delete().eq('user_id', userId);
+        if (deleteError) {
+          console.error('jobs_clear_failed', { user_id: userId, error: deleteError.message });
+        }
+      }
+
       const { error: insertError } = await supabaseAdmin.from('jobs').insert(jobsToInsert);
       if (insertError) {
         throw new Error(`Failed to insert new jobs: ${insertError.message}`);
       }
 
-      return new Response(JSON.stringify({ success: true, jobs_added: jobsToInsert.length }), {
+      return new Response(JSON.stringify({ success: true, jobs_added: jobsToInsert.length, cleared: clearExisting || false }), {
         status: 200,
         headers: { ...corsHeaders, 'content-type': 'application/json' },
       });
     }
 
-    return new Response(JSON.stringify({ success: true, jobs_added: 0, message: "Could not extract structured data from sources." }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_structured_results', attempted: scrapedUrls.length }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
 
   } catch (error) {
     console.error('process-and-match error:', error.message);

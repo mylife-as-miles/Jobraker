@@ -1,9 +1,8 @@
-import { Briefcase, Building2, DollarSign, Share, Star, Users, CheckCircle2, FileText, UploadCloud, Pencil, Play, MapPin, Clock, MoreVertical, Filter, X, Loader2, Sparkles, Plus, ArrowRight } from "lucide-react";
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Briefcase, Search, MapPin, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
-import { Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { createClient } from "../../../lib/supabaseClient";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
@@ -62,10 +61,11 @@ export const JobPage = (): JSX.Element => {
     const [selectedLocation, setSelectedLocation] = useState("Remote");
     const [selectedJob, setSelectedJob] = useState<string | null>(null);
     const [jobs, setJobs] = useState<Job[]>([]);
-    const [queueStatus, setQueueStatus] = useState<'idle' | 'loading' | 'populating' | 'ready' | 'empty'>('loading');
-    const [error, setError] = useState<string | null>(null);
+  const [queueStatus, setQueueStatus] = useState<'idle' | 'loading' | 'populating' | 'ready' | 'empty'>('loading');
+  const [error, setError] = useState<string | null>(null);
+  const [lastReason, setLastReason] = useState<string | null>(null);
     const [logoError, setLogoError] = useState<Record<string, boolean>>({});
-    const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage] = useState(1); // (Pagination placeholder; future enhancement)
     const [pageSize] = useState(10);
 
     const { profile, loading: profileLoading } = useProfileSettings();
@@ -98,17 +98,78 @@ export const JobPage = (): JSX.Element => {
     const populateQueue = useCallback(async (query: string, location?: string) => {
         setQueueStatus('populating');
         setError(null);
-        try {
-          const { error: processError } = await supabase.functions.invoke('process-and-match', {
-            body: { searchQuery: query, location: location || 'Remote' },
-          });
-          if (processError) throw processError;
-          // CRITICAL FIX: Directly fetch the queue after the populating call completes.
-          await fetchJobQueue();
-        } catch (e: any) {
-          setError(`Failed to build job feed: ${e.message}`);
-          setQueueStatus('idle');
+        setLastReason(null);
+
+        // Helper to map backend reason codes to human-friendly messages
+  const explainReason = (reason: string | null): string | null => {
+          if (!reason) return null;
+            switch (reason) {
+              case 'no_sources':
+                return 'No sources were discovered for this query. Try broadening your search terms or removing the location constraint.';
+              case 'no_structured_results':
+                return 'Pages were found but structured job details could not be extracted. Retrying with a relaxed schema...';
+              default:
+                return null;
+            }
+        };
+
+        let attemptedRelax = false;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const { data: processData, error: processError } = await supabase.functions.invoke('process-and-match', {
+              body: {
+                searchQuery: query,
+                location: location || 'Remote',
+                clearExisting: true,
+                relaxSchema: attemptedRelax, // second attempt relaxes schema
+                debug: attemptedRelax // only log prompt/sample on retry to save noise
+              },
+            });
+            if (processError) throw processError;
+
+            // Server-level error (e.g., deep_research_failed)
+            if (processData?.error) {
+              const errCode = processData.error;
+              if (errCode === 'deep_research_failed') {
+                const detail: string = processData.detail || '';
+                let advisory = 'Live discovery failed. Please try again shortly.';
+                if (/429/.test(detail)) advisory = 'Rate limited by data provider. Wait a moment and retry.';
+                else if (/402|quota|credit|limit/i.test(detail)) advisory = 'Likely out of provider credits. Check Firecrawl quota.';
+                else if (/401/.test(detail)) advisory = 'Invalid or revoked Firecrawl API key. Update key in settings.';
+                setError(advisory);
+              } else {
+                setError(`Job discovery failed: ${errCode}`);
+              }
+              break; // stop attempts
+            }
+
+            if (processData?.success) {
+              if (processData.jobs_added > 0) {
+                break; // success path
+              }
+              const reason = processData.reason || null;
+              setLastReason(reason);
+              const explanation = explainReason(reason);
+              if (reason === 'no_structured_results' && !attemptedRelax) {
+                // show interim message but continue to retry with relaxed schema
+                if (explanation) setError(explanation);
+                attemptedRelax = true;
+                continue; // retry loop
+              }
+              if (explanation) setError(explanation);
+              // no point retrying if reason is no_sources
+              break;
+            }
+            // If neither success nor explicit error, break to avoid loop
+            break;
+          } catch (e: any) {
+            setError(`Failed to build job feed: ${e.message}`);
+            break;
+          }
         }
+
+        // Always refresh queue at the end to reflect any inserted jobs
+        await fetchJobQueue();
     }, [supabase, fetchJobQueue]);
 
     // Unified effect for initial load and real-time updates
@@ -124,7 +185,7 @@ export const JobPage = (): JSX.Element => {
             // If the queue is empty AND we have a profile with a job title, auto-populate it.
             if (initialJobs.length === 0 && profile?.job_title) {
                 info("Your queue is empty. Building a personalized job feed...", "This may take a moment.");
-                await populateQueue(profile.job_title, profile.location);
+                await populateQueue(profile.job_title, profile.location || undefined);
             }
         };
 
@@ -133,7 +194,7 @@ export const JobPage = (): JSX.Element => {
         // Set up the real-time subscription
         const channel = supabase
             .channel('jobs-queue-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, (payload) => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, () => {
                 // Refetch the entire queue to ensure UI is in sync
                 fetchJobQueue();
             })
@@ -157,7 +218,7 @@ export const JobPage = (): JSX.Element => {
     }, [jobs]);
 
     const total = sortedJobs.length;
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  // totalPages currently unused (pagination UI not yet implemented fully)
     const paginatedJobs = sortedJobs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
     useEffect(() => {
@@ -247,7 +308,13 @@ export const JobPage = (): JSX.Element => {
                 <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-8 text-center">
                   <Briefcase className="w-14 h-14 text-[#ffffff40] mx-auto mb-4" />
                   <h3 className="text-xl font-medium text-white mb-2">Your Queue is Empty</h3>
-                  <p className="text-[#ffffff80] mb-4">Click "Find New Jobs" to build your personalized job feed.</p>
+                  <p className="text-[#ffffff80] mb-2">Click "Find New Jobs" to build your personalized job feed.</p>
+                  {lastReason && (
+                    <p className="text-[#ffffff60] text-sm">
+                      {lastReason === 'no_sources' && 'No sources found. Broaden your search (e.g., remove seniority or location).'}
+                      {lastReason === 'no_structured_results' && 'Sources were found but could not be parsed.'}
+                    </p>
+                  )}
                 </Card>
               )}
 
