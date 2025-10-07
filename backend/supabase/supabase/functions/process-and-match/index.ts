@@ -2,44 +2,13 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/types.ts';
 import { parseSalaryRangeToMinMax, inferSalaryMeta } from '../_shared/salary.ts';
+import { withRetry, resolveFirecrawlApiKey, firecrawlFetch } from '../_shared/firecrawl.ts';
 
 // Use the admin client for elevated privileges to delete/insert into the jobs table.
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 );
-
-async function firecrawlFetch(path: string, apiKey: string, body: any) {
-  const url = `https://api.firecrawl.dev${path}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    const err = new Error(`Firecrawl ${path} failed: ${res.status} ${text}`);
-    // Attach status for upstream handling
-    (err as any).status = res.status;
-    (err as any).body = text;
-    throw err;
-  }
-  return res.json();
-}
-
-async function withRetry<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 500): Promise<T> {
-  let lastErr: any;
-  for (let i = 0; i < attempts; i++) {
-    try { return await fn(); } catch (e) {
-      lastErr = e;
-      if (i < attempts - 1) {
-        const delay = baseDelayMs * Math.pow(2, i);
-        await new Promise((r) => setTimeout(r, delay));
-      }
-    }
-  }
-  throw lastErr;
-}
 
 Deno.serve(async (req) => {
   // Immediately handle CORS preflight requests.
@@ -75,35 +44,9 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: 'Search query is required.' }), { status: 400, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
-    // Resolve Firecrawl API key priority: header override -> user settings table -> env var.
-    const headerKey = req.headers.get('x-firecrawl-api-key')?.trim() || '';
-    let dbKey: string | null = null;
-    if (!headerKey) {
-      try {
-        const { data: settingsRow } = await supabaseAdmin
-          .from('job_source_settings')
-          .select('firecrawl_api_key')
-          .eq('user_id', userId)
-          .maybeSingle();
-        if (settingsRow?.firecrawl_api_key) dbKey = settingsRow.firecrawl_api_key;
-      } catch (e) {
-        console.warn('firecrawl.key_lookup_failed', { user_id: userId, message: (e as any)?.message });
-      }
-    }
-    const envKey = Deno.env.get('FIRECRAWL_API_KEY') || '';
-    const firecrawlApiKey = headerKey || dbKey || envKey;
-    if (!firecrawlApiKey) {
-      console.error('firecrawl.key_missing', { user_id: userId });
-      return new Response(JSON.stringify({ error: 'firecrawl_key_missing', detail: 'No Firecrawl API key configured (header, user settings, or environment).' }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
-    }
-    console.info('process-and-match key_source', {
-      user_id: userId,
-      used: headerKey ? 'header' : dbKey ? 'db' : 'env',
-      header_present: !!headerKey,
-      db_present: !!dbKey,
-      env_present: !!envKey,
-      key_signature: `len:${firecrawlApiKey.length}`
-    });
+    // Resolve Firecrawl API key using the shared utility.
+    const headerKey = req.headers.get('x-firecrawl-api-key');
+    const firecrawlApiKey = await resolveFirecrawlApiKey(supabaseAdmin, userId, headerKey);
 
     // Step 3: Perform the deep research and scraping with Firecrawl (defer deletion until success)
     const locText = location ? ` in ${location}` : '';
