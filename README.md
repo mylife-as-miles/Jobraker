@@ -9,7 +9,7 @@
 
 > **The world's first fully autonomous job application platform.** JobRaker leverages advanced AI to search, apply, and optimize your job hunt 24/7 while you focus on what matters most.
 
-## 📋 Table of Contents
+## 📋 Table of Contents.
 
 - [Overview](#overview)
 - [Features](#features)
