@@ -1,23 +1,4 @@
 // @ts-nocheck
-// Moved to top level to avoid declaration errors
-const parseSalaryRangeToMinMax = (input?: string): { min: number | null; max: number | null } => {
-  if (!input) return { min: null, max: null };
-  const cleaned = String(input).replace(/[,\s]/g, '').toLowerCase();
-  // handle 120k-180k
-  const kRe = /(?:(\$|€|£)?)(\d{2,3})k(?:[-–to]+(?:(\$|€|£)?)(\d{2,3})k)?/i;
-  const mK = cleaned.match(kRe);
-  if (mK) {
-    const a = parseInt(mK[2], 10) * 1000;
-    const b = mK[4] ? parseInt(mK[4], 10) * 1000 : NaN;
-    return { min: Number.isFinite(a) ? a : null, max: Number.isFinite(b) ? b : null };
-  }
-  const m = cleaned.match(/(\$|€|£)?(\d{2,7})(?:[-–to]+(\$|€|£)?(\d{2,7}))?/i);
-  if (!m) return { min: null, max: null };
-  const min = parseInt(m[2], 10);
-  const max = m[4] ? parseInt(m[4], 10) : NaN;
-  return { min: Number.isFinite(min) ? min : null, max: Number.isFinite(max) ? max : null };
-};
-
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, CandidateProfile, JobListing } from '../_shared/types.ts';
 
@@ -61,16 +42,8 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 50
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
-
-  // Get user_id from JWT to save jobs to the correct queue
-  const authHeader = req.headers.get('authorization') || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  const uid = (() => {
-    if (!token) return null;
-    try { const jwt = JSON.parse(atob(token.split('.')[1])); return jwt?.sub || null; } catch { return null; }
-  })();
 
   // Parse request early to allow fallback usage
   let searchQuery: string | undefined;
@@ -211,7 +184,7 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
 • Exclude salary/average/calculator pages and generic advice pages.
 • Prefer company career pages or reputable boards.${typeText}
 `;
-    const params: any = { maxDepth: 3, timeLimit: 90, maxUrls: 50 };
+    const params: any = { maxDepth: 3, timeLimit: 90, maxUrls: 12 };
     // Aggregate sources across all configured queries
     const sources: any[] = [];
     for (const q of queriesToRun) {
@@ -262,6 +235,17 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
 
   let scrapedJobs: JobListing[] = [];
     if (jobUrls.length) {
+      // Helper to parse a salary range string like "$120000 - $180000" to numeric min/max
+      const parseSalaryRangeToMinMax = (input?: string): { min: number | null; max: number | null } => {
+        if (!input) return { min: null, max: null };
+        const cleaned = String(input).replace(/[\s,]/g, '');
+        const m = cleaned.match(/\$?(\d{2,7})(?:[-–to]+\$?(\d{2,7}))?/i);
+        if (!m) return { min: null, max: null };
+        const min = parseInt(m[1], 10);
+        const max = m[2] ? parseInt(m[2], 10) : NaN;
+        return { min: Number.isFinite(min) ? min : null, max: Number.isFinite(max) ? max : null };
+      };
+
       const jobSchema = {
         type: 'object',
         properties: {
@@ -369,6 +353,23 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
         if (['GBP','£'].includes(t)) return 'GBP';
         return t;
       };
+      const parseSalaryRangeToMinMax = (input?: string): { min: number | null; max: number | null } => {
+        if (!input) return { min: null, max: null };
+        const cleaned = String(input).replace(/[,\s]/g, '').toLowerCase();
+        // handle 120k-180k
+        const kRe = /(?:(\$|€|£)?)(\d{2,3})k(?:[-–to]+(?:(\$|€|£)?)(\d{2,3})k)?/i;
+        const mK = cleaned.match(kRe);
+        if (mK) {
+          const a = parseInt(mK[2], 10) * 1000;
+          const b = mK[4] ? parseInt(mK[4], 10) * 1000 : NaN;
+          return { min: Number.isFinite(a) ? a : null, max: Number.isFinite(b) ? b : null };
+        }
+        const m = cleaned.match(/(\$|€|£)?(\d{2,7})(?:[-–to]+(\$|€|£)?(\d{2,7}))?/i);
+        if (!m) return { min: null, max: null };
+        const min = parseInt(m[2], 10);
+        const max = m[4] ? parseInt(m[4], 10) : NaN;
+        return { min: Number.isFinite(min) ? min : null, max: Number.isFinite(max) ? max : null };
+      };
 
       // Try to infer salary period and currency from text if missing
       const inferSalaryMeta = (text?: string) => {
@@ -422,37 +423,30 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
           } as JobListing;
         });
 
-      // Upsert into the user-specific 'jobs' table
-      if (uid && scrapedJobs.length) {
-        const jobsToInsert = scrapedJobs.map(job => {
-          const postedISO = (job as any)._posted_at || new Date().toISOString();
-          return {
-            user_id: uid,
-            source_type: 'deepresearch',
-            source_id: job.sourceUrl,
-            title: job.jobTitle,
-            company: job.companyName,
-            description: job.fullJobDescription || '',
-            location: job.location,
-            remote_type: job.workType ? String(job.workType).toLowerCase() : null,
-            employment_type: (job as any).employmentType || null,
-            salary_min: (job as any).salary_min ?? null,
-            salary_max: (job as any).salary_max ?? null,
-            salary_currency: (job as any).salary_currency ?? null,
-            tags: null, // Scraped jobs don't have tags in this format
-            apply_url: job.sourceUrl,
-            posted_at: postedISO,
-            status: 'active',
-            raw_data: job, // Store the full scraped object
-            requirements: (job as any).requirements ?? (Array.isArray(job.requiredSkills) ? job.requiredSkills : []),
-            benefits: (job as any).benefits ?? [],
-          };
-        });
-
+      // Upsert minimal fields compatible with job_listings schema
+  for (const job of scrapedJobs) {
         try {
-          await supabaseAdmin.from('jobs').upsert(jobsToInsert, { onConflict: 'user_id,source_id' as any });
-        } catch (e) {
-          console.error('Failed to upsert jobs for user', uid, e);
+          const postedISO = (job as any)._posted_at || new Date().toISOString();
+          await supabaseAdmin.from('job_listings').upsert(
+            {
+              job_title: job.jobTitle,
+              company_name: job.companyName,
+              location: job.location,
+              work_type: job.workType,
+              full_job_description: job.fullJobDescription || '',
+              source_url: job.sourceUrl,
+              posted_at: postedISO,
+              salary_min: (job as any).salary_min ?? null,
+              salary_max: (job as any).salary_max ?? null,
+              salary_period: (job as any).salary_period ?? null,
+              salary_currency: (job as any).salary_currency ?? null,
+      requirements: (job as any).requirements ?? (Array.isArray(job.requiredSkills) ? job.requiredSkills : []),
+      benefits: (job as any).benefits ?? [],
+            },
+            { onConflict: 'source_url' }
+          );
+        } catch (_) {
+          // best-effort; skip failed upserts
         }
       }
     }
