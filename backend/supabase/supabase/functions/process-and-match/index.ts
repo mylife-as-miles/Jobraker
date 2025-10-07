@@ -18,7 +18,11 @@ async function firecrawlFetch(path: string, apiKey: string, body: any) {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`Firecrawl ${path} failed: ${res.status} ${text}`);
+    const err = new Error(`Firecrawl ${path} failed: ${res.status} ${text}`);
+    // Attach status for upstream handling
+    (err as any).status = res.status;
+    (err as any).body = text;
+    throw err;
   }
   return res.json();
 }
@@ -71,10 +75,35 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: 'Search query is required.' }), { status: 400, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
-    const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
-    if (!firecrawlApiKey) {
-        return new Response(JSON.stringify({ error: 'FIRECRAWL_API_KEY not configured' }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    // Resolve Firecrawl API key priority: header override -> user settings table -> env var.
+    const headerKey = req.headers.get('x-firecrawl-api-key')?.trim() || '';
+    let dbKey: string | null = null;
+    if (!headerKey) {
+      try {
+        const { data: settingsRow } = await supabaseAdmin
+          .from('job_source_settings')
+          .select('firecrawl_api_key')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (settingsRow?.firecrawl_api_key) dbKey = settingsRow.firecrawl_api_key;
+      } catch (e) {
+        console.warn('firecrawl.key_lookup_failed', { user_id: userId, message: (e as any)?.message });
+      }
     }
+    const envKey = Deno.env.get('FIRECRAWL_API_KEY') || '';
+    const firecrawlApiKey = headerKey || dbKey || envKey;
+    if (!firecrawlApiKey) {
+      console.error('firecrawl.key_missing', { user_id: userId });
+      return new Response(JSON.stringify({ error: 'firecrawl_key_missing', detail: 'No Firecrawl API key configured (header, user settings, or environment).' }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    }
+    console.info('process-and-match key_source', {
+      user_id: userId,
+      used: headerKey ? 'header' : dbKey ? 'db' : 'env',
+      header_present: !!headerKey,
+      db_present: !!dbKey,
+      env_present: !!envKey,
+      key_signature: `len:${firecrawlApiKey.length}`
+    });
 
     // Step 3: Perform the deep research and scraping with Firecrawl (defer deletion until success)
     const locText = location ? ` in ${location}` : '';
@@ -87,6 +116,11 @@ Deno.serve(async (req) => {
       const deepResearchResp: any = await withRetry(() => firecrawlFetch('/v1/deep-research', firecrawlApiKey, { query: buildPrompt(searchQuery), ...firecrawlParams }), 2, 600);
       deepResearchData = deepResearchResp?.data || deepResearchResp;
     } catch (e: any) {
+      const status = e?.status;
+      if (status === 401) {
+        console.error('firecrawl.deep_research_unauthorized', { user_id: userId });
+        return new Response(JSON.stringify({ error: 'firecrawl_unauthorized', detail: 'Firecrawl rejected the API key (401). Rotate or supply a valid key.' }), { status: 502, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+      }
       console.error('firecrawl.deep_research_error', { user_id: userId, message: e?.message });
       return new Response(JSON.stringify({ error: 'deep_research_failed', detail: e?.message }), { status: 502, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
