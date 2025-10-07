@@ -39,7 +39,7 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 50
 Deno.serve(async (req) => {
   // Immediately handle CORS preflight requests.
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
@@ -72,12 +72,114 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: 'FIRECRAWL_API_KEY not configured' }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
+
+  let scrapedJobs: JobListing[] = [];
+    if (jobUrls.length) {
+      const jobSchema = {
+        type: 'object',
+        properties: {
+          jobTitle: { type: 'string' },
+          companyName: { type: 'string' },
+          location: { type: 'string' },
+          workType: { type: 'string', enum: ['On-site', 'Remote', 'Hybrid'] },
+          experienceLevel: { type: 'string' },
+          requiredSkills: { type: 'array', items: { type: 'string' } },
+          requirements: { type: 'array', items: { type: 'string' } },
+          benefits: { type: 'array', items: { type: 'string' } },
+          fullJobDescription: { type: 'string' },
+          // Additional fields to populate UI when available
+          salaryRange: { type: 'string' },
+          salaryPeriod: { type: 'string', enum: ['hour', 'day', 'week', 'month', 'year'] },
+          salaryCurrency: { type: 'string' },
+          employmentType: { type: 'string' },
+          contractDuration: { type: 'string' },
+          postedDate: { type: 'string' },
+        },
+        required: ['jobTitle', 'companyName', 'location', 'fullJobDescription'],
+      } as const;
+      // Schema for search/listing pages extracting multiple cards
+      const listingSchema = {
+        type: 'object',
+        properties: {
+          jobs: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                jobTitle: { type: 'string' },
+                companyName: { type: 'string' },
+                location: { type: 'string' },
+                workType: { type: 'string' },
+                salaryRange: { type: 'string' },
+                salaryPeriod: { type: 'string' },
+                salaryCurrency: { type: 'string' },
+                employmentType: { type: 'string' },
+                contractDuration: { type: 'string' },
+                postedDate: { type: 'string' },
+                jobUrl: { type: 'string' },
+              },
+            },
+          },
+        },
+      } as const;
+      // Scrape sequentially to avoid provider rate limits
+      const scrapeResults: any[] = [];
+    for (const u of jobUrls) {
+        try {
+      const s = await withRetry(() => firecrawlFetch('/v1/scrape', apiKey, { url: u, pageOptions: { extractionSchema: jobSchema } }), 2, 500);
+          // normalize to { success, data, url }
+          if (s?.success && s?.data) scrapeResults.push({ success: true, data: s.data, url: u });
+        } catch (_) {
+          // skip failed url
+        }
+      }
+      // Optionally parse search/list pages into multiple jobs
+      if (includeSearchListings && searchUrls.length) {
+        for (const u of searchUrls) {
+          try {
+            const s = await withRetry(() => firecrawlFetch('/v1/scrape', apiKey, { url: u, pageOptions: { extractionSchema: listingSchema } }), 2, 500);
+            if (s?.success && s?.data && Array.isArray(s.data.jobs)) {
+              for (const j of s.data.jobs) {
+                if (j && (j.jobUrl || u)) {
+                  scrapeResults.push({ success: true, data: { ...j, fullJobDescription: j.fullJobDescription || '', _fromListing: true }, url: j.jobUrl || u });
+                }
+              }
+            }
+          } catch (_) {}
+        }
+      }
+      // Basic extractor to pull lists under common headings when schema misses them
+      const extractLists = (htmlOrText: string) => {
+        const clean = (htmlOrText || '').replace(/\r/g, '');
+        const lower = clean.toLowerCase();
+        const reqHeads = ['requirements', 'qualifications', "what you'll need", 'what you will need'];
+        const benHeads = ['benefits', 'perks', 'what we offer', 'what you get', 'compensation & benefits'];
+        const grabAfter = (heads: string[]) => {
+          for (const h of heads) {
+            const idx = lower.indexOf(h);
+            if (idx !== -1) {
+              const segment = clean.slice(idx, idx + 2000);
+              // Try list items first
+              const liMatches = Array.from(segment.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)).map(m => m[1].replace(/<[^>]+>/g, '').trim());
+              if (liMatches.length) return liMatches.filter(Boolean).slice(0, 20);
+              // Fallback to lines starting with -, *, •
+              const lines = segment.split(/\n+/).map(s => s.trim());
+              const bullets = lines.filter(s => /^[-*•]/.test(s)).map(s => s.replace(/^[-*•]\s*/, ''));
+              if (bullets.length) return bullets.slice(0, 20);
+            }
+          }
+          return [] as string[];
+        };
+        return { reqs: grabAfter(reqHeads), bens: grabAfter(benHeads) };
+      };
+=======
     // Step 3: Clear the user's existing job queue in the 'jobs' table.
     const { error: deleteError } = await supabaseAdmin.from('jobs').delete().eq('user_id', userId);
     if (deleteError) {
       console.error(`Failed to clear job queue for user ${userId}:`, deleteError.message);
       // Non-fatal, proceed with fetching new jobs.
     }
+
 
     // Step 4: Perform the deep research and scraping with Firecrawl.
     const locText = location ? ` in ${location}` : '';
