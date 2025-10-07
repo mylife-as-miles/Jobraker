@@ -42,7 +42,7 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 50
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   // Parse request early to allow fallback usage
@@ -235,17 +235,6 @@ ${includeLinkedIn ? '• LinkedIn links are allowed.\n' : '• Exclude linkedin.
 
   let scrapedJobs: JobListing[] = [];
     if (jobUrls.length) {
-      // Helper to parse a salary range string like "$120000 - $180000" to numeric min/max
-      const parseSalaryRangeToMinMax = (input?: string): { min: number | null; max: number | null } => {
-        if (!input) return { min: null, max: null };
-        const cleaned = String(input).replace(/[\s,]/g, '');
-        const m = cleaned.match(/\$?(\d{2,7})(?:[-–to]+\$?(\d{2,7}))?/i);
-        if (!m) return { min: null, max: null };
-        const min = parseInt(m[1], 10);
-        const max = m[2] ? parseInt(m[2], 10) : NaN;
-        return { min: Number.isFinite(min) ? min : null, max: Number.isFinite(max) ? max : null };
-      };
-
       const jobSchema = {
         type: 'object',
         properties: {
