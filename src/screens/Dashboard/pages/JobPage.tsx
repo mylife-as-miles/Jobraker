@@ -7,6 +7,7 @@ import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
 import { createClient } from "../../../lib/supabaseClient";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
+import { events } from "../../../lib/analytics";
 import { useToast } from "../../../components/ui/toast";
 
 // The Job interface now represents a row from our personal 'jobs' table.
@@ -22,6 +23,7 @@ interface Job {
   raw_data?: any;
   logoUrl?: string;
   logo: string;
+  status?: string;
 }
 
 const supabase = createClient();
@@ -44,6 +46,7 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
       description: dbJob.description || dbJob.raw_data?.fullJobDescription || '',
       logoUrl: getCompanyLogoUrl(dbJob.company, dbJob.apply_url),
       logo: dbJob.company?.[0]?.toUpperCase() || '?',
+      status: dbJob.status,
     };
   };
 
@@ -69,6 +72,8 @@ export const JobPage = (): JSX.Element => {
     const [logoError, setLogoError] = useState<Record<string, boolean>>({});
   const [currentPage] = useState(1); // (Pagination placeholder; future enhancement)
     const [pageSize] = useState(10);
+  const [applyingAll, setApplyingAll] = useState(false);
+  const [applyProgress, setApplyProgress] = useState({ done: 0, total: 0, success: 0, fail: 0 });
 
     const { profile, loading: profileLoading } = useProfileSettings();
     const { info } = useToast();
@@ -174,6 +179,45 @@ export const JobPage = (): JSX.Element => {
         await fetchJobQueue();
     }, [supabase, fetchJobQueue]);
 
+    // Apply all jobs (mark as applied) sequentially with simple progress + analytics events
+    const applyAllJobs = useCallback(async () => {
+      if (applyingAll || !jobs.length) return;
+      setApplyingAll(true);
+      setApplyProgress({ done: 0, total: jobs.length, success: 0, fail: 0 });
+      try {
+        events.autoApplyStarted(jobs.length);
+        let success = 0; let fail = 0; let done = 0;
+        // Sequential to simplify UI feedback; could be batched later
+        for (const job of jobs) {
+          const start = performance.now();
+          try {
+            if (!job.apply_url) {
+              fail++; done++; setApplyProgress(p => ({ ...p, done, fail }));
+              events.autoApplyJobFailed(job.id, job.status || job.remote_type || 'unknown', 'missing_apply_url');
+              continue;
+            }
+            const { error: upErr } = await supabase.from('jobs').update({ status: 'applied' }).eq('id', job.id);
+            if (upErr) {
+              fail++; done++; setApplyProgress(p => ({ ...p, done, fail }));
+              events.autoApplyJobFailed(job.id, job.status || 'unknown', 'update_failed');
+            } else {
+              success++; done++;
+              const duration_ms = Math.round(performance.now() - start);
+              events.autoApplyJobSuccess(job.id, job.status || 'unknown', duration_ms);
+              setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: 'applied' } : j));
+              setApplyProgress(p => ({ ...p, done, success }));
+            }
+          } catch (inner) {
+            fail++; done++; setApplyProgress(p => ({ ...p, done, fail }));
+            events.autoApplyJobFailed(job.id, job.status || 'unknown', 'exception');
+          }
+        }
+        events.autoApplyFinished(success, fail);
+      } finally {
+        setApplyingAll(false);
+      }
+    }, [applyingAll, jobs, supabase]);
+
     // Unified effect for initial load and real-time updates
     useEffect(() => {
         if (profileLoading) {
@@ -245,6 +289,16 @@ export const JobPage = (): JSX.Element => {
                   </div>
                   <Button
                     variant="ghost"
+                    onClick={applyAllJobs}
+                    className="text-[#1dff00] hover:bg-[#1dff00]/10"
+                    title="Auto apply all visible jobs"
+                    disabled={applyingAll || queueStatus !== 'ready' || jobs.length === 0}
+                  >
+                    {applyingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Briefcase className="w-4 h-4 mr-2" />}
+                    {applyingAll ? `Applying (${applyProgress.done}/${applyProgress.total})` : 'Auto Apply All'}
+                  </Button>
+                  <Button
+                    variant="ghost"
                     onClick={() => populateQueue(searchQuery, selectedLocation)}
                     className="text-[#1dff00] hover:bg-[#1dff00]/10"
                     title="Find a fresh batch of jobs"
@@ -309,6 +363,12 @@ export const JobPage = (): JSX.Element => {
               )}
 
               {error && <Card className="border-red-500/30 bg-red-500/10 text-red-200 p-4">{error}</Card>}
+              {applyingAll && (
+                <Card className="border border-[#1dff00]/30 bg-[#1dff00]/10 text-[#1dff00] p-3 text-sm flex items-center justify-between">
+                  <span>Auto applying jobs...</span>
+                  <span>{applyProgress.done}/{applyProgress.total} • {applyProgress.success} ✓ {applyProgress.fail > 0 && `• ${applyProgress.fail} ✕`}</span>
+                </Card>
+              )}
 
               {queueStatus === 'empty' && (
                 <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-8 text-center">
