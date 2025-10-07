@@ -117,14 +117,6 @@ function ApplicationPage() {
     return list;
   }, [applications, searchQuery, selectedStatus, sortBy]);
 
-  // Kanban data is only filtered by search query, not status
-  const kanbanData = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    return applications.filter((a) => {
-      return !q || [a.job_title, a.company, a.location, a.status].some((v) => (v ?? "").toLowerCase().includes(q));
-    });
-  }, [applications, searchQuery]);
-
   // Debounce raw search input -> searchQuery
   useEffect(() => {
     const id = setTimeout(() => setSearchQuery(rawSearch), 250);
@@ -299,9 +291,10 @@ function ApplicationPage() {
       {/* Content */}
       <Card className="bg-transparent border-none shadow-none">
         <CardContent className="p-0">
-          {initialLoading ? (
+          {initialLoading && (
             <ApplicationPageSkeleton viewMode={viewMode} />
-          ) : applications.length === 0 ? (
+          )}
+          {!initialLoading && applications.length === 0 && !searchQuery && selectedStatus === 'All' && (
             <div className="border border-white/15 bg-black/30 rounded-xl p-8 text-center text-[#ffffffb3]">
               <div className="mx-auto w-12 h-12 rounded-full bg-[#1dff00]/15 grid place-items-center mb-4">
                 <Columns className="w-6 h-6 text-[#1dff00]" />
@@ -314,241 +307,235 @@ function ApplicationPage() {
                 </Button>
               </div>
             </div>
-          ) : filtered.length === 0 ? (
-            <div className="border border-white/15 bg-black/30 rounded-xl p-8 text-center text-[#ffffffb3]">
-              <div className="mx-auto w-12 h-12 rounded-full bg-yellow-400/15 grid place-items-center mb-4">
-                <Search className="w-6 h-6 text-yellow-400" />
-              </div>
-              <h3 className="text-white text-lg font-medium mb-1">No matching applications</h3>
-              <p className="text-sm text-[#ffffff80] mb-4">Try adjusting your search or status filters.</p>
-            </div>
-          ) : (
+          )}
+          {/* Animated content swap after skeleton */}
+          {!initialLoading && viewMode === 'gantt' ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
-              {viewMode === 'gantt' && (
-                <div className="space-y-4">
-                  <div className="text-xs text-white/60 flex flex-wrap gap-3">
-                    <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#71717a] to-[#27272a]" /> Pending</span>
-                    <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#1dff00] to-[#0a8246]" /> Applied</span>
-                    <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#fbbf24] to-[#a16207]" /> Interview</span>
-                    <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#84cc16] to-[#166534]" /> Offer</span>
-                    <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#fb7185] to-[#881337]" /> Rejected</span>
-                    <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#94a3b8] to-[#334155]" /> Withdrawn</span>
+            <div className="space-y-4">
+              <div className="text-xs text-white/60 flex flex-wrap gap-3">
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#71717a] to-[#27272a]" /> Pending</span>
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#1dff00] to-[#0a8246]" /> Applied</span>
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#fbbf24] to-[#a16207]" /> Interview</span>
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#84cc16] to-[#166534]" /> Offer</span>
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#fb7185] to-[#881337]" /> Rejected</span>
+                <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#94a3b8] to-[#334155]" /> Withdrawn</span>
+              </div>
+              <div id="application-gantt" data-tour="application-gantt">
+              <Gantt
+                zoom={ganttZoom}
+                onZoomChange={setGanttZoom}
+                showToday
+                groupBy={(item) => item.status}
+                onBarClick={(item) => handleBarClick(item)}
+                items={filtered.map<GanttItem>(a => {
+                  const applied = new Date(a.applied_date);
+                  const updated = new Date(a.updated_at || a.applied_date || Date.now());
+                  // Active statuses extend to today optionally
+                  const activeStatuses: ApplicationStatus[] = ['Pending','Applied','Interview'];
+                  let end: Date;
+                  if (activeStatuses.includes(a.status) && showFuture) {
+                    end = new Date();
+                  } else if (a.interview_date && a.status === 'Interview') {
+                    const idate = new Date(a.interview_date);
+                    end = idate > applied ? idate : updated;
+                  } else {
+                    end = updated > applied ? updated : new Date(applied.getTime() + 24*3600*1000);
+                  }
+                  // Ensure minimum visual length (add ~6h if same day)
+                  if (end.getTime() === applied.getTime()) {
+                    end = new Date(end.getTime() + 6*3600*1000);
+                  }
+                  return {
+                    id: a.id,
+                    label: a.job_title || a.company || 'Untitled',
+                    start: applied,
+                    end,
+                    status: a.status,
+                    extra: a.company,
+                    groupKey: a.status,
+                    raw: a,
+                  };
+                })}
+                renderLabel={(item: any) => (
+                  <div className="flex flex-col truncate">
+                    <span className="truncate font-medium text-white/80 text-xs">{item.label}</span>
+                    {item.extra && <span className="truncate text-[10px] text-white/40">{item.extra}</span>}
                   </div>
-                  <div id="application-gantt" data-tour="application-gantt">
-                    <Gantt
-                      zoom={ganttZoom}
-                      onZoomChange={setGanttZoom}
-                      showToday
-                      groupBy={(item) => item.status}
-                      onBarClick={(item) => handleBarClick(item)}
-                      items={filtered.map<GanttItem>(a => {
-                        const applied = new Date(a.applied_date);
-                        const updated = new Date(a.updated_at || a.applied_date || Date.now());
-                        const activeStatuses: ApplicationStatus[] = ['Pending','Applied','Interview'];
-                        let end: Date;
-                        if (activeStatuses.includes(a.status) && showFuture) {
-                          end = new Date();
-                        } else if (a.interview_date && a.status === 'Interview') {
-                          const idate = new Date(a.interview_date);
-                          end = idate > applied ? idate : updated;
-                        } else {
-                          end = updated > applied ? updated : new Date(applied.getTime() + 24*3600*1000);
-                        }
-                        if (end.getTime() === applied.getTime()) {
-                          end = new Date(end.getTime() + 6*3600*1000);
-                        }
-                        return {
-                          id: a.id,
-                          label: a.job_title || a.company || 'Untitled',
-                          start: applied,
-                          end,
-                          status: a.status,
-                          extra: a.company,
-                          groupKey: a.status,
-                          raw: a,
-                        };
-                      })}
-                      renderLabel={(item: any) => (
-                        <div className="flex flex-col truncate">
-                          <span className="truncate font-medium text-white/80 text-xs">{item.label}</span>
-                          {item.extra && <span className="truncate text-[10px] text-white/40">{item.extra}</span>}
-                        </div>
-                      )}
-                      renderBarContent={(item: any) => (
-                        <div className="flex items-center gap-1 w-full truncate">
-                          <span className="truncate">{item.status}</span>
-                        </div>
-                      )}
-                    />
+                )}
+                renderBarContent={(item: any) => (
+                  <div className="flex items-center gap-1 w-full truncate">
+                    <span className="truncate">{item.status}</span>
                   </div>
-                </div>
-              )}
-              {viewMode === 'list' && (
-                <div className="border border-white/10 rounded-xl bg-black/30 overflow-hidden">
-                  <ListProvider
-                    onDragEnd={async (e: ListDragEndEvent) => {
-                      const active = e.active?.data?.current as any;
-                      const over = e.over?.id as string | undefined;
-                      if (!active || !over || active.parent === over) return;
-                      const appId = active.id as string;
-                      try {
-                        await update(appId, { status: over as ApplicationStatus });
-                      } catch { await refresh(); }
-                    }}
-                    className="divide-y divide-white/5"
-                  >
-                    {(['Pending','Applied','Interview','Offer','Rejected','Withdrawn'] as ApplicationStatus[]).map(status => {
-                      const rows = filtered.filter(a => a.status === status);
-                      const color = (
-                        status === 'Applied' ? '#1dff00' :
-                        status === 'Interview' ? '#F59E0B' :
-                        status === 'Offer' ? '#10B981' :
-                        status === 'Rejected' ? '#EF4444' :
-                        status === 'Withdrawn' ? '#94A3B8' : '#6B7280'
-                      );
-                      if (rows.length === 0 && selectedStatus !== 'All') return null;
-                      return (
-                        <ListGroup key={status} id={status} className="flex flex-col">
-                          <ListHeader name={status} color={color} className="sticky top-0 z-10 backdrop-blur supports-[backdrop-filter]:bg-black/40" />
-                          <ListItems className="p-2 sm:p-3 grid gap-2">
-                            {rows.length === 0 && (
-                              <div className="text-[11px] text-white/40 italic px-1 py-2">No {status.toLowerCase()} applications</div>
-                            )}
-                            {rows.map((a, idx) => (
-                              <ListItem key={a.id} id={a.id} name={a.job_title} index={idx} parent={status} className="group relative">
-                                <div className="flex items-center gap-3 w-full">
-                                  <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-[10px] sm:text-xs flex-shrink-0">
-                                    {(a.logo && a.logo.length > 1 ? a.logo : (((a.company || a.job_title || '')).split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('') || '').toUpperCase())}
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2">
-                                      <div className="text-white text-sm font-medium truncate" title={a.job_title}>{a.job_title}</div>
-                                      <MatchScoreBadge score={a.match_score ?? 0} />
-                                      <span className="ml-auto hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] border border-white/15 bg-white/5 text-white/60 group-hover:border-[#1dff00]/40 group-hover:text-[#1dff00] transition">{a.status}</span>
-                                    </div>
-                                    <div className="text-[#ffffff80] text-[11px] sm:text-xs truncate">{a.company}</div>
-                                    <div className="flex items-center gap-2 text-[10px] text-white/40 mt-1">
-                                      <span>{new Date(a.applied_date).toLocaleDateString()}</span>
-                                      {a.location && <><span>•</span><span className="truncate max-w-[120px]">{a.location}</span></>}
-                                      {a.interview_date && <><span>•</span><span className="text-[#F59E0B]">Interview {new Date(a.interview_date).toLocaleDateString()}</span></>}
-                                    </div>
-                                  </div>
-                                  <div className="flex flex-col items-end gap-1">
-                                    {a.app_url && (
-                                      <a href={a.app_url} target="_blank" rel="noreferrer" className="text-[10px] text-[#1dff00] hover:underline inline-flex items-center gap-1"><ExternalLink className="w-3 h-3" />Open</a>
-                                    )}
-                                    {a.run_id && (
-                                      <button onClick={()=>navigator.clipboard?.writeText(a.run_id!)} className="text-[10px] text-white/60 hover:text-white inline-flex items-center gap-1"><Clipboard className="w-3 h-3" />Run</button>
-                                    )}
-                                    {a.recording_url && (
-                                      <a href={a.recording_url} target="_blank" rel="noreferrer" className="text-[10px] text-white/60 hover:text-white inline-flex items-center gap-1"><Link2 className="w-3 h-3" />Rec</a>
-                                    )}
-                                  </div>
-                                </div>
-                              </ListItem>
-                            ))}
-                          </ListItems>
-                        </ListGroup>
-                      );
-                    })}
-                  </ListProvider>
-                </div>
-              )}
-              {viewMode === 'calendar' && (
-                <div className="relative">
-                  <KiboCalendar
-                    events={calendarEvents}
-                    showLegend
-                    highlightToday
-                    showHeader
-                    enableAnalyticsRibbon={false}
-                    enableICSExport
-                    heatmap
-                    densityMode="compact"
-                    onQuickCreate={(partial) => console.log('quick create', partial)}
-                    enableQuickCreate={false}
-                    selectedDate={selectedDate || undefined}
-                    onSelectDate={(d) => { setSelectedDate(d); setSelectedRange(null); }}
-                    rangeSelectable
-                    onSelectRange={(r) => { setSelectedRange(r); if (r) setSelectedDate(null); }}
-                    className="border border-white/10 rounded-lg bg-black/40"
-                  />
-                  <CalendarDayDetail
-                    date={selectedDate}
-                    range={selectedRange}
-                    onClose={() => { setSelectedDate(null); setSelectedRange(null); }}
-                    applications={applications}
-                    onUpdateApplication={update}
-                    onCreateApplication={async () => { /* create not injected on ApplicationPage calendar detail */ }}
-                  />
-                </div>
-              )}
-              {viewMode === 'table' && (
-                <ApplicationsTable
-                  data={filtered}
-                  onRowClick={(id) => setDetailId(id)}
-                />
-              )}
-              {viewMode === 'kanban' && (
-                <KanbanProvider
-                  columns={[
-                    { id: 'Pending', name: 'Pending', color: '#6B7280' },
-                    { id: 'Applied', name: 'Applied', color: '#1dff00' },
-                    { id: 'Interview', name: 'Interview', color: '#F59E0B' },
-                    { id: 'Offer', name: 'Offer', color: '#10B981' },
-                    { id: 'Rejected', name: 'Rejected', color: '#EF4444' },
-                    { id: 'Withdrawn', name: 'Withdrawn', color: '#94A3B8' },
-                  ]}
-                  data={kanbanData.map((a) => ({ ...a, id: a.id, column: a.status }))}
-                  onItemMove={async (id, toColumn) => {
-                    const rec = applications.find((a) => a.id === id);
-                    if (!rec) return;
-                    if (rec.status === toColumn) return;
-                    try {
-                      await update(id, { status: toColumn as ApplicationStatus });
-                    } catch {
-                      await refresh();
-                    }
-                  }}
-                >
-                  {(column) => (
-                    <KanbanBoard id={column.id} key={column.id}>
-                      <KanbanHeader>
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: column.color }} />
-                          <span className="text-white">{column.name}</span>
-                          <span className="inline-flex items-center gap-1 rounded-full border border-white/20 px-2 py-0.5 text-[10px] text-white/70">
-                            {kanbanData.filter((a) => a.status === (column.id as ApplicationStatus)).length}
-                          </span>
-                        </div>
-                      </KanbanHeader>
-                      <KanbanCards id={column.id}>
-                        {(a: any) => (
-                          <KanbanCard key={a.id} id={a.id}>
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-xs flex-shrink-0">
-                                {a.logo || (a.company?.[0] ?? "")}
+                )}
+              />
+              </div>
+            </div>
+            </motion.div>
+          ) : !initialLoading && viewMode === 'list' ? (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }} className="border border-white/10 rounded-xl bg-black/30 overflow-hidden">
+              <ListProvider
+                onDragEnd={async (e: ListDragEndEvent) => {
+                  const active = e.active?.data?.current as any;
+                  const over = e.over?.id as string | undefined;
+                  if (!active || !over || active.parent === over) return;
+                  const appId = active.id as string;
+                  // Move status to the group id (over)
+                  try {
+                    await update(appId, { status: over as ApplicationStatus });
+                  } catch { await refresh(); }
+                }}
+                className="divide-y divide-white/5"
+              >
+                {(['Pending','Applied','Interview','Offer','Rejected','Withdrawn'] as ApplicationStatus[]).map(status => {
+                  const rows = filtered.filter(a => a.status === status);
+                  const color = (
+                    status === 'Applied' ? '#1dff00' :
+                    status === 'Interview' ? '#F59E0B' :
+                    status === 'Offer' ? '#10B981' :
+                    status === 'Rejected' ? '#EF4444' :
+                    status === 'Withdrawn' ? '#94A3B8' : '#6B7280'
+                  );
+                  return (
+                    <ListGroup key={status} id={status} className="flex flex-col">
+                      <ListHeader name={status} color={color} className="sticky top-0 z-10 backdrop-blur supports-[backdrop-filter]:bg-black/40" />
+                      <ListItems className="p-2 sm:p-3 grid gap-2">
+                        {rows.length === 0 && (
+                          <div className="text-[11px] text-white/40 italic px-1 py-2">No {status.toLowerCase()} applications</div>
+                        )}
+                        {rows.map((a, idx) => (
+                          <ListItem key={a.id} id={a.id} name={a.job_title} index={idx} parent={status} className="group relative">
+                            <div className="flex items-center gap-3 w-full">
+                              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-[10px] sm:text-xs flex-shrink-0">
+                                {(a.logo && a.logo.length > 1 ? a.logo : (((a.company || a.job_title || '')).split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('') || '').toUpperCase())}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="text-white text-sm font-medium truncate">{a.job_title}</div>
-                                <div className="text-[#ffffff80] text-xs truncate">{a.company}</div>
+                                <div className="flex items-center gap-2">
+                                  <div className="text-white text-sm font-medium truncate" title={a.job_title}>{a.job_title}</div>
+                                  <MatchScoreBadge score={a.match_score ?? 0} />
+                                  <span className="ml-auto hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] border border-white/15 bg-white/5 text-white/60 group-hover:border-[#1dff00]/40 group-hover:text-[#1dff00] transition">{a.status}</span>
+                                </div>
+                                <div className="text-[#ffffff80] text-[11px] sm:text-xs truncate">{a.company}</div>
+                                <div className="flex items-center gap-2 text-[10px] text-white/40 mt-1">
+                                  <span>{new Date(a.applied_date).toLocaleDateString()}</span>
+                                  {a.location && <><span>•</span><span className="truncate max-w-[120px]">{a.location}</span></>}
+                                  {a.interview_date && <><span>•</span><span className="text-[#F59E0B]">Interview {new Date(a.interview_date).toLocaleDateString()}</span></>}
+                                </div>
                               </div>
-                              <MatchScoreBadge score={a.match_score ?? 0} />
+                              <div className="flex flex-col items-end gap-1">
+                                {a.app_url && (
+                                  <a href={a.app_url} target="_blank" rel="noreferrer" className="text-[10px] text-[#1dff00] hover:underline inline-flex items-center gap-1"><ExternalLink className="w-3 h-3" />Open</a>
+                                )}
+                                {a.run_id && (
+                                  <button onClick={()=>navigator.clipboard?.writeText(a.run_id!)} className="text-[10px] text-white/60 hover:text-white inline-flex items-center gap-1"><Clipboard className="w-3 h-3" />Run</button>
+                                )}
+                                {a.recording_url && (
+                                  <a href={a.recording_url} target="_blank" rel="noreferrer" className="text-[10px] text-white/60 hover:text-white inline-flex items-center gap-1"><Link2 className="w-3 h-3" />Rec</a>
+                                )}
+                              </div>
                             </div>
-                            <div className="mt-2 flex items-center gap-2 text-[11px] text-[#ffffff60]">
-                              <span>{new Date(a.applied_date).toLocaleDateString()}</span>
-                              <span>•</span>
-                              <span>{a.location}</span>
-                            </div>
-                          </KanbanCard>
-                        )}
-                      </KanbanCards>
-                    </KanbanBoard>
-                  )}
-                </KanbanProvider>
-              )}
+                          </ListItem>
+                        ))}
+                      </ListItems>
+                    </ListGroup>
+                  );
+                })}
+              </ListProvider>
             </motion.div>
-          )}
+          ) : !initialLoading && viewMode === 'calendar' ? (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }} className="relative">
+              <KiboCalendar
+                events={calendarEvents}
+                showLegend
+                highlightToday
+                showHeader
+                enableAnalyticsRibbon={false}
+                enableICSExport
+                heatmap
+                densityMode="compact"
+                onQuickCreate={(partial) => console.log('quick create', partial)}
+                enableQuickCreate={false}
+                selectedDate={selectedDate || undefined}
+                onSelectDate={(d) => { setSelectedDate(d); setSelectedRange(null); }}
+                rangeSelectable
+                onSelectRange={(r) => { setSelectedRange(r); if (r) setSelectedDate(null); }}
+                className="border border-white/10 rounded-lg bg-black/40"
+              />
+              <CalendarDayDetail
+                date={selectedDate}
+                range={selectedRange}
+                onClose={() => { setSelectedDate(null); setSelectedRange(null); }}
+                applications={applications}
+                onUpdateApplication={update}
+                onCreateApplication={async () => { /* create not injected on ApplicationPage calendar detail */ }}
+              />
+            </motion.div>
+          ) : !initialLoading && viewMode === 'table' ? (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
+            <ApplicationsTable
+              data={filtered}
+              onRowClick={(id) => setDetailId(id)}
+            />
+            </motion.div>
+          ) : !initialLoading ? (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
+            <KanbanProvider
+              columns={[
+                { id: 'Pending', name: 'Pending', color: '#6B7280' },
+                { id: 'Applied', name: 'Applied', color: '#1dff00' },
+                { id: 'Interview', name: 'Interview', color: '#F59E0B' },
+                { id: 'Offer', name: 'Offer', color: '#10B981' },
+                { id: 'Rejected', name: 'Rejected', color: '#EF4444' },
+                { id: 'Withdrawn', name: 'Withdrawn', color: '#94A3B8' },
+              ]}
+              data={applications.map((a) => ({ ...a, id: a.id, column: a.status }))}
+              onItemMove={async (id, toColumn) => {
+                const rec = applications.find((a) => a.id === id);
+                if (!rec) return;
+                if (rec.status === toColumn) return;
+                try {
+                  await update(id, { status: toColumn as ApplicationStatus });
+                } catch {
+                  await refresh();
+                }
+              }}
+            >
+              {(column) => (
+                <KanbanBoard id={column.id} key={column.id}>
+                  <KanbanHeader>
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full" style={{ backgroundColor: column.color }} />
+                      <span className="text-white">{column.name}</span>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-white/20 px-2 py-0.5 text-[10px] text-white/70">
+                        {applications.filter((a) => a.status === (column.id as ApplicationStatus)).length}
+                      </span>
+                    </div>
+                  </KanbanHeader>
+                  <KanbanCards id={column.id}>
+                    {(a: any) => (
+                      <KanbanCard key={a.id} id={a.id}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-xs flex-shrink-0">
+                            {a.logo || (a.company?.[0] ?? "")}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-white text-sm font-medium truncate">{a.job_title}</div>
+                            <div className="text-[#ffffff80] text-xs truncate">{a.company}</div>
+                          </div>
+                          <MatchScoreBadge score={a.match_score ?? 0} />
+                        </div>
+                        <div className="mt-2 flex items-center gap-2 text-[11px] text-[#ffffff60]">
+                          <span>{new Date(a.applied_date).toLocaleDateString()}</span>
+                          <span>•</span>
+                          <span>{a.location}</span>
+                        </div>
+                      </KanbanCard>
+                    )}
+                  </KanbanCards>
+                </KanbanBoard>
+              )}
+            </KanbanProvider>
+            </motion.div>
+          ) : null}
         </CardContent>
       </Card>
       <Modal open={!!detailApp} onClose={() => setDetailId(null)} title={detailApp?.job_title} side="right" size="lg">
@@ -880,7 +867,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
       cell: info => <MatchScoreBadge score={info.getValue<number>()} />,
       sortingFn: (a,b,columnId) => (a.getValue<number>(columnId) - b.getValue<number>(columnId)),
     },
-  ], [busyId, editingStatusId]);
+  ], []);
 
   return (
     <div ref={(n)=> (tableRef.current = n)} className="rounded-xl border border-white/10 bg-black/30 overflow-hidden">

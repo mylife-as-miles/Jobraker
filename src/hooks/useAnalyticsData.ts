@@ -192,7 +192,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
 
       // Fetch jobs
       const { data: jobsRaw, error: jobsErr } = await supabase
-        .from("jobs")
+        .from("user_jobs")
         .select("id, created_at, source_type, user_id")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true });
@@ -326,7 +326,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
         channel = supabase
           .channel(`analytics:${user.id}`)
           .on('postgres_changes', { event: '*', schema: 'public', table: 'applications', filter: `user_id=eq.${user.id}` }, () => refresh({ bypassCache: true }))
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs', filter: `user_id=eq.${user.id}` }, () => refresh({ bypassCache: true }))
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'user_jobs', filter: `user_id=eq.${user.id}` }, () => refresh({ bypassCache: true }))
           .subscribe();
       } catch {}
     })();

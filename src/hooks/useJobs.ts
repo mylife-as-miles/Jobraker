@@ -57,7 +57,7 @@ export function useJobs() {
         userId = user.id;
 
         const { data: jobsData, error: fetchError } = await supabase
-          .from('jobs')
+          .from('user_jobs')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
@@ -95,13 +95,13 @@ export function useJobs() {
       userId = user.id;
 
       subscription = supabase
-        .channel('jobs')
+        .channel('user_jobs')
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
-            table: 'jobs',
+            table: 'user_jobs',
             filter: `user_id=eq.${user.id}`
           },
           (payload) => {
@@ -154,7 +154,7 @@ export function useJobs() {
   const updateJobStatus = async (jobId: string, status: string) => {
     try {
       const { error } = await supabase
-        .from('jobs')
+        .from('user_jobs')
         .update({ status, updated_at: new Date().toISOString() })
         .eq('id', jobId);
 
@@ -169,7 +169,7 @@ export function useJobs() {
   const toggleBookmark = async (jobId: string, bookmarked: boolean) => {
     try {
       const { error } = await supabase
-        .from('jobs')
+        .from('user_jobs')
         .update({ bookmarked, updated_at: new Date().toISOString() })
         .eq('id', jobId);
 
@@ -184,7 +184,7 @@ export function useJobs() {
   const updateJobNotes = async (jobId: string, notes: string) => {
     try {
       const { error } = await supabase
-        .from('jobs')
+        .from('user_jobs')
         .update({ notes, updated_at: new Date().toISOString() })
         .eq('id', jobId);
 
@@ -199,7 +199,7 @@ export function useJobs() {
   const rateJob = async (jobId: string, rating: number) => {
     try {
       const { error } = await supabase
-        .from('jobs')
+        .from('user_jobs')
         .update({ rating, updated_at: new Date().toISOString() })
         .eq('id', jobId);
 
