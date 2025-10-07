@@ -6,6 +6,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { importPKCS8, SignJWT } from "https://esm.sh/jose@5.2.4";
+import { parseSalaryRangeToMinMax } from '../_shared/salary.ts';
 
 type Job = {
   external_id: string;
@@ -319,15 +320,7 @@ function isJobListingUrl(url: string): boolean {
   return false;
 }
 
-function parseSalaryRangeToMinMax(input?: string): { min: number | null; max: number | null } {
-  if (!input) return { min: null, max: null };
-  const cleaned = input.replace(/[,\s]/g, "");
-  const m = cleaned.match(/\$?(\d{2,6})(?:[-–to]+\$?(\d{2,6}))?/i);
-  if (!m) return { min: null, max: null };
-  const min = parseInt(m[1], 10);
-  const max = m[2] ? parseInt(m[2], 10) : null;
-  return { min: isFinite(min) ? min : null, max: isFinite(Number(max)) ? Number(max) : null };
-}
+// Removed local parseSalaryRangeToMinMax; imported from shared util to prevent duplicate declarations during bundling.
 
 type DeepResearchConfig = {
   query: string;
