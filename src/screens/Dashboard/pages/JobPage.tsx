@@ -68,6 +68,7 @@ export const JobPage = (): JSX.Element => {
     const [jobs, setJobs] = useState<Job[]>([]);
     const [queueStatus, setQueueStatus] = useState<'idle' | 'loading' | 'populating' | 'ready' | 'empty'>('loading');
     const [error, setError] = useState<{ message: string, link?: string } | null>(null);
+    const [pollingJobId, setPollingJobId] = useState<string | null>(null);
     const [lastReason, setLastReason] = useState<string | null>(null);
     const [debugMode, setDebugMode] = useState(false);
     const [logoError, setLogoError] = useState<Record<string, boolean>>({});
@@ -104,84 +105,79 @@ export const JobPage = (): JSX.Element => {
     }, [supabase]);
 
     const populateQueue = useCallback(async (query: string, location?: string) => {
-        setQueueStatus('populating');
-        setError(null);
-        setLastReason(null);
+      setQueueStatus('populating');
+      setError(null);
+      setLastReason(null);
+      setPollingJobId(null);
 
-        // Helper to map backend reason codes to human-friendly messages
-        const explainReason = (reason: string | null): string | null => {
-          if (!reason) return null;
-            switch (reason) {
-              case 'no_sources':
-                return 'No sources were discovered for this query. Try broadening your search terms or removing the location constraint.';
-              case 'no_structured_results':
-                return 'Pages were found but structured job details could not be extracted. Retrying with a relaxed schema...';
-              default:
-                return null;
-            }
-        };
+      try {
+        const { data: processData, error: processError } = await supabase.functions.invoke('process-and-match', {
+          body: { searchQuery: query, location: location || 'Remote', debug: debugMode },
+        });
 
-        let attemptedRelax = false;
-        for (let attempt = 0; attempt < 2; attempt++) {
-          try {
-            const { data: processData, error: processError } = await supabase.functions.invoke('process-and-match', {
-              body: {
-                searchQuery: query,
-                location: location || 'Remote',
-                clearExisting: true,
-                relaxSchema: attemptedRelax, // second attempt relaxes schema
-                debug: debugMode || attemptedRelax // enable prompt/sample logging if user toggle or retry
-              },
-            });
-            if (processError) throw new Error(processError.message);
+        if (processError) throw new Error(processError.message);
 
-            // Server-level error (e.g., missing_api_key)
-            if (processData?.error) {
-              const errCode = processData.error;
-              const detail = processData.detail || 'An unknown error occurred.';
-              if (errCode === 'missing_api_key') {
-                setError({ message: detail, link: '/dashboard/settings' });
-              } else {
-                setError({ message: `Job discovery failed: ${detail}` });
-              }
-              setQueueStatus('idle');
-              break;
-            }
-
-            if (processData?.success) {
-              if (processData.jobs_added > 0) {
-                break; // success path
-              }
-              const reason = processData.reason || null;
-              setLastReason(reason);
-
-              if (reason === 'no_job_sources_configured') {
-                setError({ message: 'No job sources configured.', link: '/dashboard/settings' });
-                setQueueStatus('idle');
-                return; // Exit completely, no need to fetch queue
-              }
-
-              const explanation = explainReason(reason);
-              if (explanation) setError({ message: explanation });
-
-              if (reason === 'no_structured_results' && !attemptedRelax) {
-                attemptedRelax = true;
-                continue; // retry loop
-              }
-              break;
-            }
-            // If neither success nor explicit error, break to avoid loop
-            break;
-          } catch (e: any) {
-            setError({ message: `Failed to build job feed: ${e.message}` });
-            setQueueStatus('idle');
-            break;
-          }
+        if (processData.error) {
+          const detail = processData.detail || 'An unknown error occurred.';
+          setError({ message: `Failed to start job search: ${detail}` });
+          setQueueStatus('idle');
+          return;
         }
 
-        // Always refresh queue at the end to reflect any inserted jobs
-        await fetchJobQueue();
-    }, [supabase, fetchJobQueue, debugMode]);
+        if (processData.reason === 'no_job_sources_configured') {
+          setError({ message: 'No job sources configured.', link: '/dashboard/settings' });
+          setQueueStatus('idle');
+          return;
+        }
+
+        if (processData.jobId) {
+          setPollingJobId(processData.jobId);
+          setQueueStatus('populating'); // Keep it in a loading-like state
+          info("Job search started...", `Checking for results. This may take a few minutes.`);
+        } else {
+          setError({ message: 'Could not initiate job search process.' });
+          setQueueStatus('idle');
+        }
+      } catch (e: any) {
+        setError({ message: `Failed to build job feed: ${e.message}` });
+        setQueueStatus('idle');
+      }
+    }, [supabase, debugMode, info]);
+
+    // Effect for polling the job status
+    useEffect(() => {
+      if (!pollingJobId) return;
+
+      const interval = setInterval(async () => {
+        try {
+          const { data: statusData, error: statusError } = await supabase.functions.invoke('get-extract-status', {
+            body: { jobId: pollingJobId, searchQuery, searchLocation: selectedLocation },
+          });
+
+          if (statusError) throw new Error(statusError.message);
+
+          if (statusData.status === 'completed') {
+            clearInterval(interval);
+            setPollingJobId(null);
+            info("Job search complete!", "Your job queue has been updated.");
+            await fetchJobQueue(); // Refresh the queue with new jobs
+          } else if (statusData.status === 'failed') {
+            clearInterval(interval);
+            setPollingJobId(null);
+            setError({ message: 'Job search failed during processing.' });
+            setQueueStatus('idle');
+          }
+          // If still 'processing', do nothing and let the interval continue.
+        } catch (e: any) {
+          clearInterval(interval);
+          setPollingJobId(null);
+          setError({ message: `Failed to check job status: ${e.message}` });
+          setQueueStatus('idle');
+        }
+      }, 10000); // Poll every 10 seconds
+
+      return () => clearInterval(interval);
+    }, [pollingJobId, supabase, fetchJobQueue, info, searchQuery, selectedLocation]);
 
     // Apply all jobs (mark as applied) sequentially with simple progress + analytics events
     const applyAllJobs = useCallback(async () => {

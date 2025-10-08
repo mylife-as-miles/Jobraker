@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/types.ts';
-import { parseSalaryRangeToMinMax, inferSalaryMeta } from '../_shared/salary.ts';
 import { withRetry, resolveFirecrawlApiKey, firecrawlFetch } from '../_shared/firecrawl.ts';
 
 // Use the admin client for elevated privileges to delete/insert into the jobs table.
@@ -95,94 +94,13 @@ Deno.serve(async (req) => {
     if (!jobId) {
       throw new Error('Failed to start Firecrawl extract job.');
     }
+
     console.info('firecrawl.extract_started', { user_id: userId, query: searchQuery, location, jobId, prompt: extractPrompt, sources: userSources });
 
-    // Step 4: Poll for extract job status.
-    let extractStatus: any = {};
-    const maxAttempts = 40;
-    const delayMs = 8000;
-    for (let i = 0; i < maxAttempts; i++) {
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-      // Can't use firecrawlFetch here since it's a GET request
-      const statusRes = await fetch(`https://api.firecrawl.dev/v2/extract/${jobId}`, { headers: { Authorization: `Bearer ${firecrawlApiKey}` } });
-      if (!statusRes.ok) {
-        console.warn('firecrawl.extract_status_check_failed', { jobId, status: statusRes.status });
-        continue;
-      }
-      extractStatus = await statusRes.json();
-      if (extractStatus.status === 'completed' || extractStatus.status === 'failed') break;
-    }
-
-    if (extractStatus.status !== 'completed') {
-      console.error('firecrawl.extract_timeout', { user_id: userId, jobId });
-      throw new Error(`Extract job ${jobId} timed out or failed.`);
-    }
-
-    const extractedJobs = extractStatus.data?.jobs || [];
-    console.info('firecrawl.extract_complete', {
-      user_id: userId,
-      jobId,
-      jobs_found: extractedJobs.length,
+    return new Response(JSON.stringify({ success: true, jobId }), {
+      status: 202, // Accepted
+      headers: { ...corsHeaders, 'content-type': 'application/json' },
     });
-
-    // Step 5: Map scraped data and insert into the user's personal 'jobs' table.
-    if (extractedJobs.length > 0) {
-      const jobsToInsert = extractedJobs.map((job) => {
-        const salaryText = job.salaryRange || job.fullJobDescription || '';
-        const { min: salary_min, max: salary_max } = parseSalaryRangeToMinMax(salaryText);
-        const meta = inferSalaryMeta(salaryText);
-        return {
-          user_id: userId,
-          source_type: 'agentic_extract',
-          source_id: job.applyUrl || 'unknown', // Using applyUrl as a unique identifier
-          title: job.jobTitle,
-          company: job.companyName,
-          description: job.fullJobDescription,
-          location: job.location,
-          remote_type: job.workType,
-          apply_url: job.applyUrl,
-          posted_at: job.postedDate ? new Date(job.postedDate).toISOString() : new Date().toISOString(),
-          status: 'active',
-          raw_data: { ...job, _search_query: searchQuery, _search_location: location },
-          salary_min: salary_min,
-          salary_max: salary_max,
-          salary_currency: meta.currency || (salary_min || salary_max ? 'USD' : null),
-        };
-      });
-
-      if (clearExisting) {
-        let deleteQuery = supabaseAdmin
-          .from('jobs')
-          .delete()
-          .eq('user_id', userId)
-          .eq('raw_data->>_search_query', searchQuery);
-
-        if (location) {
-          deleteQuery = deleteQuery.eq('raw_data->>_search_location', location);
-        } else {
-          deleteQuery = deleteQuery.or('raw_data->>_search_location.is.null,raw_data->>_search_location.eq.');
-        }
-
-        const { error: deleteError } = await deleteQuery;
-
-        if (deleteError) {
-          console.error('jobs_clear_failed', { user_id: userId, error: deleteError.message });
-        }
-      }
-
-      const { error: insertError } = await supabaseAdmin.from('jobs')
-        .upsert(jobsToInsert, { onConflict: 'user_id,source_id' });
-      if (insertError) {
-        throw new Error(`Failed to insert new jobs: ${insertError.message}`);
-      }
-
-      return new Response(JSON.stringify({ success: true, jobs_added: jobsToInsert.length, cleared: clearExisting || false }), {
-        status: 200,
-        headers: { ...corsHeaders, 'content-type': 'application/json' },
-      });
-    }
-
-    return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_results_from_agent', jobs_found: 0 }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
 
   } catch (error) {
     if (error.message.includes('Firecrawl API key not found')) {
