@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
 
     // Step 3: Use FIRE-1 agentic extraction for personalized job sourcing.
     // Fetch user's job source preferences.
-    const { data: settings } = await supabaseAdmin.from('job_source_settings').select('allowed_domains').eq('user_id', userId).maybeSingle();
+    const { data: settings } = await supabaseAdmin.from('job_source_settings').select('allowed_domains').eq('id', userId).maybeSingle();
     const userSources = (settings?.allowed_domains || []).filter(Boolean).map(url => `${url.replace(/\/$/, '')}/*`);
 
     if (userSources.length === 0) {
