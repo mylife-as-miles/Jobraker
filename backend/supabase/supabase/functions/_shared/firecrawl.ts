@@ -67,26 +67,57 @@ async function resolveFirecrawlApiKey(
   throw new Error('No Firecrawl API key configured (header, user settings, or environment).');
 }
 
-// Centralized Firecrawl API call function
+// Centralized Firecrawl API call function with extensive logging for diagnostics
 async function firecrawlFetch(path: string, apiKey: string, body: any, userId?: string) {
   const url = `https://api.firecrawl.dev/v2${path}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify(body),
+  const headers = { 'content-type': 'application/json', Authorization: `Bearer ${apiKey}` };
+  const requestBody = JSON.stringify(body);
+
+  // Log the complete request details for debugging
+  console.log('--- Firecrawl API Request ---', {
+    timestamp: new Date().toISOString(),
+    userId,
+    url,
+    headers: { ...headers, Authorization: 'Bearer [REDACTED]' }, // Avoid logging the key
+    body: requestBody,
   });
 
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: headers,
+    body: requestBody,
+  });
+
+  const responseText = await res.text().catch(() => '');
+
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    const err = new Error(`Firecrawl ${path} failed: ${res.status} ${text}`);
+    // Log the complete error response for debugging
+    console.error('--- Firecrawl API Error Response ---', {
+      timestamp: new Date().toISOString(),
+      userId,
+      status: res.status,
+      statusText: res.statusText,
+      body: responseText,
+    });
+
+    const err = new Error(`Firecrawl ${path} failed: ${res.status} ${responseText}`);
     (err as any).status = res.status;
-    (err as any).body = text;
+    (err as any).body = responseText;
     if (res.status === 401) {
       console.error(`firecrawl.unauthorized`, { user_id: userId, path });
     }
     throw err;
   }
-  return res.json();
+
+  // Log the successful response for debugging purposes
+  console.log('--- Firecrawl API Success Response ---', {
+    timestamp: new Date().toISOString(),
+    userId,
+    status: res.status,
+    body: responseText,
+  });
+
+  return JSON.parse(responseText || '{}');
 }
 
 export { withRetry, resolveFirecrawlApiKey, firecrawlFetch };
