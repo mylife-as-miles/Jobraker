@@ -101,13 +101,16 @@ Deno.serve(async (req) => {
 
     const extractJob = await withRetry(() => firecrawlFetch('/extract', firecrawlApiKey, payload), 2, 600);
 
-    const jobId = extractJob?.jobId;
+    // The Firecrawl API returns the job identifier in the `id` field.
+    const jobId = extractJob?.id;
     if (!jobId) {
+      console.error('Firecrawl job started but no ID was returned.', { response: extractJob });
       throw new Error('Failed to start Firecrawl extract job.');
     }
 
     console.info('firecrawl.extract_started', { user_id: userId, query: searchQuery, location, jobId, prompt: extractPrompt, sources: userSources });
 
+    // Return the ID as `jobId` to match what the frontend and polling function expect.
     return new Response(JSON.stringify({ success: true, jobId }), {
       status: 202, // Accepted
       headers: { ...corsHeaders, 'content-type': 'application/json' },
