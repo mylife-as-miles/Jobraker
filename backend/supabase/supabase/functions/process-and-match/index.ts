@@ -73,22 +73,33 @@ Deno.serve(async (req) => {
 
     const extractPrompt = `For the role of "${searchQuery}" ${location ? `near "${location}"` : ''}, extract job posting details.`;
 
-    const extractJob = await withRetry(() => firecrawlFetch('/extract', firecrawlApiKey, {
+    const finalSchema = {
+      type: 'object',
+      properties: {
+        jobs: {
+          type: 'array',
+          items: jobSchema,
+        }
+      },
+      required: ['jobs'],
+    };
+
+    const payload = {
       urls: userSources,
       prompt: extractPrompt,
-      schema: {
-        type: 'object',
-        properties: {
-          jobs: {
-            type: 'array',
-            items: jobSchema,
-          }
-        },
-        required: ['jobs'],
-      },
+      schema: finalSchema,
       agent: { model: "FIRE-1" },
-      enableWebSearch: true
-    }), 2, 600);
+      enableWebSearch: true,
+      scrapeOptions: {
+        formats: [{
+          type: 'json',
+          prompt: extractPrompt,
+          schema: finalSchema,
+        }]
+      }
+    };
+
+    const extractJob = await withRetry(() => firecrawlFetch('/extract', firecrawlApiKey, payload), 2, 600);
 
     const jobId = extractJob?.jobId;
     if (!jobId) {
