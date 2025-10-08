@@ -10,7 +10,18 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 50
     } catch (e) {
       lastErr = e;
       if (i < attempts - 1) {
-        const delay = baseDelayMs * Math.pow(2, i);
+        let delay = baseDelayMs * Math.pow(2, i); // Default exponential backoff
+
+        // Check for rate limit error and respect retry-after header
+        if (e.status === 429 && e.message) {
+          const retryAfterMatch = e.message.match(/retry after (\d+)s/);
+          if (retryAfterMatch && retryAfterMatch[1]) {
+            const retryAfterSeconds = parseInt(retryAfterMatch[1], 10);
+            delay = retryAfterSeconds * 1000 + 500; // Use recommended delay + a small buffer
+            console.warn(`firecrawl.rate_limited`, { message: e.message, retry_delay_ms: delay });
+          }
+        }
+
         await new Promise((r) => setTimeout(r, delay));
       }
     }
