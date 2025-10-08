@@ -1,4 +1,5 @@
 import { Briefcase, Search, MapPin, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "../../../components/ui/button";
@@ -65,15 +66,15 @@ export const JobPage = (): JSX.Element => {
     const [selectedLocation, setSelectedLocation] = useState("Remote");
     const [selectedJob, setSelectedJob] = useState<string | null>(null);
     const [jobs, setJobs] = useState<Job[]>([]);
-  const [queueStatus, setQueueStatus] = useState<'idle' | 'loading' | 'populating' | 'ready' | 'empty'>('loading');
-  const [error, setError] = useState<string | null>(null);
-  const [lastReason, setLastReason] = useState<string | null>(null);
-  const [debugMode, setDebugMode] = useState(false);
+    const [queueStatus, setQueueStatus] = useState<'idle' | 'loading' | 'populating' | 'ready' | 'empty'>('loading');
+    const [error, setError] = useState<{ message: string, link?: string } | null>(null);
+    const [lastReason, setLastReason] = useState<string | null>(null);
+    const [debugMode, setDebugMode] = useState(false);
     const [logoError, setLogoError] = useState<Record<string, boolean>>({});
-  const [currentPage] = useState(1); // (Pagination placeholder; future enhancement)
+    const [currentPage] = useState(1); // (Pagination placeholder; future enhancement)
     const [pageSize] = useState(10);
-  const [applyingAll, setApplyingAll] = useState(false);
-  const [applyProgress, setApplyProgress] = useState({ done: 0, total: 0, success: 0, fail: 0 });
+    const [applyingAll, setApplyingAll] = useState(false);
+    const [applyProgress, setApplyProgress] = useState({ done: 0, total: 0, success: 0, fail: 0 });
 
     const { profile, loading: profileLoading } = useProfileSettings();
     const { info } = useToast();
@@ -83,7 +84,7 @@ export const JobPage = (): JSX.Element => {
         setError(null);
         try {
           const { data, error: fetchError } = await supabase.functions.invoke('get-jobs');
-          if (fetchError) throw fetchError;
+          if (fetchError) throw new Error(fetchError.message);
 
           const jobList = (data.jobs || []).map(mapDbJobToUiJob);
           setJobs(jobList);
@@ -96,7 +97,7 @@ export const JobPage = (): JSX.Element => {
           }
           return jobList; // Return the list for chaining
         } catch (e: any) {
-          setError(e.message);
+          setError({ message: e.message });
           setQueueStatus('idle');
           return []; // Return empty array on error
         }
@@ -108,7 +109,7 @@ export const JobPage = (): JSX.Element => {
         setLastReason(null);
 
         // Helper to map backend reason codes to human-friendly messages
-  const explainReason = (reason: string | null): string | null => {
+        const explainReason = (reason: string | null): string | null => {
           if (!reason) return null;
             switch (reason) {
               case 'no_sources':
@@ -132,22 +133,19 @@ export const JobPage = (): JSX.Element => {
                 debug: debugMode || attemptedRelax // enable prompt/sample logging if user toggle or retry
               },
             });
-            if (processError) throw processError;
+            if (processError) throw new Error(processError.message);
 
-            // Server-level error (e.g., deep_research_failed)
+            // Server-level error (e.g., missing_api_key)
             if (processData?.error) {
               const errCode = processData.error;
-              if (errCode === 'deep_research_failed') {
-                const detail: string = processData.detail || '';
-                let advisory = 'Live discovery failed. Please try again shortly.';
-                if (/429/.test(detail)) advisory = 'Rate limited by data provider. Wait a moment and retry.';
-                else if (/402|quota|credit|limit/i.test(detail)) advisory = 'Likely out of provider credits. Check Firecrawl quota.';
-                else if (/401/.test(detail)) advisory = 'Invalid or revoked Firecrawl API key. Update key in settings.';
-                setError(advisory);
+              const detail = processData.detail || 'An unknown error occurred.';
+              if (errCode === 'missing_api_key') {
+                setError({ message: detail, link: '/dashboard/settings' });
               } else {
-                setError(`Job discovery failed: ${errCode}`);
+                setError({ message: `Job discovery failed: ${detail}` });
               }
-              break; // stop attempts
+              setQueueStatus('idle');
+              break;
             }
 
             if (processData?.success) {
@@ -156,28 +154,34 @@ export const JobPage = (): JSX.Element => {
               }
               const reason = processData.reason || null;
               setLastReason(reason);
+
+              if (reason === 'no_job_sources_configured') {
+                setError({ message: 'No job sources configured.', link: '/dashboard/settings' });
+                setQueueStatus('idle');
+                return; // Exit completely, no need to fetch queue
+              }
+
               const explanation = explainReason(reason);
+              if (explanation) setError({ message: explanation });
+
               if (reason === 'no_structured_results' && !attemptedRelax) {
-                // show interim message but continue to retry with relaxed schema
-                if (explanation) setError(explanation);
                 attemptedRelax = true;
                 continue; // retry loop
               }
-              if (explanation) setError(explanation);
-              // no point retrying if reason is no_sources
               break;
             }
             // If neither success nor explicit error, break to avoid loop
             break;
           } catch (e: any) {
-            setError(`Failed to build job feed: ${e.message}`);
+            setError({ message: `Failed to build job feed: ${e.message}` });
+            setQueueStatus('idle');
             break;
           }
         }
 
         // Always refresh queue at the end to reflect any inserted jobs
         await fetchJobQueue();
-    }, [supabase, fetchJobQueue]);
+    }, [supabase, fetchJobQueue, debugMode]);
 
     // Apply all jobs (mark as applied) sequentially with simple progress + analytics events
     const applyAllJobs = useCallback(async () => {
@@ -362,7 +366,16 @@ export const JobPage = (): JSX.Element => {
                 </div>
               )}
 
-              {error && <Card className="border-red-500/30 bg-red-500/10 text-red-200 p-4">{error}</Card>}
+              {error && (
+                <Card className="border-red-500/30 bg-red-500/10 text-red-200 p-4 flex items-center justify-between">
+                  <span>{error.message}</span>
+                  {error.link && (
+                    <Link to={error.link} className="underline font-bold ml-4 whitespace-nowrap">
+                      Go to Settings
+                    </Link>
+                  )}
+                </Card>
+              )}
               {applyingAll && (
                 <Card className="border border-[#1dff00]/30 bg-[#1dff00]/10 text-[#1dff00] p-3 text-sm flex items-center justify-between">
                   <span>Auto applying jobs...</span>
