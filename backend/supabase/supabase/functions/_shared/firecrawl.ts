@@ -58,7 +58,7 @@ async function resolveFirecrawlApiKey(
 
 // Centralized Firecrawl API call function
 async function firecrawlFetch(path: string, apiKey: string, body: any, userId?: string) {
-  const url = `https://api.firecrawl.dev${path}`;
+  const url = `https://api.firecrawl.dev/v2${path}`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json', Authorization: `Bearer ${apiKey}` },
