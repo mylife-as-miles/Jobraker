@@ -124,7 +124,7 @@ export const SettingsPage = (): JSX.Element => {
         const { data: rows, error } = await (supabase as any)
           .from('job_source_settings')
           .select('sources')
-          .eq('user_id', uid)
+          .eq('id', uid)
           .maybeSingle();
         if (!error && rows && Array.isArray((rows as any).sources)) {
           setJobSources((rows as any).sources);
@@ -1281,10 +1281,10 @@ export const SettingsPage = (): JSX.Element => {
                       const { data: auth } = await supabase.auth.getUser();
                       const uid = (auth as any)?.user?.id;
                       if (!uid) { toastError('Not signed in', ''); return; }
-                      const payload = { user_id: uid, sources: jobSources } as any;
+                      const payload = { id: uid, sources: jobSources } as any;
                       const { error } = await (supabase as any)
                         .from('job_source_settings')
-                        .upsert(payload, { onConflict: 'user_id' });
+                        .upsert(payload, { onConflict: 'id' });
                       if (error) throw error;
                       try { localStorage.setItem('jobSources', JSON.stringify(jobSources)); } catch { /* ignore */ }
                       success('Job sources saved', 'Your job source configuration has been updated successfully');
