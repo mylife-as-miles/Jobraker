@@ -123,11 +123,11 @@ export const JobPage = (): JSX.Element => {
 
         if (settingsError) throw settingsError;
 
-        const urls = settings?.allowed_domains || [];
+        let urls = settings?.allowed_domains || [];
         if (urls.length === 0) {
-          setError({ message: 'No job sources configured.', link: '/dashboard/settings' });
-          setQueueStatus('idle');
-          return;
+          // If no sources are configured, use Remotive as a default fallback.
+          info("No job sources configured. Using Remotive as a default.", "You can configure sources in settings.");
+          urls = ['https://remotive.com'];
         }
 
         // Invoke the backend function with the required payload
