@@ -48,27 +48,47 @@ Deno.serve(async (req) => {
     const headerKey = req.headers.get('x-firecrawl-api-key');
     const firecrawlApiKey = await resolveFirecrawlApiKey(supabaseAdmin, userId, headerKey);
 
-    // Step 3: Perform the deep research and scraping with Firecrawl (defer deletion until success)
-    const locText = location ? ` in ${location}` : '';
+    // Step 3: Perform deep research with a fallback for broader results.
     const typeText = types.length ? `\n• Prefer work type: ${types.join(', ')}` : '';
-    const buildPrompt = (q: string) => `Find current job opportunities for: ${q}${locText}.${typeText}`;
+    const buildPrompt = (q: string, withLocation: boolean) => {
+      const locText = withLocation && location ? ` in ${location}` : '';
+      return `Find current job opportunities for: ${q}${locText}.${typeText}`;
+    };
 
     const firecrawlParams = { maxDepth: 3, timeLimit: 90, maxUrls: 20 };
     let deepResearchData: any = null;
-    try {
-      const deepResearchResp: any = await withRetry(() => firecrawlFetch('/v1/deep-research', firecrawlApiKey, { query: buildPrompt(searchQuery), ...firecrawlParams }), 2, 600);
-      deepResearchData = deepResearchResp?.data || deepResearchResp;
-    } catch (e: any) {
-      const status = e?.status;
-      if (status === 401) {
-        console.error('firecrawl.deep_research_unauthorized', { user_id: userId });
-        return new Response(JSON.stringify({ error: 'firecrawl_unauthorized', detail: 'Firecrawl rejected the API key (401). Rotate or supply a valid key.' }), { status: 502, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    let sources: any[] = [];
+    let usedFallback = false;
+    let initialPrompt = buildPrompt(searchQuery, true);
+
+    const performResearch = async (prompt: string) => {
+      try {
+        const resp: any = await withRetry(() => firecrawlFetch('/v1/deep-research', firecrawlApiKey, { query: prompt, ...firecrawlParams }), 2, 600);
+        return resp?.data || resp;
+      } catch (e: any) {
+        const status = e?.status;
+        if (status === 401) {
+          console.error('firecrawl.deep_research_unauthorized', { user_id: userId });
+          throw new Response(JSON.stringify({ error: 'firecrawl_unauthorized', detail: 'Firecrawl rejected the API key (401). Rotate or supply a valid key.' }), { status: 502, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+        }
+        console.error('firecrawl.deep_research_error', { user_id: userId, message: e?.message, prompt });
+        throw new Response(JSON.stringify({ error: 'deep_research_failed', detail: e?.message }), { status: 502, headers: { ...corsHeaders, 'content-type': 'application/json' } });
       }
-      console.error('firecrawl.deep_research_error', { user_id: userId, message: e?.message });
-      return new Response(JSON.stringify({ error: 'deep_research_failed', detail: e?.message }), { status: 502, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    };
+
+    // Attempt 1: Specific search with location.
+    deepResearchData = await performResearch(initialPrompt);
+    sources = Array.isArray(deepResearchData?.sources) ? deepResearchData.sources : [];
+
+    // Attempt 2: Fallback to a broader search if the first yielded no results.
+    if (sources.length === 0 && location) {
+      usedFallback = true;
+      console.info('firecrawl.deep_research_fallback', { user_id: userId, query: searchQuery, location });
+      const fallbackPrompt = buildPrompt(searchQuery, false);
+      deepResearchData = await performResearch(fallbackPrompt);
+      sources = Array.isArray(deepResearchData?.sources) ? deepResearchData.sources : [];
     }
 
-    const sources = Array.isArray(deepResearchData?.sources) ? deepResearchData.sources : [];
     const scrapedUrls = sources
       .map((s: any) => s?.url || s?.link || s?.source_url || s?.page_url)
       .filter((u: any) => typeof u === 'string')
@@ -81,14 +101,15 @@ Deno.serve(async (req) => {
       location,
       types,
       params: firecrawlParams,
+      used_fallback: usedFallback,
       raw_source_count: sources.length,
       unique_url_count: scrapedUrls.length,
       sample_sources: debug ? sources.slice(0,3) : undefined,
-      prompt: debug ? buildPrompt(searchQuery) : undefined,
+      prompt: debug ? (usedFallback ? buildPrompt(searchQuery, false) : initialPrompt) : undefined,
     });
 
     if (!scrapedUrls.length) {
-      return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_sources', raw_source_count: sources.length }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+      return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_sources', raw_source_count: sources.length, used_fallback: usedFallback }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
     // Step 4: Scrape structured data from the found URLs.
@@ -138,7 +159,7 @@ Deno.serve(async (req) => {
           apply_url: sourceUrl,
           posted_at: data.postedDate ? new Date(data.postedDate).toISOString() : new Date().toISOString(),
           status: 'active',
-          raw_data: data,
+          raw_data: { ...data, _search_query: searchQuery, _search_location: location, _search_used_fallback: usedFallback },
           salary_min: salary_min,
           salary_max: salary_max,
           salary_currency: meta.currency || (salary_min || salary_max ? 'USD' : null),
@@ -146,7 +167,21 @@ Deno.serve(async (req) => {
       });
 
       if (clearExisting) {
-        const { error: deleteError } = await supabaseAdmin.from('jobs').delete().eq('user_id', userId);
+        let deleteQuery = supabaseAdmin
+          .from('jobs')
+          .delete()
+          .eq('user_id', userId)
+          .eq('source_type', 'deepresearch')
+          .eq('raw_data->>_search_query', searchQuery);
+
+        if (location) {
+          deleteQuery = deleteQuery.eq('raw_data->>_search_location', location);
+        } else {
+          deleteQuery = deleteQuery.or('raw_data->>_search_location.is.null,raw_data->>_search_location.eq.');
+        }
+
+        const { error: deleteError } = await deleteQuery;
+
         if (deleteError) {
           console.error('jobs_clear_failed', { user_id: userId, error: deleteError.message });
         }
