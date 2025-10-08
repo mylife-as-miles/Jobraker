@@ -10,6 +10,7 @@ export const JobSourceSettings = () => {
   const [includeLinkedIn, setIncludeLinkedIn] = useState(true);
   const [includeIndeed, setIncludeIndeed] = useState(true);
   const [includeSearch, setIncludeSearch] = useState(true);
+  const [firecrawlApiKey, setFirecrawlApiKey] = useState('');
   const [saving, setSaving] = useState(false);
   const [enabledSources, setEnabledSources] = useState<string[]>(['deepresearch','remotive','remoteok','arbeitnow']);
   const [allowedDomains, setAllowedDomains] = useState<string>('');
@@ -29,13 +30,14 @@ export const JobSourceSettings = () => {
         if (!uid) { setLoading(false); return; }
         const { data } = await (supabase as any)
           .from('job_source_settings')
-          .select('include_linkedin, include_indeed, include_search, enabled_sources, allowed_domains')
+          .select('include_linkedin, include_indeed, include_search, enabled_sources, allowed_domains, firecrawl_api_key')
           .eq('id', uid)
           .maybeSingle();
         if (data) {
           setIncludeLinkedIn(Boolean(data.include_linkedin));
           setIncludeIndeed(Boolean(data.include_indeed));
           setIncludeSearch(Boolean(data.include_search));
+          if (data.firecrawl_api_key) setFirecrawlApiKey(data.firecrawl_api_key);
           if (Array.isArray(data.enabled_sources)) setEnabledSources(data.enabled_sources);
           if (Array.isArray(data.allowed_domains)) setAllowedDomains(data.allowed_domains.join(','));
         }
@@ -57,6 +59,7 @@ export const JobSourceSettings = () => {
           include_linkedin: includeLinkedIn,
           include_indeed: includeIndeed,
           include_search: includeSearch,
+          firecrawl_api_key: firecrawlApiKey,
       enabled_sources: enabledSources,
       allowed_domains: allowedDomains.split(',').map(s => s.trim()).filter(Boolean),
           updated_at: new Date().toISOString(),
@@ -111,6 +114,18 @@ export const JobSourceSettings = () => {
           <div className="font-medium">Allowed Domains</div>
           <p className="text-sm text-muted-foreground">Comma-separated list to prefer/limit when scraping (e.g., careers.google.com, amazon.jobs)</p>
           <input className="w-full rounded-xl border border-input bg-background p-2 text-foreground placeholder:text-foreground/60" value={allowedDomains} onChange={(e) => setAllowedDomains(e.target.value)} placeholder="example.com, jobs.example.org" />
+        </div>
+
+        <div className="py-2 space-y-1">
+          <div className="font-medium">Firecrawl API Key</div>
+          <p className="text-sm text-muted-foreground">Required for Deep Research. Get yours at <a href="https://firecrawl.dev" target="_blank" rel="noopener noreferrer" className="underline">firecrawl.dev</a>.</p>
+          <input
+            type="password"
+            className="w-full rounded-xl border border-input bg-background p-2 text-foreground placeholder:text-foreground/60"
+            value={firecrawlApiKey}
+            onChange={(e) => setFirecrawlApiKey(e.target.value)}
+            placeholder="Enter your Firecrawl API key"
+          />
         </div>
 
         <Button variant="primary" onClick={save} disabled={saving || loading}>Save</Button>

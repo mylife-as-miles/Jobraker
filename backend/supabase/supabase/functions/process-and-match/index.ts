@@ -50,8 +50,8 @@ Deno.serve(async (req) => {
 
     // Step 3: Use FIRE-1 agentic extraction for personalized job sourcing.
     // Fetch user's job source preferences.
-    const { data: settings } = await supabaseAdmin.from('job_source_settings').select('sources').eq('user_id', userId).maybeSingle();
-    const userSources = (settings?.sources || []).map(s => s.url).filter(Boolean).map(url => `${url.replace(/\/$/, '')}/*`);
+    const { data: settings } = await supabaseAdmin.from('job_source_settings').select('allowed_domains').eq('user_id', userId).maybeSingle();
+    const userSources = (settings?.allowed_domains || []).filter(Boolean).map(url => `${url.replace(/\/$/, '')}/*`);
 
     if (userSources.length === 0) {
       return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_job_sources_configured' }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
@@ -185,6 +185,12 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_results_from_agent', jobs_found: 0 }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
 
   } catch (error) {
+    if (error.message.includes('Firecrawl API key not found')) {
+      return new Response(JSON.stringify({ error: 'missing_api_key', detail: error.message }), {
+        status: 400, // Bad Request, as the user needs to configure their key.
+        headers: { ...corsHeaders, 'content-type': 'application/json' },
+      });
+    }
     console.error('process-and-match error:', error.message);
     return new Response(JSON.stringify({ error: error.message || 'An unexpected error occurred.' }), {
       status: 500,
