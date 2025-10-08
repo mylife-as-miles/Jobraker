@@ -9,6 +9,11 @@ import { importPKCS8, SignJWT } from "https://esm.sh/jose@5.2.4";
 import { parseSalaryRangeToMinMax } from '../_shared/salary.ts';
 import { withRetry, resolveFirecrawlApiKey, firecrawlFetch } from '../_shared/firecrawl.ts';
 
+const supabaseAdmin = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+);
+
 type Job = {
   external_id: string;
   title: string;
@@ -188,14 +193,10 @@ async function fetchFromSources(): Promise<Job[]> {
 
 // Fetch jobs using a specific user's saved job_source_configs (enabled only)
 async function fetchFromSourcesForUser(userId: string): Promise<Job[]> {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY");
   const results: Job[] = [];
   let sources: { type: string; url?: string; query?: string; workType?: string[]; location?: string; salaryRange?: string; experienceLevel?: string; maxResults?: number }[] = [];
-  if (!supabaseUrl || !serviceKey) return results;
   try {
-    const sb = createClient(supabaseUrl, serviceKey);
-    const { data, error } = await sb
+    const { data, error } = await supabaseAdmin
       .from('job_source_configs')
       .select('sources')
       .eq('user_id', userId)
@@ -230,6 +231,7 @@ async function fetchFromSourcesForUser(userId: string): Promise<Job[]> {
           salaryRange: s.salaryRange || "",
           experienceLevel: s.experienceLevel || "",
           maxResults: s.maxResults || 15,
+          userId: userId,
         }));
       } else if (s.type === "json" && (s as any).url) {
         const r = await fetch((s as any).url, { headers: { accept: "application/json" } });
@@ -330,39 +332,30 @@ type DeepResearchConfig = {
   salaryRange?: string;
   experienceLevel?: string;
   maxResults?: number;
+  userId?: string; // Added to resolve API key correctly
 };
 
 async function fetchDeepResearchJobs(cfg: DeepResearchConfig): Promise<Job[]> {
-  const apiKey = Deno.env.get('FIRECRAWL_API_KEY');
-  if (!apiKey) {
-    console.warn('Skipping deepresearch source: FIRECRAWL_API_KEY not set');
-    return [];
-  }
-
-  // Build filter criteria string similar to inspiration
-  let filterCriteria = '';
-  if (cfg.workType && cfg.workType.length) filterCriteria += `\nWork Type: ${cfg.workType.join(' or ')}`;
-  if (cfg.location) filterCriteria += `\nLocation: ${cfg.location}`;
-  if (cfg.salaryRange) filterCriteria += `\nSalary Range: ${cfg.salaryRange}`;
-  if (cfg.experienceLevel) filterCriteria += `\nExperience Level: ${cfg.experienceLevel}`;
-
-  const deepQuery = `Find and return current, individual job postings that match this search: ${cfg.query}.\nStrict Rules:\n• Only return jobs posted within the last 90 days.\n• Only include direct individual job postings (not job search result pages).\n• Exclude LinkedIn job links completely.\n• Ignore pages about salary info or generic career advice.\n${filterCriteria ? `\nUse these filters to narrow results:${filterCriteria}` : ''}`;
-
-  const body = { query: deepQuery, maxDepth: 4, timeLimit: 120, maxUrls: cfg.maxResults || 15 } as any;
-
   try {
-    const res = await fetch('https://api.firecrawl.dev/v1/deep-research', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(`firecrawl deep-research ${res.status}: ${txt}`);
+    const apiKey = await resolveFirecrawlApiKey(supabaseAdmin, cfg.userId);
+    if (!apiKey) {
+      console.warn('Skipping deepresearch source: FIRECRAWL_API_KEY not set for user or env', { userId: cfg.userId });
+      return [];
     }
-    const json = await res.json();
-    const data = (json && (json as any).data) || {};
-    const sources = Array.isArray(data.sources) ? data.sources : [];
+
+    let filterCriteria = '';
+    if (cfg.workType && cfg.workType.length) filterCriteria += `\nWork Type: ${cfg.workType.join(' or ')}`;
+    if (cfg.location) filterCriteria += `\nLocation: ${cfg.location}`;
+    if (cfg.salaryRange) filterCriteria += `\nSalary Range: ${cfg.salaryRange}`;
+    if (cfg.experienceLevel) filterCriteria += `\nExperience Level: ${cfg.experienceLevel}`;
+
+    const deepQuery = `Find and return current, individual job postings that match this search: ${cfg.query}.\nStrict Rules:\n• Only return jobs posted within the last 90 days.\n• Only include direct individual job postings (not job search result pages).\n• Exclude LinkedIn job links completely.\n• Ignore pages about salary info or generic career advice.\n${filterCriteria ? `\nUse these filters to narrow results:${filterCriteria}` : ''}`;
+
+    const body = { query: deepQuery, maxDepth: 4, timeLimit: 120, maxUrls: cfg.maxResults || 15 };
+
+    const deepResearchResp = await withRetry(() => firecrawlFetch('/v1/deep-research', apiKey, body, cfg.userId), 2, 600);
+    const deepResearchData = deepResearchResp?.data || deepResearchResp;
+    const sources = Array.isArray(deepResearchData?.sources) ? deepResearchData.sources : [];
 
     const jobs: Job[] = [];
     for (const src of sources) {
@@ -381,7 +374,7 @@ async function fetchDeepResearchJobs(cfg: DeepResearchConfig): Promise<Job[]> {
       const salaryText = src?.salaryRange || src?.salary || '';
       const { min: salary_min, max: salary_max } = parseSalaryRangeToMinMax(salaryText);
       const work_type = (cfg.workType && cfg.workType[0]) || (loc && /remote/i.test(String(loc)) ? 'Remote' : null);
-      // infer salary period/currency from snippet text
+
       const inferMeta = (text?: string) => {
         const t = String(text || '').toLowerCase();
         const periodRe = /(per\s+)?(hour|hr|day|week|wk|month|mo|year|yr|annum)/i;
@@ -407,14 +400,13 @@ async function fetchDeepResearchJobs(cfg: DeepResearchConfig): Promise<Job[]> {
         salary_min,
         salary_max,
         work_type,
-        // meta not persisted to DB but available in payload if needed downstream
         ...(meta.period ? { salary_period: meta.period } : {}),
         ...(meta.currency ? { salary_currency: meta.currency } : {}),
       });
     }
     return jobs;
   } catch (e) {
-    console.error('Deep research fetch error', e);
+    console.error('Deep research fetch error', { userId: cfg.userId, query: cfg.query, error: e?.message });
     return [];
   }
 }
@@ -604,14 +596,7 @@ try {
     // @ts-ignore - Deno.cron is available in Supabase Edge Runtime
     Deno.cron("jobs-cron", cronExpr, async () => {
       try {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL");
-        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY");
-        if (!supabaseUrl || !serviceKey) {
-          await handler(new Request("http://local/cron"));
-          return;
-        }
-        const sb = createClient(supabaseUrl, serviceKey);
-        const { data: rows, error } = await sb
+        const { data: rows, error } = await supabaseAdmin
           .from('job_source_settings')
           .select('id, cron_enabled')
           .eq('cron_enabled', true);
