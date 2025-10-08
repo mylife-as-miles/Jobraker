@@ -122,7 +122,7 @@ export const SettingsPage = (): JSX.Element => {
         const uid = (auth as any)?.user?.id;
         if (!uid) return;
         const { data: rows, error } = await (supabase as any)
-          .from('job_source_configs')
+          .from('job_source_settings')
           .select('sources')
           .eq('user_id', uid)
           .maybeSingle();
@@ -1283,7 +1283,7 @@ export const SettingsPage = (): JSX.Element => {
                       if (!uid) { toastError('Not signed in', ''); return; }
                       const payload = { user_id: uid, sources: jobSources } as any;
                       const { error } = await (supabase as any)
-                        .from('job_source_configs')
+                        .from('job_source_settings')
                         .upsert(payload, { onConflict: 'user_id' });
                       if (error) throw error;
                       try { localStorage.setItem('jobSources', JSON.stringify(jobSources)); } catch { /* ignore */ }
