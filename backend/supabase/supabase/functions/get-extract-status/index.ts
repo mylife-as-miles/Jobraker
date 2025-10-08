@@ -55,21 +55,23 @@ Deno.serve(async (req) => {
       console.info('firecrawl.extract_complete', { userId, jobId, jobs_found: extractedJobs.length });
 
       if (extractedJobs.length > 0) {
+        // The schema from the API is now simpler: { title, company, location, link }
         const jobsToInsert = extractedJobs.map((job) => {
-          const salaryText = job.salaryRange || job.fullJobDescription || '';
-          const { min: salary_min, max: salary_max } = parseSalaryRangeToMinMax(salaryText);
-          const meta = inferSalaryMeta(salaryText);
+          // Since the new schema is simpler, we have less data to parse for salary.
+          // We can enhance this later if needed.
+          const { min: salary_min, max: salary_max } = parseSalaryRangeToMinMax(job.title || '');
+          const meta = inferSalaryMeta(job.title || '');
           return {
             user_id: userId,
             source_type: 'agentic_extract',
-            source_id: job.applyUrl || `agentic-${jobId}-${Math.random()}`,
-            title: job.jobTitle,
-            company: job.companyName,
-            description: job.fullJobDescription,
+            source_id: job.link || `agentic-${jobId}-${Math.random()}`,
+            title: job.title,
+            company: job.company,
+            description: `Job found for query: "${searchQuery}". Location: ${job.location || 'N/A'}.`, // Placeholder description
             location: job.location,
-            remote_type: job.workType,
-            apply_url: job.applyUrl,
-            posted_at: job.postedDate ? new Date(job.postedDate).toISOString() : new Date().toISOString(),
+            remote_type: (job.location || '').toLowerCase().includes('remote') ? 'Remote' : 'On-site', // Simple inference
+            apply_url: job.link,
+            posted_at: new Date().toISOString(),
             status: 'active',
             raw_data: { ...job, _search_query: searchQuery, _search_location: searchLocation },
             salary_min,

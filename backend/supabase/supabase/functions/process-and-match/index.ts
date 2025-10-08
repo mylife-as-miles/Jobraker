@@ -37,7 +37,8 @@ Deno.serve(async (req) => {
   const types = Array.isArray(body?.type) ? body.type : (typeof body?.type === 'string' ? [body.type] : []);
   const debug = Boolean(body?.debug);
   const clearExisting = Boolean(body?.clearExisting);
-  const relaxSchema = Boolean(body?.relaxSchema);
+  // The `debug` flag from the frontend will now control schema relaxation.
+  const relaxSchema = Boolean(body?.debug);
 
     if (!searchQuery) {
         return new Response(JSON.stringify({ error: 'Search query is required.' }), { status: 400, headers: { ...corsHeaders, 'content-type': 'application/json' } });
@@ -73,30 +74,41 @@ Deno.serve(async (req) => {
 
     const extractPrompt = `For the role of "${searchQuery}" ${location ? `near "${location}"` : ''}, extract job posting details.`;
 
+    // This new schema and payload structure is based directly on the user's working curl example.
     const finalSchema = {
       type: 'object',
       properties: {
+        // The agent should return an array of jobs.
         jobs: {
           type: 'array',
-          items: jobSchema,
-        }
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              company: { type: 'string' },
+              location: { type: 'string' },
+              link: { type: 'string' },
+            },
+            required: ['title', 'company'],
+          },
+        },
       },
       required: ['jobs'],
     };
 
     const payload = {
       urls: userSources,
-      prompt: extractPrompt,
+      prompt: `For the role of "${searchQuery}" ${location ? `near "${location}"` : ''}, find and extract job listings. For each job, include the job title, company name, location, and a direct application link if available.`,
       schema: finalSchema,
       agent: { model: "FIRE-1" },
       enableWebSearch: true,
+      showSources: true,
       scrapeOptions: {
-        formats: [{
-          type: 'json',
-          prompt: extractPrompt,
-          schema: finalSchema,
-        }]
-      }
+        formats: ['markdown'],
+        onlyMainContent: true,
+        blockAds: true,
+      },
+      ignoreInvalidURLs: true,
     };
 
     const extractJob = await withRetry(() => firecrawlFetch('/extract', firecrawlApiKey, payload), 2, 600);
