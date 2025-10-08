@@ -48,9 +48,9 @@ Deno.serve(async (req) => {
     const firecrawlApiKey = await resolveFirecrawlApiKey(supabaseAdmin, userId, headerKey);
 
     // Step 3: Use FIRE-1 agentic extraction for personalized job sourcing.
-    // Fetch user's job source preferences.
-    const { data: settings } = await supabaseAdmin.from('job_source_settings').select('allowed_domains').eq('id', userId).maybeSingle();
-    const userSources = (settings?.allowed_domains || []).filter(Boolean).map(url => `${url.replace(/\/$/, '')}/*`);
+    // The frontend should now provide the URLs directly in the payload.
+    const urls = Array.isArray(body?.urls) ? body.urls : [];
+    const userSources = urls.filter(Boolean).map(url => `${String(url).replace(/\/$/, '')}/*`);
 
     if (userSources.length === 0) {
       return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_job_sources_configured' }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });

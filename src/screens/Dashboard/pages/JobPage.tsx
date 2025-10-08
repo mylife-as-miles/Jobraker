@@ -111,8 +111,33 @@ export const JobPage = (): JSX.Element => {
       setPollingJobId(null);
 
       try {
+        // Get user and their configured job source URLs
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not authenticated.");
+
+        const { data: settings, error: settingsError } = await supabase
+          .from('job_source_settings')
+          .select('allowed_domains')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (settingsError) throw settingsError;
+
+        const urls = settings?.allowed_domains || [];
+        if (urls.length === 0) {
+          setError({ message: 'No job sources configured.', link: '/dashboard/settings' });
+          setQueueStatus('idle');
+          return;
+        }
+
+        // Invoke the backend function with the required payload
         const { data: processData, error: processError } = await supabase.functions.invoke('process-and-match', {
-          body: { searchQuery: query, location: location || 'Remote', debug: debugMode },
+          body: {
+            searchQuery: query,
+            location: location || 'Remote',
+            debug: debugMode,
+            urls: urls,
+          },
         });
 
         if (processError) throw new Error(processError.message);
