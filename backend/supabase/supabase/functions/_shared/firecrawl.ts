@@ -24,14 +24,12 @@ async function resolveFirecrawlApiKey(
   userId?: string,
   headerKey?: string
 ): Promise<string> {
-  // Priority 1: Use a key from the request header if provided.
   const trimmedHeaderKey = headerKey?.trim() || '';
   if (trimmedHeaderKey) {
     console.info('firecrawl.key_source', { user_id: userId, used: 'header' });
     return trimmedHeaderKey;
   }
 
-  // Priority 2: Use the key from the user's settings.
   if (userId) {
     try {
       const { data: settingsRow } = await supabaseAdmin
@@ -45,21 +43,25 @@ async function resolveFirecrawlApiKey(
       }
     } catch (e) {
       console.warn('firecrawl.key_lookup_failed', { user_id: userId, message: (e as any)?.message });
-      // Fall through to the error below.
     }
   }
 
-  // If no key is found from the user, throw a specific error.
-  console.error('firecrawl.key_missing_for_user', { user_id: userId });
-  throw new Error('Firecrawl API key not found. Please add your key in the Job Sources settings.');
+  const envKey = Deno.env.get('FIRECRAWL_API_KEY') || '';
+  if (envKey) {
+    console.info('firecrawl.key_source', { user_id: userId, used: 'env' });
+    return envKey;
+  }
+
+  console.error('firecrawl.key_missing', { user_id: userId });
+  throw new Error('No Firecrawl API key configured (header, user settings, or environment).');
 }
 
 // Centralized Firecrawl API call function
 async function firecrawlFetch(path: string, apiKey: string, body: any, userId?: string) {
-  const url = `https://api.firecrawl.dev/v2${path}`;
+  const url = `https://api.firecrawl.dev${path}`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
     body: JSON.stringify(body),
   });
 

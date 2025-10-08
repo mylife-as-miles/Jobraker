@@ -37,8 +37,8 @@ Deno.serve(async (req) => {
   const location = (body?.location || '').trim();
   const types = Array.isArray(body?.type) ? body.type : (typeof body?.type === 'string' ? [body.type] : []);
   const debug = Boolean(body?.debug);
-  const clearExisting = Boolean(body?.clearExisting);
-  const relaxSchema = Boolean(body?.relaxSchema);
+  const clearExisting = Boolean(body?.clearExisting); // Clear only after confirming new jobs
+  const relaxSchema = Boolean(body?.relaxSchema); // Less strict required fields for debugging
 
     if (!searchQuery) {
         return new Response(JSON.stringify({ error: 'Search query is required.' }), { status: 400, headers: { ...corsHeaders, 'content-type': 'application/json' } });
@@ -48,15 +48,50 @@ Deno.serve(async (req) => {
     const headerKey = req.headers.get('x-firecrawl-api-key');
     const firecrawlApiKey = await resolveFirecrawlApiKey(supabaseAdmin, userId, headerKey);
 
-    // Step 3: Use FIRE-1 agentic extraction for personalized job sourcing.
-    // Fetch user's job source preferences.
-    const { data: settings } = await supabaseAdmin.from('job_source_settings').select('allowed_domains').eq('user_id', userId).maybeSingle();
-    const userSources = (settings?.allowed_domains || []).filter(Boolean).map(url => `${url.replace(/\/$/, '')}/*`);
+    // Step 3: Perform the deep research and scraping with Firecrawl (defer deletion until success)
+    const locText = location ? ` in ${location}` : '';
+    const typeText = types.length ? `\n• Prefer work type: ${types.join(', ')}` : '';
+    const buildPrompt = (q: string) => `Find current job opportunities for: ${q}${locText}.${typeText}`;
 
-    if (userSources.length === 0) {
-      return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_job_sources_configured' }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    const firecrawlParams = { maxDepth: 3, timeLimit: 90, maxUrls: 20 };
+    let deepResearchData: any = null;
+    try {
+      const deepResearchResp: any = await withRetry(() => firecrawlFetch('/v1/deep-research', firecrawlApiKey, { query: buildPrompt(searchQuery), ...firecrawlParams }), 2, 600);
+      deepResearchData = deepResearchResp?.data || deepResearchResp;
+    } catch (e: any) {
+      const status = e?.status;
+      if (status === 401) {
+        console.error('firecrawl.deep_research_unauthorized', { user_id: userId });
+        return new Response(JSON.stringify({ error: 'firecrawl_unauthorized', detail: 'Firecrawl rejected the API key (401). Rotate or supply a valid key.' }), { status: 502, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+      }
+      console.error('firecrawl.deep_research_error', { user_id: userId, message: e?.message });
+      return new Response(JSON.stringify({ error: 'deep_research_failed', detail: e?.message }), { status: 502, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
+    const sources = Array.isArray(deepResearchData?.sources) ? deepResearchData.sources : [];
+    const scrapedUrls = sources
+      .map((s: any) => s?.url || s?.link || s?.source_url || s?.page_url)
+      .filter((u: any) => typeof u === 'string')
+      .map((u: string) => { try { const uo = new URL(u); uo.hash=''; return uo.toString(); } catch { return u.trim(); } })
+      .filter((u, i, arr) => arr.indexOf(u) === i);
+
+    console.info('firecrawl.deep_research', {
+      user_id: userId,
+      query: searchQuery,
+      location,
+      types,
+      params: firecrawlParams,
+      raw_source_count: sources.length,
+      unique_url_count: scrapedUrls.length,
+      sample_sources: debug ? sources.slice(0,3) : undefined,
+      prompt: debug ? buildPrompt(searchQuery) : undefined,
+    });
+
+    if (!scrapedUrls.length) {
+      return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_sources', raw_source_count: sources.length }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    }
+
+    // Step 4: Scrape structured data from the found URLs.
     const jobSchema = {
       type: 'object',
       properties: {
@@ -67,83 +102,43 @@ Deno.serve(async (req) => {
         fullJobDescription: { type: 'string' },
         postedDate: { type: 'string' },
         salaryRange: { type: 'string' },
-        applyUrl: { type: 'string' },
       },
       required: relaxSchema ? ['jobTitle','companyName'] : ['jobTitle','companyName','location','fullJobDescription'],
     };
 
-    const extractPrompt = `For the role of "${searchQuery}" ${location ? `near "${location}"` : ''}, extract job posting details.`;
+    const scrapePromises = scrapedUrls.map((url: string) =>
+      withRetry(() => firecrawlFetch('/v1/scrape', firecrawlApiKey, { url, pageOptions: { extractionSchema: jobSchema } }), 2, 500)
+        .then(res => ({ ...res, sourceUrl: url }))
+        .catch((err) => { if (debug) console.warn('scrape_failed', { url, err: err?.message }); return null; })
+    );
+    const scrapeResults = (await Promise.all(scrapePromises)).filter(res => res?.success && res?.data);
 
-    const extractJob = await withRetry(() => firecrawlFetch('/extract', firecrawlApiKey, {
-      urls: userSources,
-      prompt: extractPrompt,
-      schema: {
-        type: 'object',
-        properties: {
-          jobs: {
-            type: 'array',
-            items: jobSchema,
-          }
-        },
-        required: ['jobs'],
-      },
-      agent: { model: "FIRE-1" },
-      enableWebSearch: true
-    }), 2, 600);
-
-    const jobId = extractJob?.jobId;
-    if (!jobId) {
-      throw new Error('Failed to start Firecrawl extract job.');
-    }
-    console.info('firecrawl.extract_started', { user_id: userId, query: searchQuery, location, jobId, prompt: extractPrompt, sources: userSources });
-
-    // Step 4: Poll for extract job status.
-    let extractStatus: any = {};
-    const maxAttempts = 40;
-    const delayMs = 8000;
-    for (let i = 0; i < maxAttempts; i++) {
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-      // Can't use firecrawlFetch here since it's a GET request
-      const statusRes = await fetch(`https://api.firecrawl.dev/v2/extract/${jobId}`, { headers: { Authorization: `Bearer ${firecrawlApiKey}` } });
-      if (!statusRes.ok) {
-        console.warn('firecrawl.extract_status_check_failed', { jobId, status: statusRes.status });
-        continue;
-      }
-      extractStatus = await statusRes.json();
-      if (extractStatus.status === 'completed' || extractStatus.status === 'failed') break;
-    }
-
-    if (extractStatus.status !== 'completed') {
-      console.error('firecrawl.extract_timeout', { user_id: userId, jobId });
-      throw new Error(`Extract job ${jobId} timed out or failed.`);
-    }
-
-    const extractedJobs = extractStatus.data?.jobs || [];
-    console.info('firecrawl.extract_complete', {
+    console.info('firecrawl.scrape_summary', {
       user_id: userId,
-      jobId,
-      jobs_found: extractedJobs.length,
+      attempted: scrapedUrls.length,
+      succeeded: scrapeResults.length,
+      relaxSchema,
     });
 
     // Step 5: Map scraped data and insert into the user's personal 'jobs' table.
-    if (extractedJobs.length > 0) {
-      const jobsToInsert = extractedJobs.map((job) => {
-        const salaryText = job.salaryRange || job.fullJobDescription || '';
+    if (scrapeResults.length > 0) {
+      const jobsToInsert = scrapeResults.map(({ data, sourceUrl }) => {
+        const salaryText = data.salaryRange || data.fullJobDescription || '';
         const { min: salary_min, max: salary_max } = parseSalaryRangeToMinMax(salaryText);
         const meta = inferSalaryMeta(salaryText);
         return {
           user_id: userId,
-          source_type: 'agentic_extract',
-          source_id: job.applyUrl || 'unknown', // Using applyUrl as a unique identifier
-          title: job.jobTitle,
-          company: job.companyName,
-          description: job.fullJobDescription,
-          location: job.location,
-          remote_type: job.workType,
-          apply_url: job.applyUrl,
-          posted_at: job.postedDate ? new Date(job.postedDate).toISOString() : new Date().toISOString(),
+          source_type: 'deepresearch',
+          source_id: sourceUrl,
+          title: data.jobTitle,
+          company: data.companyName,
+            description: data.fullJobDescription,
+          location: data.location,
+          remote_type: data.workType,
+          apply_url: sourceUrl,
+          posted_at: data.postedDate ? new Date(data.postedDate).toISOString() : new Date().toISOString(),
           status: 'active',
-          raw_data: { ...job, _search_query: searchQuery, _search_location: location },
+          raw_data: data,
           salary_min: salary_min,
           salary_max: salary_max,
           salary_currency: meta.currency || (salary_min || salary_max ? 'USD' : null),
@@ -151,25 +146,13 @@ Deno.serve(async (req) => {
       });
 
       if (clearExisting) {
-        let deleteQuery = supabaseAdmin
-          .from('jobs')
-          .delete()
-          .eq('user_id', userId)
-          .eq('raw_data->>_search_query', searchQuery);
-
-        if (location) {
-          deleteQuery = deleteQuery.eq('raw_data->>_search_location', location);
-        } else {
-          deleteQuery = deleteQuery.or('raw_data->>_search_location.is.null,raw_data->>_search_location.eq.');
-        }
-
-        const { error: deleteError } = await deleteQuery;
-
+        const { error: deleteError } = await supabaseAdmin.from('jobs').delete().eq('user_id', userId);
         if (deleteError) {
           console.error('jobs_clear_failed', { user_id: userId, error: deleteError.message });
         }
       }
 
+      // Upsert to avoid duplicate entries for the same source URL for this user (requires unique index on (user_id, source_id)).
       const { error: insertError } = await supabaseAdmin.from('jobs')
         .upsert(jobsToInsert, { onConflict: 'user_id,source_id' });
       if (insertError) {
@@ -182,15 +165,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_results_from_agent', jobs_found: 0 }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_structured_results', attempted: scrapedUrls.length }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
 
   } catch (error) {
-    if (error.message.includes('Firecrawl API key not found')) {
-      return new Response(JSON.stringify({ error: 'missing_api_key', detail: error.message }), {
-        status: 400, // Bad Request, as the user needs to configure their key.
-        headers: { ...corsHeaders, 'content-type': 'application/json' },
-      });
-    }
     console.error('process-and-match error:', error.message);
     return new Response(JSON.stringify({ error: error.message || 'An unexpected error occurred.' }), {
       status: 500,
