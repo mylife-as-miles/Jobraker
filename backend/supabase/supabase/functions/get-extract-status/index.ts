@@ -35,7 +35,10 @@ Deno.serve(async (req) => {
 
     const firecrawlApiKey = await resolveFirecrawlApiKey(supabaseAdmin, userId);
 
+    // Per the Firecrawl API documentation, checking the status of a job
+    // must be done via a GET request.
     const statusRes = await fetch(`https://api.firecrawl.dev/v2/extract/${jobId}`, {
+      method: 'GET',
       headers: { Authorization: `Bearer ${firecrawlApiKey}` },
     });
 
