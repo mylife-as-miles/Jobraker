@@ -61,7 +61,7 @@ async function firecrawlFetch(path: string, apiKey: string, body: any, userId?: 
   const url = `https://api.firecrawl.dev${path}`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
+    headers: { 'content-type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify(body),
   });
 
