@@ -48,71 +48,68 @@ Deno.serve(async (req) => {
     const headerKey = req.headers.get('x-firecrawl-api-key');
     const firecrawlApiKey = await resolveFirecrawlApiKey(supabaseAdmin, userId, headerKey);
 
-    // Step 3: Perform deep research with a fallback for broader results.
+    // Step 3: Perform a search with a fallback for broader results using Firecrawl v2.
     const typeText = types.length ? `\n• Prefer work type: ${types.join(', ')}` : '';
     const buildPrompt = (q: string, withLocation: boolean) => {
       const locText = withLocation && location ? ` in ${location}` : '';
       return `Find current job opportunities for: ${q}${locText}.${typeText}`;
     };
 
-    const firecrawlParams = { maxDepth: 3, timeLimit: 90, maxUrls: 20 };
-    let deepResearchData: any = null;
-    let sources: any[] = [];
+    const searchParams = { maxUrls: 20 };
+    let searchResults: any[] = [];
     let usedFallback = false;
     let initialPrompt = buildPrompt(searchQuery, true);
 
-    const performResearch = async (prompt: string) => {
+    const performSearch = async (prompt: string) => {
       try {
-        const resp: any = await withRetry(() => firecrawlFetch('/v1/deep-research', firecrawlApiKey, { query: prompt, ...firecrawlParams }), 2, 600);
-        return resp?.data || resp;
+        const resp: any = await withRetry(() => firecrawlFetch('/search', firecrawlApiKey, { query: prompt, ...searchParams }), 2, 600);
+        return resp?.data || [];
       } catch (e: any) {
         const status = e?.status;
         if (status === 401) {
-          console.error('firecrawl.deep_research_unauthorized', { user_id: userId });
+          console.error('firecrawl.search_unauthorized', { user_id: userId });
           throw new Response(JSON.stringify({ error: 'firecrawl_unauthorized', detail: 'Firecrawl rejected the API key (401). Rotate or supply a valid key.' }), { status: 502, headers: { ...corsHeaders, 'content-type': 'application/json' } });
         }
-        console.error('firecrawl.deep_research_error', { user_id: userId, message: e?.message, prompt });
-        throw new Response(JSON.stringify({ error: 'deep_research_failed', detail: e?.message }), { status: 502, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+        console.error('firecrawl.search_error', { user_id: userId, message: e?.message, prompt });
+        throw new Response(JSON.stringify({ error: 'search_failed', detail: e?.message }), { status: 502, headers: { ...corsHeaders, 'content-type': 'application/json' } });
       }
     };
 
     // Attempt 1: Specific search with location.
-    deepResearchData = await performResearch(initialPrompt);
-    sources = Array.isArray(deepResearchData?.sources) ? deepResearchData.sources : [];
+    searchResults = await performSearch(initialPrompt);
 
     // Attempt 2: Fallback to a broader search if the first yielded no results.
-    if (sources.length === 0 && location) {
+    if (searchResults.length === 0 && location) {
       usedFallback = true;
-      console.info('firecrawl.deep_research_fallback', { user_id: userId, query: searchQuery, location });
+      console.info('firecrawl.search_fallback', { user_id: userId, query: searchQuery, location });
       const fallbackPrompt = buildPrompt(searchQuery, false);
-      deepResearchData = await performResearch(fallbackPrompt);
-      sources = Array.isArray(deepResearchData?.sources) ? deepResearchData.sources : [];
+      searchResults = await performSearch(fallbackPrompt);
     }
 
-    const scrapedUrls = sources
+    const scrapedUrls = searchResults
       .map((s: any) => s?.url || s?.link || s?.source_url || s?.page_url)
       .filter((u: any) => typeof u === 'string')
       .map((u: string) => { try { const uo = new URL(u); uo.hash=''; return uo.toString(); } catch { return u.trim(); } })
       .filter((u, i, arr) => arr.indexOf(u) === i);
 
-    console.info('firecrawl.deep_research', {
+    console.info('firecrawl.search_complete', {
       user_id: userId,
       query: searchQuery,
       location,
       types,
-      params: firecrawlParams,
+      params: searchParams,
       used_fallback: usedFallback,
-      raw_source_count: sources.length,
+      raw_source_count: searchResults.length,
       unique_url_count: scrapedUrls.length,
-      sample_sources: debug ? sources.slice(0,3) : undefined,
+      sample_sources: debug ? searchResults.slice(0,3) : undefined,
       prompt: debug ? (usedFallback ? buildPrompt(searchQuery, false) : initialPrompt) : undefined,
     });
 
     if (!scrapedUrls.length) {
-      return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_sources', raw_source_count: sources.length, used_fallback: usedFallback }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+      return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_sources', raw_source_count: searchResults.length, used_fallback: usedFallback }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
-    // Step 4: Scrape structured data from the found URLs.
+    // Step 4: Scrape structured data from the found URLs using Firecrawl v2.
     const jobSchema = {
       type: 'object',
       properties: {
@@ -128,11 +125,14 @@ Deno.serve(async (req) => {
     };
 
     const scrapePromises = scrapedUrls.map((url: string) =>
-      withRetry(() => firecrawlFetch('/v1/scrape', firecrawlApiKey, { url, pageOptions: { extractionSchema: jobSchema } }), 2, 500)
+      withRetry(() => firecrawlFetch('/scrape', firecrawlApiKey, {
+        url,
+        formats: [{ type: 'json', schema: jobSchema }]
+      }), 2, 500)
         .then(res => ({ ...res, sourceUrl: url }))
         .catch((err) => { if (debug) console.warn('scrape_failed', { url, err: err?.message }); return null; })
     );
-    const scrapeResults = (await Promise.all(scrapePromises)).filter(res => res?.success && res?.data);
+    const scrapeResults = (await Promise.all(scrapePromises)).filter(res => res?.success && res?.data?.json);
 
     console.info('firecrawl.scrape_summary', {
       user_id: userId,
@@ -144,22 +144,23 @@ Deno.serve(async (req) => {
     // Step 5: Map scraped data and insert into the user's personal 'jobs' table.
     if (scrapeResults.length > 0) {
       const jobsToInsert = scrapeResults.map(({ data, sourceUrl }) => {
-        const salaryText = data.salaryRange || data.fullJobDescription || '';
+        const extractedData = data.json;
+        const salaryText = extractedData.salaryRange || extractedData.fullJobDescription || '';
         const { min: salary_min, max: salary_max } = parseSalaryRangeToMinMax(salaryText);
         const meta = inferSalaryMeta(salaryText);
         return {
           user_id: userId,
-          source_type: 'deepresearch',
+          source_type: 'deepresearch', // Keep source_type for consistency, though it's now v2/search
           source_id: sourceUrl,
-          title: data.jobTitle,
-          company: data.companyName,
-            description: data.fullJobDescription,
-          location: data.location,
-          remote_type: data.workType,
+          title: extractedData.jobTitle,
+          company: extractedData.companyName,
+          description: extractedData.fullJobDescription,
+          location: extractedData.location,
+          remote_type: extractedData.workType,
           apply_url: sourceUrl,
-          posted_at: data.postedDate ? new Date(data.postedDate).toISOString() : new Date().toISOString(),
+          posted_at: extractedData.postedDate ? new Date(extractedData.postedDate).toISOString() : new Date().toISOString(),
           status: 'active',
-          raw_data: { ...data, _search_query: searchQuery, _search_location: location, _search_used_fallback: usedFallback },
+          raw_data: { ...extractedData, _search_query: searchQuery, _search_location: location, _search_used_fallback: usedFallback },
           salary_min: salary_min,
           salary_max: salary_max,
           salary_currency: meta.currency || (salary_min || salary_max ? 'USD' : null),
