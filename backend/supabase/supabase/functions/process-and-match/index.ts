@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     // Step 3: Use FIRE-1 agentic extraction for personalized job sourcing.
     // The frontend should now provide the URLs directly in the payload.
     const urls = Array.isArray(body?.urls) ? body.urls : [];
-    const userSources = urls.filter(Boolean).map(url => `${String(url).replace(/\/$/, '')}/*`);
+    const userSources = urls.filter(Boolean).map(url => String(url).replace(/\/$/, ''));
 
     if (userSources.length === 0) {
       return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_job_sources_configured' }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
