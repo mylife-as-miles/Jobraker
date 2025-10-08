@@ -1492,7 +1492,6 @@ function DefaultsForm() {
   const [allowedDomains, setAllowedDomains] = useState<string>("");
   const [enabledSources, setEnabledSources] = useState<string[]>(["deepresearch","remotive","remoteok","arbeitnow"]);
   const [cronEnabled, setCronEnabled] = useState<boolean>(false);
-  const [lastFetchedAt, setLastFetchedAt] = useState<string | null>(null);
   // Test search helpers
   const [testQuery, setTestQuery] = useState<string>("software engineer");
   const [testLocation, setTestLocation] = useState<string>("Remote");
@@ -1509,7 +1508,7 @@ function DefaultsForm() {
         if (!uid) { setLoading(false); return; }
         const { data } = await (supabase as any)
           .from('job_source_settings')
-          .select('include_linkedin, include_indeed, include_search, allowed_domains, enabled_sources, cron_enabled, last_fetched_at')
+          .select('include_linkedin, include_indeed, include_search, allowed_domains, enabled_sources, cron_enabled')
           .eq('id', uid)
           .maybeSingle();
         if (data) {
@@ -1519,10 +1518,6 @@ function DefaultsForm() {
           if (Array.isArray(data.allowed_domains)) setAllowedDomains(data.allowed_domains.join(','));
           if (Array.isArray(data.enabled_sources)) setEnabledSources(data.enabled_sources);
           if (typeof (data as any).cron_enabled === 'boolean') setCronEnabled(!!(data as any).cron_enabled);
-          if ((data as any).last_fetched_at) setLastFetchedAt((data as any).last_fetched_at);
-        } else {
-          // Fallback to local last fetched timestamp if any
-          try { const lf = localStorage.getItem('jobsCron.lastFetchedAt'); if (lf) setLastFetchedAt(lf); } catch {}
         }
       } catch (e: any) { console.warn(e); }
       setLoading(false);
@@ -1570,15 +1565,6 @@ function DefaultsForm() {
       if (error) throw error;
       success('Job fetch started');
       console.log('jobs-cron result', data);
-      const ts = new Date().toISOString();
-      setLastFetchedAt(ts);
-      try { localStorage.setItem('jobsCron.lastFetchedAt', ts); } catch {}
-      // Best-effort: persist last_fetched_at if column exists
-      try {
-        await (supabase as any)
-          .from('job_source_settings')
-          .upsert({ id: uid, last_fetched_at: ts, updated_at: ts }, { onConflict: 'id' });
-      } catch { /* ignore */ }
     } catch (e: any) {
       toastError('Trigger failed', e.message);
     }
@@ -1635,9 +1621,6 @@ function DefaultsForm() {
           <input type="checkbox" checked={cronEnabled} onChange={(e) => setCronEnabled(e.target.checked)} disabled={loading} />
           Background Cron Enabled
         </label>
-        <div className="text-xs text-muted-foreground flex items-center">
-          Last fetched: {lastFetchedAt ? new Date(lastFetchedAt).toLocaleString() : '—'}
-        </div>
       </div>
       <div className="space-y-2">
         <div className="text-sm font-medium">Enabled Sources</div>
