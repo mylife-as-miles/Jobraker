@@ -37,8 +37,8 @@ Deno.serve(async (req) => {
   const location = (body?.location || '').trim();
   const types = Array.isArray(body?.type) ? body.type : (typeof body?.type === 'string' ? [body.type] : []);
   const debug = Boolean(body?.debug);
-  const clearExisting = Boolean(body?.clearExisting); // Clear only after confirming new jobs
-  const relaxSchema = Boolean(body?.relaxSchema); // Less strict required fields for debugging
+  const clearExisting = Boolean(body?.clearExisting);
+  const relaxSchema = Boolean(body?.relaxSchema);
 
     if (!searchQuery) {
         return new Response(JSON.stringify({ error: 'Search query is required.' }), { status: 400, headers: { ...corsHeaders, 'content-type': 'application/json' } });
@@ -48,68 +48,15 @@ Deno.serve(async (req) => {
     const headerKey = req.headers.get('x-firecrawl-api-key');
     const firecrawlApiKey = await resolveFirecrawlApiKey(supabaseAdmin, userId, headerKey);
 
-    // Step 3: Perform a search with a fallback for broader results using Firecrawl v2.
-    const typeText = types.length ? `\n• Prefer work type: ${types.join(', ')}` : '';
-    const buildPrompt = (q: string, withLocation: boolean) => {
-      const locText = withLocation && location ? ` in ${location}` : '';
-      return `Find current job opportunities for: ${q}${locText}.${typeText}`;
-    };
+    // Step 3: Use FIRE-1 agentic extraction for personalized job sourcing.
+    // Fetch user's job source preferences.
+    const { data: settings } = await supabaseAdmin.from('job_source_settings').select('sources').eq('user_id', userId).maybeSingle();
+    const userSources = (settings?.sources || []).map(s => s.url).filter(Boolean).map(url => `${url.replace(/\/$/, '')}/*`);
 
-    const searchParams = { maxUrls: 20 };
-    let searchResults: any[] = [];
-    let usedFallback = false;
-    let initialPrompt = buildPrompt(searchQuery, true);
-
-    const performSearch = async (prompt: string) => {
-      try {
-        const resp: any = await withRetry(() => firecrawlFetch('/search', firecrawlApiKey, { query: prompt, ...searchParams }), 2, 600);
-        return resp?.data || [];
-      } catch (e: any) {
-        const status = e?.status;
-        if (status === 401) {
-          console.error('firecrawl.search_unauthorized', { user_id: userId });
-          throw new Response(JSON.stringify({ error: 'firecrawl_unauthorized', detail: 'Firecrawl rejected the API key (401). Rotate or supply a valid key.' }), { status: 502, headers: { ...corsHeaders, 'content-type': 'application/json' } });
-        }
-        console.error('firecrawl.search_error', { user_id: userId, message: e?.message, prompt });
-        throw new Response(JSON.stringify({ error: 'search_failed', detail: e?.message }), { status: 502, headers: { ...corsHeaders, 'content-type': 'application/json' } });
-      }
-    };
-
-    // Attempt 1: Specific search with location.
-    searchResults = await performSearch(initialPrompt);
-
-    // Attempt 2: Fallback to a broader search if the first yielded no results.
-    if (searchResults.length === 0 && location) {
-      usedFallback = true;
-      console.info('firecrawl.search_fallback', { user_id: userId, query: searchQuery, location });
-      const fallbackPrompt = buildPrompt(searchQuery, false);
-      searchResults = await performSearch(fallbackPrompt);
+    if (userSources.length === 0) {
+      return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_job_sources_configured' }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
-    const scrapedUrls = searchResults
-      .map((s: any) => s?.url || s?.link || s?.source_url || s?.page_url)
-      .filter((u: any) => typeof u === 'string')
-      .map((u: string) => { try { const uo = new URL(u); uo.hash=''; return uo.toString(); } catch { return u.trim(); } })
-      .filter((u, i, arr) => arr.indexOf(u) === i);
-
-    console.info('firecrawl.search_complete', {
-      user_id: userId,
-      query: searchQuery,
-      location,
-      types,
-      params: searchParams,
-      used_fallback: usedFallback,
-      raw_source_count: searchResults.length,
-      unique_url_count: scrapedUrls.length,
-      sample_sources: debug ? searchResults.slice(0,3) : undefined,
-      prompt: debug ? (usedFallback ? buildPrompt(searchQuery, false) : initialPrompt) : undefined,
-    });
-
-    if (!scrapedUrls.length) {
-      return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_sources', raw_source_count: searchResults.length, used_fallback: usedFallback }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
-    }
-
-    // Step 4: Scrape structured data from the found URLs using Firecrawl v2.
     const jobSchema = {
       type: 'object',
       properties: {
@@ -120,47 +67,83 @@ Deno.serve(async (req) => {
         fullJobDescription: { type: 'string' },
         postedDate: { type: 'string' },
         salaryRange: { type: 'string' },
+        applyUrl: { type: 'string' },
       },
       required: relaxSchema ? ['jobTitle','companyName'] : ['jobTitle','companyName','location','fullJobDescription'],
     };
 
-    const scrapePromises = scrapedUrls.map((url: string) =>
-      withRetry(() => firecrawlFetch('/scrape', firecrawlApiKey, {
-        url,
-        formats: [{ type: 'json', schema: jobSchema }]
-      }), 2, 500)
-        .then(res => ({ ...res, sourceUrl: url }))
-        .catch((err) => { if (debug) console.warn('scrape_failed', { url, err: err?.message }); return null; })
-    );
-    const scrapeResults = (await Promise.all(scrapePromises)).filter(res => res?.success && res?.data?.json);
+    const extractPrompt = `For the role of "${searchQuery}" ${location ? `near "${location}"` : ''}, extract job posting details.`;
 
-    console.info('firecrawl.scrape_summary', {
+    const extractJob = await withRetry(() => firecrawlFetch('/extract', firecrawlApiKey, {
+      urls: userSources,
+      prompt: extractPrompt,
+      schema: {
+        type: 'object',
+        properties: {
+          jobs: {
+            type: 'array',
+            items: jobSchema,
+          }
+        },
+        required: ['jobs'],
+      },
+      agent: { model: "FIRE-1" },
+      enableWebSearch: true
+    }), 2, 600);
+
+    const jobId = extractJob?.jobId;
+    if (!jobId) {
+      throw new Error('Failed to start Firecrawl extract job.');
+    }
+    console.info('firecrawl.extract_started', { user_id: userId, query: searchQuery, location, jobId, prompt: extractPrompt, sources: userSources });
+
+    // Step 4: Poll for extract job status.
+    let extractStatus: any = {};
+    const maxAttempts = 40;
+    const delayMs = 8000;
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+      // Can't use firecrawlFetch here since it's a GET request
+      const statusRes = await fetch(`https://api.firecrawl.dev/v2/extract/${jobId}`, { headers: { Authorization: `Bearer ${firecrawlApiKey}` } });
+      if (!statusRes.ok) {
+        console.warn('firecrawl.extract_status_check_failed', { jobId, status: statusRes.status });
+        continue;
+      }
+      extractStatus = await statusRes.json();
+      if (extractStatus.status === 'completed' || extractStatus.status === 'failed') break;
+    }
+
+    if (extractStatus.status !== 'completed') {
+      console.error('firecrawl.extract_timeout', { user_id: userId, jobId });
+      throw new Error(`Extract job ${jobId} timed out or failed.`);
+    }
+
+    const extractedJobs = extractStatus.data?.jobs || [];
+    console.info('firecrawl.extract_complete', {
       user_id: userId,
-      attempted: scrapedUrls.length,
-      succeeded: scrapeResults.length,
-      relaxSchema,
+      jobId,
+      jobs_found: extractedJobs.length,
     });
 
     // Step 5: Map scraped data and insert into the user's personal 'jobs' table.
-    if (scrapeResults.length > 0) {
-      const jobsToInsert = scrapeResults.map(({ data, sourceUrl }) => {
-        const extractedData = data.json;
-        const salaryText = extractedData.salaryRange || extractedData.fullJobDescription || '';
+    if (extractedJobs.length > 0) {
+      const jobsToInsert = extractedJobs.map((job) => {
+        const salaryText = job.salaryRange || job.fullJobDescription || '';
         const { min: salary_min, max: salary_max } = parseSalaryRangeToMinMax(salaryText);
         const meta = inferSalaryMeta(salaryText);
         return {
           user_id: userId,
-          source_type: 'deepresearch', // Keep source_type for consistency, though it's now v2/search
-          source_id: sourceUrl,
-          title: extractedData.jobTitle,
-          company: extractedData.companyName,
-          description: extractedData.fullJobDescription,
-          location: extractedData.location,
-          remote_type: extractedData.workType,
-          apply_url: sourceUrl,
-          posted_at: extractedData.postedDate ? new Date(extractedData.postedDate).toISOString() : new Date().toISOString(),
+          source_type: 'agentic_extract',
+          source_id: job.applyUrl || 'unknown', // Using applyUrl as a unique identifier
+          title: job.jobTitle,
+          company: job.companyName,
+          description: job.fullJobDescription,
+          location: job.location,
+          remote_type: job.workType,
+          apply_url: job.applyUrl,
+          posted_at: job.postedDate ? new Date(job.postedDate).toISOString() : new Date().toISOString(),
           status: 'active',
-          raw_data: { ...extractedData, _search_query: searchQuery, _search_location: location, _search_used_fallback: usedFallback },
+          raw_data: { ...job, _search_query: searchQuery, _search_location: location },
           salary_min: salary_min,
           salary_max: salary_max,
           salary_currency: meta.currency || (salary_min || salary_max ? 'USD' : null),
@@ -172,7 +155,6 @@ Deno.serve(async (req) => {
           .from('jobs')
           .delete()
           .eq('user_id', userId)
-          .eq('source_type', 'deepresearch')
           .eq('raw_data->>_search_query', searchQuery);
 
         if (location) {
@@ -188,7 +170,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Upsert to avoid duplicate entries for the same source URL for this user (requires unique index on (user_id, source_id)).
       const { error: insertError } = await supabaseAdmin.from('jobs')
         .upsert(jobsToInsert, { onConflict: 'user_id,source_id' });
       if (insertError) {
@@ -201,7 +182,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_structured_results', attempted: scrapedUrls.length }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_results_from_agent', jobs_found: 0 }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
 
   } catch (error) {
     console.error('process-and-match error:', error.message);
