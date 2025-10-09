@@ -197,29 +197,17 @@ export const JobPage = (): JSX.Element => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("User not authenticated.");
 
-        // Support both schemas: some environments use job_source_settings.id = user_id (PK),
-        // others store a separate user_id column. Try user_id first, then id fallback.
+        // Read user job source settings keyed by primary id (no user_id column assumed)
         let settings: any = null;
         let urls: string[] = [];
-        const q1 = await supabase
+        const q = await supabase
           .from('job_source_settings')
           .select('allowed_domains')
-          .eq('user_id', user.id)
+          .eq('id', user.id)
           .maybeSingle();
-        // If the column doesn't exist or no row, try fallback path using id
-        if (q1.data) {
-          settings = q1.data;
-          urls = settings?.allowed_domains || [];
-        } else {
-          const q2 = await supabase
-            .from('job_source_settings')
-            .select('allowed_domains')
-            .eq('id', user.id)
-            .maybeSingle();
-          if (q2.error && q2.error.code !== 'PGRST116') throw q2.error;
-          settings = q2.data;
-          urls = settings?.allowed_domains || [];
-        }
+        if (q.error && q.error.code !== 'PGRST116') throw q.error;
+        settings = q.data;
+        urls = settings?.allowed_domains || [];
 
         if (urls.length === 0) {
           // If no sources are configured, use Remotive as a default fallback.
