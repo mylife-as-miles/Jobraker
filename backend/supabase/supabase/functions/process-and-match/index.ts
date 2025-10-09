@@ -101,7 +101,21 @@ Deno.serve(async (req) => {
       }
     };
 
-    const extractJob = await withRetry(() => firecrawlFetch('/extract', firecrawlApiKey, payload), 2, 600);
+    let extractJob: any;
+    try {
+      extractJob = await withRetry(() => firecrawlFetch('/extract', firecrawlApiKey, payload), 2, 600);
+    } catch (e: any) {
+      const msg = String(e?.message || '');
+      if (e?.status === 429 || /Rate limit exceeded/i.test(msg)) {
+        const retryAfterSeconds = typeof e?.retryAfterSeconds === 'number' ? e.retryAfterSeconds : 55;
+        console.warn('firecrawl.rate_limited', { message: msg, retry_after_seconds: retryAfterSeconds });
+        return new Response(JSON.stringify({ error: 'rate_limited', retryAfterSeconds }), {
+          status: 429,
+          headers: { ...corsHeaders, 'content-type': 'application/json' },
+        });
+      }
+      throw e;
+    }
 
     // The Firecrawl API returns the job identifier in the `id` field.
     const jobId = extractJob?.id;

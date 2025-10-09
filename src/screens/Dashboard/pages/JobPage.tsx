@@ -265,23 +265,16 @@ export const JobPage = (): JSX.Element => {
             setError({
               message: 'Firecrawl is not configured. Ask your admin to set FIRECRAWL_API_KEY in Supabase Function Secrets.',
             });
+          } else if (processData.error === 'rate_limited') {
+            const retrySec = Math.max(10, Math.min(120, Number(processData.retryAfterSeconds || 55)));
+            setError({ message: `Rate limited by Firecrawl. Retrying in ${retrySec}s…` });
+            // Global backoff: wait, then continue with the same index to retry rotation after cooldown
+            await new Promise((r) => setTimeout(r, retrySec * 1000));
           } else {
             const detail = processData.detail || 'An unknown error occurred.';
             setError({ message: `Failed to start job search: ${detail}` });
           }
-          // Track failure and maybe block this source; continue with next
-          setSourceFailures((prev) => {
-            const c = (prev[url] || 0) + 1;
-            const next = { ...prev, [url]: c };
-            if (c >= 2) setBlockedSources((s) => new Set([...Array.from(s), url]));
-            return next;
-          });
-          setNextUrlIndex((prev) => (prev + 1) % urls.length);
-          await startNextIncrementalJob(urls, nextIdx + 1, query, location);
-          return;
-        }
-        if (processData.reason === 'no_job_sources_configured') {
-          setError({ message: 'No job sources configured.', link: '/dashboard/settings' });
+          // Track failure and maybe block this source; continue with next (or after cooldown)
           setSourceFailures((prev) => {
             const c = (prev[url] || 0) + 1;
             const next = { ...prev, [url]: c };

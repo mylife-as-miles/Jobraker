@@ -51,9 +51,23 @@ async function firecrawlFetch(path: string, apiKey: string, body: any, userId?: 
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    const err = new Error(`Firecrawl ${path} failed: ${res.status} ${text}`);
+    const err = new Error(`Firecrawl ${path} failed: ${res.status} ${text}`) as any;
     (err as any).status = res.status;
     (err as any).body = text;
+    // Attach retry-after seconds if present in header or body
+    const hdr = res.headers.get('retry-after');
+    if (hdr) {
+      const secs = parseInt(hdr, 10);
+      if (!Number.isNaN(secs)) (err as any).retryAfterSeconds = secs;
+    }
+    // Try parsing seconds from body message pattern "retry after 55s"
+    if (!(err as any).retryAfterSeconds && text) {
+      const m = text.match(/retry after\s+(\d+)s/i);
+      if (m && m[1]) {
+        const secs = parseInt(m[1], 10);
+        if (!Number.isNaN(secs)) (err as any).retryAfterSeconds = secs;
+      }
+    }
     if (res.status === 401) {
       console.error(`firecrawl.unauthorized`, { user_id: userId, path });
     }
