@@ -78,6 +78,7 @@ export const JobPage = (): JSX.Element => {
   const [nextUrlIndex, setNextUrlIndex] = useState(0);
   const [baseJobIds, setBaseJobIds] = useState<Set<string>>(new Set());
   const [runInsertedIds, setRunInsertedIds] = useState<Set<string>>(new Set());
+  const [currentSource, setCurrentSource] = useState<string | null>(null);
     const [lastReason, setLastReason] = useState<string | null>(null);
     const [debugMode, setDebugMode] = useState(false);
     const [logoError, setLogoError] = useState<Record<string, boolean>>({});
@@ -135,7 +136,7 @@ export const JobPage = (): JSX.Element => {
 
     // Steps reflect phases; no cancel/try-different actions per request
 
-    const fetchJobQueue = useCallback(async () => {
+    const fetchJobQueue = useCallback(async (): Promise<Job[]> => {
         setQueueStatus('loading');
         setError(null);
         try {
@@ -234,6 +235,7 @@ export const JobPage = (): JSX.Element => {
             location,
             debug: debugMode,
             urls: [url],
+            limit: 1,
           },
         });
         if (processError) throw new Error(processError.message);
@@ -254,6 +256,11 @@ export const JobPage = (): JSX.Element => {
           setPollingJobId(processData.jobId);
           setQueueStatus('populating');
           setStepIndex(1); // Extracting
+          // Track current source host for UX
+          try {
+            const host = new URL(url).hostname.replace(/^www\./, '');
+            setCurrentSource(host);
+          } catch { setCurrentSource(url); }
           // Advance next URL index for future
           setNextUrlIndex((prev) => (prev + 1) % urls.length);
         } else {
@@ -274,7 +281,7 @@ export const JobPage = (): JSX.Element => {
       const interval = setInterval(async () => {
         try {
           const { data: statusData, error: statusError } = await supabase.functions.invoke('get-extract-status', {
-            body: { jobId: pollingJobId, searchQuery, searchLocation: selectedLocation },
+            body: { jobId: pollingJobId, searchQuery, searchLocation: selectedLocation, limit: incrementalMode ? 1 : undefined },
           });
 
           if (statusError) throw new Error(statusError.message);
@@ -289,16 +296,16 @@ export const JobPage = (): JSX.Element => {
             setStepIndex(2); // Inserting
             const newJobs = await fetchJobQueue(); // Refresh the queue with new jobs and get list
             // Compute newly inserted ids for this run based on snapshot
-            const newIds = new Set(newJobs.map(j => j.id));
+            const newIds = new Set<string>(newJobs.map((j: Job) => j.id));
             const newlyInserted: string[] = [];
-            newIds.forEach((id) => {
+            newIds.forEach((id: string) => {
               if (!baseJobIds.has(id) && !runInsertedIds.has(id)) newlyInserted.push(id);
             });
             if (newlyInserted.length > 0) {
               setInsertedThisRun((prev) => prev + newlyInserted.length);
               setRunInsertedIds((prev) => {
                 const updated = new Set(prev);
-                newlyInserted.forEach(id => updated.add(id));
+                newlyInserted.forEach((id: string) => updated.add(id));
                 return updated;
               });
             }
@@ -309,12 +316,14 @@ export const JobPage = (): JSX.Element => {
               if (reached) {
                 setIncrementalMode(false);
                 info("Job search complete!", `Found ${projected} results.`);
+                setCurrentSource(null);
                 return;
               }
               // Start next URL job
               await startNextIncrementalJob(runUrls, nextUrlIndex, searchQuery, selectedLocation || 'Remote');
             } else {
               info("Job search complete!", inserted ? "Your results have been updated." : "No structured results were found for this search.");
+              setCurrentSource(null);
             }
           } else if (statusData.status === 'failed') {
             clearInterval(interval);
@@ -323,6 +332,7 @@ export const JobPage = (): JSX.Element => {
             setError({ message: 'Job search failed during processing.' });
             setQueueStatus('idle');
             setIncrementalMode(false);
+            setCurrentSource(null);
           }
           // If still 'processing', do nothing and let the interval continue.
         } catch (e: any) {
@@ -342,6 +352,7 @@ export const JobPage = (): JSX.Element => {
       setIncrementalMode(false);
       setPollingJobId(null);
       setQueueStatus('ready');
+      setCurrentSource(null);
     }, []);
 
     // Apply all jobs (mark as applied) sequentially with simple progress + analytics events
@@ -464,6 +475,18 @@ export const JobPage = (): JSX.Element => {
               </div>
               <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
+                    <span>Target</span>
+                    <select
+                      value={targetCount}
+                      onChange={(e) => setTargetCount(parseInt(e.target.value || '50', 10))}
+                      className="bg-[#0a0a0a] text-[#e5e5e5] border border-[#2a2a2a] rounded px-2 py-1"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
                     <span>Diagnostics</span>
                     <Switch checked={debugMode} onCheckedChange={setDebugMode} />
                   </div>
@@ -493,7 +516,7 @@ export const JobPage = (): JSX.Element => {
 
           {queueStatus === 'populating' && (
             <LoadingBanner
-              subtitle={`Streaming results… Found ${insertedThisRun}/${targetCount}`}
+              subtitle={`Streaming results… Found ${insertedThisRun}/${targetCount}${currentSource ? ` • Source: ${currentSource}` : ''}`}
               steps={steps}
               activeStep={stepIndex}
               onCancel={cancelPopulation}

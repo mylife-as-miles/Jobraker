@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
-    const { jobId, searchQuery, searchLocation } = await req.json();
+  const { jobId, searchQuery, searchLocation, limit } = await req.json();
 
     if (!jobId) {
       return new Response(JSON.stringify({ error: 'jobId is required' }), { status: 400, headers: { ...corsHeaders, 'content-type': 'application/json' } });
@@ -52,7 +52,11 @@ Deno.serve(async (req) => {
 
     let jobsInserted = 0;
     if (extractStatus.status === 'completed') {
-      const extractedJobs = extractStatus.data?.jobs || [];
+      let extractedJobs = extractStatus.data?.jobs || [];
+      const cap = Number.isFinite(Number(limit)) ? Math.max(0, Number(limit)) : undefined;
+      if (typeof cap === 'number' && cap > 0) {
+        extractedJobs = extractedJobs.slice(0, cap);
+      }
       console.info('firecrawl.extract_complete', { userId, jobId, jobs_found: extractedJobs.length });
 
       if (extractedJobs.length > 0) {

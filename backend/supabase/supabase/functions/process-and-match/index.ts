@@ -36,6 +36,7 @@ Deno.serve(async (req) => {
   const location = (body?.location || '').trim();
   const types = Array.isArray(body?.type) ? body.type : (typeof body?.type === 'string' ? [body.type] : []);
   const debug = Boolean(body?.debug);
+  const limit = Number.isFinite(Number(body?.limit)) ? Math.max(0, Number(body?.limit)) : undefined;
   const clearExisting = Boolean(body?.clearExisting);
   const relaxSchema = Boolean(body?.relaxSchema);
 
@@ -71,14 +72,16 @@ Deno.serve(async (req) => {
       required: relaxSchema ? ['jobTitle','companyName'] : ['jobTitle','companyName','location','fullJobDescription'],
     };
 
-    const extractPrompt = `For the role of "${searchQuery}" ${location ? `near "${location}"` : ''}, extract job posting details.`;
+    const extractPrompt = `For the role of "${searchQuery}" ${location ? `near "${location}"` : ''}, extract job posting details.${limit === 1 ? ' Return only the single best matching job.' : ''}`;
 
-    const finalSchema = {
+    const finalSchema: any = {
       type: 'object',
       properties: {
         jobs: {
           type: 'array',
           items: jobSchema,
+          ...(typeof limit === 'number' && limit > 0 ? { maxItems: limit } : {}),
+          minItems: 0,
         }
       },
       required: ['jobs'],
