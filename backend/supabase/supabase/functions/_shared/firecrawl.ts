@@ -43,14 +43,25 @@ async function resolveFirecrawlApiKey(
 
   if (userId) {
     try {
-      const { data: settingsRow } = await supabaseAdmin
+      // First try schema variant with explicit user_id column
+      const q1 = await supabaseAdmin
         .from('job_source_settings')
         .select('firecrawl_api_key')
         .eq('user_id', userId)
         .maybeSingle();
-      if (settingsRow?.firecrawl_api_key) {
-        console.info('firecrawl.key_source', { user_id: userId, used: 'db' });
-        return settingsRow.firecrawl_api_key;
+      if (q1?.data?.firecrawl_api_key) {
+        console.info('firecrawl.key_source', { user_id: userId, used: 'db.user_id' });
+        return q1.data.firecrawl_api_key;
+      }
+      // If not found or column doesn't exist in this environment, fallback to id=uid
+      const q2 = await supabaseAdmin
+        .from('job_source_settings')
+        .select('firecrawl_api_key')
+        .eq('id', userId)
+        .maybeSingle();
+      if (q2?.data?.firecrawl_api_key) {
+        console.info('firecrawl.key_source', { user_id: userId, used: 'db.id' });
+        return q2.data.firecrawl_api_key;
       }
     } catch (e) {
       console.warn('firecrawl.key_lookup_failed', { user_id: userId, message: (e as any)?.message });

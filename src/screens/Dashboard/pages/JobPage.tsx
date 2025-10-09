@@ -83,6 +83,9 @@ export const JobPage = (): JSX.Element => {
   const [baseJobIds, setBaseJobIds] = useState<Set<string>>(new Set());
   const [runInsertedIds, setRunInsertedIds] = useState<Set<string>>(new Set());
   const [currentSource, setCurrentSource] = useState<string | null>(null);
+  const [currentUrl, setCurrentUrl] = useState<string | null>(null);
+  const [sourceFailures, setSourceFailures] = useState<Record<string, number>>({});
+  const [blockedSources, setBlockedSources] = useState<Set<string>>(new Set());
     const [lastReason, setLastReason] = useState<string | null>(null);
     const [debugMode, setDebugMode] = useState(false);
     const [logoError, setLogoError] = useState<Record<string, boolean>>({});
@@ -91,6 +94,8 @@ export const JobPage = (): JSX.Element => {
     const [applyingAll, setApplyingAll] = useState(false);
     const [applyProgress, setApplyProgress] = useState({ done: 0, total: 0, success: 0, fail: 0 });
   const [relaxSchema, setRelaxSchema] = useState(false);
+    const [remoteOnly, setRemoteOnly] = useState(false);
+    const [recentOnly, setRecentOnly] = useState(false);
 
   const { profile, loading: profileLoading } = useProfileSettings();
   const { info } = useToast();
@@ -236,9 +241,26 @@ export const JobPage = (): JSX.Element => {
     const startNextIncrementalJob = useCallback(async (urls: string[] | null, idx: number, query: string, location: string) => {
       if (!urls || urls.length === 0) return;
       if (!incrementalMode || incrementalCanceled) return;
-      const url = urls[idx % urls.length];
+      // Choose next non-blocked source up to urls.length attempts
+      let attempts = 0;
+      let nextIdx = ((idx % urls.length) + urls.length) % urls.length;
+      let url = urls[nextIdx];
+      while (attempts < urls.length && blockedSources.has(url)) {
+        attempts++;
+        nextIdx = (nextIdx + 1) % urls.length;
+        url = urls[nextIdx];
+      }
+      if (attempts >= urls.length && blockedSources.size >= urls.length) {
+        setIncrementalMode(false);
+        setQueueStatus('ready');
+        info('All sources skipped', 'Sources failed repeatedly and were skipped.');
+        setCurrentSource(null);
+        setCurrentUrl(null);
+        return;
+      }
       setStepIndex(0); // Discovering
       try {
+        setCurrentUrl(url);
         const { data: processData, error: processError } = await supabase.functions.invoke('process-and-match', {
           body: {
             searchQuery: query,
@@ -253,14 +275,27 @@ export const JobPage = (): JSX.Element => {
         if (processData.error) {
           const detail = processData.detail || 'An unknown error occurred.';
           setError({ message: `Failed to start job search: ${detail}` });
-          setQueueStatus('idle');
-          setIncrementalMode(false);
+          // Track failure and maybe block this source; continue with next
+          setSourceFailures((prev) => {
+            const c = (prev[url] || 0) + 1;
+            const next = { ...prev, [url]: c };
+            if (c >= 2) setBlockedSources((s) => new Set([...Array.from(s), url]));
+            return next;
+          });
+          setNextUrlIndex((prev) => (prev + 1) % urls.length);
+          await startNextIncrementalJob(urls, nextIdx + 1, query, location);
           return;
         }
         if (processData.reason === 'no_job_sources_configured') {
           setError({ message: 'No job sources configured.', link: '/dashboard/settings' });
-          setQueueStatus('idle');
-          setIncrementalMode(false);
+          setSourceFailures((prev) => {
+            const c = (prev[url] || 0) + 1;
+            const next = { ...prev, [url]: c };
+            if (c >= 2) setBlockedSources((s) => new Set([...Array.from(s), url]));
+            return next;
+          });
+          setNextUrlIndex((prev) => (prev + 1) % urls.length);
+          await startNextIncrementalJob(urls, nextIdx + 1, query, location);
           return;
         }
         if (processData.jobId) {
@@ -276,14 +311,30 @@ export const JobPage = (): JSX.Element => {
           setNextUrlIndex((prev) => (prev + 1) % urls.length);
         } else {
           // Could not start; attempt next URL quickly
+          setSourceFailures((prev) => {
+            const c = (prev[url] || 0) + 1;
+            const next = { ...prev, [url]: c };
+            if (c >= 2) setBlockedSources((s) => new Set([...Array.from(s), url]));
+            return next;
+          });
           setNextUrlIndex((prev) => (prev + 1) % urls.length);
+          await startNextIncrementalJob(urls, nextIdx + 1, query, location);
         }
       } catch (e: any) {
         setError({ message: `Failed to start extraction: ${e.message}` });
-        setQueueStatus('idle');
-        setIncrementalMode(false);
+        // Failure: increment and maybe block, then continue
+        if (url) {
+          setSourceFailures((prev) => {
+            const c = (prev[url] || 0) + 1;
+            const next = { ...prev, [url]: c };
+            if (c >= 2) setBlockedSources((s) => new Set([...Array.from(s), url]));
+            return next;
+          });
+        }
+        setNextUrlIndex((prev) => (prev + 1) % (urls?.length || 1));
+        await startNextIncrementalJob(urls, nextIdx + 1, query, location);
       }
-    }, [supabase, incrementalMode, incrementalCanceled, debugMode]);
+    }, [supabase, incrementalMode, incrementalCanceled, debugMode, relaxSchema, blockedSources, info]);
 
     // Effect for polling the job status
     useEffect(() => {
@@ -320,6 +371,10 @@ export const JobPage = (): JSX.Element => {
                 return updated;
               });
             }
+            // Success: reset failure count for current URL
+            if (currentUrl) {
+              setSourceFailures((prev) => ({ ...prev, [currentUrl]: 0 }));
+            }
             // If in incremental mode, continue until target or canceled
             if (incrementalMode && !incrementalCanceled) {
               const projected = (insertedThisRun + newlyInserted.length);
@@ -328,6 +383,7 @@ export const JobPage = (): JSX.Element => {
                 setIncrementalMode(false);
                 info("Job search complete!", `Found ${projected} results.`);
                 setCurrentSource(null);
+                setCurrentUrl(null);
                 return;
               }
               // Start next URL job
@@ -335,6 +391,7 @@ export const JobPage = (): JSX.Element => {
             } else {
               info("Job search complete!", inserted ? "Your results have been updated." : "No structured results were found for this search.");
               setCurrentSource(null);
+              setCurrentUrl(null);
             }
           } else if (statusData.status === 'failed') {
             clearInterval(interval);
@@ -344,6 +401,18 @@ export const JobPage = (): JSX.Element => {
             setQueueStatus('idle');
             setIncrementalMode(false);
             setCurrentSource(null);
+            // Failed during extraction: increment and potentially block current URL; continue if streaming
+            if (currentUrl && runUrls) {
+              setSourceFailures((prev) => {
+                const c = (prev[currentUrl] || 0) + 1;
+                const next = { ...prev, [currentUrl]: c };
+                if (c >= 2) setBlockedSources((s) => new Set([...Array.from(s), currentUrl]));
+                return next;
+              });
+              if (incrementalMode && !incrementalCanceled) {
+                await startNextIncrementalJob(runUrls, nextUrlIndex, searchQuery, selectedLocation || 'Remote');
+              }
+            }
           }
           // If still 'processing', do nothing and let the interval continue.
         } catch (e: any) {
@@ -364,6 +433,7 @@ export const JobPage = (): JSX.Element => {
       setPollingJobId(null);
       setQueueStatus('ready');
       setCurrentSource(null);
+      setCurrentUrl(null);
     }, []);
 
     // Apply all jobs (mark as applied) sequentially with simple progress + analytics events
@@ -446,9 +516,22 @@ export const JobPage = (): JSX.Element => {
         }
     }, [profile, searchQuery]);
 
+    const visibleJobs = useMemo(() => {
+      let arr: Job[] = jobs;
+      if (remoteOnly) {
+        arr = arr.filter(j => (j.remote_type || '').toLowerCase().includes('remote'));
+      }
+      if (recentOnly) {
+        const now = Date.now();
+        const sevenDays = 7 * 24 * 60 * 60 * 1000;
+        arr = arr.filter(j => j.posted_at ? (now - new Date(j.posted_at).getTime()) <= sevenDays : true);
+      }
+      return arr;
+    }, [jobs, remoteOnly, recentOnly]);
+
     const sortedJobs = useMemo(() => {
-      return [...jobs].sort((a, b) => new Date(b.posted_at || 0).getTime() - new Date(a.posted_at || 0).getTime());
-    }, [jobs]);
+      return [...visibleJobs].sort((a, b) => new Date(b.posted_at || 0).getTime() - new Date(a.posted_at || 0).getTime());
+    }, [visibleJobs]);
 
     const total = sortedJobs.length;
   // totalPages currently unused (pagination UI not yet implemented fully)
@@ -488,6 +571,14 @@ export const JobPage = (): JSX.Element => {
                   <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
                     <span>Broaden</span>
                     <Switch checked={relaxSchema} onCheckedChange={setRelaxSchema} />
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
+                    <span>Remote</span>
+                    <Switch checked={remoteOnly} onCheckedChange={setRemoteOnly} />
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
+                    <span>Recent</span>
+                    <Switch checked={recentOnly} onCheckedChange={setRecentOnly} />
                   </div>
                   <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
                     <span>Target</span>
@@ -531,7 +622,7 @@ export const JobPage = (): JSX.Element => {
 
           {queueStatus === 'populating' && (
             <LoadingBanner
-              subtitle={`Streaming results… Found ${insertedThisRun}/${targetCount}${currentSource ? ` • Source: ${currentSource}` : ''}`}
+              subtitle={`Streaming results… Found ${insertedThisRun}/${targetCount}${currentSource ? ` • Source: ${currentSource}` : ''}${(currentUrl && sourceFailures[currentUrl] > 0) ? ` • retries: ${sourceFailures[currentUrl]}` : ''}`}
               steps={steps}
               activeStep={stepIndex}
               onCancel={cancelPopulation}
@@ -646,7 +737,7 @@ export const JobPage = (): JSX.Element => {
                               </span>
                             )}
                             {(job.apply_url || job.source_id) && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]">
+                              <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]" title={(job.apply_url || job.source_id || '')}>
                                 {getHost(job.apply_url || job.source_id || '')}
                               </span>
                             )}
@@ -663,9 +754,9 @@ export const JobPage = (): JSX.Element => {
                   </Card>
                 </motion.div>
               ))}
-              {queueStatus === 'ready' && jobs.length > pageSize && (
+              {queueStatus === 'ready' && sortedJobs.length > pageSize && (
                 <div className="flex items-center justify-between pt-4 text-xs text-[#ffffff80]">
-                  <span>{jobs.length} total</span>
+                  <span>{sortedJobs.length} total</span>
                   <span>Showing first {pageSize} (pagination UI TBD)</span>
                 </div>
               )}
@@ -687,7 +778,7 @@ export const JobPage = (): JSX.Element => {
                       <span>{job.company}</span>
                       {job.location && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]">{job.location}</span>}
                       {job.remote_type && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10">{job.remote_type}</span>}
-                      {(job.apply_url || job.source_id) && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]">{getHost(job.apply_url || job.source_id || '')}</span>}
+                      {(job.apply_url || job.source_id) && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]" title={(job.apply_url || job.source_id || '')}>{getHost(job.apply_url || job.source_id || '')}</span>}
                       {job.posted_at && <span className="ml-auto text-[10px] text-[#ffffff80]">Posted {formatRelative(job.posted_at)}</span>}
                       </div>
                                       </div>

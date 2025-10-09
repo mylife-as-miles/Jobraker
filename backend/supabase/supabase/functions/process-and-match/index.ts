@@ -120,14 +120,15 @@ Deno.serve(async (req) => {
     });
 
   } catch (error) {
-    if (error.message.includes('Firecrawl API key not found')) {
+    const msg = String(error?.message || '');
+    if (msg.includes('No Firecrawl API key configured') || msg.includes('Firecrawl API key not found')) {
       return new Response(JSON.stringify({ error: 'missing_api_key', detail: error.message }), {
         status: 400, // Bad Request, as the user needs to configure their key.
         headers: { ...corsHeaders, 'content-type': 'application/json' },
       });
     }
-    console.error('process-and-match error:', error.message);
-    return new Response(JSON.stringify({ error: error.message || 'An unexpected error occurred.' }), {
+    console.error('process-and-match error:', msg);
+    return new Response(JSON.stringify({ error: msg || 'An unexpected error occurred.' }), {
       status: 500,
       headers: { ...corsHeaders, 'content-type': 'application/json' },
     });
