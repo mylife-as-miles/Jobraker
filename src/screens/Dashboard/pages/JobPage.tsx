@@ -80,6 +80,28 @@ export const JobPage = (): JSX.Element => {
     const { profile, loading: profileLoading } = useProfileSettings();
     const { info } = useToast();
 
+    // Inline loading banner
+    const LoadingBanner = ({ subtitle }: { subtitle?: string }) => (
+      <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#1dff00]/30 p-4 sm:p-5 mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full bg-[#1dff00] animate-pulse" aria-hidden />
+          <div>
+            <div className="text-white font-medium">Building your results…</div>
+            <div className="text-xs text-[#ffffff90]">{subtitle || 'This may take a few minutes depending on sources.'}</div>
+          </div>
+        </div>
+        <div className="mt-3 h-1.5 bg-[#ffffff12] rounded overflow-hidden">
+          <motion.div
+            className="h-full bg-gradient-to-r from-[#1dff00]/20 via-[#1dff00] to-[#1dff00]/20"
+            initial={{ x: '-100%' }}
+            animate={{ x: '100%' }}
+            transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
+            aria-hidden
+          />
+        </div>
+      </Card>
+    );
+
     const fetchJobQueue = useCallback(async () => {
         setQueueStatus('loading');
         setError(null);
@@ -177,7 +199,7 @@ export const JobPage = (): JSX.Element => {
         if (processData.jobId) {
           setPollingJobId(processData.jobId);
           setQueueStatus('populating'); // Keep it in a loading-like state
-          info("Job search started...", `Checking for results. This may take a few minutes.`);
+          info("Job search started...", `We’re building your results. This may take a few minutes.`);
         } else {
           setError({ message: 'Could not initiate job search process.' });
           setQueueStatus('idle');
@@ -279,7 +301,7 @@ export const JobPage = (): JSX.Element => {
             const initialJobs = await fetchJobQueue();
             // If the queue is empty AND we have a profile with a job title, auto-populate it.
             if (initialJobs.length === 0 && profile?.job_title) {
-                info("No results yet. Building a personalized job feed...", "This may take a moment.");
+        info("No results yet. Building a personalized job feed...", "This may take a moment.");
                 await populateQueue(profile.job_title, profile.location || undefined);
             }
         };
@@ -369,11 +391,15 @@ export const JobPage = (): JSX.Element => {
                     disabled={queueStatus === 'populating' || queueStatus === 'loading'}
                   >
                     {queueStatus === 'populating' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Search className="w-4 h-4 mr-2" />}
-                    {queueStatus === 'populating' ? 'Building new queue...' : 'Find New Jobs'}
+                    {queueStatus === 'populating' ? 'Building results…' : 'Find New Jobs'}
                   </Button>
                 </div>
             </div>
           </div>
+
+          {queueStatus === 'populating' && (
+            <LoadingBanner subtitle="We’re discovering sources and extracting job details in the background." />
+          )}
 
           <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] p-4 sm:p-6 mb-6 sm:mb-8">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -402,8 +428,8 @@ export const JobPage = (): JSX.Element => {
             <div className="space-y-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg sm:text-xl font-semibold text-white">
-                  {queueStatus === 'loading' && "Loading your queue..."}
-                  {queueStatus === 'populating' && "Building your new job queue..."}
+                  {queueStatus === 'loading' && "Loading results..."}
+                  {queueStatus === 'populating' && "Building your results..."}
                   {(queueStatus === 'ready' || queueStatus === 'empty') && `${total} Jobs Found`}
                 </h2>
               </div>
@@ -413,13 +439,18 @@ export const JobPage = (): JSX.Element => {
                   {Array.from({ length: pageSize }).map((_, i) => (
                     <div key={i} className="animate-pulse">
                       <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-4">
-                          <div className="flex items-start gap-3">
-                              <div className="w-12 h-12 bg-[#ffffff1a] rounded-xl" />
-                              <div className="flex-1 space-y-2">
-                                  <div className="h-4 bg-[#ffffff1a] rounded w-2/3" />
-                                  <div className="h-3 bg-[#ffffff12] rounded w-1/2" />
-                              </div>
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 bg-[#ffffff1a] rounded-xl" />
+                          <div className="flex-1 min-w-0">
+                            <div className="h-4 bg-[#ffffff1a] rounded w-2/3 mb-2" />
+                            <div className="h-3 bg-[#ffffff12] rounded w-1/2 mb-3" />
+                            <div className="flex items-center gap-2">
+                              <span className="inline-block h-4 w-16 rounded-full bg-[#ffffff12]" />
+                              <span className="inline-block h-4 w-20 rounded-full bg-[#ffffff12]" />
+                              <span className="inline-block h-4 w-12 rounded-full bg-[#ffffff12]" />
+                            </div>
                           </div>
+                        </div>
                       </Card>
                     </div>
                   ))}
@@ -531,6 +562,30 @@ export const JobPage = (): JSX.Element => {
                       </motion.div>
                   );
               })()}
+              {queueStatus === 'populating' && !selectedJob && (
+                <div className="animate-pulse">
+                  <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-6 mb-6">
+                    <div className="flex items-start gap-4 mb-6">
+                      <div className="w-16 h-16 bg-[#ffffff1a] rounded-xl" />
+                      <div className="flex-1 min-w-0">
+                        <div className="h-5 bg-[#ffffff1a] rounded w-1/2 mb-2" />
+                        <div className="h-4 bg-[#ffffff12] rounded w-1/3 mb-3" />
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block h-4 w-20 rounded-full bg-[#ffffff12]" />
+                          <span className="inline-block h-4 w-16 rounded-full bg-[#ffffff12]" />
+                          <span className="inline-block h-4 w-24 rounded-full bg-[#ffffff12]" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-4 bg-[#ffffff12] rounded w-full" />
+                      <div className="h-4 bg-[#ffffff0f] rounded w-11/12" />
+                      <div className="h-4 bg-[#ffffff0a] rounded w-10/12" />
+                      <div className="h-4 bg-[#ffffff08] rounded w-9/12" />
+                    </div>
+                  </Card>
+                </div>
+              )}
               {!selectedJob && queueStatus === 'ready' && (
                    <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-8 text-center">
                       <Briefcase className="w-16 h-16 text-[#ffffff40] mx-auto mb-4" />
