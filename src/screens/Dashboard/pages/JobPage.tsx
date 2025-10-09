@@ -80,15 +80,28 @@ export const JobPage = (): JSX.Element => {
     const { profile, loading: profileLoading } = useProfileSettings();
     const { info } = useToast();
 
-    // Inline loading banner
-    const LoadingBanner = ({ subtitle }: { subtitle?: string }) => (
+    // Step-by-step loading banner
+    const LoadingBanner = ({ subtitle, steps, activeStep, onCancel }: { subtitle?: string; steps: string[]; activeStep: number; onCancel?: () => void }) => (
       <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#1dff00]/30 p-4 sm:p-5 mb-4">
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-[#1dff00] animate-pulse" aria-hidden />
-          <div>
+          <div className="flex-1 min-w-0">
             <div className="text-white font-medium">Building your results…</div>
             <div className="text-xs text-[#ffffff90]">{subtitle || 'This may take a few minutes depending on sources.'}</div>
           </div>
+          {onCancel && (
+            <Button variant="ghost" className="text-[#ffffffb3] hover:bg-[#ffffff12] border border-[#ffffff1e] h-8 px-3" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          {steps.map((label, idx) => (
+            <div key={label} className={`flex items-center gap-2 rounded-md border p-2 ${idx === activeStep ? 'border-[#1dff00] bg-[#1dff00]/10' : 'border-[#ffffff18] bg-[#ffffff08]'}`}>
+              <div className={`w-2 h-2 rounded-full ${idx === activeStep ? 'bg-[#1dff00] animate-pulse' : 'bg-[#ffffff40]'}`} aria-hidden />
+              <div className={`text-[11px] truncate ${idx === activeStep ? 'text-[#eaffea]' : 'text-[#ffffff90]'}`}>{label}</div>
+            </div>
+          ))}
         </div>
         <div className="mt-3 h-1.5 bg-[#ffffff12] rounded overflow-hidden">
           <motion.div
@@ -101,6 +114,25 @@ export const JobPage = (): JSX.Element => {
         </div>
       </Card>
     );
+
+    const [stepIndex, setStepIndex] = useState(0);
+    const steps = useMemo(() => [
+      'Discovering sources',
+      'Extracting',
+      'Inserting'
+    ], []);
+
+    useEffect(() => {
+      if (queueStatus !== 'populating') return;
+      const t = setInterval(() => setStepIndex((i) => (i + 1) % steps.length), 1400);
+      return () => clearInterval(t);
+    }, [queueStatus, steps.length]);
+
+    const cancelPopulation = useCallback(() => {
+      setPollingJobId(null);
+      setQueueStatus('idle');
+      setError(null);
+    }, []);
 
     const fetchJobQueue = useCallback(async () => {
         setQueueStatus('loading');
@@ -398,7 +430,12 @@ export const JobPage = (): JSX.Element => {
           </div>
 
           {queueStatus === 'populating' && (
-            <LoadingBanner subtitle="We’re discovering sources and extracting job details in the background." />
+            <LoadingBanner
+              subtitle="We’re discovering sources and extracting job details in the background."
+              steps={steps}
+              activeStep={stepIndex}
+              onCancel={cancelPopulation}
+            />
           )}
 
           <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] p-4 sm:p-6 mb-6 sm:mb-8">
