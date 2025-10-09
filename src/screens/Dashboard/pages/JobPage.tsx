@@ -76,7 +76,8 @@ export const JobPage = (): JSX.Element => {
   // Incremental run state
   const [incrementalMode, setIncrementalMode] = useState(false);
   const [incrementalCanceled, setIncrementalCanceled] = useState(false);
-  const [targetCount, setTargetCount] = useState(50);
+  // Fixed target for UI messaging and optional stop condition (ingestion continues until 50)
+  const TARGET_COUNT = 50;
   const [insertedThisRun, setInsertedThisRun] = useState(0);
   const [runUrls, setRunUrls] = useState<string[] | null>(null);
   const [nextUrlIndex, setNextUrlIndex] = useState(0);
@@ -239,14 +240,14 @@ export const JobPage = (): JSX.Element => {
         // Save URLs for incremental rotation
         setRunUrls(urls);
         setNextUrlIndex(0);
-  safeInfo("Job search started...", `Streaming results as we find them (target ${targetCount}).`);
+  safeInfo("Job search started...", `Streaming results as we find them (target ${TARGET_COUNT}).`);
         // Kick off first incremental job
         await startNextIncrementalJob(urls, 0, query, location || 'Remote');
       } catch (e: any) {
         setError({ message: `Failed to build job feed: ${e.message}` });
         setQueueStatus('idle');
       }
-    }, [supabase, debugMode, info, jobs, targetCount]);
+  }, [supabase, debugMode, info, jobs]);
 
     const startNextIncrementalJob = useCallback(async (urls: string[] | null, idx: number, query: string, location: string) => {
       if (!urls || urls.length === 0) return;
@@ -387,7 +388,7 @@ export const JobPage = (): JSX.Element => {
             // If in incremental mode, continue until target or canceled
             if (incrementalMode && !incrementalCanceled) {
               const projected = (insertedThisRun + newlyInserted.length);
-              const reached = projected >= targetCount;
+              const reached = projected >= TARGET_COUNT;
               if (reached) {
                 setIncrementalMode(false);
                 safeInfo("Job search complete!", `Found ${projected} results.`);
@@ -434,7 +435,7 @@ export const JobPage = (): JSX.Element => {
       }, 10000); // Poll every 10 seconds
 
       return () => clearInterval(interval);
-    }, [pollingJobId, supabase, fetchJobQueue, info, searchQuery, selectedLocation, incrementalMode, incrementalCanceled, startNextIncrementalJob, runUrls, nextUrlIndex, targetCount, insertedThisRun, baseJobIds, runInsertedIds, jobs]);
+  }, [pollingJobId, supabase, fetchJobQueue, info, searchQuery, selectedLocation, incrementalMode, incrementalCanceled, startNextIncrementalJob, runUrls, nextUrlIndex, insertedThisRun, baseJobIds, runInsertedIds, jobs]);
 
     const cancelPopulation = useCallback(() => {
       setIncrementalCanceled(true);
@@ -589,18 +590,7 @@ export const JobPage = (): JSX.Element => {
                     <span>Recent</span>
                     <Switch checked={recentOnly} onCheckedChange={setRecentOnly} />
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
-                    <span>Target</span>
-                    <select
-                      value={targetCount}
-                      onChange={(e) => setTargetCount(parseInt(e.target.value || '50', 10))}
-                      className="bg-[#0a0a0a] text-[#e5e5e5] border border-[#2a2a2a] rounded px-2 py-1"
-                    >
-                      <option value={10}>10</option>
-                      <option value={25}>25</option>
-                      <option value={50}>50</option>
-                    </select>
-                  </div>
+                  {/* Target selector removed: fixed to 20 to minimize API usage and keep runs bounded */}
                   <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
                     <span>Diagnostics</span>
                     <Switch checked={debugMode} onCheckedChange={setDebugMode} />
@@ -631,7 +621,7 @@ export const JobPage = (): JSX.Element => {
 
           {queueStatus === 'populating' && (
             <LoadingBanner
-              subtitle={`Streaming results… Found ${insertedThisRun}/${targetCount}${currentSource ? ` • Source: ${currentSource}` : ''}${(currentUrl && sourceFailures[currentUrl] > 0) ? ` • retries: ${sourceFailures[currentUrl]}` : ''}`}
+              subtitle={`Streaming results… Found ${insertedThisRun}/${TARGET_COUNT}${currentSource ? ` • Source: ${currentSource}` : ''}${(currentUrl && sourceFailures[currentUrl] > 0) ? ` • retries: ${sourceFailures[currentUrl]}` : ''}`}
               steps={steps}
               activeStep={stepIndex}
               onCancel={cancelPopulation}

@@ -30,7 +30,8 @@ Deno.serve(async (req) => {
       .from("jobs")
       .select("*")
       .order("posted_at", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(20);
 
     if (jobsError) {
       // Log the actual error for debugging, but return a generic message to the client.
