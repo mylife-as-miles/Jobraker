@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'jobId is required' }), { status: 400, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
-    const firecrawlApiKey = await resolveFirecrawlApiKey(supabaseAdmin, userId);
+  const firecrawlApiKey = await resolveFirecrawlApiKey();
 
     // Per the Firecrawl API documentation, checking the status of a job
     // must be done via a GET request.

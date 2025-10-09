@@ -29,53 +29,15 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 50
   throw lastErr;
 }
 
-// Centralized Firecrawl API key resolution
-async function resolveFirecrawlApiKey(
-  supabaseAdmin: ReturnType<typeof createClient>,
-  userId?: string,
-  headerKey?: string
-): Promise<string> {
-  const trimmedHeaderKey = headerKey?.trim() || '';
-  if (trimmedHeaderKey) {
-    console.info('firecrawl.key_source', { user_id: userId, used: 'header' });
-    return trimmedHeaderKey;
-  }
-
-  if (userId) {
-    try {
-      // First try schema variant with explicit user_id column
-      const q1 = await supabaseAdmin
-        .from('job_source_settings')
-        .select('firecrawl_api_key')
-        .eq('user_id', userId)
-        .maybeSingle();
-      if (q1?.data?.firecrawl_api_key) {
-        console.info('firecrawl.key_source', { user_id: userId, used: 'db.user_id' });
-        return q1.data.firecrawl_api_key;
-      }
-      // If not found or column doesn't exist in this environment, fallback to id=uid
-      const q2 = await supabaseAdmin
-        .from('job_source_settings')
-        .select('firecrawl_api_key')
-        .eq('id', userId)
-        .maybeSingle();
-      if (q2?.data?.firecrawl_api_key) {
-        console.info('firecrawl.key_source', { user_id: userId, used: 'db.id' });
-        return q2.data.firecrawl_api_key;
-      }
-    } catch (e) {
-      console.warn('firecrawl.key_lookup_failed', { user_id: userId, message: (e as any)?.message });
-    }
-  }
-
-  const envKey = Deno.env.get('FIRECRAWL_API_KEY') || '';
+// Centralized Firecrawl API key resolution (env-only)
+async function resolveFirecrawlApiKey(): Promise<string> {
+  const envKey = (Deno.env.get('FIRECRAWL_API_KEY') || '').trim();
   if (envKey) {
-    console.info('firecrawl.key_source', { user_id: userId, used: 'env' });
+    console.info('firecrawl.key_source', { used: 'env' });
     return envKey;
   }
-
-  console.error('firecrawl.key_missing', { user_id: userId });
-  throw new Error('No Firecrawl API key configured (header, user settings, or environment).');
+  console.error('firecrawl.key_missing');
+  throw new Error('No Firecrawl API key configured in function secrets.');
 }
 
 // Centralized Firecrawl API call function

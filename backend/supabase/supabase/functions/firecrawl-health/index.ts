@@ -50,46 +50,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Optional auth: if Authorization provided, use it to load user-specific key from job_source_settings.
-    const authHeader = req.headers.get('authorization');
-    let userId: string | null = null;
-    let dbKey: string | null = null;
-    if (authHeader) {
-      try {
-        const supabaseAuthed = createClient(
-          Deno.env.get('SUPABASE_URL')!,
-          Deno.env.get('SUPABASE_ANON_KEY')!,
-          { global: { headers: { Authorization: authHeader } } }
-        );
-        const { data: { user } } = await supabaseAuthed.auth.getUser();
-        if (user) {
-          userId = user.id;
-          const { data: settingsRow } = await supabaseAdmin
-            .from('job_source_settings')
-            .select('firecrawl_api_key')
-            .eq('user_id', userId)
-            .maybeSingle();
-          if (settingsRow?.firecrawl_api_key) dbKey = settingsRow.firecrawl_api_key.trim();
-        }
-      } catch (e) {
-        console.warn('firecrawl-health.user_lookup_failed', { message: e?.message });
-      }
-    }
-
-    const headerKey = req.headers.get('x-firecrawl-api-key')?.trim() || '';
     const envKey = (Deno.env.get('FIRECRAWL_API_KEY') || '').trim();
-    const apiKey = headerKey || dbKey || envKey;
-
-    if (!apiKey) {
+    if (!envKey) {
       return new Response(JSON.stringify({
         error: 'firecrawl_key_missing',
-        detail: 'No API key found in header, user settings, or environment.',
-        key_sources: { header: !!headerKey, db: !!dbKey, env: !!envKey }
+        detail: 'No API key configured in function secrets.',
       }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
-    const fingerprint = (await sha256Hex(apiKey)).slice(0, 12);
-    const test = await testFirecrawl(apiKey);
+    const fingerprint = (await sha256Hex(envKey)).slice(0, 12);
+    const test = await testFirecrawl(envKey);
 
     let classification = 'unknown';
     if (test.status === 401) classification = 'unauthorized_invalid_key';
@@ -101,13 +71,9 @@ Deno.serve(async (req) => {
       success: true,
       classification,
       key: {
-        source: headerKey ? 'header' : dbKey ? 'db' : 'env',
-        length: apiKey.length,
+        source: 'env',
+        length: envKey.length,
         fingerprint,
-        header_present: !!headerKey,
-        db_present: !!dbKey,
-        env_present: !!envKey,
-        user_id: userId,
       },
       firecrawl_test: test,
     }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });

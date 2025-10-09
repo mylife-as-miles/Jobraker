@@ -337,7 +337,7 @@ type DeepResearchConfig = {
 
 async function fetchDeepResearchJobs(cfg: DeepResearchConfig): Promise<Job[]> {
   try {
-    const apiKey = await resolveFirecrawlApiKey(supabaseAdmin, cfg.userId);
+  const apiKey = await resolveFirecrawlApiKey();
     if (!apiKey) {
       console.warn('Skipping deepresearch source: FIRECRAWL_API_KEY not set for user or env', { userId: cfg.userId });
       return [];
@@ -353,7 +353,7 @@ async function fetchDeepResearchJobs(cfg: DeepResearchConfig): Promise<Job[]> {
 
     const body = { query: deepQuery, maxDepth: 4, timeLimit: 120, maxUrls: cfg.maxResults || 15 };
 
-    const deepResearchResp = await withRetry(() => firecrawlFetch('/v1/deep-research', apiKey, body, cfg.userId), 2, 600);
+  const deepResearchResp = await withRetry(() => firecrawlFetch('/v1/deep-research', apiKey, body, cfg.userId), 2, 600);
     const deepResearchData = deepResearchResp?.data || deepResearchResp;
     const sources = Array.isArray(deepResearchData?.sources) ? deepResearchData.sources : [];
 

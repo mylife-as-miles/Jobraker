@@ -273,8 +273,14 @@ export const JobPage = (): JSX.Element => {
         });
         if (processError) throw new Error(processError.message);
         if (processData.error) {
-          const detail = processData.detail || 'An unknown error occurred.';
-          setError({ message: `Failed to start job search: ${detail}` });
+          if (processData.error === 'missing_api_key') {
+            setError({
+              message: 'Firecrawl is not configured. Ask your admin to set FIRECRAWL_API_KEY in Supabase Function Secrets.',
+            });
+          } else {
+            const detail = processData.detail || 'An unknown error occurred.';
+            setError({ message: `Failed to start job search: ${detail}` });
+          }
           // Track failure and maybe block this source; continue with next
           setSourceFailures((prev) => {
             const c = (prev[url] || 0) + 1;

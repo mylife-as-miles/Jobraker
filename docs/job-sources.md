@@ -147,14 +147,7 @@ Need help? Open an issue or ping us on Discord.
 
 Related secrets
 
-If you use the `process-and-match` function (live scraping/extraction), you can either:
-
-1) Forward your Vercel env var as a header to Supabase (recommended):
-
-- In Vercel, set `FIRECRAWL_API_KEY` as an Environment Variable.
-- When calling the function from your server code, add the header `x-firecrawl-api-key: <process.env.FIRECRAWL_API_KEY>`.
-
-2) Or set it directly in Supabase as a secret:
+If you use the `process-and-match` function (live scraping/extraction), set your Firecrawl API key only in Supabase as a Function Secret:
 
 - `FIRECRAWL_API_KEY` — your Firecrawl API key.
 

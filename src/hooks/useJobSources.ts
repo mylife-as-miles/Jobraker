@@ -27,7 +27,6 @@ export interface JobSourceSettings {
   id: string; // This is the user_id in the existing table
   cron_enabled?: boolean;
   cron_expression?: string;
-  firecrawl_api_key?: string;
   notification_enabled?: boolean;
   sources?: JobSource[];
   include_linkedin?: boolean;

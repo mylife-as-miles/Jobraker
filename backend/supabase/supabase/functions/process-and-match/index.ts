@@ -44,9 +44,8 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: 'Search query is required.' }), { status: 400, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
-    // Resolve Firecrawl API key using the shared utility.
-    const headerKey = req.headers.get('x-firecrawl-api-key');
-    const firecrawlApiKey = await resolveFirecrawlApiKey(supabaseAdmin, userId, headerKey);
+  // Resolve Firecrawl API key from function secrets only.
+  const firecrawlApiKey = await resolveFirecrawlApiKey();
 
     // Step 3: Use FIRE-1 agentic extraction for personalized job sourcing.
     // The frontend should now provide the URLs directly in the payload.
