@@ -1,7 +1,7 @@
 import { Briefcase, Search, MapPin, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Switch } from "../../../components/ui/switch";
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
@@ -77,30 +77,17 @@ export const JobPage = (): JSX.Element => {
     const [applyingAll, setApplyingAll] = useState(false);
     const [applyProgress, setApplyProgress] = useState({ done: 0, total: 0, success: 0, fail: 0 });
 
-    const { profile, loading: profileLoading } = useProfileSettings();
-    const { info } = useToast();
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const { profile, loading: profileLoading } = useProfileSettings();
+  const { info } = useToast();
 
     // Step-by-step loading banner
-    const LoadingBanner = ({ subtitle, steps, activeStep, onCancel, onTryDifferent }: { subtitle?: string; steps: string[]; activeStep: number; onCancel?: () => void; onTryDifferent?: () => void }) => (
+    const LoadingBanner = ({ subtitle, steps, activeStep }: { subtitle?: string; steps: string[]; activeStep: number }) => (
       <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#1dff00]/30 p-4 sm:p-5 mb-4">
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-[#1dff00] animate-pulse" aria-hidden />
           <div className="flex-1 min-w-0">
             <div className="text-white font-medium">Building your results…</div>
             <div className="text-xs text-[#ffffff90]">{subtitle || 'This may take a few minutes depending on sources.'}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            {onTryDifferent && (
-              <Button variant="ghost" className="text-[#1dff00] hover:bg-[#1dff00]/10 border border-[#1dff00]/30 h-8 px-3" onClick={onTryDifferent}>
-                Try a different query
-              </Button>
-            )}
-            {onCancel && (
-              <Button variant="ghost" className="text-[#ffffffb3] hover:bg-[#ffffff12] border border-[#ffffff1e] h-8 px-3" onClick={onCancel}>
-                Cancel
-              </Button>
-            )}
           </div>
         </div>
         <div className="mt-3 grid grid-cols-3 gap-3">
@@ -132,16 +119,7 @@ export const JobPage = (): JSX.Element => {
 
     // Real step updates occur at key phases of the flow; no cycling needed now.
 
-    const cancelPopulation = useCallback(() => {
-      setPollingJobId(null);
-      setQueueStatus('idle');
-      setError(null);
-    }, []);
-
-    const tryDifferentQuery = useCallback(() => {
-      cancelPopulation();
-      setTimeout(() => searchInputRef.current?.focus(), 0);
-    }, [cancelPopulation]);
+    // Steps reflect phases; no cancel/try-different actions per request
 
     const fetchJobQueue = useCallback(async () => {
         setQueueStatus('loading');
@@ -446,8 +424,6 @@ export const JobPage = (): JSX.Element => {
               subtitle="We’re discovering sources and extracting job details in the background."
               steps={steps}
               activeStep={stepIndex}
-              onCancel={cancelPopulation}
-              onTryDifferent={tryDifferentQuery}
             />
           )}
 
@@ -460,7 +436,6 @@ export const JobPage = (): JSX.Element => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white"
-                  ref={searchInputRef}
                 />
               </div>
               <div className="relative">
@@ -502,13 +477,6 @@ export const JobPage = (): JSX.Element => {
                             </div>
                           </div>
                         </div>
-                          <motion.div
-                            className="pointer-events-none absolute top-0 left-[-40%] h-full w-1/2 bg-gradient-to-r from-transparent via-[#ffffff22] to-transparent"
-                            initial={{ x: '-40%' }}
-                            animate={{ x: '140%' }}
-                            transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
-                            aria-hidden
-                          />
                       </Card>
                     </div>
                   ))}
@@ -641,13 +609,6 @@ export const JobPage = (): JSX.Element => {
                       <div className="h-4 bg-[#ffffff0a] rounded w-10/12" />
                       <div className="h-4 bg-[#ffffff08] rounded w-9/12" />
                     </div>
-                    <motion.div
-                      className="pointer-events-none absolute top-0 left-[-40%] h-full w-1/2 bg-gradient-to-r from-transparent via-[#ffffff22] to-transparent"
-                      initial={{ x: '-40%' }}
-                      animate={{ x: '140%' }}
-                      transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
-                      aria-hidden
-                    />
                   </Card>
                 </div>
               )}
