@@ -29,7 +29,8 @@ Deno.serve(async (req) => {
     const { data: jobs, error: jobsError } = await supabase
       .from("jobs")
       .select("*")
-      .order("posted_at", { ascending: false });
+      .order("posted_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
 
     if (jobsError) {
       // Log the actual error for debugging, but return a generic message to the client.

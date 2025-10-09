@@ -105,6 +105,10 @@ export const JobPage = (): JSX.Element => {
     }, [supabase]);
 
     const populateQueue = useCallback(async (query: string, location?: string) => {
+      if (!query || !query.trim()) {
+        setError({ message: 'Please enter a job title or keywords to search.' });
+        return;
+      }
       setQueueStatus('populating');
       setError(null);
       setLastReason(null);
@@ -118,7 +122,7 @@ export const JobPage = (): JSX.Element => {
         const { data: settings, error: settingsError } = await supabase
           .from('job_source_settings')
           .select('allowed_domains')
-          .eq('id', user.id)
+          .eq('user_id', user.id)
           .maybeSingle();
 
         if (settingsError) throw settingsError;
@@ -184,11 +188,16 @@ export const JobPage = (): JSX.Element => {
           if (statusData.status === 'completed') {
             clearInterval(interval);
             setPollingJobId(null);
-            info("Job search complete!", "Your job queue has been updated.");
+            const inserted = typeof statusData.jobsInserted === 'number'
+              ? statusData.jobsInserted
+              : (Array.isArray(statusData?.data?.jobs) ? statusData.data.jobs.length : undefined);
+            if (!inserted) setLastReason('no_structured_results');
+            info("Job search complete!", inserted ? "Your job queue has been updated." : "No structured results were found for this search.");
             await fetchJobQueue(); // Refresh the queue with new jobs
           } else if (statusData.status === 'failed') {
             clearInterval(interval);
             setPollingJobId(null);
+            setLastReason('deep_research_failed');
             setError({ message: 'Job search failed during processing.' });
             setQueueStatus('idle');
           }
@@ -298,6 +307,21 @@ export const JobPage = (): JSX.Element => {
       }
     }, [currentPage, pageSize, selectedJob, paginatedJobs]);
 
+    // Small helper for relative timestamps
+    const formatRelative = (iso?: string | null) => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      const now = new Date();
+      const diff = Math.max(0, now.getTime() - d.getTime());
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      const days = Math.floor(hrs / 24);
+      return `${days}d ago`;
+    };
+
     return (
       <div className="min-h-screen bg-black" role="main" aria-label="Job search">
         <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -371,7 +395,7 @@ export const JobPage = (): JSX.Element => {
 
               { (queueStatus === 'loading' || queueStatus === 'populating') && (
                 <div className="space-y-4">
-                  {Array.from({ length: 5 }).map((_, i) => (
+                  {Array.from({ length: pageSize }).map((_, i) => (
                     <div key={i} className="animate-pulse">
                       <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-4">
                           <div className="flex items-start gap-3">
@@ -426,9 +450,27 @@ export const JobPage = (): JSX.Element => {
                         {job.logoUrl && !logoError[job.id] ? <img src={job.logoUrl} alt={job.company} className="w-12 h-12 rounded-xl object-contain bg-white" onError={() => setLogoError(e => ({...e, [job.id]: true}))} /> : <div className="w-12 h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg">{job.logo}</div>}
                         <div className="flex-1 min-w-0">
                           <h3 className="text-white font-semibold truncate">{job.title}</h3>
-                          <p className="text-[#ffffff80] text-sm">{job.company}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[#ffffffb3] text-sm truncate">{job.company}</span>
+                            {job.location && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]">
+                                {job.location}
+                              </span>
+                            )}
+                            {job.remote_type && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10">
+                                {job.remote_type}
+                              </span>
+                            )}
+                            {job.posted_at && (
+                              <span className="ml-auto text-[10px] text-[#ffffff80]">{formatRelative(job.posted_at)}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
+                      {job.status && (
+                        <span className={`ml-3 shrink-0 text-[10px] px-2 py-0.5 rounded-full border ${job.status === 'applied' ? 'border-[#14b8a6]/40 text-[#14b8a6] bg-[#14b8a6]/10' : 'border-[#ffffff24] text-[#ffffffb3] bg-[#ffffff0a]'}`}>{job.status}</span>
+                      )}
                     </div>
                   </Card>
                 </motion.div>
@@ -442,7 +484,7 @@ export const JobPage = (): JSX.Element => {
             </div>
 
             <div className="lg:sticky lg:top-6 lg:h-fit">
-              {selectedJob && (() => {
+        {selectedJob && (() => {
                   const job = jobs.find(j => j.id === selectedJob);
                   if (!job) return null;
                   return (
@@ -453,7 +495,12 @@ export const JobPage = (): JSX.Element => {
                                       {job.logoUrl && !logoError[job.id] ? <img src={job.logoUrl} alt={job.company} className="w-16 h-16 rounded-xl object-contain bg-white" onError={() => setLogoError(e => ({...e, [job.id]: true}))} /> : <div className="w-16 h-16 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-xl">{job.logo}</div>}
                                       <div className="flex-1 min-w-0">
                                           <h1 className="text-xl font-bold text-white mb-1">{job.title}</h1>
-                                          <p className="text-lg text-[#ffffff80] mb-2">{job.company}</p>
+                      <div className="flex items-center gap-2 text-sm text-[#ffffffb3] mb-2">
+                      <span>{job.company}</span>
+                      {job.location && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]">{job.location}</span>}
+                      {job.remote_type && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10">{job.remote_type}</span>}
+                      {job.posted_at && <span className="ml-auto text-[10px] text-[#ffffff80]">Posted {formatRelative(job.posted_at)}</span>}
+                      </div>
                                       </div>
                                   </div>
                               </div>

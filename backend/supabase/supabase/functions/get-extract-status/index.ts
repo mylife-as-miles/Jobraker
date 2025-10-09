@@ -50,6 +50,7 @@ Deno.serve(async (req) => {
 
     const extractStatus = await statusRes.json();
 
+    let jobsInserted = 0;
     if (extractStatus.status === 'completed') {
       const extractedJobs = extractStatus.data?.jobs || [];
       console.info('firecrawl.extract_complete', { userId, jobId, jobs_found: extractedJobs.length });
@@ -78,14 +79,15 @@ Deno.serve(async (req) => {
           };
         });
 
-        const { error: insertError } = await supabaseAdmin.from('jobs').upsert(jobsToInsert, { onConflict: 'user_id,source_id' });
+        const { data: upData, error: insertError } = await supabaseAdmin.from('jobs').upsert(jobsToInsert, { onConflict: 'user_id,source_id' }).select('id');
         if (insertError) {
           throw new Error(`Failed to insert new jobs: ${insertError.message}`);
         }
+        jobsInserted = Array.isArray(upData) ? upData.length : extractedJobs.length;
       }
     }
 
-    return new Response(JSON.stringify(extractStatus), {
+    return new Response(JSON.stringify({ ...extractStatus, jobsInserted }), {
       status: 200,
       headers: { ...corsHeaders, 'content-type': 'application/json' },
     });
