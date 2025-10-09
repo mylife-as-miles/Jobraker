@@ -1,7 +1,7 @@
 import { Briefcase, Search, MapPin, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Switch } from "../../../components/ui/switch";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
@@ -99,6 +99,28 @@ export const JobPage = (): JSX.Element => {
 
   const { profile, loading: profileLoading } = useProfileSettings();
   const { info } = useToast();
+  // Toast dedupe/throttle: avoid spamming repeated toasts
+  const lastToastRef = useRef<{ msg: string; ts: number } | null>(null);
+  const safeInfo = useCallback((msg: string, desc?: string, cooldownMs: number = 20000) => {
+    const now = Date.now();
+    const last = lastToastRef.current;
+    if (last && last.msg === (desc ? `${msg}::${desc}` : msg) && now - last.ts < cooldownMs) {
+      return; // suppress duplicate within cooldown window
+    }
+    info(msg, desc);
+    lastToastRef.current = { msg: desc ? `${msg}::${desc}` : msg, ts: now };
+  }, [info]);
+  // Error dedupe to avoid flicker and repeated inline banners
+  const lastErrorRef = useRef<{ msg: string; ts: number } | null>(null);
+  const setErrorDedup = useCallback((payload: { message: string, link?: string } | null, cooldownMs: number = 15000) => {
+    if (!payload) { setError(null); return; }
+    const now = Date.now();
+    const last = lastErrorRef.current;
+    const key = payload.link ? `${payload.message}::${payload.link}` : payload.message;
+    if (last && last.msg === key && now - last.ts < cooldownMs) return;
+    setError(payload);
+    lastErrorRef.current = { msg: key, ts: now };
+  }, []);
 
     // Step-by-step loading banner
     const LoadingBanner = ({ subtitle, steps, activeStep, onCancel }: { subtitle?: string; steps: string[]; activeStep: number; onCancel?: () => void }) => (
@@ -211,13 +233,13 @@ export const JobPage = (): JSX.Element => {
 
         if (urls.length === 0) {
           // If no sources are configured, use Remotive as a default fallback.
-          info("No job sources configured. Using Remotive as a default.", "You can configure sources in settings.");
+          safeInfo("No job sources configured. Using Remotive as a default.", "You can configure sources in settings.");
           urls = ['https://remotive.com'];
         }
         // Save URLs for incremental rotation
         setRunUrls(urls);
         setNextUrlIndex(0);
-        info("Job search started...", `Streaming results as we find them (target ${targetCount}).`);
+  safeInfo("Job search started...", `Streaming results as we find them (target ${targetCount}).`);
         // Kick off first incremental job
         await startNextIncrementalJob(urls, 0, query, location || 'Remote');
       } catch (e: any) {
@@ -262,17 +284,17 @@ export const JobPage = (): JSX.Element => {
         if (processError) throw new Error(processError.message);
         if (processData.error) {
           if (processData.error === 'missing_api_key') {
-            setError({
+            setErrorDedup({
               message: 'Firecrawl is not configured. Ask your admin to set FIRECRAWL_API_KEY in Supabase Function Secrets.',
             });
           } else if (processData.error === 'rate_limited') {
             const retrySec = Math.max(10, Math.min(120, Number(processData.retryAfterSeconds || 55)));
-            setError({ message: `Rate limited by Firecrawl. Retrying in ${retrySec}s…` });
+            setErrorDedup({ message: `Rate limited by Firecrawl. Retrying in ${retrySec}s…` });
             // Global backoff: wait, then continue with the same index to retry rotation after cooldown
             await new Promise((r) => setTimeout(r, retrySec * 1000));
           } else {
             const detail = processData.detail || 'An unknown error occurred.';
-            setError({ message: `Failed to start job search: ${detail}` });
+            setErrorDedup({ message: `Failed to start job search: ${detail}` });
           }
           // Track failure and maybe block this source; continue with next (or after cooldown)
           setSourceFailures((prev) => {
@@ -308,7 +330,7 @@ export const JobPage = (): JSX.Element => {
           await startNextIncrementalJob(urls, nextIdx + 1, query, location);
         }
       } catch (e: any) {
-        setError({ message: `Failed to start extraction: ${e.message}` });
+        setErrorDedup({ message: `Failed to start extraction: ${e.message}` });
         // Failure: increment and maybe block, then continue
         if (url) {
           setSourceFailures((prev) => {
@@ -368,7 +390,7 @@ export const JobPage = (): JSX.Element => {
               const reached = projected >= targetCount;
               if (reached) {
                 setIncrementalMode(false);
-                info("Job search complete!", `Found ${projected} results.`);
+                safeInfo("Job search complete!", `Found ${projected} results.`);
                 setCurrentSource(null);
                 setCurrentUrl(null);
                 return;
@@ -376,7 +398,7 @@ export const JobPage = (): JSX.Element => {
               // Start next URL job
               await startNextIncrementalJob(runUrls, nextUrlIndex, searchQuery, selectedLocation || 'Remote');
             } else {
-              info("Job search complete!", inserted ? "Your results have been updated." : "No structured results were found for this search.");
+              safeInfo("Job search complete!", inserted ? "Your results have been updated." : "No structured results were found for this search.");
               setCurrentSource(null);
               setCurrentUrl(null);
             }
@@ -384,7 +406,7 @@ export const JobPage = (): JSX.Element => {
             clearInterval(interval);
             setPollingJobId(null);
             setLastReason('deep_research_failed');
-            setError({ message: 'Job search failed during processing.' });
+            setErrorDedup({ message: 'Job search failed during processing.' });
             setQueueStatus('idle');
             setIncrementalMode(false);
             setCurrentSource(null);
@@ -405,7 +427,7 @@ export const JobPage = (): JSX.Element => {
         } catch (e: any) {
           clearInterval(interval);
           setPollingJobId(null);
-          setError({ message: `Failed to check job status: ${e.message}` });
+          setErrorDedup({ message: `Failed to check job status: ${e.message}` });
           setQueueStatus('idle');
           setIncrementalMode(false);
         }
@@ -475,7 +497,7 @@ export const JobPage = (): JSX.Element => {
             // If the queue is empty AND we have a profile with a job title, auto-populate it.
             if (initialJobs.length === 0 && profile?.job_title) {
         info("No results yet. Building a personalized job feed...", "This may take a moment.");
-                await populateQueue(profile.job_title, profile.location || undefined);
+        await populateQueue(profile.job_title, profile.location || undefined);
             }
         };
 
