@@ -128,7 +128,7 @@ export const JobPage = (): JSX.Element => {
           .select('allowed_domains')
           .eq('user_id', user.id)
           .maybeSingle();
-        if (q1.error && q1.error.code !== 'PGRST116') throw q1.error;
+        // If the column doesn't exist or no row, try fallback path using id
         if (q1.data) {
           settings = q1.data;
           urls = settings?.allowed_domains || [];
