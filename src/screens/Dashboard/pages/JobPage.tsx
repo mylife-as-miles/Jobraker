@@ -123,9 +123,26 @@ export const JobPage = (): JSX.Element => {
 
     // Step-by-step loading banner
     const LoadingBanner = ({ subtitle, steps, activeStep, onCancel }: { subtitle?: string; steps: string[]; activeStep: number; onCancel?: () => void }) => (
-      <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#1dff00]/30 p-4 sm:p-5 mb-4">
+      <Card className="relative overflow-hidden bg-gradient-to-br from-[#0b0b0b] via-[#0f0f0f] to-[#0b0b0b] border border-[#1dff00]/30 p-4 sm:p-5 mb-4">
+        {/* Soft radial glow backdrop */}
+        <motion.div
+          className="pointer-events-none absolute -inset-24 opacity-30"
+          style={{ background: 'radial-gradient(600px 200px at 20% -10%, rgba(29,255,0,0.25), rgba(29,255,0,0) 60%)' }}
+          initial={{ opacity: 0.15 }}
+          animate={{ opacity: [0.15, 0.30, 0.15] }}
+          transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
+        />
         <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-[#1dff00] animate-pulse" aria-hidden />
+          {/* Radar pulse */}
+          <div className="relative w-6 h-6">
+            <span className="absolute inset-0 rounded-full bg-[#1dff00] opacity-70" />
+            <motion.span
+              className="absolute inset-0 rounded-full bg-[#1dff00]"
+              initial={{ scale: 0.9, opacity: 0.75 }}
+              animate={{ scale: [0.9, 1.25, 0.9], opacity: [0.75, 0.15, 0.75] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          </div>
           <div className="flex-1 min-w-0">
             <div className="text-white font-medium">Building your results…</div>
             <div className="text-xs text-[#ffffff90]">{subtitle || 'This may take a few minutes depending on sources.'}</div>
@@ -136,20 +153,35 @@ export const JobPage = (): JSX.Element => {
             </Button>
           )}
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-3">
-          {steps.map((label, idx) => (
-            <div key={label} className={`flex items-center gap-2 rounded-md border p-2 ${idx === activeStep ? 'border-[#1dff00] bg-[#1dff00]/10' : 'border-[#ffffff18] bg-[#ffffff08]'}`}>
-              <div className={`w-2 h-2 rounded-full ${idx === activeStep ? 'bg-[#1dff00] animate-pulse' : 'bg-[#ffffff40]'}`} aria-hidden />
-              <div className={`text-[11px] truncate ${idx === activeStep ? 'text-[#eaffea]' : 'text-[#ffffff90]'}`}>{label}</div>
-            </div>
-          ))}
+
+        {/* Steps with animated active pill */}
+        <div className="mt-3 grid grid-cols-3 gap-3 relative">
+          {steps.map((label, idx) => {
+            const isActive = idx === activeStep;
+            return (
+              <div key={label} className={`relative flex items-center gap-2 rounded-md border p-2 ${isActive ? 'border-[#1dff00] bg-[#1dff00]/10' : 'border-[#ffffff18] bg-[#ffffff08]'}`}>
+                <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-[#1dff00]' : 'bg-[#ffffff40]'}`} aria-hidden />
+                <div className={`text-[11px] truncate ${isActive ? 'text-[#eaffea]' : 'text-[#ffffff90]'}`}>{label}</div>
+                {isActive && (
+                  <motion.span
+                    layoutId="activeStepGlow"
+                    className="absolute inset-0 rounded-md"
+                    style={{ boxShadow: '0 0 20px rgba(29,255,0,0.35) inset' }}
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
-        <div className="mt-3 h-1.5 bg-[#ffffff12] rounded overflow-hidden">
+
+        {/* Shimmering progress bar */}
+        <div className="mt-3 h-1.5 bg-[#0f0f0f] rounded overflow-hidden border border-[#1dff00]/20">
           <motion.div
-            className="h-full bg-gradient-to-r from-[#1dff00]/20 via-[#1dff00] to-[#1dff00]/20"
+            className="h-full"
+            style={{ background: 'linear-gradient(90deg, rgba(29,255,0,0.15) 0%, rgba(29,255,0,0.9) 50%, rgba(29,255,0,0.15) 100%)' }}
             initial={{ x: '-100%' }}
             animate={{ x: '100%' }}
-            transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
+            transition={{ repeat: Infinity, duration: 1.25, ease: 'easeInOut' }}
             aria-hidden
           />
         </div>
@@ -463,18 +495,25 @@ export const JobPage = (): JSX.Element => {
     };
 
     // Deadline formatting helper
-    const formatDeadline = (value?: string) => {
-      if (!value) return '';
+    const formatDeadlineMeta = (value?: string): { label: string; level: 'overdue' | 'soon' | 'future' } | null => {
+      if (!value) return null;
       const ts = Date.parse(value);
-      if (Number.isNaN(ts)) return value; // Show raw if not a date
+      if (Number.isNaN(ts)) return { label: value, level: 'future' };
       const d = new Date(ts);
       const now = new Date();
       const ms = d.getTime() - now.getTime();
       const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
-      if (days < 0) return `Closed ${Math.abs(days)}d ago`;
-      if (days === 0) return 'Closes today';
-      if (days === 1) return 'Closes tomorrow';
-      return `Closes in ${days}d`;
+      if (days < 0) return { label: `Closed ${Math.abs(days)}d ago`, level: 'overdue' };
+      if (days === 0) return { label: 'Closes today', level: 'soon' };
+      if (days === 1) return { label: 'Closes tomorrow', level: 'soon' };
+      const level: 'soon' | 'future' = days <= 7 ? 'soon' : 'future';
+      return { label: `Closes in ${days}d`, level };
+    };
+
+    const deadlineClasses = (level: 'overdue' | 'soon' | 'future') => {
+      if (level === 'overdue') return 'border-[#ff4d4f]/30 text-[#ff4d4f] bg-[#ff4d4f]/10';
+      if (level === 'soon') return 'border-[#ffbf00]/30 text-[#ffbf00] bg-[#ffbf00]/10';
+      return 'border-[#14b8a6]/30 text-[#14b8a6] bg-[#14b8a6]/10';
     };
 
     return (
@@ -607,6 +646,14 @@ export const JobPage = (): JSX.Element => {
                 <Card className="border border-[#1dff00]/30 bg-[#1dff00]/10 text-[#1dff00] p-3 text-sm flex items-center justify-between">
                   <span>Auto applying jobs...</span>
                   <span>{applyProgress.done}/{applyProgress.total} • {applyProgress.success} ✓ {applyProgress.fail > 0 && `• ${applyProgress.fail} ✕`}</span>
+                  <div className="absolute left-0 right-0 -bottom-0.5 h-0.5 bg-[#1dff00]/20">
+                    <motion.div
+                      className="h-full bg-[#1dff00]"
+                      initial={{ width: '0%' }}
+                      animate={{ width: `${Math.min(100, Math.round((applyProgress.done / Math.max(1, applyProgress.total)) * 100))}%` }}
+                      transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+                    />
+                  </div>
                 </Card>
               )}
 
@@ -644,18 +691,29 @@ export const JobPage = (): JSX.Element => {
                                 {job.remote_type}
                               </span>
                             )}
-                            {(job.apply_url || job.source_id) && (
+                            {(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id) && (
                               <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]" title={(job.apply_url || job.source_id || '')}>
-                                {getHost(job.apply_url || job.source_id || '')}
+                                {getHost(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id || '')}
                               </span>
                             )}
                             {(() => {
-                              const deadline = (job as any)?.raw_data?.applicationDeadline as string | undefined;
-                              if (!deadline) return null;
-                              const label = formatDeadline(deadline);
+                              const raw = (job as any)?.raw_data;
+                              const salary = (raw?.salaryRange || raw?.salary) as string | undefined;
+                              if (!salary) return null;
+                              const short = salary.length > 36 ? salary.slice(0, 33) + '…' : salary;
                               return (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffbf00]/30 text-[#ffbf00] bg-[#ffbf00]/10" title={deadline}>
-                                  {label}
+                                <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffc0] bg-[#ffffff0d]" title={salary}>
+                                  {short}
+                                </span>
+                              );
+                            })()}
+                            {(() => {
+                              const deadline = (job as any)?.raw_data?.applicationDeadline as string | undefined;
+                              const meta = formatDeadlineMeta(deadline);
+                              if (!meta) return null;
+                              return (
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${deadlineClasses(meta.level)}`} title={deadline}>
+                                  {meta.label}
                                 </span>
                               );
                             })()}
@@ -730,20 +788,35 @@ export const JobPage = (): JSX.Element => {
                               })()}
                               {(() => {
                                 const deadline = (job as any)?.raw_data?.applicationDeadline as string | undefined;
-                                if (!deadline) return null;
+                                const meta = formatDeadlineMeta(deadline);
+                                if (!meta) return null;
                                 return (
                                   <div className="mt-4 text-xs text-[#ffffffb3]">
-                                    Application deadline: <span className="text-[#ffbf00]">{formatDeadline(deadline)}</span>
+                                    Application deadline: <span className={`${deadlineClasses(meta.level)}`.replace('border', 'text').replace(/bg\[[^\]]+\]/g, '')}>{meta.label}</span>
                                   </div>
                                 );
                               })()}
-                              {job.apply_url && (
-                                  <div className="flex justify-end mt-4">
-                                      <a href={job.apply_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-4 py-2 rounded-md border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/20 hover:bg-[#1dff00]/30 transition">
-                                      View Original Posting
-                                      </a>
+                              {(() => {
+                                const raw = (job as any)?.raw_data;
+                                const salary = (raw?.salaryRange || raw?.salary) as string | undefined;
+                                if (!salary) return null;
+                                return (
+                                  <div className="mt-2 text-xs text-[#ffffffb3]">
+                                    Salary: <span className="text-[#ffffffd0]">{salary}</span>
                                   </div>
-                              )}
+                                );
+                              })()}
+                              {(() => {
+                                const primaryHref = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id;
+                                if (!primaryHref) return null;
+                                return (
+                                  <div className="flex justify-end mt-4">
+                                    <a href={primaryHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-4 py-2 rounded-md border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/20 hover:bg-[#1dff00]/30 transition">
+                                      View Original Posting
+                                    </a>
+                                  </div>
+                                );
+                              })()}
                           </Card>
                       </motion.div>
                   );
