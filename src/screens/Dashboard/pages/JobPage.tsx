@@ -47,7 +47,7 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
       ...dbJob,
       id: dbJob.id,
       description: dbJob.description || dbJob.raw_data?.fullJobDescription || '',
-      logoUrl: getCompanyLogoUrl(dbJob.company, dbJob.apply_url),
+      logoUrl: dbJob.raw_data?.companyLogoUrl || getCompanyLogoUrl(dbJob.company, dbJob.apply_url),
       logo: dbJob.company?.[0]?.toUpperCase() || '?',
       status: dbJob.status,
       source_type: dbJob.source_type ?? null,
@@ -462,6 +462,21 @@ export const JobPage = (): JSX.Element => {
       return `${days}d ago`;
     };
 
+    // Deadline formatting helper
+    const formatDeadline = (value?: string) => {
+      if (!value) return '';
+      const ts = Date.parse(value);
+      if (Number.isNaN(ts)) return value; // Show raw if not a date
+      const d = new Date(ts);
+      const now = new Date();
+      const ms = d.getTime() - now.getTime();
+      const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
+      if (days < 0) return `Closed ${Math.abs(days)}d ago`;
+      if (days === 0) return 'Closes today';
+      if (days === 1) return 'Closes tomorrow';
+      return `Closes in ${days}d`;
+    };
+
     return (
       <div className="min-h-screen bg-black" role="main" aria-label="Job search">
         <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -634,6 +649,16 @@ export const JobPage = (): JSX.Element => {
                                 {getHost(job.apply_url || job.source_id || '')}
                               </span>
                             )}
+                            {(() => {
+                              const deadline = (job as any)?.raw_data?.applicationDeadline as string | undefined;
+                              if (!deadline) return null;
+                              const label = formatDeadline(deadline);
+                              return (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffbf00]/30 text-[#ffbf00] bg-[#ffbf00]/10" title={deadline}>
+                                  {label}
+                                </span>
+                              );
+                            })()}
                             {job.posted_at && (
                               <span className="ml-auto text-[10px] text-[#ffffff80]">{formatRelative(job.posted_at)}</span>
                             )}
@@ -700,6 +725,15 @@ export const JobPage = (): JSX.Element => {
                                         );
                                       })}
                                     </ul>
+                                  </div>
+                                );
+                              })()}
+                              {(() => {
+                                const deadline = (job as any)?.raw_data?.applicationDeadline as string | undefined;
+                                if (!deadline) return null;
+                                return (
+                                  <div className="mt-4 text-xs text-[#ffffffb3]">
+                                    Application deadline: <span className="text-[#ffbf00]">{formatDeadline(deadline)}</span>
                                   </div>
                                 );
                               })()}
