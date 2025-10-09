@@ -36,7 +36,8 @@ Deno.serve(async (req) => {
   const location = (body?.location || '').trim();
   const types = Array.isArray(body?.type) ? body.type : (typeof body?.type === 'string' ? [body.type] : []);
   const debug = Boolean(body?.debug);
-  const limit = Number.isFinite(Number(body?.limit)) ? Math.max(0, Number(body?.limit)) : undefined;
+  // We no longer use per-job extraction limit; process all provided URLs
+  const limit = undefined;
   const clearExisting = Boolean(body?.clearExisting);
   const relaxSchema = Boolean(body?.relaxSchema);
 
@@ -66,12 +67,26 @@ Deno.serve(async (req) => {
         fullJobDescription: { type: 'string' },
         postedDate: { type: 'string' },
         salaryRange: { type: 'string' },
+        salary: { type: 'string' },
         applyUrl: { type: 'string' },
+        sourceUrl: { type: 'string' },
+        companyLogoUrl: { type: 'string' },
+        applicationDeadline: { type: 'string' },
       },
       required: relaxSchema ? ['jobTitle','companyName'] : ['jobTitle','companyName','location','fullJobDescription'],
     };
 
-    const extractPrompt = `For the role of "${searchQuery}" ${location ? `near "${location}"` : ''}, extract job posting details.${limit === 1 ? ' Return only the single best matching job.' : ''}`;
+    const extractPrompt = `You are extracting metadata from job listing URLs.
+For the role "${searchQuery}" ${location ? `near "${location}"` : ''}, return a structured array of jobs with:
+- jobTitle, companyName
+- location, workType (Remote/Hybrid/On-site)
+- applyUrl and sourceUrl
+- postedDate (ISO if possible)
+- salaryRange and/or salary text
+- companyLogoUrl (from page content, OpenGraph, or JSON-LD)
+- applicationDeadline (if present)
+- fullJobDescription (concise, up to ~1500 chars)
+Prefer on-page structured data (JSON-LD, microdata) when available. If a field is missing, omit it. Use web search to fill gaps and cross-check consistency.`;
 
     const finalSchema: any = {
       type: 'object',
@@ -79,7 +94,6 @@ Deno.serve(async (req) => {
         jobs: {
           type: 'array',
           items: jobSchema,
-          ...(typeof limit === 'number' && limit > 0 ? { maxItems: limit } : {}),
           minItems: 0,
         }
       },

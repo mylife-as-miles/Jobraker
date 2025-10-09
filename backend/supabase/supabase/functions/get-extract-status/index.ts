@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
-  const { jobId, searchQuery, searchLocation, limit } = await req.json();
+  const { jobId, searchQuery, searchLocation } = await req.json();
 
     if (!jobId) {
       return new Response(JSON.stringify({ error: 'jobId is required' }), { status: 400, headers: { ...corsHeaders, 'content-type': 'application/json' } });
@@ -52,24 +52,20 @@ Deno.serve(async (req) => {
 
     let jobsInserted = 0;
     if (extractStatus.status === 'completed') {
-      let extractedJobs = extractStatus.data?.jobs || [];
-      const cap = Number.isFinite(Number(limit)) ? Math.max(0, Number(limit)) : undefined;
-      if (typeof cap === 'number' && cap > 0) {
-        extractedJobs = extractedJobs.slice(0, cap);
-      }
+      const extractedJobs = extractStatus.data?.jobs || [];
       console.info('firecrawl.extract_complete', { userId, jobId, jobs_found: extractedJobs.length });
 
       if (extractedJobs.length > 0) {
         // Try to capture sources metadata from Firecrawl response when showSources=true
         const sources = (extractStatus?.sources || extractStatus?.data?.sources || null);
         const jobsToInsert = extractedJobs.map((job) => {
-          const salaryText = job.salaryRange || job.fullJobDescription || '';
+          const salaryText = job.salaryRange || job.salary || job.fullJobDescription || '';
           const { min: salary_min, max: salary_max } = parseSalaryRangeToMinMax(salaryText);
           const meta = inferSalaryMeta(salaryText);
           return {
             user_id: userId,
             source_type: 'agentic_extract',
-            source_id: job.applyUrl || `agentic-${jobId}-${Math.random()}`,
+            source_id: job.sourceUrl || job.applyUrl || `agentic-${jobId}-${Math.random()}`,
             title: job.jobTitle,
             company: job.companyName,
             description: job.fullJobDescription,

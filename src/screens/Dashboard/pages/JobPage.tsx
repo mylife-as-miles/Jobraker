@@ -76,18 +76,10 @@ export const JobPage = (): JSX.Element => {
   // Incremental run state
   const [incrementalMode, setIncrementalMode] = useState(false);
   const [incrementalCanceled, setIncrementalCanceled] = useState(false);
-  // Fixed target for UI messaging and stop condition (ingestion stops at 10)
-  const TARGET_COUNT = 10;
   const [insertedThisRun, setInsertedThisRun] = useState(0);
   const [runUrls, setRunUrls] = useState<string[] | null>(null);
-  const [nextUrlIndex, setNextUrlIndex] = useState(0);
-  const [baseJobIds, setBaseJobIds] = useState<Set<string>>(new Set());
-  const [runInsertedIds, setRunInsertedIds] = useState<Set<string>>(new Set());
   const [currentSource, setCurrentSource] = useState<string | null>(null);
-  const [currentUrl, setCurrentUrl] = useState<string | null>(null);
-  const [sourceFailures, setSourceFailures] = useState<Record<string, number>>({});
-  const [blockedSources, setBlockedSources] = useState<Set<string>>(new Set());
-    const [lastReason, setLastReason] = useState<string | null>(null);
+  const [lastReason, setLastReason] = useState<string | null>(null);
     const [debugMode, setDebugMode] = useState(false);
     const [logoError, setLogoError] = useState<Record<string, boolean>>({});
     const [currentPage] = useState(1); // (Pagination placeholder; future enhancement)
@@ -97,8 +89,7 @@ export const JobPage = (): JSX.Element => {
   const [relaxSchema, setRelaxSchema] = useState(false);
     const [remoteOnly, setRemoteOnly] = useState(false);
     const [recentOnly, setRecentOnly] = useState(false);
-  // When true, this run was kicked off via jobs-search (single jobId covering curated URLs)
-  const [searchBasedRun, setSearchBasedRun] = useState(false);
+  // Runs are initiated via jobs-search; no special flag needed
 
   const { profile, loading: profileLoading } = useProfileSettings();
   const { info } = useToast();
@@ -127,7 +118,8 @@ export const JobPage = (): JSX.Element => {
 
   // Guard flags to prevent overlapping runs/requests
   const autoPopulatedRef = useRef(false);
-  const startInFlightRef = useRef(false);
+  // Removed per-URL incremental loop; keep a simple flag if needed in future
+  // const startInFlightRef = useRef(false);
 
     // Step-by-step loading banner
     const LoadingBanner = ({ subtitle, steps, activeStep, onCancel }: { subtitle?: string; steps: string[]; activeStep: number; onCancel?: () => void }) => (
@@ -219,10 +211,9 @@ export const JobPage = (): JSX.Element => {
       setIncrementalMode(true);
       setIncrementalCanceled(false);
       setInsertedThisRun(0);
-      setRunInsertedIds(new Set());
-      setSearchBasedRun(true);
-      // Snapshot base job IDs to measure delta for this run
-      setBaseJobIds(new Set(jobs.map(j => j.id)));
+  // reset per-run counters only
+  // Reset counters for this run
+  setInsertedThisRun(0);
 
       try {
         // Use backend jobs-search to discover curated URLs and kick off extraction
@@ -233,7 +224,7 @@ export const JobPage = (): JSX.Element => {
               searchQuery: query,
               location: location || 'Remote',
               relaxSchema,
-              limit: TARGET_COUNT,
+              // no per-job limit; backend curates URLs
             },
           });
           if (invokeErr) throw new Error(invokeErr.message);
@@ -260,14 +251,12 @@ export const JobPage = (): JSX.Element => {
           }
           setQueueStatus('ready');
           setIncrementalMode(false);
-          setSearchBasedRun(false);
           return;
         }
 
         if (data?.jobId) {
           const urls: string[] = Array.isArray(data?.urls) ? data.urls : [];
           setRunUrls(urls);
-          setNextUrlIndex(0);
           setPollingJobId(data.jobId);
           setQueueStatus('populating');
           setStepIndex(1); // Extracting
@@ -275,122 +264,21 @@ export const JobPage = (): JSX.Element => {
           if (urls.length > 0) {
             try { setCurrentSource(new URL(urls[0]).hostname.replace(/^www\./, '')); } catch { setCurrentSource(urls[0]); }
           }
-          safeInfo("Job search started...", `Streaming results as we find them (target ${TARGET_COUNT}).`);
+          safeInfo("Job search started...", `Streaming results as we find them.`);
         } else {
           setErrorDedup({ message: 'Failed to start extraction: unexpected response.' });
           setQueueStatus('idle');
           setIncrementalMode(false);
-          setSearchBasedRun(false);
         }
       } catch (e: any) {
         setError({ message: `Failed to build job feed: ${e.message}` });
         setQueueStatus('idle');
         setIncrementalMode(false);
-        setSearchBasedRun(false);
+  // simplified flow
       }
-  }, [supabase, debugMode, pollingJobId, incrementalMode, relaxSchema, TARGET_COUNT, jobs.length]);
+  }, [supabase, debugMode, pollingJobId, incrementalMode, relaxSchema, jobs.length]);
 
-    const startNextIncrementalJob = useCallback(async (urls: string[] | null, idx: number, query: string, location: string) => {
-      if (!urls || urls.length === 0) return;
-      if (!incrementalMode || incrementalCanceled) return;
-      if (startInFlightRef.current || pollingJobId) return; // avoid overlapping starts
-      // Choose next non-blocked source up to urls.length attempts
-      let attempts = 0;
-      let nextIdx = ((idx % urls.length) + urls.length) % urls.length;
-      let url = urls[nextIdx];
-      while (attempts < urls.length && blockedSources.has(url)) {
-        attempts++;
-        nextIdx = (nextIdx + 1) % urls.length;
-        url = urls[nextIdx];
-      }
-      if (attempts >= urls.length && blockedSources.size >= urls.length) {
-        setIncrementalMode(false);
-        setQueueStatus('ready');
-        safeInfo('All sources skipped', 'Sources failed repeatedly and were skipped.');
-        setCurrentSource(null);
-        setCurrentUrl(null);
-        return;
-      }
-      setStepIndex(0); // Discovering
-      try {
-        startInFlightRef.current = true;
-        setCurrentUrl(url);
-        const { data: processData, error: processError } = await supabase.functions.invoke('process-and-match', {
-          body: {
-            searchQuery: query,
-            location,
-            debug: debugMode,
-            urls: [url],
-            limit: 1,
-            relaxSchema,
-          },
-        });
-        if (processError) throw new Error(processError.message);
-        if (processData.error) {
-          if (processData.error === 'missing_api_key') {
-            setErrorDedup({
-              message: 'Firecrawl is not configured. Ask your admin to set FIRECRAWL_API_KEY in Supabase Function Secrets.',
-            });
-          } else if (processData.error === 'rate_limited') {
-            const retrySec = Math.max(10, Math.min(120, Number(processData.retryAfterSeconds || 55)));
-            setErrorDedup({ message: `Rate limited by Firecrawl. Retrying in ${retrySec}s…` });
-            // Global backoff: wait, then continue with the same index to retry rotation after cooldown
-            await new Promise((r) => setTimeout(r, retrySec * 1000));
-          } else {
-            const detail = processData.detail || 'An unknown error occurred.';
-            setErrorDedup({ message: `Failed to start job search: ${detail}` });
-          }
-          // Track failure and maybe block this source; continue with next (or after cooldown)
-          setSourceFailures((prev) => {
-            const c = (prev[url] || 0) + 1;
-            const next = { ...prev, [url]: c };
-            if (c >= 2) setBlockedSources((s) => new Set([...Array.from(s), url]));
-            return next;
-          });
-          setNextUrlIndex((prev) => (prev + 1) % urls.length);
-          await startNextIncrementalJob(urls, nextIdx + 1, query, location);
-          return;
-        }
-        if (processData.jobId) {
-          setPollingJobId(processData.jobId);
-          setQueueStatus('populating');
-          setStepIndex(1); // Extracting
-          // Track current source host for UX
-          try {
-            const host = new URL(url).hostname.replace(/^www\./, '');
-            setCurrentSource(host);
-          } catch { setCurrentSource(url); }
-          // Advance next URL index for future
-          setNextUrlIndex((prev) => (prev + 1) % urls.length);
-        } else {
-          // Could not start; attempt next URL quickly
-          setSourceFailures((prev) => {
-            const c = (prev[url] || 0) + 1;
-            const next = { ...prev, [url]: c };
-            if (c >= 2) setBlockedSources((s) => new Set([...Array.from(s), url]));
-            return next;
-          });
-          setNextUrlIndex((prev) => (prev + 1) % urls.length);
-          await startNextIncrementalJob(urls, nextIdx + 1, query, location);
-        }
-      } catch (e: any) {
-        setErrorDedup({ message: `Failed to start extraction: ${e.message}` });
-        // Failure: increment and maybe block, then continue
-        if (url) {
-          setSourceFailures((prev) => {
-            const c = (prev[url] || 0) + 1;
-            const next = { ...prev, [url]: c };
-            if (c >= 2) setBlockedSources((s) => new Set([...Array.from(s), url]));
-            return next;
-          });
-        }
-        setNextUrlIndex((prev) => (prev + 1) % (urls?.length || 1));
-        await startNextIncrementalJob(urls, nextIdx + 1, query, location);
-      }
-      finally {
-        startInFlightRef.current = false;
-      }
-    }, [supabase, incrementalMode, incrementalCanceled, debugMode, relaxSchema, blockedSources, info]);
+    // Removed per-URL incremental starter; jobs-search now initiates a single batch extraction
 
     // Effect for polling the job status
     useEffect(() => {
@@ -399,7 +287,7 @@ export const JobPage = (): JSX.Element => {
       const interval = setInterval(async () => {
         try {
           const { data: statusData, error: statusError } = await supabase.functions.invoke('get-extract-status', {
-            body: { jobId: pollingJobId, searchQuery, searchLocation: selectedLocation, limit: (incrementalMode && !searchBasedRun) ? 1 : undefined },
+            body: { jobId: pollingJobId, searchQuery, searchLocation: selectedLocation },
           });
 
           if (statusError) throw new Error(statusError.message);
@@ -412,45 +300,12 @@ export const JobPage = (): JSX.Element => {
               : (Array.isArray(statusData?.data?.jobs) ? statusData.data.jobs.length : undefined);
             if (!inserted) setLastReason('no_structured_results');
             setStepIndex(2); // Inserting
-            const newJobs = await fetchJobQueue(); // Refresh the queue with new jobs and get list
-            // Compute newly inserted ids for this run based on snapshot
-            const newIds = new Set<string>(newJobs.map((j: Job) => j.id));
-            const newlyInserted: string[] = [];
-            newIds.forEach((id: string) => {
-              if (!baseJobIds.has(id) && !runInsertedIds.has(id)) newlyInserted.push(id);
-            });
-            if (newlyInserted.length > 0) {
-              setInsertedThisRun((prev) => prev + newlyInserted.length);
-              setRunInsertedIds((prev) => {
-                const updated = new Set(prev);
-                newlyInserted.forEach((id: string) => updated.add(id));
-                return updated;
-              });
-            }
-            // Success: reset failure count for current URL
-            if (currentUrl) {
-              setSourceFailures((prev) => ({ ...prev, [currentUrl]: 0 }));
-            }
-            // If in incremental mode (per-URL rotation), continue until target or canceled
-            if (incrementalMode && !incrementalCanceled && !searchBasedRun) {
-              const projected = (insertedThisRun + newlyInserted.length);
-              const reached = projected >= TARGET_COUNT;
-              if (reached) {
-                setIncrementalMode(false);
-                safeInfo("Job search complete!", `Found ${projected} results.`);
-                setCurrentSource(null);
-                setCurrentUrl(null);
-                return;
-              }
-              // Start next URL job
-              await startNextIncrementalJob(runUrls, nextUrlIndex, searchQuery, selectedLocation || 'Remote');
-            } else {
-              safeInfo("Job search complete!", inserted ? "Your results have been updated." : "No structured results were found for this search.");
-              setCurrentSource(null);
-              setCurrentUrl(null);
-              setIncrementalMode(false);
-              setSearchBasedRun(false);
-            }
+            // Refresh and summarize
+            await fetchJobQueue();
+            setInsertedThisRun((prev) => prev + (inserted || 0));
+            safeInfo("Job search complete!", inserted ? "Your results have been updated." : "No structured results were found for this search.");
+            setCurrentSource(null);
+            setIncrementalMode(false);
           } else if (statusData.status === 'failed') {
             clearInterval(interval);
             setPollingJobId(null);
@@ -458,20 +313,8 @@ export const JobPage = (): JSX.Element => {
             setErrorDedup({ message: 'Job search failed during processing.' });
             setQueueStatus('idle');
             setIncrementalMode(false);
-            setSearchBasedRun(false);
             setCurrentSource(null);
-            // Failed during extraction: increment and potentially block current URL; continue if streaming
-            if (currentUrl && runUrls) {
-              setSourceFailures((prev) => {
-                const c = (prev[currentUrl] || 0) + 1;
-                const next = { ...prev, [currentUrl]: c };
-                if (c >= 2) setBlockedSources((s) => new Set([...Array.from(s), currentUrl]));
-                return next;
-              });
-              if (incrementalMode && !incrementalCanceled && !searchBasedRun) {
-                await startNextIncrementalJob(runUrls, nextUrlIndex, searchQuery, selectedLocation || 'Remote');
-              }
-            }
+            // Nothing else to do in simplified flow
           }
           // If still 'processing', do nothing and let the interval continue.
         } catch (e: any) {
@@ -479,13 +322,12 @@ export const JobPage = (): JSX.Element => {
           setPollingJobId(null);
           setErrorDedup({ message: `Failed to check job status: ${e.message}` });
           setQueueStatus('idle');
-          setIncrementalMode(false);
-          setSearchBasedRun(false);
+            setIncrementalMode(false);
         }
       }, 10000); // Poll every 10 seconds
 
       return () => clearInterval(interval);
-  }, [pollingJobId, supabase, fetchJobQueue, info, searchQuery, selectedLocation, incrementalMode, incrementalCanceled, startNextIncrementalJob, runUrls, nextUrlIndex, insertedThisRun, baseJobIds, runInsertedIds, jobs]);
+  }, [pollingJobId, supabase, fetchJobQueue, info, searchQuery, selectedLocation, incrementalMode, incrementalCanceled, runUrls, insertedThisRun, jobs]);
 
     const cancelPopulation = useCallback(() => {
       setIncrementalCanceled(true);
@@ -493,8 +335,8 @@ export const JobPage = (): JSX.Element => {
       setPollingJobId(null);
       setQueueStatus('ready');
       setCurrentSource(null);
-      setCurrentUrl(null);
-      setSearchBasedRun(false);
+  // no currentUrl tracking in simplified flow
+  // simplified flow
     }, []);
 
     // Apply all jobs (mark as applied) sequentially with simple progress + analytics events
@@ -673,7 +515,7 @@ export const JobPage = (): JSX.Element => {
 
           {queueStatus === 'populating' && (
             <LoadingBanner
-              subtitle={`Streaming results… Found ${insertedThisRun}/${TARGET_COUNT}${currentSource ? ` • Source: ${currentSource}` : ''}${(currentUrl && sourceFailures[currentUrl] > 0) ? ` • retries: ${sourceFailures[currentUrl]}` : ''}`}
+              subtitle={`Streaming results… ${currentSource ? `Source: ${currentSource}` : ''}`}
               steps={steps}
               activeStep={stepIndex}
               onCancel={cancelPopulation}

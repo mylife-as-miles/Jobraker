@@ -29,7 +29,8 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const searchQuery = (body?.searchQuery || '').trim();
     const location = (body?.location || '').trim();
-    const limit = Number.isFinite(Number(body?.limit)) ? Math.max(1, Math.min(20, Number(body.limit))) : 10;
+  // No hard limit; we'll curate a reasonable set but not enforce per-job caps
+  const limit = Number.isFinite(Number(body?.limit)) ? Math.max(1, Number(body.limit)) : undefined;
     if (!searchQuery) {
       return new Response(JSON.stringify({ error: 'searchQuery is required' }), { status: 400, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
@@ -52,7 +53,7 @@ Deno.serve(async (req) => {
     const userScrapeOptions = typeof body?.scrapeOptions === 'object' && body.scrapeOptions ? body.scrapeOptions : {};
     const searchPayload = {
       query: fullQuery,
-      limit,
+      limit: limit,
       sources: ['web'],
       categories: [],
       tbs: undefined,
@@ -117,7 +118,7 @@ Deno.serve(async (req) => {
     for (const u of urls) {
       const clean = String(u).replace(/\/$/, '');
       if (!seen.has(clean)) { seen.add(clean); curated.push(clean); }
-      if (curated.length >= limit) break;
+      if (typeof limit === 'number' && curated.length >= limit) break;
     }
     if (curated.length === 0) {
       curated.push('https://remotive.com');
@@ -126,7 +127,7 @@ Deno.serve(async (req) => {
     // Kick off extraction via our existing function to keep a single polling flow
     const supabaseFunctions = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
     const { data: pmData, error: pmError } = await supabaseFunctions.functions.invoke('process-and-match', {
-      body: { searchQuery, location, urls: curated, limit: Math.min(10, curated.length), relaxSchema: Boolean(body?.relaxSchema) },
+      body: { searchQuery, location, urls: curated, relaxSchema: Boolean(body?.relaxSchema) },
     });
     if (pmError) {
       console.error('jobs-search.process-and-match_failed', pmError?.message || pmError);
