@@ -76,8 +76,8 @@ export const JobPage = (): JSX.Element => {
   // Incremental run state
   const [incrementalMode, setIncrementalMode] = useState(false);
   const [incrementalCanceled, setIncrementalCanceled] = useState(false);
-  // Fixed target for UI messaging and optional stop condition (ingestion continues until 50)
-  const TARGET_COUNT = 50;
+  // Fixed target for UI messaging and stop condition (ingestion stops at 10)
+  const TARGET_COUNT = 10;
   const [insertedThisRun, setInsertedThisRun] = useState(0);
   const [runUrls, setRunUrls] = useState<string[] | null>(null);
   const [nextUrlIndex, setNextUrlIndex] = useState(0);
@@ -590,7 +590,7 @@ export const JobPage = (): JSX.Element => {
                     <span>Recent</span>
                     <Switch checked={recentOnly} onCheckedChange={setRecentOnly} />
                   </div>
-                  {/* Target selector removed: fixed to 20 to minimize API usage and keep runs bounded */}
+                  {/* Target selector removed: fixed to 10 to minimize API usage and keep runs bounded */}
                   <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
                     <span>Diagnostics</span>
                     <Switch checked={debugMode} onCheckedChange={setDebugMode} />
