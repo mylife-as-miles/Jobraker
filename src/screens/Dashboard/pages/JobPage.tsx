@@ -25,6 +25,8 @@ interface Job {
   logoUrl?: string;
   logo: string;
   status?: string;
+  source_type?: string | null;
+  source_id?: string | null;
 }
 
 const supabase = createClient();
@@ -48,6 +50,8 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
       logoUrl: getCompanyLogoUrl(dbJob.company, dbJob.apply_url),
       logo: dbJob.company?.[0]?.toUpperCase() || '?',
       status: dbJob.status,
+      source_type: dbJob.source_type ?? null,
+      source_id: dbJob.source_id ?? null,
     };
   };
 
@@ -86,6 +90,7 @@ export const JobPage = (): JSX.Element => {
     const [pageSize] = useState(10);
     const [applyingAll, setApplyingAll] = useState(false);
     const [applyProgress, setApplyProgress] = useState({ done: 0, total: 0, success: 0, fail: 0 });
+  const [relaxSchema, setRelaxSchema] = useState(false);
 
   const { profile, loading: profileLoading } = useProfileSettings();
   const { info } = useToast();
@@ -131,6 +136,11 @@ export const JobPage = (): JSX.Element => {
       'Extracting',
       'Inserting'
     ], []);
+    const getHost = (url?: string | null) => {
+      if (!url) return '';
+      try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; }
+    };
+
 
     // Real step updates occur at key phases of the flow; no cycling needed now.
 
@@ -236,6 +246,7 @@ export const JobPage = (): JSX.Element => {
             debug: debugMode,
             urls: [url],
             limit: 1,
+            relaxSchema,
           },
         });
         if (processError) throw new Error(processError.message);
@@ -475,6 +486,10 @@ export const JobPage = (): JSX.Element => {
               </div>
               <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
+                    <span>Broaden</span>
+                    <Switch checked={relaxSchema} onCheckedChange={setRelaxSchema} />
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
                     <span>Target</span>
                     <select
                       value={targetCount}
@@ -630,6 +645,11 @@ export const JobPage = (): JSX.Element => {
                                 {job.remote_type}
                               </span>
                             )}
+                            {(job.apply_url || job.source_id) && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]">
+                                {getHost(job.apply_url || job.source_id || '')}
+                              </span>
+                            )}
                             {job.posted_at && (
                               <span className="ml-auto text-[10px] text-[#ffffff80]">{formatRelative(job.posted_at)}</span>
                             )}
@@ -667,6 +687,7 @@ export const JobPage = (): JSX.Element => {
                       <span>{job.company}</span>
                       {job.location && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]">{job.location}</span>}
                       {job.remote_type && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10">{job.remote_type}</span>}
+                      {(job.apply_url || job.source_id) && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]">{getHost(job.apply_url || job.source_id || '')}</span>}
                       {job.posted_at && <span className="ml-auto text-[10px] text-[#ffffff80]">Posted {formatRelative(job.posted_at)}</span>}
                       </div>
                                       </div>
