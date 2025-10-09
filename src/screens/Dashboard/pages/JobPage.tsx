@@ -68,7 +68,16 @@ export const JobPage = (): JSX.Element => {
     const [jobs, setJobs] = useState<Job[]>([]);
     const [queueStatus, setQueueStatus] = useState<'idle' | 'loading' | 'populating' | 'ready' | 'empty'>('loading');
     const [error, setError] = useState<{ message: string, link?: string } | null>(null);
-    const [pollingJobId, setPollingJobId] = useState<string | null>(null);
+  const [pollingJobId, setPollingJobId] = useState<string | null>(null);
+  // Incremental run state
+  const [incrementalMode, setIncrementalMode] = useState(false);
+  const [incrementalCanceled, setIncrementalCanceled] = useState(false);
+  const [targetCount, setTargetCount] = useState(50);
+  const [insertedThisRun, setInsertedThisRun] = useState(0);
+  const [runUrls, setRunUrls] = useState<string[] | null>(null);
+  const [nextUrlIndex, setNextUrlIndex] = useState(0);
+  const [baseJobIds, setBaseJobIds] = useState<Set<string>>(new Set());
+  const [runInsertedIds, setRunInsertedIds] = useState<Set<string>>(new Set());
     const [lastReason, setLastReason] = useState<string | null>(null);
     const [debugMode, setDebugMode] = useState(false);
     const [logoError, setLogoError] = useState<Record<string, boolean>>({});
@@ -81,7 +90,7 @@ export const JobPage = (): JSX.Element => {
   const { info } = useToast();
 
     // Step-by-step loading banner
-    const LoadingBanner = ({ subtitle, steps, activeStep }: { subtitle?: string; steps: string[]; activeStep: number }) => (
+    const LoadingBanner = ({ subtitle, steps, activeStep, onCancel }: { subtitle?: string; steps: string[]; activeStep: number; onCancel?: () => void }) => (
       <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#1dff00]/30 p-4 sm:p-5 mb-4">
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-[#1dff00] animate-pulse" aria-hidden />
@@ -89,6 +98,11 @@ export const JobPage = (): JSX.Element => {
             <div className="text-white font-medium">Building your results…</div>
             <div className="text-xs text-[#ffffff90]">{subtitle || 'This may take a few minutes depending on sources.'}</div>
           </div>
+          {onCancel && (
+            <Button variant="ghost" className="text-[#ffffffb3] hover:bg-[#ffffff12] border border-[#ffffff1e] h-8 px-3" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
         </div>
         <div className="mt-3 grid grid-cols-3 gap-3">
           {steps.map((label, idx) => (
@@ -155,6 +169,12 @@ export const JobPage = (): JSX.Element => {
       setLastReason(null);
       setPollingJobId(null);
       setStepIndex(0); // Discovering sources
+      setIncrementalMode(true);
+      setIncrementalCanceled(false);
+      setInsertedThisRun(0);
+      setRunInsertedIds(new Set());
+      // Snapshot base job IDs to measure delta for this run
+      setBaseJobIds(new Set(jobs.map(j => j.id)));
 
       try {
         // Get user and their configured job source URLs
@@ -190,46 +210,62 @@ export const JobPage = (): JSX.Element => {
           info("No job sources configured. Using Remotive as a default.", "You can configure sources in settings.");
           urls = ['https://remotive.com'];
         }
-
-        // Invoke the backend function with the required payload
-        const { data: processData, error: processError } = await supabase.functions.invoke('process-and-match', {
-          body: {
-            searchQuery: query,
-            location: location || 'Remote',
-            debug: debugMode,
-            urls: urls,
-          },
-        });
-
-        if (processError) throw new Error(processError.message);
-
-        if (processData.error) {
-          const detail = processData.detail || 'An unknown error occurred.';
-          setError({ message: `Failed to start job search: ${detail}` });
-          setQueueStatus('idle');
-          return;
-        }
-
-        if (processData.reason === 'no_job_sources_configured') {
-          setError({ message: 'No job sources configured.', link: '/dashboard/settings' });
-          setQueueStatus('idle');
-          return;
-        }
-
-        if (processData.jobId) {
-          setPollingJobId(processData.jobId);
-          setQueueStatus('populating'); // Keep it in a loading-like state
-          setStepIndex(1); // Extracting
-          info("Job search started...", `We’re building your results. This may take a few minutes.`);
-        } else {
-          setError({ message: 'Could not initiate job search process.' });
-          setQueueStatus('idle');
-        }
+        // Save URLs for incremental rotation
+        setRunUrls(urls);
+        setNextUrlIndex(0);
+        info("Job search started...", `Streaming results as we find them (target ${targetCount}).`);
+        // Kick off first incremental job
+        await startNextIncrementalJob(urls, 0, query, location || 'Remote');
       } catch (e: any) {
         setError({ message: `Failed to build job feed: ${e.message}` });
         setQueueStatus('idle');
       }
-    }, [supabase, debugMode, info]);
+    }, [supabase, debugMode, info, jobs, targetCount]);
+
+    const startNextIncrementalJob = useCallback(async (urls: string[] | null, idx: number, query: string, location: string) => {
+      if (!urls || urls.length === 0) return;
+      if (!incrementalMode || incrementalCanceled) return;
+      const url = urls[idx % urls.length];
+      setStepIndex(0); // Discovering
+      try {
+        const { data: processData, error: processError } = await supabase.functions.invoke('process-and-match', {
+          body: {
+            searchQuery: query,
+            location,
+            debug: debugMode,
+            urls: [url],
+          },
+        });
+        if (processError) throw new Error(processError.message);
+        if (processData.error) {
+          const detail = processData.detail || 'An unknown error occurred.';
+          setError({ message: `Failed to start job search: ${detail}` });
+          setQueueStatus('idle');
+          setIncrementalMode(false);
+          return;
+        }
+        if (processData.reason === 'no_job_sources_configured') {
+          setError({ message: 'No job sources configured.', link: '/dashboard/settings' });
+          setQueueStatus('idle');
+          setIncrementalMode(false);
+          return;
+        }
+        if (processData.jobId) {
+          setPollingJobId(processData.jobId);
+          setQueueStatus('populating');
+          setStepIndex(1); // Extracting
+          // Advance next URL index for future
+          setNextUrlIndex((prev) => (prev + 1) % urls.length);
+        } else {
+          // Could not start; attempt next URL quickly
+          setNextUrlIndex((prev) => (prev + 1) % urls.length);
+        }
+      } catch (e: any) {
+        setError({ message: `Failed to start extraction: ${e.message}` });
+        setQueueStatus('idle');
+        setIncrementalMode(false);
+      }
+    }, [supabase, incrementalMode, incrementalCanceled, debugMode]);
 
     // Effect for polling the job status
     useEffect(() => {
@@ -251,14 +287,48 @@ export const JobPage = (): JSX.Element => {
               : (Array.isArray(statusData?.data?.jobs) ? statusData.data.jobs.length : undefined);
             if (!inserted) setLastReason('no_structured_results');
             setStepIndex(2); // Inserting
-            info("Job search complete!", inserted ? "Your results have been updated." : "No structured results were found for this search.");
             await fetchJobQueue(); // Refresh the queue with new jobs
+            // Compute newly inserted ids for this run
+            setInsertedThisRun((prev) => {
+              const currentIds = new Set(jobs.map(j => j.id));
+              // baseJobIds and runInsertedIds are stale in closure; recompute safely using state setters below
+              return prev; // will update in next block
+            });
+            // Update inserted counters and sets based on latest jobs state
+            setRunInsertedIds((prevSet) => {
+              const latestIds = new Set(jobs.map(j => j.id));
+              const newlyInserted: string[] = [];
+              latestIds.forEach((id) => {
+                if (!baseJobIds.has(id) && !prevSet.has(id)) newlyInserted.push(id);
+              });
+              if (newlyInserted.length > 0) {
+                setInsertedThisRun((prev) => prev + newlyInserted.length);
+              }
+              const updated = new Set(prevSet);
+              newlyInserted.forEach(id => updated.add(id));
+              return updated;
+            });
+            // If in incremental mode, continue until target or canceled
+            if (incrementalMode && !incrementalCanceled) {
+              const projected = insertedThisRun + (inserted || 0); // fallback if our set logic didn't catch
+              const reached = projected >= targetCount;
+              if (reached) {
+                setIncrementalMode(false);
+                info("Job search complete!", `Found ${projected} results.`);
+                return;
+              }
+              // Start next URL job
+              await startNextIncrementalJob(runUrls, nextUrlIndex, searchQuery, selectedLocation || 'Remote');
+            } else {
+              info("Job search complete!", inserted ? "Your results have been updated." : "No structured results were found for this search.");
+            }
           } else if (statusData.status === 'failed') {
             clearInterval(interval);
             setPollingJobId(null);
             setLastReason('deep_research_failed');
             setError({ message: 'Job search failed during processing.' });
             setQueueStatus('idle');
+            setIncrementalMode(false);
           }
           // If still 'processing', do nothing and let the interval continue.
         } catch (e: any) {
@@ -266,11 +336,19 @@ export const JobPage = (): JSX.Element => {
           setPollingJobId(null);
           setError({ message: `Failed to check job status: ${e.message}` });
           setQueueStatus('idle');
+          setIncrementalMode(false);
         }
       }, 10000); // Poll every 10 seconds
 
       return () => clearInterval(interval);
-    }, [pollingJobId, supabase, fetchJobQueue, info, searchQuery, selectedLocation]);
+    }, [pollingJobId, supabase, fetchJobQueue, info, searchQuery, selectedLocation, incrementalMode, incrementalCanceled, startNextIncrementalJob, runUrls, nextUrlIndex, targetCount, insertedThisRun, baseJobIds, runInsertedIds, jobs]);
+
+    const cancelPopulation = useCallback(() => {
+      setIncrementalCanceled(true);
+      setIncrementalMode(false);
+      setPollingJobId(null);
+      setQueueStatus('ready');
+    }, []);
 
     // Apply all jobs (mark as applied) sequentially with simple progress + analytics events
     const applyAllJobs = useCallback(async () => {
@@ -421,9 +499,10 @@ export const JobPage = (): JSX.Element => {
 
           {queueStatus === 'populating' && (
             <LoadingBanner
-              subtitle="We’re discovering sources and extracting job details in the background."
+              subtitle={`Streaming results… Found ${insertedThisRun}/${targetCount}`}
               steps={steps}
               activeStep={stepIndex}
+              onCancel={cancelPopulation}
             />
           )}
 
