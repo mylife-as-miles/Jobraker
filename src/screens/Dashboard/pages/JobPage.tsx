@@ -765,7 +765,7 @@ export const JobPage = (): JSX.Element => {
         {selectedJob && (() => {
                   const job = jobs.find(j => j.id === selectedJob);
                   if (!job) return null;
-                  return (
+          return (
                       <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
                           <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-6 mb-6">
                               <div className="flex items-start justify-between mb-6">
@@ -784,6 +784,31 @@ export const JobPage = (): JSX.Element => {
                                   </div>
                               </div>
                               <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.description || '') }} />
+                              {/* Sources list, if available from Firecrawl */}
+                              {(() => {
+                                const sources = (job as any)?.raw_data?._sources;
+                                if (!sources || (Array.isArray(sources) && sources.length === 0)) return null;
+                                const items: any[] = Array.isArray(sources) ? sources : [sources];
+                                return (
+                                  <div className="mt-6">
+                                    <div className="text-xs uppercase tracking-wide text-[#ffffff70] mb-2">Sources</div>
+                                    <ul className="space-y-1">
+                                      {items.map((s, i) => {
+                                        const href = typeof s === 'string' ? s : (s?.url || s?.source || '');
+                                        if (!href) return null;
+                                        const host = getHost(href);
+                                        return (
+                                          <li key={i} className="text-sm">
+                                            <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#1dff00] hover:underline">
+                                              {host || href}
+                                            </a>
+                                          </li>
+                                        );
+                                      })}
+                                    </ul>
+                                  </div>
+                                );
+                              })()}
                               {job.apply_url && (
                                   <div className="flex justify-end mt-4">
                                       <a href={job.apply_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-4 py-2 rounded-md border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/20 hover:bg-[#1dff00]/30 transition">

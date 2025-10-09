@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Failed to check job status', detail: errorText }), { status: statusRes.status, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
-    const extractStatus = await statusRes.json();
+  const extractStatus = await statusRes.json();
 
     let jobsInserted = 0;
     if (extractStatus.status === 'completed') {
@@ -60,6 +60,8 @@ Deno.serve(async (req) => {
       console.info('firecrawl.extract_complete', { userId, jobId, jobs_found: extractedJobs.length });
 
       if (extractedJobs.length > 0) {
+        // Try to capture sources metadata from Firecrawl response when showSources=true
+        const sources = (extractStatus?.sources || extractStatus?.data?.sources || null);
         const jobsToInsert = extractedJobs.map((job) => {
           const salaryText = job.salaryRange || job.fullJobDescription || '';
           const { min: salary_min, max: salary_max } = parseSalaryRangeToMinMax(salaryText);
@@ -76,7 +78,7 @@ Deno.serve(async (req) => {
             apply_url: job.applyUrl,
             posted_at: job.postedDate ? new Date(job.postedDate).toISOString() : new Date().toISOString(),
             status: 'active',
-            raw_data: { ...job, _search_query: searchQuery, _search_location: searchLocation },
+            raw_data: { ...job, _sources: sources, _search_query: searchQuery, _search_location: searchLocation },
             salary_min,
             salary_max,
             salary_currency: meta.currency || (salary_min || salary_max ? 'USD' : null),

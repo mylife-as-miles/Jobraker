@@ -86,20 +86,60 @@ Deno.serve(async (req) => {
       required: ['jobs'],
     };
 
+    // Build Firecrawl payload using the requested input shape/options.
+    // We keep prompt + schema for structured extraction, and include the
+    // additional scrapeOptions flags you specified. If the caller provided
+    // an overrides object (e.g., body.scrapeOptions), we'll shallow-merge it.
+    const userScrapeOptions = typeof body?.scrapeOptions === 'object' && body.scrapeOptions ? body.scrapeOptions : {};
     const payload = {
       urls: userSources,
       prompt: extractPrompt,
       schema: finalSchema,
-      agent: { model: "FIRE-1" },
-      enableWebSearch: true,
+  enableWebSearch: true,
+      ignoreSitemap: false,
+      includeSubdomains: true,
+  showSources: true,
       scrapeOptions: {
-        formats: [{
-          type: 'json',
-          prompt: extractPrompt,
-          schema: finalSchema,
-        }]
-      }
-    };
+        formats: ['markdown'],
+        onlyMainContent: true,
+        includeTags: [],
+        excludeTags: [],
+        maxAge: 172800000, // 2 days
+        headers: {},
+        waitFor: 0,
+        mobile: false,
+        skipTlsVerification: true,
+        timeout: 123,
+        parsers: ['pdf'],
+        actions: [],
+        location: {
+          country: 'US',
+          languages: ['en-US']
+        },
+        removeBase64Images: true,
+        blockAds: true,
+        proxy: 'auto',
+        storeInCache: true,
+        // Allow caller overrides (shallow)
+        ...userScrapeOptions,
+      },
+      ignoreInvalidURLs: true,
+    } as any;
+
+    // Safe payload summary log for diagnostics (no secrets, no entire schema body)
+    console.info('firecrawl.payload_summary', {
+      urls_count: userSources.length,
+      enableWebSearch: true,
+      showSources: true,
+      hasSchema: Boolean(finalSchema),
+      scrapeOptions: {
+        formats: 'markdown',
+        onlyMainContent: true,
+        includeSubdomains: true,
+        blockAds: true,
+        proxy: 'auto',
+      },
+    });
 
     let extractJob: any;
     try {
