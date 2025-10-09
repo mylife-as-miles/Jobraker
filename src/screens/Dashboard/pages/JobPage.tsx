@@ -1,7 +1,7 @@
 import { Briefcase, Search, MapPin, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Switch } from "../../../components/ui/switch";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
@@ -79,9 +79,10 @@ export const JobPage = (): JSX.Element => {
 
     const { profile, loading: profileLoading } = useProfileSettings();
     const { info } = useToast();
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
     // Step-by-step loading banner
-    const LoadingBanner = ({ subtitle, steps, activeStep, onCancel }: { subtitle?: string; steps: string[]; activeStep: number; onCancel?: () => void }) => (
+    const LoadingBanner = ({ subtitle, steps, activeStep, onCancel, onTryDifferent }: { subtitle?: string; steps: string[]; activeStep: number; onCancel?: () => void; onTryDifferent?: () => void }) => (
       <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#1dff00]/30 p-4 sm:p-5 mb-4">
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-[#1dff00] animate-pulse" aria-hidden />
@@ -89,11 +90,18 @@ export const JobPage = (): JSX.Element => {
             <div className="text-white font-medium">Building your results…</div>
             <div className="text-xs text-[#ffffff90]">{subtitle || 'This may take a few minutes depending on sources.'}</div>
           </div>
-          {onCancel && (
-            <Button variant="ghost" className="text-[#ffffffb3] hover:bg-[#ffffff12] border border-[#ffffff1e] h-8 px-3" onClick={onCancel}>
-              Cancel
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {onTryDifferent && (
+              <Button variant="ghost" className="text-[#1dff00] hover:bg-[#1dff00]/10 border border-[#1dff00]/30 h-8 px-3" onClick={onTryDifferent}>
+                Try a different query
+              </Button>
+            )}
+            {onCancel && (
+              <Button variant="ghost" className="text-[#ffffffb3] hover:bg-[#ffffff12] border border-[#ffffff1e] h-8 px-3" onClick={onCancel}>
+                Cancel
+              </Button>
+            )}
+          </div>
         </div>
         <div className="mt-3 grid grid-cols-3 gap-3">
           {steps.map((label, idx) => (
@@ -115,24 +123,25 @@ export const JobPage = (): JSX.Element => {
       </Card>
     );
 
-    const [stepIndex, setStepIndex] = useState(0);
+  const [stepIndex, setStepIndex] = useState(0);
     const steps = useMemo(() => [
       'Discovering sources',
       'Extracting',
       'Inserting'
     ], []);
 
-    useEffect(() => {
-      if (queueStatus !== 'populating') return;
-      const t = setInterval(() => setStepIndex((i) => (i + 1) % steps.length), 1400);
-      return () => clearInterval(t);
-    }, [queueStatus, steps.length]);
+    // Real step updates occur at key phases of the flow; no cycling needed now.
 
     const cancelPopulation = useCallback(() => {
       setPollingJobId(null);
       setQueueStatus('idle');
       setError(null);
     }, []);
+
+    const tryDifferentQuery = useCallback(() => {
+      cancelPopulation();
+      setTimeout(() => searchInputRef.current?.focus(), 0);
+    }, [cancelPopulation]);
 
     const fetchJobQueue = useCallback(async () => {
         setQueueStatus('loading');
@@ -167,6 +176,7 @@ export const JobPage = (): JSX.Element => {
       setError(null);
       setLastReason(null);
       setPollingJobId(null);
+      setStepIndex(0); // Discovering sources
 
       try {
         // Get user and their configured job source URLs
@@ -231,6 +241,7 @@ export const JobPage = (): JSX.Element => {
         if (processData.jobId) {
           setPollingJobId(processData.jobId);
           setQueueStatus('populating'); // Keep it in a loading-like state
+          setStepIndex(1); // Extracting
           info("Job search started...", `We’re building your results. This may take a few minutes.`);
         } else {
           setError({ message: 'Could not initiate job search process.' });
@@ -261,6 +272,7 @@ export const JobPage = (): JSX.Element => {
               ? statusData.jobsInserted
               : (Array.isArray(statusData?.data?.jobs) ? statusData.data.jobs.length : undefined);
             if (!inserted) setLastReason('no_structured_results');
+            setStepIndex(2); // Inserting
             info("Job search complete!", inserted ? "Your results have been updated." : "No structured results were found for this search.");
             await fetchJobQueue(); // Refresh the queue with new jobs
           } else if (statusData.status === 'failed') {
@@ -435,6 +447,7 @@ export const JobPage = (): JSX.Element => {
               steps={steps}
               activeStep={stepIndex}
               onCancel={cancelPopulation}
+              onTryDifferent={tryDifferentQuery}
             />
           )}
 
@@ -447,6 +460,7 @@ export const JobPage = (): JSX.Element => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white"
+                  ref={searchInputRef}
                 />
               </div>
               <div className="relative">
@@ -475,7 +489,7 @@ export const JobPage = (): JSX.Element => {
                 <div className="space-y-4">
                   {Array.from({ length: pageSize }).map((_, i) => (
                     <div key={i} className="animate-pulse">
-                      <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-4">
+                      <Card className="relative overflow-hidden bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-4">
                         <div className="flex items-start gap-3">
                           <div className="w-12 h-12 bg-[#ffffff1a] rounded-xl" />
                           <div className="flex-1 min-w-0">
@@ -488,6 +502,13 @@ export const JobPage = (): JSX.Element => {
                             </div>
                           </div>
                         </div>
+                          <motion.div
+                            className="pointer-events-none absolute top-0 left-[-40%] h-full w-1/2 bg-gradient-to-r from-transparent via-[#ffffff22] to-transparent"
+                            initial={{ x: '-40%' }}
+                            animate={{ x: '140%' }}
+                            transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
+                            aria-hidden
+                          />
                       </Card>
                     </div>
                   ))}
@@ -601,7 +622,7 @@ export const JobPage = (): JSX.Element => {
               })()}
               {queueStatus === 'populating' && !selectedJob && (
                 <div className="animate-pulse">
-                  <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-6 mb-6">
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-6 mb-6">
                     <div className="flex items-start gap-4 mb-6">
                       <div className="w-16 h-16 bg-[#ffffff1a] rounded-xl" />
                       <div className="flex-1 min-w-0">
@@ -620,6 +641,13 @@ export const JobPage = (): JSX.Element => {
                       <div className="h-4 bg-[#ffffff0a] rounded w-10/12" />
                       <div className="h-4 bg-[#ffffff08] rounded w-9/12" />
                     </div>
+                    <motion.div
+                      className="pointer-events-none absolute top-0 left-[-40%] h-full w-1/2 bg-gradient-to-r from-transparent via-[#ffffff22] to-transparent"
+                      initial={{ x: '-40%' }}
+                      animate={{ x: '140%' }}
+                      transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
+                      aria-hidden
+                    />
                   </Card>
                 </div>
               )}
