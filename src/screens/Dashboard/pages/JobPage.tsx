@@ -207,7 +207,7 @@ export const JobPage = (): JSX.Element => {
               ? statusData.jobsInserted
               : (Array.isArray(statusData?.data?.jobs) ? statusData.data.jobs.length : undefined);
             if (!inserted) setLastReason('no_structured_results');
-            info("Job search complete!", inserted ? "Your job queue has been updated." : "No structured results were found for this search.");
+            info("Job search complete!", inserted ? "Your results have been updated." : "No structured results were found for this search.");
             await fetchJobQueue(); // Refresh the queue with new jobs
           } else if (statusData.status === 'failed') {
             clearInterval(interval);
@@ -279,7 +279,7 @@ export const JobPage = (): JSX.Element => {
             const initialJobs = await fetchJobQueue();
             // If the queue is empty AND we have a profile with a job title, auto-populate it.
             if (initialJobs.length === 0 && profile?.job_title) {
-                info("Your queue is empty. Building a personalized job feed...", "This may take a moment.");
+                info("No results yet. Building a personalized job feed...", "This may take a moment.");
                 await populateQueue(profile.job_title, profile.location || undefined);
             }
         };
