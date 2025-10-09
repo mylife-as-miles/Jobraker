@@ -343,7 +343,7 @@ export const JobPage = (): JSX.Element => {
           <div className="mb-6 sm:mb-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Your Job Queue</h1>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Job Search</h1>
                 <p className="text-[#ffffff80] text-sm sm:text-base">A personalized list of jobs waiting for you.</p>
               </div>
               <div className="flex items-center gap-3">
