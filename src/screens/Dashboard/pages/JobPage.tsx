@@ -122,7 +122,7 @@ export const JobPage = (): JSX.Element => {
   // const startInFlightRef = useRef(false);
 
     // Step-by-step loading banner
-    const LoadingBanner = ({ subtitle, steps, activeStep, onCancel }: { subtitle?: string; steps: string[]; activeStep: number; onCancel?: () => void }) => (
+    const LoadingBanner = ({ subtitle, steps, activeStep, onCancel, foundCount }: { subtitle?: string; steps: string[]; activeStep: number; onCancel?: () => void; foundCount?: number }) => (
       <Card className="relative overflow-hidden bg-gradient-to-br from-[#0b0b0b] via-[#0f0f0f] to-[#0b0b0b] border border-[#1dff00]/30 p-4 sm:p-5 mb-4">
         {/* Soft radial glow backdrop */}
         <motion.div
@@ -144,7 +144,20 @@ export const JobPage = (): JSX.Element => {
             />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-white font-medium">Building your results…</div>
+            <div className="text-white font-medium flex items-center gap-2">
+              <span>Building your results…</span>
+              {typeof foundCount === 'number' && (
+                <motion.span
+                  key={foundCount}
+                  initial={{ scale: 0.9, opacity: 0.6 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+                  className="text-[11px] px-2 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10"
+                >
+                  Found {foundCount}
+                </motion.span>
+              )}
+            </div>
             <div className="text-xs text-[#ffffff90]">{subtitle || 'This may take a few minutes depending on sources.'}</div>
           </div>
           {onCancel && (
@@ -573,6 +586,7 @@ export const JobPage = (): JSX.Element => {
               steps={steps}
               activeStep={stepIndex}
               onCancel={cancelPopulation}
+              foundCount={insertedThisRun}
             />
           )}
 
@@ -691,11 +705,17 @@ export const JobPage = (): JSX.Element => {
                                 {job.remote_type}
                               </span>
                             )}
-                            {(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id) && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]" title={(job.apply_url || job.source_id || '')}>
-                                {getHost(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id || '')}
-                              </span>
-                            )}
+                            {(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id) && (() => {
+                              const href = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id || '';
+                              const host = getHost(href);
+                              const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
+                              return (
+                                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]" title={href}>
+                                  {host && <img src={ico} alt="" className="w-3 h-3 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
+                                  {host}
+                                </span>
+                              );
+                            })()}
                             {(() => {
                               const raw = (job as any)?.raw_data;
                               const salary = (raw?.salaryRange || raw?.salary) as string | undefined;
@@ -754,7 +774,17 @@ export const JobPage = (): JSX.Element => {
                       <span>{job.company}</span>
                       {job.location && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]">{job.location}</span>}
                       {job.remote_type && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10">{job.remote_type}</span>}
-                      {(job.apply_url || job.source_id) && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]" title={(job.apply_url || job.source_id || '')}>{getHost(job.apply_url || job.source_id || '')}</span>}
+                      {(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id) && (() => {
+                        const href = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id || '';
+                        const host = getHost(href);
+                        const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
+                        return (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]" title={href}>
+                            {host && <img src={ico} alt="" className="w-3 h-3 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
+                            {host}
+                          </span>
+                        );
+                      })()}
                       {job.posted_at && <span className="ml-auto text-[10px] text-[#ffffff80]">Posted {formatRelative(job.posted_at)}</span>}
                       </div>
                                       </div>
@@ -774,8 +804,10 @@ export const JobPage = (): JSX.Element => {
                                         const href = typeof s === 'string' ? s : (s?.url || s?.source || '');
                                         if (!href) return null;
                                         const host = getHost(href);
+                                        const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
                                         return (
-                                          <li key={i} className="text-sm">
+                                          <li key={i} className="text-sm flex items-center gap-2">
+                                            {host && <img src={ico} alt="" className="w-4 h-4 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
                                             <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#1dff00] hover:underline">
                                               {host || href}
                                             </a>
