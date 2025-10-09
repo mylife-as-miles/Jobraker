@@ -287,30 +287,24 @@ export const JobPage = (): JSX.Element => {
               : (Array.isArray(statusData?.data?.jobs) ? statusData.data.jobs.length : undefined);
             if (!inserted) setLastReason('no_structured_results');
             setStepIndex(2); // Inserting
-            await fetchJobQueue(); // Refresh the queue with new jobs
-            // Compute newly inserted ids for this run
-            setInsertedThisRun((prev) => {
-              const currentIds = new Set(jobs.map(j => j.id));
-              // baseJobIds and runInsertedIds are stale in closure; recompute safely using state setters below
-              return prev; // will update in next block
+            const newJobs = await fetchJobQueue(); // Refresh the queue with new jobs and get list
+            // Compute newly inserted ids for this run based on snapshot
+            const newIds = new Set(newJobs.map(j => j.id));
+            const newlyInserted: string[] = [];
+            newIds.forEach((id) => {
+              if (!baseJobIds.has(id) && !runInsertedIds.has(id)) newlyInserted.push(id);
             });
-            // Update inserted counters and sets based on latest jobs state
-            setRunInsertedIds((prevSet) => {
-              const latestIds = new Set(jobs.map(j => j.id));
-              const newlyInserted: string[] = [];
-              latestIds.forEach((id) => {
-                if (!baseJobIds.has(id) && !prevSet.has(id)) newlyInserted.push(id);
+            if (newlyInserted.length > 0) {
+              setInsertedThisRun((prev) => prev + newlyInserted.length);
+              setRunInsertedIds((prev) => {
+                const updated = new Set(prev);
+                newlyInserted.forEach(id => updated.add(id));
+                return updated;
               });
-              if (newlyInserted.length > 0) {
-                setInsertedThisRun((prev) => prev + newlyInserted.length);
-              }
-              const updated = new Set(prevSet);
-              newlyInserted.forEach(id => updated.add(id));
-              return updated;
-            });
+            }
             // If in incremental mode, continue until target or canceled
             if (incrementalMode && !incrementalCanceled) {
-              const projected = insertedThisRun + (inserted || 0); // fallback if our set logic didn't catch
+              const projected = (insertedThisRun + newlyInserted.length);
               const reached = projected >= targetCount;
               if (reached) {
                 setIncrementalMode(false);
