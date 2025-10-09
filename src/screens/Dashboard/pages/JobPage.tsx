@@ -123,6 +123,10 @@ export const JobPage = (): JSX.Element => {
     lastErrorRef.current = { msg: key, ts: now };
   }, []);
 
+  // Guard flags to prevent overlapping runs/requests
+  const autoPopulatedRef = useRef(false);
+  const startInFlightRef = useRef(false);
+
     // Step-by-step loading banner
     const LoadingBanner = ({ subtitle, steps, activeStep, onCancel }: { subtitle?: string; steps: string[]; activeStep: number; onCancel?: () => void }) => (
       <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#1dff00]/30 p-4 sm:p-5 mb-4">
@@ -199,6 +203,8 @@ export const JobPage = (): JSX.Element => {
     }, [supabase]);
 
     const populateQueue = useCallback(async (query: string, location?: string) => {
+      // Prevent re-entry if a run is active
+      if (incrementalMode || pollingJobId) return;
       if (!query || !query.trim()) {
         setError({ message: 'Please enter a job title or keywords to search.' });
         return;
@@ -237,21 +243,22 @@ export const JobPage = (): JSX.Element => {
           safeInfo("No job sources configured. Using Remotive as a default.", "You can configure sources in settings.");
           urls = ['https://remotive.com'];
         }
-        // Save URLs for incremental rotation
+    // Save URLs for incremental rotation
         setRunUrls(urls);
         setNextUrlIndex(0);
-  safeInfo("Job search started...", `Streaming results as we find them (target ${TARGET_COUNT}).`);
+    safeInfo("Job search started...", `Streaming results as we find them (target ${TARGET_COUNT}).`);
         // Kick off first incremental job
         await startNextIncrementalJob(urls, 0, query, location || 'Remote');
       } catch (e: any) {
         setError({ message: `Failed to build job feed: ${e.message}` });
         setQueueStatus('idle');
       }
-  }, [supabase, debugMode, info, jobs]);
+  }, [supabase, debugMode, pollingJobId, incrementalMode]);
 
     const startNextIncrementalJob = useCallback(async (urls: string[] | null, idx: number, query: string, location: string) => {
       if (!urls || urls.length === 0) return;
       if (!incrementalMode || incrementalCanceled) return;
+      if (startInFlightRef.current || pollingJobId) return; // avoid overlapping starts
       // Choose next non-blocked source up to urls.length attempts
       let attempts = 0;
       let nextIdx = ((idx % urls.length) + urls.length) % urls.length;
@@ -264,13 +271,14 @@ export const JobPage = (): JSX.Element => {
       if (attempts >= urls.length && blockedSources.size >= urls.length) {
         setIncrementalMode(false);
         setQueueStatus('ready');
-        info('All sources skipped', 'Sources failed repeatedly and were skipped.');
+        safeInfo('All sources skipped', 'Sources failed repeatedly and were skipped.');
         setCurrentSource(null);
         setCurrentUrl(null);
         return;
       }
       setStepIndex(0); // Discovering
       try {
+        startInFlightRef.current = true;
         setCurrentUrl(url);
         const { data: processData, error: processError } = await supabase.functions.invoke('process-and-match', {
           body: {
@@ -343,6 +351,9 @@ export const JobPage = (): JSX.Element => {
         }
         setNextUrlIndex((prev) => (prev + 1) % (urls?.length || 1));
         await startNextIncrementalJob(urls, nextIdx + 1, query, location);
+      }
+      finally {
+        startInFlightRef.current = false;
       }
     }, [supabase, incrementalMode, incrementalCanceled, debugMode, relaxSchema, blockedSources, info]);
 
@@ -486,7 +497,7 @@ export const JobPage = (): JSX.Element => {
     }, [applyingAll, jobs, supabase]);
 
     // Unified effect for initial load and real-time updates
-    useEffect(() => {
+  useEffect(() => {
         if (profileLoading) {
             setQueueStatus('loading');
             return;
@@ -496,8 +507,9 @@ export const JobPage = (): JSX.Element => {
         const initialLoad = async () => {
             const initialJobs = await fetchJobQueue();
             // If the queue is empty AND we have a profile with a job title, auto-populate it.
-            if (initialJobs.length === 0 && profile?.job_title) {
-        info("No results yet. Building a personalized job feed...", "This may take a moment.");
+      if (!autoPopulatedRef.current && initialJobs.length === 0 && profile?.job_title) {
+        autoPopulatedRef.current = true;
+        safeInfo("No results yet. Building a personalized job feed...", "This may take a moment.");
         await populateQueue(profile.job_title, profile.location || undefined);
             }
         };
@@ -507,7 +519,7 @@ export const JobPage = (): JSX.Element => {
         // Set up the real-time subscription
         const channel = supabase
             .channel('jobs-queue-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, () => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jobs' }, () => {
                 // Refetch the entire queue to ensure UI is in sync
                 fetchJobQueue();
             })
