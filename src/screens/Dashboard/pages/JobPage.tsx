@@ -21,6 +21,10 @@ interface Job {
   remote_type: string | null;
   apply_url: string | null;
   posted_at: string | null;
+  expires_at: string | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_currency: string | null;
   raw_data?: any;
   logoUrl?: string;
   logo: string;
@@ -452,7 +456,7 @@ export const JobPage = (): JSX.Element => {
             .channel('jobs-queue-changes')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jobs' }, () => {
               // During an active search/extraction run, avoid thrashing the UI
-              if (incrementalMode || pollingJobId) return;
+              if (incrementalMode) return;
               fetchJobQueue();
             })
             .subscribe();
@@ -460,7 +464,7 @@ export const JobPage = (): JSX.Element => {
         return () => {
             supabase.removeChannel(channel);
         };
-  }, [profileLoading, profile, fetchJobQueue, populateQueue, supabase, info, incrementalMode, pollingJobId]);
+  }, [profileLoading, profile, fetchJobQueue, populateQueue, supabase, info, incrementalMode]);
 
     // Effect to pre-fill search query from profile
     useEffect(() => {
@@ -545,10 +549,6 @@ export const JobPage = (): JSX.Element => {
               </div>
               <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
-                    <span>Broaden</span>
-                    <Switch checked={relaxSchema} onCheckedChange={setRelaxSchema} />
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
                     <span>Remote</span>
                     <Switch checked={remoteOnly} onCheckedChange={setRemoteOnly} />
                   </div>
@@ -595,11 +595,7 @@ export const JobPage = (): JSX.Element => {
 
           {queueStatus === 'populating' && (
             <LoadingBanner
-              subtitle={
-                batchInfo 
-                  ? `Processing batch ${batchInfo.current} of ${batchInfo.total} (${batchInfo.urls_in_batch}/${batchInfo.total_urls} URLs)${currentSource ? ` • ${currentSource}` : ''}`
-                  : `Streaming results… ${currentSource ? `Source: ${currentSource}` : ''}`
-              }
+              subtitle={`Streaming results… ${currentSource ? `Source: ${currentSource}` : ''}`}
               steps={steps}
               activeStep={stepIndex}
               onCancel={cancelPopulation}
@@ -733,9 +729,38 @@ export const JobPage = (): JSX.Element => {
                                 </span>
                               );
                             })()}
+                            {/* Salary display - use structured fields or raw_data */}
                             {(() => {
+                              // Try structured fields first
+                              if (job.salary_min || job.salary_max || job.salary_currency) {
+                                const currency = job.salary_currency || 'USD';
+                                const currencySymbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency;
+                                
+                                let salaryText = '';
+                                if (job.salary_min && job.salary_max) {
+                                  const min = job.salary_min >= 1000 ? `${Math.round(job.salary_min / 1000)}k` : job.salary_min;
+                                  const max = job.salary_max >= 1000 ? `${Math.round(job.salary_max / 1000)}k` : job.salary_max;
+                                  salaryText = `${currencySymbol}${min}-${max}`;
+                                } else if (job.salary_min) {
+                                  const min = job.salary_min >= 1000 ? `${Math.round(job.salary_min / 1000)}k` : job.salary_min;
+                                  salaryText = `${currencySymbol}${min}+`;
+                                } else if (job.salary_max) {
+                                  const max = job.salary_max >= 1000 ? `${Math.round(job.salary_max / 1000)}k` : job.salary_max;
+                                  salaryText = `Up to ${currencySymbol}${max}`;
+                                }
+                                
+                                if (salaryText) {
+                                  return (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10" title={`Salary: ${salaryText}`}>
+                                      💰 {salaryText}
+                                    </span>
+                                  );
+                                }
+                              }
+                              
+                              // Fall back to raw_data salary string
                               const raw = (job as any)?.raw_data;
-                              const salary = (raw?.salaryRange || raw?.salary) as string | undefined;
+                              const salary = (raw?.scraped_data?.salary || raw?.salaryRange || raw?.salary) as string | undefined;
                               if (!salary) return null;
                               const short = salary.length > 36 ? salary.slice(0, 33) + '…' : salary;
                               return (
@@ -744,8 +769,9 @@ export const JobPage = (): JSX.Element => {
                                 </span>
                               );
                             })()}
+                            {/* Deadline display */}
                             {(() => {
-                              const deadline = (job as any)?.raw_data?.applicationDeadline as string | undefined;
+                              const deadline = job.expires_at || (job as any)?.raw_data?.deadline || (job as any)?.raw_data?.applicationDeadline;
                               const meta = formatDeadlineMeta(deadline);
                               if (!meta) return null;
                               return (
@@ -827,6 +853,33 @@ export const JobPage = (): JSX.Element => {
                                   </div>
                               </div>
                               <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.description || '') }} />
+                              
+                              {/* Screenshot display */}
+                              {(() => {
+                                const screenshot = (job as any)?.raw_data?.screenshot;
+                                if (!screenshot) return null;
+                                return (
+                                  <div className="mt-6">
+                                    <div className="text-xs uppercase tracking-wide text-[#ffffff70] mb-2">Job Page Preview</div>
+                                    <div className="border border-[#ffffff15] rounded-lg overflow-hidden bg-[#ffffff08]">
+                                      <img 
+                                        src={screenshot} 
+                                        alt="Job page screenshot" 
+                                        className="w-full h-auto"
+                                        onError={(e) => {
+                                          const target = e.target as HTMLImageElement;
+                                          target.style.display = 'none';
+                                          const parent = target.parentElement;
+                                          if (parent) {
+                                            parent.innerHTML = '<div class="p-4 text-center text-[#ffffff60] text-sm">Screenshot unavailable</div>';
+                                          }
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                              
                               {/* Sources list, if available from Firecrawl */}
                               {(() => {
                                 const sources = (job as any)?.raw_data?._sources;
@@ -854,8 +907,11 @@ export const JobPage = (): JSX.Element => {
                                   </div>
                                 );
                               })()}
+                              
+                              {/* Deadline from expires_at or raw_data */}
                               {(() => {
-                                const deadline = (job as any)?.raw_data?.applicationDeadline as string | undefined;
+                                const deadline = job.expires_at || (job as any)?.raw_data?.deadline || (job as any)?.raw_data?.applicationDeadline;
+                                if (!deadline) return null;
                                 const meta = formatDeadlineMeta(deadline);
                                 if (!meta) return null;
                                 return (
@@ -864,9 +920,35 @@ export const JobPage = (): JSX.Element => {
                                   </div>
                                 );
                               })()}
+                              
+                              {/* Salary from structured fields or raw_data */}
                               {(() => {
+                                // Try structured fields first
+                                if (job.salary_min || job.salary_max || job.salary_currency) {
+                                  const currency = job.salary_currency || 'USD';
+                                  const currencySymbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency;
+                                  
+                                  let salaryText = '';
+                                  if (job.salary_min && job.salary_max) {
+                                    salaryText = `${currencySymbol}${job.salary_min.toLocaleString()} - ${currencySymbol}${job.salary_max.toLocaleString()}`;
+                                  } else if (job.salary_min) {
+                                    salaryText = `${currencySymbol}${job.salary_min.toLocaleString()}+`;
+                                  } else if (job.salary_max) {
+                                    salaryText = `Up to ${currencySymbol}${job.salary_max.toLocaleString()}`;
+                                  }
+                                  
+                                  if (salaryText) {
+                                    return (
+                                      <div className="mt-2 text-xs text-[#ffffffb3]">
+                                        Salary: <span className="text-[#ffffffd0]">{salaryText}</span>
+                                      </div>
+                                    );
+                                  }
+                                }
+                                
+                                // Fall back to raw_data salary string
                                 const raw = (job as any)?.raw_data;
-                                const salary = (raw?.salaryRange || raw?.salary) as string | undefined;
+                                const salary = (raw?.scraped_data?.salary || raw?.salaryRange || raw?.salary) as string | undefined;
                                 if (!salary) return null;
                                 return (
                                   <div className="mt-2 text-xs text-[#ffffffb3]">
