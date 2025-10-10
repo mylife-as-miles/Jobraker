@@ -153,7 +153,7 @@ export const JobPage = (): JSX.Element => {
           <div className="flex-1 min-w-0">
             <div className="text-white font-medium flex items-center gap-2">
               <span>Building your results…</span>
-              {typeof foundCount === 'number' && (
+              {typeof foundCount === 'number' && foundCount > 0 && (
                 <motion.span
                   key={foundCount}
                   initial={{ scale: 0.9, opacity: 0.6 }}
@@ -174,45 +174,110 @@ export const JobPage = (): JSX.Element => {
           )}
         </div>
 
-        {/* Steps with animated active pill */}
-        <div className="mt-3 grid grid-cols-3 gap-3 relative">
+        {/* Steps with animated active pill and completion indicators */}
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 relative">
           {steps.map((label, idx) => {
             const isActive = idx === activeStep;
+            const isCompleted = idx < activeStep;
             return (
-              <div key={label} className={`relative flex items-center gap-2 rounded-md border p-2 ${isActive ? 'border-[#1dff00] bg-[#1dff00]/10' : 'border-[#ffffff18] bg-[#ffffff08]'}`}>
-                <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-[#1dff00]' : 'bg-[#ffffff40]'}`} aria-hidden />
-                <div className={`text-[11px] truncate ${isActive ? 'text-[#eaffea]' : 'text-[#ffffff90]'}`}>{label}</div>
+              <motion.div 
+                key={label} 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className={`relative flex items-center gap-2 rounded-lg border p-2.5 transition-all duration-300 ${
+                  isActive 
+                    ? 'border-[#1dff00] bg-[#1dff00]/10 shadow-[0_0_15px_rgba(29,255,0,0.2)]' 
+                    : isCompleted
+                    ? 'border-[#1dff00]/50 bg-[#1dff00]/5'
+                    : 'border-[#ffffff18] bg-[#ffffff08]'
+                }`}
+              >
+                {/* Status indicator */}
+                <div className="relative flex-shrink-0">
+                  {isCompleted ? (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                      className="w-4 h-4 rounded-full bg-[#1dff00] flex items-center justify-center"
+                    >
+                      <svg className="w-2.5 h-2.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </motion.div>
+                  ) : isActive ? (
+                    <motion.div
+                      className="w-4 h-4 rounded-full bg-[#1dff00]"
+                      animate={{ 
+                        scale: [1, 1.2, 1],
+                        opacity: [1, 0.7, 1]
+                      }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border-2 border-[#ffffff40]" />
+                  )}
+                </div>
+                
+                <div className={`text-[11px] sm:text-xs truncate font-medium ${
+                  isActive ? 'text-[#eaffea]' : isCompleted ? 'text-[#1dff00]/80' : 'text-[#ffffff90]'
+                }`}>
+                  {label}
+                </div>
+                
                 {isActive && (
                   <motion.span
                     layoutId="activeStepGlow"
-                    className="absolute inset-0 rounded-md"
-                    style={{ boxShadow: '0 0 20px rgba(29,255,0,0.35) inset' }}
+                    className="absolute inset-0 rounded-lg pointer-events-none"
+                    style={{ boxShadow: '0 0 20px rgba(29,255,0,0.25) inset' }}
                   />
                 )}
-              </div>
+              </motion.div>
             );
           })}
         </div>
 
-        {/* Shimmering progress bar */}
-        <div className="mt-3 h-1.5 bg-[#0f0f0f] rounded overflow-hidden border border-[#1dff00]/20">
-          <motion.div
-            className="h-full"
-            style={{ background: 'linear-gradient(90deg, rgba(29,255,0,0.15) 0%, rgba(29,255,0,0.9) 50%, rgba(29,255,0,0.15) 100%)' }}
-            initial={{ x: '-100%' }}
-            animate={{ x: '100%' }}
-            transition={{ repeat: Infinity, duration: 1.25, ease: 'easeInOut' }}
-            aria-hidden
-          />
+        {/* Enhanced progress bar with percentage */}
+        <div className="mt-4 space-y-1.5">
+          <div className="flex items-center justify-between text-[10px] text-[#ffffff70]">
+            <span>Progress</span>
+            <span>{Math.round(((activeStep) / (steps.length - 1)) * 100)}%</span>
+          </div>
+          <div className="h-2 bg-[#0f0f0f] rounded-full overflow-hidden border border-[#1dff00]/20 relative">
+            {/* Background glow */}
+            <motion.div
+              className="absolute inset-0 opacity-20"
+              style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(29,255,0,0.4) 50%, transparent 100%)' }}
+              animate={{ x: ['-100%', '200%'] }}
+              transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
+            />
+            {/* Actual progress */}
+            <motion.div
+              className="h-full bg-gradient-to-r from-[#1dff00]/60 via-[#1dff00] to-[#1dff00]/60 relative"
+              initial={{ width: '0%' }}
+              animate={{ width: `${((activeStep) / (steps.length - 1)) * 100}%` }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+            >
+              {/* Shimmer effect */}
+              <motion.div
+                className="absolute inset-0 opacity-50"
+                style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)' }}
+                animate={{ x: ['-100%', '200%'] }}
+                transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
+              />
+            </motion.div>
+          </div>
         </div>
       </Card>
     );
 
   const [stepIndex, setStepIndex] = useState(0);
     const steps = useMemo(() => [
-      'Discovering sources',
-      'Extracting',
-      'Inserting'
+      'Searching Web',
+      'Starting Extraction',
+      'Processing Jobs',
+      'Finalizing Results'
     ], []);
     const getHost = (url?: string | null) => {
       if (!url) return '';
@@ -259,7 +324,7 @@ export const JobPage = (): JSX.Element => {
       setError(null);
       setLastReason(null);
       setPollingJobId(null);
-      setStepIndex(0); // Discovering sources
+      setStepIndex(0); // Step 0: Searching Web
       setIncrementalMode(true);
       setIncrementalCanceled(false);
       setInsertedThisRun(0);
@@ -324,6 +389,9 @@ export const JobPage = (): JSX.Element => {
           return;
         }
 
+        // Move to step 1: Starting Extraction
+        setStepIndex(1);
+
         // Start extraction separately using process-and-match
         const pmPayload = { searchQuery: query, location, urls, relaxSchema };
         if (debugMode) console.log('[debug] process-and-match request', pmPayload);
@@ -346,7 +414,7 @@ export const JobPage = (): JSX.Element => {
           setRunUrls(urls);
           setPollingJobId(pmData.jobId);
           setQueueStatus('populating');
-          setStepIndex(1); // Extracting
+          setStepIndex(2); // Step 2: Processing Jobs
           if (urls.length > 0) {
             try { setCurrentSource(new URL(urls[0]).hostname.replace(/^www\./, '')); } catch { setCurrentSource(urls[0]); }
           }
@@ -387,7 +455,7 @@ export const JobPage = (): JSX.Element => {
               ? statusData.jobsInserted
               : (Array.isArray(statusData?.data?.jobs) ? statusData.data.jobs.length : undefined);
             if (!inserted) setLastReason('no_structured_results');
-            setStepIndex(2); // Inserting
+            setStepIndex(3); // Step 3: Finalizing Results
             // Refresh and summarize
             await fetchJobQueue();
             setInsertedThisRun((prev) => prev + (inserted || 0));
