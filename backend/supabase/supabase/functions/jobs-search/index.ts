@@ -111,8 +111,8 @@ Deno.serve(async (req) => {
         blockAds: true,
         proxy: "auto",
         actions: [
-          { type: "Wait", milliseconds: 1000 },
-          { type: "Scroll", direction: "down", count: 2 }
+          { type: "wait", milliseconds: 1000 },
+          { type: "scroll", direction: "down", count: 2 }
         ],
         formats: [
           {
@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
               deadline: "string",
               apply_link: "string"
             },
-            prompt: "Extract job listings including title, company, salary, location, deadline, and apply link."
+            prompt: "Extract job listing details including title, company, salary range, location, application deadline, and apply link."
           },
           {
             type: "screenshot",
@@ -220,7 +220,7 @@ Deno.serve(async (req) => {
       
       seen.add(clean);
       
-      // Extract company name from URL, scraped data, or title
+      // Extract company name from URL or title
       const extractCompanyFromUrl = (url: string): string => {
         try {
           const hostname = new URL(url).hostname.replace('www.', '');
@@ -231,22 +231,25 @@ Deno.serve(async (req) => {
         }
       };
       
-      // Check if item has enhanced JSON scraped data
-      const scrapedData = item?.scraped?.json || item?.json || {};
-      const hasEnhancedData = scrapedData && typeof scrapedData === 'object';
+      // Check for AI-extracted JSON data first
+      const scrapedJson = item?.scraped?.json || item?.json;
+      const hasStructuredData = scrapedJson && typeof scrapedJson === 'object';
+      
+      // Get screenshot if available
+      const screenshot = item?.scraped?.screenshot || item?.screenshot;
       
       filtered.push({
         url: clean,
-        title: scrapedData.title || item?.title || undefined,
-        description: typeof item?.description === 'string' ? item.description : undefined,
+        title: hasStructuredData ? (scrapedJson.title || item?.title) : item?.title,
+        description: item?.markdown || item?.html || (typeof item?.description === 'string' ? item.description : undefined),
         category: typeof item?.category === 'string' ? item.category : undefined,
         isJobPosting: isJobPostingUrl(clean),
-        company: scrapedData.company || extractCompanyFromUrl(clean),
-        salary: scrapedData.salary || undefined,
-        location: scrapedData.location || undefined,
-        deadline: scrapedData.deadline || undefined,
-        apply_link: scrapedData.apply_link || clean,
-        screenshot: item?.scraped?.screenshot || item?.screenshot || undefined,
+        company: hasStructuredData ? (scrapedJson.company || extractCompanyFromUrl(clean)) : extractCompanyFromUrl(clean),
+        salary: hasStructuredData ? scrapedJson.salary : undefined,
+        location: hasStructuredData ? scrapedJson.location : undefined,
+        deadline: hasStructuredData ? scrapedJson.deadline : undefined,
+        apply_link: hasStructuredData ? (scrapedJson.apply_link || clean) : clean,
+        screenshot: screenshot,
       });
       if (typeof limit === 'number' && filtered.length >= limit) break;
     }
@@ -262,53 +265,62 @@ Deno.serve(async (req) => {
     console.log('jobs-search.saving_to_database', { count: filtered.length, user_id: userId });
     
     const jobsToInsert = filtered.map((item) => {
-      // Parse deadline if provided
+      // Parse deadline if available
       let expiresAt = null;
       if (item.deadline) {
         try {
-          const deadlineDate = new Date(item.deadline);
-          if (!isNaN(deadlineDate.getTime())) {
-            expiresAt = deadlineDate.toISOString();
+          const parsed = new Date(item.deadline);
+          if (!isNaN(parsed.getTime())) {
+            expiresAt = parsed.toISOString();
           }
         } catch {
-          // Invalid date, ignore
+          // Invalid date, keep as null
         }
       }
       
-      // Parse salary range if provided
+      // Parse salary from string to structured fields
       let salary_min = null;
       let salary_max = null;
       let salary_currency = null;
-      if (item.salary) {
-        // Try to extract currency symbol or code
-        const currencyMatch = item.salary.match(/([£€$]|USD|EUR|GBP|CAD|AUD)/i);
-        if (currencyMatch) {
-          const curr = currencyMatch[1];
-          salary_currency = curr === '$' ? 'USD' : curr === '£' ? 'GBP' : curr === '€' ? 'EUR' : curr.toUpperCase();
+      
+      if (item.salary && typeof item.salary === 'string') {
+        const salaryStr = item.salary;
+        
+        // Detect currency
+        if (salaryStr.includes('£') || salaryStr.toLowerCase().includes('gbp')) {
+          salary_currency = 'GBP';
+        } else if (salaryStr.includes('€') || salaryStr.toLowerCase().includes('eur')) {
+          salary_currency = 'EUR';
+        } else if (salaryStr.toLowerCase().includes('cad')) {
+          salary_currency = 'CAD';
+        } else if (salaryStr.toLowerCase().includes('aud')) {
+          salary_currency = 'AUD';
+        } else if (salaryStr.includes('$') || salaryStr.toLowerCase().includes('usd')) {
+          salary_currency = 'USD';
         }
         
-        // Extract numeric values (e.g., "$50,000 - $80,000" or "£40k-60k")
-        const salaryMatch = item.salary.match(/[\$£€]?([\d,]+)k?\s*-\s*[\$£€]?([\d,]+)k?/i);
-        if (salaryMatch) {
-          const parseAmount = (val: string) => {
-            const num = parseInt(val.replace(/,/g, ''));
-            // If value looks like "50k", multiply by 1000
-            return item.salary?.toLowerCase().includes('k') && num < 1000 ? num * 1000 : num;
-          };
-          salary_min = parseAmount(salaryMatch[1]);
-          salary_max = parseAmount(salaryMatch[2]);
+        // Extract numeric values (supports ranges like "50,000-80,000" or "50k-80k")
+        const rangeMatch = salaryStr.match(/[\$£€]?([\d,]+)k?\s*-\s*[\$£€]?([\d,]+)k?/i);
+        if (rangeMatch) {
+          const min = parseFloat(rangeMatch[1].replace(/,/g, ''));
+          const max = parseFloat(rangeMatch[2].replace(/,/g, ''));
+          
+          // Handle "k" notation (e.g., 50k = 50000)
+          const minIsK = salaryStr.toLowerCase().includes(rangeMatch[1].toLowerCase() + 'k');
+          const maxIsK = salaryStr.toLowerCase().includes(rangeMatch[2].toLowerCase() + 'k');
+          
+          salary_min = minIsK ? Math.round(min * 1000) : Math.round(min);
+          salary_max = maxIsK ? Math.round(max * 1000) : Math.round(max);
         } else {
           // Try single value
-          const singleMatch = item.salary.match(/[\$£€]?([\d,]+)k?/i);
+          const singleMatch = salaryStr.match(/[\$£€]?([\d,]+)k?/i);
           if (singleMatch) {
-            const amount = parseInt(singleMatch[1].replace(/,/g, ''));
-            salary_min = item.salary?.toLowerCase().includes('k') && amount < 1000 ? amount * 1000 : amount;
+            const val = parseFloat(singleMatch[1].replace(/,/g, ''));
+            const isK = salaryStr.toLowerCase().includes(singleMatch[1].toLowerCase() + 'k');
+            const amount = isK ? Math.round(val * 1000) : Math.round(val);
+            salary_min = amount;
+            // Don't set max for single values
           }
-        }
-        
-        // Default currency to USD if we found salary but no currency
-        if ((salary_min || salary_max) && !salary_currency) {
-          salary_currency = 'USD';
         }
       }
       
