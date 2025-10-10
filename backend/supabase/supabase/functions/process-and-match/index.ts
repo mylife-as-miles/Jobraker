@@ -33,7 +33,8 @@ Deno.serve(async (req) => {
   // Step 2: Parse request parameters & feature flags
   const body = await req.json().catch(() => ({}));
   const searchQuery = (body?.searchQuery || '').trim();
-  const location = (body?.location || '').trim();
+  // Always use "Remote" for location to match broader search parameters
+  const location = 'Remote';
   const types = Array.isArray(body?.type) ? body.type : (typeof body?.type === 'string' ? [body.type] : []);
   const debug = Boolean(body?.debug);
   // We no longer use per-job extraction limit; process all provided URLs
@@ -88,7 +89,7 @@ Deno.serve(async (req) => {
     };
 
     const extractPrompt = `You are extracting metadata from job listing URLs.
-For the role "${searchQuery}" ${location ? `near "${location}"` : ''}, return a structured array of jobs with:
+For the role "${searchQuery}" (Remote positions preferred), return a structured array of jobs with:
 - jobTitle, companyName
 - location, workType (Remote/Hybrid/On-site)
 - applyUrl and sourceUrl
