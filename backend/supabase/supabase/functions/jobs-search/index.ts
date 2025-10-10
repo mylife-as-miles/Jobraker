@@ -69,11 +69,27 @@ Deno.serve(async (req) => {
 
     console.log('jobs-search.domains', { allowed_domains: domainList, user_id: userId });
 
-    // Compose query with site filters and path patterns for individual job pages
+    // Compose optimized query using Firecrawl operators
     const siteClause = domainList.map((d) => `site:${d}`).join(' OR ');
-    // Add URL path patterns that indicate individual job postings
-    const jobPagePatterns = '(inurl:job OR inurl:view OR inurl:posting OR inurl:opening OR inurl:career OR inurl:apply)';
-    const fullQuery = [rawQuery, location ? `"${location}"` : null, `(${siteClause})`, jobPagePatterns].filter(Boolean).join(' ');
+    
+    // Use inurl: to find actual job posting pages (not search result pages)
+    const jobPagePatterns = '(inurl:job OR inurl:view OR inurl:posting OR inurl:opening OR inurl:career OR inurl:apply OR inurl:detail)';
+    
+    // Exclude common search/listing pages using negative operator
+    const exclusions = '-inurl:search -inurl:/q- -inurl:company-reviews -inurl:salaries';
+    
+    // Use intitle: to prioritize pages with job titles
+    const titleHints = 'intitle:job OR intitle:hiring OR intitle:career OR intitle:opening';
+    
+    // Combine all parts: query + location (exact match) + sites + URL patterns + exclusions + title hints
+    const fullQuery = [
+      rawQuery,
+      location ? `"${location}"` : null,
+      `(${siteClause})`,
+      jobPagePatterns,
+      exclusions,
+      `(${titleHints})`
+    ].filter(Boolean).join(' ');
 
     // Firecrawl search payload per API spec
     const firecrawlApiKey = await resolveFirecrawlApiKey();
