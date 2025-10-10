@@ -97,6 +97,9 @@ export const JobPage = (): JSX.Element => {
   const [dbgPMReq, setDbgPMReq] = useState<any>(null);
   const [dbgPMRes, setDbgPMRes] = useState<any>(null);
   const [dbgStatus, setDbgStatus] = useState<any>(null);
+  
+  // Batch processing info (Firecrawl beta limit: 10 URLs per request)
+  const [batchInfo, setBatchInfo] = useState<{ current: number; total: number; urls_in_batch: number; total_urls: number } | null>(null);
 
   const { profile, loading: profileLoading } = useProfileSettings();
   const { info } = useToast();
@@ -328,6 +331,7 @@ export const JobPage = (): JSX.Element => {
       setIncrementalMode(true);
       setIncrementalCanceled(false);
       setInsertedThisRun(0);
+      setBatchInfo(null);
   // reset per-run counters only
   // Reset counters for this run
   setInsertedThisRun(0);
@@ -415,6 +419,12 @@ export const JobPage = (): JSX.Element => {
           setPollingJobId(pmData.jobId);
           setQueueStatus('populating');
           setStepIndex(2); // Step 2: Processing Jobs
+          
+          // Capture batch info from response
+          if (pmData.batch) {
+            setBatchInfo(pmData.batch);
+          }
+          
           if (urls.length > 0) {
             try { setCurrentSource(new URL(urls[0]).hostname.replace(/^www\./, '')); } catch { setCurrentSource(urls[0]); }
           }
@@ -491,6 +501,7 @@ export const JobPage = (): JSX.Element => {
       setPollingJobId(null);
       setQueueStatus('ready');
       setCurrentSource(null);
+      setBatchInfo(null);
   // no currentUrl tracking in simplified flow
   // simplified flow
     }, []);
@@ -702,7 +713,11 @@ export const JobPage = (): JSX.Element => {
 
           {queueStatus === 'populating' && (
             <LoadingBanner
-              subtitle={`Streaming results… ${currentSource ? `Source: ${currentSource}` : ''}`}
+              subtitle={
+                batchInfo 
+                  ? `Processing batch ${batchInfo.current} of ${batchInfo.total} (${batchInfo.urls_in_batch}/${batchInfo.total_urls} URLs)${currentSource ? ` • ${currentSource}` : ''}`
+                  : `Streaming results… ${currentSource ? `Source: ${currentSource}` : ''}`
+              }
               steps={steps}
               activeStep={stepIndex}
               onCancel={cancelPopulation}
