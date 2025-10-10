@@ -596,8 +596,16 @@ export const JobPage = (): JSX.Element => {
                     <Switch checked={recentOnly} onCheckedChange={setRecentOnly} />
                   </div>
                   {/* Target selector removed: fixed to 10 to minimize API usage and keep runs bounded */}
-                  <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
-                    <span>Diagnostics</span>
+                  <div className="flex items-center gap-2 text-xs text-[#ffffff70] select-none">
+                    <button
+                      type="button"
+                      onClick={() => setDebugMode(v => !v)}
+                      className="px-1 py-0.5 rounded hover:text-white focus:outline-none focus:ring-1 focus:ring-[#1dff00]/50"
+                      aria-pressed={debugMode}
+                      title="Toggle Diagnostics"
+                    >
+                      Diagnostics
+                    </button>
                     <Switch checked={debugMode} onCheckedChange={setDebugMode} />
                   </div>
                   <Button
