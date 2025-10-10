@@ -331,7 +331,7 @@ Deno.serve(async (req) => {
         title: item.title || rawQuery,
         company: item.company,
         description: item.description || null,
-        location: item.location || loc || 'Remote',
+        location: item.location || location || 'Remote',
         remote_type: 'Remote',
         apply_url: item.apply_link || item.url,
         posted_at: new Date().toISOString(),
@@ -342,7 +342,7 @@ Deno.serve(async (req) => {
         status: 'active',
         raw_data: {
           search_query: rawQuery,
-          search_location: loc,
+          search_location: location,
           category: item.category,
           isJobPosting: item.isJobPosting,
           source: 'firecrawl_search',
