@@ -3,6 +3,11 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/types.ts';
 import { withRetry, resolveFirecrawlApiKey, firecrawlFetch } from '../_shared/firecrawl.ts';
 
+const supabaseAdmin = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+);
+
 function hostFromUrl(u: string): string | null {
   try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return null; }
 }
@@ -184,12 +189,25 @@ Deno.serve(async (req) => {
       }
       
       seen.add(clean);
+      
+      // Extract company name from URL or title
+      const extractCompanyFromUrl = (url: string): string => {
+        try {
+          const hostname = new URL(url).hostname.replace('www.', '');
+          const parts = hostname.split('.');
+          return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+        } catch {
+          return 'Unknown Company';
+        }
+      };
+      
       filtered.push({
         url: clean,
         title: typeof item?.title === 'string' ? item.title : undefined,
         description: typeof item?.description === 'string' ? item.description : undefined,
         category: typeof item?.category === 'string' ? item.category : undefined,
         isJobPosting: isJobPostingUrl(clean),
+        company: extractCompanyFromUrl(clean),
       });
       if (typeof limit === 'number' && filtered.length >= limit) break;
     }
@@ -201,9 +219,53 @@ Deno.serve(async (req) => {
       return 0;
     });
 
-    // Return OpenAPI-aligned response shape
+    // Save jobs directly to database
+    console.log('jobs-search.saving_to_database', { count: filtered.length, user_id: userId });
+    
+    const jobsToInsert = filtered.map((item) => ({
+      user_id: userId,
+      source_type: 'web_search',
+      source_id: item.url,
+      title: item.title || rawQuery,
+      company: item.company,
+      description: item.description || null,
+      location: loc || 'Remote',
+      remote_type: 'Remote',
+      apply_url: item.url,
+      posted_at: new Date().toISOString(),
+      status: 'active',
+      raw_data: {
+        search_query: rawQuery,
+        search_location: loc,
+        category: item.category,
+        isJobPosting: item.isJobPosting,
+        source: 'firecrawl_search',
+      },
+    }));
+
+    const { data: insertedJobs, error: insertError } = await supabaseAdmin
+      .from('jobs')
+      .upsert(jobsToInsert, { 
+        onConflict: 'user_id,source_id',
+        ignoreDuplicates: false 
+      })
+      .select('id');
+
+    if (insertError) {
+      console.error('jobs-search.insert_error', { error: insertError.message, user_id: userId });
+      throw new Error(`Failed to insert jobs: ${insertError.message}`);
+    }
+
+    const insertedCount = Array.isArray(insertedJobs) ? insertedJobs.length : 0;
+    console.log('jobs-search.inserted', { count: insertedCount, user_id: userId });
+
+    // Return success response with count
     return new Response(
-      JSON.stringify({ success: true, data: { web: filtered } }),
+      JSON.stringify({ 
+        success: true, 
+        jobsInserted: insertedCount,
+        totalFound: filtered.length 
+      }),
       { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } },
     );
 

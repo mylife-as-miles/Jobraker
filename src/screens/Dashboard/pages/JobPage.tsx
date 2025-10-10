@@ -72,12 +72,9 @@ export const JobPage = (): JSX.Element => {
     const [jobs, setJobs] = useState<Job[]>([]);
     const [queueStatus, setQueueStatus] = useState<'idle' | 'loading' | 'populating' | 'ready' | 'empty'>('loading');
     const [error, setError] = useState<{ message: string, link?: string } | null>(null);
-  const [pollingJobId, setPollingJobId] = useState<string | null>(null);
   // Incremental run state
   const [incrementalMode, setIncrementalMode] = useState(false);
-  const [incrementalCanceled, setIncrementalCanceled] = useState(false);
   const [insertedThisRun, setInsertedThisRun] = useState(0);
-  const [runUrls, setRunUrls] = useState<string[] | null>(null);
   const [currentSource, setCurrentSource] = useState<string | null>(null);
   const [lastReason, setLastReason] = useState<string | null>(null);
     const [debugMode, setDebugMode] = useState(false);
@@ -86,20 +83,13 @@ export const JobPage = (): JSX.Element => {
     const [pageSize] = useState(10);
     const [applyingAll, setApplyingAll] = useState(false);
     const [applyProgress, setApplyProgress] = useState({ done: 0, total: 0, success: 0, fail: 0 });
-  const [relaxSchema, setRelaxSchema] = useState(false);
     const [remoteOnly, setRemoteOnly] = useState(false);
     const [recentOnly, setRecentOnly] = useState(false);
-  // Runs are initiated via jobs-search; no special flag needed
 
   // Debug payload capture for in-app panel
   const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);
   const [dbgSearchRes, setDbgSearchRes] = useState<any>(null);
-  const [dbgPMReq, setDbgPMReq] = useState<any>(null);
-  const [dbgPMRes, setDbgPMRes] = useState<any>(null);
-  const [dbgStatus, setDbgStatus] = useState<any>(null);
   
-  // Batch processing info (Firecrawl beta limit: 10 URLs per request)
-  const [batchInfo, setBatchInfo] = useState<{ current: number; total: number; urls_in_batch: number; total_urls: number } | null>(null);
 
   const { profile, loading: profileLoading } = useProfileSettings();
   const { info } = useToast();
@@ -278,9 +268,7 @@ export const JobPage = (): JSX.Element => {
   const [stepIndex, setStepIndex] = useState(0);
     const steps = useMemo(() => [
       'Searching Web',
-      'Starting Extraction',
-      'Processing Jobs',
-      'Finalizing Results'
+      'Saving Results'
     ], []);
     const getHost = (url?: string | null) => {
       if (!url) return '';
@@ -316,9 +304,9 @@ export const JobPage = (): JSX.Element => {
         }
     }, [supabase]);
 
-    const populateQueue = useCallback(async (query: string, location?: string) => {
+    const populateQueue = useCallback(async (query: string, _location?: string) => {
       // Prevent re-entry if a run is active
-      if (incrementalMode || pollingJobId) return;
+      if (incrementalMode) return;
       if (!query || !query.trim()) {
         setError({ message: 'Please enter a job title or keywords to search.' });
         return;
@@ -326,24 +314,17 @@ export const JobPage = (): JSX.Element => {
       setQueueStatus('populating');
       setError(null);
       setLastReason(null);
-      setPollingJobId(null);
       setStepIndex(0); // Step 0: Searching Web
       setIncrementalMode(true);
-      setIncrementalCanceled(false);
       setInsertedThisRun(0);
-      setBatchInfo(null);
-  // reset per-run counters only
-  // Reset counters for this run
-  setInsertedThisRun(0);
 
       try {
-        // Use backend jobs-search to discover curated sources (OpenAPI shape)
-        safeInfo("Searching the web for sources…");
+        // Use backend jobs-search to discover and save jobs directly
+        safeInfo("Searching the web for jobs…");
         const attemptInvoke = async (): Promise<any> => {
           const searchPayload = {
             searchQuery: query,
             location: 'Remote',  // Always search for remote jobs for broader results
-            relaxSchema,
             limit: 50,
           };
           if (debugMode) console.log('[debug] jobs-search request', searchPayload);
@@ -379,131 +360,32 @@ export const JobPage = (): JSX.Element => {
           return;
         }
 
-        // Expect shape: { success: true, data: { web: [ { url, title, description, category } ] } }
-        const webItems = Array.isArray(searchData?.data?.web) ? searchData.data.web : [];
-        const urls: string[] = webItems
-          .map((it: any) => (typeof it?.url === 'string' ? it.url : undefined))
-          .filter(Boolean);
+        // Jobs are now saved directly by jobs-search function
+        const inserted = searchData?.jobsInserted || 0;
 
-        if (!urls.length) {
-          setLastReason('no_sources');
-          setErrorDedup({ message: 'No sources found. Try broadening your search.' });
-          setQueueStatus('ready');
-          setIncrementalMode(false);
-          return;
-        }
+        setStepIndex(1); // Complete: Saving Results
+        setInsertedThisRun(inserted);
+        
+        // Refresh job list
+        await fetchJobQueue();
+        
+        setIncrementalMode(false);
+        safeInfo("Job search complete!", inserted > 0 ? `Found and saved ${inserted} jobs.` : "No jobs found for this search.");
+        setCurrentSource(null);
 
-        // Move to step 1: Starting Extraction
-        setStepIndex(1);
-
-        // Start extraction separately using process-and-match
-        const pmPayload = { searchQuery: query, location, urls, relaxSchema };
-        if (debugMode) console.log('[debug] process-and-match request', pmPayload);
-        setDbgPMReq(pmPayload);
-        const { data: pmData, error: pmErr } = await supabase.functions.invoke('process-and-match', {
-          body: pmPayload,
-        });
-        if (pmErr) throw new Error(pmErr.message);
-        if (debugMode) console.log('[debug] process-and-match response', pmData);
-        setDbgPMRes(pmData);
-        if (pmData?.error) {
-          const detail = pmData.detail || pmData.error || 'unknown';
-          setErrorDedup({ message: `Failed to start extraction: ${detail}` });
-          setQueueStatus('ready');
-          setIncrementalMode(false);
-          return;
-        }
-
-        if (pmData?.jobId) {
-          setRunUrls(urls);
-          setPollingJobId(pmData.jobId);
-          setQueueStatus('populating');
-          setStepIndex(2); // Step 2: Processing Jobs
-          
-          // Capture batch info from response
-          if (pmData.batch) {
-            setBatchInfo(pmData.batch);
-          }
-          
-          if (urls.length > 0) {
-            try { setCurrentSource(new URL(urls[0]).hostname.replace(/^www\./, '')); } catch { setCurrentSource(urls[0]); }
-          }
-          safeInfo('Job search started...', 'Streaming results as we find them.');
-        } else {
-          setErrorDedup({ message: 'Failed to start extraction: unexpected response.' });
-          setQueueStatus('idle');
-          setIncrementalMode(false);
-        }
       } catch (e: any) {
-        setError({ message: `Failed to build job feed: ${e.message}` });
+        setError({ message: `Failed to search jobs: ${e.message}` });
         setQueueStatus('idle');
         setIncrementalMode(false);
-  // simplified flow
       }
-  }, [supabase, debugMode, pollingJobId, incrementalMode, relaxSchema, jobs.length]);
+  }, [supabase, debugMode, incrementalMode, fetchJobQueue, safeInfo, setErrorDedup]);
 
-    // Removed per-URL incremental starter; jobs-search now initiates a single batch extraction
-
-    // Effect for polling the job status
-    useEffect(() => {
-      if (!pollingJobId) return;
-
-      const interval = setInterval(async () => {
-        try {
-          const { data: statusData, error: statusError } = await supabase.functions.invoke('get-extract-status', {
-            body: { jobId: pollingJobId, searchQuery, searchLocation: selectedLocation },
-          });
-
-          if (statusError) throw new Error(statusError.message);
-          if (debugMode) console.log('[debug] get-extract-status response', statusData);
-          setDbgStatus(statusData);
-
-          if (statusData.status === 'completed') {
-            clearInterval(interval);
-            setPollingJobId(null);
-            const inserted = typeof statusData.jobsInserted === 'number'
-              ? statusData.jobsInserted
-              : (Array.isArray(statusData?.data?.jobs) ? statusData.data.jobs.length : undefined);
-            if (!inserted) setLastReason('no_structured_results');
-            setStepIndex(3); // Step 3: Finalizing Results
-            // Refresh and summarize
-            await fetchJobQueue();
-            setInsertedThisRun((prev) => prev + (inserted || 0));
-            safeInfo("Job search complete!", inserted ? "Your results have been updated." : "No structured results were found for this search.");
-            setCurrentSource(null);
-            setIncrementalMode(false);
-          } else if (statusData.status === 'failed') {
-            clearInterval(interval);
-            setPollingJobId(null);
-            setLastReason('deep_research_failed');
-            setErrorDedup({ message: 'Job search failed during processing.' });
-            setQueueStatus('idle');
-            setIncrementalMode(false);
-            setCurrentSource(null);
-            // Nothing else to do in simplified flow
-          }
-          // If still 'processing', do nothing and let the interval continue.
-        } catch (e: any) {
-          clearInterval(interval);
-          setPollingJobId(null);
-          setErrorDedup({ message: `Failed to check job status: ${e.message}` });
-          setQueueStatus('idle');
-            setIncrementalMode(false);
-        }
-      }, 10000); // Poll every 10 seconds
-
-      return () => clearInterval(interval);
-  }, [pollingJobId, supabase, fetchJobQueue, info, searchQuery, selectedLocation, incrementalMode, incrementalCanceled, runUrls, insertedThisRun, jobs]);
+    // Removed old process-and-match and polling logic - jobs are now saved directly
 
     const cancelPopulation = useCallback(() => {
-      setIncrementalCanceled(true);
       setIncrementalMode(false);
-      setPollingJobId(null);
       setQueueStatus('ready');
       setCurrentSource(null);
-      setBatchInfo(null);
-  // no currentUrl tracking in simplified flow
-  // simplified flow
     }, []);
 
     // Apply all jobs (mark as applied) sequentially with simple progress + analytics events
@@ -894,7 +776,7 @@ export const JobPage = (): JSX.Element => {
 
               {debugMode && (
                 <Card className="bg-[#0b0b0b] border border-[#ffffff20] p-4">
-                  <div className="text-xs text-[#ffffff90] mb-2">Debug Panel</div>
+                  <div className="text-xs text-[#ffffff90] mb-2">Debug Panel - Simplified Flow</div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] text-[#d1d5db]">
                     <div>
                       <div className="text-[#9ca3af] mb-1">jobs-search request</div>
@@ -904,18 +786,9 @@ export const JobPage = (): JSX.Element => {
                       <div className="text-[#9ca3af] mb-1">jobs-search response</div>
                       <pre className="bg-[#111] p-2 rounded overflow-auto max-h-48">{JSON.stringify(dbgSearchRes, null, 2) || '—'}</pre>
                     </div>
-                    <div>
-                      <div className="text-[#9ca3af] mb-1">process-and-match request</div>
-                      <pre className="bg-[#111] p-2 rounded overflow-auto max-h-48">{JSON.stringify(dbgPMReq, null, 2) || '—'}</pre>
-                    </div>
-                    <div>
-                      <div className="text-[#9ca3af] mb-1">process-and-match response</div>
-                      <pre className="bg-[#111] p-2 rounded overflow-auto max-h-48">{JSON.stringify(dbgPMRes, null, 2) || '—'}</pre>
-                    </div>
-                    <div className="md:col-span-2">
-                      <div className="text-[#9ca3af] mb-1">get-extract-status latest</div>
-                      <pre className="bg-[#111] p-2 rounded overflow-auto max-h-48">{JSON.stringify(dbgStatus, null, 2) || '—'}</pre>
-                    </div>
+                  </div>
+                  <div className="mt-3 text-[10px] text-[#666] italic">
+                    Note: Jobs are now saved directly by jobs-search. No extraction phase needed.
                   </div>
                 </Card>
               )}
