@@ -42,14 +42,27 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
-    // Pull allowed sources (domains); fallback to remotive.com
+    // Pull allowed sources (domains); fallback to popular job boards
     const settingsRes = await supabaseAuthed
       .from('job_source_settings')
       .select('allowed_domains')
       .eq('id', userId)
       .maybeSingle();
     const allowedDomains: string[] = Array.isArray(settingsRes?.data?.allowed_domains) ? settingsRes.data.allowed_domains.filter(Boolean) : [];
-    const domainList = allowedDomains.length > 0 ? allowedDomains : ['remotive.com'];
+    const domainList = allowedDomains.length > 0 ? allowedDomains : [
+      'indeed.com',
+      'linkedin.com',
+      'glassdoor.com',
+      'angel.co',
+      'weworkremotely.com',
+      'remote.co',
+      'remotive.com',
+      'flexjobs.com',
+      'upwork.com',
+      'freelancer.com',
+    ];
+
+    console.log('jobs-search.domains', { allowed_domains: domainList, user_id: userId });
 
     // Compose query with site filters
     const siteClause = domainList.map((d) => `site:${d}`).join(' OR ');

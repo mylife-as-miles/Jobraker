@@ -273,7 +273,7 @@ export const JobPage = (): JSX.Element => {
         const attemptInvoke = async (): Promise<any> => {
           const searchPayload = {
             searchQuery: query,
-            location: location || 'Remote',
+            location: location || 'Remote',  // Default to Remote for broader results
             relaxSchema,
             limit: 50,
           };
