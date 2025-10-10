@@ -91,6 +91,13 @@ export const JobPage = (): JSX.Element => {
     const [recentOnly, setRecentOnly] = useState(false);
   // Runs are initiated via jobs-search; no special flag needed
 
+  // Debug payload capture for in-app panel
+  const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);
+  const [dbgSearchRes, setDbgSearchRes] = useState<any>(null);
+  const [dbgPMReq, setDbgPMReq] = useState<any>(null);
+  const [dbgPMRes, setDbgPMRes] = useState<any>(null);
+  const [dbgStatus, setDbgStatus] = useState<any>(null);
+
   const { profile, loading: profileLoading } = useProfileSettings();
   const { info } = useToast();
   // Toast dedupe/throttle: avoid spamming repeated toasts
@@ -271,11 +278,13 @@ export const JobPage = (): JSX.Element => {
             limit: 50,
           };
           if (debugMode) console.log('[debug] jobs-search request', searchPayload);
+          setDbgSearchReq(searchPayload);
           const { data, error: invokeErr } = await supabase.functions.invoke('jobs-search', {
             body: searchPayload,
           });
           if (invokeErr) throw new Error(invokeErr.message);
           if (debugMode) console.log('[debug] jobs-search response', data);
+          setDbgSearchRes(data);
           return data;
         };
 
@@ -318,11 +327,13 @@ export const JobPage = (): JSX.Element => {
         // Start extraction separately using process-and-match
         const pmPayload = { searchQuery: query, location, urls, relaxSchema };
         if (debugMode) console.log('[debug] process-and-match request', pmPayload);
+        setDbgPMReq(pmPayload);
         const { data: pmData, error: pmErr } = await supabase.functions.invoke('process-and-match', {
           body: pmPayload,
         });
         if (pmErr) throw new Error(pmErr.message);
         if (debugMode) console.log('[debug] process-and-match response', pmData);
+        setDbgPMRes(pmData);
         if (pmData?.error) {
           const detail = pmData.detail || pmData.error || 'unknown';
           setErrorDedup({ message: `Failed to start extraction: ${detail}` });
@@ -366,6 +377,8 @@ export const JobPage = (): JSX.Element => {
           });
 
           if (statusError) throw new Error(statusError.message);
+          if (debugMode) console.log('[debug] get-extract-status response', statusData);
+          setDbgStatus(statusData);
 
           if (statusData.status === 'completed') {
             clearInterval(interval);
@@ -786,6 +799,34 @@ export const JobPage = (): JSX.Element => {
                   <span>{sortedJobs.length} total</span>
                   <span>Showing first {pageSize} (pagination UI TBD)</span>
                 </div>
+              )}
+
+              {debugMode && (
+                <Card className="bg-[#0b0b0b] border border-[#ffffff20] p-4">
+                  <div className="text-xs text-[#ffffff90] mb-2">Debug Panel</div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] text-[#d1d5db]">
+                    <div>
+                      <div className="text-[#9ca3af] mb-1">jobs-search request</div>
+                      <pre className="bg-[#111] p-2 rounded overflow-auto max-h-48">{JSON.stringify(dbgSearchReq, null, 2) || '—'}</pre>
+                    </div>
+                    <div>
+                      <div className="text-[#9ca3af] mb-1">jobs-search response</div>
+                      <pre className="bg-[#111] p-2 rounded overflow-auto max-h-48">{JSON.stringify(dbgSearchRes, null, 2) || '—'}</pre>
+                    </div>
+                    <div>
+                      <div className="text-[#9ca3af] mb-1">process-and-match request</div>
+                      <pre className="bg-[#111] p-2 rounded overflow-auto max-h-48">{JSON.stringify(dbgPMReq, null, 2) || '—'}</pre>
+                    </div>
+                    <div>
+                      <div className="text-[#9ca3af] mb-1">process-and-match response</div>
+                      <pre className="bg-[#111] p-2 rounded overflow-auto max-h-48">{JSON.stringify(dbgPMRes, null, 2) || '—'}</pre>
+                    </div>
+                    <div className="md:col-span-2">
+                      <div className="text-[#9ca3af] mb-1">get-extract-status latest</div>
+                      <pre className="bg-[#111] p-2 rounded overflow-auto max-h-48">{JSON.stringify(dbgStatus, null, 2) || '—'}</pre>
+                    </div>
+                  </div>
+                </Card>
               )}
             </div>
 
