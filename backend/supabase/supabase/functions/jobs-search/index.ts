@@ -54,12 +54,17 @@ Deno.serve(async (req) => {
       'linkedin.com',
       'glassdoor.com',
       'angel.co',
-      'weworkremotely.com',
-      'remote.co',
-      'remotive.com',
-      'flexjobs.com',
-      'upwork.com',
-      'freelancer.com',
+      'wellfound.com',           // Formerly angel.co, startup and tech jobs
+      'weworkremotely.com',       // Remote-specific positions
+      'remote.co',                // Curated remote jobs
+      'remotive.com',             // Remote tech and non-tech jobs
+      'remoteok.com',             // Remote jobs aggregator
+      'jobicy.com',               // Remote jobs in various fields
+      'levels.fyi',               // Tech jobs with salary data
+      'flexjobs.com',             // Flexible and remote work
+      'upwork.com',               // Freelance opportunities
+      'freelancer.com',           // Freelance projects
+      'dice.com',                 // Tech jobs and IT positions
     ];
 
     console.log('jobs-search.domains', { allowed_domains: domainList, user_id: userId });
@@ -121,6 +126,12 @@ Deno.serve(async (req) => {
       if (lower.includes('remote.co') && (lower.includes('/job/') || lower.includes('/remote-jobs/')) && lower.split('/').length > 5) return true;
       // Remotive individual jobs  
       if (lower.includes('remotive.com') && lower.includes('/remote-jobs/')) return true;
+      // RemoteOK individual jobs
+      if (lower.includes('remoteok.com') && lower.includes('/remote-jobs/')) return true;
+      // Jobicy individual jobs
+      if (lower.includes('jobicy.com') && lower.includes('/job/')) return true;
+      // Levels.fyi job postings
+      if (lower.includes('levels.fyi') && lower.includes('/jobs/')) return true;
       // Glassdoor job view
       if (lower.includes('glassdoor.com') && (lower.includes('/job-listing/') || lower.includes('/partner/jobListing'))) return true;
       // AngelList/Wellfound jobs
@@ -131,6 +142,8 @@ Deno.serve(async (req) => {
       if (lower.includes('upwork.com') && lower.includes('/jobs/')) return true;
       // Freelancer job postings
       if (lower.includes('freelancer.com') && (lower.includes('/projects/') || lower.includes('/jobs/'))) return true;
+      // Dice tech jobs
+      if (lower.includes('dice.com') && (lower.includes('/jobs/detail/') || lower.includes('/job-detail/'))) return true;
       // Generic patterns
       if (lower.match(/\/(job|posting|opening|career|apply|position)s?\/[^\/]+\/?$/)) return true;
       return false;
