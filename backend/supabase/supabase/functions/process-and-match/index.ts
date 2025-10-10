@@ -155,9 +155,12 @@ Prefer on-page structured data (JSON-LD, microdata) when available. If a field i
       },
     });
 
+    console.log('process-and-match.firecrawl_payload', { payload: { ...payload, schema: '(omitted)' }, user_id: userId });
+
     let extractJob: any;
     try {
       extractJob = await withRetry(() => firecrawlFetch('/extract', firecrawlApiKey, payload), 2, 600);
+      console.log('process-and-match.firecrawl_response', { jobId: extractJob?.id, success: extractJob?.success, user_id: userId });
     } catch (e: any) {
       const msg = String(e?.message || '');
       if (e?.status === 429 || /Rate limit exceeded/i.test(msg)) {
