@@ -64,9 +64,11 @@ Deno.serve(async (req) => {
 
     console.log('jobs-search.domains', { allowed_domains: domainList, user_id: userId });
 
-    // Compose query with site filters
+    // Compose query with site filters and path patterns for individual job pages
     const siteClause = domainList.map((d) => `site:${d}`).join(' OR ');
-    const fullQuery = [rawQuery, location ? `"${location}"` : null, siteClause].filter(Boolean).join(' ');
+    // Add URL path patterns that indicate individual job postings
+    const jobPagePatterns = '(inurl:job OR inurl:view OR inurl:posting OR inurl:opening OR inurl:career OR inurl:apply)';
+    const fullQuery = [rawQuery, location ? `"${location}"` : null, `(${siteClause})`, jobPagePatterns].filter(Boolean).join(' ');
 
     // Firecrawl search payload per API spec
     const firecrawlApiKey = await resolveFirecrawlApiKey();
@@ -105,6 +107,35 @@ Deno.serve(async (req) => {
     const domainSet = new Set(domainList);
     const filtered: any[] = [];
     const seen = new Set<string>();
+    
+    // Helper to check if URL looks like an individual job posting
+    const isJobPostingUrl = (url: string): boolean => {
+      const lower = url.toLowerCase();
+      // Indeed job view pages
+      if (lower.includes('indeed.com') && (lower.includes('/viewjob') || lower.includes('/rc/clk'))) return true;
+      // LinkedIn job view pages
+      if (lower.includes('linkedin.com') && lower.includes('/jobs/view/')) return true;
+      // WeWorkRemotely individual jobs
+      if (lower.includes('weworkremotely.com') && lower.includes('/remote-jobs/') && !lower.endsWith('/remote-jobs')) return true;
+      // Remote.co individual jobs
+      if (lower.includes('remote.co') && (lower.includes('/job/') || lower.includes('/remote-jobs/')) && lower.split('/').length > 5) return true;
+      // Remotive individual jobs  
+      if (lower.includes('remotive.com') && lower.includes('/remote-jobs/')) return true;
+      // Glassdoor job view
+      if (lower.includes('glassdoor.com') && (lower.includes('/job-listing/') || lower.includes('/partner/jobListing'))) return true;
+      // AngelList/Wellfound jobs
+      if ((lower.includes('angel.co') || lower.includes('wellfound.com')) && (lower.includes('/l/') || lower.includes('/jobs/'))) return true;
+      // FlexJobs individual postings
+      if (lower.includes('flexjobs.com') && lower.includes('/jobs/')) return true;
+      // Upwork job postings
+      if (lower.includes('upwork.com') && lower.includes('/jobs/')) return true;
+      // Freelancer job postings
+      if (lower.includes('freelancer.com') && (lower.includes('/projects/') || lower.includes('/jobs/'))) return true;
+      // Generic patterns
+      if (lower.match(/\/(job|posting|opening|career|apply|position)s?\/[^\/]+\/?$/)) return true;
+      return false;
+    };
+    
     for (const item of webItems) {
       const url: string | undefined = item?.url || item?.metadata?.sourceURL;
       if (typeof url !== 'string') continue;
@@ -114,15 +145,32 @@ Deno.serve(async (req) => {
       const allowed = Array.from(domainSet).some((d) => h === d || h.endsWith(`.${d}`));
       if (!allowed) continue;
       if (seen.has(clean)) continue;
+      
+      // Skip obvious search result pages
+      if (clean.toLowerCase().includes('/search') || 
+          clean.toLowerCase().includes('/q-') ||
+          clean.toLowerCase().match(/jobs\.html?$/)) {
+        console.log('jobs-search.skipping_search_page', { url: clean });
+        continue;
+      }
+      
       seen.add(clean);
       filtered.push({
         url: clean,
         title: typeof item?.title === 'string' ? item.title : undefined,
         description: typeof item?.description === 'string' ? item.description : undefined,
         category: typeof item?.category === 'string' ? item.category : undefined,
+        isJobPosting: isJobPostingUrl(clean),
       });
       if (typeof limit === 'number' && filtered.length >= limit) break;
     }
+    
+    // Sort to prioritize actual job posting URLs
+    filtered.sort((a, b) => {
+      if (a.isJobPosting && !b.isJobPosting) return -1;
+      if (!a.isJobPosting && b.isJobPosting) return 1;
+      return 0;
+    });
 
     // Return OpenAPI-aligned response shape
     return new Response(

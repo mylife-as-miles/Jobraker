@@ -50,9 +50,31 @@ Deno.serve(async (req) => {
 
   const extractStatus = await statusRes.json();
 
+    console.log('get-extract-status.firecrawl_response', { 
+      jobId, 
+      status: extractStatus.status,
+      has_data: !!extractStatus.data,
+      data_keys: extractStatus.data ? Object.keys(extractStatus.data) : [],
+      jobs_count: extractStatus.data?.jobs?.length || 0,
+      user_id: userId
+    });
+
     let jobsInserted = 0;
     if (extractStatus.status === 'completed') {
+      // Firecrawl returns data based on our schema: { jobs: [...] }
       const extractedJobs = extractStatus.data?.jobs || [];
+      
+      // If no jobs found, log the raw data for debugging
+      if (extractedJobs.length === 0) {
+        console.warn('firecrawl.extract_no_jobs', { 
+          userId, 
+          jobId, 
+          raw_data: JSON.stringify(extractStatus.data).substring(0, 500),
+          data_type: typeof extractStatus.data,
+          data_keys: extractStatus.data ? Object.keys(extractStatus.data) : []
+        });
+      }
+      
       console.info('firecrawl.extract_complete', { userId, jobId, jobs_found: extractedJobs.length });
 
       if (extractedJobs.length > 0) {
