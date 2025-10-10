@@ -65,6 +65,8 @@ Deno.serve(async (req) => {
       ...(location ? { location } : {}),
     };
 
+    console.log('jobs-search.firecrawl_payload', { payload: searchPayload, user_id: userId });
+
     // Perform search
     let searchRes: any;
     try {
@@ -82,6 +84,8 @@ Deno.serve(async (req) => {
       console.error('firecrawl.search_failed', { error: msg });
       return new Response(JSON.stringify({ error: 'search_failed', detail: msg }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
+
+    console.log('jobs-search.firecrawl_response', { status: searchRes?.success, web_count: searchRes?.data?.web?.length || 0 });
 
     // Extract items from data.web per OpenAPI, filter by allowed domains, dedupe, and cap
     const webItems: any[] = Array.isArray(searchRes?.data?.web) ? searchRes.data.web : [];
