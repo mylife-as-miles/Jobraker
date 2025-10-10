@@ -57,6 +57,17 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_job_sources_configured' }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
+    // Firecrawl beta limit: max 10 URLs per request
+    const BATCH_SIZE = 10;
+    const totalUrls = userSources.length;
+    
+    console.info('process-and-match.batching', { 
+      total_urls: totalUrls, 
+      batch_size: BATCH_SIZE, 
+      num_batches: Math.ceil(totalUrls / BATCH_SIZE),
+      user_id: userId 
+    });
+
     const jobSchema = {
       type: 'object',
       properties: {
@@ -105,8 +116,16 @@ Prefer on-page structured data (JSON-LD, microdata) when available. If a field i
     // additional scrapeOptions flags you specified. If the caller provided
     // an overrides object (e.g., body.scrapeOptions), we'll shallow-merge it.
     const userScrapeOptions = typeof body?.scrapeOptions === 'object' && body.scrapeOptions ? body.scrapeOptions : {};
+    
+    // Process first batch only (Firecrawl beta limit: 10 URLs per request)
+    const firstBatch = userSources.slice(0, BATCH_SIZE);
+    const remainingBatches = [];
+    for (let i = BATCH_SIZE; i < userSources.length; i += BATCH_SIZE) {
+      remainingBatches.push(userSources.slice(i, i + BATCH_SIZE));
+    }
+    
     const payload = {
-      urls: userSources,
+      urls: firstBatch,
       prompt: extractPrompt,
       schema: finalSchema,
   enableWebSearch: true,
@@ -142,7 +161,10 @@ Prefer on-page structured data (JSON-LD, microdata) when available. If a field i
 
     // Safe payload summary log for diagnostics (no secrets, no entire schema body)
     console.info('firecrawl.payload_summary', {
-      urls_count: userSources.length,
+      batch_number: 1,
+      urls_count: firstBatch.length,
+      remaining_batches: remainingBatches.length,
+      total_urls: totalUrls,
       enableWebSearch: true,
       showSources: true,
       hasSchema: Boolean(finalSchema),
@@ -184,7 +206,17 @@ Prefer on-page structured data (JSON-LD, microdata) when available. If a field i
     console.info('firecrawl.extract_started', { user_id: userId, query: searchQuery, location, jobId, prompt: extractPrompt, sources: userSources });
 
     // Return the ID as `jobId` to match what the frontend and polling function expect.
-    return new Response(JSON.stringify({ success: true, jobId }), {
+    // Include batch info so frontend knows this is partial results
+    return new Response(JSON.stringify({ 
+      success: true, 
+      jobId,
+      batch: {
+        current: 1,
+        total: Math.ceil(totalUrls / BATCH_SIZE),
+        urls_in_batch: firstBatch.length,
+        total_urls: totalUrls
+      }
+    }), {
       status: 202, // Accepted
       headers: { ...corsHeaders, 'content-type': 'application/json' },
     });
