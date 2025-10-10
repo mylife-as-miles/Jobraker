@@ -269,6 +269,7 @@ export const JobPage = (): JSX.Element => {
               searchQuery: query,
               location: location || 'Remote',
               relaxSchema,
+              limit: 50,
             },
           });
           if (invokeErr) throw new Error(invokeErr.message);
@@ -469,16 +470,17 @@ export const JobPage = (): JSX.Element => {
         // Set up the real-time subscription
         const channel = supabase
             .channel('jobs-queue-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jobs' }, () => {
-                // Refetch the entire queue to ensure UI is in sync
-                fetchJobQueue();
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jobs' }, () => {
+              // During an active search/extraction run, avoid thrashing the UI
+              if (incrementalMode || pollingJobId) return;
+              fetchJobQueue();
             })
             .subscribe();
 
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [profileLoading, profile, fetchJobQueue, populateQueue, supabase, info]);
+  }, [profileLoading, profile, fetchJobQueue, populateQueue, supabase, info, incrementalMode, pollingJobId]);
 
     // Effect to pre-fill search query from profile
     useEffect(() => {
