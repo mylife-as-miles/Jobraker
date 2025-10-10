@@ -261,7 +261,7 @@ export const JobPage = (): JSX.Element => {
   setInsertedThisRun(0);
 
       try {
-        // Use backend jobs-search to discover curated URLs and kick off extraction
+        // Use backend jobs-search to discover curated sources (OpenAPI shape)
         safeInfo("Searching the web for sources…");
         const attemptInvoke = async (): Promise<any> => {
           const { data, error: invokeErr } = await supabase.functions.invoke('jobs-search', {
@@ -269,47 +269,70 @@ export const JobPage = (): JSX.Element => {
               searchQuery: query,
               location: location || 'Remote',
               relaxSchema,
-              // no per-job limit; backend curates URLs
             },
           });
           if (invokeErr) throw new Error(invokeErr.message);
           return data;
         };
 
-        let data = await attemptInvoke();
-        if (data?.error === 'rate_limited') {
-          const retrySec = Math.max(10, Math.min(120, Number(data?.retryAfterSeconds || 55)));
+        let searchData = await attemptInvoke();
+        if (searchData?.error === 'rate_limited') {
+          const retrySec = Math.max(10, Math.min(120, Number(searchData?.retryAfterSeconds || 55)));
           setErrorDedup({ message: `Rate limited by Firecrawl. Retrying in ${retrySec}s…` });
           await new Promise((r) => setTimeout(r, retrySec * 1000));
-          // one retry
-          data = await attemptInvoke();
+          searchData = await attemptInvoke();
         }
 
-        if (data?.error) {
-          if (data.error === 'missing_api_key') {
+        if (searchData?.error) {
+          if (searchData.error === 'missing_api_key') {
             setErrorDedup({ message: 'Firecrawl is not configured. Ask your admin to set FIRECRAWL_API_KEY in Supabase Function Secrets.' });
-          } else if (data.error === 'rate_limited') {
+          } else if (searchData.error === 'rate_limited') {
             setErrorDedup({ message: 'Rate limited by Firecrawl. Please try again shortly.' });
           } else {
-            const detail = data.detail || 'An unknown error occurred.';
-            setErrorDedup({ message: `Failed to start job search: ${detail}` });
+            const detail = searchData.detail || 'An unknown error occurred.';
+            setErrorDedup({ message: `Failed to search: ${detail}` });
           }
           setQueueStatus('ready');
           setIncrementalMode(false);
           return;
         }
 
-        if (data?.jobId) {
-          const urls: string[] = Array.isArray(data?.urls) ? data.urls : [];
+        // Expect shape: { success: true, data: { web: [ { url, title, description, category } ] } }
+        const webItems = Array.isArray(searchData?.data?.web) ? searchData.data.web : [];
+        const urls: string[] = webItems
+          .map((it: any) => (typeof it?.url === 'string' ? it.url : undefined))
+          .filter(Boolean);
+
+        if (!urls.length) {
+          setLastReason('no_sources');
+          setErrorDedup({ message: 'No sources found. Try broadening your search.' });
+          setQueueStatus('ready');
+          setIncrementalMode(false);
+          return;
+        }
+
+        // Start extraction separately using process-and-match
+        const { data: pmData, error: pmErr } = await supabase.functions.invoke('process-and-match', {
+          body: { searchQuery: query, location, urls, relaxSchema },
+        });
+        if (pmErr) throw new Error(pmErr.message);
+        if (pmData?.error) {
+          const detail = pmData.detail || pmData.error || 'unknown';
+          setErrorDedup({ message: `Failed to start extraction: ${detail}` });
+          setQueueStatus('ready');
+          setIncrementalMode(false);
+          return;
+        }
+
+        if (pmData?.jobId) {
           setRunUrls(urls);
-          setPollingJobId(data.jobId);
+          setPollingJobId(pmData.jobId);
           setQueueStatus('populating');
           setStepIndex(1); // Extracting
-          // Set current source for UX (first host)
           if (urls.length > 0) {
             try { setCurrentSource(new URL(urls[0]).hostname.replace(/^www\./, '')); } catch { setCurrentSource(urls[0]); }
           }
-          safeInfo("Job search started...", `Streaming results as we find them.`);
+          safeInfo('Job search started...', 'Streaming results as we find them.');
         } else {
           setErrorDedup({ message: 'Failed to start extraction: unexpected response.' });
           setQueueStatus('idle');

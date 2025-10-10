@@ -22,9 +22,13 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const rawQuery = (body?.searchQuery || body?.query || '').trim();
     const location = (body?.location || '').trim();
-    const tbs = typeof body?.tbs === 'string' ? body.tbs : undefined;
+  // Enforce last 7 days window for search time-bounds
+  const tbs = 'qdr:w';
     const categories = Array.isArray(body?.categories) ? body.categories : undefined;
-    const limit = Number.isFinite(Number(body?.limit)) ? Math.max(1, Math.min(100, Number(body.limit))) : undefined;
+    // Default limit to 50 (clamped 1..100) if not provided
+    const limit = Number.isFinite(Number(body?.limit))
+      ? Math.max(1, Math.min(100, Number(body.limit)))
+      : 50;
     const relaxSchema = Boolean(body?.relaxSchema);
     if (!rawQuery) {
       return new Response(JSON.stringify({ error: 'searchQuery is required' }), { status: 400, headers: { ...corsHeaders, 'content-type': 'application/json' } });
@@ -57,7 +61,8 @@ Deno.serve(async (req) => {
     const searchPayload: any = {
       query: fullQuery,
       ...(typeof limit === 'number' ? { limit } : {}),
-      sources: [{ type: 'web', ...(tbs ? { tbs } : {}), ...(location ? { location } : {}) }],
+      // Always restrict to web results within the past week
+      sources: [{ type: 'web', tbs, ...(location ? { location } : {}) }],
       ...(Array.isArray(categories) && categories.length ? { categories } : {}),
       timeout: 60000,
       ignoreInvalidURLs: false,
@@ -101,50 +106,35 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'search_failed', detail: msg }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
-    // Extract URLs from data.web per OpenAPI
+    // Extract items from data.web per OpenAPI, filter by allowed domains, dedupe, and cap
     const webItems: any[] = Array.isArray(searchRes?.data?.web) ? searchRes.data.web : [];
-    let urls: string[] = webItems
-      .map((it: any) => it?.url || it?.metadata?.sourceURL)
-      .filter((u: any) => typeof u === 'string');
-
-    // Filter to allowed domains
     const domainSet = new Set(domainList);
-    urls = urls.filter((u) => {
-      const h = hostFromUrl(u);
-      return h ? Array.from(domainSet).some((d) => h === d || h.endsWith(`.${d}`)) : false;
-    });
-
-    // Dedupe and cap
+    const filtered: any[] = [];
     const seen = new Set<string>();
-    const curated: string[] = [];
-    for (const u of urls) {
-      const clean = String(u).replace(/\/$/, '');
-      if (!seen.has(clean)) { seen.add(clean); curated.push(clean); }
-      if (typeof limit === 'number' && curated.length >= limit) break;
-    }
-    if (curated.length === 0) {
-      curated.push('https://remotive.com');
-    }
-
-    // Kick off extraction via existing function
-    const supabaseFunctions = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
-    const { data: pmData, error: pmError } = await supabaseFunctions.functions.invoke('process-and-match', {
-      body: { searchQuery: rawQuery, location, urls: curated, relaxSchema },
-    });
-    if (pmError) {
-      console.error('jobs-search.process-and-match_failed', pmError?.message || pmError);
-      return new Response(JSON.stringify({ error: 'process_and_match_failed', detail: pmError?.message }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
-    }
-    if (pmData?.error) {
-      const status = pmData.error === 'rate_limited' ? 429 : (pmData.error === 'missing_api_key' ? 400 : 500);
-      return new Response(JSON.stringify(pmData), { status, headers: { ...corsHeaders, 'content-type': 'application/json' } });
-    }
-    if (pmData?.jobId) {
-      console.info('jobs-search.started', { user_id: userId, jobId: pmData.jobId, urls: curated.length });
-      return new Response(JSON.stringify({ success: true, jobId: pmData.jobId, urls: curated }), { status: 202, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    for (const item of webItems) {
+      const url: string | undefined = item?.url || item?.metadata?.sourceURL;
+      if (typeof url !== 'string') continue;
+      const clean = url.replace(/\/$/, '');
+      const h = hostFromUrl(clean);
+      if (!h) continue;
+      const allowed = Array.from(domainSet).some((d) => h === d || h.endsWith(`.${d}`));
+      if (!allowed) continue;
+      if (seen.has(clean)) continue;
+      seen.add(clean);
+      filtered.push({
+        url: clean,
+        title: typeof item?.title === 'string' ? item.title : undefined,
+        description: typeof item?.description === 'string' ? item.description : undefined,
+        category: typeof item?.category === 'string' ? item.category : undefined,
+      });
+      if (typeof limit === 'number' && filtered.length >= limit) break;
     }
 
-    return new Response(JSON.stringify({ error: 'unexpected_response' }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    // Return OpenAPI-aligned response shape
+    return new Response(
+      JSON.stringify({ success: true, data: { web: filtered } }),
+      { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } },
+    );
 
   } catch (e: any) {
     return new Response(JSON.stringify({ error: e?.message || 'An unexpected error occurred.' }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
