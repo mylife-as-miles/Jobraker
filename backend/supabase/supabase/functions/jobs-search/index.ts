@@ -55,37 +55,14 @@ Deno.serve(async (req) => {
     const siteClause = domainList.map((d) => `site:${d}`).join(' OR ');
     const fullQuery = [rawQuery, location ? `"${location}"` : null, siteClause].filter(Boolean).join(' ');
 
-    // Firecrawl search payload per OpenAPI
+    // Firecrawl search payload per API spec
     const firecrawlApiKey = await resolveFirecrawlApiKey();
-    const userScrapeOptions = typeof body?.scrapeOptions === 'object' && body.scrapeOptions ? body.scrapeOptions : {};
     const searchPayload: any = {
       query: fullQuery,
-      ...(typeof limit === 'number' ? { limit } : {}),
-      // Always restrict to web results within the past week
-      sources: [{ type: 'web', tbs, ...(location ? { location } : {}) }],
-      ...(Array.isArray(categories) && categories.length ? { categories } : {}),
-      timeout: 60000,
-      ignoreInvalidURLs: false,
-      scrapeOptions: {
-        formats: ['markdown'],
-        onlyMainContent: true,
-        includeTags: [],
-        excludeTags: [],
-        maxAge: 172800000,
-        headers: {},
-        waitFor: 0,
-        mobile: false,
-        skipTlsVerification: true,
-        timeout: 123,
-        parsers: ['pdf'],
-        actions: [],
-        location: { country: 'US', languages: ['en-US'] },
-        removeBase64Images: true,
-        blockAds: true,
-        proxy: 'auto',
-        storeInCache: true,
-        ...userScrapeOptions,
-      },
+      limit,
+      sources: ['web'],
+      tbs,
+      ...(location ? { location } : {}),
     };
 
     // Perform search
