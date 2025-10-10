@@ -104,6 +104,36 @@ Deno.serve(async (req) => {
       sources: ['web'],
       tbs,
       ...(location ? { location } : {}),
+      scrapeOptions: {
+        onlyMainContent: true,
+        skipTlsVerification: true,
+        removeBase64Images: true,
+        blockAds: true,
+        proxy: "auto",
+        actions: [
+          { type: "Wait", milliseconds: 1000 },
+          { type: "Scroll", direction: "down", count: 2 }
+        ],
+        formats: [
+          {
+            type: "json",
+            schema: {
+              title: "string",
+              company: "string",
+              salary: "string",
+              location: "string",
+              deadline: "string",
+              apply_link: "string"
+            },
+            prompt: "Extract job listings including title, company, salary, location, deadline, and apply link."
+          },
+          {
+            type: "screenshot",
+            fullPage: false,
+            quality: 80
+          }
+        ]
+      }
     };
 
     console.log('jobs-search.firecrawl_payload', { payload: searchPayload, user_id: userId });
@@ -190,7 +220,7 @@ Deno.serve(async (req) => {
       
       seen.add(clean);
       
-      // Extract company name from URL or title
+      // Extract company name from URL, scraped data, or title
       const extractCompanyFromUrl = (url: string): string => {
         try {
           const hostname = new URL(url).hostname.replace('www.', '');
@@ -201,13 +231,22 @@ Deno.serve(async (req) => {
         }
       };
       
+      // Check if item has enhanced JSON scraped data
+      const scrapedData = item?.scraped?.json || item?.json || {};
+      const hasEnhancedData = scrapedData && typeof scrapedData === 'object';
+      
       filtered.push({
         url: clean,
-        title: typeof item?.title === 'string' ? item.title : undefined,
+        title: scrapedData.title || item?.title || undefined,
         description: typeof item?.description === 'string' ? item.description : undefined,
         category: typeof item?.category === 'string' ? item.category : undefined,
         isJobPosting: isJobPostingUrl(clean),
-        company: extractCompanyFromUrl(clean),
+        company: scrapedData.company || extractCompanyFromUrl(clean),
+        salary: scrapedData.salary || undefined,
+        location: scrapedData.location || undefined,
+        deadline: scrapedData.deadline || undefined,
+        apply_link: scrapedData.apply_link || clean,
+        screenshot: item?.scraped?.screenshot || item?.screenshot || undefined,
       });
       if (typeof limit === 'number' && filtered.length >= limit) break;
     }
@@ -222,26 +261,93 @@ Deno.serve(async (req) => {
     // Save jobs directly to database
     console.log('jobs-search.saving_to_database', { count: filtered.length, user_id: userId });
     
-    const jobsToInsert = filtered.map((item) => ({
-      user_id: userId,
-      source_type: 'web_search',
-      source_id: item.url,
-      title: item.title || rawQuery,
-      company: item.company,
-      description: item.description || null,
-      location: loc || 'Remote',
-      remote_type: 'Remote',
-      apply_url: item.url,
-      posted_at: new Date().toISOString(),
-      status: 'active',
-      raw_data: {
-        search_query: rawQuery,
-        search_location: loc,
-        category: item.category,
-        isJobPosting: item.isJobPosting,
-        source: 'firecrawl_search',
-      },
-    }));
+    const jobsToInsert = filtered.map((item) => {
+      // Parse deadline if provided
+      let expiresAt = null;
+      if (item.deadline) {
+        try {
+          const deadlineDate = new Date(item.deadline);
+          if (!isNaN(deadlineDate.getTime())) {
+            expiresAt = deadlineDate.toISOString();
+          }
+        } catch {
+          // Invalid date, ignore
+        }
+      }
+      
+      // Parse salary range if provided
+      let salary_min = null;
+      let salary_max = null;
+      let salary_currency = null;
+      if (item.salary) {
+        // Try to extract currency symbol or code
+        const currencyMatch = item.salary.match(/([£€$]|USD|EUR|GBP|CAD|AUD)/i);
+        if (currencyMatch) {
+          const curr = currencyMatch[1];
+          salary_currency = curr === '$' ? 'USD' : curr === '£' ? 'GBP' : curr === '€' ? 'EUR' : curr.toUpperCase();
+        }
+        
+        // Extract numeric values (e.g., "$50,000 - $80,000" or "£40k-60k")
+        const salaryMatch = item.salary.match(/[\$£€]?([\d,]+)k?\s*-\s*[\$£€]?([\d,]+)k?/i);
+        if (salaryMatch) {
+          const parseAmount = (val: string) => {
+            const num = parseInt(val.replace(/,/g, ''));
+            // If value looks like "50k", multiply by 1000
+            return item.salary?.toLowerCase().includes('k') && num < 1000 ? num * 1000 : num;
+          };
+          salary_min = parseAmount(salaryMatch[1]);
+          salary_max = parseAmount(salaryMatch[2]);
+        } else {
+          // Try single value
+          const singleMatch = item.salary.match(/[\$£€]?([\d,]+)k?/i);
+          if (singleMatch) {
+            const amount = parseInt(singleMatch[1].replace(/,/g, ''));
+            salary_min = item.salary?.toLowerCase().includes('k') && amount < 1000 ? amount * 1000 : amount;
+          }
+        }
+        
+        // Default currency to USD if we found salary but no currency
+        if ((salary_min || salary_max) && !salary_currency) {
+          salary_currency = 'USD';
+        }
+      }
+      
+      return {
+        user_id: userId,
+        source_type: 'web_search',
+        source_id: item.url,
+        title: item.title || rawQuery,
+        company: item.company,
+        description: item.description || null,
+        location: item.location || loc || 'Remote',
+        remote_type: 'Remote',
+        apply_url: item.apply_link || item.url,
+        posted_at: new Date().toISOString(),
+        expires_at: expiresAt,
+        salary_min,
+        salary_max,
+        salary_currency,
+        status: 'active',
+        raw_data: {
+          search_query: rawQuery,
+          search_location: loc,
+          category: item.category,
+          isJobPosting: item.isJobPosting,
+          source: 'firecrawl_search',
+          salary: item.salary,
+          deadline: item.deadline,
+          screenshot: item.screenshot,
+          scraped_data: {
+            title: item.title,
+            company: item.company,
+            salary: item.salary,
+            location: item.location,
+            deadline: item.deadline,
+            apply_link: item.apply_link,
+          }
+        },
+      };
+    });
 
     const { data: insertedJobs, error: insertError } = await supabaseAdmin
       .from('jobs')
