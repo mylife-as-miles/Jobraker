@@ -264,15 +264,18 @@ export const JobPage = (): JSX.Element => {
         // Use backend jobs-search to discover curated sources (OpenAPI shape)
         safeInfo("Searching the web for sources…");
         const attemptInvoke = async (): Promise<any> => {
+          const searchPayload = {
+            searchQuery: query,
+            location: location || 'Remote',
+            relaxSchema,
+            limit: 50,
+          };
+          if (debugMode) console.log('[debug] jobs-search request', searchPayload);
           const { data, error: invokeErr } = await supabase.functions.invoke('jobs-search', {
-            body: {
-              searchQuery: query,
-              location: location || 'Remote',
-              relaxSchema,
-              limit: 50,
-            },
+            body: searchPayload,
           });
           if (invokeErr) throw new Error(invokeErr.message);
+          if (debugMode) console.log('[debug] jobs-search response', data);
           return data;
         };
 
@@ -313,10 +316,13 @@ export const JobPage = (): JSX.Element => {
         }
 
         // Start extraction separately using process-and-match
+        const pmPayload = { searchQuery: query, location, urls, relaxSchema };
+        if (debugMode) console.log('[debug] process-and-match request', pmPayload);
         const { data: pmData, error: pmErr } = await supabase.functions.invoke('process-and-match', {
-          body: { searchQuery: query, location, urls, relaxSchema },
+          body: pmPayload,
         });
         if (pmErr) throw new Error(pmErr.message);
+        if (debugMode) console.log('[debug] process-and-match response', pmData);
         if (pmData?.error) {
           const detail = pmData.detail || pmData.error || 'unknown';
           setErrorDedup({ message: `Failed to start extraction: ${detail}` });
