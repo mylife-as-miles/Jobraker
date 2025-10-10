@@ -22,8 +22,8 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const rawQuery = (body?.searchQuery || body?.query || '').trim();
     const location = (body?.location || '').trim();
-  // Enforce last 7 days window for search time-bounds
-  const tbs = 'qdr:w';
+    // Enforce last 30 days window for search time-bounds
+    const tbs = 'qdr:m';
     const categories = Array.isArray(body?.categories) ? body.categories : undefined;
     // Default limit to 50 (clamped 1..100) if not provided
     const limit = Number.isFinite(Number(body?.limit))
