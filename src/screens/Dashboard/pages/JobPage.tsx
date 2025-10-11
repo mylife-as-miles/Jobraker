@@ -1,4 +1,4 @@
-import { Briefcase, Search, MapPin, Loader2 } from "lucide-react";
+import { Briefcase, Search, MapPin, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -85,9 +85,9 @@ export const JobPage = (): JSX.Element => {
   const [currentSource, setCurrentSource] = useState<string | null>(null);
   const [lastReason, setLastReason] = useState<string | null>(null);
     const [debugMode, setDebugMode] = useState(false);
-    const [logoError, setLogoError] = useState<Record<string, boolean>>({});
-    const [currentPage] = useState(1); // (Pagination placeholder; future enhancement)
-    const [pageSize] = useState(10);
+  const [logoError, setLogoError] = useState<Record<string, boolean>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [applyingAll, setApplyingAll] = useState(false);
     const [applyProgress, setApplyProgress] = useState({ done: 0, total: 0, success: 0, fail: 0 });
     const [sortBy, setSortBy] = useState<"recent" | "company" | "deadline">("recent");
@@ -514,14 +514,25 @@ export const JobPage = (): JSX.Element => {
     }, [visibleJobs, sortBy]);
 
     const total = sortedJobs.length;
-  // totalPages currently unused (pagination UI not yet implemented fully)
-    const paginatedJobs = sortedJobs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const clampedPage = Math.min(Math.max(1, currentPage), totalPages);
+    const startIdx = (clampedPage - 1) * pageSize;
+    const endIdx = Math.min(startIdx + pageSize, total);
+    const paginatedJobs = sortedJobs.slice(startIdx, endIdx);
+
+    useEffect(() => {
+      if (currentPage !== clampedPage) setCurrentPage(clampedPage);
+    }, [clampedPage, currentPage]);
 
     useEffect(() => {
       if (selectedJob && !paginatedJobs.some(j => j.id === selectedJob)) {
         setSelectedJob(paginatedJobs[0]?.id ?? null);
       }
-    }, [currentPage, pageSize, selectedJob, paginatedJobs]);
+    }, [clampedPage, pageSize, selectedJob, paginatedJobs]);
+
+    useEffect(() => {
+      setCurrentPage(1);
+    }, [remoteOnly, recentOnly, searchQuery, sortBy]);
 
     // Small helper for relative timestamps
     const formatRelative = (iso?: string | null) => {
