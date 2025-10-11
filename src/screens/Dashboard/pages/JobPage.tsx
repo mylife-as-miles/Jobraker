@@ -856,7 +856,7 @@ export const JobPage = (): JSX.Element => {
                                     onClick={(e) => e.stopPropagation()}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="ml-2 inline-flex items-center text-[11px] px-2 py-1 rounded-md border border-[#ffffff20] text-[#ffffffc0] hover:text-white hover:border-white/40 hover:bg:white/10"
+                                    className="ml-2 inline-flex items-center text-[11px] px-2 py-1 rounded-md border border-[#ffffff20] text-[#ffffffc0] hover:text-white hover:border-white/40 hover:bg-white/10"
                                   >
                                     Open
                                   </a>
