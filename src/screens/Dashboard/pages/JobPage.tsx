@@ -881,10 +881,90 @@ export const JobPage = (): JSX.Element => {
                   </Card>
                 </motion.div>
               ))}
-              {queueStatus === 'ready' && sortedJobs.length > pageSize && (
-                <div className="flex items-center justify-between pt-4 text-xs text-[#ffffff80]">
-                  <span>{sortedJobs.length} total</span>
-                  <span>Showing first {pageSize} (pagination UI TBD)</span>
+              {queueStatus === 'ready' && total > 0 && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4">
+                  <div className="text-[12px] text-white/60">
+                    Showing <span className="text-white/80">{total === 0 ? 0 : startIdx + 1}</span>–<span className="text-white/80">{endIdx}</span> of <span className="text-white/80">{total}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-white/50">Rows</span>
+                      <Select value={String(pageSize)} onValueChange={(v) => { const n = parseInt(v); if (!Number.isNaN(n)) { setPageSize(n); setCurrentPage(1); } }}>
+                        <SelectTrigger className="h-8 w-[90px] bg-white/10 border-white/15 text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-black text-white border-white/15">
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label="First page"
+                        disabled={clampedPage === 1}
+                        onClick={() => setCurrentPage(1)}
+                        className={`h-8 w-8 grid place-items-center rounded-md border ${clampedPage===1 ? 'border-white/10 text-white/30' : 'border-white/20 text-white/70 hover:text-white hover:border-white/40 hover:bg-white/10'}`}
+                      >
+                        <ChevronsLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Previous page"
+                        disabled={clampedPage === 1}
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        className={`h-8 w-8 grid place-items-center rounded-md border ${clampedPage===1 ? 'border-white/10 text-white/30' : 'border-white/20 text-white/70 hover:text-white hover:border-white/40 hover:bg-white/10'}`}
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <div className="hidden md:flex items-center gap-1">
+                        {(() => {
+                          const pages: (number | '…')[] = [];
+                          const maxToShow = 5;
+                          let start = Math.max(1, clampedPage - 2);
+                          let end = Math.min(totalPages, start + maxToShow - 1);
+                          start = Math.max(1, end - maxToShow + 1);
+                          if (start > 1) pages.push(1, '…');
+                          for (let i = start; i <= end; i++) pages.push(i);
+                          if (end < totalPages) pages.push('…', totalPages);
+                          return pages.map((p, idx) => (
+                            typeof p === 'number' ? (
+                              <button
+                                key={idx}
+                                onClick={() => setCurrentPage(p)}
+                                className={`h-8 min-w-8 px-2 rounded-md border text-[12px] ${p===clampedPage ? 'border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/10' : 'border-white/20 text-white/70 hover:text-white hover:border-white/40 hover:bg-white/10'}`}
+                              >{p}</button>
+                            ) : (
+                              <span key={idx} className="px-2 text-white/40">…</span>
+                            )
+                          ));
+                        })()}
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Next page"
+                        disabled={clampedPage === totalPages}
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        className={`h-8 w-8 grid place-items-center rounded-md border ${clampedPage===totalPages ? 'border-white/10 text-white/30' : 'border-white/20 text-white/70 hover:text-white hover:border-white/40 hover:bg-white/10'}`}
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Last page"
+                        disabled={clampedPage === totalPages}
+                        onClick={() => setCurrentPage(totalPages)}
+                        className={`h-8 w-8 grid place-items-center rounded-md border ${clampedPage===totalPages ? 'border-white/10 text-white/30' : 'border-white/20 text-white/70 hover:text-white hover:border-white/40 hover:bg-white/10'}`}
+                      >
+                        <ChevronsRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="md:hidden text-[12px] text-white/60 text-right">
+                      Page {clampedPage} of {totalPages}
+                    </div>
+                  </div>
                 </div>
               )}
 
