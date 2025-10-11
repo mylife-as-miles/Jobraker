@@ -1,4 +1,4 @@
-import { Briefcase, Search, MapPin, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Briefcase, Search, MapPin, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -770,23 +770,23 @@ export const JobPage = (): JSX.Element => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: index * 0.04 }}
                 >
-                  <Card className={`relative overflow-hidden group bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border p-4 transition-all duration-300 ${selectedJob === job.id ? 'border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.25)]' : 'border-[#ffffff15] hover:border-[#1dff00]/40'}`}>
+                  <Card className={`relative overflow-hidden group bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border p-3 sm:p-4 transition-all duration-300 ${selectedJob === job.id ? 'border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.25)]' : 'border-[#ffffff15] hover:border-[#1dff00]/40'}`}>
                     <span className={`pointer-events-none absolute left-0 top-0 h-full w-[3px] ${selectedJob === job.id ? 'bg-[#1dff00]' : 'bg-transparent group-hover:bg-[#1dff00]/70'} transition-colors`} />
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         {job.logoUrl && !logoError[job.id]
-                          ? <img src={job.logoUrl} alt={job.company} className="w-12 h-12 rounded-xl object-contain bg-white" onError={() => setLogoError(e => ({...e, [job.id]: true}))} />
-                          : <div className="w-12 h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg">{job.logo}</div>}
+                          ? <img src={job.logoUrl} alt={job.company} className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-contain bg-white" onError={() => setLogoError(e => ({...e, [job.id]: true}))} />
+                          : <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-base sm:text-lg">{job.logo}</div>}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start gap-2">
-                            <h3 className="text-white font-semibold truncate" title={job.title}>{job.title}</h3>
+                            <h3 className="text-white font-semibold truncate text-sm sm:text-base" title={job.title}>{job.title}</h3>
                             {job.status && (
                               <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full border ${job.status === 'applied' ? 'border-[#14b8a6]/40 text-[#14b8a6] bg-[#14b8a6]/10' : 'border-[#ffffff24] text-[#ffffffb3] bg-[#ffffff0a]'}`}>{job.status}</span>
                             )}
                           </div>
                           <div className="mt-1 grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
                             <div className="flex items-center gap-2 min-w-0">
-                              <span className="text-[#ffffffb3] text-sm truncate" title={job.company || ''}>{job.company}</span>
+                              <span className="text-[#ffffffb3] text-xs sm:text-sm truncate" title={job.company || ''}>{job.company}</span>
                             </div>
                             <div className="flex flex-wrap items-center gap-1.5">
                               {job.location && (
@@ -867,9 +867,11 @@ export const JobPage = (): JSX.Element => {
                                     onClick={(e) => e.stopPropagation()}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="ml-2 inline-flex items-center text-[11px] px-2 py-1 rounded-md border border-[#ffffff20] text-[#ffffffc0] hover:text-white hover:border-white/40 hover:bg-white/10"
+                                    aria-label="Open job posting in new tab"
+                                    className="ml-2 inline-flex items-center justify-center text-[11px] px-2 py-1 rounded-md border border-[#ffffff20] text-[#ffffffc0] hover:text-white hover:border-white/40 hover:bg-white/10"
                                   >
-                                    Open
+                                    <ExternalLink className="w-4 h-4 sm:mr-1" />
+                                    <span className="hidden sm:inline">Open</span>
                                   </a>
                                 );
                               })()}
