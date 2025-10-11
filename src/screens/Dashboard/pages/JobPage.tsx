@@ -139,33 +139,65 @@ export const JobPage = (): JSX.Element => {
     // Step-by-step loading banner
     const LoadingBanner = ({ subtitle, steps, activeStep, onCancel, foundCount }: { subtitle?: string; steps: string[]; activeStep: number; onCancel?: () => void; foundCount?: number }) => (
       <Card className="relative overflow-hidden bg-gradient-to-br from-[#0b0b0b] via-[#0f0f0f] to-[#0b0b0b] border border-[#1dff00]/30 p-4 sm:p-5 mb-4">
-        {/* Soft radial glow backdrop */}
         <motion.div
           className="pointer-events-none absolute -inset-24 opacity-30"
           style={{ background: 'radial-gradient(600px 200px at 20% -10%, rgba(29,255,0,0.25), rgba(29,255,0,0) 60%)' }}
           initial={{ opacity: 0.15 }}
-          animate={{ opacity: [0.15, 0.30, 0.15] }}
+          animate={{ opacity: [0.15, 0.3, 0.15] }}
           transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
         />
         <div className="flex items-center gap-3">
-                                        return (
-                                          <li key={i} className="text-sm flex items-center gap-2">
-                                            {host && <img src={ico} alt="" className="w-4 h-4 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
-                                            <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#1dff00] hover:underline">
-                                              {host || href}
-                                            </a>
-                                          </li>
-                                        )
-                                      )}
+          <div className="relative w-6 h-6">
+            <span className="absolute inset-0 rounded-full bg-[#1dff00] opacity-70" />
+            <motion.span
+              className="absolute inset-0 rounded-full bg-[#1dff00]"
+              initial={{ scale: 0.9, opacity: 0.75 }}
+              animate={{ scale: [0.9, 1.25, 0.9], opacity: [0.75, 0.15, 0.75] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-white font-medium flex items-center gap-2">
+              <span>Building your results…</span>
+              {typeof foundCount === 'number' && foundCount > 0 && (
+                <motion.span
+                  key={foundCount}
+                  initial={{ scale: 0.9, opacity: 0.6 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+                  className="text-[11px] px-2 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10"
+                >
+                  Found {foundCount}
+                </motion.span>
+              )}
+            </div>
+            <div className="text-xs text-[#ffffff90]">{subtitle || 'This may take a few minutes depending on sources.'}</div>
+          </div>
+          {onCancel && (
+            <Button variant="ghost" className="text-[#ffffffb3] hover:bg-[#ffffff12] border border-[#ffffff1e] h-8 px-3" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 relative">
+          {steps.map((label, idx) => {
+            const isActive = idx === activeStep;
+            const isCompleted = idx < activeStep;
+            return (
+              <motion.div
+                key={label}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.1 }}
                 className={`relative flex items-center gap-2 rounded-lg border p-2.5 transition-all duration-300 ${
-                  isActive 
-                    ? 'border-[#1dff00] bg-[#1dff00]/10 shadow-[0_0_15px_rgba(29,255,0,0.2)]' 
+                  isActive
+                    ? 'border-[#1dff00] bg-[#1dff00]/10 shadow-[0_0_15px_rgba(29,255,0,0.2)]'
                     : isCompleted
                     ? 'border-[#1dff00]/50 bg-[#1dff00]/5'
                     : 'border-[#ffffff18] bg-[#ffffff08]'
                 }`}
               >
-                {/* Status indicator */}
                 <div className="relative flex-shrink-0">
                   {isCompleted ? (
                     <motion.div
@@ -181,23 +213,16 @@ export const JobPage = (): JSX.Element => {
                   ) : isActive ? (
                     <motion.div
                       className="w-4 h-4 rounded-full bg-[#1dff00]"
-                      animate={{ 
-                        scale: [1, 1.2, 1],
-                        opacity: [1, 0.7, 1]
-                      }}
+                      animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
                       transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
                     />
                   ) : (
                     <div className="w-4 h-4 rounded-full border-2 border-[#ffffff40]" />
                   )}
                 </div>
-                
-                <div className={`text-[11px] sm:text-xs truncate font-medium ${
-                  isActive ? 'text-[#eaffea]' : isCompleted ? 'text-[#1dff00]/80' : 'text-[#ffffff90]'
-                }`}>
+                <div className={`text-[11px] sm:text-xs truncate font-medium ${isActive ? 'text-[#eaffea]' : isCompleted ? 'text-[#1dff00]/80' : 'text-[#ffffff90]'}`}>
                   {label}
                 </div>
-                
                 {isActive && (
                   <motion.span
                     layoutId="activeStepGlow"
@@ -210,28 +235,24 @@ export const JobPage = (): JSX.Element => {
           })}
         </div>
 
-        {/* Enhanced progress bar with percentage */}
         <div className="mt-4 space-y-1.5">
           <div className="flex items-center justify-between text-[10px] text-[#ffffff70]">
             <span>Progress</span>
             <span>{Math.round(((activeStep) / (steps.length - 1)) * 100)}%</span>
           </div>
           <div className="h-2 bg-[#0f0f0f] rounded-full overflow-hidden border border-[#1dff00]/20 relative">
-            {/* Background glow */}
             <motion.div
               className="absolute inset-0 opacity-20"
               style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(29,255,0,0.4) 50%, transparent 100%)' }}
               animate={{ x: ['-100%', '200%'] }}
               transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
             />
-            {/* Actual progress */}
             <motion.div
               className="h-full bg-gradient-to-r from-[#1dff00]/60 via-[#1dff00] to-[#1dff00]/60 relative"
               initial={{ width: '0%' }}
               animate={{ width: `${((activeStep) / (steps.length - 1)) * 100}%` }}
               transition={{ duration: 0.5, ease: 'easeOut' }}
             >
-              {/* Shimmer effect */}
               <motion.div
                 className="absolute inset-0 opacity-50"
                 style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)' }}
@@ -610,6 +631,7 @@ export const JobPage = (): JSX.Element => {
                   placeholder="Search jobs, companies..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); populateQueue(searchQuery, selectedLocation); } }}
                   className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white"
                 />
               </div>
@@ -619,6 +641,7 @@ export const JobPage = (): JSX.Element => {
                   placeholder="Location..."
                   value={selectedLocation}
                   onChange={(e) => setSelectedLocation(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); populateQueue(searchQuery, selectedLocation); } }}
                   className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white"
                 />
               </div>
@@ -729,7 +752,18 @@ export const JobPage = (): JSX.Element => {
                   role="button"
                   aria-selected={selectedJob === job.id}
                   tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedJob(job.id); } }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedJob(job.id); }
+                    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      const idx = paginatedJobs.findIndex(j => j.id === job.id);
+                      if (idx !== -1) {
+                        const nextIdx = e.key === 'ArrowDown' ? Math.min(paginatedJobs.length - 1, idx + 1) : Math.max(0, idx - 1);
+                        const nextId = paginatedJobs[nextIdx]?.id;
+                        if (nextId) setSelectedJob(nextId);
+                      }
+                    }
+                  }}
                   onClick={() => setSelectedJob(job.id)}
                   className={`cursor-pointer transition-all duration-300 ${selectedJob === job.id ? 'transform scale-[1.01]' : 'hover:transform hover:scale-[1.005]'} focus:outline-none focus:ring-2 focus:ring-[#1dff00]/40 rounded-xl`}
                   initial={{ opacity: 0, y: 20 }}
@@ -746,6 +780,16 @@ export const JobPage = (): JSX.Element => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start gap-2">
                             <h3 className="text-white font-semibold truncate text-sm sm:text-base" title={job.title}>{job.title}</h3>
+                            {(() => {
+                              if (!job.posted_at) return null;
+                              const postedTs = Date.parse(job.posted_at);
+                              if (Number.isNaN(postedTs)) return null;
+                              const isNew = (Date.now() - postedTs) <= (48 * 60 * 60 * 1000);
+                              if (!isNew) return null;
+                              return (
+                                <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10">New</span>
+                              );
+                            })()}
                             {job.status && (
                               <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full border ${job.status === 'applied' ? 'border-[#14b8a6]/40 text-[#14b8a6] bg-[#14b8a6]/10' : 'border-[#ffffff24] text-[#ffffffb3] bg-[#ffffff0a]'}`}>{job.status}</span>
                             )}
@@ -1038,43 +1082,6 @@ export const JobPage = (): JSX.Element => {
                                             </a>
                                           </li>
                                         );
-
-                                        {/* Mobile job detail drawer */}
-                                        {isMobile && selectedJob && (() => {
-                                          const job = jobs.find(j => j.id === selectedJob);
-                                          if (!job) return null;
-                                          return (
-                                            <Modal
-                                              open={true}
-                                              onClose={() => setSelectedJob(null)}
-                                              title={job.title}
-                                              size="xl"
-                                              side="right"
-                                            >
-                                              <div className="-mx-1">
-                                                <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-4 sm:p-6 mb-2">
-                                                  <div className="flex items-start justify-between mb-4">
-                                                    <div className="flex items-center space-x-3 flex-1 min-w-0">
-                                                      {job.logoUrl && !logoError[job.id]
-                                                        ? <img src={job.logoUrl} alt={job.company} className="w-12 h-12 rounded-lg object-contain bg-white" onError={() => setLogoError(e => ({...e, [job.id]: true}))} />
-                                                        : <div className="w-12 h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-lg">{job.logo}</div>}
-                                                      <div className="flex-1 min-w-0">
-                                                        <h1 className="text-lg font-bold text-white mb-1 truncate">{job.title}</h1>
-                                                        <div className="flex items-center gap-2 text-sm text-[#ffffffb3] mb-1">
-                                                          <span className="truncate">{job.company}</span>
-                                                          {job.location && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]">{job.location}</span>}
-                                                          {job.remote_type && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10">{job.remote_type}</span>}
-                                                          {job.posted_at && <span className="ml-auto text-[10px] text-[#ffffff80]">Posted {formatRelative(job.posted_at)}</span>}
-                                                        </div>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                  <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed text-[13px]" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.description || '') }} />
-                                                </Card>
-                                              </div>
-                                            </Modal>
-                                          );
-                                        })()}
                                       })}
                                     </ul>
                                   </div>
@@ -1238,41 +1245,42 @@ export const JobPage = (): JSX.Element => {
             </div>
           </Modal>
         </div>
-      </div>
-      {isMobile && selectedJob && (() => {
-        const j = jobs.find(x => x.id === selectedJob);
-        if (!j) return null;
-        return (
-          <Modal
-            open={true}
-            onClose={() => setSelectedJob(null)}
-            title={j.title}
-            size="xl"
-            side="right"
-          >
-            <div className="-mx-1">
-              <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-4 sm:p-6 mb-2">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-3 flex-1 min-w-0">
-                    {j.logoUrl && !logoError[j.id]
-                      ? <img src={j.logoUrl} alt={j.company} className="w-12 h-12 rounded-lg object-contain bg-white" onError={() => setLogoError(e => ({...e, [j.id]: true}))} />
-                      : <div className="w-12 h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-lg">{j.logo}</div>}
-                    <div className="flex-1 min-w-0">
-                      <h1 className="text-lg font-bold text-white mb-1 truncate">{j.title}</h1>
-                      <div className="flex items-center gap-2 text-sm text-[#ffffffb3] mb-1">
-                        <span className="truncate">{j.company}</span>
-                        {j.location && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]">{j.location}</span>}
-                        {j.remote_type && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10">{j.remote_type}</span>}
-                        {j.posted_at && <span className="ml-auto text-[10px] text-[#ffffff80]">Posted {formatRelative(j.posted_at)}</span>}
+        {/* Mobile drawer */}
+        {isMobile && selectedJob && (() => {
+          const j = jobs.find(x => x.id === selectedJob);
+          if (!j) return null;
+          return (
+            <Modal
+              open={true}
+              onClose={() => setSelectedJob(null)}
+              title={j.title}
+              size="xl"
+              side="right"
+            >
+              <div className="-mx-1">
+                <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-4 sm:p-6 mb-2">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-3 flex-1 min-w-0">
+                      {j.logoUrl && !logoError[j.id]
+                        ? <img src={j.logoUrl} alt={j.company} className="w-12 h-12 rounded-lg object-contain bg-white" onError={() => setLogoError(e => ({...e, [j.id]: true}))} />
+                        : <div className="w-12 h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-lg">{j.logo}</div>}
+                      <div className="flex-1 min-w-0">
+                        <h1 className="text-lg font-bold text-white mb-1 truncate">{j.title}</h1>
+                        <div className="flex items-center gap-2 text-sm text-[#ffffffb3] mb-1">
+                          <span className="truncate">{j.company}</span>
+                          {j.location && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]">{j.location}</span>}
+                          {j.remote_type && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10">{j.remote_type}</span>}
+                          {j.posted_at && <span className="ml-auto text-[10px] text-[#ffffff80]">Posted {formatRelative(j.posted_at)}</span>}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed text-[13px]" dangerouslySetInnerHTML={{ __html: sanitizeHtml(j.description || '') }} />
-              </Card>
-            </div>
-          </Modal>
-        );
-      })()}
+                  <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed text-[13px]" dangerouslySetInnerHTML={{ __html: sanitizeHtml(j.description || '') }} />
+                </Card>
+              </div>
+            </Modal>
+          );
+        })()}
+      </div>
     );
   };
