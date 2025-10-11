@@ -8,6 +8,7 @@ import { useResumes } from "../../../hooks/useResumes";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
+import useMediaQuery from "../../../hooks/use-media-query";
 import { createClient } from "../../../lib/supabaseClient";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { events } from "../../../lib/analytics";
@@ -73,6 +74,7 @@ const sanitizeHtml = (html: string) => {
 };
 
 export const JobPage = (): JSX.Element => {
+  const isMobile = useMediaQuery("(max-width: 1023px)");
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedLocation, setSelectedLocation] = useState("Remote");
     const [selectedJob, setSelectedJob] = useState<string | null>(null);
@@ -661,7 +663,7 @@ export const JobPage = (): JSX.Element => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
             <div className="space-y-4">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3 sticky top-0 z-10 bg-transparent backdrop-blur supports-[backdrop-filter]:bg-black/20 rounded-lg px-1 py-2 lg:static lg:px-0 lg:py-0">
                 <h2 className="text-lg sm:text-xl font-semibold text-white">
                   {queueStatus === 'loading' && "Loading results..."}
                   {queueStatus === 'populating' && "Building your results..."}
@@ -990,7 +992,7 @@ export const JobPage = (): JSX.Element => {
               )}
             </div>
 
-            <div className="lg:sticky lg:top-6 lg:h-fit">
+      <div className="hidden lg:block lg:sticky lg:top-6 lg:h-fit">
         {selectedJob && (() => {
                   const job = jobs.find(j => j.id === selectedJob);
                   if (!job) return null;
@@ -1072,6 +1074,43 @@ export const JobPage = (): JSX.Element => {
                                             </a>
                                           </li>
                                         );
+
+                                        {/* Mobile job detail drawer */}
+                                        {isMobile && selectedJob && (() => {
+                                          const job = jobs.find(j => j.id === selectedJob);
+                                          if (!job) return null;
+                                          return (
+                                            <Modal
+                                              open={true}
+                                              onClose={() => setSelectedJob(null)}
+                                              title={job.title}
+                                              size="xl"
+                                              side="right"
+                                            >
+                                              <div className="-mx-1">
+                                                <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-4 sm:p-6 mb-2">
+                                                  <div className="flex items-start justify-between mb-4">
+                                                    <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                                      {job.logoUrl && !logoError[job.id]
+                                                        ? <img src={job.logoUrl} alt={job.company} className="w-12 h-12 rounded-lg object-contain bg-white" onError={() => setLogoError(e => ({...e, [job.id]: true}))} />
+                                                        : <div className="w-12 h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-lg">{job.logo}</div>}
+                                                      <div className="flex-1 min-w-0">
+                                                        <h1 className="text-lg font-bold text-white mb-1 truncate">{job.title}</h1>
+                                                        <div className="flex items-center gap-2 text-sm text-[#ffffffb3] mb-1">
+                                                          <span className="truncate">{job.company}</span>
+                                                          {job.location && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]">{job.location}</span>}
+                                                          {job.remote_type && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10">{job.remote_type}</span>}
+                                                          {job.posted_at && <span className="ml-auto text-[10px] text-[#ffffff80]">Posted {formatRelative(job.posted_at)}</span>}
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                  <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed text-[13px]" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.description || '') }} />
+                                                </Card>
+                                              </div>
+                                            </Modal>
+                                          );
+                                        })()}
                                       })}
                                     </ul>
                                   </div>
