@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
+import Modal from "../../../components/ui/modal";
+import { useResumes } from "../../../hooks/useResumes";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
@@ -85,8 +87,11 @@ export const JobPage = (): JSX.Element => {
     const [logoError, setLogoError] = useState<Record<string, boolean>>({});
     const [currentPage] = useState(1); // (Pagination placeholder; future enhancement)
     const [pageSize] = useState(10);
-    const [applyingAll, setApplyingAll] = useState(false);
+  const [applyingAll, setApplyingAll] = useState(false);
     const [applyProgress, setApplyProgress] = useState({ done: 0, total: 0, success: 0, fail: 0 });
+  // Resume attach dialog state
+  const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
+  const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
     const [remoteOnly, setRemoteOnly] = useState(false);
     const [recentOnly, setRecentOnly] = useState(false);
 
@@ -96,6 +101,8 @@ export const JobPage = (): JSX.Element => {
   
 
   const { profile, loading: profileLoading } = useProfileSettings();
+  // Load user resumes for selection (used by the Auto Apply -> "Choose a resume" dialog)
+  const { resumes, loading: resumesLoading } = useResumes();
   const { info } = useToast();
   // Toast dedupe/throttle: avoid spamming repeated toasts
   const lastToastRef = useRef<{ msg: string; ts: number } | null>(null);
@@ -398,7 +405,8 @@ export const JobPage = (): JSX.Element => {
       setApplyingAll(true);
       setApplyProgress({ done: 0, total: jobs.length, success: 0, fail: 0 });
       try {
-        events.autoApplyStarted(jobs.length);
+        // Include selected resume id (if any) in analytics
+        events.autoApplyStarted(jobs.length, selectedResumeId || undefined);
         let success = 0; let fail = 0; let done = 0;
         // Sequential to simplify UI feedback; could be batched later
         for (const job of jobs) {
@@ -429,7 +437,7 @@ export const JobPage = (): JSX.Element => {
       } finally {
         setApplyingAll(false);
       }
-    }, [applyingAll, jobs, supabase]);
+    }, [applyingAll, jobs, supabase, selectedResumeId]);
 
     // Unified effect for initial load and real-time updates
   useEffect(() => {
@@ -571,7 +579,7 @@ export const JobPage = (): JSX.Element => {
                   </div>
                   <Button
                     variant="ghost"
-                    onClick={applyAllJobs}
+                    onClick={() => setResumeDialogOpen(true)}
                     className="text-[#1dff00] hover:bg-[#1dff00]/10"
                     title="Auto apply all visible jobs"
                     disabled={applyingAll || queueStatus !== 'ready' || jobs.length === 0}
@@ -1004,6 +1012,66 @@ export const JobPage = (): JSX.Element => {
               )}
             </div>
           </div>
+          {/* Resume selection dialog for Auto Apply */}
+          <Modal
+            open={resumeDialogOpen}
+            onClose={() => setResumeDialogOpen(false)}
+            title="Attach a Resume"
+            size="md"
+            side="center"
+          >
+            <div className="space-y-3">
+              <p className="text-sm text-[#ffffffb3]">Choose a resume to attach when applying to these jobs.</p>
+              <div className="max-h-64 overflow-auto rounded-md border border-[#ffffff15]">
+                {resumesLoading ? (
+                  <div className="p-3 text-[12px] text-[#ffffff80]">Loading your resumes…</div>
+                ) : (resumes && resumes.length > 0 ? (
+                  <ul className="divide-y divide-[#ffffff10]">
+                    {resumes.map((r: any) => (
+                      <li key={r.id} className="flex items-center gap-3 p-3 hover:bg-[#ffffff08]">
+                        <input
+                          type="radio"
+                          name="resume-choice"
+                          className="accent-[#1dff00]"
+                          checked={selectedResumeId === r.id}
+                          onChange={() => setSelectedResumeId(r.id)}
+                          aria-label={`Select resume ${r.name}`}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-white text-sm font-medium" title={r.name}>{r.name}</span>
+                            {r.is_favorite && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10">Favorite</span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-[#ffffff70] truncate">
+                            {(r.file_ext || 'pdf').toUpperCase()} • {r.size ? `${Math.round(r.size/1024)} KB` : 'Unknown size'} • Updated {new Date(r.updated_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="p-3 text-[12px] text-[#ffffff80]">
+                    No resumes found. You can import one from the Resumes page.
+                    <div className="mt-3">
+                      <a href="/dashboard/resumes" className="inline-flex items-center px-3 py-2 rounded-md border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10 hover:bg-[#1dff00]/20">Go to Resumes</a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button variant="outline" className="border-white/20" onClick={() => setResumeDialogOpen(false)}>Cancel</Button>
+                <Button
+                  className="border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/20 hover:bg-[#1dff00]/30"
+                  onClick={() => { setResumeDialogOpen(false); applyAllJobs(); }}
+                  disabled={applyingAll || jobs.length === 0}
+                >
+                  Continue
+                </Button>
+              </div>
+            </div>
+          </Modal>
         </div>
       </div>
     );
