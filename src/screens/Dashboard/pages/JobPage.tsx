@@ -148,51 +148,15 @@ export const JobPage = (): JSX.Element => {
           transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
         />
         <div className="flex items-center gap-3">
-          {/* Radar pulse */}
-          <div className="relative w-6 h-6">
-            <span className="absolute inset-0 rounded-full bg-[#1dff00] opacity-70" />
-            <motion.span
-              className="absolute inset-0 rounded-full bg-[#1dff00]"
-              initial={{ scale: 0.9, opacity: 0.75 }}
-              animate={{ scale: [0.9, 1.25, 0.9], opacity: [0.75, 0.15, 0.75] }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-            />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-white font-medium flex items-center gap-2">
-              <span>Building your results…</span>
-              {typeof foundCount === 'number' && foundCount > 0 && (
-                <motion.span
-                  key={foundCount}
-                  initial={{ scale: 0.9, opacity: 0.6 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 18 }}
-                  className="text-[11px] px-2 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10"
-                >
-                  Found {foundCount}
-                </motion.span>
-              )}
-            </div>
-            <div className="text-xs text-[#ffffff90]">{subtitle || 'This may take a few minutes depending on sources.'}</div>
-          </div>
-          {onCancel && (
-            <Button variant="ghost" className="text-[#ffffffb3] hover:bg-[#ffffff12] border border-[#ffffff1e] h-8 px-3" onClick={onCancel}>
-              Cancel
-            </Button>
-          )}
-        </div>
-
-        {/* Steps with animated active pill and completion indicators */}
-        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 relative">
-          {steps.map((label, idx) => {
-            const isActive = idx === activeStep;
-            const isCompleted = idx < activeStep;
-            return (
-              <motion.div 
-                key={label} 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
+                                        return (
+                                          <li key={i} className="text-sm flex items-center gap-2">
+                                            {host && <img src={ico} alt="" className="w-4 h-4 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
+                                            <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#1dff00] hover:underline">
+                                              {host || href}
+                                            </a>
+                                          </li>
+                                        )
+                                      )}
                 className={`relative flex items-center gap-2 rounded-lg border p-2.5 transition-all duration-300 ${
                   isActive 
                     ? 'border-[#1dff00] bg-[#1dff00]/10 shadow-[0_0_15px_rgba(29,255,0,0.2)]' 
@@ -1275,5 +1239,40 @@ export const JobPage = (): JSX.Element => {
           </Modal>
         </div>
       </div>
+      {isMobile && selectedJob && (() => {
+        const j = jobs.find(x => x.id === selectedJob);
+        if (!j) return null;
+        return (
+          <Modal
+            open={true}
+            onClose={() => setSelectedJob(null)}
+            title={j.title}
+            size="xl"
+            side="right"
+          >
+            <div className="-mx-1">
+              <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-4 sm:p-6 mb-2">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    {j.logoUrl && !logoError[j.id]
+                      ? <img src={j.logoUrl} alt={j.company} className="w-12 h-12 rounded-lg object-contain bg-white" onError={() => setLogoError(e => ({...e, [j.id]: true}))} />
+                      : <div className="w-12 h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-lg">{j.logo}</div>}
+                    <div className="flex-1 min-w-0">
+                      <h1 className="text-lg font-bold text-white mb-1 truncate">{j.title}</h1>
+                      <div className="flex items-center gap-2 text-sm text-[#ffffffb3] mb-1">
+                        <span className="truncate">{j.company}</span>
+                        {j.location && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]">{j.location}</span>}
+                        {j.remote_type && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10">{j.remote_type}</span>}
+                        {j.posted_at && <span className="ml-auto text-[10px] text-[#ffffff80]">Posted {formatRelative(j.posted_at)}</span>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed text-[13px]" dangerouslySetInnerHTML={{ __html: sanitizeHtml(j.description || '') }} />
+              </Card>
+            </div>
+          </Modal>
+        );
+      })()}
     );
   };
