@@ -254,16 +254,16 @@ Deno.serve(async (req) => {
       // Get screenshot if available
       const screenshot = item?.scraped?.screenshot || item?.screenshot;
       
-      // Prefer full content for description: markdown > html > fallback
-      const fullMarkdown = item?.scraped?.markdown || item?.markdown;
-      const fullHtml = item?.scraped?.html || item?.html;
+  // Prefer full content for description: html > markdown > fallback
+  const fullMarkdown = item?.scraped?.markdown || item?.markdown;
+  const fullHtml = item?.scraped?.html || item?.html;
       const fallbackDesc = typeof item?.description === 'string' ? item.description : undefined;
       
       filtered.push({
         url: clean,
         title: hasStructuredData ? (scrapedJson.title || item?.title) : item?.title,
-        // Store a rich description; UI can sanitize/convert as needed
-        description: fullMarkdown || fullHtml || scrapedJson?.description || fallbackDesc,
+        // Store rich description (prefer HTML so UI can render directly)
+        description: fullHtml || fullMarkdown || scrapedJson?.description || fallbackDesc,
         category: typeof item?.category === 'string' ? item.category : undefined,
         isJobPosting: isJobPostingUrl(clean),
         company: hasStructuredData ? (scrapedJson.company || extractCompanyFromUrl(clean)) : extractCompanyFromUrl(clean),
@@ -277,6 +277,9 @@ Deno.serve(async (req) => {
         employment_type: hasStructuredData ? scrapedJson.employment_type : undefined,
         experience_level: hasStructuredData ? scrapedJson.experience_level : undefined,
         tags: hasStructuredData && Array.isArray(scrapedJson.tags) ? scrapedJson.tags.filter(Boolean) : undefined,
+        // keep raw content for future processing
+        markdown: fullMarkdown,
+        html: fullHtml,
         screenshot: screenshot,
       });
       if (typeof limit === 'number' && filtered.length >= limit) break;
@@ -385,6 +388,8 @@ Deno.serve(async (req) => {
           salary: item.salary,
           deadline: item.deadline,
           screenshot: item.screenshot,
+          markdown: item.markdown,
+          html: item.html,
           scraped_data: {
             title: item.title,
             company: item.company,
@@ -419,23 +424,7 @@ Deno.serve(async (req) => {
     const insertedCount = Array.isArray(insertedJobs) ? insertedJobs.length : 0;
     console.log('jobs-search.inserted', { count: insertedCount, user_id: userId });
 
-    // Fire-and-forget enrichment: attempt to call enrich-jobs
-    try {
-      const enrichUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/enrich-jobs`;
-      const resp = await fetch(enrichUrl, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'authorization': req.headers.get('authorization') || ''
-        },
-        body: JSON.stringify({ job_ids: (insertedJobs || []).map((r: any) => r.id) })
-      }).catch(() => null);
-      if (resp && !resp.ok) {
-        try { console.warn('jobs-search.enrich_jobs_non_ok', { status: resp.status }); } catch {}
-      }
-    } catch (e) {
-      try { console.warn('jobs-search.enrich_jobs_failed', { message: String(e?.message || e) }); } catch {}
-    }
+    // Note: Enrichment occurs inline (before save) via Firecrawl JSON schema + parsing.
 
     // Return success response with count
     return new Response(
