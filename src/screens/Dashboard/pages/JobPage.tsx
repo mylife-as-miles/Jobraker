@@ -12,6 +12,7 @@ import { createClient } from "../../../lib/supabaseClient";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { events } from "../../../lib/analytics";
 import { useToast } from "../../../components/ui/toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -89,6 +90,7 @@ export const JobPage = (): JSX.Element => {
     const [pageSize] = useState(10);
   const [applyingAll, setApplyingAll] = useState(false);
     const [applyProgress, setApplyProgress] = useState({ done: 0, total: 0, success: 0, fail: 0 });
+    const [sortBy, setSortBy] = useState<"recent" | "company" | "deadline">("recent");
   // Resume attach dialog state
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
@@ -496,8 +498,20 @@ export const JobPage = (): JSX.Element => {
     }, [jobs, remoteOnly, recentOnly]);
 
     const sortedJobs = useMemo(() => {
-      return [...visibleJobs].sort((a, b) => new Date(b.posted_at || 0).getTime() - new Date(a.posted_at || 0).getTime());
-    }, [visibleJobs]);
+      const arr = [...visibleJobs];
+      if (sortBy === 'company') {
+        return arr.sort((a, b) => (a.company || '').localeCompare(b.company || ''));
+      }
+      if (sortBy === 'deadline') {
+        const toTs = (v?: string | null) => {
+          if (!v) return Number.POSITIVE_INFINITY;
+          const t = Date.parse(v);
+          return Number.isNaN(t) ? Number.POSITIVE_INFINITY : t;
+        };
+        return arr.sort((a, b) => toTs(a.expires_at) - toTs(b.expires_at));
+      }
+      return arr.sort((a, b) => new Date(b.posted_at || 0).getTime() - new Date(a.posted_at || 0).getTime());
+    }, [visibleJobs, sortBy]);
 
     const total = sortedJobs.length;
   // totalPages currently unused (pagination UI not yet implemented fully)
@@ -642,7 +656,33 @@ export const JobPage = (): JSX.Element => {
                   {queueStatus === 'populating' && "Building your results..."}
                   {(queueStatus === 'ready' || queueStatus === 'empty') && `${total} Jobs Found`}
                 </h2>
+                {(queueStatus === 'ready' || queueStatus === 'empty') && (
+                  <div className="hidden sm:flex items-center gap-2">
+                    <span className="text-[11px] text-white/50">Sort</span>
+                    <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                      <SelectTrigger className="h-8 w-[160px] bg-white/10 border-white/15 text-white">
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-black text-white border-white/15">
+                        <SelectItem value="recent">Most recent</SelectItem>
+                        <SelectItem value="company">Company</SelectItem>
+                        <SelectItem value="deadline">Deadline</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
+
+              {queueStatus === 'ready' && total > 0 && (
+                <div className="hidden lg:grid grid-cols-[auto,1fr,auto] items-center gap-3 px-2 text-[11px] uppercase tracking-wide text-white/40">
+                  <span className="pl-2">Role</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span>Company</span>
+                    <span>Meta</span>
+                    <span>Posting</span>
+                  </div>
+                </div>
+              )}
 
               { (queueStatus === 'loading' || queueStatus === 'populating') && (
                 <div className="space-y-4">
@@ -707,96 +747,125 @@ export const JobPage = (): JSX.Element => {
               )}
 
               {queueStatus === 'ready' && paginatedJobs.map((job, index) => (
-                <motion.div key={job.id} onClick={() => setSelectedJob(job.id)} className={`cursor-pointer transition-all duration-300 ${selectedJob === job.id ? "transform scale-[1.02]" : "hover:transform hover:scale-[1.01]"}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: index * 0.05 }}>
-                  <Card className={`bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border p-4 transition-all duration-300 ${selectedJob === job.id ? "border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.3)]" : "border-[#ffffff15] hover:border-[#1dff00]/50"}`}>
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-3 flex-1 min-w-0">
-                        {job.logoUrl && !logoError[job.id] ? <img src={job.logoUrl} alt={job.company} className="w-12 h-12 rounded-xl object-contain bg-white" onError={() => setLogoError(e => ({...e, [job.id]: true}))} /> : <div className="w-12 h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg">{job.logo}</div>}
+                <motion.div
+                  key={job.id}
+                  role="button"
+                  aria-selected={selectedJob === job.id}
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedJob(job.id); } }}
+                  onClick={() => setSelectedJob(job.id)}
+                  className={`cursor-pointer transition-all duration-300 ${selectedJob === job.id ? 'transform scale-[1.01]' : 'hover:transform hover:scale-[1.005]'} focus:outline-none focus:ring-2 focus:ring-[#1dff00]/40 rounded-xl`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: index * 0.04 }}
+                >
+                  <Card className={`relative overflow-hidden group bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border p-4 transition-all duration-300 ${selectedJob === job.id ? 'border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.25)]' : 'border-[#ffffff15] hover:border-[#1dff00]/40'}`}>
+                    <span className={`pointer-events-none absolute left-0 top-0 h-full w-[3px] ${selectedJob === job.id ? 'bg-[#1dff00]' : 'bg-transparent group-hover:bg-[#1dff00]/70'} transition-colors`} />
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {job.logoUrl && !logoError[job.id]
+                          ? <img src={job.logoUrl} alt={job.company} className="w-12 h-12 rounded-xl object-contain bg-white" onError={() => setLogoError(e => ({...e, [job.id]: true}))} />
+                          : <div className="w-12 h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg">{job.logo}</div>}
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-white font-semibold truncate">{job.title}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[#ffffffb3] text-sm truncate">{job.company}</span>
-                            {job.location && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]">
-                                {job.location}
-                              </span>
+                          <div className="flex items-start gap-2">
+                            <h3 className="text-white font-semibold truncate" title={job.title}>{job.title}</h3>
+                            {job.status && (
+                              <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full border ${job.status === 'applied' ? 'border-[#14b8a6]/40 text-[#14b8a6] bg-[#14b8a6]/10' : 'border-[#ffffff24] text-[#ffffffb3] bg-[#ffffff0a]'}`}>{job.status}</span>
                             )}
-                            {job.remote_type && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10">
-                                {job.remote_type}
-                              </span>
-                            )}
-                            {(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id) && (() => {
-                              const href = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id || '';
-                              const host = getHost(href);
-                              const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
-                              return (
-                                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]" title={href}>
-                                  {host && <img src={ico} alt="" className="w-3 h-3 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
-                                  {host}
+                          </div>
+                          <div className="mt-1 grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-[#ffffffb3] text-sm truncate" title={job.company || ''}>{job.company}</span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {job.location && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]" title={job.location}>
+                                  {job.location}
                                 </span>
-                              );
-                            })()}
-                            {/* Salary display - use structured fields or raw_data */}
-                            {(() => {
-                              // Try structured fields first
-                              if (job.salary_min || job.salary_max || job.salary_currency) {
-                                const currency = job.salary_currency || 'USD';
-                                const currencySymbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency;
-                                
-                                let salaryText = '';
-                                if (job.salary_min && job.salary_max) {
-                                  const min = job.salary_min >= 1000 ? `${Math.round(job.salary_min / 1000)}k` : job.salary_min;
-                                  const max = job.salary_max >= 1000 ? `${Math.round(job.salary_max / 1000)}k` : job.salary_max;
-                                  salaryText = `${currencySymbol}${min}-${max}`;
-                                } else if (job.salary_min) {
-                                  const min = job.salary_min >= 1000 ? `${Math.round(job.salary_min / 1000)}k` : job.salary_min;
-                                  salaryText = `${currencySymbol}${min}+`;
-                                } else if (job.salary_max) {
-                                  const max = job.salary_max >= 1000 ? `${Math.round(job.salary_max / 1000)}k` : job.salary_max;
-                                  salaryText = `Up to ${currencySymbol}${max}`;
+                              )}
+                              {job.remote_type && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10" title={job.remote_type}>
+                                  {job.remote_type}
+                                </span>
+                              )}
+                              {(() => {
+                                if (job.salary_min || job.salary_max || job.salary_currency) {
+                                  const currency = job.salary_currency || 'USD';
+                                  const currencySymbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency;
+                                  let salaryText = '';
+                                  if (job.salary_min && job.salary_max) {
+                                    const min = job.salary_min >= 1000 ? `${Math.round(job.salary_min / 1000)}k` : job.salary_min;
+                                    const max = job.salary_max >= 1000 ? `${Math.round(job.salary_max / 1000)}k` : job.salary_max;
+                                    salaryText = `${currencySymbol}${min}-${max}`;
+                                  } else if (job.salary_min) {
+                                    const min = job.salary_min >= 1000 ? `${Math.round(job.salary_min / 1000)}k` : job.salary_min;
+                                    salaryText = `${currencySymbol}${min}+`;
+                                  } else if (job.salary_max) {
+                                    const max = job.salary_max >= 1000 ? `${Math.round(job.salary_max / 1000)}k` : job.salary_max;
+                                    salaryText = `Up to ${currencySymbol}${max}`;
+                                  }
+                                  if (salaryText) {
+                                    return (
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10" title={`Salary: ${salaryText}`}>
+                                        💰 {salaryText}
+                                      </span>
+                                    );
+                                  }
                                 }
-                                
-                                if (salaryText) {
-                                  return (
-                                    <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10" title={`Salary: ${salaryText}`}>
-                                      💰 {salaryText}
-                                    </span>
-                                  );
-                                }
-                              }
-                              
-                              // Fall back to raw_data salary string
-                              const raw = (job as any)?.raw_data;
-                              const salary = (raw?.scraped_data?.salary || raw?.salaryRange || raw?.salary) as string | undefined;
-                              if (!salary) return null;
-                              const short = salary.length > 36 ? salary.slice(0, 33) + '…' : salary;
-                              return (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffc0] bg-[#ffffff0d]" title={salary}>
-                                  {short}
-                                </span>
-                              );
-                            })()}
-                            {/* Deadline display */}
-                            {(() => {
-                              const deadline = job.expires_at || (job as any)?.raw_data?.deadline || (job as any)?.raw_data?.applicationDeadline;
-                              const meta = formatDeadlineMeta(deadline);
-                              if (!meta) return null;
-                              return (
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${deadlineClasses(meta.level)}`} title={deadline}>
-                                  {meta.label}
-                                </span>
-                              );
-                            })()}
-                            {job.posted_at && (
-                              <span className="ml-auto text-[10px] text-[#ffffff80]">{formatRelative(job.posted_at)}</span>
-                            )}
+                                const raw = (job as any)?.raw_data;
+                                const salary = (raw?.scraped_data?.salary || raw?.salaryRange || raw?.salary) as string | undefined;
+                                if (!salary) return null;
+                                const short = salary.length > 36 ? salary.slice(0, 33) + '…' : salary;
+                                return (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffc0] bg-[#ffffff0d]" title={salary}>
+                                    {short}
+                                  </span>
+                                );
+                              })()}
+                              {(() => {
+                                const deadline = job.expires_at || (job as any)?.raw_data?.deadline || (job as any)?.raw_data?.applicationDeadline;
+                                const meta = formatDeadlineMeta(deadline);
+                                if (!meta) return null;
+                                return (
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${deadlineClasses(meta.level)}`} title={deadline}>
+                                    {meta.label}
+                                  </span>
+                                );
+                              })()}
+                            </div>
+                            <div className="flex items-center gap-2 justify-between md:justify-end min-w-0">
+                              {(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id) && (() => {
+                                const href = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id || '';
+                                const host = getHost(href);
+                                const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
+                                return (
+                                  <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]" title={href}>
+                                    {host && <img src={ico} alt="" className="w-3 h-3 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
+                                    {host}
+                                  </span>
+                                );
+                              })()}
+                              {job.posted_at && (
+                                <span className="text-[10px] text-[#ffffff80] whitespace-nowrap">{formatRelative(job.posted_at)}</span>
+                              )}
+                              {(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id) && (() => {
+                                const href = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id || '';
+                                return (
+                                  <a
+                                    href={href}
+                                    onClick={(e) => e.stopPropagation()}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="ml-2 inline-flex items-center text-[11px] px-2 py-1 rounded-md border border-[#ffffff20] text-[#ffffffc0] hover:text-white hover:border-white/40 hover:bg:white/10"
+                                  >
+                                    Open
+                                  </a>
+                                );
+                              })()}
+                            </div>
                           </div>
                         </div>
                       </div>
-                      {job.status && (
-                        <span className={`ml-3 shrink-0 text-[10px] px-2 py-0.5 rounded-full border ${job.status === 'applied' ? 'border-[#14b8a6]/40 text-[#14b8a6] bg-[#14b8a6]/10' : 'border-[#ffffff24] text-[#ffffffb3] bg-[#ffffff0a]'}`}>{job.status}</span>
-                      )}
                     </div>
                   </Card>
                 </motion.div>
