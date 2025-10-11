@@ -671,10 +671,10 @@ export const JobPage = (): JSX.Element => {
                   <div className="hidden sm:flex items-center gap-2">
                     <span className="text-[11px] text-white/50">Sort</span>
                     <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
-                      <SelectTrigger className="h-8 w-[160px] bg-white/10 border-white/15 text-white">
+                      <SelectTrigger className="h-8 w-[160px]">
                         <SelectValue placeholder="Sort by" />
                       </SelectTrigger>
-                      <SelectContent className="bg-black text-white border-white/15">
+                      <SelectContent>
                         <SelectItem value="recent">Most recent</SelectItem>
                         <SelectItem value="company">Company</SelectItem>
                         <SelectItem value="deadline">Deadline</SelectItem>
@@ -892,10 +892,10 @@ export const JobPage = (): JSX.Element => {
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] text-white/50">Rows</span>
                       <Select value={String(pageSize)} onValueChange={(v) => { const n = parseInt(v); if (!Number.isNaN(n)) { setPageSize(n); setCurrentPage(1); } }}>
-                        <SelectTrigger className="h-8 w-[90px] bg-white/10 border-white/15 text-white">
+                        <SelectTrigger className="h-8 w-[90px]">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="bg-black text-white border-white/15">
+                        <SelectContent>
                           <SelectItem value="10">10</SelectItem>
                           <SelectItem value="20">20</SelectItem>
                           <SelectItem value="50">50</SelectItem>

@@ -223,10 +223,10 @@ function ApplicationPage() {
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
-                <SelectTrigger className="w-[170px] bg-white/10 border-white/15 text-white">
+                <SelectTrigger className="w-[170px]">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
-                <SelectContent className="bg-black text-white border-white/15">
+                <SelectContent>
                   <SelectItem value="score">Best match</SelectItem>
                   <SelectItem value="recent">Most recent</SelectItem>
                   <SelectItem value="company">Company</SelectItem>
