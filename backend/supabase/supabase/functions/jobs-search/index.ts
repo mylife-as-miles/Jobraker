@@ -115,17 +115,33 @@ Deno.serve(async (req) => {
           { type: "scroll", direction: "down", count: 2 }
         ],
         formats: [
+          // Include full content for better descriptions
+          "markdown",
+          "html",
           {
             type: "json",
+            // Use a JSON Schema to strongly type the output and allow the AI to infer missing fields
             schema: {
-              title: "string",
-              company: "string",
-              salary: "string",
-              location: "string",
-              deadline: "string",
-              apply_link: "string"
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                company: { type: "string" },
+                description: { type: "string" },
+                employment_type: { type: "string" },
+                experience_level: { type: "string" },
+                tags: { type: "array", items: { type: "string" } },
+                // Raw salary string if present
+                salary: { type: "string" },
+                // Structured salary fields when possible
+                salary_min: { type: "number" },
+                salary_max: { type: "number" },
+                salary_currency: { type: "string" },
+                location: { type: "string" },
+                deadline: { type: "string" },
+                apply_link: { type: "string" }
+              }
             },
-            prompt: "Extract job listing details including title, company, salary range, location, application deadline, and apply link."
+            prompt: "You are extracting structured job posting data. If the page does not explicitly state a field, infer it conservatively from the content. Return concise values. For salary, prefer annual ranges. Populate: title, company, description (concise summary if full content available separately), employment_type (e.g., Full-time, Contract, Internship), experience_level (e.g., Junior, Mid, Senior), tags (skills and technologies), salary, salary_min, salary_max, salary_currency (USD/GBP/EUR/CAD/AUD), location, deadline, apply_link."
           },
           {
             type: "screenshot",
@@ -238,17 +254,29 @@ Deno.serve(async (req) => {
       // Get screenshot if available
       const screenshot = item?.scraped?.screenshot || item?.screenshot;
       
+      // Prefer full content for description: markdown > html > fallback
+      const fullMarkdown = item?.scraped?.markdown || item?.markdown;
+      const fullHtml = item?.scraped?.html || item?.html;
+      const fallbackDesc = typeof item?.description === 'string' ? item.description : undefined;
+      
       filtered.push({
         url: clean,
         title: hasStructuredData ? (scrapedJson.title || item?.title) : item?.title,
-        description: item?.markdown || item?.html || (typeof item?.description === 'string' ? item.description : undefined),
+        // Store a rich description; UI can sanitize/convert as needed
+        description: fullMarkdown || fullHtml || scrapedJson?.description || fallbackDesc,
         category: typeof item?.category === 'string' ? item.category : undefined,
         isJobPosting: isJobPostingUrl(clean),
         company: hasStructuredData ? (scrapedJson.company || extractCompanyFromUrl(clean)) : extractCompanyFromUrl(clean),
-        salary: hasStructuredData ? scrapedJson.salary : undefined,
+        salary: hasStructuredData ? (scrapedJson.salary || undefined) : undefined,
+        salary_min_json: hasStructuredData ? (scrapedJson.salary_min ?? undefined) : undefined,
+        salary_max_json: hasStructuredData ? (scrapedJson.salary_max ?? undefined) : undefined,
+        salary_currency_json: hasStructuredData ? (scrapedJson.salary_currency ?? undefined) : undefined,
         location: hasStructuredData ? scrapedJson.location : undefined,
         deadline: hasStructuredData ? scrapedJson.deadline : undefined,
         apply_link: hasStructuredData ? (scrapedJson.apply_link || clean) : clean,
+        employment_type: hasStructuredData ? scrapedJson.employment_type : undefined,
+        experience_level: hasStructuredData ? scrapedJson.experience_level : undefined,
+        tags: hasStructuredData && Array.isArray(scrapedJson.tags) ? scrapedJson.tags.filter(Boolean) : undefined,
         screenshot: screenshot,
       });
       if (typeof limit === 'number' && filtered.length >= limit) break;
@@ -279,23 +307,28 @@ Deno.serve(async (req) => {
       }
       
       // Parse salary from string to structured fields
-      let salary_min = null;
-      let salary_max = null;
-      let salary_currency = null;
+      let salary_min: number | null = null;
+      let salary_max: number | null = null;
+      let salary_currency: string | null = null;
       
-      if (item.salary && typeof item.salary === 'string') {
+      // Prefer structured salary from JSON if present
+      if (typeof item.salary_min_json === 'number') salary_min = Math.round(item.salary_min_json);
+      if (typeof item.salary_max_json === 'number') salary_max = Math.round(item.salary_max_json);
+      if (typeof item.salary_currency_json === 'string') salary_currency = item.salary_currency_json;
+      
+      if ((salary_min == null || salary_max == null) && item.salary && typeof item.salary === 'string') {
         const salaryStr = item.salary;
         
         // Detect currency
-        if (salaryStr.includes('£') || salaryStr.toLowerCase().includes('gbp')) {
+        if (!salary_currency && (salaryStr.includes('£') || salaryStr.toLowerCase().includes('gbp'))) {
           salary_currency = 'GBP';
-        } else if (salaryStr.includes('€') || salaryStr.toLowerCase().includes('eur')) {
+        } else if (!salary_currency && (salaryStr.includes('€') || salaryStr.toLowerCase().includes('eur'))) {
           salary_currency = 'EUR';
-        } else if (salaryStr.toLowerCase().includes('cad')) {
+        } else if (!salary_currency && salaryStr.toLowerCase().includes('cad')) {
           salary_currency = 'CAD';
-        } else if (salaryStr.toLowerCase().includes('aud')) {
+        } else if (!salary_currency && salaryStr.toLowerCase().includes('aud')) {
           salary_currency = 'AUD';
-        } else if (salaryStr.includes('$') || salaryStr.toLowerCase().includes('usd')) {
+        } else if (!salary_currency && (salaryStr.includes('$') || salaryStr.toLowerCase().includes('usd'))) {
           salary_currency = 'USD';
         }
         
@@ -333,6 +366,9 @@ Deno.serve(async (req) => {
         description: item.description || null,
         location: item.location || location || 'Remote',
         remote_type: 'Remote',
+        employment_type: item.employment_type || null,
+        experience_level: item.experience_level || null,
+        tags: item.tags || null,
         apply_url: item.apply_link || item.url,
         posted_at: new Date().toISOString(),
         expires_at: expiresAt,
@@ -353,9 +389,15 @@ Deno.serve(async (req) => {
             title: item.title,
             company: item.company,
             salary: item.salary,
+            salary_min: salary_min,
+            salary_max: salary_max,
+            salary_currency: salary_currency,
             location: item.location,
             deadline: item.deadline,
             apply_link: item.apply_link,
+            employment_type: item.employment_type,
+            experience_level: item.experience_level,
+            tags: item.tags,
           }
         },
       };
@@ -376,6 +418,24 @@ Deno.serve(async (req) => {
 
     const insertedCount = Array.isArray(insertedJobs) ? insertedJobs.length : 0;
     console.log('jobs-search.inserted', { count: insertedCount, user_id: userId });
+
+    // Fire-and-forget enrichment: attempt to call enrich-jobs
+    try {
+      const enrichUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/enrich-jobs`;
+      const resp = await fetch(enrichUrl, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'authorization': req.headers.get('authorization') || ''
+        },
+        body: JSON.stringify({ job_ids: (insertedJobs || []).map((r: any) => r.id) })
+      }).catch(() => null);
+      if (resp && !resp.ok) {
+        try { console.warn('jobs-search.enrich_jobs_non_ok', { status: resp.status }); } catch {}
+      }
+    } catch (e) {
+      try { console.warn('jobs-search.enrich_jobs_failed', { message: String(e?.message || e) }); } catch {}
+    }
 
     // Return success response with count
     return new Response(
