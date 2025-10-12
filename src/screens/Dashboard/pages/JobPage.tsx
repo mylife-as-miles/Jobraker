@@ -99,6 +99,9 @@ export const JobPage = (): JSX.Element => {
   // Resume attach dialog state
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
+  // Optional cover letter in Attach Resume dialog
+  const [includeCoverLetter, setIncludeCoverLetter] = useState(false);
+  const [coverLetterContent, setCoverLetterContent] = useState<string>("");
     const [remoteOnly, setRemoteOnly] = useState(false);
     const [recentOnly, setRecentOnly] = useState(false);
 
@@ -1197,60 +1200,123 @@ export const JobPage = (): JSX.Element => {
               )}
             </div>
           </div>
-          {/* Resume selection dialog for Auto Apply */}
+          {/* Attach Resume dialog: 2-column grid + optional cover letter */}
           <Modal
             open={resumeDialogOpen}
             onClose={() => setResumeDialogOpen(false)}
             title="Attach a Resume"
-            size="md"
+            size="xl"
             side="center"
           >
-            <div className="space-y-3">
-              <p className="text-sm text-[#ffffffb3]">Choose a resume to attach when applying to these jobs.</p>
-              <div className="max-h-64 overflow-auto rounded-md border border-[#ffffff15]">
-                {resumesLoading ? (
-                  <div className="p-3 text-[12px] text-[#ffffff80]">Loading your resumes…</div>
-                ) : (resumes && resumes.length > 0 ? (
-                  <ul className="divide-y divide-[#ffffff10]">
-                    {resumes.map((r: any) => (
-                      <li key={r.id} className="flex items-center gap-3 p-3 hover:bg-[#ffffff08]">
-                        <input
-                          type="radio"
-                          name="resume-choice"
-                          className="accent-[#1dff00]"
-                          checked={selectedResumeId === r.id}
-                          onChange={() => setSelectedResumeId(r.id)}
-                          aria-label={`Select resume ${r.name}`}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate text-white text-sm font-medium" title={r.name}>{r.name}</span>
-                            {r.is_favorite && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10">Favorite</span>
-                            )}
-                          </div>
-                          <div className="text-[11px] text-[#ffffff70] truncate">
-                            {(r.file_ext || 'pdf').toUpperCase()} • {r.size ? `${Math.round(r.size/1024)} KB` : 'Unknown size'} • Updated {new Date(r.updated_at).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="p-3 text-[12px] text-[#ffffff80]">
-                    No resumes found. You can import one from the Resumes page.
-                    <div className="mt-3">
-                      <a href="/dashboard/resumes" className="inline-flex items-center px-3 py-2 rounded-md border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10 hover:bg-[#1dff00]/20">Go to Resumes</a>
-                    </div>
+            <div className="grid gap-4">
+              <p className="text-sm text-[#ffffffb3]">Choose a resume to attach, and optionally include a cover letter.</p>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Left: Resume grid */}
+                <Card className="p-3 sm:p-4 bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15]">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-xs uppercase tracking-wide text-white/60">Select Resume</div>
+                    <a href="/dashboard/resumes" className="text-[11px] text-[#1dff00] hover:underline">Manage Resumes</a>
                   </div>
-                ))}
+                  <div className="max-h-80 overflow-auto pr-1">
+                    {resumesLoading ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {Array.from({ length: 4 }).map((_,i)=> (
+                          <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-3 animate-pulse">
+                            <div className="h-32 rounded-md bg-white/10 mb-3" />
+                            <div className="h-4 w-3/4 bg-white/10 rounded mb-2" />
+                            <div className="h-3 w-1/2 bg-white/10 rounded" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (resumes && resumes.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {resumes.map((r: any) => {
+                          const isSelected = selectedResumeId === r.id;
+                          const ext = (r.file_ext || 'pdf').toUpperCase();
+                          return (
+                            <button
+                              key={r.id}
+                              type="button"
+                              onClick={() => setSelectedResumeId(r.id)}
+                              className={`group text-left rounded-xl border p-3 transition relative ${isSelected ? 'border-[#1dff00] ring-1 ring-[#1dff00]/50 bg-[#1dff00]/5' : 'border-white/10 hover:border-[#1dff00]/40 bg-white/5 hover:bg-white/10'}`}
+                              aria-pressed={isSelected}
+                            >
+                              <div className="relative">
+                                <div className="h-32 rounded-md bg-black/40 border border-white/10 flex items-center justify-center">
+                                  <div className="text-white/70 text-xs">{ext} • Preview</div>
+                                </div>
+                                {r.is_favorite && (
+                                  <span className="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10">Favorite</span>
+                                )}
+                              </div>
+                              <div className="mt-2 flex items-center gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-white text-sm font-medium truncate" title={r.name}>{r.name}</div>
+                                  <div className="text-[11px] text-white/60 truncate">
+                                    {ext} • {r.size ? `${Math.round(r.size/1024)} KB` : 'Unknown size'} • Updated {new Date(r.updated_at).toLocaleDateString()}
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-[12px] text-[#ffffff80]">
+                        No resumes found. You can import one from the Resumes page.
+                        <div className="mt-3">
+                          <a href="/dashboard/resumes" className="inline-flex items-center px-3 py-2 rounded-md border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10 hover:bg-[#1dff00]/20">Go to Resumes</a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+
+                {/* Right: Cover Letter */}
+                <Card className="p-3 sm:p-4 bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15]">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="text-sm text-white font-medium">Include Cover Letter</div>
+                      <div className="text-[12px] text-white/60">Attach a tailored cover letter with your application.</div>
+                    </div>
+                    <Switch checked={includeCoverLetter} onCheckedChange={setIncludeCoverLetter} />
+                  </div>
+
+                  {includeCoverLetter ? (
+                    <div className="grid gap-3">
+                      <div>
+                        <div className="text-xs uppercase tracking-wide text-white/60 mb-2">Cover Letter</div>
+                        <textarea
+                          value={coverLetterContent}
+                          onChange={(e)=> setCoverLetterContent(e.target.value)}
+                          rows={6}
+                          className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-[#1dff00]/50"
+                          placeholder="Write or paste your cover letter here..."
+                        />
+                      </div>
+                      <div>
+                        <div className="text-xs uppercase tracking-wide text-white/60 mb-2">Preview</div>
+                        <Card className="p-3 rounded-xl bg-transparent border border-white/10">
+                          <div className="mx-auto w-full rounded-xl border border-white/20 bg-white text-black shadow-xl">
+                            <div className="p-4 sm:p-6" style={{ lineHeight: 1.6 }}>
+                              <div className="whitespace-pre-wrap break-words">{coverLetterContent || 'Your cover letter preview will appear here.'}</div>
+                            </div>
+                          </div>
+                        </Card>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-[12px] text-white/60">No cover letter will be included. Toggle on to add one now.</div>
+                  )}
+                </Card>
               </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
+
+              <div className="flex items-center justify-end gap-2 pt-1">
                 <Button variant="outline" className="border-white/20" onClick={() => setResumeDialogOpen(false)}>Cancel</Button>
                 <Button
                   className="border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/20 hover:bg-[#1dff00]/30"
-                  onClick={() => { setResumeDialogOpen(false); applyAllJobs(); }}
-                  disabled={applyingAll || jobs.length === 0}
+                  onClick={() => { setResumeDialogOpen(false); /* TODO: pass coverLetterContent */ applyAllJobs(); }}
+                  disabled={applyingAll || jobs.length === 0 || !selectedResumeId}
                 >
                   Continue
                 </Button>
