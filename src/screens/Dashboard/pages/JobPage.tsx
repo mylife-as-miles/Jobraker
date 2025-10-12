@@ -794,11 +794,23 @@ export const JobPage = (): JSX.Element => {
                               <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full border ${job.status === 'applied' ? 'border-[#14b8a6]/40 text-[#14b8a6] bg-[#14b8a6]/10' : 'border-[#ffffff24] text-[#ffffffb3] bg-[#ffffff0a]'}`}>{job.status}</span>
                             )}
                           </div>
-                          <div className="mt-1 grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="text-[#ffffffb3] text-xs sm:text-sm truncate" title={job.company || ''}>{job.company}</span>
-                            </div>
+                          <div className="mt-2 space-y-1.5">
+                            {/* Line 1: New + status + company + location + remote + host (right) */}
                             <div className="flex flex-wrap items-center gap-1.5">
+                              {(() => {
+                                if (!job.posted_at) return null;
+                                const postedTs = Date.parse(job.posted_at);
+                                if (Number.isNaN(postedTs)) return null;
+                                const isNew = (Date.now() - postedTs) <= (48 * 60 * 60 * 1000);
+                                if (!isNew) return null;
+                                return (
+                                  <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10">New</span>
+                                );
+                              })()}
+                              {job.status && (
+                                <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full border ${job.status === 'applied' ? 'border-[#14b8a6]/40 text-[#14b8a6] bg-[#14b8a6]/10' : 'border-[#ffffff24] text-[#ffffffb3] bg-[#ffffff0a]'}`}>{job.status}</span>
+                              )}
+                              <span className="text-[#ffffffb3] text-xs sm:text-sm truncate" title={job.company || ''}>{job.company}</span>
                               {job.location && (
                                 <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]" title={job.location}>
                                   {job.location}
@@ -809,6 +821,23 @@ export const JobPage = (): JSX.Element => {
                                   {job.remote_type}
                                 </span>
                               )}
+                              <span className="ml-auto inline-flex items-center gap-1">
+                                {(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id) && (() => {
+                                  const href = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id || '';
+                                  const host = getHost(href);
+                                  const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
+                                  return (
+                                    <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]" title={href}>
+                                      {host && <img src={ico} alt="" className="w-3 h-3 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
+                                      {host}
+                                    </span>
+                                  );
+                                })()}
+                              </span>
+                            </div>
+
+                            {/* Line 2: Salary + Deadline + Posted (right) */}
+                            <div className="flex flex-wrap items-center gap-1.5">
                               {(() => {
                                 if (job.salary_min || job.salary_max || job.salary_currency) {
                                   const currency = job.salary_currency || 'USD';
@@ -853,22 +882,9 @@ export const JobPage = (): JSX.Element => {
                                   </span>
                                 );
                               })()}
-                            </div>
-                            <div className="flex items-center gap-2 justify-between md:justify-end min-w-0">
-                              {(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id) && (() => {
-                                const href = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id || '';
-                                const host = getHost(href);
-                                const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
-                                return (
-                                  <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]" title={href}>
-                                    {host && <img src={ico} alt="" className="w-3 h-3 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
-                                    {host}
-                                  </span>
-                                );
-                              })()}
-                              {job.posted_at && (
-                                <span className="text-[10px] text-[#ffffff80] whitespace-nowrap">{formatRelative(job.posted_at)}</span>
-                              )}
+                              <span className="ml-auto text-[10px] text-[#ffffff80] whitespace-nowrap">
+                                {job.posted_at ? formatRelative(job.posted_at) : ''}
+                              </span>
                             </div>
                           </div>
                         </div>
