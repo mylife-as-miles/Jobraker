@@ -693,7 +693,7 @@ export const JobPage = (): JSX.Element => {
                     <div key={i} className="animate-pulse">
                       <Card className="relative overflow-hidden bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-5">
                         <div className="flex items-start gap-4">
-                          <div className="w-14 h-14 bg-[#ffffff1a] rounded-xl" />
+                          <div className="w-16 h-16 bg-[#ffffff1a] rounded-xl" />
                           <div className="flex-1 min-w-0">
                             <div className="h-4 bg-[#ffffff1a] rounded w-2/3 mb-2" />
                             <div className="h-3 bg-[#ffffff12] rounded w-1/2 mb-3" />
@@ -778,8 +778,18 @@ export const JobPage = (): JSX.Element => {
                     <div className="flex items-start justify-between gap-3 sm:gap-4">
                       <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                         {job.logoUrl && !logoError[job.id]
-                          ? <img src={job.logoUrl} alt={job.company} className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain bg-white" onError={() => setLogoError(e => ({...e, [job.id]: true}))} />
-                          : <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-base sm:text-lg">{job.logo}</div>}
+                          ? (
+                            <div className="w-16 h-16 rounded-xl bg-white p-2.5">
+                              <img
+                                src={job.logoUrl}
+                                alt={job.company}
+                                className="w-full h-full rounded-md object-contain"
+                                onError={() => setLogoError(e => ({...e, [job.id]: true}))}
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-16 h-16 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl p-2.5 flex items-center justify-center text-black font-bold text-lg sm:text-xl">{job.logo}</div>
+                          )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start gap-2">
                             <h3 className="text-white font-semibold truncate text-sm sm:text-base" title={job.title}>{job.title}</h3>
