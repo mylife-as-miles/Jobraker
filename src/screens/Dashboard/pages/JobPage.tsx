@@ -1,4 +1,4 @@
-import { Briefcase, Search, MapPin, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ExternalLink } from "lucide-react";
+import { Briefcase, Search, MapPin, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -673,19 +673,10 @@ export const JobPage = (): JSX.Element => {
                 )}
               </div>
 
-              {queueStatus === 'ready' && total > 0 && (
-                <div className="hidden lg:grid grid-cols-[auto,1fr,auto] items-center gap-3 px-2 text-[11px] uppercase tracking-wide text-white/40">
-                  <span className="pl-2">Role</span>
-                  <div className="grid grid-cols-3 gap-2">
-                    <span>Company</span>
-                    <span>Meta</span>
-                    <span>Posting</span>
-                  </div>
-                </div>
-              )}
+              {/* Removed old list header (Role/Company/Meta/Posting) since grid layout doesn't align with column headers */}
 
               { (queueStatus === 'loading' || queueStatus === 'populating') && (
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
                   {Array.from({ length: pageSize }).map((_, i) => (
                     <div key={i} className="animate-pulse">
                       <Card className="relative overflow-hidden bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-4">
@@ -746,153 +737,130 @@ export const JobPage = (): JSX.Element => {
                 </Card>
               )}
 
-              {queueStatus === 'ready' && paginatedJobs.map((job, index) => (
-                <motion.div
-                  key={job.id}
-                  role="button"
-                  aria-selected={selectedJob === job.id}
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedJob(job.id); }
-                    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                      e.preventDefault();
-                      const idx = paginatedJobs.findIndex(j => j.id === job.id);
-                      if (idx !== -1) {
-                        const nextIdx = e.key === 'ArrowDown' ? Math.min(paginatedJobs.length - 1, idx + 1) : Math.max(0, idx - 1);
-                        const nextId = paginatedJobs[nextIdx]?.id;
-                        if (nextId) setSelectedJob(nextId);
-                      }
-                    }
-                  }}
-                  onClick={() => setSelectedJob(job.id)}
-                  className={`cursor-pointer transition-all duration-300 ${selectedJob === job.id ? 'transform scale-[1.01]' : 'hover:transform hover:scale-[1.005]'} focus:outline-none focus:ring-2 focus:ring-[#1dff00]/40 rounded-xl`}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: index * 0.04 }}
-                >
-                  <Card className={`relative overflow-hidden group bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border p-3 sm:p-4 transition-all duration-300 ${selectedJob === job.id ? 'border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.25)]' : 'border-[#ffffff15] hover:border-[#1dff00]/40'}`}>
-                    <span className={`pointer-events-none absolute left-0 top-0 h-full w-[3px] ${selectedJob === job.id ? 'bg-[#1dff00]' : 'bg-transparent group-hover:bg-[#1dff00]/70'} transition-colors`} />
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        {job.logoUrl && !logoError[job.id]
-                          ? <img src={job.logoUrl} alt={job.company} className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-contain bg-white" onError={() => setLogoError(e => ({...e, [job.id]: true}))} />
-                          : <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-base sm:text-lg">{job.logo}</div>}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start gap-2">
-                            <h3 className="text-white font-semibold truncate text-sm sm:text-base" title={job.title}>{job.title}</h3>
-                            {(() => {
-                              if (!job.posted_at) return null;
-                              const postedTs = Date.parse(job.posted_at);
-                              if (Number.isNaN(postedTs)) return null;
-                              const isNew = (Date.now() - postedTs) <= (48 * 60 * 60 * 1000);
-                              if (!isNew) return null;
-                              return (
-                                <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10">New</span>
-                              );
-                            })()}
-                            {job.status && (
-                              <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full border ${job.status === 'applied' ? 'border-[#14b8a6]/40 text-[#14b8a6] bg-[#14b8a6]/10' : 'border-[#ffffff24] text-[#ffffffb3] bg-[#ffffff0a]'}`}>{job.status}</span>
-                            )}
-                          </div>
-                          <div className="mt-1 grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="text-[#ffffffb3] text-xs sm:text-sm truncate" title={job.company || ''}>{job.company}</span>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              {job.location && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]" title={job.location}>
-                                  {job.location}
-                                </span>
-                              )}
-                              {job.remote_type && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10" title={job.remote_type}>
-                                  {job.remote_type}
-                                </span>
-                              )}
-                              {(() => {
-                                if (job.salary_min || job.salary_max || job.salary_currency) {
-                                  const currency = job.salary_currency || 'USD';
-                                  const currencySymbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency;
-                                  let salaryText = '';
-                                  if (job.salary_min && job.salary_max) {
-                                    const min = job.salary_min >= 1000 ? `${Math.round(job.salary_min / 1000)}k` : job.salary_min;
-                                    const max = job.salary_max >= 1000 ? `${Math.round(job.salary_max / 1000)}k` : job.salary_max;
-                                    salaryText = `${currencySymbol}${min}-${max}`;
-                                  } else if (job.salary_min) {
-                                    const min = job.salary_min >= 1000 ? `${Math.round(job.salary_min / 1000)}k` : job.salary_min;
-                                    salaryText = `${currencySymbol}${min}+`;
-                                  } else if (job.salary_max) {
-                                    const max = job.salary_max >= 1000 ? `${Math.round(job.salary_max / 1000)}k` : job.salary_max;
-                                    salaryText = `Up to ${currencySymbol}${max}`;
-                                  }
-                                  if (salaryText) {
+              {queueStatus === 'ready' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                  {paginatedJobs.map((job, index) => (
+                    <motion.div
+                      key={job.id}
+                      role="button"
+                      aria-selected={selectedJob === job.id}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedJob(job.id); }
+                        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          const idx = paginatedJobs.findIndex(j => j.id === job.id);
+                          if (idx !== -1) {
+                            const nextIdx = e.key === 'ArrowDown' ? Math.min(paginatedJobs.length - 1, idx + 1) : Math.max(0, idx - 1);
+                            const nextId = paginatedJobs[nextIdx]?.id;
+                            if (nextId) setSelectedJob(nextId);
+                          }
+                        }
+                      }}
+                      onClick={() => setSelectedJob(job.id)}
+                      className={`cursor-pointer transition-all duration-300 ${selectedJob === job.id ? 'transform scale-[1.01]' : 'hover:transform hover:scale-[1.005]'} focus:outline-none focus:ring-2 focus:ring-[#1dff00]/40 rounded-xl`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: index * 0.04 }}
+                    >
+                      <Card className={`relative overflow-hidden group bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border p-3 sm:p-4 transition-all duration-300 ${selectedJob === job.id ? 'border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.25)]' : 'border-[#ffffff15] hover:border-[#1dff00]/40'}`}>
+                        <span className={`pointer-events-none absolute left-0 top-0 h-full w-[3px] ${selectedJob === job.id ? 'bg-[#1dff00]' : 'bg-transparent group-hover:bg-[#1dff00]/70'} transition-colors`} />
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            {job.logoUrl && !logoError[job.id]
+                              ? <img src={job.logoUrl} alt={job.company} className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-contain bg-white" onError={() => setLogoError(e => ({...e, [job.id]: true}))} />
+                              : <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-base sm:text-lg">{job.logo}</div>}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start gap-2">
+                                <h3 className="text-white font-semibold truncate text-sm sm:text-base" title={job.title}>{job.title}</h3>
+                                {(() => {
+                                  if (!job.posted_at) return null;
+                                  const postedTs = Date.parse(job.posted_at);
+                                  if (Number.isNaN(postedTs)) return null;
+                                  const isNew = (Date.now() - postedTs) <= (48 * 60 * 60 * 1000);
+                                  if (!isNew) return null;
+                                  return (
+                                    <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10">New</span>
+                                  );
+                                })()}
+                                {job.status && (
+                                  <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full border ${job.status === 'applied' ? 'border-[#14b8a6]/40 text-[#14b8a6] bg-[#14b8a6]/10' : 'border-[#ffffff24] text-[#ffffffb3] bg-[#ffffff0a]'}`}>{job.status}</span>
+                                )}
+                              </div>
+                              <div className="mt-1 grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="text-[#ffffffb3] text-xs sm:text-sm truncate" title={job.company || ''}>{job.company}</span>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  {job.location && (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]" title={job.location}>
+                                      {job.location}
+                                    </span>
+                                  )}
+                                  {job.remote_type && (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10" title={job.remote_type}>
+                                      {job.remote_type}
+                                    </span>
+                                  )}
+                                  {(() => {
+                                    if (job.salary_min || job.salary_max || job.salary_currency) {
+                                      const currency = job.salary_currency || 'USD';
+                                      const currencySymbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency;
+                                      let salaryText = '';
+                                      if (job.salary_min && job.salary_max) {
+                                        const min = job.salary_min >= 1000 ? `${Math.round(job.salary_min / 1000)}k` : job.salary_min;
+                                        const max = job.salary_max >= 1000 ? `${Math.round(job.salary_max / 1000)}k` : job.salary_max;
+                                        salaryText = `${currencySymbol}${min}-${max}`;
+                                      } else if (job.salary_min) {
+                                        const min = job.salary_min >= 1000 ? `${Math.round(job.salary_min / 1000)}k` : job.salary_min;
+                                        salaryText = `${currencySymbol}${min}+`;
+                                      } else if (job.salary_max) {
+                                        const max = job.salary_max >= 1000 ? `${Math.round(job.salary_max / 1000)}k` : job.salary_max;
+                                        salaryText = `Up to ${currencySymbol}${max}`;
+                                      }
+                                      if (salaryText) {
+                                        return (
+                                          <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10" title={`Salary: ${salaryText}`}>
+                                            💰 {salaryText}
+                                          </span>
+                                        );
+                                      }
+                                    }
+                                    const raw = (job as any)?.raw_data;
+                                    const salary = (raw?.scraped_data?.salary || raw?.salaryRange || raw?.salary) as string | undefined;
+                                    if (!salary) return null;
+                                    const short = salary.length > 36 ? salary.slice(0, 33) + '…' : salary;
                                     return (
-                                      <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10" title={`Salary: ${salaryText}`}>
-                                        💰 {salaryText}
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffc0] bg-[#ffffff0d]" title={salary}>
+                                        {short}
                                       </span>
                                     );
-                                  }
-                                }
-                                const raw = (job as any)?.raw_data;
-                                const salary = (raw?.scraped_data?.salary || raw?.salaryRange || raw?.salary) as string | undefined;
-                                if (!salary) return null;
-                                const short = salary.length > 36 ? salary.slice(0, 33) + '…' : salary;
-                                return (
-                                  <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffc0] bg-[#ffffff0d]" title={salary}>
-                                    {short}
-                                  </span>
-                                );
-                              })()}
-                              {(() => {
-                                const deadline = job.expires_at || (job as any)?.raw_data?.deadline || (job as any)?.raw_data?.applicationDeadline;
-                                const meta = formatDeadlineMeta(deadline);
-                                if (!meta) return null;
-                                return (
-                                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${deadlineClasses(meta.level)}`} title={deadline}>
-                                    {meta.label}
-                                  </span>
-                                );
-                              })()}
-                            </div>
-                            <div className="flex items-center gap-2 justify-between md:justify-end min-w-0">
-                              {(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id) && (() => {
-                                const href = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id || '';
-                                const host = getHost(href);
-                                const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
-                                return (
-                                  <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]" title={href}>
-                                    {host && <img src={ico} alt="" className="w-3 h-3 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
-                                    {host}
-                                  </span>
-                                );
-                              })()}
-                              {job.posted_at && (
-                                <span className="text-[10px] text-[#ffffff80] whitespace-nowrap">{formatRelative(job.posted_at)}</span>
-                              )}
-                              {(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id) && (() => {
-                                const href = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id || '';
-                                return (
-                                  <a
-                                    href={href}
-                                    onClick={(e) => e.stopPropagation()}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    aria-label="Open job posting in new tab"
-                                    className="ml-2 inline-flex items-center justify-center text-[11px] px-2 py-1 rounded-md border border-[#ffffff20] text-[#ffffffc0] hover:text-white hover:border-white/40 hover:bg-white/10"
-                                  >
-                                    <ExternalLink className="w-4 h-4 sm:mr-1" />
-                                    <span className="hidden sm:inline">Open</span>
-                                  </a>
-                                );
-                              })()}
+                                  })()}
+                                  {(() => {
+                                    const deadline = job.expires_at || (job as any)?.raw_data?.deadline || (job as any)?.raw_data?.applicationDeadline;
+                                    const meta = formatDeadlineMeta(deadline);
+                                    if (!meta) return null;
+                                    return (
+                                      <span className={`text-[10px] px-2 py-0.5 rounded-full border ${deadlineClasses(meta.level)}`} title={deadline}>
+                                        {meta.label}
+                                      </span>
+                                    );
+                                  })()}
+                                </div>
+                                <div className="flex items-center gap-2 justify-end min-w-0">
+                                  {job.posted_at && (
+                                    <span className="text-[10px] text-[#ffffff80] whitespace-nowrap">{formatRelative(job.posted_at)}</span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-              ))}
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
               {queueStatus === 'ready' && total > 0 && (
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4">
                   <div className="text-[12px] text-white/60">
