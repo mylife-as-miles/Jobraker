@@ -54,7 +54,11 @@ Deno.serve(async (req) => {
       .eq('id', userId)
       .maybeSingle();
     const allowedDomains: string[] = Array.isArray(settingsRes?.data?.allowed_domains) ? settingsRes.data.allowed_domains.filter(Boolean) : [];
-    const domainList = allowedDomains.length > 0 ? allowedDomains : [
+    // Blocklist: exclude problematic domains from search
+    const blocked = new Set([
+      'techsolutions.com',
+    ]);
+    const defaultDomains = [
       'indeed.com',
       'linkedin.com',
       'glassdoor.com',
@@ -72,10 +76,22 @@ Deno.serve(async (req) => {
       'dice.com',                 // Tech jobs and IT positions
     ];
 
+    // Start from user-configured domains if present; else use defaults
+    let domainList = (allowedDomains.length > 0 ? allowedDomains : defaultDomains)
+      .map((d) => String(d).toLowerCase().replace(/^www\./, ''))
+      .filter((d) => {
+        // Exclude any domain that matches or is a subdomain of a blocked entry
+        for (const b of blocked) {
+          const bb = String(b).toLowerCase().replace(/^www\./, '');
+          if (d === bb || d.endsWith(`.${bb}`)) return false;
+        }
+        return true;
+      });
+
     console.log('jobs-search.domains', { allowed_domains: domainList, user_id: userId });
 
     // Compose optimized query using Firecrawl operators
-    const siteClause = domainList.map((d) => `site:${d}`).join(' OR ');
+  const siteClause = domainList.map((d) => `site:${d}`).join(' OR ');
     
     // Use inurl: to find actual job posting pages (not search result pages)
     const jobPagePatterns = '(inurl:job OR inurl:view OR inurl:posting OR inurl:opening OR inurl:career OR inurl:apply OR inurl:detail)';
@@ -176,7 +192,7 @@ Deno.serve(async (req) => {
 
     // Extract items from data.web per OpenAPI, filter by allowed domains, dedupe, and cap
     const webItems: any[] = Array.isArray(searchRes?.data?.web) ? searchRes.data.web : [];
-    const domainSet = new Set(domainList);
+  const domainSet = new Set(domainList);
     const filtered: any[] = [];
     const seen = new Set<string>();
     
@@ -222,7 +238,9 @@ Deno.serve(async (req) => {
       const clean = url.replace(/\/$/, '');
       const h = hostFromUrl(clean);
       if (!h) continue;
-      const allowed = Array.from(domainSet).some((d) => h === d || h.endsWith(`.${d}`));
+  const allowed = Array.from(domainSet).some((d) => h === d || h.endsWith(`.${d}`));
+  // Extra safety: blocklist check
+  if (h === 'techsolutions.com' || h.endsWith('.techsolutions.com')) continue;
       if (!allowed) continue;
       if (seen.has(clean)) continue;
       
