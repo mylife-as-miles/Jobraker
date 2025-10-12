@@ -23,6 +23,9 @@ interface Job {
   description: string | null;
   location: string | null;
   remote_type: string | null;
+  employment_type?: string | null;
+  experience_level?: string | null;
+  tags?: string[] | null;
   apply_url: string | null;
   posted_at: string | null;
   expires_at: string | null;
@@ -795,21 +798,8 @@ export const JobPage = (): JSX.Element => {
                             )}
                           </div>
                           <div className="mt-2 space-y-1.5">
-                            {/* Line 1: New + status + company + location + remote + host (right) */}
+                            {/* Line 1: company + location + remote + host (right) */}
                             <div className="flex flex-wrap items-center gap-1.5">
-                              {(() => {
-                                if (!job.posted_at) return null;
-                                const postedTs = Date.parse(job.posted_at);
-                                if (Number.isNaN(postedTs)) return null;
-                                const isNew = (Date.now() - postedTs) <= (48 * 60 * 60 * 1000);
-                                if (!isNew) return null;
-                                return (
-                                  <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10">New</span>
-                                );
-                              })()}
-                              {job.status && (
-                                <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full border ${job.status === 'applied' ? 'border-[#14b8a6]/40 text-[#14b8a6] bg-[#14b8a6]/10' : 'border-[#ffffff24] text-[#ffffffb3] bg-[#ffffff0a]'}`}>{job.status}</span>
-                              )}
                               <span className="text-[#ffffffb3] text-xs sm:text-sm truncate" title={job.company || ''}>{job.company}</span>
                               {job.location && (
                                 <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]" title={job.location}>
@@ -836,8 +826,35 @@ export const JobPage = (): JSX.Element => {
                               </span>
                             </div>
 
-                            {/* Line 2: Salary + Deadline + Posted (right) */}
+                            {/* Line 2: Employment type + Experience + Tags + Salary + Deadline + Posted (right) */}
                             <div className="flex flex-wrap items-center gap-1.5">
+                              {(() => {
+                                const tags: string[] | undefined = (job as any)?.tags || (job as any)?.raw_data?.scraped_data?.tags;
+                                if (!tags || !Array.isArray(tags) || tags.length === 0) return null;
+                                return tags.slice(0, 3).map((t, i) => (
+                                  <span key={i} className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]" title={t}>
+                                    {t}
+                                  </span>
+                                ));
+                              })()}
+                              {(() => {
+                                const et = (job as any)?.employment_type ?? (job as any)?.raw_data?.scraped_data?.employment_type;
+                                if (!et) return null;
+                                return (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffc0] bg-[#ffffff0d]" title={et}>
+                                    {et}
+                                  </span>
+                                );
+                              })()}
+                              {(() => {
+                                const xl = (job as any)?.experience_level ?? (job as any)?.raw_data?.scraped_data?.experience_level;
+                                if (!xl) return null;
+                                return (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffc0] bg-[#ffffff0d]" title={xl}>
+                                    {xl}
+                                  </span>
+                                );
+                              })()}
                               {(() => {
                                 if (job.salary_min || job.salary_max || job.salary_currency) {
                                   const currency = job.salary_currency || 'USD';
