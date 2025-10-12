@@ -775,11 +775,11 @@ export const JobPage = (): JSX.Element => {
                 >
                   <Card className={`relative overflow-hidden group bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border p-5 sm:p-6 transition-all duration-300 ${selectedJob === job.id ? 'border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.25)]' : 'border-[#ffffff15] hover:border-[#1dff00]/40'}`}>
                     <span className={`pointer-events-none absolute left-0 top-0 h-full w-[3px] ${selectedJob === job.id ? 'bg-[#1dff00]' : 'bg-transparent group-hover:bg-[#1dff00]/70'} transition-colors`} />
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-3 sm:gap-4">
+                      <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                         {job.logoUrl && !logoError[job.id]
-                          ? <img src={job.logoUrl} alt={job.company} className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-contain bg-white" onError={() => setLogoError(e => ({...e, [job.id]: true}))} />
-                          : <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-base sm:text-lg">{job.logo}</div>}
+                          ? <img src={job.logoUrl} alt={job.company} className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain bg-white" onError={() => setLogoError(e => ({...e, [job.id]: true}))} />
+                          : <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-base sm:text-lg">{job.logo}</div>}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start gap-2">
                             <h3 className="text-white font-semibold truncate text-sm sm:text-base" title={job.title}>{job.title}</h3>
@@ -799,15 +799,15 @@ export const JobPage = (): JSX.Element => {
                           </div>
                           <div className="mt-2 space-y-1.5">
                             {/* Line 1: company + location + remote + salary + host (right) */}
-                            <div className="flex flex-wrap items-center gap-1.5">
+                            <div className="flex flex-wrap items-center gap-1">
                               <span className="text-[#ffffffb3] text-xs sm:text-sm truncate" title={job.company || ''}>{job.company}</span>
                               {job.location && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]" title={job.location}>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d] whitespace-nowrap" title={job.location}>
                                   {job.location}
                                 </span>
                               )}
                               {job.remote_type && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10" title={job.remote_type}>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10 whitespace-nowrap" title={job.remote_type}>
                                   {job.remote_type}
                                 </span>
                               )}
@@ -829,7 +829,7 @@ export const JobPage = (): JSX.Element => {
                                   }
                                   if (salaryText) {
                                     return (
-                                      <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10" title={`Salary: ${salaryText}`}>
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10 whitespace-nowrap" title={`Salary: ${salaryText}`}>
                                         💰 {salaryText}
                                       </span>
                                     );
@@ -838,22 +838,22 @@ export const JobPage = (): JSX.Element => {
                                 const raw = (job as any)?.raw_data;
                                 const salary = (raw?.scraped_data?.salary || raw?.salaryRange || raw?.salary) as string | undefined;
                                 if (!salary) return null;
-                                const short = salary.length > 36 ? salary.slice(0, 33) + '…' : salary;
+                                const short = salary.length > 28 ? salary.slice(0, 25) + '…' : salary;
                                 return (
-                                  <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffc0] bg-[#ffffff0d]" title={salary}>
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffc0] bg-[#ffffff0d] whitespace-nowrap" title={salary}>
                                     {short}
                                   </span>
                                 );
                               })()}
-                              <span className="ml-auto inline-flex items-center gap-1">
+                              <span className="ml-auto inline-flex items-center gap-1 max-w-[140px] sm:max-w-[180px] overflow-hidden">
                                 {(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id) && (() => {
                                   const href = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id || '';
                                   const host = getHost(href);
                                   const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
                                   return (
-                                    <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]" title={href}>
+                                    <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08] max-w-full overflow-hidden">
                                       {host && <img src={ico} alt="" className="w-3 h-3 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
-                                      {host}
+                                      <span className="truncate">{host}</span>
                                     </span>
                                   );
                                 })()}
@@ -861,12 +861,12 @@ export const JobPage = (): JSX.Element => {
                             </div>
 
                             {/* Line 2: Tags + Posted (right) */}
-                            <div className="flex flex-wrap items-center gap-1.5">
+                            <div className="flex flex-wrap items-center gap-1">
                               {(() => {
                                 const tags: string[] | undefined = (job as any)?.tags || (job as any)?.raw_data?.scraped_data?.tags;
                                 if (!tags || !Array.isArray(tags) || tags.length === 0) return null;
                                 return tags.slice(0, 3).map((t, i) => (
-                                  <span key={i} className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]" title={t}>
+                                  <span key={i} className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08] whitespace-nowrap" title={t}>
                                     {t}
                                   </span>
                                 ));
