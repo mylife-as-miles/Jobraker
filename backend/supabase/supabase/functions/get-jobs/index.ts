@@ -1,5 +1,25 @@
 // @ts-nocheck
 // Returns the personalized job queue for the authenticated user from the 'jobs' table.
+//
+// Inputs (query string or JSON body):
+//   - all?: boolean        // if true, increases max limit (up to 1000)
+//   - limit?: number       // max rows to return (default 200, hard-capped at 2000)
+//   - offset?: number      // pagination offset (default 0)
+//
+// Output JSON:
+//   {
+//     jobs: Array<Record<string, any>>,
+//     pagination: {
+//       count: number | null,
+//       limit: number,
+//       offset: number,
+//       hasMore: boolean | null
+//     }
+//   }
+//
+// Notes:
+// - Requires Authorization header; respects RLS to only return the caller's visible jobs.
+// - CORS preflight handled for browser usage.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/types.ts";
 
@@ -24,14 +44,39 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    // Step 2: Fetch all jobs for the current user from the 'jobs' table.
+    // Parse pagination/flags from query string or JSON body.
+    const url = new URL(req.url);
+    const qs = url.searchParams;
+    let body: any = null;
+    try {
+      if (req.headers.get('content-type')?.includes('application/json')) {
+        body = await req.json();
+      }
+    } catch (_) {
+      // ignore malformed JSON
+    }
+    const allParam = (qs.get('all') ?? body?.all) as (string | boolean | null);
+    const limitParam = (qs.get('limit') ?? body?.limit) as (string | number | null);
+    const offsetParam = (qs.get('offset') ?? body?.offset) as (string | number | null);
+
+    const all = String(allParam).toLowerCase() === 'true' || allParam === true;
+    let limit = all ? 1000 : Number(limitParam ?? 200);
+    if (!Number.isFinite(limit) || limit <= 0) limit = all ? 1000 : 200;
+    // Put a hard ceiling to protect the DB/API.
+    limit = Math.min(limit, 2000);
+    let offset = Number(offsetParam ?? 0);
+    if (!Number.isFinite(offset) || offset < 0) offset = 0;
+
+    // Step 2: Fetch jobs for the current user from the 'jobs' table.
     // The RLS policy ensures only the user's own jobs are returned.
-    const { data: jobs, error: jobsError } = await supabase
+    const query = supabase
       .from("jobs")
-      .select("*")
+      .select("*", { count: 'exact' })
       .order("posted_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
-      .limit(20);
+      .range(offset, offset + limit - 1);
+
+    const { data: jobs, error: jobsError, count } = await query;
 
     if (jobsError) {
       // Log the actual error for debugging, but return a generic message to the client.
@@ -42,8 +87,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Step 3: Return the user's job queue.
-    return new Response(JSON.stringify({ jobs: jobs || [] }), {
+    // Step 3: Return the user's job queue with pagination metadata.
+    const resp = {
+      jobs: jobs || [],
+      pagination: {
+        count: typeof count === 'number' ? count : null,
+        limit,
+        offset,
+        hasMore: typeof count === 'number' ? offset + (jobs?.length || 0) < count : null,
+      },
+    };
+    return new Response(JSON.stringify(resp), {
       headers: { ...corsHeaders, "content-type": "application/json" },
       status: 200,
     });
