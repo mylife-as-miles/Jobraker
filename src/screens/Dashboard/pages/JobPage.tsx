@@ -800,14 +800,14 @@ export const JobPage = (): JSX.Element => {
                           <div className="mt-2 space-y-1.5">
                             {/* Line 1: company + location + remote + salary + host (right) */}
                             <div className="flex flex-wrap items-center gap-1">
-                              <span className="text-[#ffffffb3] text-xs sm:text-sm truncate" title={job.company || ''}>{job.company}</span>
+                              <span className="text-[#ffffffb3] text-[11px] sm:text-sm truncate" title={job.company || ''}>{job.company}</span>
                               {job.location && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d] whitespace-nowrap" title={job.location}>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d] whitespace-nowrap" title={job.location}>
                                   {job.location}
                                 </span>
                               )}
                               {job.remote_type && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10 whitespace-nowrap" title={job.remote_type}>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10 whitespace-nowrap" title={job.remote_type}>
                                   {job.remote_type}
                                 </span>
                               )}
@@ -829,7 +829,7 @@ export const JobPage = (): JSX.Element => {
                                   }
                                   if (salaryText) {
                                     return (
-                                      <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10 whitespace-nowrap" title={`Salary: ${salaryText}`}>
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10 whitespace-nowrap" title={`Salary: ${salaryText}`}> 
                                         💰 {salaryText}
                                       </span>
                                     );
@@ -840,7 +840,7 @@ export const JobPage = (): JSX.Element => {
                                 if (!salary) return null;
                                 const short = salary.length > 28 ? salary.slice(0, 25) + '…' : salary;
                                 return (
-                                  <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffc0] bg-[#ffffff0d] whitespace-nowrap" title={salary}>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffc0] bg-[#ffffff0d] whitespace-nowrap" title={salary}>
                                     {short}
                                   </span>
                                 );
@@ -851,7 +851,7 @@ export const JobPage = (): JSX.Element => {
                                   const host = getHost(href);
                                   const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
                                   return (
-                                    <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08] max-w-full overflow-hidden">
+                                    <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08] max-w-full overflow-hidden">
                                       {host && <img src={ico} alt="" className="w-3 h-3 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
                                       <span className="truncate">{host}</span>
                                     </span>
@@ -866,7 +866,7 @@ export const JobPage = (): JSX.Element => {
                                 const tags: string[] | undefined = (job as any)?.tags || (job as any)?.raw_data?.scraped_data?.tags;
                                 if (!tags || !Array.isArray(tags) || tags.length === 0) return null;
                                 return tags.slice(0, 3).map((t, i) => (
-                                  <span key={i} className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08] whitespace-nowrap" title={t}>
+                                  <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08] whitespace-nowrap" title={t}>
                                     {t}
                                   </span>
                                 ));
