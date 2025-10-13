@@ -37,16 +37,16 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, fo
       {side === "center" ? (
         <div className="relative z-10 m-auto w-full px-4">
           <div className={cn(
-            "mx-auto w-full rounded-lg border border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] shadow-[0_0_30px_rgba(29,255,0,0.2)]",
+            "mx-auto flex w-full max-h-[calc(100vh-4rem)] flex-col rounded-lg border border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] shadow-[0_0_30px_rgba(29,255,0,0.2)]",
             sizes[size]
           )}>
             {title && (
-              <div className="px-5 py-4 border-b border-[#1dff00]/20">
+              <div className="border-b border-[#1dff00]/20 px-5 py-4">
                 <h3 className="text-white font-semibold">{title}</h3>
               </div>
             )}
-            <div className="px-5 py-4">{children}</div>
-            {footer && <div className="px-5 py-4 border-t border-[#1dff00]/20">{footer}</div>}
+            <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+            {footer && <div className="border-t border-[#1dff00]/20 px-5 py-4">{footer}</div>}
           </div>
         </div>
       ) : (

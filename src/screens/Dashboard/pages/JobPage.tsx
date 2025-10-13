@@ -25,7 +25,6 @@ interface Job {
   remote_type: string | null;
   employment_type?: string | null;
   experience_level?: string | null;
-  tags?: string[] | null;
   apply_url: string | null;
   posted_at: string | null;
   expires_at: string | null;
@@ -48,10 +47,12 @@ type CoverLetterLibraryEntry = {
     role?: string;
     company?: string;
   };
+  draft?: boolean;
 };
 
 const COVER_LETTER_LIBRARY_KEY = "jr.coverLetters.library.v1";
 const COVER_LETTER_DEFAULT_KEY = "jr.coverLetters.defaultId";
+const COVER_LETTER_DRAFT_KEY = "jr.coverLetter.draft.v2";
 
 const supabase = createClient();
 
@@ -316,6 +317,34 @@ export const JobPage = (): JSX.Element => {
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed)) {
             entries = parsed.filter((item): item is CoverLetterLibraryEntry => Boolean(item && typeof item.id === 'string'));
+          }
+        }
+        if (!entries.length) {
+          const draftRaw =
+            window.localStorage.getItem(COVER_LETTER_DRAFT_KEY) ||
+            window.localStorage.getItem('jr.coverLetter.draft.v1');
+          if (draftRaw) {
+            try {
+              const parsedDraft = JSON.parse(draftRaw);
+              const draftName =
+                String(parsedDraft?.subject || parsedDraft?.role || 'Latest cover letter').trim() ||
+                'Latest cover letter';
+              const draftUpdatedAt = parsedDraft?.savedAt || new Date().toISOString();
+              entries = [
+                {
+                  id: '__draft__',
+                  name: draftName,
+                  updatedAt: draftUpdatedAt,
+                  data: {
+                    role: parsedDraft?.role,
+                    company: parsedDraft?.company,
+                  },
+                  draft: true,
+                },
+              ];
+            } catch {
+              // ignore malformed drafts
+            }
           }
         }
         setCoverLetterLibrary(entries);
@@ -1556,9 +1585,12 @@ export const JobPage = (): JSX.Element => {
                                   <div className="min-w-0 space-y-1">
                                     <div className="flex items-center gap-2">
                                       <span className="truncate text-sm font-medium text-white" title={entry.name}>{entry.name}</span>
+                                      {entry.draft && (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/20 text-white/60">Draft</span>
+                                      )}
                                     </div>
                                     <div className="text-[11px] text-white/60 truncate">
-                                      {persona ? persona : 'Reusable cover letter template'}
+                                      {persona ? persona : entry.draft ? 'Autosaved draft from builder' : 'Reusable cover letter template'}
                                     </div>
                                     {updatedLabel && (
                                       <div className="text-[10px] uppercase tracking-wide text-white/35">Updated {updatedLabel}</div>
@@ -1631,7 +1663,12 @@ export const JobPage = (): JSX.Element => {
                           </div>
                           {selectedCoverLetter ? (
                             <div className="space-y-1 text-sm text-white/70">
-                              <div className="text-white font-medium">{selectedCoverLetter.name}</div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-white font-medium">{selectedCoverLetter.name}</span>
+                                {selectedCoverLetter.draft && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/20 text-white/60">Draft</span>
+                                )}
+                              </div>
                               <div className="text-xs text-white/45 uppercase tracking-wide">
                                 {[selectedCoverLetter.data?.role, selectedCoverLetter.data?.company].filter(Boolean).join(' • ') || 'Reusable letter asset'}
                               </div>
