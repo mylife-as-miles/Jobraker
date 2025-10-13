@@ -1026,25 +1026,104 @@ export const JobPage = (): JSX.Element => {
               )}
 
               { (queueStatus === 'loading' || queueStatus === 'populating') && (
-                <div className="space-y-4">
-                  {Array.from({ length: pageSize }).map((_, i) => (
-                    <div key={i} className="animate-pulse">
-                      <Card className="relative overflow-hidden bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-5">
-                        <div className="flex items-start gap-4">
-                          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#ffffff1a] rounded-xl" />
-                          <div className="flex-1 min-w-0">
-                            <div className="h-4 bg-[#ffffff1a] rounded w-2/3 mb-2" />
-                            <div className="h-3 bg-[#ffffff12] rounded w-1/2 mb-3" />
-                            <div className="flex items-center gap-2">
-                              <span className="inline-block h-4 w-16 rounded-full bg-[#ffffff12]" />
-                              <span className="inline-block h-4 w-20 rounded-full bg-[#ffffff12]" />
-                              <span className="inline-block h-4 w-12 rounded-full bg-[#ffffff12]" />
+                <div className="space-y-5">
+                  <Card className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#041206] via-[#050a08] to-[#020403] p-6 sm:p-7">
+                    <motion.div
+                      className="pointer-events-none absolute inset-[-40%] bg-[radial-gradient(circle_at_top,rgba(29,255,0,0.28),rgba(29,255,0,0)_60%)] opacity-60"
+                      animate={{ rotate: [0, 360] }}
+                      transition={{ duration: 14, repeat: Infinity, ease: 'linear' }}
+                    />
+                    <div className="relative flex flex-col gap-5">
+                      <div className="flex items-center gap-3 text-xs uppercase tracking-[0.4em] text-[#1dff00]/70">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#1dff00]/40 bg-[#1dff00]/10">
+                          <span className="h-2 w-2 rounded-full bg-[#1dff00] animate-ping" />
+                        </span>
+                        Scanning networks for roles
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        {['Signals', 'Compliance', 'Enrichment'].map((label, idx) => (
+                          <div key={label} className="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+                            <div className="flex items-center justify-between text-xs text-white/60">
+                              <span>{label}</span>
+                              <span className="text-[9px] font-mono text-[#1dff00]/80">{String(idx + 1).padStart(2, '0')}</span>
                             </div>
+                            <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
+                              <motion.div
+                                className="h-full bg-gradient-to-r from-[#0aff7b] via-[#1dff00] to-[#7bffb2]"
+                                animate={{ width: ['15%', '85%', '35%', '70%'] }}
+                                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: idx * 0.2 }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-xl border border-white/10 bg-[#0c0c0c] p-4">
+                          <div className="h-3 w-20 rounded bg-white/12" />
+                          <div className="mt-3 space-y-2">
+                            <div className="h-4 rounded bg-white/10" />
+                            <div className="h-4 w-5/6 rounded bg-white/8" />
+                            <div className="h-4 w-2/3 rounded bg-white/6" />
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-white/10 bg-[#0c0c0c] p-4">
+                          <div className="h-3 w-24 rounded bg-white/12" />
+                          <div className="mt-3 grid grid-cols-3 gap-3 text-[10px] text-white/50">
+                            {Array.from({ length: 3 }).map((_, metricIdx) => (
+                              <div key={metricIdx} className="space-y-2 rounded-lg border border-white/10 bg-white/5 p-3">
+                                <div className="h-3 rounded bg-[#ffffff1a]" />
+                                <div className="h-4 rounded bg-[#ffffff14]" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <div className="grid gap-4">
+                    {Array.from({ length: pageSize }).map((_, i) => (
+                      <Card
+                        key={i}
+                        className="relative overflow-hidden border border-[#1dff00]/25 bg-gradient-to-br from-[#020202] via-[#050708] to-[#090b0c] p-5 sm:p-6"
+                      >
+                        <motion.div
+                          className="absolute inset-0 bg-[linear-gradient(120deg,rgba(29,255,0,0.12)_0%,rgba(29,255,0,0.02)_38%,rgba(29,255,0,0.15)_72%,rgba(29,255,0,0.02)_100%)]"
+                          animate={{ backgroundPosition: ['0% 0%', '120% 0%', '0% 0%'] }}
+                          transition={{ duration: 6.5, repeat: Infinity, ease: 'linear', delay: i * 0.05 }}
+                        />
+                        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex flex-1 items-start gap-4">
+                            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-[#1dff00]/25 bg-[#0a1a0f]">
+                              <motion.span
+                                className="absolute h-10 w-10 rounded-full bg-[#1dff00]/20"
+                                animate={{ scale: [0.85, 1.05, 0.85], opacity: [0.4, 0.15, 0.4] }}
+                                transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+                              />
+                              <span className="relative h-8 w-8 rounded-full border border-[#1dff00]/40" />
+                            </div>
+                            <div className="flex-1 space-y-3">
+                              <div className="h-4 w-3/5 rounded bg-[#ffffff24]" />
+                              <div className="h-3 w-1/2 rounded bg-[#ffffff1a]" />
+                              <div className="flex flex-wrap items-center gap-2">
+                                {Array.from({ length: 4 }).map((__, chipIdx) => (
+                                  <span key={chipIdx} className="inline-flex h-5 w-16 rounded-full border border-white/12 bg-[#ffffff14]" />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grid w-full max-w-[240px] grid-cols-2 gap-2 text-[10px] text-white/60 sm:w-auto">
+                            {Array.from({ length: 4 }).map((__, metricIdx) => (
+                              <div key={metricIdx} className="rounded-lg border border-white/10 bg-white/5 p-3">
+                                <div className="h-3 rounded bg-[#ffffff1a]" />
+                                <div className="mt-2 h-4 rounded bg-[#ffffff14]" />
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </Card>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
 
