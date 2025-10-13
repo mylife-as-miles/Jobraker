@@ -14,6 +14,7 @@ import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { events } from "../../../lib/analytics";
 import { useToast } from "../../../components/ui/toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+import { applyToJobs } from "../../../services/applications/applyToJobs";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -39,14 +40,30 @@ interface Job {
   source_id?: string | null;
 }
 
+type CoverLetterDraftData = {
+  role?: string;
+  company?: string;
+  content?: string;
+  paragraphs?: string[];
+  salutation?: string;
+  closing?: string;
+  signatureName?: string;
+  senderName?: string;
+  senderEmail?: string;
+  senderPhone?: string;
+  senderAddress?: string;
+  recipient?: string;
+  recipientTitle?: string;
+  recipientAddress?: string;
+  date?: string;
+  subject?: string;
+};
+
 type CoverLetterLibraryEntry = {
   id: string;
   name: string;
   updatedAt?: string;
-  data?: {
-    role?: string;
-    company?: string;
-  };
+  data?: (CoverLetterDraftData & Record<string, unknown>);
   draft?: boolean;
 };
 
@@ -55,6 +72,143 @@ const COVER_LETTER_DEFAULT_KEY = "jr.coverLetters.defaultId";
 const COVER_LETTER_DRAFT_KEY = "jr.coverLetter.draft.v2";
 
 const supabase = createClient();
+
+const pickString = (source: Record<string, unknown> | undefined, key: string): string | undefined => {
+  if (!source) return undefined;
+  const value = source[key];
+  return typeof value === "string" ? value : undefined;
+};
+
+const getJobApplyTarget = (job: Job): string | null => {
+  const raw = (job.raw_data && typeof job.raw_data === "object") ? (job.raw_data as Record<string, unknown>) : undefined;
+  const scraped = (raw && typeof raw.scraped_data === "object") ? (raw.scraped_data as Record<string, unknown>) : undefined;
+  const candidates = [
+    job.apply_url,
+    pickString(raw, "sourceUrl"),
+    pickString(raw, "applyUrl"),
+    pickString(raw, "jobPostingUrl"),
+    pickString(raw, "applicationLink"),
+    pickString(raw, "job_url"),
+    job.source_id,
+    pickString(scraped, "apply_url"),
+    pickString(scraped, "applyUrl"),
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string") {
+      const trimmed = candidate.trim();
+      if (trimmed) return trimmed;
+    }
+  }
+  return null;
+};
+
+const composeCoverLetterPayload = (entry?: CoverLetterLibraryEntry | null): string | undefined => {
+  if (!entry?.data) return undefined;
+  const data = entry.data as Record<string, unknown>;
+  const read = (key: string): string | undefined => {
+    const value = data[key];
+    return typeof value === "string" ? value : undefined;
+  };
+
+  const lines: string[] = [];
+  const pushLine = (value?: string) => {
+    if (!value) return;
+    const trimmed = value.trim();
+    if (trimmed.length > 0) lines.push(trimmed);
+  };
+  const pushSeparator = () => {
+    if (lines.length > 0 && lines[lines.length - 1] !== "") lines.push("");
+  };
+
+  const senderKeys = ["senderName", "senderPhone", "senderEmail", "senderAddress"];
+  const senderLines: string[] = [];
+  senderKeys.forEach((key) => {
+    const val = read(key);
+    if (typeof val === "string") {
+      const trimmed = val.trim();
+      if (trimmed.length > 0) senderLines.push(trimmed);
+    }
+  });
+  if (senderLines.length) {
+    lines.push(...senderLines);
+    pushSeparator();
+  }
+
+  const dateValue = read("date");
+  if (dateValue) {
+    const parsed = new Date(dateValue);
+    const formatted = Number.isNaN(parsed.valueOf()) ? dateValue : parsed.toLocaleDateString();
+    pushLine(formatted);
+    pushSeparator();
+  }
+
+  const recipientLines: string[] = [];
+  [read("recipient"), read("recipientTitle"), read("company") ?? entry.data?.company, read("recipientAddress")]
+    .forEach((val) => {
+      if (typeof val === "string") {
+        const trimmed = val.trim();
+        if (trimmed.length > 0) recipientLines.push(trimmed);
+      }
+    });
+  if (recipientLines.length) {
+    lines.push(...recipientLines);
+    pushSeparator();
+  }
+
+  const subject = read("subject");
+  if (typeof subject === "string") {
+    const trimmedSubject = subject.trim();
+    if (trimmedSubject.length > 0) {
+      pushLine(`Subject: ${trimmedSubject}`);
+      pushSeparator();
+    }
+  }
+
+  const salutation = read("salutation");
+  if (typeof salutation === "string") {
+    const trimmedSalutation = salutation.trim();
+    if (trimmedSalutation.length > 0) {
+      pushLine(trimmedSalutation);
+      pushSeparator();
+    }
+  }
+
+  const paragraphs = Array.isArray(data.paragraphs)
+    ? (data.paragraphs as unknown[])
+        .filter((p): p is string => typeof p === "string")
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0)
+    : [];
+  const body = read("content");
+  if (typeof body === "string") {
+    const trimmedBody = body.trim();
+    if (trimmedBody.length > 0) {
+      pushLine(trimmedBody);
+    }
+  } else if (paragraphs.length) {
+    pushLine(paragraphs.join("\n\n"));
+  }
+
+  const closing = read("closing");
+  if (typeof closing === "string") {
+    const trimmedClosing = closing.trim();
+    if (trimmedClosing.length > 0) {
+      pushSeparator();
+      pushLine(trimmedClosing);
+    }
+  }
+
+  const signature = read("signatureName") || read("senderName");
+  if (typeof signature === "string") {
+    const trimmedSignature = signature.trim();
+    if (trimmedSignature.length > 0) {
+      pushLine(trimmedSignature);
+    }
+  }
+
+  const finalText = lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return finalText || undefined;
+};
 
 const getCompanyLogoUrl = (companyName?: string, sourceUrl?: string): string | undefined => {
     if (!companyName) return undefined;
@@ -492,46 +646,105 @@ export const JobPage = (): JSX.Element => {
       loadCoverLetterLibrary();
     }, [resumeDialogOpen, loadCoverLetterLibrary]);
 
-    // Apply all jobs (mark as applied) sequentially with simple progress + analytics events
+    // Apply all jobs by delegating to automation workflow, then prune applied rows
     const applyAllJobs = useCallback(async () => {
       if (applyingAll || !jobs.length) return;
+
+      const jobsWithTargets = jobs
+        .map((job) => ({ job, target: getJobApplyTarget(job) }))
+        .filter((item): item is { job: Job; target: string } => Boolean(item.target));
+
+      if (!jobsWithTargets.length) {
+        safeInfo('No automation targets', 'These jobs are missing apply links. Refresh your queue or open the job detail to locate one manually.');
+        return;
+      }
+
+      const skipped = jobs.length - jobsWithTargets.length;
+      if (skipped > 0) {
+        jobs
+          .filter((job) => !jobsWithTargets.some((entry) => entry.job.id === job.id))
+          .forEach((job) => {
+            events.autoApplyJobFailed(job.id, job.status || job.remote_type || 'unknown', 'missing_apply_url');
+          });
+      }
+
       setApplyingAll(true);
-      setApplyProgress({ done: 0, total: jobs.length, success: 0, fail: 0 });
+      setApplyProgress({ done: 0, total: jobsWithTargets.length, success: 0, fail: 0 });
+
       try {
-        // Include selected resume id (if any) in analytics
-  events.autoApplyStarted(jobs.length, selectedResumeId || undefined, selectedCoverLetterId || undefined);
-        let success = 0; let fail = 0; let done = 0;
-        // Sequential to simplify UI feedback; could be batched later
-        for (const job of jobs) {
-          const start = performance.now();
+        const coverLetterPayload = composeCoverLetterPayload(selectedCoverLetter);
+        events.autoApplyStarted(jobsWithTargets.length, selectedResumeId || undefined, selectedCoverLetterId || undefined);
+
+        const payloadJobs = jobsWithTargets.map(({ job, target }) => ({
+          sourceUrl: target,
+          url: job.apply_url ?? target,
+          source_url: job.source_id ?? target,
+        }));
+
+        const launchedAt = new Date();
+        await applyToJobs({
+          jobs: payloadJobs,
+          title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
+          cover_letter: coverLetterPayload,
+        });
+
+        safeInfo(
+          'Automation launched',
+          `Dispatched ${jobsWithTargets.length} job${jobsWithTargets.length === 1 ? '' : 's'} to the automation runner${skipped > 0 ? `; skipped ${skipped}.` : '.'}`,
+        );
+
+        let success = 0;
+        let fail = 0;
+        let done = 0;
+        const appliedIds: string[] = [];
+
+        for (const { job } of jobsWithTargets) {
           try {
-            if (!job.apply_url) {
-              fail++; done++; setApplyProgress(p => ({ ...p, done, fail }));
-              events.autoApplyJobFailed(job.id, job.status || job.remote_type || 'unknown', 'missing_apply_url');
-              continue;
-            }
-            const { error: upErr } = await supabase.from('jobs').update({ status: 'applied' }).eq('id', job.id);
-            if (upErr) {
-              fail++; done++; setApplyProgress(p => ({ ...p, done, fail }));
-              events.autoApplyJobFailed(job.id, job.status || 'unknown', 'update_failed');
+            const { error } = await supabase.from('jobs').delete().eq('id', job.id);
+            done += 1;
+            if (error) {
+              fail += 1;
+              setApplyProgress((prev) => ({ ...prev, done, fail }));
+              events.autoApplyJobFailed(job.id, job.status || 'unknown', 'delete_failed');
             } else {
-              success++; done++;
-              const duration_ms = Math.round(performance.now() - start);
-              events.autoApplyJobSuccess(job.id, job.status || 'unknown', duration_ms);
-              setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: 'applied' } : j));
-              setApplyProgress(p => ({ ...p, done, success }));
+              success += 1;
+              appliedIds.push(job.id);
+              setApplyProgress((prev) => ({ ...prev, done, success }));
+              events.autoApplyJobSuccess(job.id, job.status || 'unknown', 0);
             }
           } catch (inner) {
-            fail++; done++; setApplyProgress(p => ({ ...p, done, fail }));
-            events.autoApplyJobFailed(job.id, job.status || 'unknown', 'exception');
+            done += 1;
+            fail += 1;
+            setApplyProgress((prev) => ({ ...prev, done, fail }));
+            events.autoApplyJobFailed(job.id, job.status || 'unknown', 'exception_delete');
           }
         }
+
         events.autoApplyFinished(success, fail);
+
+        if (appliedIds.length) {
+          const appliedSet = new Set(appliedIds);
+          const remaining = jobs.filter((job) => !appliedSet.has(job.id));
+          setJobs(remaining);
+          if (remaining.length === 0) {
+            setQueueStatus('empty');
+            setSelectedJob(null);
+          } else {
+            setQueueStatus('ready');
+            if (selectedJob && !remaining.some((job) => job.id === selectedJob)) {
+              setSelectedJob(remaining[0].id);
+            }
+          }
+        }
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        setError({ message: `Failed to launch automation: ${message}` });
+        events.autoApplyFinished(0, jobsWithTargets.length);
       } finally {
         setApplyingAll(false);
         setAutoApplyStep(1);
       }
-  }, [applyingAll, jobs, supabase, selectedResumeId, selectedCoverLetterId]);
+    }, [applyingAll, jobs, selectedCoverLetter, selectedCoverLetterId, selectedJob, selectedResumeId, safeInfo, setError]);
 
     // Unified effect for initial load and real-time updates
   useEffect(() => {
