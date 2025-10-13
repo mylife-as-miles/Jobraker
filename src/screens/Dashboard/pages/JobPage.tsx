@@ -40,6 +40,19 @@ interface Job {
   source_id?: string | null;
 }
 
+type CoverLetterLibraryEntry = {
+  id: string;
+  name: string;
+  updatedAt?: string;
+  data?: {
+    role?: string;
+    company?: string;
+  };
+};
+
+const COVER_LETTER_LIBRARY_KEY = "jr.coverLetters.library.v1";
+const COVER_LETTER_DEFAULT_KEY = "jr.coverLetters.defaultId";
+
 const supabase = createClient();
 
 const getCompanyLogoUrl = (companyName?: string, sourceUrl?: string): string | undefined => {
@@ -100,6 +113,8 @@ export const JobPage = (): JSX.Element => {
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
   const [autoApplyStep, setAutoApplyStep] = useState<1 | 2>(1);
+  const [coverLetterLibrary, setCoverLetterLibrary] = useState<CoverLetterLibraryEntry[]>([]);
+  const [selectedCoverLetterId, setSelectedCoverLetterId] = useState<string | null>(null);
     const [remoteOnly, setRemoteOnly] = useState(false);
     const [recentOnly, setRecentOnly] = useState(false);
 
@@ -282,10 +297,39 @@ export const JobPage = (): JSX.Element => {
       if (!Array.isArray(resumes)) return null;
       return resumes.find((r: any) => r.id === selectedResumeId) ?? null;
     }, [resumes, selectedResumeId]);
+    const selectedCoverLetter = useMemo(() => {
+      if (!Array.isArray(coverLetterLibrary) || !coverLetterLibrary.length) return null;
+      return coverLetterLibrary.find((entry) => entry.id === selectedCoverLetterId) ?? null;
+    }, [coverLetterLibrary, selectedCoverLetterId]);
     const getHost = (url?: string | null) => {
       if (!url) return '';
       try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; }
     };
+
+
+    const loadCoverLetterLibrary = useCallback(() => {
+      if (typeof window === 'undefined') return;
+      try {
+        const raw = window.localStorage.getItem(COVER_LETTER_LIBRARY_KEY);
+        let entries: CoverLetterLibraryEntry[] = [];
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            entries = parsed.filter((item): item is CoverLetterLibraryEntry => Boolean(item && typeof item.id === 'string'));
+          }
+        }
+        setCoverLetterLibrary(entries);
+        setSelectedCoverLetterId((prev) => {
+          if (prev && entries.some((entry) => entry.id === prev)) return prev;
+          const defaultId = window.localStorage.getItem(COVER_LETTER_DEFAULT_KEY);
+          if (defaultId && entries.some((entry) => entry.id === defaultId)) return defaultId;
+          return entries.length ? entries[0].id : null;
+        });
+      } catch {
+        setCoverLetterLibrary([]);
+        setSelectedCoverLetterId(null);
+      }
+    }, []);
 
 
     // Real step updates occur at key phases of the flow; no cycling needed now.
@@ -403,6 +447,7 @@ export const JobPage = (): JSX.Element => {
     const openAutoApplyFlow = useCallback(() => {
       setAutoApplyStep(1);
       setResumeDialogOpen(true);
+      loadCoverLetterLibrary();
       setSelectedResumeId((prev) => {
         if (prev && resumes?.some((r: any) => r.id === prev)) return prev;
         if (Array.isArray(resumes) && resumes.length > 0) {
@@ -411,7 +456,12 @@ export const JobPage = (): JSX.Element => {
         }
         return null;
       });
-    }, [resumes]);
+    }, [resumes, loadCoverLetterLibrary]);
+
+    useEffect(() => {
+      if (!resumeDialogOpen) return;
+      loadCoverLetterLibrary();
+    }, [resumeDialogOpen, loadCoverLetterLibrary]);
 
     // Apply all jobs (mark as applied) sequentially with simple progress + analytics events
     const applyAllJobs = useCallback(async () => {
@@ -420,7 +470,7 @@ export const JobPage = (): JSX.Element => {
       setApplyProgress({ done: 0, total: jobs.length, success: 0, fail: 0 });
       try {
         // Include selected resume id (if any) in analytics
-        events.autoApplyStarted(jobs.length, selectedResumeId || undefined);
+  events.autoApplyStarted(jobs.length, selectedResumeId || undefined, selectedCoverLetterId || undefined);
         let success = 0; let fail = 0; let done = 0;
         // Sequential to simplify UI feedback; could be batched later
         for (const job of jobs) {
@@ -452,7 +502,7 @@ export const JobPage = (): JSX.Element => {
         setApplyingAll(false);
         setAutoApplyStep(1);
       }
-    }, [applyingAll, jobs, supabase, selectedResumeId]);
+  }, [applyingAll, jobs, supabase, selectedResumeId, selectedCoverLetterId]);
 
     // Unified effect for initial load and real-time updates
   useEffect(() => {
@@ -1284,6 +1334,9 @@ export const JobPage = (): JSX.Element => {
                     {selectedResume && (
                       <div className="text-[11px] text-white/50 truncate max-w-[180px]">Resume • {selectedResume.name}</div>
                     )}
+                    {selectedCoverLetter && (
+                      <div className="text-[11px] text-white/50 truncate max-w-[180px]">Cover letter • {selectedCoverLetter.name}</div>
+                    )}
                   </div>
                 </div>
 
@@ -1326,7 +1379,7 @@ export const JobPage = (): JSX.Element => {
                 </div>
 
                 {autoApplyStep === 1 && (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <p className="text-sm text-white/60">Select the resume we attach to each submission. Align the resume with this search persona for the strongest signal.</p>
                       <a
@@ -1395,6 +1448,105 @@ export const JobPage = (): JSX.Element => {
                         </div>
                       ))}
                     </div>
+                    <div className="pt-5 border-t border-white/12 space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <p className="text-sm text-white/60">Optionally attach a cover letter from your library. We’ll pair it with each submission when available.</p>
+                        <a
+                          href="/dashboard/cover-letter"
+                          className="text-xs inline-flex items-center gap-1 text-[#1dff00] hover:text-[#a3ffb5]"
+                        >
+                          Manage cover letters
+                        </a>
+                      </div>
+                      <div className="max-h-60 overflow-y-auto pr-1 space-y-3">
+                        {Array.isArray(coverLetterLibrary) && coverLetterLibrary.length > 0 ? (
+                          <div className="grid gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedCoverLetterId(null)}
+                              className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
+                                !selectedCoverLetterId
+                                  ? 'border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]'
+                                  : 'border-white/12 bg-white/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8'
+                              }`}
+                            >
+                              <div className="min-w-0 space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="truncate text-sm font-medium text-white">No cover letter</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/15 text-white/60">Optional</span>
+                                </div>
+                                <div className="text-[11px] text-white/50">Proceed without attaching a letter.</div>
+                              </div>
+                              <span
+                                className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${
+                                  !selectedCoverLetterId
+                                    ? 'border-[#1dff00]/70 bg-[#1dff00] text-black'
+                                    : 'border-white/20 text-white/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]'
+                                }`}
+                              >
+                                {!selectedCoverLetterId ? <Check className="w-4 h-4" /> : <FileText className="w-3.5 h-3.5" />}
+                              </span>
+                            </button>
+                            {coverLetterLibrary.map((entry) => {
+                              const selected = selectedCoverLetterId === entry.id;
+                              const persona = [entry.data?.role, entry.data?.company].filter(Boolean).join(' • ');
+                              let updatedLabel = '';
+                              if (entry.updatedAt) {
+                                try {
+                                  updatedLabel = new Date(entry.updatedAt).toLocaleDateString();
+                                } catch {
+                                  updatedLabel = entry.updatedAt;
+                                }
+                              }
+                              return (
+                                <button
+                                  key={entry.id}
+                                  type="button"
+                                  onClick={() => setSelectedCoverLetterId(entry.id)}
+                                  className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
+                                    selected
+                                      ? 'border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]'
+                                      : 'border-white/12 bg-white/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8'
+                                  }`}
+                                >
+                                  <div className="min-w-0 space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="truncate text-sm font-medium text-white" title={entry.name}>{entry.name}</span>
+                                    </div>
+                                    <div className="text-[11px] text-white/60 truncate">
+                                      {persona ? persona : 'Reusable cover letter template'}
+                                    </div>
+                                    {updatedLabel && (
+                                      <div className="text-[10px] uppercase tracking-wide text-white/35">Updated {updatedLabel}</div>
+                                    )}
+                                  </div>
+                                  <span
+                                    className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${
+                                      selected
+                                        ? 'border-[#1dff00]/70 bg-[#1dff00] text-black'
+                                        : 'border-white/20 text-white/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]'
+                                    }`}
+                                  >
+                                    {selected ? <Check className="w-4 h-4" /> : <FileText className="w-3.5 h-3.5" />}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-center space-y-2">
+                            <p className="text-sm text-white/70">No cover letters found.</p>
+                            <p className="text-xs text-white/50">Build a cover letter in the workspace to reuse it here or continue without one.</p>
+                            <a
+                              href="/dashboard/cover-letter"
+                              className="inline-flex items-center gap-2 text-[13px] px-4 py-2 rounded-lg border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10 hover:bg-[#1dff00]/20 transition"
+                            >
+                              Manage cover letters
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -1428,6 +1580,23 @@ export const JobPage = (): JSX.Element => {
                           <p className="text-xs text-white/60">No resume selected. Applications will submit without an attachment.</p>
                         )}
                         <div className="text-xs text-white/40">Analytics events record resume identifiers for downstream auditing.</div>
+                        <div className="pt-4 border-t border-white/10 space-y-3">
+                          <div className="flex items-center gap-2 text-sm font-medium text-white/80">
+                            <FileText className="w-4 h-4 text-[#1dff00]" />
+                            Cover letter payload
+                          </div>
+                          {selectedCoverLetter ? (
+                            <div className="space-y-1 text-sm text-white/70">
+                              <div className="text-white font-medium">{selectedCoverLetter.name}</div>
+                              <div className="text-xs text-white/45 uppercase tracking-wide">
+                                {[selectedCoverLetter.data?.role, selectedCoverLetter.data?.company].filter(Boolean).join(' • ') || 'Reusable letter asset'}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-white/60">No cover letter selected. Automation proceeds without an attachment here.</p>
+                          )}
+                          <div className="text-xs text-white/40">We log cover letter selection for observability but keep attachments optional.</div>
+                        </div>
                       </div>
                     </div>
                     <div className="rounded-xl border border-white/12 bg-white/[0.02] p-4 sm:p-5">
