@@ -15,6 +15,7 @@ import { events } from "../../../lib/analytics";
 import { useToast } from "../../../components/ui/toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
+import { cn } from "../../../lib/utils";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -282,8 +283,6 @@ export const JobPage = (): JSX.Element => {
   const [autoApplyStep, setAutoApplyStep] = useState<1 | 2>(1);
   const [coverLetterLibrary, setCoverLetterLibrary] = useState<CoverLetterLibraryEntry[]>([]);
   const [selectedCoverLetterId, setSelectedCoverLetterId] = useState<string | null>(null);
-    const [remoteOnly, setRemoteOnly] = useState(false);
-    const [recentOnly, setRecentOnly] = useState(false);
 
   // Debug payload capture for in-app panel
   const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);
@@ -825,18 +824,7 @@ export const JobPage = (): JSX.Element => {
         }
     }, [profile, searchQuery]);
 
-    const visibleJobs = useMemo(() => {
-      let arr: Job[] = jobs;
-      if (remoteOnly) {
-        arr = arr.filter(j => (j.remote_type || '').toLowerCase().includes('remote'));
-      }
-      if (recentOnly) {
-        const now = Date.now();
-        const sevenDays = 7 * 24 * 60 * 60 * 1000;
-        arr = arr.filter(j => j.posted_at ? (now - new Date(j.posted_at).getTime()) <= sevenDays : true);
-      }
-      return arr;
-    }, [jobs, remoteOnly, recentOnly]);
+    const visibleJobs = useMemo(() => jobs, [jobs]);
 
     const sortedJobs = useMemo(() => {
       const arr = [...visibleJobs];
@@ -877,7 +865,7 @@ export const JobPage = (): JSX.Element => {
 
     useEffect(() => {
       setCurrentPage(1);
-    }, [remoteOnly, recentOnly, searchQuery, sortBy]);
+    }, [searchQuery, sortBy]);
 
     useEffect(() => {
       if (!resumeDialogOpen) return;
