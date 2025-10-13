@@ -1135,151 +1135,189 @@ export const JobPage = (): JSX.Element => {
                   const job = jobs.find(j => j.id === selectedJob);
                   if (!job) return null;
           return (
-                      <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
-                          <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-6 mb-6">
-                              <div className="flex items-start justify-between mb-6">
-                                  <div className="flex items-center space-x-4 flex-1 min-w-0">
-                                      {job.logoUrl && !logoError[job.id] ? <img src={job.logoUrl} alt={job.company} className="w-16 h-16 rounded-xl object-contain bg-white" onError={() => setLogoError(e => ({...e, [job.id]: true}))} /> : <div className="w-16 h-16 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-xl">{job.logo}</div>}
-                                      <div className="flex-1 min-w-0">
-                                          <h1 className="text-xl font-bold text-white mb-1">{job.title}</h1>
-                      <div className="flex items-center gap-2 text-sm text-[#ffffffb3] mb-2">
-                      <span>{job.company}</span>
-                      {job.location && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]">{job.location}</span>}
-                      {job.remote_type && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10">{job.remote_type}</span>}
-                      {(() => { const et = (job as any)?.employment_type ?? (job as any)?.raw_data?.scraped_data?.employment_type; return et ? (<span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffc0] bg-[#ffffff0d]">{et}</span>) : null; })()}
-                      {(() => { const xl = (job as any)?.experience_level ?? (job as any)?.raw_data?.scraped_data?.experience_level; return xl ? (<span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffc0] bg-[#ffffff0d]">{xl}</span>) : null; })()}
-                      {(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id) && (() => {
-                        const href = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id || '';
-                        const host = getHost(href);
-                        const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
-                        return (
-                          <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08]" title={href}>
-                            {host && <img src={ico} alt="" className="w-3 h-3 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
-                            {host}
-                          </span>
-                        );
-                      })()}
-                      {job.posted_at && <span className="ml-auto text-[10px] text-[#ffffff80]">Posted {formatRelative(job.posted_at)}</span>}
-                      </div>
+                      <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45 }}>
+                        <div className="space-y-4">
+                          {(() => {
+                            const primaryHref = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id;
+                            const siteHost = primaryHref ? getHost(primaryHref) : '';
+                            const ico = siteHost ? `https://icons.duckduckgo.com/ip3/${siteHost}.ico` : '';
+                            const employmentType = (job as any)?.employment_type ?? (job as any)?.raw_data?.scraped_data?.employment_type;
+                            const experienceLevel = (job as any)?.experience_level ?? (job as any)?.raw_data?.scraped_data?.experience_level;
+                            const deadline = job.expires_at || (job as any)?.raw_data?.deadline || (job as any)?.raw_data?.applicationDeadline;
+                            const deadlineMeta = deadline ? formatDeadlineMeta(deadline) : null;
+
+                            let salaryText: string | null = null;
+                            if (job.salary_min || job.salary_max || job.salary_currency) {
+                              const currency = job.salary_currency || 'USD';
+                              const currencySymbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency;
+                              if (job.salary_min && job.salary_max) salaryText = `${currencySymbol}${job.salary_min.toLocaleString()} - ${currencySymbol}${job.salary_max.toLocaleString()}`;
+                              else if (job.salary_min) salaryText = `${currencySymbol}${job.salary_min.toLocaleString()}+`;
+                              else if (job.salary_max) salaryText = `Up to ${currencySymbol}${job.salary_max.toLocaleString()}`;
+                            }
+                            if (!salaryText) {
+                              const raw = (job as any)?.raw_data;
+                              const salary = (raw?.scraped_data?.salary || raw?.salaryRange || raw?.salary) as string | undefined;
+                              if (salary) salaryText = salary;
+                            }
+
+                            const metaTiles = [
+                              job.location ? { label: 'Location', value: job.location } : null,
+                              job.remote_type ? { label: 'Remote', value: job.remote_type } : null,
+                              employmentType ? { label: 'Type', value: employmentType } : null,
+                              experienceLevel ? { label: 'Level', value: experienceLevel } : null,
+                              deadlineMeta ? { label: 'Deadline', value: deadlineMeta.label, tone: deadlineMeta.level } : null,
+                              salaryText ? { label: 'Compensation', value: salaryText } : null,
+                            ].filter(Boolean) as { label: string; value: string; tone?: 'urgent' | 'soon' | 'future' }[];
+
+                            return (
+                              <Card className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] p-6">
+                                <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
+                                <div className="relative flex flex-col gap-6">
+                                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
+                                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                                      {job.logoUrl && !logoError[job.id] ? (
+                                        <img
+                                          src={job.logoUrl}
+                                          alt={job.company}
+                                          className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-contain bg-white"
+                                          onError={() => setLogoError(e => ({ ...e, [job.id]: true }))}
+                                        />
+                                      ) : (
+                                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-2xl flex items-center justify-center text-black font-bold text-2xl">
+                                          {job.logo}
+                                        </div>
+                                      )}
+                                      <div className="flex-1 min-w-0 space-y-2">
+                                        <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-[#1dff00]/80">
+                                          <Sparkles className="w-3 h-3" />
+                                          Featured Role
+                                        </div>
+                                        <h1 className="text-xl sm:text-2xl font-semibold text-white leading-tight">{job.title}</h1>
+                                        <div className="flex flex-wrap items-center gap-2 text-sm text-[#ffffffc0]">
+                                          <span className="font-medium text-white/90">{job.company}</span>
+                                          {siteHost && (
+                                            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full border border-white/10 bg-white/5 text-white/60" title={primaryHref || undefined}>
+                                              {ico && <img src={ico} alt="" className="w-3 h-3 rounded" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
+                                              {siteHost}
+                                            </span>
+                                          )}
+                                          {job.posted_at && (
+                                            <span className="text-[11px] px-2 py-1 rounded-full border border-white/10 text-white/50 bg-white/5">
+                                              Posted {formatRelative(job.posted_at)}
+                                            </span>
+                                          )}
+                                        </div>
                                       </div>
-                                  </div>
-                              </div>
-                              <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.description || '') }} />
-                              
-                              {/* Screenshot display */}
-                              {(() => {
-                                const screenshot = (job as any)?.raw_data?.screenshot;
-                                if (!screenshot) return null;
-                                return (
-                                  <div className="mt-6">
-                                    <div className="text-xs uppercase tracking-wide text-[#ffffff70] mb-2">Job Page Preview</div>
-                                    <div className="border border-[#ffffff15] rounded-lg overflow-hidden bg-[#ffffff08]">
-                                      <img 
-                                        src={screenshot} 
-                                        alt="Job page screenshot" 
-                                        className="w-full h-auto"
-                                        onError={(e) => {
-                                          const target = e.target as HTMLImageElement;
-                                          target.style.display = 'none';
-                                          const parent = target.parentElement;
-                                          if (parent) {
-                                            parent.innerHTML = '<div class="p-4 text-center text-[#ffffff60] text-sm">Screenshot unavailable</div>';
-                                          }
-                                        }}
-                                      />
                                     </div>
+                                    {primaryHref && (
+                                      <a
+                                        href={primaryHref}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 rounded-lg border border-[#1dff00]/50 bg-[#1dff00]/15 px-4 py-2 text-sm font-medium text-[#1dff00] transition hover:bg-[#1dff00]/25 hover:shadow-[0_10px_30px_rgba(29,255,0,0.2)]"
+                                      >
+                                        View Posting
+                                      </a>
+                                    )}
                                   </div>
-                                );
-                              })()}
-                              
-                              {/* Sources list, if available from Firecrawl */}
-                              {(() => {
-                                const sources = (job as any)?.raw_data?._sources;
-                                if (!sources || (Array.isArray(sources) && sources.length === 0)) return null;
-                                const items: any[] = Array.isArray(sources) ? sources : [sources];
-                                return (
-                                  <div className="mt-6">
-                                    <div className="text-xs uppercase tracking-wide text-[#ffffff70] mb-2">Sources</div>
-                                    <ul className="space-y-1">
-                                      {items.map((s, i) => {
-                                        const href = typeof s === 'string' ? s : (s?.url || s?.source || '');
-                                        if (!href) return null;
-                                        const host = getHost(href);
-                                        const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
-                                        return (
-                                          <li key={i} className="text-sm flex items-center gap-2">
-                                            {host && <img src={ico} alt="" className="w-4 h-4 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
-                                            <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#1dff00] hover:underline">
-                                              {host || href}
-                                            </a>
-                                          </li>
-                                        );
-                                      })}
-                                    </ul>
-                                  </div>
-                                );
-                              })()}
-                              
-                              {/* Deadline from expires_at or raw_data */}
-                              {(() => {
-                                const deadline = job.expires_at || (job as any)?.raw_data?.deadline || (job as any)?.raw_data?.applicationDeadline;
-                                if (!deadline) return null;
-                                const meta = formatDeadlineMeta(deadline);
-                                if (!meta) return null;
-                                return (
-                                  <div className="mt-4 text-xs text-[#ffffffb3]">
-                                    Application deadline: <span className={`${deadlineClasses(meta.level)}`.replace('border', 'text').replace(/bg\[[^\]]+\]/g, '')}>{meta.label}</span>
-                                  </div>
-                                );
-                              })()}
-                              
-                              {/* Salary from structured fields or raw_data */}
-                              {(() => {
-                                // Try structured fields first
-                                if (job.salary_min || job.salary_max || job.salary_currency) {
-                                  const currency = job.salary_currency || 'USD';
-                                  const currencySymbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency;
-                                  
-                                  let salaryText = '';
-                                  if (job.salary_min && job.salary_max) {
-                                    salaryText = `${currencySymbol}${job.salary_min.toLocaleString()} - ${currencySymbol}${job.salary_max.toLocaleString()}`;
-                                  } else if (job.salary_min) {
-                                    salaryText = `${currencySymbol}${job.salary_min.toLocaleString()}+`;
-                                  } else if (job.salary_max) {
-                                    salaryText = `Up to ${currencySymbol}${job.salary_max.toLocaleString()}`;
-                                  }
-                                  
-                                  if (salaryText) {
-                                    return (
-                                      <div className="mt-2 text-xs text-[#ffffffb3]">
-                                        Salary: <span className="text-[#ffffffd0]">{salaryText}</span>
-                                      </div>
-                                    );
-                                  }
-                                }
-                                
-                                // Fall back to raw_data salary string
-                                const raw = (job as any)?.raw_data;
-                                const salary = (raw?.scraped_data?.salary || raw?.salaryRange || raw?.salary) as string | undefined;
-                                if (!salary) return null;
-                                return (
-                                  <div className="mt-2 text-xs text-[#ffffffb3]">
-                                    Salary: <span className="text-[#ffffffd0]">{salary}</span>
-                                  </div>
-                                );
-                              })()}
-                              {(() => {
-                                const primaryHref = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id;
-                                if (!primaryHref) return null;
-                                return (
-                                  <div className="flex justify-end mt-4">
-                                    <a href={primaryHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-4 py-2 rounded-md border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/20 hover:bg-[#1dff00]/30 transition">
-                                      View Original Posting
-                                    </a>
-                                  </div>
-                                );
-                              })()}
+
+                                  {metaTiles.length > 0 && (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      {metaTiles.map((tile) => (
+                                        <div
+                                          key={`${tile.label}-${tile.value}`}
+                                          className="rounded-xl border border-white/10 bg-white/5 px-3 py-3"
+                                        >
+                                          <div className="text-[11px] uppercase tracking-wide text-white/40">{tile.label}</div>
+                                          <div className={`text-sm font-medium ${tile.tone === 'urgent' ? 'text-[#ff8b8b]' : tile.tone === 'soon' ? 'text-[#ffd78b]' : tile.tone === 'future' ? 'text-[#8bffb1]' : 'text-white/85'}`}>{tile.value}</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </Card>
+                            );
+                          })()}
+
+                          <Card className="border border-white/12 bg-gradient-to-b from-[#0c0c0c] via-[#060606] to-[#020202] p-6">
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="inline-flex items-center gap-2 text-sm font-medium text-white/80">
+                                <FileText className="w-4 h-4 text-[#1dff00]" />
+                                Role Narrative
+                              </div>
+                              <span className="text-[11px] uppercase tracking-wide text-white/35">Full brief</span>
+                            </div>
+                            <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.description || '') }} />
                           </Card>
+
+                          {(() => {
+                            const screenshot = (job as any)?.raw_data?.screenshot;
+                            if (!screenshot) return null;
+                            return (
+                              <Card className="relative overflow-hidden border border-white/12 bg-[#020202] p-0">
+                                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/5">
+                                  <div className="inline-flex items-center gap-2 text-sm font-medium text-white/75">
+                                    <Sparkles className="w-4 h-4 text-[#1dff00]" />
+                                    Experience Snapshot
+                                  </div>
+                                  <span className="text-[11px] uppercase tracking-wide text-white/35">Visual preview</span>
+                                </div>
+                                <div className="relative bg-[#050505]">
+                                  <img
+                                    src={screenshot}
+                                    alt="Job page screenshot"
+                                    className="w-full h-auto"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.display = 'none';
+                                      const parent = target.parentElement;
+                                      if (parent) {
+                                        parent.innerHTML = '<div class="p-6 text-center text-[#ffffff60] text-sm">Screenshot unavailable</div>';
+                                      }
+                                    }}
+                                  />
+                                  <span className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50" />
+                                </div>
+                              </Card>
+                            );
+                          })()}
+
+                          {(() => {
+                            const sources = (job as any)?.raw_data?._sources;
+                            if (!sources || (Array.isArray(sources) && sources.length === 0)) return null;
+                            const items: any[] = Array.isArray(sources) ? sources : [sources];
+                            return (
+                              <Card className="border border-white/12 bg-gradient-to-br from-[#050505] via-[#040404] to-[#010101] p-6">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="inline-flex items-center gap-2 text-sm font-medium text-white/75">
+                                    <ShieldCheck className="w-4 h-4 text-[#1dff00]" />
+                                    Source Intelligence
+                                  </div>
+                                  <span className="text-[11px] uppercase tracking-wide text-white/35">Captured links</span>
+                                </div>
+                                <ul className="space-y-2">
+                                  {items.map((s, i) => {
+                                    const href = typeof s === 'string' ? s : (s?.url || s?.source || '');
+                                    if (!href) return null;
+                                    const host = getHost(href);
+                                    const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
+                                    return (
+                                      <li key={i} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                                        <div className="flex items-center gap-2">
+                                          {host && <img src={ico} alt="" className="w-4 h-4 rounded" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
+                                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#1dff00] hover:underline">
+                                            {host || href}
+                                          </a>
+                                        </div>
+                                        <span className="text-[11px] uppercase tracking-wide text-white/30">Open</span>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </Card>
+                            );
+                          })()}
+                        </div>
                       </motion.div>
                   );
               })()}
@@ -1688,26 +1726,188 @@ export const JobPage = (): JSX.Element => {
               size="xl"
               side="right"
             >
-              <div className="-mx-1">
-                <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-4 sm:p-6 mb-2">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center space-x-3 flex-1 min-w-0">
-                      {j.logoUrl && !logoError[j.id]
-                        ? <img src={j.logoUrl} alt={j.company} className="w-12 h-12 rounded-lg object-contain bg-white" onError={() => setLogoError(e => ({...e, [j.id]: true}))} />
-                        : <div className="w-12 h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-lg">{j.logo}</div>}
-                      <div className="flex-1 min-w-0">
-                        <h1 className="text-lg font-bold text-white mb-1 truncate">{j.title}</h1>
-                        <div className="flex items-center gap-2 text-sm text-[#ffffffb3] mb-1">
-                          <span className="truncate">{j.company}</span>
-                          {j.location && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d]">{j.location}</span>}
-                          {j.remote_type && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10">{j.remote_type}</span>}
-                          {j.posted_at && <span className="ml-auto text-[10px] text-[#ffffff80]">Posted {formatRelative(j.posted_at)}</span>}
+              <div className="-mx-1 space-y-3 pb-2">
+                {(() => {
+                  const primaryHref = j.apply_url || (j as any)?.raw_data?.sourceUrl || j.source_id;
+                  const siteHost = primaryHref ? getHost(primaryHref) : '';
+                  const ico = siteHost ? `https://icons.duckduckgo.com/ip3/${siteHost}.ico` : '';
+                  const employmentType = (j as any)?.employment_type ?? (j as any)?.raw_data?.scraped_data?.employment_type;
+                  const experienceLevel = (j as any)?.experience_level ?? (j as any)?.raw_data?.scraped_data?.experience_level;
+                  const deadline = j.expires_at || (j as any)?.raw_data?.deadline || (j as any)?.raw_data?.applicationDeadline;
+                  const deadlineMeta = deadline ? formatDeadlineMeta(deadline) : null;
+
+                  let salaryText: string | null = null;
+                  if (j.salary_min || j.salary_max || j.salary_currency) {
+                    const currency = j.salary_currency || 'USD';
+                    const currencySymbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency;
+                    if (j.salary_min && j.salary_max) salaryText = `${currencySymbol}${j.salary_min.toLocaleString()} - ${currencySymbol}${j.salary_max.toLocaleString()}`;
+                    else if (j.salary_min) salaryText = `${currencySymbol}${j.salary_min.toLocaleString()}+`;
+                    else if (j.salary_max) salaryText = `Up to ${currencySymbol}${j.salary_max.toLocaleString()}`;
+                  }
+                  if (!salaryText) {
+                    const raw = (j as any)?.raw_data;
+                    const salary = (raw?.scraped_data?.salary || raw?.salaryRange || raw?.salary) as string | undefined;
+                    if (salary) salaryText = salary;
+                  }
+
+                  const metaTiles = [
+                    j.location ? { label: 'Location', value: j.location } : null,
+                    j.remote_type ? { label: 'Remote', value: j.remote_type } : null,
+                    employmentType ? { label: 'Type', value: employmentType } : null,
+                    experienceLevel ? { label: 'Level', value: experienceLevel } : null,
+                    deadlineMeta ? { label: 'Deadline', value: deadlineMeta.label, tone: deadlineMeta.level } : null,
+                    salaryText ? { label: 'Comp', value: salaryText } : null,
+                  ].filter(Boolean) as { label: string; value: string; tone?: 'urgent' | 'soon' | 'future' }[];
+
+                  return (
+                    <Card className="relative overflow-hidden border border-[#1dff00]/25 bg-gradient-to-br from-[#020202] via-[#040404] to-[#0a0a0a] p-5">
+                      <span className="pointer-events-none absolute -top-20 -right-10 h-40 w-40 rounded-full bg-[#1dff00]/20 blur-3xl opacity-50" />
+                      <div className="relative space-y-4">
+                        <div className="flex items-start gap-3">
+                          {j.logoUrl && !logoError[j.id] ? (
+                            <img
+                              src={j.logoUrl}
+                              alt={j.company}
+                              className="w-12 h-12 rounded-xl object-contain bg-white"
+                              onError={() => setLogoError(e => ({ ...e, [j.id]: true }))}
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg">
+                              {j.logo}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-[#1dff00]/70">
+                              <Sparkles className="w-3 h-3" />
+                              Featured Role
+                            </div>
+                            <div className="text-lg font-semibold text-white leading-tight">{j.title}</div>
+                            <div className="flex flex-wrap items-center gap-2 text-[12px] text-white/70">
+                              <span className="font-medium text-white/90">{j.company}</span>
+                              {siteHost && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-white/50" title={primaryHref || undefined}>
+                                  {ico && <img src={ico} alt="" className="w-3 h-3 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
+                                  {siteHost}
+                                </span>
+                              )}
+                              {j.posted_at && (
+                                <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-white/40">
+                                  Posted {formatRelative(j.posted_at)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
+                        {metaTiles.length > 0 && (
+                          <div className="grid grid-cols-2 gap-2">
+                            {metaTiles.map((tile) => (
+                              <div key={`${tile.label}-${tile.value}`} className="rounded-lg border border-white/10 bg-white/5 px-2 py-2">
+                                <div className="text-[10px] uppercase tracking-wide text-white/40">{tile.label}</div>
+                                <div className={`text-xs font-medium ${tile.tone === 'urgent' ? 'text-[#ff8b8b]' : tile.tone === 'soon' ? 'text-[#ffd78b]' : tile.tone === 'future' ? 'text-[#8bffb1]' : 'text-white/85'}`}>{tile.value}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {primaryHref && (
+                          <a
+                            href={primaryHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#1dff00]/50 bg-[#1dff00]/15 px-3 py-2 text-[13px] font-medium text-[#1dff00] transition hover:bg-[#1dff00]/25"
+                          >
+                            View Posting
+                          </a>
+                        )}
                       </div>
+                    </Card>
+                  );
+                })()}
+
+                <Card className="border border-white/12 bg-gradient-to-b from-[#0c0c0c] via-[#050505] to-[#020202] p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="inline-flex items-center gap-2 text-sm font-medium text-white/80">
+                      <FileText className="w-4 h-4 text-[#1dff00]" />
+                      Role Narrative
                     </div>
+                    <span className="text-[10px] uppercase tracking-wide text-white/35">Full brief</span>
                   </div>
                   <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed text-[13px]" dangerouslySetInnerHTML={{ __html: sanitizeHtml(j.description || '') }} />
                 </Card>
+
+                {(() => {
+                  const screenshot = (j as any)?.raw_data?.screenshot;
+                  if (!screenshot) return null;
+                  return (
+                    <Card className="border border-white/12 bg-[#020202] p-0 overflow-hidden">
+                      <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 bg-white/5">
+                        <div className="inline-flex items-center gap-2 text-xs font-medium text-white/70">
+                          <Sparkles className="w-3 h-3 text-[#1dff00]" />
+                          Experience Snapshot
+                        </div>
+                        <span className="text-[10px] uppercase tracking-wide text-white/35">Preview</span>
+                      </div>
+                      <div className="relative bg-[#050505]">
+                        <img
+                          src={screenshot}
+                          alt="Job page screenshot"
+                          className="w-full h-auto"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const parent = target.parentElement;
+                            if (parent) parent.innerHTML = '<div class="p-4 text-center text-[#ffffff60] text-sm">Screenshot unavailable</div>';
+                          }}
+                        />
+                        <span className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50" />
+                      </div>
+                    </Card>
+                  );
+                })()}
+
+                {(() => {
+                  const sources = (j as any)?.raw_data?._sources;
+                  if (!sources || (Array.isArray(sources) && sources.length === 0)) return null;
+                  const items: any[] = Array.isArray(sources) ? sources : [sources];
+                  return (
+                    <Card className="border border-white/12 bg-gradient-to-br from-[#040404] via-[#030303] to-[#010101] p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="inline-flex items-center gap-2 text-xs font-medium text-white/70">
+                          <ShieldCheck className="w-3 h-3 text-[#1dff00]" />
+                          Source Intelligence
+                        </div>
+                        <span className="text-[10px] uppercase tracking-wide text-white/30">Captured links</span>
+                      </div>
+                      <ul className="space-y-2">
+                        {items.map((s, i) => {
+                          const href = typeof s === 'string' ? s : (s?.url || s?.source || '');
+                          if (!href) return null;
+                          const host = getHost(href);
+                          const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
+                          return (
+                            <li key={i} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                {host && <img src={ico} alt="" className="w-4 h-4 rounded" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
+                                <a href={href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#1dff00] hover:underline">
+                                  {host || href}
+                                </a>
+                              </div>
+                              <span className="text-[10px] uppercase tracking-wide text-white/30">Open</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </Card>
+                  );
+                })()}
+                <div className="px-1 pt-1">
+                  <Button
+                    variant="ghost"
+                    className="w-full rounded-lg border border-white/15 bg-white/5 text-white/70 hover:text-white hover:bg-white/10"
+                    onClick={() => setSelectedJob(null)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
               </div>
             </Modal>
           );
