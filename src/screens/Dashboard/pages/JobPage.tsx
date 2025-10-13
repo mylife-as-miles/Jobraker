@@ -1190,7 +1190,7 @@ export const JobPage = (): JSX.Element => {
                                       <div className="flex-1 min-w-0 space-y-2">
                                         <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-[#1dff00]/80">
                                           <Sparkles className="w-3 h-3" />
-                                          Featured Role
+                                          Featured Job
                                         </div>
                                         <h1 className="text-xl sm:text-2xl font-semibold text-white leading-tight">{job.title}</h1>
                                         <div className="flex flex-wrap items-center gap-2 text-sm text-[#ffffffc0]">
@@ -1243,7 +1243,7 @@ export const JobPage = (): JSX.Element => {
                             <div className="flex items-center justify-between mb-4">
                               <div className="inline-flex items-center gap-2 text-sm font-medium text-white/80">
                                 <FileText className="w-4 h-4 text-[#1dff00]" />
-                                Role Narrative
+                                Job Description
                               </div>
                               <span className="text-[11px] uppercase tracking-wide text-white/35">Full brief</span>
                             </div>
@@ -1779,7 +1779,7 @@ export const JobPage = (): JSX.Element => {
                           <div className="flex-1 min-w-0 space-y-1">
                             <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-[#1dff00]/70">
                               <Sparkles className="w-3 h-3" />
-                              Featured Role
+                              Featured Job
                             </div>
                             <div className="text-lg font-semibold text-white leading-tight">{j.title}</div>
                             <div className="flex flex-wrap items-center gap-2 text-[12px] text-white/70">
@@ -1827,7 +1827,7 @@ export const JobPage = (): JSX.Element => {
                   <div className="flex items-center justify-between mb-3">
                     <div className="inline-flex items-center gap-2 text-sm font-medium text-white/80">
                       <FileText className="w-4 h-4 text-[#1dff00]" />
-                      Role Narrative
+                      Job Description
                     </div>
                     <span className="text-[10px] uppercase tracking-wide text-white/35">Full brief</span>
                   </div>
