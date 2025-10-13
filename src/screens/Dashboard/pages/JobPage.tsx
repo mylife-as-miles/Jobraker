@@ -1290,7 +1290,7 @@ export const JobPage = (): JSX.Element => {
                   </div>
                   <div className="max-h-80 overflow-auto pr-1">
                     {resumesLoading ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                         {Array.from({ length: 4 }).map((_,i)=> (
                           <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-3 animate-pulse">
                             <div className="h-32 rounded-md bg-white/10 mb-3" />
@@ -1300,7 +1300,7 @@ export const JobPage = (): JSX.Element => {
                         ))}
                       </div>
                     ) : (resumes && resumes.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                         {resumes.map((r: any) => {
                           const isSelected = selectedResumeId === r.id;
                           const ext = (r.file_ext || 'pdf').toUpperCase();
