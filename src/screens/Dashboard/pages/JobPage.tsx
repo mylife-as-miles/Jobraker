@@ -1,4 +1,4 @@
-import { Briefcase, Search, MapPin, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Sparkles, Check, ShieldCheck, Clock3, FileText } from "lucide-react";
+import { Briefcase, Search, MapPin, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Sparkles, Check, ShieldCheck, Clock3, FileText, AlertTriangle, UserCheck, UserX, FileCheck2, FileWarning } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -10,7 +10,7 @@ import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
 import useMediaQuery from "../../../hooks/use-media-query";
 import { createClient } from "../../../lib/supabaseClient";
-import { useProfileSettings } from "../../../hooks/useProfileSettings";
+import { useProfileSettings, type Profile } from "../../../hooks/useProfileSettings";
 import { events } from "../../../lib/analytics";
 import { useToast } from "../../../components/ui/toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
@@ -208,6 +208,18 @@ const composeCoverLetterPayload = (entry?: CoverLetterLibraryEntry | null): stri
 
   const finalText = lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
   return finalText || undefined;
+};
+
+const composeProfileSnapshot = (profile?: Profile | null): string | undefined => {
+  if (!profile) return undefined;
+  const lines: string[] = [];
+  const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim();
+  if (fullName) lines.push(`Name: ${fullName}`);
+  if (profile.job_title) lines.push(`Current Title: ${profile.job_title}`);
+  if (profile.experience_years != null) lines.push(`Experience: ${profile.experience_years} years`);
+  if (profile.location) lines.push(`Location: ${profile.location}`);
+  if (Array.isArray(profile.goals) && profile.goals.length) lines.push(`Goals: ${profile.goals.join(", ")}`);
+  return lines.length ? lines.join("\n") : undefined;
 };
 
 const getCompanyLogoUrl = (companyName?: string, sourceUrl?: string): string | undefined => {
@@ -456,6 +468,12 @@ export const JobPage = (): JSX.Element => {
       if (!Array.isArray(coverLetterLibrary) || !coverLetterLibrary.length) return null;
       return coverLetterLibrary.find((entry) => entry.id === selectedCoverLetterId) ?? null;
     }, [coverLetterLibrary, selectedCoverLetterId]);
+    const profileSnapshot = useMemo(() => composeProfileSnapshot(profile), [profile]);
+    const profileReady = Boolean(profileSnapshot);
+    const resumeLibraryReady = useMemo(
+      () => Array.isArray(resumes) && resumes.some((rec: any) => Boolean(rec?.file_path)),
+      [resumes],
+    );
     const getHost = (url?: string | null) => {
       if (!url) return '';
       try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; }
@@ -682,10 +700,28 @@ export const JobPage = (): JSX.Element => {
         }));
 
         const launchedAt = new Date();
+        let resumeSignedUrl: string | undefined;
+        if (selectedResume?.file_path) {
+          try {
+            const { data: signed, error: signErr } = await supabase.storage
+              .from('resumes')
+              .createSignedUrl(selectedResume.file_path, 60 * 60);
+            if (!signErr && signed?.signedUrl) {
+              resumeSignedUrl = signed.signedUrl;
+            } else if (signErr) {
+              console.error('auto-apply resume signing failed', signErr.message);
+            }
+          } catch (signErr) {
+            console.error('auto-apply resume signing threw', signErr);
+          }
+        }
+
         await applyToJobs({
           jobs: payloadJobs,
           title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
           cover_letter: coverLetterPayload,
+          ...(profileSnapshot ? { additional_information: profileSnapshot } : {}),
+          ...(resumeSignedUrl ? { resume: resumeSignedUrl } : {}),
         });
 
         safeInfo(
@@ -744,7 +780,7 @@ export const JobPage = (): JSX.Element => {
         setApplyingAll(false);
         setAutoApplyStep(1);
       }
-    }, [applyingAll, jobs, selectedCoverLetter, selectedCoverLetterId, selectedJob, selectedResumeId, safeInfo, setError]);
+  }, [applyingAll, jobs, profileSnapshot, selectedCoverLetter, selectedCoverLetterId, selectedJob, selectedResume, selectedResumeId, safeInfo, setError]);
 
     // Unified effect for initial load and real-time updates
   useEffect(() => {
@@ -893,14 +929,82 @@ export const JobPage = (): JSX.Element => {
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Job Search</h1>
                 <p className="text-[#ffffff80] text-sm sm:text-base">A personalized list of jobs waiting for you.</p>
               </div>
-              <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
-                    <span>Remote</span>
-                    <Switch checked={remoteOnly} onCheckedChange={setRemoteOnly} />
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-[#ffffff70]">
-                    <span>Recent</span>
-                    <Switch checked={recentOnly} onCheckedChange={setRecentOnly} />
+              <div className="flex flex-wrap items-center justify-end gap-3 sm:justify-end">
+                  <div className="relative flex min-w-[240px] flex-col gap-3 rounded-2xl border border-[#1dff00]/30 bg-[#1dff00]/10 px-4 py-3 text-white shadow-[0_12px_32px_rgba(29,255,0,0.18)] sm:flex-row sm:items-center sm:gap-4">
+                    <div className="space-y-1">
+                      <div className="text-[10px] uppercase tracking-[0.35em] text-[#1dff00]/80">Automation readiness</div>
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        {profileReady && resumeLibraryReady ? (
+                          <>
+                            <ShieldCheck className="h-4 w-4 text-[#1dff00]" />
+                            <span>Ready to launch</span>
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle className="h-4 w-4 text-[#ffb347]" />
+                            <span>Action required</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                      {profileLoading ? (
+                        <span className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] text-white/70">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Syncing profile…
+                        </span>
+                      ) : (
+                        <Link
+                          to="/dashboard/profile"
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] transition-all",
+                            profileReady
+                              ? "border-[#1dff00]/60 bg-[#1dff00]/15 text-[#e6ffe6] hover:border-[#1dff00]/80 hover:bg-[#1dff00]/25"
+                              : "border-[#ffb347]/50 bg-[#ffb347]/10 text-[#ffd9a8] hover:border-[#ffb347]/70 hover:bg-[#ffb347]/20",
+                          )}
+                          title={profileReady ? "Profile details detected" : "Complete your profile"}
+                        >
+                          {profileReady ? (
+                            <UserCheck className="h-3.5 w-3.5 text-[#1dff00]" />
+                          ) : (
+                            <UserX className="h-3.5 w-3.5 text-[#ffb347]" />
+                          )}
+                          <span className="font-medium">
+                            {profileReady ? 'Profile verified' : 'Complete profile'}
+                          </span>
+                        </Link>
+                      )}
+                      {resumesLoading ? (
+                        <span className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] text-white/70">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Loading resumes…
+                        </span>
+                      ) : (
+                        <Link
+                          to="/dashboard/resumes"
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] transition-all",
+                            resumeLibraryReady
+                              ? "border-[#1dff00]/60 bg-[#1dff00]/15 text-[#e6ffe6] hover:border-[#1dff00]/80 hover:bg-[#1dff00]/25"
+                              : "border-[#ffb347]/50 bg-[#ffb347]/10 text-[#ffd9a8] hover:border-[#ffb347]/70 hover:bg-[#ffb347]/20",
+                          )}
+                          title={resumeLibraryReady ? (selectedResume?.name ? `Selected resume: ${selectedResume.name}` : 'Resume library ready') : 'Upload a resume to unlock automation'}
+                        >
+                          {resumeLibraryReady ? (
+                            <FileCheck2 className="h-3.5 w-3.5 text-[#1dff00]" />
+                          ) : (
+                            <FileWarning className="h-3.5 w-3.5 text-[#ffb347]" />
+                          )}
+                          <span className="max-w-[140px] truncate font-medium">
+                            {resumeLibraryReady
+                              ? selectedResume?.name
+                                ? `Resume: ${selectedResume.name}`
+                                : 'Resume library ready'
+                              : 'Upload resume'}
+                          </span>
+                        </Link>
+                      )}
+                    </div>
                   </div>
                   {/* Target selector removed: fixed to 10 to minimize API usage and keep runs bounded */}
                   <div className="flex items-center gap-2 text-xs text-[#ffffff70] select-none">
