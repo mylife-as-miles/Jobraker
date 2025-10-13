@@ -142,6 +142,77 @@ export const JobPage = (): JSX.Element => {
   // Removed per-URL incremental loop; keep a simple flag if needed in future
   // const startInFlightRef = useRef(false);
 
+    // Lightweight PDF first-page preview cache
+    const pdfPreviewCache = useRef<Map<string, string>>(new Map());
+
+    // Inline component to render a tiny preview of the first page of a PDF resume
+    const ResumePreview: React.FC<{ rec: any; className?: string }> = ({ rec, className }) => {
+      const canvasRef = useRef<HTMLCanvasElement | null>(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState<string | null>(null);
+      const [dataUrl, setDataUrl] = useState<string | null>(null);
+      const { getSignedUrl } = useResumes();
+
+      useEffect(() => {
+        let cancelled = false;
+        (async () => {
+          try {
+            if (!rec || rec.file_ext !== 'pdf' || !rec.file_path) { setLoading(false); return; }
+            // cache
+            if (pdfPreviewCache.current.has(rec.id)) {
+              setDataUrl(pdfPreviewCache.current.get(rec.id)!);
+              setLoading(false);
+              return;
+            }
+            const url = await getSignedUrl(rec.file_path);
+            if (!url) { setLoading(false); return; }
+            const pdfjs: any = await import('pdfjs-dist');
+            try {
+              if (pdfjs.GlobalWorkerOptions && !(pdfjs as any)._workerConfigured) {
+                pdfjs.GlobalWorkerOptions.workerSrc = undefined; // allow auto worker
+                (pdfjs as any)._workerConfigured = true;
+              }
+            } catch {}
+            const doc = await pdfjs.getDocument({ url, verbosity: 0 }).promise;
+            const page = await doc.getPage(1);
+            if (cancelled) return;
+            const targetW = 200; // approximate width for h-32 thumbnail
+            const vp1 = page.getViewport({ scale: 1 });
+            const scale = Math.min(1, targetW / vp1.width);
+            const viewport = page.getViewport({ scale });
+            const canvas = canvasRef.current; if (!canvas) return;
+            const ctx = canvas.getContext('2d'); if (!ctx) return;
+            canvas.width = viewport.width; canvas.height = viewport.height;
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            try {
+              const data = canvas.toDataURL('image/png');
+              pdfPreviewCache.current.set(rec.id, data);
+              if (!cancelled) setDataUrl(data);
+            } catch {}
+          } catch (e: any) {
+            if (!cancelled) setError(e?.message || 'preview failed');
+          } finally {
+            if (!cancelled) setLoading(false);
+          }
+        })();
+        return () => { cancelled = true; };
+      }, [rec?.id, rec?.file_ext, rec?.file_path, getSignedUrl]);
+
+      if (error) return null;
+      return (
+        <div className={`relative ${className || ''}`}>
+          {dataUrl ? (
+            <img src={dataUrl} alt="Resume preview" className="absolute inset-0 w-full h-full object-cover rounded-md" />
+          ) : (
+            <>
+              {loading && <div className="absolute inset-0 grid place-items-center text-[10px] text-white/60">Loading…</div>}
+              <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover rounded-md" />
+            </>
+          )}
+        </div>
+      );
+    };
+
     // Step-by-step loading banner
     const LoadingBanner = ({ subtitle, steps, activeStep, onCancel, foundCount }: { subtitle?: string; steps: string[]; activeStep: number; onCancel?: () => void; foundCount?: number }) => (
       <Card className="relative overflow-hidden bg-gradient-to-br from-[#0b0b0b] via-[#0f0f0f] to-[#0b0b0b] border border-[#1dff00]/30 p-4 sm:p-5 mb-4">
@@ -1242,8 +1313,10 @@ export const JobPage = (): JSX.Element => {
                               aria-pressed={isSelected}
                             >
                               <div className="relative">
-                                <div className="h-32 rounded-md bg-black/40 border border-white/10 flex items-center justify-center">
-                                  <div className="text-white/70 text-xs">{ext} • Preview</div>
+                                <div className="h-32 rounded-md bg-black/40 border border-white/10 overflow-hidden">
+                                  {r.file_ext === 'pdf' && r.file_path
+                                    ? <ResumePreview rec={r} className="w-full h-full" />
+                                    : <div className="w-full h-full grid place-items-center text-white/70 text-xs">{ext} • Preview</div>}
                                 </div>
                                 {r.is_favorite && (
                                   <span className="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10">Favorite</span>
