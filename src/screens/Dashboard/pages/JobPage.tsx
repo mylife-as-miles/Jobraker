@@ -642,12 +642,6 @@ export const JobPage = (): JSX.Element => {
       return { label: `Closes in ${days}d`, level };
     };
 
-    const deadlineClasses = (level: 'overdue' | 'soon' | 'future') => {
-      if (level === 'overdue') return 'border-[#ff4d4f]/30 text-[#ff4d4f] bg-[#ff4d4f]/10';
-      if (level === 'soon') return 'border-[#ffbf00]/30 text-[#ffbf00] bg-[#ffbf00]/10';
-      return 'border-[#14b8a6]/30 text-[#14b8a6] bg-[#14b8a6]/10';
-    };
-
     return (
       <div className="min-h-screen bg-black" role="main" aria-label="Job search">
         <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -1258,7 +1252,7 @@ export const JobPage = (): JSX.Element => {
                                 <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/5">
                                   <div className="inline-flex items-center gap-2 text-sm font-medium text-white/75">
                                     <Sparkles className="w-4 h-4 text-[#1dff00]" />
-                                    Experience Snapshot
+                                    Screenshot
                                   </div>
                                   <span className="text-[11px] uppercase tracking-wide text-white/35">Visual preview</span>
                                 </div>
@@ -1842,7 +1836,7 @@ export const JobPage = (): JSX.Element => {
                       <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 bg-white/5">
                         <div className="inline-flex items-center gap-2 text-xs font-medium text-white/70">
                           <Sparkles className="w-3 h-3 text-[#1dff00]" />
-                          Experience Snapshot
+                          Screenshot
                         </div>
                         <span className="text-[10px] uppercase tracking-wide text-white/35">Preview</span>
                       </div>
