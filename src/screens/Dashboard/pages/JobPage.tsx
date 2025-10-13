@@ -1,4 +1,4 @@
-import { Briefcase, Search, MapPin, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Briefcase, Search, MapPin, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Sparkles, Check, ShieldCheck, Clock3, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -99,9 +99,7 @@ export const JobPage = (): JSX.Element => {
   // Resume attach dialog state
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
-  // Optional cover letter in Attach Resume dialog
-  const [includeCoverLetter, setIncludeCoverLetter] = useState(false);
-  const [coverLetterContent, setCoverLetterContent] = useState<string>("");
+  const [autoApplyStep, setAutoApplyStep] = useState<1 | 2>(1);
     const [remoteOnly, setRemoteOnly] = useState(false);
     const [recentOnly, setRecentOnly] = useState(false);
 
@@ -141,77 +139,6 @@ export const JobPage = (): JSX.Element => {
   const autoPopulatedRef = useRef(false);
   // Removed per-URL incremental loop; keep a simple flag if needed in future
   // const startInFlightRef = useRef(false);
-
-    // Lightweight PDF first-page preview cache
-    const pdfPreviewCache = useRef<Map<string, string>>(new Map());
-
-    // Inline component to render a tiny preview of the first page of a PDF resume
-    const ResumePreview: React.FC<{ rec: any; className?: string }> = ({ rec, className }) => {
-      const canvasRef = useRef<HTMLCanvasElement | null>(null);
-      const [loading, setLoading] = useState(true);
-      const [error, setError] = useState<string | null>(null);
-      const [dataUrl, setDataUrl] = useState<string | null>(null);
-      const { getSignedUrl } = useResumes();
-
-      useEffect(() => {
-        let cancelled = false;
-        (async () => {
-          try {
-            if (!rec || rec.file_ext !== 'pdf' || !rec.file_path) { setLoading(false); return; }
-            // cache
-            if (pdfPreviewCache.current.has(rec.id)) {
-              setDataUrl(pdfPreviewCache.current.get(rec.id)!);
-              setLoading(false);
-              return;
-            }
-            const url = await getSignedUrl(rec.file_path);
-            if (!url) { setLoading(false); return; }
-            const pdfjs: any = await import('pdfjs-dist');
-            try {
-              if (pdfjs.GlobalWorkerOptions && !(pdfjs as any)._workerConfigured) {
-                pdfjs.GlobalWorkerOptions.workerSrc = undefined; // allow auto worker
-                (pdfjs as any)._workerConfigured = true;
-              }
-            } catch {}
-            const doc = await pdfjs.getDocument({ url, verbosity: 0 }).promise;
-            const page = await doc.getPage(1);
-            if (cancelled) return;
-            const targetW = 200; // approximate width for h-32 thumbnail
-            const vp1 = page.getViewport({ scale: 1 });
-            const scale = Math.min(1, targetW / vp1.width);
-            const viewport = page.getViewport({ scale });
-            const canvas = canvasRef.current; if (!canvas) return;
-            const ctx = canvas.getContext('2d'); if (!ctx) return;
-            canvas.width = viewport.width; canvas.height = viewport.height;
-            await page.render({ canvasContext: ctx, viewport }).promise;
-            try {
-              const data = canvas.toDataURL('image/png');
-              pdfPreviewCache.current.set(rec.id, data);
-              if (!cancelled) setDataUrl(data);
-            } catch {}
-          } catch (e: any) {
-            if (!cancelled) setError(e?.message || 'preview failed');
-          } finally {
-            if (!cancelled) setLoading(false);
-          }
-        })();
-        return () => { cancelled = true; };
-      }, [rec?.id, rec?.file_ext, rec?.file_path, getSignedUrl]);
-
-      if (error) return null;
-      return (
-        <div className={`relative ${className || ''}`}>
-          {dataUrl ? (
-            <img src={dataUrl} alt="Resume preview" className="absolute inset-0 w-full h-full object-cover rounded-md" />
-          ) : (
-            <>
-              {loading && <div className="absolute inset-0 grid place-items-center text-[10px] text-white/60">Loading…</div>}
-              <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover rounded-md" />
-            </>
-          )}
-        </div>
-      );
-    };
 
     // Step-by-step loading banner
     const LoadingBanner = ({ subtitle, steps, activeStep, onCancel, foundCount }: { subtitle?: string; steps: string[]; activeStep: number; onCancel?: () => void; foundCount?: number }) => (
@@ -347,6 +274,14 @@ export const JobPage = (): JSX.Element => {
       'Searching Web',
       'Saving Results'
     ], []);
+    const autoApplySteps = useMemo(() => ([
+      { id: 1 as const, label: 'Select resume', description: 'Choose the profile we attach to each submission.' },
+      { id: 2 as const, label: 'Review & launch', description: 'Confirm scope, safeguards, and telemetry before automation.' },
+    ]), []);
+    const selectedResume = useMemo(() => {
+      if (!Array.isArray(resumes)) return null;
+      return resumes.find((r: any) => r.id === selectedResumeId) ?? null;
+    }, [resumes, selectedResumeId]);
     const getHost = (url?: string | null) => {
       if (!url) return '';
       try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; }
@@ -465,6 +400,19 @@ export const JobPage = (): JSX.Element => {
       setCurrentSource(null);
     }, []);
 
+    const openAutoApplyFlow = useCallback(() => {
+      setAutoApplyStep(1);
+      setResumeDialogOpen(true);
+      setSelectedResumeId((prev) => {
+        if (prev && resumes?.some((r: any) => r.id === prev)) return prev;
+        if (Array.isArray(resumes) && resumes.length > 0) {
+          const favorite = resumes.find((r: any) => r.is_favorite);
+          return favorite?.id ?? resumes[0].id ?? null;
+        }
+        return null;
+      });
+    }, [resumes]);
+
     // Apply all jobs (mark as applied) sequentially with simple progress + analytics events
     const applyAllJobs = useCallback(async () => {
       if (applyingAll || !jobs.length) return;
@@ -502,6 +450,7 @@ export const JobPage = (): JSX.Element => {
         events.autoApplyFinished(success, fail);
       } finally {
         setApplyingAll(false);
+        setAutoApplyStep(1);
       }
     }, [applyingAll, jobs, supabase, selectedResumeId]);
 
@@ -578,6 +527,10 @@ export const JobPage = (): JSX.Element => {
     }, [visibleJobs, sortBy]);
 
     const total = sortedJobs.length;
+  const visibleJobCount = total;
+  const canAdvanceFromStepOne = !resumesLoading && (!Array.isArray(resumes) || resumes.length === 0 || Boolean(selectedResumeId));
+  const canLaunchAutoApply = visibleJobCount > 0 && (!Array.isArray(resumes) || resumes.length === 0 || Boolean(selectedResumeId));
+  const autoApplyPrimaryDisabled = autoApplyStep === 1 ? !canAdvanceFromStepOne : !canLaunchAutoApply;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const clampedPage = Math.min(Math.max(1, currentPage), totalPages);
     const startIdx = (clampedPage - 1) * pageSize;
@@ -597,6 +550,16 @@ export const JobPage = (): JSX.Element => {
     useEffect(() => {
       setCurrentPage(1);
     }, [remoteOnly, recentOnly, searchQuery, sortBy]);
+
+    useEffect(() => {
+      if (!resumeDialogOpen) return;
+      if (!Array.isArray(resumes) || resumes.length === 0) return;
+      setSelectedResumeId(prev => {
+        if (prev && resumes.some((r: any) => r.id === prev)) return prev;
+        const favorite = resumes.find((r: any) => r.is_favorite);
+        return favorite?.id ?? resumes[0].id ?? null;
+      });
+    }, [resumeDialogOpen, resumes]);
 
     // Small helper for relative timestamps
     const formatRelative = (iso?: string | null) => {
@@ -668,13 +631,16 @@ export const JobPage = (): JSX.Element => {
                   </div>
                   <Button
                     variant="ghost"
-                    onClick={() => setResumeDialogOpen(true)}
-                    className="text-[#1dff00] hover:bg-[#1dff00]/10"
+                    onClick={openAutoApplyFlow}
+                    className={`relative overflow-hidden border border-[#1dff00]/40 text-white px-4 sm:px-5 py-2 rounded-xl transition-all duration-300 ${applyingAll ? 'bg-[#1dff00]/20 text-[#1dff00]' : 'bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 hover:from-[#1dff00]/20 hover:to-[#1dff00]/5'}`}
                     title="Auto apply all visible jobs"
                     disabled={applyingAll || queueStatus !== 'ready' || jobs.length === 0}
                   >
-                    {applyingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Briefcase className="w-4 h-4 mr-2" />}
-                    {applyingAll ? `Applying (${applyProgress.done}/${applyProgress.total})` : 'Auto Apply All'}
+                    <span className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'radial-gradient(180px at 0% 0%, rgba(29,255,0,0.45), transparent 65%)' }} />
+                    <span className="relative inline-flex items-center gap-2 text-sm font-medium tracking-wide">
+                      {applyingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Briefcase className="w-4 h-4" />}
+                      {applyingAll ? `Applying ${applyProgress.done}/${applyProgress.total}` : 'Auto Apply Suite'}
+                    </span>
                   </Button>
                   <Button
                     variant="ghost"
@@ -795,15 +761,32 @@ export const JobPage = (): JSX.Element => {
                 </Card>
               )}
               {applyingAll && (
-                <Card className="border border-[#1dff00]/30 bg-[#1dff00]/10 text-[#1dff00] p-3 text-sm flex items-center justify-between">
-                  <span>Auto applying jobs...</span>
-                  <span>{applyProgress.done}/{applyProgress.total} • {applyProgress.success} ✓ {applyProgress.fail > 0 && `• ${applyProgress.fail} ✕`}</span>
-                  <div className="absolute left-0 right-0 -bottom-0.5 h-0.5 bg-[#1dff00]/20">
+                <Card className="relative overflow-hidden border border-[#1dff00]/30 bg-gradient-to-br from-[#082514] via-[#04140b] to-[#010503] text-white p-4 sm:p-5">
+                  <div className="pointer-events-none absolute -inset-32 bg-[#1dff00]/10 blur-3xl opacity-40" />
+                  <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="w-5 h-5 animate-spin text-[#1dff00]" />
+                      <div>
+                        <div className="text-sm font-medium">Automation in progress</div>
+                        <div className="text-xs text-white/70">{applyProgress.total} roles • {applyProgress.success} successful / {applyProgress.fail} flagged</div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-white/50">
+                      {applyProgress.done}/{applyProgress.total} completed
+                    </div>
+                  </div>
+                  <div className="relative mt-4 h-2 rounded-full bg-white/12 overflow-hidden">
                     <motion.div
-                      className="h-full bg-[#1dff00]"
+                      className="absolute inset-0 opacity-30"
+                      style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(29,255,0,0.6) 50%, transparent 100%)' }}
+                      animate={{ x: ['-100%', '200%'] }}
+                      transition={{ repeat: Infinity, duration: 1.4, ease: 'linear' }}
+                    />
+                    <motion.div
+                      className="relative h-full bg-gradient-to-r from-[#1dff00] via-[#52ff4b] to-[#1dff00]"
                       initial={{ width: '0%' }}
                       animate={{ width: `${Math.min(100, Math.round((applyProgress.done / Math.max(1, applyProgress.total)) * 100))}%` }}
-                      transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+                      transition={{ type: 'spring', stiffness: 160, damping: 25 }}
                     />
                   </div>
                 </Card>
@@ -1271,128 +1254,243 @@ export const JobPage = (): JSX.Element => {
               )}
             </div>
           </div>
-          {/* Attach Resume dialog: 2-column grid + optional cover letter */}
+          {/* Auto Apply orchestration dialog */}
           <Modal
             open={resumeDialogOpen}
-            onClose={() => setResumeDialogOpen(false)}
-            title="Attach a Resume"
-            size="xl"
+            onClose={() => { setResumeDialogOpen(false); setAutoApplyStep(1); }}
+            title=""
+            size="lg"
             side="center"
           >
-            <div className="grid gap-4">
-              <p className="text-sm text-[#ffffffb3]">Choose a resume to attach, and optionally include a cover letter.</p>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Left: Resume grid */}
-                <Card className="p-3 sm:p-4 bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15]">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-xs uppercase tracking-wide text-white/60">Select Resume</div>
-                    <a href="/dashboard/resumes" className="text-[11px] text-[#1dff00] hover:underline">Manage Resumes</a>
+            <div className="relative overflow-hidden rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#040404] via-[#060606] to-[#0a0a0a] text-white">
+              <div
+                className="pointer-events-none absolute -top-32 right-0 h-72 w-72 rounded-full bg-[#1dff00]/20 blur-3xl opacity-40"
+              />
+              <div className="relative p-6 sm:p-8 space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+                  <div className="space-y-3 max-w-xl">
+                    <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#1dff00]/80">
+                      <Sparkles className="w-3 h-3" />
+                      Auto Apply
+                    </div>
+                    <h3 className="text-xl sm:text-2xl font-semibold">Launch enterprise-grade automation</h3>
+                    <p className="text-sm text-white/60">
+                      Deploy applications across <span className="text-[#1dff00] font-medium">{visibleJobCount}</span> curated roles with governed pacing, telemetry, and resume intelligence.
+                    </p>
                   </div>
-                  <div className="max-h-80 overflow-auto pr-1">
-                    {resumesLoading ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                        {Array.from({ length: 4 }).map((_,i)=> (
-                          <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-3 animate-pulse">
-                            <div className="h-32 rounded-md bg-white/10 mb-3" />
-                            <div className="h-4 w-3/4 bg-white/10 rounded mb-2" />
-                            <div className="h-3 w-1/2 bg-white/10 rounded" />
-                          </div>
-                        ))}
-                      </div>
-                    ) : (resumes && resumes.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                        {resumes.map((r: any) => {
-                          const isSelected = selectedResumeId === r.id;
-                          const ext = (r.file_ext || 'pdf').toUpperCase();
-                          return (
-                            <button
-                              key={r.id}
-                              type="button"
-                              onClick={() => setSelectedResumeId(r.id)}
-                              className={`group text-left rounded-xl border p-3 transition relative ${isSelected ? 'border-[#1dff00] ring-1 ring-[#1dff00]/50 bg-[#1dff00]/5' : 'border-white/10 hover:border-[#1dff00]/40 bg-white/5 hover:bg-white/10'}`}
-                              aria-pressed={isSelected}
+                  <div className="flex flex-col items-end gap-2 text-right min-w-[150px]">
+                    <div className="text-[11px] uppercase tracking-wide text-white/40">Jobs queued</div>
+                    <div className="text-2xl font-semibold text-[#1dff00]">{visibleJobCount}</div>
+                    {selectedResume && (
+                      <div className="text-[11px] text-white/50 truncate max-w-[180px]">Resume • {selectedResume.name}</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {autoApplySteps.map((step) => {
+                    const status = step.id === autoApplyStep ? 'active' : step.id < autoApplyStep ? 'done' : 'pending';
+                    return (
+                      <div
+                        key={step.id}
+                        className={`flex-1 rounded-xl border p-3 sm:p-4 transition-all duration-300 ${
+                              status === 'active'
+                                ? 'border-[#1dff00]/60 bg-[#1dff00]/10 shadow-[0_0_18px_rgba(29,255,0,0.25)]'
+                                : status === 'done'
+                                ? 'border-[#1dff00]/30 bg-[#1dff00]/12 text-white/80'
+                                : 'border-white/12 bg-white/[0.02] text-white/60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          {status === 'done' ? (
+                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#1dff00] text-black">
+                              <Check className="w-3.5 h-3.5" />
+                            </span>
+                          ) : (
+                            <span
+                              className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-[11px] ${
+                                status === 'active'
+                                  ? 'border-[#1dff00]/70 text-[#1dff00]'
+                                  : 'border-white/25 text-white/35'
+                              }`}
                             >
-                              <div className="relative">
-                                <div className="h-32 rounded-md bg-black/40 border border-white/10 overflow-hidden">
-                                  {r.file_ext === 'pdf' && r.file_path
-                                    ? <ResumePreview rec={r} className="w-full h-full" />
-                                    : <div className="w-full h-full grid place-items-center text-white/70 text-xs">{ext} • Preview</div>}
-                                </div>
-                                {r.is_favorite && (
-                                  <span className="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10">Favorite</span>
-                                )}
-                              </div>
-                              <div className="mt-2 flex items-center gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <div className="text-white text-sm font-medium truncate" title={r.name}>{r.name}</div>
+                              0{step.id}
+                            </span>
+                          )}
+                          <span>{step.label}</span>
+                        </div>
+                        <p className="mt-2 text-xs leading-relaxed text-white/60">{step.description}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {autoApplyStep === 1 && (
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <p className="text-sm text-white/60">Select the resume we attach to each submission. Align the resume with this search persona for the strongest signal.</p>
+                      <a
+                        href="/dashboard/resumes"
+                        className="text-xs inline-flex items-center gap-1 text-[#1dff00] hover:text-[#a3ffb5]"
+                      >
+                        Manage resumes
+                      </a>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto pr-1 space-y-3">
+                      {resumesLoading ? (
+                        <div className="grid gap-3">
+                          {Array.from({ length: 3 }).map((_, i) => (
+                            <div key={i} className="rounded-xl border border-white/12 bg-white/[0.03] p-4 animate-pulse" />
+                          ))}
+                        </div>
+                      ) : (Array.isArray(resumes) && resumes.length > 0 ? (
+                        <div className="grid gap-3">
+                          {resumes.map((r: any) => {
+                            const selected = selectedResumeId === r.id;
+                            return (
+                              <button
+                                key={r.id}
+                                type="button"
+                                onClick={() => setSelectedResumeId(r.id)}
+                                className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
+                                  selected
+                                    ? 'border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]'
+                                    : 'border-white/12 bg-white/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8'
+                                }`}
+                              >
+                                <div className="min-w-0 space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="truncate text-sm font-medium text-white" title={r.name}>{r.name}</span>
+                                    {r.is_favorite && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10">Preferred</span>
+                                    )}
+                                  </div>
                                   <div className="text-[11px] text-white/60 truncate">
-                                    {ext} • {r.size ? `${Math.round(r.size/1024)} KB` : 'Unknown size'} • Updated {new Date(r.updated_at).toLocaleDateString()}
+                                    {(r.file_ext || 'pdf').toUpperCase()} • {r.size ? `${Math.round(r.size/1024)} KB` : 'Size unknown'} • Updated {new Date(r.updated_at).toLocaleDateString()}
                                   </div>
                                 </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-[12px] text-[#ffffff80]">
-                        No resumes found. You can import one from the Resumes page.
-                        <div className="mt-3">
-                          <a href="/dashboard/resumes" className="inline-flex items-center px-3 py-2 rounded-md border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10 hover:bg-[#1dff00]/20">Go to Resumes</a>
+                                <span
+                                  className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${
+                                    selected
+                                      ? 'border-[#1dff00]/70 bg-[#1dff00] text-black'
+                                      : 'border-white/20 text-white/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]'
+                                  }`}
+                                >
+                                  {selected ? <Check className="w-4 h-4" /> : <FileText className="w-3.5 h-3.5" />}
+                                </span>
+                              </button>
+                            );
+                          })}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-
-                {/* Right: Cover Letter */}
-                <Card className="p-3 sm:p-4 bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15]">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <div className="text-sm text-white font-medium">Include Cover Letter</div>
-                      <div className="text-[12px] text-white/60">Attach a tailored cover letter with your application.</div>
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-center space-y-2">
+                          <p className="text-sm text-white/70">No resumes found.</p>
+                          <p className="text-xs text-white/50">Import a resume to personalise each application or proceed without an attachment.</p>
+                          <a
+                            href="/dashboard/resumes"
+                            className="inline-flex items-center gap-2 text-[13px] px-4 py-2 rounded-lg border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10 hover:bg-[#1dff00]/20 transition"
+                          >
+                            Manage resumes
+                          </a>
+                        </div>
+                      ))}
                     </div>
-                    <Switch checked={includeCoverLetter} onCheckedChange={setIncludeCoverLetter} />
                   </div>
+                )}
 
-                  {includeCoverLetter ? (
-                    <div className="grid gap-3">
-                      <div>
-                        <div className="text-xs uppercase tracking-wide text-white/60 mb-2">Cover Letter</div>
-                        <textarea
-                          value={coverLetterContent}
-                          onChange={(e)=> setCoverLetterContent(e.target.value)}
-                          rows={6}
-                          className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-[#1dff00]/50"
-                          placeholder="Write or paste your cover letter here..."
-                        />
+                {autoApplyStep === 2 && (
+                  <div className="grid gap-4">
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="rounded-xl border border-[#1dff00]/35 bg-[#1dff00]/12 p-4 sm:p-5">
+                        <div className="flex items-center gap-2 text-sm font-medium text-[#eaffea]">
+                          <ShieldCheck className="w-4 h-4" />
+                          Execution summary
+                        </div>
+                        <div className="mt-4 flex items-baseline gap-2">
+                          <span className="text-3xl font-semibold text-[#1dff00]">{visibleJobCount}</span>
+                          <span className="text-sm text-white/75">jobs targeted</span>
+                        </div>
+                        <p className="mt-3 text-xs text-white/70">Applications are sequenced with rate-limit awareness, logging telemetry to Diagnostics as each job is processed.</p>
                       </div>
-                      <div>
-                        <div className="text-xs uppercase tracking-wide text-white/60 mb-2">Preview</div>
-                        <Card className="p-3 rounded-xl bg-transparent border border-white/10">
-                          <div className="mx-auto w-full rounded-xl border border-white/20 bg-white text-black shadow-xl">
-                            <div className="p-4 sm:p-6" style={{ lineHeight: 1.6 }}>
-                              <div className="whitespace-pre-wrap break-words">{coverLetterContent || 'Your cover letter preview will appear here.'}</div>
+                      <div className="rounded-xl border border-white/12 bg-white/[0.03] p-4 sm:p-5 space-y-3">
+                        <div className="flex items-center gap-2 text-sm font-medium text-white/80">
+                          <FileText className="w-4 h-4 text-[#1dff00]" />
+                          Resume payload
+                        </div>
+                        {selectedResume ? (
+                          <div className="space-y-1 text-sm text-white/70">
+                            <div className="text-white font-medium">{selectedResume.name}</div>
+                            <div className="text-xs text-white/45 uppercase tracking-wide">
+                              {(selectedResume.file_ext || 'pdf').toUpperCase()} • Updated {new Date(selectedResume.updated_at).toLocaleDateString()}
                             </div>
                           </div>
-                        </Card>
+                        ) : (
+                          <p className="text-xs text-white/60">No resume selected. Applications will submit without an attachment.</p>
+                        )}
+                        <div className="text-xs text-white/40">Analytics events record resume identifiers for downstream auditing.</div>
                       </div>
                     </div>
-                  ) : (
-                    <div className="text-[12px] text-white/60">No cover letter will be included. Toggle on to add one now.</div>
-                  )}
-                </Card>
-              </div>
+                    <div className="rounded-xl border border-white/12 bg-white/[0.02] p-4 sm:p-5">
+                      <div className="flex items-center gap-2 text-sm font-medium text-white/80">
+                        <Clock3 className="w-4 h-4 text-[#1dff00]" />
+                        Runbook
+                      </div>
+                      <ul className="mt-3 space-y-2 text-sm text-white/70">
+                        <li className="flex items-start gap-2">
+                          <span className="mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-[#1dff00]" />
+                          <span>Sequential automation with intelligent retries; cancel anytime from Diagnostics.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-[#1dff00]" />
+                          <span>Each job updates status to <span className="text-[#1dff00]">applied</span> and emits success or failure analytics.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-[#1dff00]" />
+                          <span>We honour custom apply URLs and respect rate limits to avoid vendor throttling.</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
 
-              <div className="flex items-center justify-end gap-2 pt-1">
-                <Button variant="outline" className="border-white/20" onClick={() => setResumeDialogOpen(false)}>Cancel</Button>
-                <Button
-                  className="border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/20 hover:bg-[#1dff00]/30"
-                  onClick={() => { setResumeDialogOpen(false); /* TODO: pass coverLetterContent */ applyAllJobs(); }}
-                  disabled={applyingAll || jobs.length === 0 || !selectedResumeId}
-                >
-                  Continue
-                </Button>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-white/12">
+                  <p className="text-xs text-white/50 flex items-center gap-2">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#1dff00]" />
+                    Automation respects existing filters and logs telemetry for audit trails.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      className="border border-transparent text-white/60 hover:text-white"
+                      onClick={() => { setResumeDialogOpen(false); setAutoApplyStep(1); }}
+                    >
+                      Close
+                    </Button>
+                    {autoApplyStep === 2 && (
+                      <Button
+                        variant="outline"
+                        className="border-white/20 text-white hover:border-white/40 hover:bg-white/10"
+                        onClick={() => setAutoApplyStep(1)}
+                      >
+                        Back
+                      </Button>
+                    )}
+                    <Button
+                      className={`border border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25 ${autoApplyPrimaryDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={autoApplyPrimaryDisabled}
+                      onClick={() => {
+                        if (autoApplyStep === 1) {
+                          if (canAdvanceFromStepOne) setAutoApplyStep(2);
+                        } else if (canLaunchAutoApply) {
+                          setResumeDialogOpen(false);
+                          applyAllJobs();
+                        }
+                      }}
+                    >
+                      {autoApplyStep === 1 ? 'Continue' : 'Launch automation'}
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
           </Modal>
