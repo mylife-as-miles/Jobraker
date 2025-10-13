@@ -695,12 +695,24 @@ export const JobPage = (): JSX.Element => {
                   <Button
                     variant="ghost"
                     onClick={() => populateQueue(searchQuery, selectedLocation)}
-                    className="text-[#1dff00] hover:bg-[#1dff00]/10"
+                    className={`group relative overflow-hidden rounded-xl px-4 sm:px-5 py-2 text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${
+                      queueStatus === 'populating' || queueStatus === 'loading'
+                        ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff00]/15'
+                        : 'border-white/20 text-white bg-white/5 hover:text-[#1dff00] hover:border-[#1dff00]/60 hover:bg-[#1dff00]/10 shadow-[0_12px_32px_rgba(8,122,52,0.35)]'
+                    }`}
                     title="Find a fresh batch of jobs"
                     disabled={queueStatus === 'populating' || queueStatus === 'loading'}
                   >
-                    {queueStatus === 'populating' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Search className="w-4 h-4 mr-2" />}
-                    {queueStatus === 'populating' ? 'Building results…' : 'Find New Jobs'}
+                    <span
+                      className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                      style={{ background: 'linear-gradient(120deg, transparent 0%, rgba(29,255,0,0.35) 45%, transparent 90%)' }}
+                    />
+                    <span className="relative inline-flex items-center gap-2">
+                      {queueStatus === 'populating'
+                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                        : <Search className="w-4 h-4 text-[#1dff00]" />}
+                      {queueStatus === 'populating' ? 'Building results…' : 'Find Jobs Suite'}
+                    </span>
                   </Button>
                 </div>
             </div>
