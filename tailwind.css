@@ -24,21 +24,34 @@
   }
 
   /* Ensure consistent theming on mobile/tablet and avoid white flashes */
+  :root {
+    /* Provide safe fallbacks for browsers that evaluate background before custom properties resolve */
+    --surface-background-fallback: 0 0% 0%;
+    --surface-foreground-fallback: 0 0% 100%;
+  }
+
   html {
     /* Force UA widgets (scrollbars, form controls) to match current theme */
-    color-scheme: light;
-    background-color: hsl(var(--background) / 1);
-  }
-  html.dark { color-scheme: dark; }
-  html, body, #app {
+    color-scheme: light dark;
+    background-color: hsl(var(--background, var(--surface-background-fallback)) / 1);
+    color: hsl(var(--foreground, var(--surface-foreground-fallback)) / 1);
     min-height: 100%;
-    background-color: hsl(var(--background) / 1);
-    color: hsl(var(--foreground) / 1);
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  html:not(.dark) {
+    color-scheme: light;
+  }
+  html, body, #app, #root {
+    min-height: 100%;
+    background-color: hsl(var(--background, var(--surface-background-fallback)) / 1);
+    color: hsl(var(--foreground, var(--surface-foreground-fallback)) / 1);
   }
   /* Normalize form controls to theme colors on mobile */
   input, select, textarea, button {
-    color: hsl(var(--foreground) / 1);
-    background-color: hsl(var(--background) / 1);
+    color: hsl(var(--foreground, var(--surface-foreground-fallback)) / 1);
+    background-color: hsl(var(--background, var(--surface-background-fallback)) / 1);
     border-color: hsl(var(--border) / 1);
   }
   input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) / 1); opacity: 1; }
