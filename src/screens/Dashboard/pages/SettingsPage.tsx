@@ -5,7 +5,7 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical } from "lucide-react";
+import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
 import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
@@ -16,6 +16,7 @@ import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
 import { validatePassword } from "../../../utils/password";
 import { CheckCircle2, XCircle } from "lucide-react";
+import { ResumeCheckerSettings } from "../../../client/pages/dashboard/settings/_sections/resume-checker";
 // Lazy-load qrcode to avoid bundler resolution issues during build
 let QRCodeLib: any | null = null;
 async function getQRCode() {
@@ -196,6 +197,7 @@ export const SettingsPage = (): JSX.Element => {
     { id: "security", label: "Security", icon: <Shield className="w-4 h-4" /> },
     { id: "appearance", label: "Appearance", icon: <Palette className="w-4 h-4" /> },
     { id: "privacy", label: "Privacy", icon: <Globe className="w-4 h-4" /> },
+    { id: "resume-checker", label: "Resume Checker", icon: <Sparkles className="w-4 h-4" /> },
     { id: "job-sources", label: "Job Sources", icon: <SettingsIcon className="w-4 h-4" /> },
     { id: "billing", label: "Billing", icon: <CreditCard className="w-4 h-4" /> }
   ];
@@ -1299,6 +1301,13 @@ export const SettingsPage = (): JSX.Element => {
                 </Button>
               </div>
             </div>
+          </div>
+        );
+
+      case "resume-checker":
+        return (
+          <div id="settings-tab-resume-checker" data-tour="settings-tab-resume-checker" className="space-y-8">
+            <ResumeCheckerSettings />
           </div>
         );
 
