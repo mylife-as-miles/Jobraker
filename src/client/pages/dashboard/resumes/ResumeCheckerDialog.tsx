@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, GaugeCircle, Sparkles, Target, TrendingUp, ShieldCheck } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -239,12 +240,13 @@ export function ResumeCheckerDialog({ open, onClose, resumes, getSignedUrl }: Re
 
           <div className="grid gap-3 sm:grid-cols-2">
             {SCORE_LABELS.map(({ key, label }) => {
-              const metricValue = analysis ? analysis[key] : 0;
+              const metricValue = analysis ? (analysis[key] as number) : 0;
+              const displayValue = analysis ? metricValue : "--";
               return (
                 <div key={key} className="rounded-2xl border border-white/10 bg-black/40 p-4">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold uppercase tracking-wide text-white/60">{label}</p>
-                    <span className="text-sm font-bold text-white">{analysis ? metricValue : "--"}</span>
+                    <span className="text-sm font-bold text-white">{displayValue}</span>
                   </div>
                   <Progress value={analysis ? metricValue : 0} className="mt-3 h-2" />
                 </div>
@@ -332,7 +334,7 @@ function buildProfileSummary(args: {
 
 interface SectionCardProps {
   title: string;
-  icon: ComponentType<any>;
+  icon: LucideIcon;
   items?: string[];
   placeholder: string;
   accent: "positive" | "warning";
