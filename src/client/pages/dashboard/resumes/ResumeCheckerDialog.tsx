@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, GaugeCircle, Sparkles, Target, TrendingUp, ShieldCheck } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -41,6 +41,7 @@ export function ResumeCheckerDialog({ open, onClose, resumes, getSignedUrl }: Re
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resumePreview, setResumePreview] = useState<string>("");
+  const lastPreviewedIdRef = useRef<string | null>(null);
 
   const { profile, experiences, education, skills } = useProfileSettings();
   const { apiKey, model, baseURL } = useOpenAiStore((state) => ({
@@ -53,6 +54,10 @@ export function ResumeCheckerDialog({ open, onClose, resumes, getSignedUrl }: Re
   const activeEntry = selectedResume && history[selectedResume] ? history[selectedResume] : null;
   const analysis = activeEntry?.result || null;
   const lastAnalyzedAt = activeEntry?.analyzedAt || null;
+  const activeResumeId = activeResume?.id ?? null;
+  const activeResumePath = activeResume?.file_path ?? null;
+  const activeResumeExt = activeResume?.file_ext ?? null;
+  const activeResumeName = activeResume?.name ?? "resume";
 
   useEffect(() => {
     if (open) {
@@ -66,27 +71,48 @@ export function ResumeCheckerDialog({ open, onClose, resumes, getSignedUrl }: Re
   }, [open, resumes, selectedResume]);
 
   useEffect(() => {
-    setResumePreview("");
-    if (!open || !activeResume) return;
+    if (!open || !activeResumeId || !activeResumePath) {
+      lastPreviewedIdRef.current = null;
+      setResumePreview("");
+      return;
+    }
+
+    if (lastPreviewedIdRef.current === activeResumeId) {
+      return;
+    }
+
     let aborted = false;
+    lastPreviewedIdRef.current = activeResumeId;
+    setResumePreview("");
+
     (async () => {
-      if (!activeResume.file_path) return;
       try {
-        const url = await getSignedUrl(activeResume.file_path);
-        if (!url) return;
+        const url = await getSignedUrl(activeResumePath);
+        if (!url || aborted) {
+          if (!aborted) lastPreviewedIdRef.current = null;
+          return;
+        }
         const res = await fetch(url);
-        if (!res.ok) return;
+        if (!res.ok || aborted) {
+          if (!aborted) lastPreviewedIdRef.current = null;
+          return;
+        }
         const blob = await res.blob();
-        const text = await tryExtractText(blob, activeResume.file_ext, activeResume.name);
+        const text = await tryExtractText(blob, activeResumeExt, activeResumeName);
         if (!aborted) {
           setResumePreview(text.slice(0, 600));
         }
       } catch {
-        /* ignore preview failures */
+        if (!aborted) {
+          lastPreviewedIdRef.current = null;
+        }
       }
     })();
-    return () => { aborted = true; };
-  }, [open, activeResume, getSignedUrl]);
+
+    return () => {
+      aborted = true;
+    };
+  }, [open, activeResumeId, activeResumePath, activeResumeExt, activeResumeName, getSignedUrl]);
 
   const profileSummary = useMemo(() => buildProfileSummary({ profile, experiences: experiences?.data ?? [], education: education?.data ?? [], skills: skills?.data ?? [] }), [profile, experiences?.data, education?.data, skills?.data]);
 
