@@ -9,6 +9,7 @@ export interface Job {
   source_id: string;
   title: string;
   company: string;
+  company_logo?: string | null;
   description?: string;
   location?: string;
   remote_type?: string;

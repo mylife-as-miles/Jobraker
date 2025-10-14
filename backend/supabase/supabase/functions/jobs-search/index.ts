@@ -265,9 +265,34 @@ Deno.serve(async (req) => {
         }
       };
       
+      // Generate company logo URL using Clearbit Logo API
+      const getCompanyLogoUrl = (companyName: string, url: string): string | null => {
+        try {
+          // Try to extract domain from URL for more accurate logo lookup
+          const hostname = new URL(url).hostname.replace('www.', '');
+          
+          // Use Clearbit Logo API (free, no API key required)
+          // Format: https://logo.clearbit.com/:domain
+          return `https://logo.clearbit.com/${encodeURIComponent(hostname)}`;
+        } catch {
+          // Fallback: try to construct domain from company name
+          const sanitizedName = companyName.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (sanitizedName && sanitizedName !== 'unknowncompany') {
+            return `https://logo.clearbit.com/${encodeURIComponent(sanitizedName)}.com`;
+          }
+          return null;
+        }
+      };
+      
       // Check for AI-extracted JSON data first
       const scrapedJson = item?.scraped?.json || item?.json;
       const hasStructuredData = scrapedJson && typeof scrapedJson === 'object';
+      
+      // Get company name
+      const companyName = hasStructuredData ? (scrapedJson.company || extractCompanyFromUrl(clean)) : extractCompanyFromUrl(clean);
+      
+      // Get company logo URL
+      const companyLogo = getCompanyLogoUrl(companyName, clean);
       
       // Get screenshot if available
       const screenshot = item?.scraped?.screenshot || item?.screenshot;
@@ -284,7 +309,8 @@ Deno.serve(async (req) => {
         description: fullHtml || fullMarkdown || scrapedJson?.description || fallbackDesc,
         category: typeof item?.category === 'string' ? item.category : undefined,
         isJobPosting: isJobPostingUrl(clean),
-        company: hasStructuredData ? (scrapedJson.company || extractCompanyFromUrl(clean)) : extractCompanyFromUrl(clean),
+        company: companyName,
+        company_logo: companyLogo,
         salary: hasStructuredData ? (scrapedJson.salary || undefined) : undefined,
         salary_min_json: hasStructuredData ? (scrapedJson.salary_min ?? undefined) : undefined,
         salary_max_json: hasStructuredData ? (scrapedJson.salary_max ?? undefined) : undefined,
@@ -384,6 +410,7 @@ Deno.serve(async (req) => {
         source_id: item.url,
         title: item.title || rawQuery,
         company: item.company,
+        company_logo: item.company_logo || null,
         description: item.description || null,
         location: item.location || location || 'Remote',
         remote_type: 'Remote',

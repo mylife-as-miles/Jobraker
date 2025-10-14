@@ -22,6 +22,7 @@ interface Job {
   id: string; // This will be the DB UUID
   title: string;
   company: string;
+  company_logo?: string | null;
   description: string | null;
   location: string | null;
   remote_type: string | null;
@@ -550,7 +551,8 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
       ...dbJob,
       id: dbJob.id,
       description: dbJob.description || raw?.fullJobDescription || '',
-      logoUrl: raw?.companyLogoUrl || getCompanyLogoUrl(dbJob.company, dbJob.apply_url),
+      // Prioritize: 1) company_logo from DB, 2) raw data logo, 3) generate from Clearbit
+      logoUrl: dbJob.company_logo || raw?.companyLogoUrl || getCompanyLogoUrl(dbJob.company, dbJob.apply_url),
       logo: dbJob.company?.[0]?.toUpperCase() || '?',
       status: dbJob.status,
       source_type: dbJob.source_type ?? null,
