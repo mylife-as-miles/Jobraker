@@ -13,6 +13,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
   const [chartDataJobs, setChartDataJobs] = useState<DataPoint[]>([]);
   const [barData, setBarData] = useState<{ name: string; value: number; color: string }[]>([]);
   const [donutData, setDonutData] = useState<{ name: string; value: number; color: string }[]>([]);
+  const [matchBarData, setMatchBarData] = useState<Array<{ name: string; value: number; color: string; summary?: string | null; company?: string | null }>>([]);
   const [metrics, setMetrics] = useState({
     applications: 0,
     interviews: 0,
@@ -121,6 +122,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
     series: { applications: chartDataApps, jobs: chartDataJobs },
     barData,
     donutData,
+    matchBarData,
     error,
   });
 
@@ -157,6 +159,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
         setChartDataJobs([]);
         setBarData([]);
         setDonutData([]);
+        setMatchBarData([]);
         setMetrics({ applications: 0, interviews: 0, sources: 0, jobsFound: 0, avgMatchScore: 0 });
         setComparisons({ applicationsDeltaPct: 0, interviewsDeltaPct: 0, jobsFoundDeltaPct: 0, avgMatchDelta: 0 });
         setLastUpdated(Date.now());
@@ -164,7 +167,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
       }
 
       // Build cache key after we know user
-  if (!cacheKeyRef.current) cacheKeyRef.current = `analytics:${user.id}:${period}:${granularity}:v1`;
+      if (!cacheKeyRef.current) cacheKeyRef.current = `analytics:${user.id}:${period}:${granularity}:v2`;
       const cacheKey = cacheKeyRef.current;
       if (!options?.bypassCache) {
         const cached = readCache(cacheKey);
@@ -173,6 +176,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
           setChartDataJobs(cached.chartDataJobs || []);
           setBarData(cached.barData || []);
           setDonutData(cached.donutData || []);
+          setMatchBarData(cached.matchBarData || []);
           setMetrics(cached.metrics || metrics);
           setComparisons(cached.comparisons || comparisons);
           setLastUpdated(cached.lastUpdated || Date.now());
@@ -193,7 +197,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
       // Fetch jobs
       const { data: jobsRaw, error: jobsErr } = await supabase
         .from("jobs")
-        .select("id, created_at, source_type, user_id")
+        .select("id, created_at, source_type, user_id, title, company, raw_data")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true });
       if (controller.signal.aborted) return;
@@ -221,9 +225,28 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
       const sourcesSet = new Set<string>();
       for (const j of jobs) { if (j.source_type) sourcesSet.add(j.source_type); }
       const sources = sourcesSet.size;
-      const matchScores = apps
+      const jobMatchEntries = jobs
+        .map((j: any) => {
+          const insights = j?.raw_data?.match_insights;
+          if (!insights || typeof insights.score !== 'number') return null;
+          const score = clampScore(insights.score);
+          return {
+            id: j.id,
+            score,
+            summary: typeof insights.summary === 'string' ? insights.summary : null,
+            job_title: j.title || '',
+            company: j.company || null,
+            created_at: j.created_at,
+            computed_at: insights.computed_at || null,
+          };
+        })
+        .filter(Boolean) as Array<{ id: string; score: number; summary: string | null; job_title: string; company: string | null; created_at: string; computed_at: string | null }>;
+
+      const jobMatchScores = jobMatchEntries.map((entry) => entry.score).filter((v) => typeof v === 'number');
+      const appMatchScores = apps
         .map((a: any) => (a.match_score !== undefined ? a.match_score : (a.notes && /match[:=]\s*(\d{1,3})/i.test(a.notes) ? Number(RegExp.$1) : undefined)))
         .filter((v: any) => typeof v === 'number');
+      const matchScores = jobMatchScores.length ? jobMatchScores : appMatchScores;
       const avgMatchScore = matchScores.length ? Math.round(matchScores.reduce((s: number, v: number) => s + v, 0) / matchScores.length) : 0;
 
       // Previous period comparisons
@@ -240,9 +263,19 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
       const prevApplications = prevApps.length;
       const prevInterviews = prevApps.filter((a: any) => String(a.status).toLowerCase() === "interview").length;
       const prevJobsFound = prevJobs.length;
-      const prevMatchScores = prevApps
+      const prevJobMatchEntries = prevJobs
+        .map((j: any) => {
+          const insights = j?.raw_data?.match_insights;
+          if (!insights || typeof insights.score !== 'number') return null;
+          return clampScore(insights.score);
+        })
+        .filter((v: any) => typeof v === 'number') as number[];
+
+      const prevAppMatchScores = prevApps
         .map((a: any) => (a.match_score !== undefined ? a.match_score : (a.notes && /match[:=]\s*(\d{1,3})/i.test(a.notes) ? Number(RegExp.$1) : undefined)))
         .filter((v: any) => typeof v === 'number');
+
+      const prevMatchScores = prevJobMatchEntries.length ? prevJobMatchEntries : prevAppMatchScores;
       const prevAvgMatch = prevMatchScores.length ? Math.round(prevMatchScores.reduce((s:number,v:number)=>s+v,0) / prevMatchScores.length) : 0;
 
       const applicationsDeltaPct = pctDelta(prevApplications, applications);
@@ -287,6 +320,35 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
         color: pickColor(name),
       }));
 
+      let matchBar: Array<{ name: string; value: number; color: string; summary?: string | null; company?: string | null }> = jobMatchEntries
+        .slice()
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 6)
+        .map((item) => ({
+          name: item.job_title || item.company || 'Untitled role',
+          value: item.score,
+          color: matchScoreColor(item.score),
+          summary: item.summary,
+          company: item.company,
+        }));
+
+      if (!matchBar.length && matchScores.length) {
+        const buckets = [
+          { label: '90-100', min: 90, max: 101, color: matchScoreColor(95) },
+          { label: '75-89', min: 75, max: 90, color: matchScoreColor(80) },
+          { label: '60-74', min: 60, max: 75, color: matchScoreColor(65) },
+          { label: '<60', min: 0, max: 60, color: matchScoreColor(40) },
+        ];
+        const counts = buckets.map(() => 0);
+        matchScores.forEach((score) => {
+          const idx = buckets.findIndex((bucket) => score >= bucket.min && score < bucket.max);
+          if (idx >= 0) counts[idx] += 1;
+        });
+        matchBar = buckets
+          .map((bucket, idx) => ({ name: bucket.label, value: counts[idx], color: bucket.color }))
+          .filter((entry) => entry.value > 0);
+      }
+
       if (!mounted || controller.signal.aborted) return;
       const nextMetrics = { applications, interviews, sources, jobsFound, avgMatchScore };
       const nextComparisons = { applicationsDeltaPct, interviewsDeltaPct, jobsFoundDeltaPct, avgMatchDelta };
@@ -296,6 +358,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
       setChartDataJobs(jobsSeries);
       setBarData(bar);
       setDonutData(donut);
+      setMatchBarData(matchBar);
       setLastUpdated(Date.now());
       // Cache
       writeCache(cacheKey, {
@@ -303,6 +366,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
         chartDataJobs: jobsSeries,
         barData: bar,
         donutData: donut,
+        matchBarData: matchBar,
         metrics: nextMetrics,
         comparisons: nextComparisons,
         lastUpdated: Date.now(),
@@ -338,7 +402,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, range.start, range.end, granularity]);
 
-  return { chartDataApps, chartDataJobs, barData, donutData, metrics, comparisons, loading, error, lastUpdated, refresh, exportCSV, exportJSON, snapshot } as const;
+  return { chartDataApps, chartDataJobs, barData, donutData, matchBarData, metrics, comparisons, loading, error, lastUpdated, refresh, exportCSV, exportJSON, snapshot } as const;
 }
 
 function computeRange(period: Period) {
@@ -451,6 +515,19 @@ function pickColor(name: string) {
   if (/withdraw/.test(key)) return '#94A3B8';
   if (/pending|appl/.test(key)) return '#1dff00';
   return '#3B82F6';
+}
+
+function matchScoreColor(score: number) {
+  if (score >= 90) return '#1dff00';
+  if (score >= 75) return '#FACC15';
+  if (score >= 60) return '#FB923C';
+  return '#F87171';
+}
+
+function clampScore(score: number) {
+  const value = Number(score);
+  if (Number.isNaN(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 function pctDelta(prev: number, curr: number) {

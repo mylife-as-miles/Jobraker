@@ -12,6 +12,7 @@ import { useApplications, ApplicationStatus } from "../../../hooks/useApplicatio
 import { Skeleton } from "../../../components/ui/skeleton";
 import { SplitLineAreaChart } from "./SplitLineAreaChart";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
+import { useAnalyticsData } from "../../../hooks/useAnalyticsData";
 // SplitLineAreaChart removed; chart moved to Application section
 
 // Using realtime notifications; no local interface needed here
@@ -23,6 +24,7 @@ export const OverviewPage = (): JSX.Element => {
   const [visibleSeries, setVisibleSeries] = useState<string[]>([]);
   const { items: notifItems, loading: notifLoading } = useNotifications(6);
   const { applications, loading: appsLoading, update, create, stats } = useApplications();
+  const matchAnalytics = useAnalyticsData("30d", { granularity: 'day' });
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus[] | null>(null); // null => all
   const mappedNotifs = useMemo(() => {
     return notifItems.map(n => {
@@ -602,11 +604,7 @@ export const OverviewPage = (): JSX.Element => {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Recent Match Scores</h2>
                 </div>
-                <MatchScoreAnalytics period="30d" data={{
-                  barData: [],
-                  metrics: { avgMatchScore: 0 },
-                  comparisons: { avgMatchDelta: 0 }
-                }} />
+                <MatchScoreAnalytics period="30d" data={matchAnalytics} />
               </Card>
             </motion.div>
           </div>

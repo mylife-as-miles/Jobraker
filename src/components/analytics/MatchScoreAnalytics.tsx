@@ -9,9 +9,12 @@ type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 
 export function MatchScoreAnalytics({ period, data }: { period: Period; data: any }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const barData = data?.barData || []
+  const hasMatchBars = Array.isArray(data?.matchBarData) && data.matchBarData.length > 0
+  const barData = hasMatchBars ? data.matchBarData : (data?.barData || [])
   const metrics = { matchScore: data?.metrics?.avgMatchScore ?? 0 }
   const delta = data?.comparisons?.avgMatchDelta ?? 0
+  const highlight = hasMatchBars ? data.matchBarData[0] : null
+  const loading = Boolean(data?.loading)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -27,7 +30,7 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
 
     ctx.clearRect(0, 0, rect.width, rect.height)
 
-    if (!barData.length) return
+  if (!barData.length) return
     const maxValue = Math.max(...barData.map((d: any) => d.value))
     const barWidth = Math.min(60, (rect.width / barData.length) * 0.6)
     const spacing = (rect.width - (barData.length * barWidth)) / (barData.length + 1)
@@ -120,9 +123,19 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
           </div>
         </div>
 
-        <div className="flex-1 min-h-0">
+        <div className="relative flex-1 min-h-0">
           <canvas ref={canvasRef} className="w-full h-full" />
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/30 text-xs font-medium text-white/70">
+              Loading match insights…
+            </div>
+          )}
         </div>
+        {highlight?.summary && (
+          <p className="mt-4 text-xs text-white/60 leading-snug line-clamp-3">
+            {highlight.company ? `${highlight.company} — ` : ""}{highlight.name}: {highlight.summary}
+          </p>
+        )}
       </Card>
     </motion.div>
   )
