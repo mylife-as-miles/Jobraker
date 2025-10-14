@@ -13,7 +13,8 @@ export interface Profile {
   updated_at: string;
   // Walkthrough completion flags (added via migration 20251001100000)
   walkthrough_overview?: boolean;
-  walkthrough_applications?: boolean;
+  walkthrough_application?: boolean; // singular version for ApplicationPage
+  walkthrough_applications?: boolean; // plural version (legacy)
   walkthrough_jobs?: boolean;
   walkthrough_resume?: boolean;
   walkthrough_analytics?: boolean;

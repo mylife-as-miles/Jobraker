@@ -18,6 +18,7 @@ export interface Tables {
       created_at?: string;
       updated_at?: string;
       walkthrough_overview?: boolean | null;
+      walkthrough_application?: boolean | null;
       walkthrough_applications?: boolean | null;
       walkthrough_jobs?: boolean | null;
       walkthrough_resume?: boolean | null;
