@@ -69,8 +69,12 @@ useEffect(() => {
 7. **`src/hooks/useNotifications.ts`**
    - Fixed initial fetch effect
 
+### Resume Hook
+8. **`src/hooks/useResumes.ts`**
+   - Fixed initial fetch effect with circular `list` dependency
+
 ### Resume Checker Dialog
-8. **`src/client/pages/dashboard/resumes/ResumeCheckerDialog.tsx`** (previously fixed, re-fixed)
+9. **`src/client/pages/dashboard/resumes/ResumeCheckerDialog.tsx`** (previously fixed, re-fixed)
    - **First fix**: Removed selectedResume from useEffect dependencies, used a ref for initialization
    - **Second fix**: Removed unnecessary useMemo wrappers for experiencesData, educationData, skillsData
    - Arrays with `undefined` length dependencies were creating new references each render
