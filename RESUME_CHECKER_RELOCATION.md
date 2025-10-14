@@ -1,13 +1,13 @@
 # Resume Checker Relocation
 
 ## Summary
-Moved the Resume Checker feature from the Resumes page to the Settings page as a dedicated section to avoid infinite loop issues and provide a more stable context.
+Moved the Resume Checker feature from the Resumes page to the Settings page as a dedicated tab to avoid infinite loop issues and provide a more stable context.
 
 ## Changes Made
 
-### 1. Created New Settings Section
+### 1. Created New Settings Section Component
 **File**: `src/client/pages/dashboard/settings/_sections/resume-checker.tsx`
-- Complete Resume Checker UI moved to Settings
+- Complete Resume Checker UI as a settings section
 - Self-contained component with its own state management
 - Uses `useResumes` hook directly (no prop drilling)
 - Includes all analysis features:
@@ -18,10 +18,12 @@ Moved the Resume Checker feature from the Resumes page to the Settings page as a
   - Recommendations
   - ATS risk narrative
 
-### 2. Updated Settings Page
-**File**: `src/client/pages/dashboard/settings/page.tsx`
-- Added `ResumeCheckerSettings` import
-- Added component to settings grid (between Security and Job Sources)
+### 2. Updated Main Settings Page
+**File**: `src/screens/Dashboard/pages/SettingsPage.tsx`
+- Added `Sparkles` icon import from lucide-react
+- Added `ResumeCheckerSettings` component import
+- Added "Resume Checker" tab to tabs array (between Privacy and Job Sources)
+- Added resume-checker case to renderContent switch statement
 
 ### 3. Cleaned Up Resumes Page
 **File**: `src/client/pages/dashboard/resumes/page.tsx`
@@ -56,7 +58,19 @@ The original `ResumeCheckerDialog.tsx` is no longer used and can be deleted if d
 
 ## Location
 - **Settings URL**: `/dashboard/settings`
-- **Section**: Between "Security Settings" and "Job Source Settings"
+- **Tab**: "Resume Checker" (click to switch to this tab)
+- **Position**: Between "Privacy" and "Job Sources" tabs
+- **Icon**: Sparkles (✨) icon
+
+## Tabs Order
+1. Profile
+2. Notifications
+3. Security
+4. Appearance
+5. Privacy
+6. **Resume Checker** ⭐ (NEW)
+7. Job Sources
+8. Billing
 
 ## Notes
 - All functionality preserved
