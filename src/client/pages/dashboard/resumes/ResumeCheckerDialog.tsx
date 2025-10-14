@@ -68,7 +68,7 @@ export function ResumeCheckerDialog({ open, onClose, resumes, getSignedUrl }: Re
     } else {
       setLoading(false);
     }
-  }, [open, resumes, selectedResume]);
+  }, [open, resumes.length]);
 
   useEffect(() => {
     if (!open || !activeResumeId || !activeResumePath) {
@@ -112,9 +112,16 @@ export function ResumeCheckerDialog({ open, onClose, resumes, getSignedUrl }: Re
     return () => {
       aborted = true;
     };
-  }, [open, activeResumeId, activeResumePath, activeResumeExt, activeResumeName, getSignedUrl]);
+  }, [open, activeResumeId, activeResumePath, activeResumeExt, activeResumeName]);
 
-  const profileSummary = useMemo(() => buildProfileSummary({ profile, experiences: experiences?.data ?? [], education: education?.data ?? [], skills: skills?.data ?? [] }), [profile, experiences?.data, education?.data, skills?.data]);
+  const profileSummary = useMemo(() => {
+    return buildProfileSummary({ 
+      profile, 
+      experiences: experiences?.data ?? [], 
+      education: education?.data ?? [], 
+      skills: skills?.data ?? [] 
+    });
+  }, [profile, experiences, education, skills]);
 
   const handleAnalyze = async () => {
     if (!apiKey) {
