@@ -59,16 +59,20 @@ export function ResumeCheckerDialog({ open, onClose, resumes, getSignedUrl }: Re
   const activeResumeExt = activeResume?.file_ext ?? null;
   const activeResumeName = activeResume?.name ?? "resume";
 
+  const initialResumeSet = useRef(false);
+
   useEffect(() => {
     if (open) {
       setError(null);
-      if (!selectedResume && resumes.length) {
+      if (!selectedResume && resumes.length && !initialResumeSet.current) {
         setSelectedResume(resumes[0].id);
+        initialResumeSet.current = true;
       }
     } else {
       setLoading(false);
+      initialResumeSet.current = false;
     }
-  }, [open, resumes.length]);
+  }, [open, resumes.length, selectedResume]);
 
   useEffect(() => {
     if (!open || !activeResumeId || !activeResumePath) {
@@ -114,14 +118,19 @@ export function ResumeCheckerDialog({ open, onClose, resumes, getSignedUrl }: Re
     };
   }, [open, activeResumeId, activeResumePath, activeResumeExt, activeResumeName]);
 
+  // Memoize profile data to prevent infinite loops
+  const experiencesData = useMemo(() => experiences?.data ?? [], [experiences?.data?.length]);
+  const educationData = useMemo(() => education?.data ?? [], [education?.data?.length]);
+  const skillsData = useMemo(() => skills?.data ?? [], [skills?.data?.length]);
+
   const profileSummary = useMemo(() => {
     return buildProfileSummary({ 
       profile, 
-      experiences: experiences?.data ?? [], 
-      education: education?.data ?? [], 
-      skills: skills?.data ?? [] 
+      experiences: experiencesData, 
+      education: educationData, 
+      skills: skillsData 
     });
-  }, [profile, experiences?.data, education?.data, skills?.data]);
+  }, [profile?.id, profile?.first_name, profile?.last_name, profile?.job_title, experiencesData.length, educationData.length, skillsData.length]);
 
   const handleAnalyze = async () => {
     if (!apiKey) {
