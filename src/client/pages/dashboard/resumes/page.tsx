@@ -6,15 +6,11 @@ import { Helmet } from "react-helmet-async";
 import { GridView } from "./_layouts/grid";
 import { useState, useCallback } from 'react';
 import { useResumes } from '@/hooks/useResumes';
-import { Button } from '@/components/ui/button';
-import { Sparkles } from 'lucide-react';
-import { ResumeCheckerDialog } from './ResumeCheckerDialog';
 
 export const ResumesPage = () => {
-  const { resumes, importMultiple, importStatuses, clearImportStatuses, removeImportStatus, getSignedUrl } = useResumes();
+  const { resumes, importMultiple, importStatuses, clearImportStatuses, removeImportStatus } = useResumes();
   const [showCompleted, setShowCompleted] = useState(true);
   const [dragActive, setDragActive] = useState(false);
-  const [checkerOpen, setCheckerOpen] = useState(false);
 
   const onDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -43,7 +39,7 @@ export const ResumesPage = () => {
       <div className="space-y-6">
         <div className="rounded-lg border border-[#1dff00]/20 bg-[#1dff00]/5 px-4 py-3 text-[11px] text-[#1dff00]/80 flex flex-wrap items-center gap-2">
           <span className="font-medium text-[#1dff00]">Tip:</span>
-          <span>Select or import a resume below to open the full builder canvas. You can always come back here to manage versions and imports.</span>
+          <span>Select or import a resume below to open the full builder canvas. Check Settings → Resume Checker to run AI analysis on your resumes.</span>
         </div>
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <motion.h1
@@ -53,11 +49,6 @@ export const ResumesPage = () => {
           >
             {t`Resume Builder`}
           </motion.h1>
-          <div className="flex items-center gap-3">
-            <Button onClick={() => setCheckerOpen(true)} variant="outline" className="border-[#1dff00]/40 text-[#1dff00] hover:bg-[#1dff00]/10">
-              <Sparkles className="w-4 h-4 mr-2" /> Resume Checker
-            </Button>
-          </div>
         </div>
 
         <div 
@@ -126,7 +117,6 @@ export const ResumesPage = () => {
         )}
         </div>
       </div>
-      <ResumeCheckerDialog open={checkerOpen} onClose={() => setCheckerOpen(false)} resumes={resumes} getSignedUrl={getSignedUrl} />
     </div>
   );
 };

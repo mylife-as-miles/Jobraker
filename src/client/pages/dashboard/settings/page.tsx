@@ -4,6 +4,7 @@ import { AccountSettings } from "./_sections/account";
 import { SecuritySettings } from "./_sections/security";
 import { DangerZoneSettings } from "./_sections/danger";
 import { JobSourceSettings } from "./_sections/job-sources";
+import { ResumeCheckerSettings } from "./_sections/resume-checker";
 
 export const SettingsPage = () => {
   return (
@@ -19,6 +20,7 @@ export const SettingsPage = () => {
       <div className="grid gap-6">
         <AccountSettings />
         <SecuritySettings />
+        <ResumeCheckerSettings />
         <JobSourceSettings />
         <DangerZoneSettings />
       </div>
