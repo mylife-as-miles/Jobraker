@@ -121,7 +121,7 @@ export function ResumeCheckerDialog({ open, onClose, resumes, getSignedUrl }: Re
       education: education?.data ?? [], 
       skills: skills?.data ?? [] 
     });
-  }, [profile, experiences, education, skills]);
+  }, [profile, experiences?.data, education?.data, skills?.data]);
 
   const handleAnalyze = async () => {
     if (!apiKey) {
@@ -162,27 +162,6 @@ export function ResumeCheckerDialog({ open, onClose, resumes, getSignedUrl }: Re
     }
   };
 
-  const resumeOptions = useMemo(() => {
-    if (!resumes.length) return <p className="text-sm text-white/60">No resumes found yet. Create or import one to run the checker.</p>;
-    return (
-      <Select value={selectedResume} onValueChange={setSelectedResume}>
-        <SelectTrigger className="bg-white/5 border-white/15 text-sm">
-          <SelectValue placeholder="Choose a resume" />
-        </SelectTrigger>
-        <SelectContent>
-          {resumes.map((resume) => (
-            <SelectItem key={resume.id} value={resume.id}>
-              <div className="flex flex-col">
-                <span>{resume.name}</span>
-                <span className="text-[10px] uppercase text-white/40">Updated {new Date(resume.updated_at).toLocaleDateString()}</span>
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    );
-  }, [resumes, selectedResume]);
-
   return (
     <Modal open={open} onClose={onClose} size="xl" title="Resume Quality Intelligence">
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
@@ -196,7 +175,25 @@ export function ResumeCheckerDialog({ open, onClose, resumes, getSignedUrl }: Re
               Run an enterprise-grade scan that benchmarks your resume against your JobRaker profile and predicts interview readiness.
             </p>
             <div className="mt-4 space-y-3">
-              {resumeOptions}
+              {!resumes.length ? (
+                <p className="text-sm text-white/60">No resumes found yet. Create or import one to run the checker.</p>
+              ) : (
+                <Select value={selectedResume} onValueChange={setSelectedResume}>
+                  <SelectTrigger className="bg-white/5 border-white/15 text-sm">
+                    <SelectValue placeholder="Choose a resume" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {resumes.map((resume) => (
+                      <SelectItem key={resume.id} value={resume.id}>
+                        <div className="flex flex-col">
+                          <span>{resume.name}</span>
+                          <span className="text-[10px] uppercase text-white/40">Updated {new Date(resume.updated_at).toLocaleDateString()}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Button onClick={handleAnalyze} disabled={loading || !selectedResume || !apiKey} className="w-full bg-[#1dff00]/80 text-black hover:bg-[#1dff00]">
                 {loading ? "Analyzing…" : "Run Deep Analysis"}
               </Button>
