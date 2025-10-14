@@ -119,9 +119,9 @@ export function ResumeCheckerDialog({ open, onClose, resumes, getSignedUrl }: Re
   }, [open, activeResumeId, activeResumePath, activeResumeExt, activeResumeName]);
 
   // Memoize profile data to prevent infinite loops
-  const experiencesData = useMemo(() => experiences?.data ?? [], [experiences?.data?.length]);
-  const educationData = useMemo(() => education?.data ?? [], [education?.data?.length]);
-  const skillsData = useMemo(() => skills?.data ?? [], [skills?.data?.length]);
+  const experiencesData = experiences?.data ?? [];
+  const educationData = education?.data ?? [];
+  const skillsData = skills?.data ?? [];
 
   const profileSummary = useMemo(() => {
     return buildProfileSummary({ 
@@ -130,7 +130,15 @@ export function ResumeCheckerDialog({ open, onClose, resumes, getSignedUrl }: Re
       education: educationData, 
       skills: skillsData 
     });
-  }, [profile?.id, profile?.first_name, profile?.last_name, profile?.job_title, experiencesData.length, educationData.length, skillsData.length]);
+  }, [
+    profile?.id, 
+    profile?.first_name, 
+    profile?.last_name, 
+    profile?.job_title, 
+    JSON.stringify(experiencesData.map(e => e.id)), 
+    JSON.stringify(educationData.map(e => e.id)), 
+    JSON.stringify(skillsData.map(s => s.id))
+  ]);
 
   const handleAnalyze = async () => {
     if (!apiKey) {
