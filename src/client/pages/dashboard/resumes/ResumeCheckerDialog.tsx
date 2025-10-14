@@ -72,7 +72,7 @@ export function ResumeCheckerDialog({ open, onClose, resumes, getSignedUrl }: Re
       setLoading(false);
       initialResumeSet.current = false;
     }
-  }, [open, resumes.length, selectedResume]);
+  }, [open, resumes.length]);
 
   useEffect(() => {
     if (!open || !activeResumeId || !activeResumePath) {
