@@ -8,7 +8,7 @@ import { useState, useCallback } from 'react';
 import { useResumes } from '@/hooks/useResumes';
 
 export const ResumesPage = () => {
-  const { resumes, importMultiple, importStatuses, clearImportStatuses, removeImportStatus } = useResumes();
+  const { importMultiple, importStatuses, clearImportStatuses, removeImportStatus } = useResumes();
   const [showCompleted, setShowCompleted] = useState(true);
   const [dragActive, setDragActive] = useState(false);
 
