@@ -56,7 +56,7 @@ export function useNotificationSettings() {
     }
   }, [supabase, userId]);
 
-  useEffect(() => { if (userId) fetchSettings(); }, [userId, fetchSettings]);
+  useEffect(() => { if (userId) fetchSettings(); }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Realtime subscription
   useEffect(() => {

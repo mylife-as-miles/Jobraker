@@ -71,7 +71,7 @@ export function useNotifications(limit: number = 10) {
     }
   }, [supabase, userId, limit]);
 
-  useEffect(() => { if (userId) fetchItems(); }, [userId, fetchItems]);
+  useEffect(() => { if (userId) fetchItems(); }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track first load to avoid toasting historical items
   const initialLoadRef = useRef(true);
