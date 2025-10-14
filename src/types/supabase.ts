@@ -26,6 +26,7 @@ export interface Tables {
       walkthrough_profile?: boolean | null;
       walkthrough_notifications?: boolean | null;
       walkthrough_chat?: boolean | null;
+      walkthrough_cover_letter?: boolean | null;
     };
   };
   resumes: {

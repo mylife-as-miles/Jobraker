@@ -1,15 +1,11 @@
--- Quick fix for missing walkthrough_chat column
--- Run this in Supabase Dashboard → SQL Editor
+-- Add walkthrough_cover_letter flag to profiles table
+-- This tracks whether the user has completed the cover letter builder walkthrough
+-- Note: In the code this is referenced as "walkthrough_cover-letter" but stored as "walkthrough_cover_letter"
 
--- Add walkthrough_chat column
-ALTER TABLE "public"."profiles" 
-ADD COLUMN IF NOT EXISTS "walkthrough_chat" boolean DEFAULT false;
-
--- Add walkthrough_cover-letter column (note: using underscore in database, hyphen in code)
 ALTER TABLE "public"."profiles" 
 ADD COLUMN IF NOT EXISTS "walkthrough_cover_letter" boolean DEFAULT false;
 
--- Recreate the composite index with the new columns
+-- Update the composite index to include the new column
 DROP INDEX IF EXISTS "profiles_walkthrough_incomplete_idx";
 
 CREATE INDEX IF NOT EXISTS "profiles_walkthrough_incomplete_idx" ON "public"."profiles" USING btree (
@@ -24,3 +20,5 @@ CREATE INDEX IF NOT EXISTS "profiles_walkthrough_incomplete_idx" ON "public"."pr
   (not walkthrough_chat),
   (not walkthrough_cover_letter)
 );
+
+COMMENT ON COLUMN "public"."profiles"."walkthrough_cover_letter" IS 'Indicates whether the user has completed the cover letter builder walkthrough';
