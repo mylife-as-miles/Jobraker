@@ -4,24 +4,17 @@ import { motion } from "framer-motion";
 import { Helmet } from "react-helmet-async";
 
 import { GridView } from "./_layouts/grid";
-import { useRef, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useResumes } from '@/hooks/useResumes';
 import { Button } from '@/components/ui/button';
-import { Upload } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
+import { ResumeCheckerDialog } from './ResumeCheckerDialog';
 
 export const ResumesPage = () => {
-  const fileRef = useRef<HTMLInputElement | null>(null);
-  const { importMultiple, importStatuses, clearImportStatuses, removeImportStatus } = useResumes();
+  const { resumes, importMultiple, importStatuses, clearImportStatuses, removeImportStatus, getSignedUrl } = useResumes();
   const [showCompleted, setShowCompleted] = useState(true);
   const [dragActive, setDragActive] = useState(false);
-
-  const handlePick = () => fileRef.current?.click();
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || !files.length) return;
-    await importMultiple(files);
-    e.target.value = '';
-  };
+  const [checkerOpen, setCheckerOpen] = useState(false);
 
   const onDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -61,9 +54,8 @@ export const ResumesPage = () => {
             {t`Resume Builder`}
           </motion.h1>
           <div className="flex items-center gap-3">
-            <input ref={fileRef} type="file" multiple accept=".pdf,.doc,.docx,.txt,.json" hidden onChange={handleFile} />
-            <Button onClick={handlePick} variant="outline" className="border-[#1dff00]/40 text-[#1dff00] hover:bg-[#1dff00]/10">
-              <Upload className="w-4 h-4 mr-2" /> {dragActive ? 'Drop files...' : 'Import Resumes'}
+            <Button onClick={() => setCheckerOpen(true)} variant="outline" className="border-[#1dff00]/40 text-[#1dff00] hover:bg-[#1dff00]/10">
+              <Sparkles className="w-4 h-4 mr-2" /> Resume Checker
             </Button>
           </div>
         </div>
@@ -88,7 +80,7 @@ export const ResumesPage = () => {
               </div>
             </div>
             <ul className="max-h-44 overflow-auto thin-scrollbar pr-1 text-[11px] divide-y divide-[#1dff00]/10 border border-[#1dff00]/10 rounded-xl bg-black/40 backdrop-blur-sm">
-              {importStatuses.filter(st => showCompleted || (st.state !== 'done')).slice(0,14).map(st => {
+              {(importStatuses as any[]).filter((st: any) => showCompleted || (st.state !== 'done')).slice(0,14).map((st: any) => {
                 const pct = Math.round(st.progress);
                 const barColor = st.state === 'error' ? 'bg-red-500/60' : st.state === 'done' ? 'bg-[#1dff00]' : 'bg-[#1dff00]/60';
                 return (
@@ -134,6 +126,7 @@ export const ResumesPage = () => {
         )}
         </div>
       </div>
+      <ResumeCheckerDialog open={checkerOpen} onClose={() => setCheckerOpen(false)} resumes={resumes} getSignedUrl={getSignedUrl} />
     </div>
   );
 };
