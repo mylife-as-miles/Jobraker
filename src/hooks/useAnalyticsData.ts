@@ -99,6 +99,20 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
       push(["Status","Percent","Color"]);
       for (const d of donutData) push([d.name, d.value, d.color]);
 
+      if (matchBarData.length) {
+        rows.push("");
+        push(["Match Label","Score","Color","Summary","Company"]);
+        for (const m of matchBarData) {
+          push([
+            m.name,
+            m.value,
+            m.color,
+            m.summary ? m.summary.slice(0, 160) : "",
+            m.company ?? ""
+          ]);
+        }
+      }
+
       const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
