@@ -101,7 +101,7 @@ export function useResumes() {
 
   useEffect(() => {
     if (userId) list();
-  }, [userId, list]);
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getSignedUrl = useCallback(
     async (filePath: string): Promise<string | null> => {
