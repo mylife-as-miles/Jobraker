@@ -936,7 +936,7 @@ export const CoverLetter = () => {
         </Card>
 
         {/* Right: Preview */}
-        <Card className="p-3 sm:p-4 md:p-6 overflow-hidden rounded-xl">
+        <Card id="cover-editor" data-tour="cover-editor" className="p-3 sm:p-4 md:p-6 overflow-hidden rounded-xl">
           <div ref={previewRef} className="mx-auto w-full max-w-[800px] rounded-xl border border-border bg-white text-black shadow-xl">
             <div className="p-6 sm:p-8" style={{ fontSize: `${fontSize}px`, lineHeight: 1.6 }}>
               {/* Sender (right-aligned for professional layout) */}

@@ -339,7 +339,7 @@ export const OverviewPage = (): JSX.Element => {
                   </div>
                 </div>
                 {/* Status Filter Pills */}
-                <div id="overview-status-filter-buttons" className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-4 sm:mb-6">
+                <div id="overview-status-filter-buttons" data-tour="overview-status-filter-buttons" className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-4 sm:mb-6">
                   {['All','Applied','Interview','Offer','Rejected'].map(s => {
                     const active = s === 'All' ? !statusFilter : statusFilter?.includes(s as ApplicationStatus);
                     const baseColors: Record<string,string> = {
@@ -410,7 +410,8 @@ export const OverviewPage = (): JSX.Element => {
                 </div>
 
                 {/* Applications Chart (real data, status series) */}
-                <div id="overview-apps-chart" className="mt-4 sm:mt-6 w-full max-h-96 overflow-hidden min-h-[16rem] relative" aria-live="polite">
+                  {/* Application trend chart */}
+                <div id="overview-apps-chart" data-tour="overview-apps-chart" className="mt-4 sm:mt-6 w-full max-h-96 overflow-hidden min-h-[16rem] relative" aria-live="polite">
                   <div className={`transition-opacity duration-500 ${appsLoading ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                     {!appsLoading && (
                       <SplitLineAreaChart
@@ -444,7 +445,7 @@ export const OverviewPage = (): JSX.Element => {
               whileHover={{ scale: 1.02 }}
               className="transition-transform duration-300"
             >
-              <Card id="overview-calendar" className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
+              <Card id="overview-calendar" data-tour="overview-calendar" className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
                 <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[10px] sm:text-xs text-[#888888]">
                   <div>
                     Current time: <span className="text-[#1dff00] font-medium">{timeLabel}</span>
@@ -512,11 +513,11 @@ export const OverviewPage = (): JSX.Element => {
 
           {/* Right Column - Notifications and Match Scores */}
           <div className="space-y-4 sm:space-y-6">
-            {/* Notifications */}
+            {/* Notifications Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
               whileHover={{ scale: 1.02 }}
               className="transition-transform duration-300"
             >

@@ -363,7 +363,7 @@ export const ChatPage = () => {
           <div className="flex-1 min-h-0 flex flex-col rounded-3xl border border-neutral-800/60 bg-neutral-950/70 backdrop-blur-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_12px_40px_-10px_rgba(0,0,0,0.7)] overflow-hidden relative">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-black/60 to-transparent z-10" />
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent z-10" />
-            <Conversation className="flex-1">
+            <Conversation className="flex-1" data-tour="chat-transcript">
               <ConversationContent className="px-3 sm:px-6 py-8 space-y-7">
                 {messages.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-24 text-center gap-6">
@@ -440,7 +440,7 @@ export const ChatPage = () => {
               <PromptInputBody className="relative rounded-xl border border-neutral-800/70 bg-neutral-900/70 focus-within:border-[#1dff00]/50 transition-colors shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_4px_18px_-6px_rgba(0,0,0,0.7)]">
                 <div className="pointer-events-none absolute inset-0 rounded-xl bg-[radial-gradient(circle_at_70%_30%,rgba(29,255,0,0.18),transparent_70%)] opacity-30" />
                 <PromptInputAttachments>{file => <PromptInputAttachment data={file} />}</PromptInputAttachments>
-                <PromptInputTextarea value={text} onChange={e=>{ setText(e.target.value); setShowCommands(e.target.value.startsWith('/') && e.target.value.length <= 30); }} placeholder={editing ? 'Edit your message…' : 'Ask anything about your applications, resumes, interviews...'} className="min-h-[64px]" ref={textareaRef} />
+                <PromptInputTextarea value={text} onChange={e=>{ setText(e.target.value); setShowCommands(e.target.value.startsWith('/') && e.target.value.length <= 30); }} placeholder={editing ? 'Edit your message…' : 'Ask anything about your applications, resumes, interviews...'} className="min-h-[64px]" ref={textareaRef} data-tour="chat-input" />
                 {showCommands && !text.includes(' ') && (
                   <div className="absolute left-2 right-2 top-2 z-20 rounded-lg border border-neutral-800/70 bg-neutral-950/95 backdrop-blur-md p-2 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.65)] animate-[fadeIn_0.18s_ease]">
                     <ul className="flex flex-col gap-1 max-h-52 overflow-auto text-[11px]">
@@ -475,7 +475,7 @@ export const ChatPage = () => {
                     <GlobeIcon size={16} />
                     <span className="sr-only">Web Search</span>
                   </PromptInputButton>
-                  <PromptInputModelSelect value={model} onValueChange={v=>setModel(v)}>
+                  <PromptInputModelSelect value={model} onValueChange={v=>setModel(v)} data-chat-model-select data-tour="chat-model-select">
                     <PromptInputModelSelectTrigger><PromptInputModelSelectValue /></PromptInputModelSelectTrigger>
                     <PromptInputModelSelectContent>
                       {models.map(m => <PromptInputModelSelectItem key={m.id} value={m.id}>{m.name}</PromptInputModelSelectItem>)}

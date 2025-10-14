@@ -16,6 +16,7 @@ import { useToast } from "../../../components/ui/toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
 import { cn } from "../../../lib/utils";
+import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -609,6 +610,38 @@ export const JobPage = (): JSX.Element => {
   // Load user resumes for selection (used by the Auto Apply -> "Choose a resume" dialog)
   const { resumes, loading: resumesLoading } = useResumes();
   const { info } = useToast();
+
+  // Register walkthrough for Jobs page
+  useRegisterCoachMarks({
+    page: 'jobs',
+    marks: [
+      {
+        id: 'jobs-search',
+        selector: '#jobs-search',
+        title: 'Search Jobs',
+        body: 'Search across thousands of job postings by title, company, keywords, or skills.'
+      },
+      {
+        id: 'jobs-location',
+        selector: '#jobs-location',
+        title: 'Filter by Location',
+        body: 'Specify your preferred location or use "Remote" to find remote opportunities.'
+      },
+      {
+        id: 'jobs-card',
+        selector: '[data-tour="jobs-card"]',
+        title: 'Job Listings',
+        body: 'Browse AI-matched jobs. Click any card to see full details, company info, and apply directly.'
+      },
+      {
+        id: 'jobs-ai-match',
+        selector: '#jobs-ai-match',
+        title: 'AI Match Score',
+        body: 'Our AI analyzes each job against your profile and resume to show compatibility and fit.'
+      }
+    ]
+  });
+
   // Toast dedupe/throttle: avoid spamming repeated toasts
   const lastToastRef = useRef<{ msg: string; ts: number } | null>(null);
   const safeInfo = useCallback((msg: string, desc?: string, cooldownMs: number = 20000) => {
@@ -1480,11 +1513,13 @@ export const JobPage = (): JSX.Element => {
             />
           )}
 
-          <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] p-4 sm:p-6 mb-6 sm:mb-8">
+          <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] p-4 sm:p-6 mb-6 sm:mb-8" id="jobs-search-filters" data-tour="jobs-search-filters">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <div className="lg:col-span-2 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
                 <Input
+                  id="jobs-search"
+                  data-tour="jobs-search"
                   placeholder="Search jobs, companies..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -1495,6 +1530,8 @@ export const JobPage = (): JSX.Element => {
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
                 <Input
+                  id="jobs-location"
+                  data-tour="jobs-location"
                   placeholder="Location..."
                   value={selectedLocation}
                   onChange={(e) => setSelectedLocation(e.target.value)}
@@ -1705,6 +1742,7 @@ export const JobPage = (): JSX.Element => {
                   role="button"
                   aria-selected={selectedJob === job.id}
                   tabIndex={0}
+                  data-tour={index === 0 ? "jobs-card" : undefined}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedJob(job.id); }
                     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -2001,7 +2039,7 @@ export const JobPage = (): JSX.Element => {
                             ].filter(Boolean) as { label: string; value: string; tone?: 'urgent' | 'soon' | 'future' }[];
 
                             return (
-                              <Card className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] p-6">
+                              <Card id="jobs-ai-match" data-tour="jobs-ai-match" className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] p-6">
                                 <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
                                 <div className="relative flex flex-col gap-6">
                                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
