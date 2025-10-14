@@ -20,6 +20,7 @@ export interface Profile {
   walkthrough_settings?: boolean;
   walkthrough_profile?: boolean;
   walkthrough_notifications?: boolean;
+  walkthrough_chat?: boolean;
 }
 
 // Lightweight collection record types (duplicated from useProfileCollections to avoid coupling)
