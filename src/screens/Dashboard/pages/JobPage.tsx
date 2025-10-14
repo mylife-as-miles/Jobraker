@@ -223,6 +223,76 @@ const composeProfileSnapshot = (profile?: Profile | null): string | undefined =>
   return lines.length ? lines.join("\n") : undefined;
 };
 
+const formatSalaryRange = (job: Job): string | null => {
+  const { salary_min: min, salary_max: max, salary_currency: currency } = job;
+  if (!min && !max && !currency) return null;
+
+  const symbol = (() => {
+    if (!currency) return '$';
+    switch (currency.toUpperCase()) {
+      case 'USD':
+        return '$';
+      case 'GBP':
+        return '£';
+      case 'EUR':
+        return '€';
+      default:
+        return currency;
+    }
+  })();
+
+  const formatValue = (value: number | null | undefined) => {
+    if (value == null) return null;
+    if (value >= 1000) return `${Math.round(value / 1000)}k`;
+    if (value > 0 && value < 1000) return value.toString();
+    return null;
+  };
+
+  const minLabel = formatValue(min ?? null);
+  const maxLabel = formatValue(max ?? null);
+
+  if (minLabel && maxLabel) return `${symbol}${minLabel}-${maxLabel}`;
+  if (minLabel) return `${symbol}${minLabel}+`;
+  if (maxLabel) return `Up to ${symbol}${maxLabel}`;
+  return null;
+};
+
+const extractAutomationMetadata = (result: Awaited<ReturnType<typeof applyToJobs>> | null) => {
+  if (!result) {
+    return {
+      runId: null,
+      workflowId: null,
+      providerStatus: null,
+      recordingUrl: null,
+    } as const;
+  }
+  const skyvern = result.skyvern ?? null;
+  const runId = skyvern?.run?.id
+    ?? skyvern?.id
+    ?? skyvern?.run_id
+    ?? skyvern?.data?.id
+    ?? skyvern?.runId
+    ?? null;
+  const workflowId = result.submitted?.workflow_id
+    ?? skyvern?.run?.workflow_id
+    ?? skyvern?.workflow_id
+    ?? null;
+  const providerStatus = skyvern?.run?.status
+    ?? skyvern?.status
+    ?? skyvern?.state
+    ?? null;
+  const recordingUrl = skyvern?.run?.recording_url
+    ?? skyvern?.recording_url
+    ?? skyvern?.artifacts?.recording
+    ?? null;
+  return {
+    runId: runId ?? null,
+    workflowId: workflowId ?? null,
+    providerStatus: providerStatus ?? null,
+    recordingUrl: recordingUrl ?? null,
+  } as const;
+};
+
 const getCompanyLogoUrl = (companyName?: string, sourceUrl?: string): string | undefined => {
     if (!companyName) return undefined;
     try {
@@ -715,13 +785,20 @@ export const JobPage = (): JSX.Element => {
           }
         }
 
-        await applyToJobs({
+
+        const automationResult = await applyToJobs({
           jobs: payloadJobs,
           title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
           cover_letter: coverLetterPayload,
           ...(profileSnapshot ? { additional_information: profileSnapshot } : {}),
           ...(resumeSignedUrl ? { resume: resumeSignedUrl } : {}),
         });
+
+        const { runId, workflowId, providerStatus, recordingUrl } = extractAutomationMetadata(automationResult);
+        const { data: authData } = await supabase.auth.getUser();
+        const userId = authData?.user?.id ?? null;
+        const applicationsToInsert: any[] = [];
+        const appliedTimestamp = new Date().toISOString();
 
         safeInfo(
           'Automation launched',
@@ -733,7 +810,7 @@ export const JobPage = (): JSX.Element => {
         let done = 0;
         const appliedIds: string[] = [];
 
-        for (const { job } of jobsWithTargets) {
+        for (const { job, target } of jobsWithTargets) {
           try {
             const { error } = await supabase.from('jobs').delete().eq('id', job.id);
             done += 1;
@@ -746,6 +823,27 @@ export const JobPage = (): JSX.Element => {
               appliedIds.push(job.id);
               setApplyProgress((prev) => ({ ...prev, done, success }));
               events.autoApplyJobSuccess(job.id, job.status || 'unknown', 0);
+              if (userId) {
+                applicationsToInsert.push({
+                  user_id: userId,
+                  job_title: job.title,
+                  company: job.company,
+                  location: job.location ?? '',
+                  applied_date: appliedTimestamp,
+                  status: 'Applied',
+                  salary: formatSalaryRange(job),
+                  notes: null,
+                  next_step: null,
+                  interview_date: null,
+                  logo: job.logoUrl ?? null,
+                  run_id: runId,
+                  workflow_id: workflowId,
+                  app_url: job.apply_url ?? target ?? null,
+                  provider_status: providerStatus ?? 'Automation launched',
+                  recording_url: recordingUrl,
+                  failure_reason: null,
+                });
+              }
             }
           } catch (inner) {
             done += 1;
@@ -753,6 +851,16 @@ export const JobPage = (): JSX.Element => {
             setApplyProgress((prev) => ({ ...prev, done, fail }));
             events.autoApplyJobFailed(job.id, job.status || 'unknown', 'exception_delete');
           }
+        }
+
+        if (applicationsToInsert.length) {
+          try {
+            await supabase.from('applications').insert(applicationsToInsert);
+          } catch (appErr) {
+            console.error('Failed to insert application records', appErr);
+          }
+        } else if (!userId) {
+          console.warn('Skipping application inserts because user id is unavailable');
         }
 
         events.autoApplyFinished(success, fail);
