@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, GaugeCircle, Sparkles, Target, TrendingUp, ShieldCheck } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -12,7 +12,6 @@ import { useProfileSettings } from "@/hooks/useProfileSettings";
 import { useResumes } from "@/hooks/useResumes";
 import { parsePdfFile } from "@/utils/parsePdf";
 import { analyzeResumeWithOpenAI, type ResumeAnalysisResult } from "@/services/ai/analyzeResume";
-import { useMemo, useRef, useEffect } from "react";
 
 interface HistoryEntry {
   result: ResumeAnalysisResult;
