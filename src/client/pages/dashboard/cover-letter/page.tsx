@@ -3,7 +3,7 @@ import { useRegisterCoachMarks } from "@/providers/TourProvider";
 
 export const CoverLetterPage = () => {
   useRegisterCoachMarks({
-    page: 'cover-letter',
+    page: 'cover_letter',  // Use underscore to match database column: walkthrough_cover_letter
     marks: [
       { id: 'cover-header', selector: '#cover-header', title: 'Cover Letter Workspace', body: 'Compose, refine, and export tailored cover letters here.' },
       { id: 'cover-meta-panel', selector: '#cover-meta-panel', title: 'Context Inputs', body: 'Set role, company, tone and preferences to guide AI suggestions.' },

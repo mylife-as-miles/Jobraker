@@ -22,7 +22,7 @@ export interface Profile {
   walkthrough_profile?: boolean;
   walkthrough_notifications?: boolean;
   walkthrough_chat?: boolean;
-  "walkthrough_cover-letter"?: boolean;
+  walkthrough_cover_letter?: boolean;
 }
 
 // Lightweight collection record types (duplicated from useProfileCollections to avoid coupling)
