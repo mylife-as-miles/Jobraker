@@ -70,16 +70,24 @@ useEffect(() => {
    - Fixed initial fetch effect
 
 ### Resume Checker Dialog
-8. **`src/client/pages/dashboard/resumes/ResumeCheckerDialog.tsx`** (previously fixed)
-   - Removed `selectedResume` from useEffect dependencies
-   - Used `useRef` for one-time initialization
+8. **`src/client/pages/dashboard/resumes/ResumeCheckerDialog.tsx`** (previously fixed, re-fixed)
+   - **First fix**: Removed selectedResume from useEffect dependencies, used a ref for initialization
+   - **Second fix**: Removed unnecessary useMemo wrappers for experiencesData, educationData, skillsData
+   - Arrays with `undefined` length dependencies were creating new references each render
+   - Changed profileSummary dependencies to use JSON.stringify of IDs instead of array lengths
 
 ## Pattern to Avoid in Future
 
 When using `useCallback` functions in `useEffect`:
 
 ```typescript
-// ❌ DON'T DO THIS
+// ❌ DON'T DO THIS - unnecessary useMemo with array length
+const data = useMemo(() => rawData?.items ?? [], [rawData?.items?.length]); // if items is undefined, length is undefined, creates new [] every render
+
+// ✅ DO THIS INSTEAD - just use the data directly or use stable dependency
+const data = rawData?.items ?? [];
+
+// ❌ DON'T DO THIS - redundant dependencies
 const fetchData = useCallback(/* ... */, [dep1, dep2]);
 useEffect(() => { fetchData(); }, [dep1, dep2, fetchData]); // redundant
 
@@ -87,10 +95,8 @@ useEffect(() => { fetchData(); }, [dep1, dep2, fetchData]); // redundant
 const fetchData = useCallback(/* ... */, [dep1, dep2]);
 useEffect(() => { fetchData(); }, [dep1, dep2]); // or just the essential deps
 
-// OR use a ref if you need stable reference
-const fetchDataRef = useRef(fetchData);
-useEffect(() => { fetchDataRef.current = fetchData; });
-useEffect(() => { fetchDataRef.current(); }, [dep1, dep2]);
+// ✅ OR use JSON.stringify for array/object dependencies
+const summary = useMemo(() => buildSummary(items), [JSON.stringify(items.map(i => i.id))]);
 ```
 
 ## Verification
