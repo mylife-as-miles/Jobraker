@@ -59,11 +59,11 @@ const chartConfig = {
 
 const getCategoryColor = (label: string) => {
   const normalized = label.toLowerCase();
-  if (normalized.includes("role") || normalized.includes("focus")) return "var(--chart-1)";
-  if (normalized.includes("keyword") || normalized.includes("match")) return "var(--chart-2)";
-  if (normalized.includes("goal") || normalized.includes("profile")) return "var(--chart-3)";
-  if (normalized.includes("location") || normalized.includes("alignment")) return "var(--chart-4)";
-  return "var(--chart-5)";
+  if (normalized.includes("role") || normalized.includes("focus")) return "#1dff00"; // Bright green
+  if (normalized.includes("keyword") || normalized.includes("match")) return "#00ff88"; // Teal green
+  if (normalized.includes("goal") || normalized.includes("profile")) return "#88ff00"; // Yellow-green
+  if (normalized.includes("location") || normalized.includes("alignment")) return "#00ffcc"; // Cyan
+  return "#ccff00"; // Lime
 };
 
 export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieChartProps) {
@@ -87,7 +87,13 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
           </div>
           <Badge
             variant="outline"
-            className={`text-${score >= 70 ? 'green' : score >= 50 ? 'yellow' : 'red'}-500 bg-${score >= 70 ? 'green' : score >= 50 ? 'yellow' : 'red'}-500/10 border-none`}
+            className={
+              score >= 70
+                ? "text-[#1dff00] bg-[#1dff00]/10 border-none"
+                : score >= 50
+                ? "text-[#ffd78b] bg-[#ffd78b]/10 border-none"
+                : "text-[#ff8b8b] bg-[#ff8b8b]/10 border-none"
+            }
           >
             <TrendingUp className="h-4 w-4" />
             <span>{score}%</span>
@@ -104,7 +110,7 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
             <ChartContainer
               config={chartConfig}
               data={chartData}
-              className="[&_.recharts-text]:fill-background mx-auto aspect-square max-h-[250px]"
+              className="mx-auto aspect-square w-full max-h-[280px] [&_.recharts-text]:fill-white"
             >
               <PieChart>
                 <ChartTooltip
@@ -113,17 +119,18 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
                 <Pie
                   data={chartData}
                   innerRadius={30}
+                  outerRadius={80}
                   dataKey="score"
-                  radius={10}
+                  nameKey="label"
                   cornerRadius={8}
                   paddingAngle={4}
                 >
                   <LabelList
                     dataKey="score"
                     stroke="none"
-                    fontSize={12}
-                    fontWeight={500}
-                    fill="currentColor"
+                    fontSize={14}
+                    fontWeight={600}
+                    fill="#ffffff"
                     formatter={(value: number) => `${value}%`}
                   />
                 </Pie>
