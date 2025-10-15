@@ -67,6 +67,8 @@ const getCategoryColor = (label: string) => {
 };
 
 export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieChartProps) {
+  console.log('MatchScorePieChart render:', { score, summary, breakdownLength: breakdown?.length });
+  
   const chartData = breakdown?.map((item) => ({
     label: item.label,
     score: item.componentScore,
@@ -74,6 +76,8 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
   })) || [];
 
   const hasBreakdown = chartData.length > 0;
+  
+  console.log('Chart data:', chartData, 'hasBreakdown:', hasBreakdown);
 
   return (
     <Card className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a]">

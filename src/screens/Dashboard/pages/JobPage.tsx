@@ -2120,14 +2120,12 @@ export const JobPage = (): JSX.Element => {
                             <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.description || '') }} />
                           </Card>
 
-                          {/* AI Match Score Card */}
-                          {typeof job.matchScore === 'number' && (
-                            <MatchScorePieChart
-                              score={job.matchScore}
-                              summary={job.matchSummary}
-                              breakdown={job.matchBreakdown}
-                            />
-                          )}
+                          {/* AI Match Score Card - Always show for testing */}
+                          <MatchScorePieChart
+                            score={typeof job.matchScore === 'number' ? job.matchScore : 75}
+                            summary={job.matchSummary || "Match score analysis"}
+                            breakdown={job.matchBreakdown}
+                          />
 
                           {(() => {
                             const screenshot = (job as any)?.raw_data?.screenshot;
@@ -2721,14 +2719,12 @@ export const JobPage = (): JSX.Element => {
                   <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed text-[13px]" dangerouslySetInnerHTML={{ __html: sanitizeHtml(j.description || '') }} />
                 </Card>
 
-                {/* AI Match Score Card - Mobile */}
-                {typeof j.matchScore === 'number' && (
-                  <MatchScorePieChart
-                    score={j.matchScore}
-                    summary={j.matchSummary}
-                    breakdown={j.matchBreakdown}
-                  />
-                )}
+                {/* AI Match Score Card - Mobile - Always show for testing */}
+                <MatchScorePieChart
+                  score={typeof j.matchScore === 'number' ? j.matchScore : 75}
+                  summary={j.matchSummary || "Match score analysis"}
+                  breakdown={j.matchBreakdown}
+                />
 
                 {(() => {
                   const screenshot = (j as any)?.raw_data?.screenshot;
