@@ -1,6 +1,6 @@
 "use client";
 
-import { LabelList, Pie, PieChart } from "recharts";
+import { LabelList, Pie, PieChart, ResponsiveContainer } from "recharts";
 import {
   Card,
   CardContent,
@@ -111,35 +111,39 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
       <CardContent className="flex-1 pb-4">
         {hasBreakdown ? (
           <>
-            <ChartContainer
-              config={chartConfig}
-              data={chartData}
-              className="mx-auto aspect-square w-full max-h-[280px] [&_.recharts-text]:fill-white"
-            >
-              <PieChart>
-                <ChartTooltip
-                  content={<ChartTooltipContent hideLabel />}
-                />
-                <Pie
-                  data={chartData}
-                  innerRadius={30}
-                  outerRadius={80}
-                  dataKey="score"
-                  nameKey="label"
-                  cornerRadius={8}
-                  paddingAngle={4}
-                >
-                  <LabelList
-                    dataKey="score"
-                    stroke="none"
-                    fontSize={14}
-                    fontWeight={600}
-                    fill="#ffffff"
-                    formatter={(value: number) => `${value}%`}
-                  />
-                </Pie>
-              </PieChart>
-            </ChartContainer>
+            <div className="w-full h-[280px]">
+              <ChartContainer
+                config={chartConfig}
+                data={chartData}
+                className="w-full h-full"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <ChartTooltip
+                      content={<ChartTooltipContent hideLabel />}
+                    />
+                    <Pie
+                      data={chartData}
+                      innerRadius={30}
+                      outerRadius={80}
+                      dataKey="score"
+                      nameKey="label"
+                      cornerRadius={8}
+                      paddingAngle={4}
+                    >
+                      <LabelList
+                        dataKey="score"
+                        stroke="none"
+                        fontSize={14}
+                        fontWeight={600}
+                        fill="#ffffff"
+                        formatter={(value: number) => `${value}%`}
+                      />
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </div>
 
             <div className="mt-4 space-y-2">
               {breakdown?.map((item, index) => (

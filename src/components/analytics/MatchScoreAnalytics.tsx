@@ -3,7 +3,7 @@
 import { Card } from "../ui/card"
 import { motion } from "framer-motion"
 import { ArrowDownRight, ArrowUpRight, Sparkles } from "lucide-react"
-import { LabelList, Pie, PieChart } from "recharts"
+import { LabelList, Pie, PieChart, ResponsiveContainer } from "recharts"
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "../ui/chart"
 import { Badge } from "../ui/badge"
 
@@ -82,33 +82,37 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
 
         <div className="relative flex-1 min-h-0 flex items-center justify-center">
           {hasData ? (
-            <ChartContainer
-              config={chartConfig}
-              data={chartData}
-              className="mx-auto aspect-square w-full max-h-[250px] [&_.recharts-text]:fill-white"
-            >
-              <PieChart>
-                <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                <Pie
-                  data={chartData}
-                  innerRadius={40}
-                  outerRadius={85}
-                  dataKey="value"
-                  nameKey="name"
-                  cornerRadius={8}
-                  paddingAngle={4}
-                >
-                  <LabelList
-                    dataKey="value"
-                    stroke="none"
-                    fontSize={14}
-                    fontWeight={600}
-                    fill="#ffffff"
-                    formatter={(value: number) => `${value}%`}
-                  />
-                </Pie>
-              </PieChart>
-            </ChartContainer>
+            <div className="w-full h-[280px]">
+              <ChartContainer
+                config={chartConfig}
+                data={chartData}
+                className="w-full h-full"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                    <Pie
+                      data={chartData}
+                      innerRadius={40}
+                      outerRadius={85}
+                      dataKey="value"
+                      nameKey="name"
+                      cornerRadius={8}
+                      paddingAngle={4}
+                    >
+                      <LabelList
+                        dataKey="value"
+                        stroke="none"
+                        fontSize={14}
+                        fontWeight={600}
+                        fill="#ffffff"
+                        formatter={(value: number) => `${value}%`}
+                      />
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </div>
           ) : (
             <div className="flex h-[250px] items-center justify-center">
               <div className="text-center space-y-2">
