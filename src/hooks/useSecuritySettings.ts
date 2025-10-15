@@ -54,7 +54,7 @@ export function useSecuritySettings() {
     }
   }, [supabase, userId]);
 
-  useEffect(() => { if (userId) fetchSettings(); }, [userId, fetchSettings]);
+  useEffect(() => { if (userId) fetchSettings(); }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!userId) return;
@@ -167,7 +167,7 @@ export function useSecuritySettings() {
       .subscribe();
     listBackupCodes();
     return () => { try { (supabase as any).removeChannel(ch); } catch {} };
-  }, [supabase, userId, listBackupCodes]);
+  }, [supabase, userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Trusted devices
   const listDevices = useCallback(async () => {
@@ -205,7 +205,7 @@ export function useSecuritySettings() {
       .subscribe();
     listDevices();
     return () => { try { (supabase as any).removeChannel(ch); } catch {} };
-  }, [supabase, userId, listDevices]);
+  }, [supabase, userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // MFA helpers (TOTP)
   const enrollTotp = useCallback(async () => {

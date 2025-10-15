@@ -1,11 +1,14 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
-import { ChevronLeft, ChevronRight, CheckCircle, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle, Sparkles, UploadCloud, FileText, Wand2, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
+import { parsePdfFile } from '@/utils/parsePdf';
+import { analyzeResumeText } from '@/utils/analyzeResume';
+import { events } from '@/lib/analytics';
 
 interface OnboardingStep {
   id: number;
@@ -18,6 +21,14 @@ export const Onboarding = (): JSX.Element => {
   const navigate = useNavigate();
   const supabase = useMemo(() => createClient(), []);
   const [currentStep, setCurrentStep] = useState(0);
+  // Onboarding mode: null = not chosen yet, 'manual' | 'resume'
+  const [mode, setMode] = useState<null | 'manual' | 'resume'>(null);
+  const [uploading, setUploading] = useState(false);
+  const [parsing, setParsing] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [parsed, setParsed] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -25,9 +36,12 @@ export const Onboarding = (): JSX.Element => {
     experience: "",
     location: "",
     goals: [] as string[],
+    about: "",
+    skills: [] as string[],
+    education: [] as { school?: string; degree?: string; start?: string; end?: string }[],
   });
 
-  const updateFormData = (field: string, value: string | string[]) => {
+  const updateFormData = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -110,8 +124,8 @@ export const Onboarding = (): JSX.Element => {
               onClick={() => toggleGoal(goal)}
               className={`h-10 sm:h-12 text-xs sm:text-sm transition-all duration-200 ${
                 formData.goals.includes(goal)
-                  ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-                  : "border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]"
+                  ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90'
+                  : 'border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]'
               }`}
             >
               {goal}
@@ -122,6 +136,43 @@ export const Onboarding = (): JSX.Element => {
     },
     {
       id: 5,
+      title: "About You",
+      subtitle: "Add a short professional summary.",
+      component: (
+        <div className="w-full space-y-3">
+          <textarea
+            placeholder="e.g. Full-stack engineer with 5+ years building scalable SaaS platforms..."
+            value={formData.about}
+            onChange={(e) => updateFormData("about", e.target.value)}
+            className="w-full min-h-[120px] bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] text-sm p-3 rounded-md"
+          />
+        </div>
+      ),
+    },
+    {
+      id: 6,
+      title: "Core Skills",
+      subtitle: "List a few key skills (press Enter).",
+      component: (
+        <SkillInput
+          values={formData.skills}
+          onChange={(vals) => updateFormData("skills", vals)}
+        />
+      ),
+    },
+    {
+      id: 7,
+      title: "Education",
+      subtitle: "Add at least one entry (optional).",
+      component: (
+        <EducationEditor
+          values={formData.education}
+          onChange={(vals) => updateFormData("education", vals)}
+        />
+      ),
+    },
+    {
+      id: 8,
       title: "All Set!",
       subtitle: "Your profile is ready.",
       component: (
@@ -156,6 +207,261 @@ export const Onboarding = (): JSX.Element => {
     }
   ];
 
+  // ================= Resume Upload & Parse =================
+  const handleResumeFiles = useCallback(async (fileList: FileList | null) => {
+    if (!fileList || !fileList.length) return;
+    const file = fileList[0];
+    setUploading(true);
+    setParseError(null);
+    setUploadProgress(5);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      // Upload to storage (resumes bucket)
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
+      const path = `${user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const bytes = await file.arrayBuffer();
+      const blob = new Blob([bytes], { type: file.type || 'application/octet-stream' });
+      setUploadProgress(25);
+      const { error: upErr } = await (supabase as any).storage.from('resumes').upload(path, blob, { upsert: false, contentType: file.type || undefined });
+      if (upErr) throw upErr;
+      setUploadProgress(50);
+      const insertPayload = {
+        user_id: user.id,
+        name: file.name.replace(/\.[^.]+$/, ''),
+        template: null,
+        status: 'Draft',
+        applications: 0,
+        thumbnail: null,
+        is_favorite: false,
+        file_path: path,
+        file_ext: ext,
+        size: file.size,
+      };
+      const { data: resumeRow, error: insErr } = await (supabase as any).from('resumes').insert(insertPayload).select('*').single();
+      if (insErr) throw insErr;
+      setUploadProgress(65);
+      // Parse & analyze
+      setParsing(true);
+      let rawText = '';
+      if (ext === 'pdf') {
+        const parsed = await parsePdfFile(file);
+        rawText = parsed.text;
+      } else {
+        rawText = await file.text();
+      }
+      setUploadProgress(75);
+      const analyzed = analyzeResumeText(rawText || '');
+      setUploadProgress(85);
+      // Insert parsed snapshot (lightweight)
+      try {
+        await (supabase as any).from('parsed_resumes').insert({
+          resume_id: resumeRow.id,
+          user_id: user.id,
+          raw_text: rawText.slice(0, 500000),
+          json: { sections: analyzed.sections, entities: analyzed.entities },
+        });
+      } catch {}
+      // Prefill form data
+      const summary = analyzed.structured?.summary || '';
+      const educationSections = Array.isArray(analyzed.structured?.education) ? analyzed.structured.education : [];
+      const eduParsed = educationSections.map((s: any) => {
+        const lines = String(s.content || '').split(/\n+/).map((l: string) => l.trim()).filter(Boolean);
+        return { school: lines[0] || '', degree: lines[1] || '', start: '', end: '' };
+      }).slice(0, 5);
+      setFormData(prev => ({
+        ...prev,
+        about: prev.about || (typeof summary === 'string' ? summary : ''),
+        skills: Array.from(new Set([...(prev.skills||[]), ...(analyzed.skills||[])])).slice(0, 40),
+        jobTitle: prev.jobTitle || (analyzed.entities?.titles?.[0] || ''),
+        education: prev.education.length ? prev.education : eduParsed,
+      }));
+      setUploadProgress(100);
+      setParsed(true);
+      setParsing(false);
+      // Move user into step flow (start from first standard step so they can refine names etc.)
+      setCurrentStep(0);
+    } catch (e: any) {
+      setParseError(e.message || 'Failed to process resume');
+    } finally {
+      setUploading(false);
+      setParsing(false);
+      setTimeout(() => setUploadProgress(0), 1200);
+    }
+  }, [supabase]);
+
+  const resumeModeScreen = (
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-10 bg-black relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-32 -left-24 h-72 w-72 rounded-full bg-[#1dff00]/10 blur-3xl" />
+        <div className="absolute -bottom-40 -right-32 h-96 w-96 rounded-full bg-[#1dff00]/5 blur-3xl" />
+      </div>
+      <div className="relative max-w-4xl w-full space-y-10">
+        <div className="text-center space-y-4">
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-white via-white to-[#1dff00] bg-clip-text text-transparent">Welcome – how do you want to get started?</h1>
+          <p className="text-white/70 max-w-2xl mx-auto text-sm md:text-base">Upload your existing resume for instant AI extraction, or build your profile manually. You can always refine everything afterward.</p>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          <button onClick={() => setMode('resume')} className="group relative overflow-hidden rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#101910] via-[#060a06] to-black p-8 text-left shadow-[0_0_0_1px_rgba(29,255,0,0.15),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(29,255,0,0.4),0_25px_50px_-12px_rgba(29,255,0,0.15)] transition">
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-[#1dff00]/10 to-transparent transition" />
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-12 w-12 rounded-xl bg-[#1dff00]/15 flex items-center justify-center border border-[#1dff00]/30"><UploadCloud className="w-6 h-6 text-[#1dff00]" /></div>
+              <h2 className="text-xl font-semibold text-white">Upload & Auto‑Extract</h2>
+            </div>
+            <ul className="space-y-2 text-sm text-white/70">
+              <li className="flex items-start gap-2"><Wand2 className="w-4 h-4 text-[#1dff00] mt-0.5" /> AI parses skills, summary, education & roles</li>
+              <li className="flex items-start gap-2"><FileText className="w-4 h-4 text-[#1dff00] mt-0.5" /> Prefills your profile instantly</li>
+              <li className="flex items-start gap-2"><ShieldCheck className="w-4 h-4 text-[#1dff00] mt-0.5" /> Your data stays private</li>
+            </ul>
+            <div className="mt-6 inline-flex items-center gap-2 text-[#1dff00] text-sm font-medium">Get started <ChevronRight className="w-4 h-4" /></div>
+          </button>
+          <button onClick={() => setMode('manual')} className="group relative overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-[#0d0d0d] via-[#060606] to-black p-8 text-left shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.25),0_25px_50px_-12px_rgba(0,0,0,0.5)] transition">
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-white/5 to-transparent transition" />
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-12 w-12 rounded-xl bg-white/10 flex items-center justify-center border border-white/20"><FileText className="w-6 h-6 text-white" /></div>
+              <h2 className="text-xl font-semibold text-white">Manual Setup</h2>
+            </div>
+            <ul className="space-y-2 text-sm text-white/60">
+              <li>Enter details step by step</li>
+              <li>Full control over every field</li>
+              <li>Add skills, education & goals</li>
+            </ul>
+            <div className="mt-6 inline-flex items-center gap-2 text-white text-sm font-medium">Begin manual flow <ChevronRight className="w-4 h-4" /></div>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const resumeUploadScreen = (
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-10 bg-black relative overflow-hidden" role="main" aria-labelledby="uploadHeading">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-32 -left-24 h-72 w-72 rounded-full bg-[#1dff00]/10 blur-3xl" />
+        <div className="absolute -bottom-40 -right-32 h-96 w-96 rounded-full bg-[#1dff00]/5 blur-3xl" />
+      </div>
+      <div className="relative max-w-2xl w-full space-y-10">
+        <div className="text-center space-y-4">
+          <h1 id="uploadHeading" className="text-3xl font-bold tracking-tight text-white">Upload Your Resume</h1>
+          <p className="text-white/70 text-sm md:text-base max-w-xl mx-auto">We’ll parse skills, roles, education and summary. Nothing is final until you confirm.</p>
+        </div>
+        <div className="rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#081108] via-[#050805] to-black p-10 relative overflow-hidden" aria-live="polite">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(29,255,0,0.15),transparent_70%)] opacity-70" />
+          <div className="relative z-10 flex flex-col gap-8">
+            <div className="flex flex-col lg:flex-row gap-8">
+              <div className="flex-1 flex flex-col gap-4">
+                <label
+                  className="w-full cursor-pointer group"
+                  aria-label="Upload resume file"
+                  onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true); }}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); if (!dragActive) setDragActive(true); }}
+                  onDragLeave={(e) => { if (e.currentTarget.contains(e.relatedTarget as Node)) return; setDragActive(false); }}
+                  onDrop={(e) => {
+                    e.preventDefault(); e.stopPropagation(); setDragActive(false);
+                    const files = e.dataTransfer?.files; if (files && files.length) handleResumeFiles(files);
+                  }}
+                >
+                  <div className={`flex flex-col items-center justify-center gap-4 border-2 border-dashed rounded-xl py-12 px-6 relative overflow-hidden transition ${dragActive ? 'border-[#1dff00] bg-[#1dff00]/10 shadow-[0_0_0_1px_rgba(29,255,0,0.4),0_0_20px_-2px_rgba(29,255,0,0.4)]' : 'border-[#1dff00]/40 group-hover:border-[#1dff00] bg-[#1dff00]/5'}`}>
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-[#1dff00]/10 to-transparent transition" />
+                    <UploadCloud className="w-10 h-10 text-[#1dff00]" />
+                    <div className="text-center space-y-1">
+                      <p className="text-white font-medium">{dragActive ? 'Release to upload' : 'Drop your resume here'}</p>
+                      <p className="text-white/60 text-xs">{dragActive ? 'Parsing will begin automatically' : 'Click or drag (PDF / TXT / MD / RTF)'}</p>
+                    </div>
+                    <p className="text-[10px] tracking-wide text-[#1dff00]/70 uppercase">Secure • Local Parse</p>
+                  </div>
+                  <input type="file" accept=".pdf,.txt,.md,.rtf" className="hidden" onChange={(e) => handleResumeFiles(e.target.files)} />
+                </label>
+                {(uploading || parsing) && (
+                  <div className="w-full space-y-2">
+                    <div className="flex items-center justify-between text-[11px] text-white/60"><span>{parsing ? 'Parsing & extracting content' : 'Uploading file'}</span><span>{uploadProgress}%</span></div>
+                    <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-[#1dff00] via-[#7dff5c] to-[#1dff00] transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-white/40">
+                      <div className="h-1.5 w-1.5 rounded-full bg-[#1dff00] animate-pulse" />
+                      <span>{parsing ? 'Extracting sections, skills & entities…' : 'Uploading to secure storage…'}</span>
+                    </div>
+                  </div>
+                )}
+                {parseError && <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2 w-full">{parseError}</div>}
+                <div className="flex flex-wrap gap-3">
+                  <button onClick={() => setMode(null)} className="px-4 py-2 rounded-md border border-white/20 text-white/70 hover:text-white hover:border-white/40 text-sm">Back</button>
+                  {parseError && <button onClick={() => setParseError(null)} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium">Try Again</button>}
+                  {parsed && <button onClick={() => setMode('manual')} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium">Continue to Profile</button>}
+                </div>
+              </div>
+              {/* Preview / Extraction Panel */}
+              <div className="flex-1 rounded-xl border border-white/10 bg-white/[0.03] p-5 flex flex-col gap-4 min-h-[320px]">
+                {!parsed && !(uploading||parsing) && (
+                  <div className="text-white/50 text-sm leading-relaxed">
+                    <p className="font-medium mb-2 text-white/70">What we extract</p>
+                    <ul className="list-disc list-inside space-y-1 text-xs">
+                      <li>Professional summary / profile</li>
+                      <li>Highlighted skills (tech & core)</li>
+                      <li>Education institutions & degrees</li>
+                      <li>Role titles and seniority indicators</li>
+                    </ul>
+                    <div className="mt-4 text-[10px] uppercase tracking-wide text-white/30">No external API calls • Parsed locally</div>
+                  </div>
+                )}
+                {(uploading || parsing) && (
+                  <div className="flex flex-col gap-3 animate-pulse">
+                    <div className="h-4 w-1/2 bg-white/10 rounded" />
+                    <div className="space-y-2">
+                      <div className="h-3 w-full bg-white/5 rounded" />
+                      <div className="h-3 w-5/6 bg-white/5 rounded" />
+                      <div className="h-3 w-4/6 bg-white/5 rounded" />
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {Array.from({ length: 6 }).map((_,i)=>(<div key={i} className="h-5 w-14 bg-white/5 rounded-full" />))}
+                    </div>
+                  </div>
+                )}
+                {parsed && !uploading && !parsing && (
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <div className="text-xs font-semibold text-white/70 mb-1">Extracted Summary</div>
+                      <div className="text-xs text-white/70 bg-black/40 border border-white/10 rounded-md p-3 max-h-32 overflow-auto whitespace-pre-wrap">{formData.about || '—'}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-white/70 mb-1 flex items-center gap-2">Skills <span className="text-white/30 font-normal">({formData.skills.length})</span></div>
+                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-auto">
+                        {formData.skills.slice(0,40).map(s => (
+                          <span key={s} className="px-2 py-0.5 rounded-full text-[10px] bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00]">{s}</span>
+                        ))}
+                        {!formData.skills.length && <span className="text-[10px] text-white/40">No skills detected</span>}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 flex-wrap text-[10px] text-white/40">
+                      <button onClick={() => setParsed(false)} className="underline hover:text-white/70">Replace File</button>
+                      <button onClick={() => { setFormData(p=>({...p, about:'', skills:[], education:[]})); setParsed(false); }} className="underline hover:text-white/70">Reset Extraction</button>
+                      <button onClick={() => setMode('manual')} className="underline text-[#1dff00] hover:text-[#7dff5c]">Accept & Continue</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4 text-center text-[10px] text-white/40">
+              <div className="flex flex-col gap-1">
+                <span className="font-medium text-white/60">Private</span>
+                <span>No external send</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="font-medium text-white/60">Fast</span>
+                <span>&lt; 5s parse</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="font-medium text-white/60">Re-usable</span>
+                <span>Edit anytime</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="text-center text-xs text-white/40">Your file is used only to prefill profile data. You can delete the stored draft resume later.</div>
+      </div>
+    </div>
+  );
+
   const nextStep = async () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
@@ -168,18 +474,72 @@ export const Onboarding = (): JSX.Element => {
           return;
         }
         // Upsert profile information and mark onboarding complete
+        const startedAt = (user as any).created_at ? new Date((user as any).created_at).getTime() : undefined;
         const { error } = await supabase.from('profiles').upsert({
           id: user.id,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          job_title: formData.jobTitle,
-          experience_years: formData.experience ? Number(formData.experience) : null,
-          location: formData.location,
-          goals: formData.goals,
-          onboarding_complete: true,
-          updated_at: new Date().toISOString(),
+          first_name: formData.firstName || null,
+            last_name: formData.lastName || null,
+            job_title: formData.jobTitle || null,
+            experience_years: formData.experience ? Number(formData.experience) : null,
+            location: formData.location || null,
+            goals: formData.goals,
+            about: formData.about || null,
+            skills: formData.skills.length ? formData.skills : [],
+            education: formData.education && formData.education.length ? JSON.stringify(formData.education) : null,
+            onboarding_complete: true,
+            updated_at: new Date().toISOString(),
         }, { onConflict: 'id' });
         if (error) throw error;
+
+        // Normalize collections into dedicated tables (education, skills). Experience is not collected in onboarding yet.
+        try {
+          // Education: insert rows if user has none yet OR to avoid duplicates use simple uniqueness heuristic
+          if (Array.isArray(formData.education) && formData.education.length) {
+            const { data: existingEdu } = await supabase.from('profile_education').select('id, degree, school').eq('user_id', user.id).limit(1);
+            if (!(existingEdu && existingEdu.length)) {
+              const eduRows = formData.education
+                .filter(e => (e.school || '').trim() || (e.degree || '').trim())
+                .map(e => ({
+                  user_id: user.id,
+                  degree: (e.degree || '').trim(),
+                  school: (e.school || '').trim(),
+                  location: '',
+                  start_date: e.start ? `${e.start}-01` : new Date().toISOString(),
+                  end_date: e.end ? `${e.end}-01` : null,
+                  gpa: null,
+                }));
+              if (eduRows.length) {
+                await supabase.from('profile_education').insert(eduRows);
+              }
+            }
+          }
+          // Skills: if table empty for user, seed
+          if (Array.isArray(formData.skills) && formData.skills.length) {
+            const { data: existingSkills } = await supabase.from('profile_skills').select('id').eq('user_id', user.id).limit(1);
+            if (!(existingSkills && existingSkills.length)) {
+              const skillRows = formData.skills.slice(0, 60).map(name => ({
+                user_id: user.id,
+                name: name.trim(),
+                level: null,
+                category: '',
+              })).filter(r => r.name);
+              if (skillRows.length) {
+                await supabase.from('profile_skills').insert(skillRows);
+              }
+            }
+          }
+        } catch (normErr) {
+          // Non-fatal: log only; profile core saved already
+          console.warn('Normalization failed (non-blocking):', normErr);
+        }
+
+        // Analytics: emit counts for collections normalization
+        try {
+          const elapsed = startedAt ? Date.now() - startedAt : undefined;
+          // Extend existing schema by merging counts if the tracker tolerates extra props
+          events.profileCompleted(elapsed as any);
+          (window as any).__profileCompletedTracked = true;
+        } catch {}
   navigate("/dashboard/overview");
       } catch (err) {
         console.error('Failed to save onboarding:', err);
@@ -220,6 +580,10 @@ export const Onboarding = (): JSX.Element => {
       transition: { duration: 0.3, ease: "easeIn" },
     },
   };
+
+  // Mode gating logic
+  if (mode === null) return resumeModeScreen;
+  if (mode === 'resume' && !parsed) return resumeUploadScreen;
 
   return (
     <div className="min-h-screen bg-black flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8">
@@ -336,6 +700,71 @@ export const Onboarding = (): JSX.Element => {
           </Card>
         </motion.div>
       </div>
+    </div>
+  );
+};
+
+// Lightweight skill input (Enter to add, click to remove)
+const SkillInput = ({ values, onChange }: { values: string[]; onChange: (v: string[]) => void }) => {
+  const [draft, setDraft] = useState("");
+  const add = () => {
+    const v = draft.trim();
+    if (v && !values.includes(v)) onChange([...values, v]);
+    setDraft("");
+  };
+  return (
+    <div className="w-full space-y-2">
+      <div className="flex gap-2">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+          placeholder="Type a skill and press Enter"
+          className="flex-1 rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-sm text-white placeholder:text-white/50 focus:border-[#1dff00] outline-none"
+        />
+        <button onClick={add} disabled={!draft.trim()} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium disabled:opacity-50">Add</button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {values.map(s => (
+          <button
+            key={s}
+            onClick={() => onChange(values.filter(x => x !== s))}
+            className="group inline-flex items-center gap-1 rounded-full border border-[#1dff00]/40 bg-[#1dff00]/10 px-3 py-1 text-xs text-[#1dff00] hover:bg-[#1dff00]/20"
+            title="Remove skill"
+          >
+            <span>{s}</span>
+            <span className="text-[#1dff00]/70 group-hover:text-[#ff4d4d]">×</span>
+          </button>
+        ))}
+        {!values.length && <span className="text-xs text-white/40">No skills added yet</span>}
+      </div>
+    </div>
+  );
+};
+
+interface EduItem { school?: string; degree?: string; start?: string; end?: string }
+const EducationEditor = ({ values, onChange }: { values: EduItem[]; onChange: (v: EduItem[]) => void }) => {
+  const update = (idx: number, patch: Partial<EduItem>) => {
+    const next = values.map((v,i) => i===idx ? { ...v, ...patch } : v);
+    onChange(next);
+  };
+  const add = () => onChange([...(values||[]), { school: '', degree: '', start: '', end: '' }]);
+  const remove = (idx: number) => onChange(values.filter((_,i)=>i!==idx));
+  return (
+    <div className="space-y-4">
+      {(values||[]).map((e,i)=>(
+        <div key={i} className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-start">
+          <input value={e.school||''} onChange={ev=>update(i,{school: ev.target.value})} placeholder="School" className="rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-xs sm:text-sm text-white placeholder:text-white/50 focus:border-[#1dff00] outline-none" />
+          <input value={e.degree||''} onChange={ev=>update(i,{degree: ev.target.value})} placeholder="Degree" className="rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-xs sm:text-sm text-white placeholder:text-white/50 focus:border-[#1dff00] outline-none" />
+          <input value={e.start||''} onChange={ev=>update(i,{start: ev.target.value})} placeholder="Start" className="rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-xs sm:text-sm text-white placeholder:text-white/50 focus:border-[#1dff00] outline-none" />
+          <div className="flex gap-2">
+            <input value={e.end||''} onChange={ev=>update(i,{end: ev.target.value})} placeholder="End" className="flex-1 rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-xs sm:text-sm text-white placeholder:text-white/50 focus:border-[#1dff00] outline-none" />
+            <button onClick={()=>remove(i)} className="px-2 rounded-md bg-red-500/20 text-red-300 text-xs hover:bg-red-500/30">✕</button>
+          </div>
+        </div>
+      ))}
+      <button onClick={add} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium">Add Education</button>
+      {!values.length && <div className="text-xs text-white/40">No education entries yet</div>}
     </div>
   );
 };

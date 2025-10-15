@@ -2,11 +2,10 @@ import { useEffect } from "react";
 import { HelmetProvider } from "react-helmet-async";
 import { Outlet } from "react-router-dom";
 import { useLocation } from "react-router-dom";
-import { QueryClientProvider } from "@tanstack/react-query";
 
 import { helmetContext } from "../constants/helmet";
+import { TourProvider } from "./TourProvider";
 import { useArtboardStore } from "../store/artboard";
-import { queryClient } from "../client/libs/query-client";
 
 export const Providers = () => {
   const setResume = useArtboardStore((state) => state.setResume);
@@ -35,9 +34,9 @@ export const Providers = () => {
 
   return (
     <HelmetProvider context={helmetContext}>
-      <QueryClientProvider client={queryClient}>
+      <TourProvider>
         <Outlet />
-      </QueryClientProvider>
+      </TourProvider>
     </HelmetProvider>
   );
 };

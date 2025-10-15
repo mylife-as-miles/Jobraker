@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/toast';
 
@@ -15,12 +15,14 @@ export interface NotificationRow {
   // Optional fields added by later migration
   is_starred?: boolean | null;
   action_url?: string | null;
+  priority?: 'low' | 'medium' | 'high';
+  seen_at?: string | null;
   created_at: string;
 }
 
 export function useNotifications(limit: number = 10) {
   const supabase = createClient();
-  const { error: toastError } = useToast();
+  const { error: toastError, warning, info } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [items, setItems] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -28,6 +30,8 @@ export function useNotifications(limit: number = 10) {
   const [hasMore, setHasMore] = useState(true);
   // Feature capability flags (in case migration not applied yet)
   const [supportsStar, setSupportsStar] = useState(true);
+  const [supportsPriority] = useState(true); // reserved for future conditional UI, setter removed to avoid unused var
+  const [supportsSeen, setSupportsSeen] = useState(true);
 
   // Resolve user id
   useEffect(() => {
@@ -67,9 +71,13 @@ export function useNotifications(limit: number = 10) {
     }
   }, [supabase, userId, limit]);
 
-  useEffect(() => { if (userId) fetchItems(); }, [userId, fetchItems]);
+  useEffect(() => { if (userId) fetchItems(); }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // realtime subscription
+  // Track first load to avoid toasting historical items
+  const initialLoadRef = useRef(true);
+  useEffect(() => { initialLoadRef.current = true; }, [userId]);
+
+  // realtime subscription with toast feedback
   useEffect(() => {
     if (!userId) return;
     const channel = (supabase as any)
@@ -77,7 +85,17 @@ export function useNotifications(limit: number = 10) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, (payload: any) => {
         const { eventType } = payload;
         if (eventType === 'INSERT') {
-          setItems(prev => [payload.new as NotificationRow, ...prev].slice(0, limit));
+          const inserted = payload.new as NotificationRow;
+            // Push new item local state
+          setItems(prev => [inserted, ...prev].slice(0, limit));
+          // Only toast if not part of the initial hydration
+          if (!initialLoadRef.current) {
+            if (inserted.priority === 'high') {
+              warning?.(inserted.title || 'High priority notification', inserted.message || undefined, 6000);
+            } else if (inserted.priority === 'medium') {
+              info?.(inserted.title || 'New notification', inserted.message || undefined, 4500);
+            }
+          }
         } else if (eventType === 'UPDATE') {
           setItems(prev => prev.map(n => n.id === payload.new.id ? (payload.new as NotificationRow) : n));
         } else if (eventType === 'DELETE') {
@@ -85,8 +103,25 @@ export function useNotifications(limit: number = 10) {
         }
       })
       .subscribe();
-    return () => { try { (supabase as any).removeChannel(channel); } catch {} };
-  }, [supabase, userId, limit]);
+    // After a small delay mark initial load complete so subsequent inserts toast
+    const t = setTimeout(() => { initialLoadRef.current = false; }, 1000);
+    return () => { try { (supabase as any).removeChannel(channel); } catch {} clearTimeout(t); };
+  }, [supabase, userId, limit, warning, info]);
+
+  // Listen for local optimistic creation events (in case realtime not yet delivered)
+  useEffect(() => {
+    function onLocalInsert(ev: Event) {
+      const detail: any = (ev as CustomEvent).detail;
+      if (!detail || !detail.id) return;
+      if (detail.user_id !== userId) return;
+      setItems(prev => {
+        if (prev.some(n => n.id === detail.id)) return prev; // already present (maybe via realtime)
+        return [detail as NotificationRow, ...prev].slice(0, limit);
+      });
+    }
+    window.addEventListener('notification:insert', onLocalInsert as EventListener);
+    return () => window.removeEventListener('notification:insert', onLocalInsert as EventListener);
+  }, [userId, limit]);
 
   // CRUD helpers
   const add = useCallback(async (row: Omit<NotificationRow, 'id' | 'created_at'>) => {
@@ -150,6 +185,57 @@ export function useNotifications(limit: number = 10) {
     await bulkStar([id], !(current.is_starred ?? false));
   }, [items, bulkStar]);
 
+  const markSeen = useCallback(async (id: string) => {
+    try {
+      const { data, error } = await supabase.from('notifications').update({ seen_at: new Date().toISOString() }).eq('id', id).select('*').single();
+      if (error) throw error;
+      setItems(prev => prev.map(n => n.id === id ? (data as any) : n));
+    } catch (e: any) {
+      const msg = String(e?.message || '');
+      if (/column "?seen_at"? does not exist/i.test(msg)) {
+        setSupportsSeen(false);
+        return;
+      }
+      toastError('Update failed', e.message);
+    }
+  }, [supabase, toastError]);
+
+  // Batched markSeen to avoid spamming API when scrolling fast
+  const pendingSeenRef = useRef<Set<string>>(new Set());
+  const flushSeenRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushSeen = useCallback(async () => {
+    const ids = Array.from(pendingSeenRef.current);
+    if (!ids.length) return;
+    pendingSeenRef.current.clear();
+    flushSeenRef.current && clearTimeout(flushSeenRef.current);
+    flushSeenRef.current = null;
+    try {
+      const ts = new Date().toISOString();
+      const { error } = await supabase.from('notifications').update({ seen_at: ts }).in('id', ids).is('seen_at', null);
+      if (error) throw error;
+      setItems(prev => prev.map(n => ids.includes(n.id) ? { ...n, seen_at: n.seen_at ?? ts } : n));
+    } catch (e: any) {
+      const msg = String(e?.message || '');
+      if (/column "?seen_at"? does not exist/i.test(msg)) {
+        setSupportsSeen(false);
+        return;
+      }
+      toastError('Update failed', e.message);
+    }
+  }, [supabase, toastError]);
+
+  const markSeenMany = useCallback((ids: string[]) => {
+    if (!ids.length || !supportsSeen) return;
+    ids.forEach(id => pendingSeenRef.current.add(id));
+    if (!flushSeenRef.current) {
+      flushSeenRef.current = setTimeout(flushSeen, 180); // debounce window
+    }
+  }, [flushSeen, supportsSeen]);
+
+  // Cleanup on unmount
+  useEffect(() => () => { if (flushSeenRef.current) clearTimeout(flushSeenRef.current); }, []);
+
   const loadMore = useCallback(async () => {
     if (!userId || !hasMore) return;
     try {
@@ -190,7 +276,9 @@ export function useNotifications(limit: number = 10) {
     loading,
     error,
     hasMore,
-  supportsStar,
+    supportsStar,
+    supportsPriority,
+    supportsSeen,
     loadMore,
     refresh: fetchItems,
     add,
@@ -200,5 +288,7 @@ export function useNotifications(limit: number = 10) {
     markAllRead,
     remove,
     bulkRemove,
+    markSeen,
+    markSeenMany,
   } as const;
 }

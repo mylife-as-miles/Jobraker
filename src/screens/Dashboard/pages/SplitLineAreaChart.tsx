@@ -110,6 +110,8 @@ export function SplitLineAreaChart({
                 className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs transition-colors ${
                   active ? "border-white/20 text-white" : "border-white/10 text-white/50"
                 }`}
+                title={`${active ? 'Hide' : 'Show'} series: ${s.label ?? s.key}`}
+                aria-label={`${active ? 'Hide' : 'Show'} series ${s.label ?? s.key}`}
                 aria-pressed={active}
               >
                 <span
@@ -149,6 +151,7 @@ export function SplitLineAreaChart({
             accessibilityLayer
             data={data}
             margin={{ left: 12, right: 12, top: 12 }}
+            stackOffset={effectiveStacked ? 'expand' : undefined}
             onMouseMove={(state: any) => {
               if (state && state.activeTooltipIndex != null) setHoverIndex(state.activeTooltipIndex)
             }}
@@ -199,8 +202,8 @@ export function SplitLineAreaChart({
                   type="natural"
                   fill={`url(#${gradientId})`}
                   stroke={color as string}
-                  strokeWidth={2}
-                  fillOpacity={0.6}
+                  strokeWidth={effectiveStacked ? 1.5 : 2}
+                  fillOpacity={effectiveStacked ? 0.9 : 0.6}
                   dot={false}
                   stackId={effectiveStacked ? "a" : undefined}
                   hide={!visible.has(s.key)}
@@ -210,6 +213,9 @@ export function SplitLineAreaChart({
           </AreaChart>
         </ResponsiveContainer>
       </ChartContainer>
+      {effectiveStacked && (
+        <div className="absolute bottom-1 right-2 text-[10px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/60 tracking-wide uppercase">Stacked %</div>
+      )}
     </div>
   )
 }

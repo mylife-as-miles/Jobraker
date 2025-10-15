@@ -43,15 +43,9 @@ export const BuilderToolbar = () => {
   const { printResume, loading } = usePrintResume();
 
   const onPrint = async () => {
-    try {
-      const { url } = await printResume({ id });
-      if (url) return openInNewTab(url);
-      // Fallback to client-side print
-      window.dispatchEvent(new CustomEvent("ARTBOARD_CMD", { detail: { type: "PRINT" } }));
-    } catch {
-      // Fallback to client-side print
-      window.dispatchEvent(new CustomEvent("ARTBOARD_CMD", { detail: { type: "PRINT" } }));
-    }
+    const { url } = await printResume({ id });
+
+    openInNewTab(url);
   };
 
   const onCopy = async () => {
@@ -73,14 +67,13 @@ export const BuilderToolbar = () => {
     setPanMode(!panMode);
   window.dispatchEvent(new CustomEvent("ARTBOARD_CMD", { detail: { type: "TOGGLE_PAN_MODE", panMode: !panMode } }));
   };
-  const onClientPrint = () => window.dispatchEvent(new CustomEvent("ARTBOARD_CMD", { detail: { type: "PRINT" } }));
 
   return (
     <motion.div className="fixed inset-x-0 bottom-0 mx-auto hidden py-6 text-center md:block">
       <div className="inline-flex items-center justify-center rounded-full bg-background px-4 shadow-xl">
         <Tooltip content={t`Undo`}>
           <Button
-            size="sm"
+            size="icon"
             variant="ghost"
             className="rounded-none"
             onClick={() => {
@@ -93,7 +86,7 @@ export const BuilderToolbar = () => {
 
         <Tooltip content={t`Redo`}>
           <Button
-            size="sm"
+            size="icon"
             variant="ghost"
             className="rounded-none"
             onClick={() => {
@@ -115,25 +108,25 @@ export const BuilderToolbar = () => {
   <Separator className="h-9" />
 
         <Tooltip content={t`Zoom In`}>
-          <Button size="sm" variant="ghost" className="rounded-none" onClick={onZoomIn}>
+          <Button size="icon" variant="ghost" className="rounded-none" onClick={onZoomIn}>
             <MagnifyingGlassPlus />
           </Button>
         </Tooltip>
 
         <Tooltip content={t`Zoom Out`}>
-          <Button size="sm" variant="ghost" className="rounded-none" onClick={onZoomOut}>
+          <Button size="icon" variant="ghost" className="rounded-none" onClick={onZoomOut}>
             <MagnifyingGlassMinus />
           </Button>
         </Tooltip>
 
         <Tooltip content={t`Reset Zoom`}>
-          <Button size="sm" variant="ghost" className="rounded-none" onClick={onResetView}>
+          <Button size="icon" variant="ghost" className="rounded-none" onClick={onResetView}>
             <ClockClockwise />
           </Button>
         </Tooltip>
 
         <Tooltip content={t`Center Artboard`}>
-          <Button size="sm" variant="ghost" className="rounded-none" onClick={onCenterView}>
+          <Button size="icon" variant="ghost" className="rounded-none" onClick={onCenterView}>
             <CubeFocus />
           </Button>
         </Tooltip>
@@ -168,7 +161,7 @@ export const BuilderToolbar = () => {
 
         <Tooltip content={t`Copy Link to Resume`}>
           <Button
-            size="sm"
+            size="icon"
             variant="ghost"
             className="rounded-none"
             disabled={!isPublic}
@@ -180,20 +173,13 @@ export const BuilderToolbar = () => {
 
         <Tooltip content={t`Download PDF`}>
           <Button
-            size="sm"
+            size="icon"
             variant="ghost"
             disabled={loading}
             className="rounded-none"
             onClick={onPrint}
           >
             {loading ? <CircleNotch className="animate-spin" /> : <FilePdf />}
-          </Button>
-        </Tooltip>
-
-        {/* Always-available client-side print fallback (hidden label) */}
-        <Tooltip content={t`Print (Client-side)`}>
-          <Button size="sm" variant="ghost" className="rounded-none" onClick={onClientPrint}>
-            <FilePdf />
           </Button>
         </Tooltip>
       </div>

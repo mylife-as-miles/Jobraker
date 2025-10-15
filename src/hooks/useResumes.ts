@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parsePdfFile } from '@/utils/parsePdf';
 import { analyzeResumeText } from '@/utils/analyzeResume';
 import { hashEmbedding } from '@/utils/hashEmbedding';
+import { events } from '@/lib/analytics';
 import { createClient } from "../lib/supabaseClient";
-import { useProfileSettings } from "./useProfileSettings";
 import { useToast } from "../components/ui/toast";
+import { createResumeVersion, latestResumeVersion } from '@/lib/resumeVersions';
+import { validateParsedResume } from '@/types/resume-parse-schemas';
 
 export type ResumeStatus = "Active" | "Draft" | "Archived";
 
@@ -28,7 +30,6 @@ type UploadInput = File | { file: File; template?: string };
 export function useResumes() {
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError, info } = useToast();
-  const { profile, updateProfile } = useProfileSettings();
   const [userId, setUserId] = useState<string | null>(null);
   const [resumes, setResumes] = useState<ResumeRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -100,7 +101,7 @@ export function useResumes() {
 
   useEffect(() => {
     if (userId) list();
-  }, [userId, list]);
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getSignedUrl = useCallback(
     async (filePath: string): Promise<string | null> => {
@@ -133,6 +134,14 @@ export function useResumes() {
         try {
           // Use a stable in-memory Blob to avoid Chromium ERR_UPLOAD_FILE_CHANGED
           const bytes = await file.arrayBuffer();
+          // Lightweight hash prefix (first 10 hex chars of sha256) for dedupe analytics; ignore failures if subtle unsupported
+          let hashPrefix: string | undefined = undefined;
+          try {
+            if ((window as any).crypto?.subtle) {
+              const digest = await crypto.subtle.digest('SHA-256', bytes);
+              hashPrefix = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0,10);
+            }
+          } catch {}
           const blob = new Blob([bytes], { type: file.type || "application/octet-stream" });
           const { error: upErr } = await (supabase as any)
             .storage
@@ -166,6 +175,8 @@ export function useResumes() {
           objectUrlMap.current.set(rec.id, url);
           setResumes((prev) => [rec, ...prev]);
           success("Resume uploaded", `${rec.name}.${rec.file_ext ?? ""}`);
+          (async () => { try { await createResumeVersion({ resumeId: rec.id, userId: userId!, storagePath: path, rawText: undefined }); } catch {} })();
+          events.resumeUploaded(file, hashPrefix);
         } catch (e: any) {
           const msg = e.message || "Upload failed";
           setError(msg);
@@ -215,6 +226,13 @@ export function useResumes() {
       const path = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
   // Use a stable in-memory Blob to avoid Chromium ERR_UPLOAD_FILE_CHANGED
   const bytes = await file.arrayBuffer();
+  let hashPrefix: string | undefined = undefined;
+  try {
+    if ((window as any).crypto?.subtle) {
+      const digest = await crypto.subtle.digest('SHA-256', bytes);
+      hashPrefix = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0,10);
+    }
+  } catch {}
   const blob = new Blob([bytes], { type: file.type || 'application/octet-stream' });
   const { error: upErr } = await (supabase as any).storage.from('resumes').upload(path, blob, { upsert: false, contentType: file.type || undefined });
       if (upErr) throw upErr;
@@ -236,6 +254,7 @@ export function useResumes() {
       const rec = data as ResumeRecord;
       setResumes((prev) => [rec, ...prev]);
       success('Resume imported', `${rec.name}.${rec.file_ext ?? ''}`);
+      events.resumeUploaded(file, hashPrefix);
       if (progressTimers.current.has(tempId)) {
         clearInterval(progressTimers.current.get(tempId)!);
         progressTimers.current.delete(tempId);
@@ -245,8 +264,11 @@ export function useResumes() {
   if (ext === 'pdf') {
         (async () => {
           try {
+            const t0 = performance.now();
             const parsed = await parsePdfFile(file);
             const analyzed = analyzeResumeText(parsed.text);
+            const validated = validateParsedResume({ ...analyzed, sections: analyzed.sections, structured: analyzed.structured, entities: analyzed.entities, emails: analyzed.emails||[], phones: analyzed.phones||[], urls: analyzed.urls||[], skills: analyzed.skills });
+            if (!validated) { events.resumeParsedFailure('validation_failed'); return; }
             const embedding = hashEmbedding(parsed.text);
             await (supabase as any).from('parsed_resumes').insert({
               resume_id: rec.id,
@@ -257,7 +279,14 @@ export function useResumes() {
               skills: analyzed.skills,
               embedding
             });
-          } catch {}
+            events.resumeParsedSuccess({
+              duration_ms: Math.round(performance.now() - t0),
+              skills_count: analyzed.skills.length,
+              education_count: Array.isArray(analyzed.structured?.education) ? analyzed.structured.education.length : 0,
+            });
+          } catch (err: any) {
+            events.resumeParsedFailure(err?.name || err?.message || 'parse_error');
+          }
         })();
       }
       return rec;
@@ -295,6 +324,13 @@ export function useResumes() {
       const path = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
   // Use a stable in-memory Blob to avoid Chromium ERR_UPLOAD_FILE_CHANGED
   const bytes = await file.arrayBuffer();
+  let hashPrefix: string | undefined = undefined;
+  try {
+    if ((window as any).crypto?.subtle) {
+      const digest = await crypto.subtle.digest('SHA-256', bytes);
+      hashPrefix = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0,10);
+    }
+  } catch {}
   const blob = new Blob([bytes], { type: file.type || 'application/octet-stream' });
   const { error: upErr } = await (supabase as any).storage.from('resumes').upload(path, blob, { upsert: false, contentType: file.type || undefined });
       if (upErr) throw upErr;
@@ -316,12 +352,16 @@ export function useResumes() {
       const rec = data as ResumeRecord;
       setResumes((prev) => [rec, ...prev]);
       success('Resume imported', `${rec.name}.${rec.file_ext ?? ''}`);
+      events.resumeUploaded(file, hashPrefix);
       setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'done', completedAt: Date.now(), progress: 100 } : st));
   if (ext === 'pdf') {
         (async () => {
           try {
+            const t0 = performance.now();
             const parsed = await parsePdfFile(file);
             const analyzed = analyzeResumeText(parsed.text);
+            const validated = validateParsedResume({ ...analyzed, sections: analyzed.sections, structured: analyzed.structured, entities: analyzed.entities, emails: analyzed.emails||[], phones: analyzed.phones||[], urls: analyzed.urls||[], skills: analyzed.skills });
+            if (!validated) { events.resumeParsedFailure('validation_failed'); return; }
             const embedding = hashEmbedding(parsed.text);
             await (supabase as any).from('parsed_resumes').insert({
               resume_id: rec.id,
@@ -332,7 +372,14 @@ export function useResumes() {
               skills: analyzed.skills,
               embedding
             });
-          } catch {}
+            events.resumeParsedSuccess({
+              duration_ms: Math.round(performance.now() - t0),
+              skills_count: analyzed.skills.length,
+              education_count: Array.isArray(analyzed.structured?.education) ? analyzed.structured.education.length : 0,
+            });
+          } catch (err: any) {
+            events.resumeParsedFailure(err?.name || err?.message || 'parse_error');
+          }
         })();
       }
       return rec;
@@ -429,8 +476,11 @@ export function useResumes() {
       const resp = await fetch(data.signedUrl);
       const blob = await resp.blob();
       const file = new File([blob], `${resume.name}.${resume.file_ext}`, { type: 'application/pdf' });
+      const t0 = performance.now();
       const parsed = await parsePdfFile(file);
       const analyzed = analyzeResumeText(parsed.text);
+      const validated = validateParsedResume({ ...analyzed, sections: analyzed.sections, structured: analyzed.structured, entities: analyzed.entities, emails: analyzed.emails||[], phones: analyzed.phones||[], urls: analyzed.urls||[], skills: analyzed.skills });
+      if (!validated) { events.resumeParsedFailure('validation_failed'); return false; }
       const embedding = hashEmbedding(parsed.text);
       await (supabase as any).from('parsed_resumes').insert({
         resume_id: resume.id,
@@ -442,8 +492,14 @@ export function useResumes() {
         embedding
       });
       success('Re-parsed', resume.name);
+      events.resumeParsedSuccess({
+        duration_ms: Math.round(performance.now() - t0),
+        skills_count: analyzed.skills.length,
+        education_count: Array.isArray(analyzed.structured?.education) ? analyzed.structured.education.length : 0,
+      });
       return true;
     } catch (e: any) {
+      events.resumeParsedFailure(e?.name || e?.message || 'reparse_error');
       toastError('Re-parse failed', e.message || 'Unknown error');
       return false;
     }
@@ -519,20 +575,34 @@ export function useResumes() {
   }, [supabase, list, success, toastError]);
 
   const remove = useCallback(async (rec: ResumeRecord) => {
+    // Support undo by performing optimistic removal and deferring actual deletion briefly
+    const DEFER_MS = 6500; // window to undo
+    let timer: number | undefined;
     try {
+      // Optimistic remove
       setResumes((p) => p.filter((r) => r.id !== rec.id));
-      if (rec.file_path) {
-        await (supabase as any).storage.from("resumes").remove([rec.file_path]);
-      }
-      const { error } = await (supabase as any)
-        .from("resumes")
-        .delete()
-        .eq("id", rec.id);
-      if (error) throw error;
-      const cached = objectUrlMap.current.get(rec.id);
-      if (cached) URL.revokeObjectURL(cached);
-      objectUrlMap.current.delete(rec.id);
       success("Deleted", rec.name);
+      // Schedule actual deletion
+      timer = window.setTimeout(async () => {
+        try {
+          if (rec.file_path) {
+            await (supabase as any).storage.from("resumes").remove([rec.file_path]);
+          }
+          const { error } = await (supabase as any)
+            .from("resumes")
+            .delete()
+            .eq("id", rec.id);
+          if (error) throw error;
+          const cached = objectUrlMap.current.get(rec.id);
+          if (cached) URL.revokeObjectURL(cached);
+          objectUrlMap.current.delete(rec.id);
+        } catch (inner) {
+          // If backend deletion fails, refetch list to sync
+          await list();
+        }
+      }, DEFER_MS);
+      (window as any).__resumeUndoBuffer = (window as any).__resumeUndoBuffer || new Map();
+      (window as any).__resumeUndoBuffer.set(rec.id, { rec, timer });
     } catch (e: any) {
       const msg = e.message || "Failed to delete";
       setError(msg);
@@ -540,6 +610,17 @@ export function useResumes() {
       await list();
     }
   }, [supabase, list, success, toastError]);
+
+  const undoRemove = useCallback((id: string) => {
+    const store: Map<string, any> | undefined = (window as any).__resumeUndoBuffer;
+    if (!store || !store.has(id)) return false;
+    const { rec, timer } = store.get(id);
+    if (timer) window.clearTimeout(timer);
+    setResumes((p) => [rec as ResumeRecord, ...p]);
+    store.delete(id);
+    info("Restored", (rec as ResumeRecord).name);
+    return true;
+  }, [info]);
 
   const duplicate = useCallback(async (rec: ResumeRecord) => {
     try {
@@ -641,18 +722,6 @@ export function useResumes() {
     resumes,
     loading,
     error,
-    baseResume: useMemo(() => {
-      const id = profile?.base_resume_id || null;
-      return id ? (resumes.find((r) => r.id === id) ?? null) : null;
-    }, [resumes, profile?.base_resume_id]),
-    setBaseResume: async (id: string) => {
-      try {
-        await updateProfile({ base_resume_id: id });
-        success("Base resume set");
-      } catch (e: any) {
-        toastError("Failed to set base resume", e?.message || "");
-      }
-    },
   getSignedUrl,
   importStatuses,
   retryImport,
@@ -667,6 +736,7 @@ export function useResumes() {
     toggleFavorite,
     rename,
     remove,
+  undoRemove,
     duplicate,
     view,
     download,
@@ -697,7 +767,8 @@ export function useResumes() {
   const blob = new Blob([bytes], { type: file.type || 'application/octet-stream' });
   const { error: upErr } = await (supabase as any).storage.from("resumes").upload(path, blob, { upsert: false, contentType: file.type || undefined });
         if (upErr) throw upErr;
-        await (supabase as any).from("resumes").update({ file_path: path, file_ext: ext, size: file.size }).eq("id", id);
+  await (supabase as any).from("resumes").update({ file_path: path, file_ext: ext, size: file.size }).eq("id", id);
+  (async () => { try { const prev = await latestResumeVersion(id); await createResumeVersion({ resumeId: id, userId: userId!, parentId: prev?.id, storagePath: path, rawText: undefined, previousRawText: undefined }); } catch {} })();
         setResumes((p) => p.map((r) => (r.id === id ? { ...r, file_path: path, file_ext: ext, size: file.size } : r)));
         success("File replaced", `${rec.name}.${ext ?? ""}`);
       } catch (e: any) {

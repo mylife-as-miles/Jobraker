@@ -112,7 +112,7 @@ export function useProfileCollections() {
   }, [supabase, userId]);
 
   // initial fetch
-  useEffect(() => { if (userId) { fetchExperiences(); fetchEducation(); fetchSkills(); } }, [userId, fetchExperiences, fetchEducation, fetchSkills]);
+  useEffect(() => { if (userId) { fetchExperiences(); fetchEducation(); fetchSkills(); } }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // realtime subscriptions
   useEffect(() => {
@@ -126,7 +126,7 @@ export function useProfileCollections() {
       .on('postgres_changes', { event: '*', schema: 'public', table: cfg.table, filter: `user_id=eq.${userId}` }, () => cfg.handler())
       .subscribe());
     return () => { subs.forEach(ch => { try { (supabase as any).removeChannel(ch); } catch {} }); };
-  }, [supabase, userId, fetchExperiences, fetchEducation, fetchSkills]);
+  }, [supabase, userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // CRUD helpers
   const addExperience = useCallback(async (payload: Partial<ProfileExperience>) => {

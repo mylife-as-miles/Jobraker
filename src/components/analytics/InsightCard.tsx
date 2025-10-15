@@ -1,14 +1,24 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { Card } from "../ui/card"
 import { Lightbulb, ChevronLeft, ChevronRight } from "lucide-react"
-import { useRealTimeData } from "../../hooks/useRealTimeData"
 import { motion } from "framer-motion"
 
-export function InsightCard() {
+type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
+
+export function InsightCard({ period, data }: { period: Period; data: any }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const { chartData } = useRealTimeData()
+  const chartData = (data?.chartDataApps?.length ? data.chartDataApps : data?.chartDataJobs) || []
+
+  const headline = useMemo(() => {
+    const ms = data?.metrics?.avgMatchScore ?? 0
+    const apps = data?.metrics?.applications ?? 0
+    const jobs = data?.metrics?.jobsFound ?? 0
+    if (apps > 0 && ms > 0) return `${ms}% avg match across ${apps} applications`
+    if (jobs > 0) return `${jobs} new jobs in your feed`
+    return `No activity in period`
+  }, [data])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -25,11 +35,13 @@ export function InsightCard() {
     ctx.clearRect(0, 0, rect.width, rect.height)
 
     // Convert chart data to points
-    const maxValue = Math.max(...chartData.map(d => d.value))
-    const minValue = Math.min(...chartData.map(d => d.value))
+    if (!chartData.length) return
+
+    const maxValue = Math.max(...chartData.map((d: any) => d.value))
+    const minValue = Math.min(...chartData.map((d: any) => d.value))
     const valueRange = maxValue - minValue || 1
 
-    const points = chartData.map((data, index) => ({
+    const points = chartData.map((data: any, index: number) => ({
       x: (rect.width / (chartData.length - 1)) * index,
       y: rect.height * 0.8 - ((data.value - minValue) / valueRange) * (rect.height * 0.6)
     }))
@@ -97,7 +109,7 @@ export function InsightCard() {
     ctx.fill()
 
     // Draw animated dots on the line
-    points.forEach((point, index) => {
+  points.forEach((point: { x: number; y: number }, index: number) => {
       ctx.beginPath()
       ctx.arc(point.x, point.y, index === points.length - 1 ? 6 : 4, 0, 2 * Math.PI)
       ctx.fillStyle = index === points.length - 1 ? "#ffffff" : "#1dff00"
@@ -112,7 +124,7 @@ export function InsightCard() {
     ctx.font = "11px Inter, sans-serif"
     ctx.textAlign = "center"
 
-    chartData.forEach((data, index) => {
+  chartData.forEach((data: any, index: number) => {
       const x = (rect.width / (chartData.length - 1)) * index
       ctx.fillText(data.name, x, rect.height - 8)
     })
@@ -152,16 +164,16 @@ export function InsightCard() {
 
           <div className="mb-4 sm:mb-6 flex-grow">
             <motion.div 
-              key={chartData[chartData.length - 1]?.value}
+              key={(chartData[chartData.length - 1]?.value) ?? 'empty'}
               initial={{ scale: 0.9 }}
               animate={{ scale: 1 }}
               transition={{ duration: 0.3 }}
-              className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black text-white mb-2 sm:mb-3 drop-shadow-2xl tracking-tight"
+              className="text-3xl sm:text-5xl lg:text-6xl xl:text-7xl font-black text-white mb-2 sm:mb-3 drop-shadow-2xl tracking-tight"
             >
-              77%
+              {data?.metrics?.avgMatchScore ? `${data.metrics.avgMatchScore}%` : (data?.metrics?.jobsFound ?? 0)}
             </motion.div>
-            <p className="text-white/95 text-sm sm:text-base lg:text-lg mb-1 sm:mb-2 font-medium leading-relaxed">Job openings seek multitalented individuals.</p>
-            <p className="text-white/80 text-xs sm:text-sm lg:text-base leading-relaxed">Adding a complimentary skill can improve your hiring chances.</p>
+            <p className="text-white/95 text-sm sm:text-base lg:text-lg mb-1 sm:mb-2 font-medium leading-relaxed">{headline}</p>
+            <p className="text-white/80 text-xs sm:text-sm lg:text-base leading-relaxed">Period: {String(period ?? '').toUpperCase()}</p>
           </div>
 
           <div className="flex-shrink-0 h-16 sm:h-20 lg:h-24 xl:h-28 relative">

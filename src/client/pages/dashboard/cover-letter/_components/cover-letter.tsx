@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2, Check, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2, Check, Trash2, ArrowUp, ArrowDown, Printer, X, FileText, FileType } from "lucide-react";
 import { Button, Card } from "@reactive-resume/ui";
 import { createClient } from "@/lib/supabaseClient";
 import { useToast } from "@/components/ui/toast-provider";
@@ -42,12 +42,32 @@ export const CoverLetter = () => {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [inlineEdit, setInlineEdit] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportBusy, setExportBusy] = useState<string | null>(null);
+  const LAST_EXPORT_KEY = "jr.coverLetter.lastExport";
+  const [lastExport, setLastExport] = useState<string>(() => localStorage.getItem(LAST_EXPORT_KEY) || "");
   const previewRef = useRef<HTMLDivElement | null>(null);
+  // Local Library for multiple cover letters
+  type LibraryEntry = { id: string; name: string; updatedAt: string; data: any };
+  const LIB_KEY = "jr.coverLetters.library.v1";
+  const LIB_DEFAULT_KEY = "jr.coverLetters.defaultId";
+  const [library, setLibrary] = useState<LibraryEntry[]>([]);
+  const [libName, setLibName] = useState("");
+  const [currentLibId, setCurrentLibId] = useState<string | null>(null);
 
   // Load/save from localStorage (keeps it functional without backend migrations)
   const STORAGE_KEY = "jr.coverLetter.draft.v2";
   useEffect(() => {
     try {
+      // Load library
+      const libRaw = localStorage.getItem(LIB_KEY);
+      if (libRaw) {
+        const arr = JSON.parse(libRaw);
+        if (Array.isArray(arr)) setLibrary(arr);
+      }
+      const defId = localStorage.getItem(LIB_DEFAULT_KEY);
+      if (defId) setCurrentLibId(defId);
+
       const rawV2 = localStorage.getItem(STORAGE_KEY);
       const rawV1 = !rawV2 ? localStorage.getItem("jr.coverLetter.draft.v1") : null; // backwards compat
       const raw = rawV2 || rawV1;
@@ -151,6 +171,24 @@ export const CoverLetter = () => {
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
         setSavedAt(payload.savedAt);
+
+        // If a library entry is active, keep it updated live
+        if (currentLibId) {
+          const libRaw = localStorage.getItem(LIB_KEY);
+          let arr: LibraryEntry[] = [];
+          if (libRaw) {
+            try {
+              const parsed = JSON.parse(libRaw);
+              if (Array.isArray(parsed)) arr = parsed;
+            } catch {}
+          }
+          const idx = arr.findIndex((e) => e.id === currentLibId);
+          if (idx !== -1) {
+            arr[idx] = { id: currentLibId, name: arr[idx].name, updatedAt: payload.savedAt!, data: payload } as LibraryEntry;
+            localStorage.setItem(LIB_KEY, JSON.stringify(arr));
+            setLibrary(arr);
+          }
+        }
       } catch {}
     }, 400);
     return () => clearTimeout(t);
@@ -204,31 +242,237 @@ export const CoverLetter = () => {
 
   const zoomIn = () => setFontSize((size) => Math.min(28, size + 1));
   const zoomOut = () => setFontSize((size) => Math.max(12, size - 1));
-  const download = () => {
+  const exportTxt = () => {
+    try {
+      const text = serializeLetter();
+      if (!text.trim()) return;
+      const fileName = `Cover_Letter_${(company||'Company').replace(/[^a-z0-9]+/gi,'_')}_${(role||'Role').replace(/[^a-z0-9]+/gi,'_')}.txt`;
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      requestAnimationFrame(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+      success('Download started', 'TXT file is being saved');
+      setLastExport('txt');
+      localStorage.setItem(LAST_EXPORT_KEY, 'txt');
+    } catch (e) {
+      console.error('TXT export failed', e);
+      toastError('Export failed', 'Could not create TXT file');
+    }
+  };
+
+  const exportPdf = async () => {
+    if (exportBusy) return;
+    setExportBusy('pdf');
+    try {
+      const serialized = serializeLetter();
+      if (!serialized.trim()) throw new Error('Nothing to export');
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+      const marginX = 54; // 0.75 inch
+      const marginY = 54;
+      const lineHeight = 16;
+      const maxWidth = doc.internal.pageSize.getWidth() - marginX * 2;
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(12);
+      let y = marginY;
+      const lines = serialized.replace(/\r/g,'').split('\n');
+      lines.forEach((line) => {
+        if (y > doc.internal.pageSize.getHeight() - marginY) {
+          doc.addPage();
+          y = marginY;
+        }
+        if (!line.trim()) { y += lineHeight; return; }
+        const wrapped = doc.splitTextToSize(line, maxWidth);
+        wrapped.forEach((wLine: string) => {
+          if (y > doc.internal.pageSize.getHeight() - marginY) { doc.addPage(); y = marginY; }
+            doc.text(wLine, marginX, y);
+            y += lineHeight;
+        });
+      });
+      const fileName = `Cover_Letter_${(company||'Company').replace(/[^a-z0-9]+/gi,'_')}_${(role||'Role').replace(/[^a-z0-9]+/gi,'_')}.pdf`;
+      doc.save(fileName);
+      success('PDF exported', 'Your PDF is downloading');
+      setLastExport('pdf');
+      localStorage.setItem(LAST_EXPORT_KEY, 'pdf');
+    } catch (e:any) {
+      console.error('PDF export failed', e);
+      toastError('PDF failed', e?.message || 'Could not generate PDF');
+    } finally {
+      setExportBusy(null);
+    }
+  };
+
+  const exportDocx = async () => {
+    if (exportBusy) return;
+    setExportBusy('docx');
+    try {
+      const serialized = serializeLetter();
+      if (!serialized.trim()) throw new Error('Nothing to export');
+      const mod = await import('docx');
+      const { Document, Packer, Paragraph } = mod as any;
+      const paragraphs = serialized.split(/\n\n+/).map((block: string) => new Paragraph({ children: block.split('\n').map(line => mod ? new mod.TextRun(line) : line) }));
+      const doc = new Document({ sections: [{ properties: {}, children: paragraphs }] });
+      const blob = await Packer.toBlob(doc);
+      const fileName = `Cover_Letter_${(company||'Company').replace(/[^a-z0-9]+/gi,'_')}_${(role||'Role').replace(/[^a-z0-9]+/gi,'_')}.docx`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName; document.body.appendChild(a); a.click();
+      requestAnimationFrame(() => { document.body.removeChild(a); URL.revokeObjectURL(url); });
+      success('DOCX exported', 'Your DOCX is downloading');
+      setLastExport('docx');
+      localStorage.setItem(LAST_EXPORT_KEY, 'docx');
+    } catch (e:any) {
+      console.error('DOCX export failed', e);
+      toastError('DOCX failed', e?.message || 'Could not generate DOCX');
+    } finally {
+      setExportBusy(null);
+    }
+  };
+
+  const printLetter = () => {
     try {
       const node = previewRef.current;
       if (!node) return;
       const html = node.innerHTML;
-      const win = window.open("", "_blank", "noopener,noreferrer,width=900,height=1200");
+      const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1200');
       if (!win) return;
       win.document.write(`<!doctype html><html><head><title>Cover Letter</title>
         <meta charset=\"utf-8\" />
         <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
         <style>
-          @page { margin: 24mm; }
+          @page { margin: 22mm; }
           body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial, sans-serif; }
-          .doc { max-width: 800px; margin: 0 auto; }
-          pre { white-space: pre-wrap; font-family: inherit; }
+          .doc { max-width: 820px; margin: 0 auto; }
+          p { orphans: 3; widows: 3; }
         </style>
       </head><body><div class="doc">${html}</div></body></html>`);
       win.document.close();
       win.focus();
-      win.print();
-      setTimeout(() => { try { win.close(); } catch {} }, 300);
+      setTimeout(() => { try { win.print(); } catch {} }, 50);
+      setTimeout(() => { try { win.close(); } catch {} }, 500);
+      success('Print ready', 'Use system dialog to save as PDF');
     } catch (e) {
-      console.error(e);
-      alert("Failed to prepare PDF. Use your browser's Print to PDF as a fallback.");
+      console.error('Print failed', e);
+      toastError('Print failed', 'Could not prepare print view');
     }
+  };
+
+  const copyPlain = async () => {
+    try {
+      await navigator.clipboard.writeText(serializeLetter());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+      success('Copied', 'Letter copied to clipboard');
+    } catch (e) {
+      toastError('Copy failed', 'Clipboard not available');
+    }
+  };
+  const saveToLibrary = (name?: string) => {
+    try {
+      const payload = {
+        role,
+        company,
+        jobDescription,
+        tone,
+        lengthPref,
+        senderName,
+        senderEmail,
+        senderPhone,
+        senderAddress,
+        recipient,
+        recipientTitle,
+        recipientAddress,
+        date,
+        subject,
+        salutation,
+        paragraphs,
+        closing,
+        signatureName,
+        content,
+        fontSize,
+        savedAt: new Date().toISOString(),
+      };
+      const libRaw = localStorage.getItem(LIB_KEY);
+      let arr: LibraryEntry[] = [];
+      if (libRaw) {
+        try { const parsed = JSON.parse(libRaw); if (Array.isArray(parsed)) arr = parsed; } catch {}
+      }
+      const id = currentLibId || crypto.randomUUID();
+      const entryName = (name || libName || `Letter ${arr.length + 1}`).trim();
+      const idx = arr.findIndex((e) => e.id === id);
+      const entry: LibraryEntry = { id, name: entryName || `Letter ${arr.length + 1}`, updatedAt: payload.savedAt, data: payload };
+      if (idx === -1) arr.push(entry); else arr[idx] = entry;
+      localStorage.setItem(LIB_KEY, JSON.stringify(arr));
+      setLibrary(arr);
+      setCurrentLibId(id);
+      localStorage.setItem(LIB_DEFAULT_KEY, id);
+      setLibName(entry.name);
+      success('Saved to Library', 'Cover letter saved for reuse');
+    } catch (e) {
+      console.error('saveToLibrary error', e);
+      toastError('Save failed', 'Could not save letter');
+    }
+  };
+  const loadFromLibrary = (id: string) => {
+    try {
+      const entry = (library || []).find((e) => e.id === id);
+      if (!entry) return;
+      const parsed = entry.data || {};
+      setRole(parsed?.role ?? "");
+      setCompany(parsed?.company ?? "");
+      setJobDescription(parsed?.jobDescription ?? "");
+      setTone(parsed?.tone ?? "professional");
+      setLengthPref(parsed?.lengthPref ?? "medium");
+      setSenderName(parsed?.senderName ?? "");
+      setSenderEmail(parsed?.senderEmail ?? "");
+      setSenderPhone(parsed?.senderPhone ?? "");
+      setSenderAddress(parsed?.senderAddress ?? "");
+      setRecipient(parsed?.recipient ?? "Hiring Manager");
+      setRecipientTitle(parsed?.recipientTitle ?? "");
+      setRecipientAddress(parsed?.recipientAddress ?? "");
+      setDate(parsed?.date ?? new Date().toISOString().slice(0, 10));
+      setSubject(parsed?.subject ?? "");
+      setSalutation(parsed?.salutation ?? `Dear ${parsed?.recipient ?? "Hiring Manager"},`);
+      setParagraphs(Array.isArray(parsed?.paragraphs) ? parsed.paragraphs : []);
+      setClosing(parsed?.closing ?? "Best regards,");
+      setSignatureName(parsed?.signatureName ?? parsed?.senderName ?? "");
+      setContent(parsed?.content ?? "");
+      setFontSize(parsed?.fontSize ?? 16);
+      setSavedAt(parsed?.savedAt ?? null);
+      setCurrentLibId(id);
+      setLibName(entry.name);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+    } catch {}
+  };
+  const renameLibraryEntry = (id: string, name: string) => {
+    const arr = [...library];
+    const idx = arr.findIndex((e) => e.id === id);
+    if (idx === -1) return;
+    arr[idx] = { ...arr[idx], name: name.trim() || arr[idx].name };
+    localStorage.setItem(LIB_KEY, JSON.stringify(arr));
+    setLibrary(arr);
+    if (currentLibId === id) setLibName(arr[idx].name);
+  };
+  const deleteLibraryEntry = (id: string) => {
+    const arr = (library || []).filter((e) => e.id !== id);
+    localStorage.setItem(LIB_KEY, JSON.stringify(arr));
+    setLibrary(arr);
+    if (currentLibId === id) {
+      setCurrentLibId(null);
+      setLibName("");
+    }
+  };
+  const setDefaultLibraryEntry = (id: string) => {
+    localStorage.setItem(LIB_DEFAULT_KEY, id);
+    setCurrentLibId(id);
+    success('Default set', 'This letter will be selected by default');
   };
   const aiPolish = async () => {
     if (aiLoading) return;
@@ -465,9 +709,9 @@ export const CoverLetter = () => {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] flex-col gap-4 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+    <div id="cover-page-root" className="flex min-h-[calc(100vh-4rem)] flex-col gap-4 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
       {/* Header */}
-      <div className="flex items-center justify-between sticky top-0 z-10 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-xl border border-border px-3 sm:px-4 py-2 sm:py-3">
+  <div id="cover-header" data-tour="cover-header" className="flex items-center justify-between sticky top-0 z-10 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-xl border border-border px-3 sm:px-4 py-2 sm:py-3">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" className="h-9 w-9 p-0" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4" />
@@ -478,16 +722,87 @@ export const CoverLetter = () => {
           <Button variant="outline" onClick={() => setInlineEdit((v)=>!v)} className={`rounded-xl whitespace-nowrap ${inlineEdit ? 'bg-primary/10 border-primary text-primary' : ''}`}> <Pencil className="w-4 h-4 mr-2"/> {inlineEdit ? 'Edit in Preview: On' : 'Edit in Preview'} </Button>
           <Button variant="outline" disabled={aiLoading} onClick={aiPolish} className="rounded-xl whitespace-nowrap"> <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> {aiLoading ? 'Polishing…' : 'AI Polish'}</Button>
           <Button variant="outline" disabled={aiLoading} onClick={aiWriteFull} className="rounded-xl whitespace-nowrap"> <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> {aiLoading ? 'Writing…' : 'AI Write (Full)'}</Button>
-          <Button variant="outline" onClick={share} className="rounded-xl whitespace-nowrap"> {copied ? <><Check className="w-4 h-4 mr-2"/> Copied</> : <><Share2 className="w-4 h-4 mr-2"/> Share</>} </Button>
-          <Button onClick={download} className="rounded-xl whitespace-nowrap"> <Download className="w-4 h-4 mr-2"/> Download</Button>
+          <Button variant="outline" onClick={() => setExportOpen(true)} className="rounded-xl whitespace-nowrap"> <Download className="w-4 h-4 mr-2"/> Export</Button>
         </div>
       </div>
 
+      {exportOpen && (
+        <div id="cover-actions" data-tour="cover-actions" className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={() => setExportOpen(false)} />
+          <div role="dialog" aria-modal="true" className="relative z-10 w-full max-w-md rounded-xl border border-border bg-popover shadow-lg p-4 sm:p-6 animate-in fade-in-0 zoom-in-95">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-semibold">Export Cover Letter</h2>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setExportOpen(false)}><X className="w-4 h-4"/></Button>
+            </div>
+            <p className="text-xs opacity-70 mb-4">Choose a format or action below. Use Print to save as PDF.</p>
+            <div className="grid gap-2">
+              <Button variant="outline" disabled={!!exportBusy} data-active={lastExport==='txt'} className="justify-start rounded-xl data-[active=true]:border-primary data-[active=true]:bg-primary/5" onClick={async () => { exportTxt(); setExportOpen(false); }}>
+                <FileText className="w-4 h-4 mr-2"/> Download .TXT {lastExport==='txt' && <span className="ml-auto text-[10px] uppercase tracking-wide text-primary">Last</span>}
+              </Button>
+              <Button variant="outline" disabled={!!exportBusy} data-active={lastExport==='pdf'} className="justify-start rounded-xl data-[active=true]:border-primary data-[active=true]:bg-primary/5" onClick={async () => { await exportPdf(); setExportOpen(false); }}>
+                <Printer className="w-4 h-4 mr-2"/> Export PDF {exportBusy==='pdf' && <span className="ml-auto text-[10px] animate-pulse">…</span>} {lastExport==='pdf' && exportBusy!=='pdf' && <span className="ml-auto text-[10px] uppercase tracking-wide text-primary">Last</span>}
+              </Button>
+              <Button variant="outline" disabled={!!exportBusy} data-active={lastExport==='docx'} className="justify-start rounded-xl data-[active=true]:border-primary data-[active=true]:bg-primary/5" onClick={async () => { await exportDocx(); setExportOpen(false); }}>
+                <FileType className="w-4 h-4 mr-2"/> Export DOCX {exportBusy==='docx' && <span className="ml-auto text-[10px] animate-pulse">…</span>} {lastExport==='docx' && exportBusy!=='docx' && <span className="ml-auto text-[10px] uppercase tracking-wide text-primary">Last</span>}
+              </Button>
+              <Button variant="outline" disabled={!!exportBusy} className="justify-start rounded-xl" onClick={() => { printLetter(); setExportOpen(false); }}>
+                <Printer className="w-4 h-4 mr-2"/> Print View
+              </Button>
+              <Button variant="outline" disabled={!!exportBusy} className="justify-start rounded-xl" onClick={() => { copyPlain(); setExportOpen(false); }}>
+                {copied ? <Check className="w-4 h-4 mr-2"/> : <Share2 className="w-4 h-4 mr-2 rotate-90"/>} Copy Plain Text
+              </Button>
+              <Button variant="outline" disabled={!!exportBusy} className="justify-start rounded-xl" onClick={() => { share(); setExportOpen(false); }}>
+                <Share2 className="w-4 h-4 mr-2"/> Share (system)
+              </Button>
+              <div className="pt-2 flex items-center justify-between text-[11px] opacity-60">
+                <span>Default highlights last used format.</span>
+                {exportBusy && <span className="text-primary">Exporting…</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Workspace */}
-      <div className="grid gap-4 grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)]">
+  <div id="cover-main-layout" className="grid gap-4 grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)]">
         {/* Left: Controls */}
-        <Card className="p-4 rounded-xl">
+  <Card id="cover-meta-panel" data-tour="cover-meta-panel" className="p-4 rounded-xl">
           <div className="grid gap-4">
+            {/* Saved Letters (Library) */}
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs opacity-70 uppercase tracking-wide">Saved Letters</label>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => saveToLibrary()}>Save</Button>
+                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => { setCurrentLibId(null); setLibName(""); }}>New</Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input value={libName} onChange={(e)=>setLibName(e.target.value)} placeholder="Name" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                <Button variant="outline" onClick={() => saveToLibrary(libName)} className="rounded-xl">Save As</Button>
+              </div>
+              {library.length > 0 ? (
+                <div className="grid gap-2 max-h-40 overflow-auto rounded-xl border border-border p-2">
+                  {library.map((e) => (
+                    <div key={e.id} className="flex items-center gap-2 text-sm">
+                      <button
+                        className={`px-2 py-1 rounded border ${currentLibId===e.id? 'border-primary text-primary' : 'border-border text-foreground/80 hover:border-primary/40'}`}
+                        onClick={() => loadFromLibrary(e.id)}
+                        title={new Date(e.updatedAt).toLocaleString()}
+                      >{e.name}</button>
+                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => {
+                        const name = prompt('Rename letter', e.name);
+                        if (name!=null) renameLibraryEntry(e.id, name);
+                      }}>Rename</Button>
+                      <Button variant="ghost" size="sm" className="h-8 px-2 text-red-500" onClick={() => deleteLibraryEntry(e.id)}>Delete</Button>
+                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => setDefaultLibraryEntry(e.id)}>Default</Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs opacity-60">No saved letters yet. Save your current draft to reuse it during applications.</p>
+              )}
+            </div>
             {/* Sender */}
             <div className="grid gap-2">
               <div className="flex items-center justify-between">
@@ -621,7 +936,7 @@ export const CoverLetter = () => {
         </Card>
 
         {/* Right: Preview */}
-        <Card className="p-3 sm:p-4 md:p-6 overflow-hidden rounded-xl">
+        <Card id="cover-editor" data-tour="cover-editor" className="p-3 sm:p-4 md:p-6 overflow-hidden rounded-xl">
           <div ref={previewRef} className="mx-auto w-full max-w-[800px] rounded-xl border border-border bg-white text-black shadow-xl">
             <div className="p-6 sm:p-8" style={{ fontSize: `${fontSize}px`, lineHeight: 1.6 }}>
               {/* Sender (right-aligned for professional layout) */}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '../lib/supabaseClient';
+import { createNotification } from '../utils/notifications';
 
 export interface JobSource {
   id: string;
@@ -26,7 +27,6 @@ export interface JobSourceSettings {
   id: string; // This is the user_id in the existing table
   cron_enabled?: boolean;
   cron_expression?: string;
-  firecrawl_api_key?: string;
   notification_enabled?: boolean;
   sources?: JobSource[];
   include_linkedin?: boolean;
@@ -63,7 +63,7 @@ export function useJobSources() {
         const { data: existingSettings, error: fetchError } = await supabase
           .from('job_source_settings')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('id', user.id)
           .single();
 
         if (fetchError && fetchError.code !== 'PGRST116') {
@@ -184,9 +184,16 @@ export function useJobSources() {
       const { error } = await supabase
         .from('job_source_settings')
         .update(updatedSettings)
-        .eq('user_id', user.id);
+        .eq('id', user.id);
 
       if (error) throw error;
+      // Activity notification
+      createNotification({
+        user_id: user.id,
+        type: 'system',
+        title: `Job source added: ${newSource.name}`,
+        message: `${newSource.type} source enabled`,
+      });
       return newSource;
     } catch (err: any) {
       console.error('Error adding job source:', err);
@@ -216,9 +223,18 @@ export function useJobSources() {
       const { error } = await supabase
         .from('job_source_settings')
         .update(updatedSettings)
-        .eq('user_id', user.id);
+        .eq('id', user.id);
 
       if (error) throw error;
+      const changed = Object.keys(updates).filter(k => k !== 'updated_at');
+      if (changed.length) {
+        createNotification({
+          user_id: user.id,
+          type: 'system',
+          title: 'Job source updated',
+          message: `${changed.slice(0,4).join(', ')} ${changed.length>4?`(+${changed.length-4} more)`:''}`,
+        });
+      }
     } catch (err: any) {
       console.error('Error updating job source:', err);
       throw err;
@@ -243,9 +259,18 @@ export function useJobSources() {
       const { error } = await supabase
         .from('job_source_settings')
         .update(updatedSettings)
-        .eq('user_id', user.id);
+        .eq('id', user.id);
 
       if (error) throw error;
+      const removed = currentSources.find(s => s.id === sourceId);
+      if (removed) {
+        createNotification({
+          user_id: user.id,
+          type: 'system',
+          title: `Job source removed: ${removed.name}`,
+          message: removed.type,
+        });
+      }
     } catch (err: any) {
       console.error('Error removing job source:', err);
       throw err;
@@ -270,6 +295,15 @@ export function useJobSources() {
         .eq('user_id', user.id);
 
       if (error) throw error;
+      const changed = Object.keys(updates).filter(k => k !== 'updated_at');
+      if (changed.length) {
+        createNotification({
+          user_id: user.id,
+          type: 'system',
+          title: 'Job source settings updated',
+          message: changed.slice(0,5).join(', '),
+        });
+      }
     } catch (err: any) {
       console.error('Error updating settings:', err);
       throw err;
@@ -291,9 +325,43 @@ export function useJobSources() {
       });
 
       if (error) throw error;
+      // Attempt to derive count of new jobs from response structure
+      let count: number | null = null;
+      if (data && typeof data === 'object') {
+        const candKeys = ['jobs_added','jobs_found','count','new_jobs'];
+        for (const k of candKeys) {
+          if (typeof (data as any)[k] === 'number') { count = (data as any)[k]; break; }
+        }
+      }
+      if (count && user.id) {
+        createNotification({
+          user_id: user.id,
+          type: 'system',
+          title: `Job search completed (${count})`,
+          message: `Found ${count} potential jobs across enabled sources.`,
+        });
+      } else {
+        createNotification({
+          user_id: user.id,
+          type: 'system',
+          title: 'Job search triggered',
+          message: 'Your job sources are being scanned now.',
+        });
+      }
       return data;
     } catch (err: any) {
       console.error('Error triggering job scraping:', err);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) {
+          createNotification({
+            user_id: user.id,
+            type: 'system',
+            title: 'Job search failed',
+            message: err.message?.slice(0, 500) || 'Unknown error',
+          });
+        }
+      } catch {}
       throw err;
     }
   };

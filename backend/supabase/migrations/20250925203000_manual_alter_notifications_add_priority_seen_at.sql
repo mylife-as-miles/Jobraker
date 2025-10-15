@@ -1,0 +1,11 @@
+-- Documentation-only migration: priority & seen_at columns were applied manually
+-- Actual SQL executed directly against remote (see version entry 20250925203000 in supabase_migrations.schema_migrations)
+-- Keeping file idempotent & no-op.
+-- Columns now present:
+--   notifications.priority text check (in ('low','medium','high')) default 'medium'
+--   notifications.seen_at timestamptz
+-- Indexes:
+--   idx_notifications_user_priority(user_id, priority)
+--   idx_notifications_user_unseen(user_id) WHERE seen_at IS NULL
+-- Comments added for both columns.
+-- No action required.

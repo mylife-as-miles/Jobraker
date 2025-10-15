@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { BuilderPage } from "./page";
+import { BuilderPage, builderLoader } from "./page";
 import { useResumeStore } from "@/client/stores/resume";
-import { findResumeById } from "@/client/services/resume";
 
 export const ClientBuilderRoute = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,30 +24,10 @@ export const ClientBuilderRoute = () => {
         return;
       }
       try {
-        const res = await findResumeById({ id });
-        setResume({ resume: res });
+        await builderLoader({ params: { id } } as any);
         setReady(true);
       } catch {
-        // Create a local draft and continue
-        const localId = id.startsWith("local:") ? id : `local:${id}`;
-        const localResume: any = {
-          id: localId,
-          title: "Untitled",
-          slug: id,
-          visibility: "private",
-          data: {
-            sections: { basics: {}, summary: { content: "" }, experience: { items: [] }, skills: { items: [] }, custom: {} },
-            metadata: {
-              template: "classic",
-              theme: { primary: "#4f46e5", background: "#ffffff", text: "#0f172a" },
-              layout: [[["summary", "experience"], ["skills"]]],
-              page: { options: { breakLine: true, pageNumbers: true } },
-              ui: { kickstartDismissed: false },
-            },
-          },
-        };
-        setResume({ resume: localResume });
-        setReady(true);
+        navigate("/dashboard", { replace: true });
       }
     };
     void run();

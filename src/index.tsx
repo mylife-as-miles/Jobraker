@@ -1,10 +1,10 @@
 import React, { StrictMode } from "react";
+import '@/client/analytics/telemetry';
 import { createRoot } from "react-dom/client";
 import "../tailwind.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LandingPage } from "./screens/LandingPage";
 import { JobrackerSignup } from "./screens/JobrackerSignup";
-import { ResetPassword } from "./screens/ResetPassword";
 import { Onboarding } from "./screens/Onboarding";
 import { Analytics } from "./screens/Analytics";
 import { Dashboard } from "./screens/Dashboard";
@@ -15,8 +15,13 @@ import { ToastProvider } from "./components/ui/toast-provider";
 import { ArtboardPage } from "./pages/artboard";
 import { BuilderLayout as ArtboardCanvasLayout } from "./pages/builder";
 import { PreviewLayout } from "./pages/preview";
-import { Providers } from "./providers";
+import { Providers } from "./providers"; // Artboard/local providers (Helmet + artboard state)
+import { Providers as ClientProviders } from "@/client/providers"; // Client app providers (QueryClient, Theme, Locale, Dialog, Toast)
+import { TourProvider } from "./providers/TourProvider"; // Product tour context for dashboard pages
 import { ClientBuilderRoute } from "@/client/pages/builder/route-bridge";
+import { builderNewLoader } from "@/client/pages/builder/page";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/client/libs/query-client";
 import { BuilderLayout } from "@/client/pages/builder/layout";
 import { ROUTES } from "./routes";
 import { ToastEventBridge } from "./components/system/ToastEventBridge";
@@ -66,14 +71,24 @@ function App() {
 
         {/* Sign In Page */}
           <Route path={ROUTES.SIGNIN} element={<PublicOnly><JobrackerSignup /></PublicOnly>} />
-          {/* Password recovery/update page (handles Supabase recovery links) */}
-          <Route path="/reset-password" element={<PublicOnly><ResetPassword /></PublicOnly>} />
         
-        {/* Step 2: Onboarding Page (after signup). Public so it doesn't blank when unauthenticated; final step requires auth */}
-          <Route path={ROUTES.ONBOARDING} element={<Onboarding />} />
+        {/* Step 2: Onboarding Page (after signup) */}
+          <Route path={ROUTES.ONBOARDING} element={<RequireAuth><Onboarding /></RequireAuth>} />
         
         {/* Step 3: Dashboard Page (after onboarding completion) - Now serves as main container */}
-          <Route path={ROUTES.DASHBOARD_WILDCARD} element={<RequireAuth><Dashboard /></RequireAuth>} />
+          <Route 
+            path={ROUTES.DASHBOARD_WILDCARD} 
+            element={
+              <RequireAuth>
+                <ClientProviders>
+                  {/* Inject TourProvider so all dashboard subpages can use useProductTour */}
+                  <TourProvider>
+                    <Dashboard />
+                  </TourProvider>
+                </ClientProviders>
+              </RequireAuth>
+            } 
+          />
         
   {/* Standalone Analytics Page (for backward compatibility) */}
           <Route path={ROUTES.ANALYTICS} element={<RequireAuth><Analytics /></RequireAuth>} />
@@ -91,7 +106,8 @@ function App() {
 
         {/* Client builder route with layout (protected) */}
         <Route element={<RequireAuth><Providers/></RequireAuth>}>
-          <Route path="/builder" element={<BuilderLayout/>}>
+          <Route path="/builder" element={<QueryClientProvider client={queryClient}><BuilderLayout /></QueryClientProvider>}>
+            <Route path="new" element={<ClientBuilderRoute/>} loader={builderNewLoader as any} />
             <Route path=":id" element={<ClientBuilderRoute/>} />
           </Route>
         </Route>

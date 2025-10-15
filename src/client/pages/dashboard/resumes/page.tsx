@@ -4,24 +4,13 @@ import { motion } from "framer-motion";
 import { Helmet } from "react-helmet-async";
 
 import { GridView } from "./_layouts/grid";
-import { useRef, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useResumes } from '@/hooks/useResumes';
-import { Button } from '@/components/ui/button';
-import { Upload } from 'lucide-react';
 
 export const ResumesPage = () => {
-  const fileRef = useRef<HTMLInputElement | null>(null);
   const { importMultiple, importStatuses, clearImportStatuses, removeImportStatus } = useResumes();
   const [showCompleted, setShowCompleted] = useState(true);
   const [dragActive, setDragActive] = useState(false);
-
-  const handlePick = () => fileRef.current?.click();
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || !files.length) return;
-    await importMultiple(files);
-    e.target.value = '';
-  };
 
   const onDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -48,6 +37,10 @@ export const ResumesPage = () => {
       </Helmet>
 
       <div className="space-y-6">
+        <div className="rounded-lg border border-[#1dff00]/20 bg-[#1dff00]/5 px-4 py-3 text-[11px] text-[#1dff00]/80 flex flex-wrap items-center gap-2">
+          <span className="font-medium text-[#1dff00]">Tip:</span>
+          <span>Select or import a resume below to open the full builder canvas. Check Settings → Resume Checker to run AI analysis on your resumes.</span>
+        </div>
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <motion.h1
             initial={{ opacity: 0, x: -30 }}
@@ -56,12 +49,6 @@ export const ResumesPage = () => {
           >
             {t`Resume Builder`}
           </motion.h1>
-          <div className="flex items-center gap-3">
-            <input ref={fileRef} type="file" multiple accept=".pdf,.doc,.docx,.txt,.json" hidden onChange={handleFile} />
-            <Button onClick={handlePick} variant="outline" className="border-[#1dff00]/40 text-[#1dff00] hover:bg-[#1dff00]/10">
-              <Upload className="w-4 h-4 mr-2" /> {dragActive ? 'Drop files...' : 'Import Resumes'}
-            </Button>
-          </div>
         </div>
 
         <div 
@@ -84,7 +71,7 @@ export const ResumesPage = () => {
               </div>
             </div>
             <ul className="max-h-44 overflow-auto thin-scrollbar pr-1 text-[11px] divide-y divide-[#1dff00]/10 border border-[#1dff00]/10 rounded-xl bg-black/40 backdrop-blur-sm">
-              {importStatuses.filter(st => showCompleted || (st.state !== 'done')).slice(0,14).map(st => {
+              {(importStatuses as any[]).filter((st: any) => showCompleted || (st.state !== 'done')).slice(0,14).map((st: any) => {
                 const pct = Math.round(st.progress);
                 const barColor = st.state === 'error' ? 'bg-red-500/60' : st.state === 'done' ? 'bg-[#1dff00]' : 'bg-[#1dff00]/60';
                 return (

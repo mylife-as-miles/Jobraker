@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { useRegisterCoachMarks } from "../../../providers/TourProvider";
+import { Skeleton } from "../../../components/ui/skeleton";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical } from "lucide-react";
+import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
 import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
@@ -14,6 +16,7 @@ import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
 import { validatePassword } from "../../../utils/password";
 import { CheckCircle2, XCircle } from "lucide-react";
+import { ResumeChecker } from "../../../client/components/ResumeChecker";
 // Lazy-load qrcode to avoid bundler resolution issues during build
 let QRCodeLib: any | null = null;
 async function getQRCode() {
@@ -36,12 +39,13 @@ export const SettingsPage = (): JSX.Element => {
     { id: 6, type: "trulyremote", query: "backend engineer", enabled: false },
   ]), []);
   const [jobSources, setJobSources] = useState(defaultJobSources);
-  const { profile, updateProfile, createProfile, refresh: refreshProfile } = useProfileSettings();
-  const { settings: notif, updateSettings, createSettings, refresh: refreshNotif } = useNotificationSettings();
-  const { settings: privacy, createSettings: createPrivacy, updateSettings: updatePrivacy, refresh: refreshPrivacy } = usePrivacySettings();
+  const { profile, updateProfile, createProfile, refresh: refreshProfile, loading: profileLoading } = useProfileSettings();
+  const { settings: notif, updateSettings, createSettings, refresh: refreshNotif, loading: notifLoading } = useNotificationSettings() as any;
+  const { settings: privacy, createSettings: createPrivacy, updateSettings: updatePrivacy, refresh: refreshPrivacy, loading: privacyLoading } = usePrivacySettings() as any;
   const security = useSecuritySettings();
   const appearance = useAppearanceSettings();
   const appearanceSettings = (appearance as any).settings;
+  const appearanceLoading = (appearance as any).loading || false;
   const {
     settings: sec,
     updateSecurity,
@@ -57,6 +61,7 @@ export const SettingsPage = (): JSX.Element => {
     trustDevice,
     revokeDevice,
   } = security as any;
+  const securityLoading = (security as any).loading || false;
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -118,9 +123,9 @@ export const SettingsPage = (): JSX.Element => {
         const uid = (auth as any)?.user?.id;
         if (!uid) return;
         const { data: rows, error } = await (supabase as any)
-          .from('job_source_configs')
+          .from('job_source_settings')
           .select('sources')
-          .eq('user_id', uid)
+          .eq('id', uid)
           .maybeSingle();
         if (!error && rows && Array.isArray((rows as any).sources)) {
           setJobSources((rows as any).sources);
@@ -192,13 +197,62 @@ export const SettingsPage = (): JSX.Element => {
     { id: "security", label: "Security", icon: <Shield className="w-4 h-4" /> },
     { id: "appearance", label: "Appearance", icon: <Palette className="w-4 h-4" /> },
     { id: "privacy", label: "Privacy", icon: <Globe className="w-4 h-4" /> },
+    { id: "resume-checker", label: "Resume Checker", icon: <Sparkles className="w-4 h-4" /> },
     { id: "job-sources", label: "Job Sources", icon: <SettingsIcon className="w-4 h-4" /> },
     { id: "billing", label: "Billing", icon: <CreditCard className="w-4 h-4" /> }
   ];
 
+  useRegisterCoachMarks({
+    page: 'settings',
+    marks: [
+      { id: 'settings-tab-profile', selector: '#settings-tab-btn-profile', title: 'Profile Settings', body: 'Manage your personal information & contact details here.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-notifications' },
+      { id: 'settings-tab-notifications', selector: '#settings-tab-btn-notifications', title: 'Notifications', body: 'Control which updates you receive via email or browser.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-security' },
+      { id: 'settings-tab-security', selector: '#settings-tab-btn-security', title: 'Security', body: 'Update password & manage two-factor authentication for stronger protection.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-appearance' },
+      { id: 'settings-tab-appearance', selector: '#settings-tab-btn-appearance', title: 'Appearance', body: 'Customize UI theme and visual preferences.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-privacy' },
+      { id: 'settings-tab-privacy', selector: '#settings-tab-btn-privacy', title: 'Privacy', body: 'Adjust visibility and data sharing preferences.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-job-sources' },
+      { id: 'settings-tab-job-sources', selector: '#settings-tab-btn-job-sources', title: 'Job Sources', body: 'Enable/disable and prioritize job ingestion sources.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-billing' },
+      { id: 'settings-tab-billing', selector: '#settings-tab-btn-billing', title: 'Billing', body: 'Manage subscription and payment information (coming soon).', condition: { type: 'click', autoNext: true }, next: 'settings-tour-complete' },
+      { id: 'settings-tour-complete', selector: '#settings-tablist', title: 'All Set', body: 'That’s the settings navigation. You can restart this tour anytime from the tour menu.' }
+    ]
+  });
+
+  const activeLoading = (
+    (activeTab === 'profile' && profileLoading) ||
+    (activeTab === 'notifications' && notifLoading) ||
+    (activeTab === 'privacy' && privacyLoading) ||
+    (activeTab === 'appearance' && appearanceLoading) ||
+    (activeTab === 'security' && securityLoading)
+  );
+
+  const TabSkeleton = () => (
+    <div className="space-y-6">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Card key={i} className="bg-white/5 border-white/10 p-6 rounded-xl">
+          <div className="space-y-4">
+            <Skeleton className="h-5 w-48" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {Array.from({ length: 4 }).map((__, j) => (
+                <div key={j} className="space-y-2">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Skeleton className="h-9 w-24" />
+              <Skeleton className="h-9 w-20" />
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  // ... existing rendering logic below will conditionally use activeLoading & TabSkeleton
 
   const handleNotificationChange = async (setting: string, value: boolean) => {
     try {
@@ -344,7 +398,7 @@ export const SettingsPage = (): JSX.Element => {
     switch (activeTab) {
       case "profile":
         return (
-          <div className="space-y-6">
+          <div id="settings-tab-profile" data-tour="settings-tab-profile" className="space-y-6">
             <div className="flex items-center space-x-6">
               <div className="w-24 h-24 rounded-full overflow-hidden bg-primary/20 border border-primary flex items-center justify-center text-primary-foreground font-bold text-2xl">
                 {avatarUrl ? (
@@ -440,7 +494,7 @@ export const SettingsPage = (): JSX.Element => {
 
       case "notifications":
         return (
-          <div className="space-y-6">
+          <div id="settings-tab-notifications" data-tour="settings-tab-notifications" className="space-y-6">
             <div className="space-y-4">
               {[
                 { key: "email_notifications", label: "Email Notifications", description: "Receive notifications via email" },
@@ -479,7 +533,7 @@ export const SettingsPage = (): JSX.Element => {
 
       case "security":
         return (
-          <div className="space-y-6">
+          <div id="settings-tab-security" data-tour="settings-tab-security" className="space-y-6">
             {/* Change Password */}
             <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
@@ -551,6 +605,7 @@ export const SettingsPage = (): JSX.Element => {
                     </div>
                   </div>
                   <Button
+                    id="settings-security-update-password"
                     onClick={handleChangePassword}
                     disabled={!passwordCheck.valid || formData.newPassword !== formData.confirmPassword}
                     className="bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 transition-all duration-300 disabled:opacity-60"
@@ -752,7 +807,7 @@ export const SettingsPage = (): JSX.Element => {
 
       case "appearance":
         return (
-          <div className="space-y-6">
+          <div id="settings-tab-appearance" data-tour="settings-tab-appearance" className="space-y-8">
             <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
                 <h3 className="text-foreground font-medium mb-4">Theme</h3>
@@ -838,7 +893,7 @@ export const SettingsPage = (): JSX.Element => {
 
       case "privacy":
         return (
-          <div className="space-y-6">
+          <div id="settings-tab-privacy" data-tour="settings-tab-privacy" className="space-y-6">
             <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
                 <h3 className="text-foreground font-medium mb-4">Data & Privacy</h3>
@@ -944,7 +999,15 @@ export const SettingsPage = (): JSX.Element => {
 
       case "job-sources":
         return (
-          <div className="space-y-6">
+          <div id="settings-tab-job-sources" data-tour="settings-tab-job-sources" className="space-y-8">
+            {/* Quick Defaults for source flags that integrate with process-and-match */}
+            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
+              <CardContent className="p-4 space-y-4">
+                <h3 className="text-foreground font-medium">Job Source Defaults</h3>
+                <p className="text-sm text-muted-foreground">These settings are used by live search and fallbacks.</p>
+                <DefaultsForm />
+              </CardContent>
+            </Card>
             {/* Header */}
             <div className="flex items-center justify-between">
               <div>
@@ -1220,10 +1283,10 @@ export const SettingsPage = (): JSX.Element => {
                       const { data: auth } = await supabase.auth.getUser();
                       const uid = (auth as any)?.user?.id;
                       if (!uid) { toastError('Not signed in', ''); return; }
-                      const payload = { user_id: uid, sources: jobSources } as any;
+                      const payload = { id: uid, sources: jobSources } as any;
                       const { error } = await (supabase as any)
-                        .from('job_source_configs')
-                        .upsert(payload, { onConflict: 'user_id' });
+                        .from('job_source_settings')
+                        .upsert(payload, { onConflict: 'id' });
                       if (error) throw error;
                       try { localStorage.setItem('jobSources', JSON.stringify(jobSources)); } catch { /* ignore */ }
                       success('Job sources saved', 'Your job source configuration has been updated successfully');
@@ -1241,9 +1304,16 @@ export const SettingsPage = (): JSX.Element => {
           </div>
         );
 
+      case "resume-checker":
+        return (
+          <div id="settings-tab-resume-checker" data-tour="settings-tab-resume-checker" className="space-y-8">
+            <ResumeChecker />
+          </div>
+        );
+
       case "billing":
         return (
-          <div className="space-y-6">
+          <div id="settings-tab-billing" data-tour="settings-tab-billing" className="space-y-8">
             <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
               <CardContent className="p-4">
                 <h3 className="text-foreground font-medium mb-4">Current Plan</h3>
@@ -1289,7 +1359,7 @@ export const SettingsPage = (): JSX.Element => {
       <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 sm:gap-8">
           {/* Settings Navigation */}
-          <div className="lg:col-span-1 space-y-2">
+          <div className="lg:col-span-1 space-y-2" id="settings-tablist" data-tour="settings-tabs">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-6 flex items-center">
               <SettingsIcon className="w-6 h-6 mr-2" />
               Settings
@@ -1299,7 +1369,12 @@ export const SettingsPage = (): JSX.Element => {
               <Button
                 key={tab.id}
                 variant="ghost"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'settings_tab_switch', tab: tab.id } })); } catch {}
+                }}
+                id={`settings-tab-btn-${tab.id}`}
+                data-tour={`settings-tab-btn-${tab.id}`}
                 className={`w-full justify-start transition-all duration-300 hover:scale-105 ${
                   activeTab === tab.id
                     ? "text-foreground bg-primary/10 border-r-2 border-primary"
@@ -1336,7 +1411,9 @@ export const SettingsPage = (): JSX.Element => {
             >
               <Card className="bg-card/50 border-border/20 backdrop-blur-sm hover:shadow-lg transition-all duration-300">
                 <CardContent className="p-6">
-                  {renderTabContent()}
+                  <div id="settings-profile-form" data-tour="settings-profile-form">
+                    {activeLoading ? <TabSkeleton /> : renderTabContent()}
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
@@ -1412,3 +1489,190 @@ export const SettingsPage = (): JSX.Element => {
 
   // remove stray return (modal is rendered above)
 };
+
+function DefaultsForm() {
+  const supabase = useMemo(() => createClient(), []);
+  const { success, error: toastError } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [includeLinkedIn, setIncludeLinkedIn] = useState(true);
+  const [includeIndeed, setIncludeIndeed] = useState(true);
+  const [includeSearch, setIncludeSearch] = useState(true);
+  const [allowedDomains, setAllowedDomains] = useState<string>("");
+  const [enabledSources, setEnabledSources] = useState<string[]>(["deepresearch","remotive","remoteok","arbeitnow"]);
+  const [cronEnabled, setCronEnabled] = useState<boolean>(false);
+  // Test search helpers
+  const [testQuery, setTestQuery] = useState<string>("software engineer");
+  const [testLocation, setTestLocation] = useState<string>("Remote");
+  const [testing, setTesting] = useState<boolean>(false);
+  const [testCount, setTestCount] = useState<number | null>(null);
+  const [testNote, setTestNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        const uid = (auth as any)?.user?.id;
+        if (!uid) { setLoading(false); return; }
+        const { data } = await (supabase as any)
+          .from('job_source_settings')
+          .select('include_linkedin, include_indeed, include_search, allowed_domains, enabled_sources, cron_enabled')
+          .eq('id', uid)
+          .maybeSingle();
+        if (data) {
+          if (data.include_linkedin != null) setIncludeLinkedIn(!!data.include_linkedin);
+          if (data.include_indeed != null) setIncludeIndeed(!!data.include_indeed);
+          if (data.include_search != null) setIncludeSearch(!!data.include_search);
+          if (Array.isArray(data.allowed_domains)) setAllowedDomains(data.allowed_domains.join(','));
+          if (Array.isArray(data.enabled_sources)) setEnabledSources(data.enabled_sources);
+          if (typeof (data as any).cron_enabled === 'boolean') setCronEnabled(!!(data as any).cron_enabled);
+        }
+      } catch (e: any) { console.warn(e); }
+      setLoading(false);
+    })();
+  }, [supabase]);
+
+  const toggle = (arr: string[], key: string, on: boolean) => {
+    if (on) return Array.from(new Set([...arr, key]));
+    return arr.filter((x) => x !== key);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = (auth as any)?.user?.id;
+      if (!uid) { setSaving(false); return; }
+      const payload = {
+        id: uid,
+        include_linkedin: includeLinkedIn,
+        include_indeed: includeIndeed,
+        include_search: includeSearch,
+        allowed_domains: allowedDomains.split(',').map((s) => s.trim()).filter(Boolean),
+        enabled_sources: enabledSources,
+        cron_enabled: cronEnabled,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await (supabase as any)
+        .from('job_source_settings')
+        .upsert(payload, { onConflict: 'id' });
+      if (error) throw error;
+      success('Saved');
+    } catch (e: any) {
+      toastError('Save failed', e.message);
+    }
+    setSaving(false);
+  };
+
+  const runNow = async () => {
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = (auth as any)?.user?.id;
+      if (!uid) return;
+      const { data, error } = await (supabase as any).functions.invoke('jobs-cron', { body: { user_id: uid, manual_trigger: true } });
+      if (error) throw error;
+      success('Job fetch started');
+      console.log('jobs-cron result', data);
+    } catch (e: any) {
+      toastError('Trigger failed', e.message);
+    }
+  };
+
+  const testSearch = async () => {
+    setTesting(true);
+    setTestNote(null);
+    setTestCount(null);
+    try {
+      const { data, error } = await (supabase as any).functions.invoke('get-jobs', {
+        body: {
+          q: (testQuery || 'software engineer').trim(),
+          location: (testLocation || 'Remote').trim(),
+          type: '',
+        },
+      });
+      if (error) throw error;
+      const rows = Array.isArray(data?.jobs) ? data.jobs : [];
+      setTestCount(rows.length);
+      setTestNote('Success');
+    } catch (e: any) {
+      setTestNote(e?.message || 'Failed');
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const sourceDefs = [
+    { id: 'deepresearch', label: 'Deep Research (Firecrawl)' },
+    { id: 'remotive', label: 'Remotive' },
+    { id: 'remoteok', label: 'RemoteOK' },
+    { id: 'arbeitnow', label: 'Arbeitnow' },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={includeLinkedIn} onChange={(e) => setIncludeLinkedIn(e.target.checked)} disabled={loading} />
+          Include LinkedIn
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={includeIndeed} onChange={(e) => setIncludeIndeed(e.target.checked)} disabled={loading} />
+          Include Indeed
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={includeSearch} onChange={(e) => setIncludeSearch(e.target.checked)} disabled={loading} />
+          Include Search/Listing pages
+        </label>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={cronEnabled} onChange={(e) => setCronEnabled(e.target.checked)} disabled={loading} />
+          Background Cron Enabled
+        </label>
+      </div>
+      <div className="space-y-2">
+        <div className="text-sm font-medium">Enabled Sources</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {sourceDefs.map((s) => (
+            <label key={s.id} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-[hsl(var(--ring))]"
+                checked={enabledSources.includes(s.id)}
+                onChange={(e) => setEnabledSources((prev) => toggle(prev, s.id, e.target.checked))}
+                disabled={loading}
+              />
+              <span className="text-sm">{s.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Allowed Domains (comma separated)</label>
+        <Input value={allowedDomains} onChange={(e) => setAllowedDomains(e.target.value)} placeholder="careers.google.com, amazon.jobs" />
+      </div>
+      <div className="flex items-center gap-2">
+        <Button onClick={save} disabled={saving || loading} className="bg-primary text-primary-foreground hover:bg-primary/90">Save</Button>
+        <Button variant="outline" onClick={runNow} disabled={loading} className="border-border/20 text-foreground hover:bg-card/20">Run now</Button>
+        <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Status:</span>
+          <span className={`${cronEnabled ? 'text-success' : 'text-muted-foreground'}`}>{cronEnabled ? 'Cron on' : 'Cron off'}</span>
+        </div>
+      </div>
+      {/* Test Search Area */}
+      <div className="mt-3 p-3 rounded-md border border-border/20 bg-card/5">
+        <div className="text-sm font-medium mb-2">Test Search</div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
+          <Input value={testQuery} onChange={(e) => setTestQuery(e.target.value)} placeholder="Query (e.g., software engineer)" />
+          <Input value={testLocation} onChange={(e) => setTestLocation(e.target.value)} placeholder="Location (e.g., Remote)" />
+          <Button onClick={testSearch} disabled={testing} className="bg-primary text-primary-foreground hover:bg-primary/90">{testing ? 'Testing…' : 'Test Search'}</Button>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {testCount != null ? <span>Jobs: <span className="text-foreground font-semibold">{testCount}</span></span> : 'Run a test to validate DB fallback.'}
+          {testNote && <span className="ml-2">({testNote})</span>}
+        </div>
+      </div>
+    </div>
+  );
+}

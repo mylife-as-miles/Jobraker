@@ -2,12 +2,19 @@
 
 import { useEffect, useRef } from "react"
 import { Card } from "../ui/card"
-import { useRealTimeData } from "../../hooks/useRealTimeData"
 import { motion } from "framer-motion"
+import { ArrowDownRight, ArrowUpRight } from "lucide-react"
 
-export function MatchScoreAnalytics() {
+type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
+
+export function MatchScoreAnalytics({ period, data }: { period: Period; data: any }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const { barData, metrics } = useRealTimeData()
+  const hasMatchBars = Array.isArray(data?.matchBarData) && data.matchBarData.length > 0
+  const barData = hasMatchBars ? data.matchBarData : (data?.barData || [])
+  const metrics = { matchScore: data?.metrics?.avgMatchScore ?? 0 }
+  const delta = data?.comparisons?.avgMatchDelta ?? 0
+  const highlight = hasMatchBars ? data.matchBarData[0] : null
+  const loading = Boolean(data?.loading)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -23,12 +30,13 @@ export function MatchScoreAnalytics() {
 
     ctx.clearRect(0, 0, rect.width, rect.height)
 
-    const maxValue = Math.max(...barData.map((d) => d.value))
-    const barWidth = Math.min(60, rect.width / barData.length * 0.6)
+  if (!barData.length) return
+    const maxValue = Math.max(...barData.map((d: any) => d.value))
+    const barWidth = Math.min(60, (rect.width / barData.length) * 0.6)
     const spacing = (rect.width - (barData.length * barWidth)) / (barData.length + 1)
     const startX = spacing
 
-    barData.forEach((item, index) => {
+    barData.forEach((item: any, index: number) => {
       const x = startX + index * (barWidth + spacing)
       const barHeight = (item.value / maxValue) * (rect.height - 80)
       const y = rect.height - 50 - barHeight
@@ -78,7 +86,7 @@ export function MatchScoreAnalytics() {
       ctx.fillStyle = "#ffffff"
       ctx.font = "12px Inter, sans-serif"
       ctx.textAlign = "center"
-      const words = item.name.split(' ')
+      const words = String(item.name).split(' ')
       words.forEach((word, wordIndex) => {
         ctx.fillText(word, x + barWidth / 2, rect.height - 25 + (wordIndex * 14))
       })
@@ -104,12 +112,30 @@ export function MatchScoreAnalytics() {
           >
             {metrics.matchScore}%
           </motion.div>
-          <p className="text-sm text-white/70 leading-relaxed">An average of how well your profile matches available jobs.</p>
+          <div className="flex items-center gap-2 text-sm text-white/70 leading-relaxed">
+            <span>Average match score in {String(period ?? '').toUpperCase()}.</span>
+            {delta !== 0 && (
+              <span className={`inline-flex items-center gap-1 text-xs font-medium ${delta > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {delta > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                {delta > 0 ? '+' : ''}{delta}
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="flex-1 min-h-0">
+        <div className="relative flex-1 min-h-0">
           <canvas ref={canvasRef} className="w-full h-full" />
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/30 text-xs font-medium text-white/70">
+              Loading match insights…
+            </div>
+          )}
         </div>
+        {highlight?.summary && (
+          <p className="mt-4 text-xs text-white/60 leading-snug line-clamp-3">
+            {highlight.company ? `${highlight.company} — ` : ""}{highlight.name}: {highlight.summary}
+          </p>
+        )}
       </Card>
     </motion.div>
   )

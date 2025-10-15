@@ -57,8 +57,8 @@ export const JobSourceSettings = () => {
           include_linkedin: includeLinkedIn,
           include_indeed: includeIndeed,
           include_search: includeSearch,
-      enabled_sources: enabledSources,
-      allowed_domains: allowedDomains.split(',').map(s => s.trim()).filter(Boolean),
+          enabled_sources: enabledSources,
+          allowed_domains: allowedDomains.split(',').map(s => s.trim()).filter(Boolean),
           updated_at: new Date().toISOString(),
         }, { onConflict: 'id' });
     } catch {}

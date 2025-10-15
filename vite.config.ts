@@ -12,7 +12,7 @@ export default defineConfig({
   define: {
     'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL),
     'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY),
-    appVersion: JSON.stringify(process.env.VITE_APP_VERSION || '0.0.0'),
+    appVersion: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,7) || process.env.npm_package_version || 'dev'),
   },
   // Vite automatically loads VITE_ prefixed variables from .env files for development
   envPrefix: ['VITE_'],
@@ -43,7 +43,12 @@ export default defineConfig({
   "@radix-ui/react-separator": path.resolve(__dirname, "src/lib/mocks/radix-separator.tsx"),
   "@sindresorhus/slugify": path.resolve(__dirname, "src/lib/mocks/slugify.ts"),
   "react-parallax-tilt": path.resolve(__dirname, "src/lib/mocks/react-parallax-tilt.tsx"),
-      "prismjs": path.resolve(__dirname, "src/lib/mocks/prismjs.ts"),
+  // Refractor performs dynamic requires like 'prismjs/components/prism-core'. If we alias 'prismjs' directly
+  // to a file, Vite's commonjs resolver was expanding that to '<mock-file>/components/prism-core' (ENOTDIR).
+  // Solution: provide a directory alias for the components subpath first, and use a regex-style terminal match
+  // ('prismjs$') for the core mock so that only bare 'prismjs' is replaced.
+  "prismjs/components": path.resolve(__dirname, "src/lib/mocks/prismjs-components"),
+  "prismjs$": path.resolve(__dirname, "src/lib/mocks/prismjs.ts"),
   "react-colorful": path.resolve(__dirname, "src/lib/mocks/react-colorful.tsx"),
   "react-simple-code-editor": path.resolve(__dirname, "src/lib/mocks/react-simple-code-editor.tsx"),
   "openai": path.resolve(__dirname, "src/lib/mocks/openai.ts"),

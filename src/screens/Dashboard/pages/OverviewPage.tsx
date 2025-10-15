@@ -4,10 +4,15 @@ import { Switch } from "../../../components/ui/switch";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
-import { Building2, AlertCircle, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
+import { Building2, AlertCircle, Inbox } from "lucide-react";
+import KiboCalendar, { CalendarEvent } from "../../../components/ui/kibo-ui/calendar";
+import CalendarDayDetail from "../../../components/ui/kibo-ui/CalendarDayDetail";
 import { useNotifications } from "../../../hooks/useNotifications";
-import { useApplications } from "../../../hooks/useApplications";
+import { useApplications, ApplicationStatus } from "../../../hooks/useApplications";
+import { Skeleton } from "../../../components/ui/skeleton";
 import { SplitLineAreaChart } from "./SplitLineAreaChart";
+import { useRegisterCoachMarks } from "../../../providers/TourProvider";
+import { useAnalyticsData } from "../../../hooks/useAnalyticsData";
 // SplitLineAreaChart removed; chart moved to Application section
 
 // Using realtime notifications; no local interface needed here
@@ -18,29 +23,38 @@ export const OverviewPage = (): JSX.Element => {
   const [stackedTouched, setStackedTouched] = useState(false);
   const [visibleSeries, setVisibleSeries] = useState<string[]>([]);
   const { items: notifItems, loading: notifLoading } = useNotifications(6);
-  const { applications } = useApplications();
+  const { applications, loading: appsLoading, update, create, stats } = useApplications();
+  const matchAnalytics = useAnalyticsData("30d", { granularity: 'day' });
+  const [statusFilter, setStatusFilter] = useState<ApplicationStatus[] | null>(null); // null => all
   const mappedNotifs = useMemo(() => {
-    return notifItems.map(n => ({
-      id: n.id,
-      type: n.type as any,
-      title: n.title,
-      message: n.message || '',
-      time: new Date(n.created_at).toLocaleString(),
-      icon: (
-        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center"
-             style={{ backgroundColor: n.type === 'company' ? '#000' : n.type === 'application' ? '#4285f4' : n.type === 'interview' ? '#0077b5' : '#ff6b6b' }}>
-          {n.type === 'company' ? (
-            <span className="text-[#1dff00] font-bold text-xs sm:text-sm">{(n.company || 'C').charAt(0).toUpperCase()}</span>
-          ) : n.type === 'application' ? (
-            <span className="text-[#1dff00] font-bold text-xs sm:text-sm">{(n.company || 'A').charAt(0).toUpperCase()}</span>
-          ) : n.type === 'interview' ? (
-            <Building2 className="w-3 h-3 sm:w-4 sm:h-4 text-[#1dff00]" />
-          ) : (
-            <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-[#1dff00]" />
-          )}
-        </div>
-      )
-    }));
+    return notifItems.map(n => {
+      // Per-type style mapping for visual differentiation & accessibility
+      const baseSize = 'w-9 h-9 sm:w-10 sm:h-10';
+      const shared = 'rounded-xl flex items-center justify-center font-bold text-xs sm:text-sm shadow-inner transition ring-1';
+      let className = '';
+      let inner: JSX.Element | string;
+      if (n.type === 'application') {
+        className = `${baseSize} ${shared} bg-[#1dff00]/15 ring-[#1dff00]/40 text-[#b6ffb6] group-hover:ring-[#1dff00]/60`;
+        inner = (n.company || 'A').charAt(0).toUpperCase();
+      } else if (n.type === 'interview') {
+        className = `${baseSize} ${shared} bg-[#0d4d66]/40 ring-[#56c2ff]/30 text-[#56c2ff] group-hover:ring-[#56c2ff]/60`;
+        inner = <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />;
+      } else if (n.type === 'company') {
+        className = `${baseSize} ${shared} bg-[#1e1e1e] ring-white/10 text-white group-hover:ring-[#1dff00]/50`;
+        inner = (n.company || 'C').charAt(0).toUpperCase();
+      } else { // system / fallback
+        className = `${baseSize} ${shared} bg-[#3a1212] ring-[#ff6b6b]/40 text-[#ff9e9e] group-hover:ring-[#ff6b6b]/70`;
+        inner = <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />;
+      }
+      return {
+        id: n.id,
+        type: n.type as any,
+        title: n.title,
+        message: n.message || '',
+        time: new Date(n.created_at).toLocaleString(),
+        icon: <div className={className}>{inner}</div>
+      };
+    });
   }, [notifItems]);
 
   // Realtime clock and dynamic calendar state
@@ -56,9 +70,7 @@ export const OverviewPage = (): JSX.Element => {
     return () => clearInterval(id);
   }, []);
 
-  const monthLabel = useMemo(() =>
-    viewDate.toLocaleString(undefined, { month: 'long', year: 'numeric' }),
-  [viewDate]);
+  // monthLabel removed (handled by KiboCalendar header internally now)
 
   const timeLabel = useMemo(() =>
     now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
@@ -96,6 +108,13 @@ export const OverviewPage = (): JSX.Element => {
   // Build real series based on selected period with status-specific keys
   const { seriesData, seriesMeta, appliedCount, interviewCount, totals } = useMemo(() => {
     const period = selectedPeriod
+
+    // Apply status filtering (search removed per request)
+    let filtered = applications;
+    if (statusFilter && statusFilter.length) {
+      const set = new Set(statusFilter);
+      filtered = filtered.filter(a => set.has(a.status));
+    }
 
     type Bucket = { key: string; label: string; start: Date; end: Date }
     const buckets: Bucket[] = []
@@ -157,7 +176,7 @@ export const OverviewPage = (): JSX.Element => {
     let applied = 0
     let interviews = 0
     let totalInWindow = 0
-    for (const app of applications) {
+  for (const app of filtered) {
       const d = new Date(app.applied_date)
       if (period === "Today") {
         const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -189,37 +208,81 @@ export const OverviewPage = (): JSX.Element => {
       totalInWindow++
     }
 
-    const series = statuses.map((s, i) => ({
+    // Improved distinctive palette for accessibility / color meaning
+    const palette: Record<string, string> = {
+      Applied: "#1dff00",
+      Interview: "#00b2ff",
+      Offer: "#ffd700",
+      Rejected: "#ff4d4d",
+    };
+    const series = statuses.map((s) => ({
       key: s,
       label: s,
-      color: i === 0 ? "#1dff00" : i === 1 ? "#00ff7f" : i === 2 ? "#32cd32" : i === 3 ? "#00ff00" : "#90ee90",
+      color: palette[s] || "#999999",
     }))
 
   return { seriesData: data, seriesMeta: series, appliedCount: applied, interviewCount: interviews, totals: { totalInWindow } }
-  }, [applications, now, selectedPeriod])
+  }, [applications, now, selectedPeriod, statusFilter])
 
-  // Build a 6x7 calendar grid (42 cells)
-  const monthGrid = useMemo(() => {
-    const year = viewDate.getFullYear();
-    const month = viewDate.getMonth();
-    const firstOfMonth = new Date(year, month, 1);
-    const startDay = firstOfMonth.getDay(); // 0=Sun..6=Sat
-    const cells: { date: Date; inCurrentMonth: boolean }[] = [];
-    for (let i = 0; i < 42; i++) {
-      const dayNum = i - startDay + 1; // can be <=0 or > daysInMonth
-      const cellDate = new Date(year, month, dayNum);
-      cells.push({
-        date: cellDate,
-        inCurrentMonth: cellDate.getMonth() === month,
-      });
-    }
-    return cells;
-  }, [viewDate]);
+  // Calendar selection & view state
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
+  const [calendarViewMode, setCalendarViewMode] = useState<'month' | 'week'>('month');
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === '?' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setShowShortcuts(s=>!s); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
-  const isToday = (d: Date) =>
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate();
+  // Derive calendar events from applications: use interview_date if present else applied_date as end indicator
+  const calendarEvents: CalendarEvent[] = useMemo(() => {
+    return applications.map(app => {
+      const dateStr = app.interview_date || app.applied_date;
+      let date: Date;
+      try { date = new Date(dateStr); } catch { date = new Date(); }
+      return {
+        id: app.id,
+        date,
+        title: app.job_title.slice(0, 24),
+        subtitle: app.company?.slice(0, 24) || '',
+        status: app.status,
+      };
+    });
+  }, [applications]);
+
+  // Product tour coach marks for overview dashboard
+  useRegisterCoachMarks({
+    page: 'overview',
+    marks: [
+      {
+        id: 'apps-chart',
+        selector: '#overview-apps-chart',
+        title: 'Application Velocity',
+        body: 'Track how many applications you submit over time and spot trends early.'
+      },
+      {
+        id: 'status-toggle',
+        selector: '#overview-status-filter-buttons',
+        title: 'Focus by Status',
+        body: 'Filter the dataset to highlight specific pipeline stages like Interview or Offers.'
+      },
+      {
+        id: 'calendar-pane',
+        selector: '#overview-calendar',
+        title: 'Calendar Insight',
+        body: 'Interviews and applied dates appear here so you can plan your week effectively.'
+      },
+      {
+        id: 'notifications-panel',
+        selector: '#overview-notifications',
+        title: 'Recent Notifications',
+        body: 'Stay on top of interview scheduling, offers, and important system updates.'
+      }
+    ]
+  });
 
   return (
     <div className="min-h-screen bg-black">
@@ -252,6 +315,8 @@ export const OverviewPage = (): JSX.Element => {
                       variant="ghost"
                       size="sm"
                       onClick={() => setSelectedPeriod(period)}
+                      title={`Show data for ${period}`}
+                      aria-label={`Select period ${period}`}
                       className={`text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${
                         selectedPeriod === period
                           ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
@@ -261,18 +326,54 @@ export const OverviewPage = (): JSX.Element => {
                       {period}
                     </Button>
                   ))}
-
-          <div className="ml-auto flex items-center gap-2 text-xs sm:text-sm text-[#888]">
+                  <div className="flex-1" />
+                  {/* Stacked toggle (repositioned after removal of search/export) */}
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-[#888]" title="Toggle stacked / overlapping series" aria-label="Stacked toggle">
                     <span>Stacked</span>
                     <Switch
-            checked={stacked && visibleSeries.length > 1}
-            onCheckedChange={(v: boolean) => { setStackedTouched(true); setStacked(!!v); }}
-            disabled={visibleSeries.length <= 1}
+                      checked={stacked && visibleSeries.length > 1}
+                      onCheckedChange={(v: boolean) => { setStackedTouched(true); setStacked(!!v); }}
+                      disabled={visibleSeries.length <= 1}
+                      aria-label="Toggle stacked chart mode"
                     />
                   </div>
                 </div>
+                {/* Status Filter Pills */}
+                <div id="overview-status-filter-buttons" data-tour="overview-status-filter-buttons" className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-4 sm:mb-6">
+                  {['All','Applied','Interview','Offer','Rejected'].map(s => {
+                    const active = s === 'All' ? !statusFilter : statusFilter?.includes(s as ApplicationStatus);
+                    const baseColors: Record<string,string> = {
+                      Applied: 'bg-[#1dff00]/15 text-[#1dff00] border-[#1dff00]/40 hover:bg-[#1dff00]/25',
+                      Interview: 'bg-[#00b2ff]/15 text-[#56c2ff] border-[#00b2ff]/40 hover:bg-[#00b2ff]/25',
+                      Offer: 'bg-[#ffd700]/15 text-[#ffd700] border-[#ffd700]/40 hover:bg-[#ffd700]/25',
+                      Rejected: 'bg-[#ff4d4d]/15 text-[#ff9e9e] border-[#ff4d4d]/40 hover:bg-[#ff4d4d]/25',
+                      All: 'bg-white/5 text-white border-white/20 hover:bg-white/10'
+                    };
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => {
+                          if (s === 'All') { setStatusFilter(null); return; }
+                          setStatusFilter(prev => {
+                            if (!prev) return [s as ApplicationStatus];
+                            if (prev.includes(s as ApplicationStatus)) {
+                              const next = prev.filter(p => p !== s);
+                              return next.length ? next : null;
+                            }
+                            return [...prev, s as ApplicationStatus];
+                          });
+                        }}
+                        className={`text-[10px] sm:text-xs px-2 py-1 rounded-md border transition-all duration-300 font-medium tracking-wide ${baseColors[s]} ${active ? 'ring-1 ring-white/40 scale-105' : 'opacity-70'} focus:outline-none focus:ring-2 focus:ring-[#1dff00]/50`}
+                        title={s === 'All' ? 'Show all statuses' : `${active ? 'Hide' : 'Show'} ${s} applications`}
+                        aria-label={s === 'All' ? 'Filter: All statuses' : `Filter: ${s}`}
+                        aria-pressed={active}
+                      >{s}</button>
+                    );
+                  })}
+                </div>
 
-                {/* Stats */}
+                {/* Stats & Conversion Metrics */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-8 space-y-4 sm:space-y-0 mb-4 sm:mb-6">
                   <motion.div 
                     className="text-center sm:text-left"
@@ -290,26 +391,53 @@ export const OverviewPage = (): JSX.Element => {
           <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1dff00] mb-1">{interviewCount}</div>
                     <div className="text-xs sm:text-sm text-[#888888]">Interviews</div>
                   </motion.div>
+                  <motion.div 
+                    className="text-center sm:text-left"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#ffd700] mb-1">{Math.round(stats.offerRate * 100)}%</div>
+                    <div className="text-[10px] sm:text-xs text-[#888888]">Offer Rate</div>
+                  </motion.div>
+                  <motion.div 
+                    className="text-center sm:text-left"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#ff4d4d] mb-1">{Math.round(stats.rejectionRate * 100)}%</div>
+                    <div className="text-[10px] sm:text-xs text-[#888888]">Rejection Rate</div>
+                  </motion.div>
                 </div>
 
                 {/* Applications Chart (real data, status series) */}
-                <div className="mt-4 sm:mt-6 w-full max-h-96 overflow-hidden">
-                  <SplitLineAreaChart
-                    data={seriesData}
-                    xKey="label"
-          series={seriesMeta}
-                    stacked={stacked}
-          showLegend
-                    onVisibleChange={setVisibleSeries}
-                    defaultVisible={visibleSeries}
-                    tickFormatter={(v) => String(v).slice(0, 3)}
-                    className="h-64 sm:h-72 lg:h-80 xl:h-96 w-full"
-                  />
+                  {/* Application trend chart */}
+                <div id="overview-apps-chart" data-tour="overview-apps-chart" className="mt-4 sm:mt-6 w-full max-h-96 overflow-hidden min-h-[16rem] relative" aria-live="polite">
+                  <div className={`transition-opacity duration-500 ${appsLoading ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                    {!appsLoading && (
+                      <SplitLineAreaChart
+                        data={seriesData}
+                        xKey="label"
+                        series={seriesMeta}
+                        stacked={stacked}
+                        showLegend
+                        onVisibleChange={setVisibleSeries}
+                        defaultVisible={visibleSeries}
+                        tickFormatter={(v) => String(v).slice(0, 3)}
+                        className="h-64 sm:h-72 lg:h-80 xl:h-96 w-full"
+                      />
+                    )}
+                  </div>
+                  {appsLoading && (
+                    <div className="absolute inset-0 flex flex-col gap-4">
+                      <Skeleton className="h-6 w-40" />
+                      <Skeleton className="h-full w-full" />
+                    </div>
+                  )}
                 </div>
               </Card>
             </motion.div>
 
-            {/* Match Score Analytics Card */}
+            {/* Calendar (Kibo UI) - moved up, swapping with Match Scores */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -317,38 +445,117 @@ export const OverviewPage = (): JSX.Element => {
               whileHover={{ scale: 1.02 }}
               className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Recent Match Scores</h2>
+              <Card id="overview-calendar" data-tour="overview-calendar" className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
+                <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[10px] sm:text-xs text-[#888888]">
+                  <div>
+                    Current time: <span className="text-[#1dff00] font-medium">{timeLabel}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#666] hidden sm:inline">View:</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCalendarViewMode(m => m === 'month' ? 'week' : 'month')}
+                      className="text-[10px] sm:text-xs px-2 py-1 border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/10 text-[#1dff00]"
+                    >
+                      {calendarViewMode === 'month' ? 'Switch to Week' : 'Switch to Month'}
+                    </Button>
+                  </div>
                 </div>
-                <MatchScoreAnalytics />
+                <KiboCalendar
+                  month={viewDate}
+                  selectedDate={selectedDate || undefined}
+                  onMonthChange={(d) => setViewDate(d)}
+                  onSelectDate={(d) => setSelectedDate(d)}
+                  events={calendarEvents}
+                  maxVisibleEventsPerDay={3}
+                  rangeSelectable
+                  onSelectRange={setSelectedRange}
+                  locale={Intl.DateTimeFormat().resolvedOptions().locale}
+                  viewMode={calendarViewMode}
+                  onViewModeChange={setCalendarViewMode}
+                  heatmap
+                  showLegend
+                />
+                {selectedRange && (
+                  <div className="mt-3 text-center text-[10px] sm:text-xs text-[#888] flex flex-col items-center gap-1">
+                    <div>
+                      Range: <span className="text-[#1dff00] font-medium">{selectedRange.start.toLocaleDateString()} → {selectedRange.end.toLocaleDateString()}</span>
+                    </div>
+                    <button
+                      onClick={() => { setSelectedRange(null); localStorage.removeItem('calendar_last_range'); }}
+                      className="px-2 py-0.5 rounded border border-white/10 hover:border-[#1dff00]/40 hover:text-[#1dff00] hover:bg-[#1dff00]/10 text-[10px]"
+                    >Clear</button>
+                  </div>
+                )}
+                <CalendarDayDetail
+                  date={selectedDate}
+                  range={selectedRange}
+                  onClose={() => { setSelectedDate(null); setSelectedRange(null); }}
+                  applications={applications}
+                  onUpdateApplication={update}
+                  onCreateApplication={async (input) => { await create({ job_title: input.job_title, company: input.company, status: input.status as any, applied_date: input.applied_date }); }}
+                />
               </Card>
+              {showShortcuts && (
+                <div className="mt-4 text-[10px] sm:text-xs text-[#888] border border-white/10 rounded-lg p-3 bg-black/40">
+                  <div className="flex justify-between mb-2"><span className="text-white/80 font-medium">Shortcuts</span><button onClick={()=>setShowShortcuts(false)} className="text-[#1dff00] hover:underline">Close</button></div>
+                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+                    <li><kbd className="px-1 py-0.5 bg-white/10 rounded">Ctrl/⌘ + ?</kbd> Toggle help</li>
+                    <li><kbd className="px-1 py-0.5 bg-white/10 rounded">Shift + ←/→/↑/↓</kbd> Expand range</li>
+                    <li><kbd className="px-1 py-0.5 bg-white/10 rounded">Click + drag</kbd> Select range</li>
+                    <li><kbd className="px-1 py-0.5 bg-white/10 rounded">Esc</kbd> Close popup</li>
+                  </ul>
+                </div>
+              )}
             </motion.div>
           </div>
 
-          {/* Right Column - Notifications and Calendar */}
+          {/* Right Column - Notifications and Match Scores */}
           <div className="space-y-4 sm:space-y-6">
-            {/* Notifications */}
+            {/* Notifications Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
               whileHover={{ scale: 1.02 }}
               className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
-                <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Notification</h2>
+              <Card id="overview-notifications" className="relative overflow-hidden bg-[#0c0c0c] border border-[#1dff00]/25 backdrop-blur-xl p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-[#1dff00]/20 hover:border-[#1dff00]/50 transition-all duration-500 group">
+                <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-[#1dff00]/5 blur-3xl group-hover:bg-[#1dff00]/10 transition" />
+                <div className="flex items-center justify-between mb-4 sm:mb-5 relative z-10">
+                  <div>
+                    <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+                      <span className="relative inline-flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 border border-[#1dff00]/30 text-[#1dff00] shadow-inner">
+                        🔔
+                      </span>
+                      Notifications
+                    </h2>
+                    <p className="mt-1 text-[11px] sm:text-xs text-white/40">Recent activity & status changes</p>
+                  </div>
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="text-white hover:text-white/80 hover:bg-white/10 hover:scale-105 transition-all duration-300 text-xs sm:text-sm"
+                    className="text-white/70 hover:text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-105 transition-all duration-300 text-xs sm:text-sm font-medium border border-transparent hover:border-[#1dff00]/40 px-3"
                   >
-                    See more
+                    View all
                   </Button>
                 </div>
 
-                <div className="space-y-3 sm:space-y-4">
+                <div className="space-y-2.5 sm:space-y-3 min-h-[140px] relative z-10">
+                  {notifLoading && (
+                    <div className="grid grid-cols-1 gap-2.5 sm:gap-3">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="flex items-start gap-3 p-2.5 sm:p-3 rounded-xl border border-white/10 bg-white/[0.04]">
+                          <Skeleton className="h-9 w-9 rounded-xl" />
+                          <div className="flex-1 space-y-2 py-0.5">
+                            <Skeleton className="h-3 w-2/3" />
+                            <Skeleton className="h-3 w-1/3" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {mappedNotifs.length === 0 && !notifLoading && (
                     <div className="flex items-center justify-center p-8 border border-dashed border-[#1dff00]/30 rounded-xl bg-[#0b0b0b]">
                       <div className="text-center">
@@ -360,27 +567,33 @@ export const OverviewPage = (): JSX.Element => {
                       </div>
                     </div>
                   )}
-                  {mappedNotifs.map((notification, index) => (
-                    <motion.div
+                  {!notifLoading && mappedNotifs.map((notification, index) => (
+                    <motion.button
+                      type="button"
                       key={notification.id}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.4, delay: 0.1 * index }}
-                      whileHover={{ scale: 1.02, x: 4 }}
-                      className="flex items-start space-x-2 sm:space-x-3 p-2 sm:p-3 bg-gradient-to-r from-[#111111] to-[#0a0a0a] rounded-lg border border-[#1dff00]/10 hover:bg-gradient-to-r hover:from-[#1dff00]/10 hover:to-[#0a8246]/10 hover:border-[#1dff00]/30 transition-all duration-300 cursor-pointer"
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.45, delay: 0.05 * index, ease: 'easeOut' }}
+                      whileHover={{ scale: 1.015 }}
+                      whileTap={{ scale: 0.985 }}
+                      className="w-full text-left flex items-start gap-3 p-2.5 sm:p-3 rounded-xl border border-white/10 bg-gradient-to-br from-[#121212] via-[#0d0d0d] to-[#060606] hover:from-[#1dff00]/10 hover:via-[#0a8246]/10 hover:to-[#060606] hover:border-[#1dff00]/40 transition-all duration-400 group relative overflow-hidden"
                     >
                       {notification.icon}
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs sm:text-sm text-[#1dff00] font-medium leading-relaxed">{notification.title}</p>
-                        <p className="text-xs text-[#666666] mt-1">{notification.time}</p>
+                        <p className="text-[11px] sm:text-sm text-white font-medium leading-relaxed tracking-tight truncate flex items-center gap-2">
+                          {notification.title}
+                          <span className="hidden md:inline-flex text-[9px] px-1.5 py-0.5 rounded bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] font-semibold tracking-wide">NEW</span>
+                        </p>
+                        <p className="text-[10px] sm:text-xs text-white/40 mt-1 font-mono tracking-wide">{notification.time}</p>
                       </div>
-                    </motion.div>
+                      <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-gradient-to-r from-transparent via-[#1dff00]/5 to-transparent" />
+                    </motion.button>
                   ))}
                 </div>
               </Card>
             </motion.div>
 
-            {/* Calendar */}
+            {/* Match Score Analytics Card (moved below notifications) */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -389,71 +602,10 @@ export const OverviewPage = (): JSX.Element => {
               className="transition-transform duration-300"
             >
               <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
-                <div className="flex items-center justify-between mb-2 sm:mb-4">
-                  <div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
-                      className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-1 sm:p-2 transition-all duration-300"
-                    >
-                      <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </Button>
-                  </div>
-                  <h2 className="text-sm sm:text-lg lg:text-xl font-bold text-white">{monthLabel}</h2>
-                  <div className="flex items-center gap-1 sm:gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setViewDate(new Date(now.getFullYear(), now.getMonth(), 1))}
-                      className="text-white border border-white/10 hover:border-[#1dff00]/40 hover:bg-white/5 hover:text-[#1dff00] transition-all duration-300 px-2 py-1"
-                    >
-                      Today
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
-                      className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-1 sm:p-2 transition-all duration-300"
-                    >
-                      <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </Button>
-                  </div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Recent Match Scores</h2>
                 </div>
-
-                {/* Live current time */}
-                <div className="text-center text-[10px] sm:text-xs text-[#888888] mb-3">
-                  Current time: <span className="text-[#1dff00] font-medium">{timeLabel}</span>
-                </div>
-
-                {/* Calendar Header */}
-                <div className="grid grid-cols-7 gap-1 mb-2">
-                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day) => (
-                    <div key={day} className="text-center text-xs text-[#666666] font-medium py-1 sm:py-2">
-                      {day}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Calendar Days */}
-                <div className="grid grid-cols-7 gap-1">
-                  {monthGrid.map(({ date, inCurrentMonth }, idx) => (
-                    <motion.div
-                      key={`${date.toISOString()}-${idx}`}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.97 }}
-                      className={`relative text-center text-xs py-1 sm:py-2 rounded-lg transition-all duration-200 cursor-pointer ${
-                        isToday(date) && inCurrentMonth
-                          ? 'bg-[#1dff00] text-black font-bold shadow-lg'
-                          : inCurrentMonth
-                          ? 'text-[#888888] hover:bg-[#1dff00]/10 hover:text-[#1dff00]'
-                          : 'text-[#333333] hover:bg-[#1dff00]/10'
-                      }`}
-                    >
-                      {date.getDate()}
-                    </motion.div>
-                  ))}
-                </div>
+                <MatchScoreAnalytics period="30d" data={matchAnalytics} />
               </Card>
             </motion.div>
           </div>

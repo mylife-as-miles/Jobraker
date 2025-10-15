@@ -1,0 +1,239 @@
+// @ts-nocheck
+import { createClient } from 'npm:@supabase/supabase-js@2';
+import { corsHeaders } from '../_shared/types.ts';
+import { withRetry, resolveFirecrawlApiKey, firecrawlFetch } from '../_shared/firecrawl.ts';
+
+// Use the admin client for elevated privileges to delete/insert into the jobs table.
+const supabaseAdmin = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+);
+
+Deno.serve(async (req) => {
+  // Immediately handle CORS preflight requests.
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    // Step 1: Authenticate the user and get their ID.
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized: Missing token' }), { status: 401, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    }
+
+    const supabaseAuthed = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
+    const { data: { user }, error: userError } = await supabaseAuthed.auth.getUser();
+
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token' }), { status: 401, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    }
+    const userId = user.id;
+
+  // Step 2: Parse request parameters & feature flags
+  const body = await req.json().catch(() => ({}));
+  const searchQuery = (body?.searchQuery || '').trim();
+  // Always use "Remote" for location to match broader search parameters
+  const location = 'Remote';
+  const types = Array.isArray(body?.type) ? body.type : (typeof body?.type === 'string' ? [body.type] : []);
+  const debug = Boolean(body?.debug);
+  // We no longer use per-job extraction limit; process all provided URLs
+  const limit = undefined;
+  const clearExisting = Boolean(body?.clearExisting);
+  const relaxSchema = Boolean(body?.relaxSchema);
+
+    if (!searchQuery) {
+        return new Response(JSON.stringify({ error: 'Search query is required.' }), { status: 400, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    }
+
+  // Resolve Firecrawl API key from function secrets only.
+  const firecrawlApiKey = await resolveFirecrawlApiKey();
+
+    // Step 3: Use FIRE-1 agentic extraction for personalized job sourcing.
+    // The frontend should now provide the URLs directly in the payload.
+    const urls = Array.isArray(body?.urls) ? body.urls : [];
+    const userSources = urls.filter(Boolean).map(url => String(url).replace(/\/$/, ''));
+
+    if (userSources.length === 0) {
+      return new Response(JSON.stringify({ success: true, jobs_added: 0, reason: 'no_job_sources_configured' }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    }
+
+    // Firecrawl beta limit: max 10 URLs per request
+    const BATCH_SIZE = 10;
+    const totalUrls = userSources.length;
+    
+    console.info('process-and-match.batching', { 
+      total_urls: totalUrls, 
+      batch_size: BATCH_SIZE, 
+      num_batches: Math.ceil(totalUrls / BATCH_SIZE),
+      user_id: userId 
+    });
+
+    const jobSchema = {
+      type: 'object',
+      properties: {
+        jobTitle: { type: 'string' },
+        companyName: { type: 'string' },
+        location: { type: 'string' },
+        workType: { type: 'string', enum: ['On-site', 'Remote', 'Hybrid'] },
+        fullJobDescription: { type: 'string' },
+        postedDate: { type: 'string' },
+        salaryRange: { type: 'string' },
+        salary: { type: 'string' },
+        applyUrl: { type: 'string' },
+        sourceUrl: { type: 'string' },
+        companyLogoUrl: { type: 'string' },
+        applicationDeadline: { type: 'string' },
+      },
+      required: relaxSchema ? ['jobTitle','companyName'] : ['jobTitle','companyName','location','fullJobDescription'],
+    };
+
+    const extractPrompt = `You are extracting metadata from job listing URLs.
+For the role "${searchQuery}" (Remote positions preferred), return a structured array of jobs with:
+- jobTitle, companyName
+- location, workType (Remote/Hybrid/On-site)
+- applyUrl and sourceUrl
+- postedDate (ISO if possible)
+- salaryRange and/or salary text
+- companyLogoUrl (from page content, OpenGraph, or JSON-LD)
+- applicationDeadline (if present)
+- fullJobDescription (concise, up to ~1500 chars)
+Prefer on-page structured data (JSON-LD, microdata) when available. If a field is missing, omit it. Use web search to fill gaps and cross-check consistency.`;
+
+    const finalSchema: any = {
+      type: 'object',
+      properties: {
+        jobs: {
+          type: 'array',
+          items: jobSchema,
+          minItems: 0,
+        }
+      },
+      required: ['jobs'],
+    };
+
+    // Build Firecrawl payload using the requested input shape/options.
+    // We keep prompt + schema for structured extraction, and include the
+    // additional scrapeOptions flags you specified. If the caller provided
+    // an overrides object (e.g., body.scrapeOptions), we'll shallow-merge it.
+    const userScrapeOptions = typeof body?.scrapeOptions === 'object' && body.scrapeOptions ? body.scrapeOptions : {};
+    
+    // Process first batch only (Firecrawl beta limit: 10 URLs per request)
+    const firstBatch = userSources.slice(0, BATCH_SIZE);
+    const remainingBatches = [];
+    for (let i = BATCH_SIZE; i < userSources.length; i += BATCH_SIZE) {
+      remainingBatches.push(userSources.slice(i, i + BATCH_SIZE));
+    }
+    
+    const payload = {
+      urls: firstBatch,
+      prompt: extractPrompt,
+      schema: finalSchema,
+  enableWebSearch: true,
+      ignoreSitemap: false,
+      includeSubdomains: true,
+  showSources: true,
+      scrapeOptions: {
+        formats: ['markdown'],
+        onlyMainContent: true,
+        includeTags: [],
+        excludeTags: [],
+        maxAge: 172800000, // 2 days
+        headers: {},
+        waitFor: 0,
+        mobile: false,
+        skipTlsVerification: true,
+        timeout: 123,
+        parsers: ['pdf'],
+        actions: [],
+        location: {
+          country: 'US',
+          languages: ['en-US']
+        },
+        removeBase64Images: true,
+        blockAds: true,
+        proxy: 'auto',
+        storeInCache: true,
+        // Allow caller overrides (shallow)
+        ...userScrapeOptions,
+      },
+      ignoreInvalidURLs: true,
+    } as any;
+
+    // Safe payload summary log for diagnostics (no secrets, no entire schema body)
+    console.info('firecrawl.payload_summary', {
+      batch_number: 1,
+      urls_count: firstBatch.length,
+      remaining_batches: remainingBatches.length,
+      total_urls: totalUrls,
+      enableWebSearch: true,
+      showSources: true,
+      hasSchema: Boolean(finalSchema),
+      scrapeOptions: {
+        formats: 'markdown',
+        onlyMainContent: true,
+        includeSubdomains: true,
+        blockAds: true,
+        proxy: 'auto',
+      },
+    });
+
+    console.log('process-and-match.firecrawl_payload', { payload: { ...payload, schema: '(omitted)' }, user_id: userId });
+
+    let extractJob: any;
+    try {
+      extractJob = await withRetry(() => firecrawlFetch('/extract', firecrawlApiKey, payload), 2, 600);
+      console.log('process-and-match.firecrawl_response', { jobId: extractJob?.id, success: extractJob?.success, user_id: userId });
+    } catch (e: any) {
+      const msg = String(e?.message || '');
+      if (e?.status === 429 || /Rate limit exceeded/i.test(msg)) {
+        const retryAfterSeconds = typeof e?.retryAfterSeconds === 'number' ? e.retryAfterSeconds : 55;
+        console.warn('firecrawl.rate_limited', { message: msg, retry_after_seconds: retryAfterSeconds });
+        return new Response(JSON.stringify({ error: 'rate_limited', retryAfterSeconds }), {
+          status: 429,
+          headers: { ...corsHeaders, 'content-type': 'application/json' },
+        });
+      }
+      throw e;
+    }
+
+    // The Firecrawl API returns the job identifier in the `id` field.
+    const jobId = extractJob?.id;
+    if (!jobId) {
+      console.error('Firecrawl job started but no ID was returned.', { response: extractJob });
+      throw new Error('Failed to start Firecrawl extract job.');
+    }
+
+    console.info('firecrawl.extract_started', { user_id: userId, query: searchQuery, location, jobId, prompt: extractPrompt, sources: userSources });
+
+    // Return the ID as `jobId` to match what the frontend and polling function expect.
+    // Include batch info so frontend knows this is partial results
+    return new Response(JSON.stringify({ 
+      success: true, 
+      jobId,
+      batch: {
+        current: 1,
+        total: Math.ceil(totalUrls / BATCH_SIZE),
+        urls_in_batch: firstBatch.length,
+        total_urls: totalUrls
+      }
+    }), {
+      status: 202, // Accepted
+      headers: { ...corsHeaders, 'content-type': 'application/json' },
+    });
+
+  } catch (error) {
+    const msg = String(error?.message || '');
+    if (msg.includes('No Firecrawl API key configured') || msg.includes('Firecrawl API key not found')) {
+      return new Response(JSON.stringify({ error: 'missing_api_key', detail: error.message }), {
+        status: 400, // Bad Request, as the user needs to configure their key.
+        headers: { ...corsHeaders, 'content-type': 'application/json' },
+      });
+    }
+    console.error('process-and-match error:', msg);
+    return new Response(JSON.stringify({ error: msg || 'An unexpected error occurred.' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'content-type': 'application/json' },
+    });
+  }
+});

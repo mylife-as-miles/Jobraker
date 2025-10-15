@@ -9,11 +9,12 @@ type Props = {
   className?: string;
   onClick?: () => void;
   onDoubleClick?: () => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
   children?: React.ReactNode;
 };
 
 export const BaseCard = forwardRef<HTMLDivElement, Props>(
-  ({ children, className, onClick, onDoubleClick }, ref) => (
+  ({ children, className, onClick, onDoubleClick, onKeyDown }, ref) => (
     <div ref={ref}>
       <Tilt {...defaultTiltProps}>
         <Card
@@ -34,6 +35,8 @@ export const BaseCard = forwardRef<HTMLDivElement, Props>(
           onClick={onClick}
           onDoubleClick={onDoubleClick}
           onKeyDown={(e) => {
+            onKeyDown?.(e as any);
+            if (e.defaultPrevented) return;
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
               onClick?.();

@@ -30,10 +30,13 @@ export function KanbanProvider({
   const value = useMemo(() => ({ columns, data, onDataChange, onItemMove }), [columns, data, onDataChange, onItemMove]);
   return (
     <KanbanContext.Provider value={value}>
-      <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-        {columns.map((c) => (
-          <React.Fragment key={c.id}>{children(c)}</React.Fragment>
-        ))}
+      {/* Responsive container: horizontal scroll + snap on small screens, grid on larger */}
+      <div className="relative">
+        <div className="flex gap-4 md:gap-6 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 snap-x snap-mandatory md:snap-none md:overflow-visible flex-nowrap md:flex-wrap md:flex-auto md:grid md:grid-cols-2 xl:grid-cols-3">
+          {columns.map((c) => (
+            <React.Fragment key={c.id}>{children(c)}</React.Fragment>
+          ))}
+        </div>
       </div>
     </KanbanContext.Provider>
   );
@@ -47,7 +50,12 @@ function useKanban() {
 
 export function KanbanBoard({ id, children }: { id: string; children: React.ReactNode }) {
   return (
-    <div data-column-id={id} className="rounded-xl border border-[#ffffff12] bg-black/30 p-3 md:p-4">
+    <div
+      data-column-id={id}
+      className="rounded-xl border border-[#ffffff12] bg-black/30 p-3 md:p-4 min-w-[85vw] sm:min-w-[420px] md:min-w-0 snap-start"
+      role="list"
+      aria-roledescription="Kanban column"
+    >
       {children}
     </div>
   );

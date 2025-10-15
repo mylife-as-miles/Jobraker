@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
-import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award, GraduationCap, Briefcase } from "lucide-react";
+import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award, GraduationCap, Briefcase, Lightbulb } from "lucide-react";
+import { EmptyState } from "../../../components/ui/empty-state";
+import { Skeleton } from "../../../components/ui/skeleton";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
-import { useProfileCollections } from "../../../hooks/useProfileCollections";
-import type { ProfileEducation as TProfileEducation, ProfileExperience as TProfileExperience, ProfileSkill as TProfileSkill } from "../../../hooks/useProfileCollections";
+import type { ProfileEducationRecord as TProfileEducation, ProfileExperienceRecord as TProfileExperience, ProfileSkillRecord as TProfileSkill } from "../../../hooks/useProfileSettings";
 import { useApplications } from "../../../hooks/useApplications";
 import { createClient } from "../../../lib/supabaseClient";
 
@@ -13,7 +15,7 @@ import { createClient } from "../../../lib/supabaseClient";
 
 const ProfilePage = (): JSX.Element => {
   const [isEditing, setIsEditing] = useState(false);
-  const { profile, updateProfile } = useProfileSettings();
+  const { profile, updateProfile, loading: profileLoading } = useProfileSettings();
   const supabase = useMemo(() => createClient(), []);
   const [email, setEmail] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -33,7 +35,7 @@ const ProfilePage = (): JSX.Element => {
     })();
   }, [supabase]);
 
-  // resolve signed avatar URL from private storage
+  // resolve signed avatar URL from private storage (refresh every 8 mins)
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -52,8 +54,7 @@ const ProfilePage = (): JSX.Element => {
     return () => { active = false; clearInterval(id); };
   }, [supabase, (profile as any)?.avatar_url]);
 
-  // Consolidated collections hook: data + CRUD are from the same instance
-  const collections = useProfileCollections();
+  // Collections now sourced directly from useProfileSettings (centralized hook)
   const {
     experiences,
     education,
@@ -67,7 +68,9 @@ const ProfilePage = (): JSX.Element => {
     updateExperience,
     updateEducation,
     updateSkill,
-  } = collections as any;
+  } = useProfileSettings() as any; // NOTE: duplicate hook invocation; consider consolidating later
+
+  // Local UI state for creation / editing
   const [showAddExperience, setShowAddExperience] = useState(false);
   const [showAddEducation, setShowAddEducation] = useState(false);
   const [showAddSkill, setShowAddSkill] = useState(false);
@@ -82,6 +85,7 @@ const ProfilePage = (): JSX.Element => {
   const offers = applications?.filter(a => a.status === 'Offer').length ?? 0;
   const successRate = totalApps > 0 ? Math.round((offers / totalApps) * 100) : 0;
 
+  // skill level helpers
   const getSkillLevelColor = (level: string) => {
     switch (level) {
       case "Expert":
@@ -131,6 +135,19 @@ const ProfilePage = (): JSX.Element => {
     }
   };
 
+  const showAboutEmpty = !isEditing && !profile?.job_title && !profile?.location && !profile?.experience_years;
+
+  // Register profile coach marks with stable IDs
+  useRegisterCoachMarks({
+    page: 'profile',
+    marks: [
+      { id: 'profile-avatar', selector: '#profile-avatar', title: 'Personal Brand', body: 'Upload or update your avatar to personalize applications.' },
+      { id: 'profile-quick-stats', selector: '#profile-quick-stats', title: 'Live Outcomes', body: 'Track total applications, interviews and offers to measure progress.' },
+      { id: 'profile-about', selector: '#profile-about', title: 'Tell Your Story', body: 'Summarize your role, location and experience to give context at a glance.' },
+      { id: 'profile-experience', selector: '#profile-experience', title: 'Experience Timeline', body: 'Add roles highlighting impact, scope and achievements.' }
+    ]
+  });
+
   return (
     <div className="min-h-screen bg-black">
       <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -145,21 +162,28 @@ const ProfilePage = (): JSX.Element => {
               whileHover={{ scale: 1.02 }}
               className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
+              <Card id="profile-avatar" data-tour="profile-avatar" className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <div className="text-center">
                   <div className="relative inline-block mb-4">
-                    <div className="w-24 h-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full flex items-center justify-center text-black font-bold text-2xl overflow-hidden">
-                      {avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        <span>{initials}</span>
-                      )}
-                    </div>
-                    <label className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-110 transition-all duration-300 p-0 flex items-center justify-center cursor-pointer">
-                      <Edit className="w-4 h-4" />
-                      <input type="file" accept="image/*" className="hidden" onChange={onAvatarPick} />
-                    </label>
+                    {profile === null && (
+                      <Skeleton className="w-24 h-24 rounded-full" />
+                    )}
+                    {profile !== null && (
+                      <>
+                        <div className="w-24 h-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full flex items-center justify-center text-black font-bold text-2xl overflow-hidden">
+                          {avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                          ) : (
+                            <span>{initials}</span>
+                          )}
+                        </div>
+                        <label className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-110 transition-all duration-300 p-0 flex items-center justify-center cursor-pointer">
+                          <Edit className="w-4 h-4" />
+                          <input type="file" accept="image/*" className="hidden" onChange={onAvatarPick} />
+                        </label>
+                      </>
+                    )}
                   </div>
                   
                   <h2 className="text-xl font-bold text-white mb-1">
@@ -212,10 +236,15 @@ const ProfilePage = (): JSX.Element => {
               whileHover={{ scale: 1.02 }}
               className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
+              <Card id="profile-quick-stats" data-tour="profile-quick-stats" className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <h3 className="text-lg font-semibold text-white mb-4">Quick Stats</h3>
                 {appsLoading ? (
-                  <p className="text-sm text-[#ffffff60]">Loading stats…</p>
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
                 ) : appsError ? (
                   <p className="text-sm text-red-400">{appsError}</p>
                 ) : (
@@ -252,7 +281,7 @@ const ProfilePage = (): JSX.Element => {
               whileHover={{ scale: 1.01 }}
               className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
+              <Card id="profile-about" data-tour="profile-about" className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                   <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white">About</h3>
                   <Button 
@@ -264,7 +293,13 @@ const ProfilePage = (): JSX.Element => {
                     <Edit className="w-4 h-4" />
                   </Button>
                 </div>
-                {isEditing ? (
+                {profileLoading && !isEditing && profile === null ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-64" />
+                    <Skeleton className="h-3 w-56" />
+                  </div>
+                ) : isEditing ? (
                   <AboutEditor
                     profile={{
                       job_title: profile?.job_title ?? "",
@@ -278,10 +313,19 @@ const ProfilePage = (): JSX.Element => {
                     }}
                   />
                 ) : (
-                  <p className="text-[#ffffff80] leading-relaxed">
-                    {profile?.job_title ? (
-                      <>
-                        Working as <span className="text-white font-medium">{profile.job_title}</span>
+                  <>
+                    {showAboutEmpty ? (
+                      <EmptyState
+                        icon={Lightbulb}
+                        title="Tell Your Story"
+                        description="Add your role, location and years of experience so recruiters immediately understand your professional narrative."
+                        primaryAction={{ label: "Start Editing", onClick: () => setIsEditing(true) }}
+                        secondaryChips={["Job Title", "Location", "Years", "Impact" ]}
+                        tone="info"
+                      />
+                    ) : (
+                      <p className="text-[#ffffff80] leading-relaxed">
+                        Working as <span className="text-white font-medium">{profile?.job_title}</span>
                         {profile?.experience_years ? (
                           <> with <span className="text-white font-medium">{profile.experience_years}</span> years experience</>
                         ) : null}
@@ -289,11 +333,9 @@ const ProfilePage = (): JSX.Element => {
                           <> in <span className="text-white font-medium">{profile.location}</span></>
                         ) : null}
                         .
-                      </>
-                    ) : (
-                      <>No profile details yet. Click the pencil to add your role, years, and location.</>
+                      </p>
                     )}
-                  </p>
+                  </>
                 )}
               </Card>
             </motion.div>
@@ -306,7 +348,7 @@ const ProfilePage = (): JSX.Element => {
               whileHover={{ scale: 1.01 }}
               className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
+              <Card id="profile-experience" data-tour="profile-experience" className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white flex items-center">
                     <Briefcase className="w-5 h-5 mr-2 text-white" />
@@ -359,18 +401,32 @@ const ProfilePage = (): JSX.Element => {
                 )}
                 <div className="space-y-4">
                   {experiences.loading && (
-                    <p className="text-sm text-[#ffffff60]">Loading experiences...</p>
+                    <div className="space-y-4">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="border-l-2 border-[#1dff00] pl-4 pb-4 relative p-3 rounded-r-lg">
+                          <Skeleton className="absolute -left-2 top-3 w-4 h-4 rounded-full" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-40" />
+                            <Skeleton className="h-3 w-32" />
+                            <Skeleton className="h-3 w-24" />
+                            <Skeleton className="h-3 w-full" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                   {!experiences.loading && experiences.error && (
                     <p className="text-sm text-red-400">{experiences.error}</p>
                   )}
                   {!experiences.loading && !experiences.error && experiences.data.length === 0 && (
-                    <div className="text-sm text-[#ffffff80] flex items-center justify-between bg-[#ffffff08] px-3 py-2 rounded">
-                      <span>No experience yet. Add your first role to showcase your impact.</span>
-                      <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => setShowAddExperience(true)}>
-                        <Plus className="w-4 h-4 mr-1" /> Add
-                      </Button>
-                    </div>
+                    <EmptyState
+                      icon={Briefcase}
+                      title="Add Your First Role"
+                      description="Showcase achievements, scope and measurable results. Strong experience entries boost credibility."
+                      primaryAction={{ label: "Add Experience", onClick: () => setShowAddExperience(true) }}
+                      secondaryChips={["Leadership", "Ownership", "Impact", "Growth"]}
+                      tone="primary"
+                    />
                   )}
                   {experiences.data.map((exp: TProfileExperience, index: number) => (
                     <motion.div
@@ -512,18 +568,32 @@ const ProfilePage = (): JSX.Element => {
                 )}
                 <div className="space-y-4">
                   {education.loading && (
-                    <p className="text-sm text-[#ffffff60]">Loading education...</p>
+                    <div className="space-y-4">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="border-l-2 border-[#1dff00] pl-4 pb-4 relative p-3 rounded-r-lg">
+                          <Skeleton className="absolute -left-2 top-3 w-4 h-4 rounded-full" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-52" />
+                            <Skeleton className="h-3 w-40" />
+                            <Skeleton className="h-3 w-28" />
+                            <Skeleton className="h-3 w-24" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                   {!education.loading && education.error && (
                     <p className="text-sm text-red-400">{education.error}</p>
                   )}
                   {!education.loading && !education.error && education.data.length === 0 && (
-                    <div className="text-sm text-[#ffffff80] flex items-center justify-between bg-[#ffffff08] px-3 py-2 rounded">
-                      <span>No education added yet. Add schools and degrees you completed.</span>
-                      <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => setShowAddEducation(true)}>
-                        <Plus className="w-4 h-4 mr-1" /> Add
-                      </Button>
-                    </div>
+                    <EmptyState
+                      icon={GraduationCap}
+                      title="Add Education"
+                      description="Highlight academic credentials, specializations and recognitions that support your expertise."
+                      primaryAction={{ label: "Add Education", onClick: () => setShowAddEducation(true) }}
+                      secondaryChips={["Degree", "School", "GPA", "Honors"]}
+                      tone="warning"
+                    />
                   )}
                   {education.data.map((edu: TProfileEducation, index: number) => (
                     <motion.div
@@ -659,18 +729,28 @@ const ProfilePage = (): JSX.Element => {
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {skills.loading && (
-                    <p className="text-sm text-[#ffffff60] col-span-full">Loading skills...</p>
+                    <>
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="space-y-2 p-3 bg-[#ffffff0a] rounded-lg col-span-1 md:col-span-1">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-2 w-full" />
+                          <Skeleton className="h-3 w-20" />
+                        </div>
+                      ))}
+                    </>
                   )}
                   {!skills.loading && skills.error && (
                     <p className="text-sm text-red-400 col-span-full">{skills.error}</p>
                   )}
                   {!skills.loading && !skills.error && skills.data.length === 0 && (
-                    <div className="text-sm text-[#ffffff80] col-span-full flex items-center justify-between bg-[#ffffff08] px-3 py-2 rounded">
-                      <span>No skills yet. Add your core skills and expertise.</span>
-                      <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => setShowAddSkill(true)}>
-                        <Plus className="w-4 h-4 mr-1" /> Add
-                      </Button>
-                    </div>
+                    <div className="col-span-full"><EmptyState
+                      icon={Award}
+                      title="Show Your Skill Stack"
+                      description="Add technical and soft skills. Choose realistic proficiency levels for credibility."
+                      primaryAction={{ label: "Add Skill", onClick: () => setShowAddSkill(true) }}
+                      secondaryChips={["React", "TypeScript", "DB Design", "Leadership", "Problem Solving"]}
+                      tone="success"
+                    /></div>
                   )}
                   {skills.data.map((skill: TProfileSkill, index: number) => (
                     <motion.div

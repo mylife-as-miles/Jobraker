@@ -5,6 +5,8 @@ export type ApplyToJobsParams = {
   jobs?: Array<{ sourceUrl?: string; url?: string; source_url?: string }>;
   additional_information?: string;
   resume?: string;
+  cover_letter?: string;
+  cover_letter_template?: string;
   workflow_id?: string;
   proxy_location?: string;
   webhook_url?: string;
