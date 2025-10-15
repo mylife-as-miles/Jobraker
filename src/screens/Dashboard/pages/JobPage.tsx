@@ -1368,42 +1368,42 @@ export const JobPage = (): JSX.Element => {
 
     return (
       <div className="min-h-screen bg-black" role="main" aria-label="Job search">
-        <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-          <div className="mb-6 sm:mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="w-full max-w-7xl mx-auto p-3 sm:p-6 lg:p-8">
+          <div className="mb-4 sm:mb-6 lg:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
               <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Job Search</h1>
-                <p className="text-[#ffffff80] text-sm sm:text-base">A personalized list of jobs waiting for you.</p>
+                <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-1 sm:mb-2">Job Search</h1>
+                <p className="text-[#ffffff80] text-xs sm:text-sm md:text-base">A personalized list of jobs waiting for you.</p>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-3 sm:justify-end">
-                  <div className="relative flex min-w-[240px] flex-col gap-3 rounded-2xl border border-[#1dff00]/30 bg-[#1dff00]/10 px-4 py-3 text-white shadow-[0_12px_32px_rgba(29,255,0,0.18)] sm:flex-row sm:items-center sm:gap-4">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <div className="relative flex w-full sm:min-w-[240px] sm:w-auto flex-col gap-2 sm:gap-3 rounded-xl sm:rounded-2xl border border-[#1dff00]/30 bg-[#1dff00]/10 px-3 py-2 sm:px-4 sm:py-3 text-white shadow-[0_12px_32px_rgba(29,255,0,0.18)] sm:flex-row sm:items-center sm:gap-4">
                     <div className="space-y-1">
-                      <div className="text-[10px] uppercase tracking-[0.35em] text-[#1dff00]/80">Automation readiness</div>
-                      <div className="flex items-center gap-2 text-sm font-medium">
+                      <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.3em] sm:tracking-[0.35em] text-[#1dff00]/80">Automation readiness</div>
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium">
                         {profileReady && resumeLibraryReady ? (
                           <>
-                            <ShieldCheck className="h-4 w-4 text-[#1dff00]" />
-                            <span>Ready to launch</span>
+                            <ShieldCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#1dff00]" />
+                            <span className="text-xs sm:text-sm">Ready to launch</span>
                           </>
                         ) : (
                           <>
-                            <AlertTriangle className="h-4 w-4 text-[#ffb347]" />
-                            <span>Action required</span>
+                            <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#ffb347]" />
+                            <span className="text-xs sm:text-sm">Action required</span>
                           </>
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 md:gap-3">
                       {profileLoading ? (
-                        <span className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] text-white/70">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Syncing profile…
+                        <span className="inline-flex items-center gap-1.5 sm:gap-2 rounded-lg border border-white/15 bg-white/10 px-2 py-1 sm:px-2.5 text-[10px] sm:text-[11px] text-white/70">
+                          <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin" />
+                          Syncing…
                         </span>
                       ) : (
                         <Link
                           to="/dashboard/profile"
                           className={cn(
-                            "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] transition-all",
+                            "inline-flex items-center gap-1 sm:gap-1.5 rounded-lg border px-2 py-1 sm:px-2.5 text-[10px] sm:text-[11px] transition-all",
                             profileReady
                               ? "border-[#1dff00]/60 bg-[#1dff00]/15 text-[#e6ffe6] hover:border-[#1dff00]/80 hover:bg-[#1dff00]/25"
                               : "border-[#ffb347]/50 bg-[#ffb347]/10 text-[#ffd9a8] hover:border-[#ffb347]/70 hover:bg-[#ffb347]/20",
@@ -1411,25 +1411,29 @@ export const JobPage = (): JSX.Element => {
                           title={profileReady ? "Profile details detected" : "Complete your profile"}
                         >
                           {profileReady ? (
-                            <UserCheck className="h-3.5 w-3.5 text-[#1dff00]" />
+                            <UserCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#1dff00]" />
                           ) : (
-                            <UserX className="h-3.5 w-3.5 text-[#ffb347]" />
+                            <UserX className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#ffb347]" />
                           )}
-                          <span className="font-medium">
+                          <span className="font-medium hidden sm:inline">
                             {profileReady ? 'Profile verified' : 'Complete profile'}
+                          </span>
+                          <span className="font-medium sm:hidden">
+                            {profileReady ? 'Profile' : 'Setup'}
                           </span>
                         </Link>
                       )}
                       {resumesLoading ? (
-                        <span className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] text-white/70">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Loading resumes…
+                        <span className="inline-flex items-center gap-1.5 sm:gap-2 rounded-lg border border-white/15 bg-white/10 px-2 py-1 sm:px-2.5 text-[10px] sm:text-[11px] text-white/70">
+                          <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin" />
+                          <span className="hidden sm:inline">Loading resumes…</span>
+                          <span className="sm:hidden">Loading…</span>
                         </span>
                       ) : (
                         <Link
                           to="/dashboard/resumes"
                           className={cn(
-                            "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] transition-all",
+                            "inline-flex items-center gap-1 sm:gap-1.5 rounded-lg border px-2 py-1 sm:px-2.5 text-[10px] sm:text-[11px] transition-all",
                             resumeLibraryReady
                               ? "border-[#1dff00]/60 bg-[#1dff00]/15 text-[#e6ffe6] hover:border-[#1dff00]/80 hover:bg-[#1dff00]/25"
                               : "border-[#ffb347]/50 bg-[#ffb347]/10 text-[#ffd9a8] hover:border-[#ffb347]/70 hover:bg-[#ffb347]/20",
@@ -1437,11 +1441,11 @@ export const JobPage = (): JSX.Element => {
                           title={resumeLibraryReady ? (selectedResume?.name ? `Selected resume: ${selectedResume.name}` : 'Resume library ready') : 'Upload a resume to unlock automation'}
                         >
                           {resumeLibraryReady ? (
-                            <FileCheck2 className="h-3.5 w-3.5 text-[#1dff00]" />
+                            <FileCheck2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#1dff00]" />
                           ) : (
-                            <FileWarning className="h-3.5 w-3.5 text-[#ffb347]" />
+                            <FileWarning className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#ffb347]" />
                           )}
-                          <span className="max-w-[140px] truncate font-medium">
+                          <span className="max-w-[100px] sm:max-w-[140px] truncate font-medium">
                             {resumeLibraryReady
                               ? selectedResume?.name
                                 ? `Resume: ${selectedResume.name}`
@@ -1468,20 +1472,21 @@ export const JobPage = (): JSX.Element => {
                   <Button
                     variant="ghost"
                     onClick={openAutoApplyFlow}
-                    className={`relative overflow-hidden border border-[#1dff00]/40 text-white px-4 sm:px-5 py-2 rounded-xl transition-all duration-300 ${applyingAll ? 'bg-[#1dff00]/20 text-[#1dff00]' : 'bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 hover:from-[#1dff00]/20 hover:to-[#1dff00]/5'}`}
+                    className={`relative overflow-hidden border border-[#1dff00]/40 text-white px-3 py-2 sm:px-4 sm:py-2 md:px-5 rounded-xl transition-all duration-300 text-xs sm:text-sm ${applyingAll ? 'bg-[#1dff00]/20 text-[#1dff00]' : 'bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 hover:from-[#1dff00]/20 hover:to-[#1dff00]/5'}`}
                     title="Auto apply all visible jobs"
                     disabled={applyingAll || queueStatus !== 'ready' || jobs.length === 0}
                   >
                     <span className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'radial-gradient(180px at 0% 0%, rgba(29,255,0,0.45), transparent 65%)' }} />
-                    <span className="relative inline-flex items-center gap-2 text-sm font-medium tracking-wide">
-                      {applyingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Briefcase className="w-4 h-4" />}
-                      {applyingAll ? `Applying ${applyProgress.done}/${applyProgress.total}` : 'Auto Apply Suite'}
+                    <span className="relative inline-flex items-center gap-1.5 sm:gap-2 font-medium tracking-wide">
+                      {applyingAll ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <Briefcase className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                      <span className="hidden sm:inline">{applyingAll ? `Applying ${applyProgress.done}/${applyProgress.total}` : 'Auto Apply Suite'}</span>
+                      <span className="sm:hidden">{applyingAll ? `${applyProgress.done}/${applyProgress.total}` : 'Auto Apply'}</span>
                     </span>
                   </Button>
                   <Button
                     variant="ghost"
                     onClick={() => populateQueue(searchQuery, selectedLocation)}
-                    className={`group relative overflow-hidden rounded-xl px-4 sm:px-5 py-2 text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${
+                    className={`group relative overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${
                       queueStatus === 'populating' || queueStatus === 'loading'
                         ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff00]/15'
                         : 'border-white/20 text-white bg-white/5 hover:text-[#1dff00] hover:border-[#1dff00]/60 hover:bg-[#1dff00]/10 shadow-[0_12px_32px_rgba(8,122,52,0.35)]'
@@ -1493,11 +1498,12 @@ export const JobPage = (): JSX.Element => {
                       className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                       style={{ background: 'linear-gradient(120deg, transparent 0%, rgba(29,255,0,0.35) 45%, transparent 90%)' }}
                     />
-                    <span className="relative inline-flex items-center gap-2">
+                    <span className="relative inline-flex items-center gap-1.5 sm:gap-2">
                       {queueStatus === 'populating'
-                        ? <Loader2 className="w-4 h-4 animate-spin" />
-                        : <Search className="w-4 h-4 text-[#1dff00]" />}
-                      {queueStatus === 'populating' ? 'Building results…' : 'Find Jobs Suite'}
+                        ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                        : <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#1dff00]" />}
+                      <span className="hidden sm:inline">{queueStatus === 'populating' ? 'Building results…' : 'Find Jobs Suite'}</span>
+                      <span className="sm:hidden">{queueStatus === 'populating' ? 'Building…' : 'Find Jobs'}</span>
                     </span>
                   </Button>
                 </div>
@@ -1514,8 +1520,8 @@ export const JobPage = (): JSX.Element => {
             />
           )}
 
-          <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] p-4 sm:p-6 mb-6 sm:mb-8" id="jobs-search-filters" data-tour="jobs-search-filters">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] p-3 sm:p-4 md:p-6 mb-4 sm:mb-6 lg:mb-8" id="jobs-search-filters" data-tour="jobs-search-filters">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               <div className="lg:col-span-2 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
                 <Input
@@ -1543,19 +1549,19 @@ export const JobPage = (): JSX.Element => {
             </div>
           </Card>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between mb-3 sticky top-0 z-10 bg-transparent backdrop-blur supports-[backdrop-filter]:bg-black/20 rounded-lg px-1 py-2 lg:static lg:px-0 lg:py-0">
-                <h2 className="text-lg sm:text-xl font-semibold text-white">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
+            <div className="space-y-3 sm:space-y-4">
+              <div className="flex items-center justify-between mb-2 sm:mb-3 sticky top-0 z-10 bg-transparent backdrop-blur supports-[backdrop-filter]:bg-black/20 rounded-lg px-1 py-2 lg:static lg:px-0 lg:py-0">
+                <h2 className="text-base sm:text-lg md:text-xl font-semibold text-white">
                   {queueStatus === 'loading' && "Loading results..."}
                   {queueStatus === 'populating' && "Building your results..."}
                   {(queueStatus === 'ready' || queueStatus === 'empty') && `${total} Jobs Found`}
                 </h2>
                 {(queueStatus === 'ready' || queueStatus === 'empty') && (
                   <div className="hidden sm:flex items-center gap-2">
-                    <span className="text-[11px] text-white/50">Sort</span>
+                    <span className="text-[10px] sm:text-[11px] text-white/50">Sort</span>
                     <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
-                      <SelectTrigger className="h-8 w-[160px]">
+                      <SelectTrigger className="h-7 w-[130px] sm:h-8 sm:w-[160px] text-xs sm:text-sm">
                         <SelectValue placeholder="Sort by" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1762,26 +1768,26 @@ export const JobPage = (): JSX.Element => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: index * 0.04 }}
                 >
-                  <Card className={`relative overflow-hidden group bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border p-5 sm:p-6 transition-all duration-300 ${selectedJob === job.id ? 'border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.25)]' : 'border-[#ffffff15] hover:border-[#1dff00]/40'}`}>
-                    <span className={`pointer-events-none absolute left-0 top-0 h-full w-[3px] ${selectedJob === job.id ? 'bg-[#1dff00]' : 'bg-transparent group-hover:bg-[#1dff00]/70'} transition-colors`} />
-                    <div className="flex items-start justify-between gap-3 sm:gap-4">
-                      <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                  <Card className={`relative overflow-hidden group bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border p-3 sm:p-4 md:p-5 lg:p-6 transition-all duration-300 ${selectedJob === job.id ? 'border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.25)]' : 'border-[#ffffff15] hover:border-[#1dff00]/40'}`}>
+                    <span className={`pointer-events-none absolute left-0 top-0 h-full w-[2px] sm:w-[3px] ${selectedJob === job.id ? 'bg-[#1dff00]' : 'bg-transparent group-hover:bg-[#1dff00]/70'} transition-colors`} />
+                    <div className="flex items-start justify-between gap-2 sm:gap-3 md:gap-4">
+                      <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-1 min-w-0">
                         {job.logoUrl && !logoError[job.id]
                           ? (
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-white">
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 rounded-lg sm:rounded-xl bg-white flex-shrink-0">
                               <img
                                 src={job.logoUrl}
                                 alt={job.company}
-                                className="w-full h-full rounded-xl object-contain"
+                                className="w-full h-full rounded-lg sm:rounded-xl object-contain"
                                 onError={() => setLogoError(e => ({...e, [job.id]: true}))}
                               />
                             </div>
                           ) : (
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg sm:text-2xl">{job.logo}</div>
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg sm:rounded-xl flex items-center justify-center text-black font-bold text-base sm:text-lg lg:text-2xl flex-shrink-0">{job.logo}</div>
                           )}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start gap-2">
-                            <h3 className="text-white font-semibold truncate text-sm sm:text-base" title={job.title}>{job.title}</h3>
+                          <div className="flex items-start gap-1.5 sm:gap-2">
+                            <h3 className="text-white font-semibold truncate text-xs sm:text-sm md:text-base" title={job.title}>{job.title}</h3>
                             {(() => {
                               if (!job.posted_at) return null;
                               const postedTs = Date.parse(job.posted_at);
@@ -1789,17 +1795,17 @@ export const JobPage = (): JSX.Element => {
                               const isNew = (Date.now() - postedTs) <= (48 * 60 * 60 * 1000);
                               if (!isNew) return null;
                               return (
-                                <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10">New</span>
+                                <span className="shrink-0 text-[9px] sm:text-[10px] px-1.5 py-0.5 sm:px-2 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10">New</span>
                               );
                             })()}
                             {job.status && (
-                              <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full border ${job.status === 'applied' ? 'border-[#14b8a6]/40 text-[#14b8a6] bg-[#14b8a6]/10' : 'border-[#ffffff24] text-[#ffffffb3] bg-[#ffffff0a]'}`}>{job.status}</span>
+                              <span className={`shrink-0 text-[9px] sm:text-[10px] px-1.5 py-0.5 sm:px-2 rounded-full border ${job.status === 'applied' ? 'border-[#14b8a6]/40 text-[#14b8a6] bg-[#14b8a6]/10' : 'border-[#ffffff24] text-[#ffffffb3] bg-[#ffffff0a]'}`}>{job.status}</span>
                             )}
                           </div>
-                          <div className="mt-2 space-y-1.5">
+                          <div className="mt-1.5 sm:mt-2 space-y-1 sm:space-y-1.5">
                             {/* Line 1: company + location + remote + salary + host (right) */}
                             <div className="flex flex-wrap items-center gap-1">
-                              <span className="text-[#ffffffb3] text-[11px] sm:text-sm truncate" title={job.company || ''}>{job.company}</span>
+                              <span className="text-[#ffffffb3] text-[10px] sm:text-[11px] md:text-sm truncate" title={job.company || ''}>{job.company}</span>
                               {job.location && (
                                 <span className="text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d] whitespace-nowrap" title={job.location}>
                                   {job.location}
@@ -1894,15 +1900,15 @@ export const JobPage = (): JSX.Element => {
                 </motion.div>
               ))}
               {queueStatus === 'ready' && total > 0 && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4">
-                  <div className="text-[12px] text-white/60">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 pt-3 sm:pt-4">
+                  <div className="text-[11px] sm:text-[12px] text-white/60">
                     Showing <span className="text-white/80">{total === 0 ? 0 : startIdx + 1}</span>–<span className="text-white/80">{endIdx}</span> of <span className="text-white/80">{total}</span>
                   </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-white/50">Rows</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 md:gap-4">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <span className="text-[10px] sm:text-[11px] text-white/50">Rows</span>
                       <Select value={String(pageSize)} onValueChange={(v) => { const n = parseInt(v); if (!Number.isNaN(n)) { setPageSize(n); setCurrentPage(1); } }}>
-                        <SelectTrigger className="h-8 w-[90px]">
+                        <SelectTrigger className="h-7 w-[80px] sm:h-8 sm:w-[90px] text-xs sm:text-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1918,18 +1924,18 @@ export const JobPage = (): JSX.Element => {
                         aria-label="First page"
                         disabled={clampedPage === 1}
                         onClick={() => setCurrentPage(1)}
-                        className={`h-8 w-8 grid place-items-center rounded-md border ${clampedPage===1 ? 'border-white/10 text-white/30' : 'border-white/20 text-white/70 hover:text-white hover:border-white/40 hover:bg-white/10'}`}
+                        className={`h-7 w-7 sm:h-8 sm:w-8 grid place-items-center rounded-md border text-xs sm:text-sm ${clampedPage===1 ? 'border-white/10 text-white/30' : 'border-white/20 text-white/70 hover:text-white hover:border-white/40 hover:bg-white/10'}`}
                       >
-                        <ChevronsLeft className="w-4 h-4" />
+                        <ChevronsLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </button>
                       <button
                         type="button"
                         aria-label="Previous page"
                         disabled={clampedPage === 1}
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        className={`h-8 w-8 grid place-items-center rounded-md border ${clampedPage===1 ? 'border-white/10 text-white/30' : 'border-white/20 text-white/70 hover:text-white hover:border-white/40 hover:bg-white/10'}`}
+                        className={`h-7 w-7 sm:h-8 sm:w-8 grid place-items-center rounded-md border text-xs sm:text-sm ${clampedPage===1 ? 'border-white/10 text-white/30' : 'border-white/20 text-white/70 hover:text-white hover:border-white/40 hover:bg-white/10'}`}
                       >
-                        <ChevronLeft className="w-4 h-4" />
+                        <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </button>
                       <div className="hidden md:flex items-center gap-1">
                         {(() => {
