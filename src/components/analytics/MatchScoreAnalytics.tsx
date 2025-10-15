@@ -23,17 +23,16 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
   const highlight = hasMatchBars ? data.matchBarData[0] : null
   const loading = Boolean(data?.loading)
 
-  // Transform bar data to pie chart data with vibrant green colors
+  // Transform bar data to pie chart data with application color palette
   const chartData = barData.slice(0, 5).map((item: any, index: number) => ({
     name: item.name,
-    value: item.value,
+    value: Math.round(item.value), // Round to whole number
     fill: [
-      "#1dff00",  // Bright green
-      "#00ff88",  // Teal green
-      "#88ff00",  // Yellow-green
-      "#00ffcc",  // Cyan
-      "#ccff00",  // Lime
-    ][index % 5],
+      "#1dff00",  // Applied green
+      "#56c2ff",  // Interview blue
+      "#ffd700",  // Offer gold
+      "#ff6b6b",  // Rejected red
+    ][index % 4], // Loop through 4 application colors
   }))
 
   const hasData = chartData.length > 0
@@ -86,7 +85,7 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
           >
             <div className="relative inline-block">
               <div className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-[#1dff00] via-[#00ff88] to-[#1dff00] drop-shadow-[0_0_20px_rgba(29,255,0,0.5)]">
-                {metrics.matchScore}
+                {Math.round(metrics.matchScore)}
               </div>
               <div className="absolute -top-2 -right-8">
                 <span className="text-3xl font-bold text-[#1dff00]/80">%</span>

@@ -59,25 +59,21 @@ const chartConfig = {
 
 const getCategoryColor = (label: string) => {
   const normalized = label.toLowerCase();
-  if (normalized.includes("role") || normalized.includes("focus")) return "#1dff00"; // Bright green
-  if (normalized.includes("keyword") || normalized.includes("match")) return "#00ff88"; // Teal green
-  if (normalized.includes("goal") || normalized.includes("profile")) return "#88ff00"; // Yellow-green
-  if (normalized.includes("location") || normalized.includes("alignment")) return "#00ffcc"; // Cyan
-  return "#ccff00"; // Lime
+  if (normalized.includes("role") || normalized.includes("focus")) return "#1dff00"; // Applied green
+  if (normalized.includes("keyword") || normalized.includes("match")) return "#56c2ff"; // Interview blue
+  if (normalized.includes("goal") || normalized.includes("profile")) return "#ffd700"; // Offer gold
+  if (normalized.includes("location") || normalized.includes("alignment")) return "#ff6b6b"; // Rejected red
+  return "#1dff00"; // Default green
 };
 
 export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieChartProps) {
-  console.log('MatchScorePieChart render:', { score, summary, breakdownLength: breakdown?.length });
-  
   const chartData = breakdown?.map((item) => ({
     label: item.label,
-    score: item.componentScore,
+    score: Math.round(item.componentScore), // Round to whole number
     fill: getCategoryColor(item.label),
   })) || [];
 
   const hasBreakdown = chartData.length > 0;
-  
-  console.log('Chart data:', chartData, 'hasBreakdown:', hasBreakdown);
 
   return (
     <Card className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a]">
@@ -169,7 +165,7 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
         ) : (
           <div className="flex h-[250px] items-center justify-center">
             <div className="text-center space-y-2">
-              <div className="text-6xl font-bold text-[#1dff00]">{score}%</div>
+              <div className="text-6xl font-bold text-[#1dff00]">{Math.round(score)}%</div>
               <p className="text-sm text-white/50">Overall Match Score</p>
             </div>
           </div>
