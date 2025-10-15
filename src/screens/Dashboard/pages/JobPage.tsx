@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { applyToJobs } from "../../../services/applications/applyToJobs";
 import { cn } from "../../../lib/utils";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
+import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -2119,6 +2120,15 @@ export const JobPage = (): JSX.Element => {
                             <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.description || '') }} />
                           </Card>
 
+                          {/* AI Match Score Card */}
+                          {typeof job.matchScore === 'number' && (
+                            <MatchScorePieChart
+                              score={job.matchScore}
+                              summary={job.matchSummary}
+                              breakdown={job.matchBreakdown}
+                            />
+                          )}
+
                           {(() => {
                             const screenshot = (job as any)?.raw_data?.screenshot;
                             if (!screenshot) return null;
@@ -2710,6 +2720,15 @@ export const JobPage = (): JSX.Element => {
                   </div>
                   <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed text-[13px]" dangerouslySetInnerHTML={{ __html: sanitizeHtml(j.description || '') }} />
                 </Card>
+
+                {/* AI Match Score Card - Mobile */}
+                {typeof j.matchScore === 'number' && (
+                  <MatchScorePieChart
+                    score={j.matchScore}
+                    summary={j.matchSummary}
+                    breakdown={j.matchBreakdown}
+                  />
+                )}
 
                 {(() => {
                   const screenshot = (j as any)?.raw_data?.screenshot;
