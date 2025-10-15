@@ -136,7 +136,7 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
                         stroke="none"
                         fontSize={14}
                         fontWeight={600}
-                        fill="#ffffff"
+                        fill="#000000"
                         formatter={(value: number) => `${value}%`}
                       />
                     </Pie>
