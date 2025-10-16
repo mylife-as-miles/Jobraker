@@ -59,4 +59,9 @@ export default defineConfig({
   "file-saver": path.resolve(__dirname, "src/lib/mocks/file-saver.ts"),
     },
   },
+   server: {
+    host: '127.0.0.1',  // force IPv4
+    port: 3000,          // use your usual dev port
+    strictPort: true,    // fail if the port is already in use
+  },
 });

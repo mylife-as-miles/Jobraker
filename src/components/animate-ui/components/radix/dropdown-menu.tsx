@@ -58,13 +58,13 @@ function DropdownMenuContent({
     <DropdownMenuContentPrimitive
       sideOffset={sideOffset}
       className={cn(
-        'relative z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[10rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-xl border border-white/12 bg-black/90 px-1 py-1 backdrop-blur-xl shadow-[0_18px_42px_rgba(11,189,104,0.28)]',
+        'relative z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[10rem] origin-(--radix-dropdown-menu-content-transform-origin)  overflow-y-auto rounded-xl border border-white/12 bg-black/90 px-1 py-1 backdrop-blur-xl shadow-[0_18px_42px_rgba(11,189,104,0.28)]',
         'data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2',
         className,
       )}
       {...props}
     >
-      <DropdownMenuHighlightPrimitive className="pointer-events-none absolute inset-0 z-0 rounded-xl bg-[#1dff00]/18 opacity-0 transition-opacity duration-300 data-[active=true]:opacity-100">
+      <DropdownMenuHighlightPrimitive className=" absolute inset-0 z-0 rounded-xl bg-[#1dff00]/18 opacity-0 transition-opacity duration-300 data-[active=true]:opacity-100">
         {children}
       </DropdownMenuHighlightPrimitive>
     </DropdownMenuContentPrimitive>
@@ -281,7 +281,7 @@ function DropdownMenuSubContent({
   return (
     <DropdownMenuSubContentPrimitive
       className={cn(
-        'relative z-50 min-w-[10rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-hidden rounded-xl border border-white/12 bg-black/92 px-1 py-1 backdrop-blur-xl shadow-[0_18px_42px_rgba(11,189,104,0.28)]',
+        'relative z-50 min-w-[10rem] origin-(--radix-dropdown-menu-content-transform-origin)  rounded-xl border border-white/12 bg-black/92 px-1 py-1 backdrop-blur-xl shadow-[0_18px_42px_rgba(11,189,104,0.28)]',
         'data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2',
         className,
       )}

@@ -1,3 +1,4 @@
+import SortDropdown from '@/components/SortDropdown';
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useApplications, type ApplicationStatus } from "../../../hooks/useApplications";
@@ -8,7 +9,7 @@ import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+
 
 import { List as ListIcon, Search, Columns, ExternalLink, Link2, Clipboard, RefreshCw, GanttChart, Calendar as CalendarIcon, Table as TableIcon } from "lucide-react";
 import { KanbanProvider, KanbanBoard, KanbanHeader, KanbanCards, KanbanCard } from "../../../components/ui/kibo-ui/kanban";
@@ -193,7 +194,7 @@ function ApplicationPage() {
   }, [viewMode]);
 
   const initialLoading = appsLoading && applications.length === 0;
-
+  
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -222,17 +223,9 @@ function ApplicationPage() {
                 />
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
-                <SelectTrigger className="w-[170px]">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="score">Best match</SelectItem>
-                  <SelectItem value="recent">Most recent</SelectItem>
-                  <SelectItem value="company">Company</SelectItem>
-                  <SelectItem value="status">Status</SelectItem>
-                </SelectContent>
-              </Select>
+            <SortDropdown />
+
+
               <div id="application-view-toggle" className="inline-flex rounded-lg border border-white/20 overflow-hidden bg-white/5 backdrop-blur-sm" data-tour="application-view-toggle">
                 <button
                   className={`px-3 py-2 text-sm text-white/70 hover:text-white transition ${viewMode==='gantt' ? 'bg-white/20 text-white' : ''}`}
@@ -295,7 +288,7 @@ function ApplicationPage() {
           </div>
         </div>
       </Card>
-
+<div className="h-6"></div>
       {/* Content */}
       <Card className="bg-transparent border-none shadow-none">
         <CardContent className="p-0">

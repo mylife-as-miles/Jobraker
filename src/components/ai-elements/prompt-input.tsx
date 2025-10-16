@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Portal } from "@radix-ui/react-portal";
 import { cn } from "@/lib/utils";
 import type { ChatStatus, FileUIPart } from "ai";
 import {
@@ -696,7 +697,12 @@ export const PromptInputModelSelectContent = ({
   className,
   ...props
 }: PromptInputModelSelectContentProps) => (
-  <SelectContent className={cn(className)} {...props} />
+  <Portal>
+    <SelectContent
+      className={cn("z-[9999] fixed", className)}
+      {...props}
+    />
+  </Portal>
 );
 
 export type PromptInputModelSelectItemProps = ComponentProps<typeof SelectItem>;
