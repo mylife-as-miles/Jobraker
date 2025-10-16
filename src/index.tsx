@@ -11,6 +11,7 @@ import { Dashboard } from "./screens/Dashboard";
 import { PrivacyPolicy } from "./screens/PrivacyPolicy";
 import { PublicOnly } from "./components/PublicOnly";
 import { RequireAuth } from "./components/RequireAuth";
+import GmailCallbackPage from "./screens/AuthCallback/GmailCallbackPage";
 import { ToastProvider } from "./components/ui/toast-provider";
 import { ArtboardPage } from "./pages/artboard";
 import { BuilderLayout as ArtboardCanvasLayout } from "./pages/builder";
@@ -95,6 +96,9 @@ function App() {
 
   {/* Privacy Policy */}
   <Route path={ROUTES.PRIVACY} element={<PublicOnly><PrivacyPolicy /></PublicOnly>} />
+
+          {/* Auth callback route */}
+          <Route path="/auth/callback/gmail" element={<GmailCallbackPage />} />
         
         {/* Artboard routes */}
         <Route element={<RequireAuth><Providers/></RequireAuth>}>
