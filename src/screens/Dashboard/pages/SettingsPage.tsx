@@ -80,7 +80,13 @@ export const SettingsPage = (): JSX.Element => {
   const [totpFactorId, setTotpFactorId] = useState<string | undefined>();
   const [totpCode, setTotpCode] = useState<string>("");
   const [verifyBusy, setVerifyBusy] = useState(false);
+  const [isGmailConnected, setIsGmailConnected] = useState(false);
   const passwordCheck = useMemo(() => validatePassword(formData.newPassword, formData.email), [formData.newPassword, formData.email]);
+
+  const handleConnectGmail = async () => {
+    const mcpServerUrl = import.meta.env.VITE_GMAIL_MCP_SERVER_URL || "http://localhost:3000";
+    window.open(`${mcpServerUrl}/auth`, "_blank", "noopener,noreferrer");
+  };
 
   const initials = useMemo(() => {
     const a = (formData.firstName || '').trim();
@@ -1331,9 +1337,11 @@ export const SettingsPage = (): JSX.Element => {
                   <Button
                     variant="outline"
                     className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50 hover:scale-105 transition-all duration-300"
+                    onClick={handleConnectGmail}
+                    disabled={isGmailConnected}
                   >
                     <Link className="w-4 h-4 mr-2" />
-                    Connect
+                    {isGmailConnected ? "Connected" : "Connect"}
                   </Button>
                 </div>
               </CardContent>
