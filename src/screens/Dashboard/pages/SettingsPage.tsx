@@ -5,7 +5,7 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles } from "lucide-react";
+import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles, Mail } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
 import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
@@ -80,7 +80,13 @@ export const SettingsPage = (): JSX.Element => {
   const [totpFactorId, setTotpFactorId] = useState<string | undefined>();
   const [totpCode, setTotpCode] = useState<string>("");
   const [verifyBusy, setVerifyBusy] = useState(false);
+  const [isGmailConnected, setIsGmailConnected] = useState(false);
   const passwordCheck = useMemo(() => validatePassword(formData.newPassword, formData.email), [formData.newPassword, formData.email]);
+
+  const handleConnectGmail = async () => {
+    const mcpServerUrl = import.meta.env.VITE_GMAIL_MCP_SERVER_URL || "http://localhost:3000";
+    window.open(`${mcpServerUrl}/auth`, "_blank", "noopener,noreferrer");
+  };
 
   const initials = useMemo(() => {
     const a = (formData.firstName || '').trim();
@@ -199,6 +205,7 @@ export const SettingsPage = (): JSX.Element => {
     { id: "privacy", label: "Privacy", icon: <Globe className="w-4 h-4" /> },
     { id: "resume-checker", label: "Resume Checker", icon: <Sparkles className="w-4 h-4" /> },
     { id: "job-sources", label: "Job Sources", icon: <SettingsIcon className="w-4 h-4" /> },
+    { id: "integrations", label: "Integrations", icon: <Link className="w-4 h-4" /> },
     { id: "billing", label: "Billing", icon: <CreditCard className="w-4 h-4" /> }
   ];
 
@@ -210,7 +217,8 @@ export const SettingsPage = (): JSX.Element => {
       { id: 'settings-tab-security', selector: '#settings-tab-btn-security', title: 'Security', body: 'Update password & manage two-factor authentication for stronger protection.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-appearance' },
       { id: 'settings-tab-appearance', selector: '#settings-tab-btn-appearance', title: 'Appearance', body: 'Customize UI theme and visual preferences.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-privacy' },
       { id: 'settings-tab-privacy', selector: '#settings-tab-btn-privacy', title: 'Privacy', body: 'Adjust visibility and data sharing preferences.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-job-sources' },
-      { id: 'settings-tab-job-sources', selector: '#settings-tab-btn-job-sources', title: 'Job Sources', body: 'Enable/disable and prioritize job ingestion sources.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-billing' },
+      { id: 'settings-tab-job-sources', selector: '#settings-tab-btn-job-sources', title: 'Job Sources', body: 'Enable/disable and prioritize job ingestion sources.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-integrations' },
+      { id: 'settings-tab-integrations', selector: '#settings-tab-btn-integrations', title: 'Integrations', body: 'Connect your accounts from other services.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-billing' },
       { id: 'settings-tab-billing', selector: '#settings-tab-btn-billing', title: 'Billing', body: 'Manage subscription and payment information (coming soon).', condition: { type: 'click', autoNext: true }, next: 'settings-tour-complete' },
       { id: 'settings-tour-complete', selector: '#settings-tablist', title: 'All Set', body: 'That’s the settings navigation. You can restart this tour anytime from the tour menu.' }
     ]
@@ -1308,6 +1316,36 @@ export const SettingsPage = (): JSX.Element => {
         return (
           <div id="settings-tab-resume-checker" data-tour="settings-tab-resume-checker" className="space-y-8">
             <ResumeChecker />
+          </div>
+        );
+
+      case "integrations":
+        return (
+          <div id="settings-tab-integrations" data-tour="settings-tab-integrations" className="space-y-8">
+            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+                      <Mail className="w-6 h-6 text-red-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-foreground font-medium">Connect to your Gmail</h3>
+                      <p className="text-sm text-muted-foreground">Sync your emails and contacts.</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50 hover:scale-105 transition-all duration-300"
+                    onClick={handleConnectGmail}
+                    disabled={isGmailConnected}
+                  >
+                    <Link className="w-4 h-4 mr-2" />
+                    {isGmailConnected ? "Connected" : "Connect"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         );
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { LabelList, Pie, PieChart } from "recharts";
+import { LabelList, Pie, PieChart, ResponsiveContainer } from "recharts";
 import {
   Card,
   CardContent,
@@ -59,17 +59,17 @@ const chartConfig = {
 
 const getCategoryColor = (label: string) => {
   const normalized = label.toLowerCase();
-  if (normalized.includes("role") || normalized.includes("focus")) return "#1dff00"; // Bright green
-  if (normalized.includes("keyword") || normalized.includes("match")) return "#00ff88"; // Teal green
-  if (normalized.includes("goal") || normalized.includes("profile")) return "#88ff00"; // Yellow-green
-  if (normalized.includes("location") || normalized.includes("alignment")) return "#00ffcc"; // Cyan
-  return "#ccff00"; // Lime
+  if (normalized.includes("role") || normalized.includes("focus")) return "#1dff00"; // Applied green
+  if (normalized.includes("keyword") || normalized.includes("match")) return "#56c2ff"; // Interview blue
+  if (normalized.includes("goal") || normalized.includes("profile")) return "#ffd700"; // Offer gold
+  if (normalized.includes("location") || normalized.includes("alignment")) return "#ff6b6b"; // Rejected red
+  return "#1dff00"; // Default green
 };
 
 export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieChartProps) {
   const chartData = breakdown?.map((item) => ({
     label: item.label,
-    score: item.componentScore,
+    score: Math.round(item.componentScore), // Round to whole number
     fill: getCategoryColor(item.label),
   })) || [];
 
@@ -107,35 +107,39 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
       <CardContent className="flex-1 pb-4">
         {hasBreakdown ? (
           <>
-            <ChartContainer
-              config={chartConfig}
-              data={chartData}
-              className="mx-auto aspect-square w-full max-h-[280px] [&_.recharts-text]:fill-white"
-            >
-              <PieChart>
-                <ChartTooltip
-                  content={<ChartTooltipContent hideLabel />}
-                />
-                <Pie
-                  data={chartData}
-                  innerRadius={30}
-                  outerRadius={80}
-                  dataKey="score"
-                  nameKey="label"
-                  cornerRadius={8}
-                  paddingAngle={4}
-                >
-                  <LabelList
-                    dataKey="score"
-                    stroke="none"
-                    fontSize={14}
-                    fontWeight={600}
-                    fill="#ffffff"
-                    formatter={(value: number) => `${value}%`}
-                  />
-                </Pie>
-              </PieChart>
-            </ChartContainer>
+            <div className="w-full h-[280px]">
+              <ChartContainer
+                config={chartConfig}
+                data={chartData}
+                className="w-full h-full"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <ChartTooltip
+                      content={<ChartTooltipContent hideLabel />}
+                    />
+                    <Pie
+                      data={chartData}
+                      innerRadius={30}
+                      outerRadius={80}
+                      dataKey="score"
+                      nameKey="label"
+                      cornerRadius={8}
+                      paddingAngle={4}
+                    >
+                      <LabelList
+                        dataKey="score"
+                        stroke="none"
+                        fontSize={14}
+                        fontWeight={600}
+                        fill="#000000"
+                        formatter={(value: number) => `${value}%`}
+                      />
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </div>
 
             <div className="mt-4 space-y-2">
               {breakdown?.map((item, index) => (
@@ -161,7 +165,7 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
         ) : (
           <div className="flex h-[250px] items-center justify-center">
             <div className="text-center space-y-2">
-              <div className="text-6xl font-bold text-[#1dff00]">{score}%</div>
+              <div className="text-6xl font-bold text-[#1dff00]">{Math.round(score)}%</div>
               <p className="text-sm text-white/50">Overall Match Score</p>
             </div>
           </div>
