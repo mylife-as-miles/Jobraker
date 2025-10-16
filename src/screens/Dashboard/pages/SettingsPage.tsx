@@ -88,6 +88,25 @@ export const SettingsPage = (): JSX.Element => {
     window.open(`${mcpServerUrl}/auth`, "_blank", "noopener,noreferrer");
   };
 
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+
+      if (event.data === "gmail-auth-success") {
+        setIsGmailConnected(true);
+        success("Gmail connected successfully!");
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
+  }, [success]);
+
   const initials = useMemo(() => {
     const a = (formData.firstName || '').trim();
     const b = (formData.lastName || '').trim();
@@ -1322,7 +1341,7 @@ export const SettingsPage = (): JSX.Element => {
       case "integrations":
         return (
           <div id="settings-tab-integrations" data-tour="settings-tab-integrations" className="space-y-8">
-            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
+            <Card className="bg-card/10 border-border/20 transition-all duration-300">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
@@ -1331,12 +1350,12 @@ export const SettingsPage = (): JSX.Element => {
                     </div>
                     <div>
                       <h3 className="text-foreground font-medium">Connect to your Gmail</h3>
-                      <p className="text-sm text-muted-foreground">Sync your emails and contacts.</p>
+                      <p className="text-sm text-muted-foreground">To get job alert and schedule interview</p>
                     </div>
                   </div>
                   <Button
                     variant="outline"
-                    className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50 hover:scale-105 transition-all duration-300"
+                    className="border-border/20 text-foreground hover:bg-card/20 hover:scale-105 transition-all duration-300"
                     onClick={handleConnectGmail}
                     disabled={isGmailConnected}
                   >

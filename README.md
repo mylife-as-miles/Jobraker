@@ -350,6 +350,31 @@ VITE_ENABLE_NOTIFICATIONS=true
 VITE_ENABLE_REAL_TIME=true
 ```
 
+### Gmail Integration
+
+This project uses a Gmail MCP server to connect to your Gmail account. To set it up:
+
+1.  **Initialize the submodule:**
+    ```bash
+    git submodule init
+    git submodule update
+    ```
+
+2.  **Install dependencies:**
+    ```bash
+    cd backend/gmail_mcp_server
+    npm install
+    ```
+
+3.  **Configure Google Cloud credentials:**
+    - Follow the instructions in the `backend/gmail_mcp_server/README.md` file to get your `gcp-oauth.keys.json` file.
+    - Place the `gcp-oauth.keys.json` file in the `backend/gmail_mcp_server` directory.
+
+4.  **Authorize the application:**
+    ```bash
+    npm run mcp:gmail -- auth
+    ```
+
 ### Backend Functions Configuration
 
 In addition to the frontend application, this project includes backend services using Supabase Edge Functions (e.g., for cron jobs that fetch job listings). These functions have their own environment variables.
