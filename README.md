@@ -1,4 +1,4 @@
-# JobRaker 😌
+# JobRaker 🚀
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -474,7 +474,8 @@ npm run supabase:sync:push      # Sync schema then push migrations
 
 # DB helpers (advanced)
 npm run db:run-sql              # Run a SQL file against SUPABASE_DB_URL
-npm run db:create-job-listings  # Create job_listings table via migration SQL
+npm run db:create-job-listings  # Create job_listings ta
+ble via migration SQL
 npm run db:create-bookmarks     # Create bookmarks via idempotent SQL
 npm run db:create-core          # Create core tables (job listings + bookmarks)
 ```

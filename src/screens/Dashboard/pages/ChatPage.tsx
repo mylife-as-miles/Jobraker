@@ -1,9 +1,10 @@
 // Clean AI-elements only Chat Page implementation
+import ModelDropdown from "@/components/ModelDropdown";
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { nanoid } from 'nanoid';
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+import { atomOneDark } from "react-syntax-highlighter/dist/styles/atom-one-dark";
 // Temporary lightweight chat hook placeholder (remove when real ai/react is available)
 type Persona = 'concise' | 'friendly' | 'analyst' | 'coach';
 interface BasicMessage { id: string; role: 'user' | 'assistant'; content: string; parts?: { type: 'text'; text: string }[]; streaming?: boolean; createdAt: number; meta?: { persona?: Persona; parent?: string } }
@@ -81,11 +82,7 @@ import {
   PromptInputBody,
   PromptInputButton,
   type PromptInputMessage,
-  PromptInputModelSelect,
-  PromptInputModelSelectContent,
-  PromptInputModelSelectItem,
-  PromptInputModelSelectTrigger,
-  PromptInputModelSelectValue,
+
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputToolbar,
@@ -218,7 +215,7 @@ export const ChatPage = () => {
     return parseMarkdown(raw).map((b, i) => {
       if (b.type === 'code') {
         return (
-          <div key={i} className="mt-3 mb-2 rounded-lg border border-neutral-800 bg-neutral-950/80 overflow-hidden text-[12px]">
+          <div key={i} className="mt-3 mb-2 rounded-lg border border-neutral-800 bg-neutral-950/80  text-[12px]">
             <div className="flex items-center justify-between px-3 py-1.5 bg-neutral-900/80 text-neutral-400 uppercase tracking-wider text-[10px]">
               <span>{b.lang || 'code'}</span>
               <button
@@ -296,13 +293,13 @@ export const ChatPage = () => {
   ];
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden font-sans">
+    <div className="relative flex h-full w-full flex-col  font-sans">
       {/* Ambient gradients */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_18%,#1dff0026,transparent_65%),radial-gradient(circle_at_85%_80%,#0a824626,transparent_55%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/40 via-black/10 to-transparent" />
       <div className="mx-auto flex h-full w-full max-w-7xl gap-4 px-3 sm:px-5 lg:px-8 py-4">
         {/* Sidebar */}
-  <aside className="hidden md:flex w-60 flex-col rounded-2xl border border-neutral-800/60 bg-neutral-950/70 backdrop-blur-xl overflow-hidden shadow-[0_4px_18px_-4px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.03)] relative before:absolute before:inset-0 before:pointer-events-none before:rounded-2xl before:border before:border-white/5">
+  <aside className="hidden md:flex w-60 flex-col rounded-2xl border border-neutral-800/60 bg-neutral-950/70 backdrop-blur-xl  shadow-[0_4px_18px_-4px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.03)] relative before:absolute before:inset-0 before:pointer-events-none before:rounded-2xl before:border before:border-white/5">
           <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800/70">
             <h3 className="text-xs font-semibold tracking-wide text-neutral-300">Sessions</h3>
             <button onClick={createSession} className="text-[11px] px-2 py-1 rounded-md bg-neutral-800/70 hover:bg-neutral-700 border border-neutral-700/70 text-neutral-300">New</button>
@@ -332,7 +329,7 @@ export const ChatPage = () => {
         </aside>
         {/* Main Column */}
         <div className="flex flex-1 flex-col gap-4">
-          <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between rounded-2xl border border-neutral-800/60 bg-neutral-950/70 backdrop-blur-xl px-4 sm:px-6 py-4 shadow-[0_4px_24px_-6px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.04)] relative overflow-hidden">
+          <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between rounded-2xl border border-neutral-800/60 bg-neutral-950/70 backdrop-blur-xl px-4 sm:px-6 py-4 shadow-[0_4px_24px_-6px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.04)] relative ">
             <div className="pointer-events-none absolute inset-0 opacity-[0.35] [mask-image:radial-gradient(circle_at_30%_30%,black,transparent_70%)] bg-[conic-gradient(from_140deg,rgba(29,255,0,0.12),rgba(10,130,70,0.05),transparent_70%)]" />
             <div className="flex flex-col">
               <h1 className="text-sm sm:text-base font-semibold tracking-wide bg-gradient-to-r from-[#1dff00] via-[#6dffb0] to-[#1dff00] bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(29,255,0,0.25)]">Intelligent Assistant</h1>
@@ -360,7 +357,7 @@ export const ChatPage = () => {
               </div>
             </div>
           </header>
-          <div className="flex-1 min-h-0 flex flex-col rounded-3xl border border-neutral-800/60 bg-neutral-950/70 backdrop-blur-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_12px_40px_-10px_rgba(0,0,0,0.7)] overflow-hidden relative">
+          <div className="flex-1 min-h-0 flex flex-col rounded-3xl border border-neutral-800/60 bg-neutral-950/70 backdrop-blur-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_12px_40px_-10px_rgba(0,0,0,0.7)]  relative">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-black/60 to-transparent z-10" />
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent z-10" />
             <Conversation className="flex-1" data-tour="chat-transcript">
@@ -429,7 +426,7 @@ export const ChatPage = () => {
               </ConversationContent>
             </Conversation>
           </div>
-          <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/80 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_10px_36px_-8px_rgba(0,0,0,0.65)] relative overflow-hidden">
+          <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/80 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_10px_36px_-8px_rgba(0,0,0,0.65)] relative ">
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(29,255,0,0.07),transparent_35%,transparent_65%,rgba(10,130,70,0.08))] opacity-80" />
             {messages.length > 0 && (
               <div className="flex flex-wrap gap-2 px-4 pt-4 -mb-1">
@@ -438,7 +435,7 @@ export const ChatPage = () => {
             )}
             <PromptInput onSubmit={handleSubmit} className="p-3 sm:p-4" multiple globalDrop>
               <PromptInputBody className="relative rounded-xl border border-neutral-800/70 bg-neutral-900/70 focus-within:border-[#1dff00]/50 transition-colors shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_4px_18px_-6px_rgba(0,0,0,0.7)]">
-                <div className="pointer-events-none absolute inset-0 rounded-xl bg-[radial-gradient(circle_at_70%_30%,rgba(29,255,0,0.18),transparent_70%)] opacity-30" />
+                <div className="pointer-events-none absolute inset-0 rounded-xl bg-[radial-gradient(circle_at_70%_30%,rgba(29,255,0,0.18),transparent_70%)] opacity-30 -z-10" />
                 <PromptInputAttachments>{file => <PromptInputAttachment data={file} />}</PromptInputAttachments>
                 <PromptInputTextarea value={text} onChange={e=>{ setText(e.target.value); setShowCommands(e.target.value.startsWith('/') && e.target.value.length <= 30); }} placeholder={editing ? 'Edit your message…' : 'Ask anything about your applications, resumes, interviews...'} className="min-h-[64px]" ref={textareaRef} data-tour="chat-input" />
                 {showCommands && !text.includes(' ') && (
@@ -475,12 +472,12 @@ export const ChatPage = () => {
                     <GlobeIcon size={16} />
                     <span className="sr-only">Web Search</span>
                   </PromptInputButton>
-                  <PromptInputModelSelect value={model} onValueChange={v=>setModel(v)} data-chat-model-select data-tour="chat-model-select">
-                    <PromptInputModelSelectTrigger><PromptInputModelSelectValue /></PromptInputModelSelectTrigger>
-                    <PromptInputModelSelectContent>
-                      {models.map(m => <PromptInputModelSelectItem key={m.id} value={m.id}>{m.name}</PromptInputModelSelectItem>)}
-                    </PromptInputModelSelectContent>
-                  </PromptInputModelSelect>
+                  
+                  <ModelDropdown 
+                    value={model} 
+                    onValueChange={(v) => setModel(v)} 
+                    models={models}
+                  />
                 </PromptInputTools>
                 <PromptInputSubmit disabled={!text && status !== 'in_progress'} status={status === 'in_progress' ? 'in_progress' : undefined as any} className="shadow-[0_0_0_1px_#1dff00,0_4px_18px_-4px_rgba(29,255,0,0.45)] hover:shadow-[0_0_0_1px_#1dff00,0_6px_24px_-4px_rgba(29,255,0,0.65)] transition-shadow" />
               </PromptInputToolbar>

@@ -6,8 +6,8 @@ let _cached: SupabaseClient | null = null;
 export function createClient(): SupabaseClient {
   if (_cached) return _cached;
   // Get environment variables from Vite
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://127.0.0.1:54321';
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
 
   // Handle missing environment variables gracefully
   if (!supabaseUrl || !supabaseAnonKey) {
