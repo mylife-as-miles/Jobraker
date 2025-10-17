@@ -107,7 +107,7 @@ export const OverviewPage = (): JSX.Element => {
 
   // Build real series based on selected period with status-specific keys
   const { seriesData, seriesMeta, appliedCount, interviewCount, totals } = useMemo(() => {
-    const period = selectedPeriod
+    const period = selectedPeriod;
 
     // Apply status filtering (search removed per request)
     let filtered = applications;
