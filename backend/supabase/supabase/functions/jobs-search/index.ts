@@ -74,6 +74,7 @@ Deno.serve(async (req) => {
       'upwork.com',               // Freelance opportunities
       'freelancer.com',           // Freelance projects
       'dice.com',                 // Tech jobs and IT positions
+      'jobberman.com',            // Jobs in Africa
     ];
 
     // Start from user-configured domains if present; else use defaults
@@ -227,6 +228,8 @@ Deno.serve(async (req) => {
       if (lower.includes('freelancer.com') && (lower.includes('/projects/') || lower.includes('/jobs/'))) return true;
       // Dice tech jobs
       if (lower.includes('dice.com') && (lower.includes('/jobs/detail/') || lower.includes('/job-detail/'))) return true;
+      // Jobberman jobs
+      if (lower.includes('jobberman.com') && lower.includes('/listings/')) return true;
       // Generic patterns
       if (lower.match(/\/(job|posting|opening|career|apply|position)s?\/[^\/]+\/?$/)) return true;
       return false;
