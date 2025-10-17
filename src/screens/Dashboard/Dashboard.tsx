@@ -376,7 +376,7 @@ export const Dashboard = (): JSX.Element => {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 hidden sm:flex p-1 sm:p-2"
+                className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 flex p-1 sm:p-2"
                 onClick={() => navigate("/dashboard/settings")}
                 title="Settings"
                 aria-label="Open settings"
