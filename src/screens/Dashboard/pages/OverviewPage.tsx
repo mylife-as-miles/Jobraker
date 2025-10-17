@@ -462,21 +462,23 @@ export const OverviewPage = (): JSX.Element => {
                     </Button>
                   </div>
                 </div>
-                <KiboCalendar
-                  month={viewDate}
-                  selectedDate={selectedDate || undefined}
-                  onMonthChange={(d) => setViewDate(d)}
-                  onSelectDate={(d) => setSelectedDate(d)}
-                  events={calendarEvents}
-                  maxVisibleEventsPerDay={3}
-                  rangeSelectable
-                  onSelectRange={setSelectedRange}
-                  locale={Intl.DateTimeFormat().resolvedOptions().locale}
-                  viewMode={calendarViewMode}
-                  onViewModeChange={setCalendarViewMode}
-                  heatmap
-                  showLegend
-                />
+                <div className="overflow-x-auto">
+                  <KiboCalendar
+                    month={viewDate}
+                    selectedDate={selectedDate || undefined}
+                    onMonthChange={(d) => setViewDate(d)}
+                    onSelectDate={(d) => setSelectedDate(d)}
+                    events={calendarEvents}
+                    maxVisibleEventsPerDay={3}
+                    rangeSelectable
+                    onSelectRange={setSelectedRange}
+                    locale={Intl.DateTimeFormat().resolvedOptions().locale}
+                    viewMode={calendarViewMode}
+                    onViewModeChange={setCalendarViewMode}
+                    heatmap
+                    showLegend
+                  />
+                </div>
                 {selectedRange && (
                   <div className="mt-3 text-center text-[10px] sm:text-xs text-[#888] flex flex-col items-center gap-1">
                     <div>
