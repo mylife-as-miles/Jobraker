@@ -1457,55 +1457,57 @@ export const JobPage = (): JSX.Element => {
                     </div>
                   </div>
                   {/* Target selector removed: fixed to 10 to minimize API usage and keep runs bounded */}
-                  <div className="flex items-center gap-2 text-xs text-[#ffffff70] select-none">
-                    <button
-                      type="button"
-                      onClick={() => setDebugMode(v => !v)}
-                      className="px-1 py-0.5 rounded hover:text-white focus:outline-none focus:ring-1 focus:ring-[#1dff00]/50"
-                      aria-pressed={debugMode}
-                      title="Toggle Diagnostics"
+                  <div className="w-full sm:w-auto flex flex-wrap items-center gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2 text-xs text-[#ffffff70] select-none">
+                      <button
+                        type="button"
+                        onClick={() => setDebugMode(v => !v)}
+                        className="px-1 py-0.5 rounded hover:text-white focus:outline-none focus:ring-1 focus:ring-[#1dff00]/50"
+                        aria-pressed={debugMode}
+                        title="Toggle Diagnostics"
+                      >
+                        Diagnostics
+                      </button>
+                      <Switch checked={debugMode} onCheckedChange={setDebugMode} />
+                    </div>
+                    <Button
+                      variant="ghost"
+                      onClick={openAutoApplyFlow}
+                      className={`relative overflow-hidden border border-[#1dff00]/40 text-white px-3 py-2 sm:px-4 sm:py-2 md:px-5 rounded-xl transition-all duration-300 text-xs sm:text-sm ${applyingAll ? 'bg-[#1dff00]/20 text-[#1dff00]' : 'bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 hover:from-[#1dff00]/20 hover:to-[#1dff00]/5'}`}
+                      title="Auto apply all visible jobs"
+                      disabled={applyingAll || queueStatus !== 'ready' || jobs.length === 0}
                     >
-                      Diagnostics
-                    </button>
-                    <Switch checked={debugMode} onCheckedChange={setDebugMode} />
+                      <span className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'radial-gradient(180px at 0% 0%, rgba(29,255,0,0.45), transparent 65%)' }} />
+                      <span className="relative inline-flex items-center gap-1.5 sm:gap-2 font-medium tracking-wide">
+                        {applyingAll ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <Briefcase className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                        <span className="hidden sm:inline">{applyingAll ? `Applying ${applyProgress.done}/${applyProgress.total}` : 'Auto Apply Suite'}</span>
+                        <span className="sm:hidden">{applyingAll ? `${applyProgress.done}/${applyProgress.total}` : 'Auto Apply'}</span>
+                      </span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => populateQueue(searchQuery, selectedLocation)}
+                      className={`group relative overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${
+                        queueStatus === 'populating' || queueStatus === 'loading'
+                          ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff00]/15'
+                          : 'border-white/20 text-white bg-white/5 hover:text-[#1dff00] hover:border-[#1dff00]/60 hover:bg-[#1dff00]/10 shadow-[0_12px_32px_rgba(8,122,52,0.35)]'
+                      }`}
+                      title="Find a fresh batch of jobs"
+                      disabled={queueStatus === 'populating' || queueStatus === 'loading'}
+                    >
+                      <span
+                        className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                        style={{ background: 'linear-gradient(120deg, transparent 0%, rgba(29,255,0,0.35) 45%, transparent 90%)' }}
+                      />
+                      <span className="relative inline-flex items-center gap-1.5 sm:gap-2">
+                        {queueStatus === 'populating'
+                          ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                          : <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#1dff00]" />}
+                        <span className="hidden sm:inline">{queueStatus === 'populating' ? 'Building results…' : 'Find Jobs Suite'}</span>
+                        <span className="sm:hidden">{queueStatus === 'populating' ? 'Building…' : 'Find Jobs'}</span>
+                      </span>
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    onClick={openAutoApplyFlow}
-                    className={`relative overflow-hidden border border-[#1dff00]/40 text-white px-3 py-2 sm:px-4 sm:py-2 md:px-5 rounded-xl transition-all duration-300 text-xs sm:text-sm ${applyingAll ? 'bg-[#1dff00]/20 text-[#1dff00]' : 'bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 hover:from-[#1dff00]/20 hover:to-[#1dff00]/5'}`}
-                    title="Auto apply all visible jobs"
-                    disabled={applyingAll || queueStatus !== 'ready' || jobs.length === 0}
-                  >
-                    <span className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'radial-gradient(180px at 0% 0%, rgba(29,255,0,0.45), transparent 65%)' }} />
-                    <span className="relative inline-flex items-center gap-1.5 sm:gap-2 font-medium tracking-wide">
-                      {applyingAll ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <Briefcase className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-                      <span className="hidden sm:inline">{applyingAll ? `Applying ${applyProgress.done}/${applyProgress.total}` : 'Auto Apply Suite'}</span>
-                      <span className="sm:hidden">{applyingAll ? `${applyProgress.done}/${applyProgress.total}` : 'Auto Apply'}</span>
-                    </span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => populateQueue(searchQuery, selectedLocation)}
-                    className={`group relative overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${
-                      queueStatus === 'populating' || queueStatus === 'loading'
-                        ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff00]/15'
-                        : 'border-white/20 text-white bg-white/5 hover:text-[#1dff00] hover:border-[#1dff00]/60 hover:bg-[#1dff00]/10 shadow-[0_12px_32px_rgba(8,122,52,0.35)]'
-                    }`}
-                    title="Find a fresh batch of jobs"
-                    disabled={queueStatus === 'populating' || queueStatus === 'loading'}
-                  >
-                    <span
-                      className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      style={{ background: 'linear-gradient(120deg, transparent 0%, rgba(29,255,0,0.35) 45%, transparent 90%)' }}
-                    />
-                    <span className="relative inline-flex items-center gap-1.5 sm:gap-2">
-                      {queueStatus === 'populating'
-                        ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
-                        : <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#1dff00]" />}
-                      <span className="hidden sm:inline">{queueStatus === 'populating' ? 'Building results…' : 'Find Jobs Suite'}</span>
-                      <span className="sm:hidden">{queueStatus === 'populating' ? 'Building…' : 'Find Jobs'}</span>
-                    </span>
-                  </Button>
                 </div>
             </div>
           </div>
