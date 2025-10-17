@@ -339,7 +339,7 @@ export const OverviewPage = (): JSX.Element => {
                   </div>
                 </div>
                 {/* Status Filter Pills */}
-                <div id="overview-status-filter-buttons" data-tour="overview-status-filter-buttons" className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-4 sm:mb-6">
+                <div id="overview-status-filter-buttons" data-tour="overview-status-filter-buttons" className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mb-4 sm:mb-6">
                   {['All','Applied','Interview','Offer','Rejected'].map(s => {
                     const active = s === 'All' ? !statusFilter : statusFilter?.includes(s as ApplicationStatus);
                     const baseColors: Record<string,string> = {
@@ -364,7 +364,7 @@ export const OverviewPage = (): JSX.Element => {
                             return [...prev, s as ApplicationStatus];
                           });
                         }}
-                        className={`text-[10px] sm:text-xs px-2 py-1 rounded-md border transition-all duration-300 font-medium tracking-wide ${baseColors[s]} ${active ? 'ring-1 ring-white/40 scale-105' : 'opacity-70'} focus:outline-none focus:ring-2 focus:ring-[#1dff00]/50`}
+                        className={`w-full sm:w-auto text-[10px] sm:text-xs px-2 py-1 rounded-md border transition-all duration-300 font-medium tracking-wide ${baseColors[s]} ${active ? 'ring-1 ring-white/40 scale-105' : 'opacity-70'} focus:outline-none focus:ring-2 focus:ring-[#1dff00]/50`}
                         title={s === 'All' ? 'Show all statuses' : `${active ? 'Hide' : 'Show'} ${s} applications`}
                         aria-label={s === 'All' ? 'Filter: All statuses' : `Filter: ${s}`}
                         aria-pressed={active}
@@ -445,7 +445,7 @@ export const OverviewPage = (): JSX.Element => {
               whileHover={{ scale: 1.02 }}
               className="transition-transform duration-300"
             >
-              <Card id="overview-calendar" data-tour="overview-calendar" className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
+              <Card id="overview-calendar" data-tour="overview-calendar" className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500 max-h-96 overflow-y-auto">
                 <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[10px] sm:text-xs text-[#888888]">
                   <div>
                     Current time: <span className="text-[#1dff00] font-medium">{timeLabel}</span>
