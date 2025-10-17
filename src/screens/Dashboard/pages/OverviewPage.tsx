@@ -288,9 +288,9 @@ export const OverviewPage = (): JSX.Element => {
     <div className="min-h-screen bg-black">
       <div className="w-full max-w-7xl mx-auto p-3 sm:p-4 lg:p-6 xl:p-8">
         {/* Responsive overview layout */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 items-start">
           {/* Left Column - Applications and Match Score */}
-          <div className="xl:col-span-2 space-y-4 sm:space-y-6 w-full">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6 w-full">
             {/* Applications Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -374,7 +374,7 @@ export const OverviewPage = (): JSX.Element => {
                 </div>
 
                 {/* Stats & Conversion Metrics */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-8 space-y-4 sm:space-y-0 mb-4 sm:mb-6">
+        <div className="flex flex-wrap flex-col sm:flex-row sm:items-center sm:space-x-8 space-y-4 sm:space-y-0 mb-4 sm:mb-6">
                   <motion.div 
                     className="text-center sm:text-left"
                     whileHover={{ scale: 1.05 }}
