@@ -374,7 +374,7 @@ export const OverviewPage = (): JSX.Element => {
                 </div>
 
                 {/* Stats & Conversion Metrics */}
-        <div className="flex flex-wrap flex-col sm:flex-row sm:items-center sm:space-x-8 space-y-4 sm:space-y-0 mb-4 sm:mb-6">
+        <div className="flex flex-wrap flex-row items-center justify-between sm:space-x-8 space-y-0 mb-4 sm:mb-6">
                   <motion.div 
                     className="text-center sm:text-left"
                     whileHover={{ scale: 1.05 }}
