@@ -308,27 +308,28 @@ export const OverviewPage = (): JSX.Element => {
                 </div>
 
                 {/* Period Selector + Stacked Toggle */}
-                <div className="flex flex-wrap items-center gap-2 mb-4 sm:mb-6">
-                  {["Today", "1 Week", "1 Month"].map((period) => (
-                    <Button
-                      key={period}
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedPeriod(period)}
-                      title={`Show data for ${period}`}
-                      aria-label={`Select period ${period}`}
-                      className={`text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${
-                        selectedPeriod === period
-                          ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-                          : "text-white hover:text-[#1dff00] hover:bg-[#1dff00]/10"
-                      }`}
-                    >
-                      {period}
-                    </Button>
-                  ))}
-                  <div className="flex-1" />
-                  {/* Stacked toggle (repositioned after removal of search/export) */}
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-[#888]" title="Toggle stacked / overlapping series" aria-label="Stacked toggle">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 sm:mb-6">
+                  <div className="flex items-center gap-2">
+                    {["Today", "1 Week", "1 Month"].map((period) => (
+                      <Button
+                        key={period}
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedPeriod(period)}
+                        title={`Show data for ${period}`}
+                        aria-label={`Select period ${period}`}
+                        className={`text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${
+                          selectedPeriod === period
+                            ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+                            : "text-white hover:text-[#1dff00] hover:bg-[#1dff00]/10"
+                        }`}
+                      >
+                        {period}
+                      </Button>
+                    ))}
+                  </div>
+                  {/* Stacked toggle */}
+                  <div className="flex items-center self-end sm:self-center gap-2 text-xs sm:text-sm text-[#888]" title="Toggle stacked / overlapping series" aria-label="Stacked toggle">
                     <span>Stacked</span>
                     <Switch
                       checked={stacked && visibleSeries.length > 1}
@@ -374,7 +375,7 @@ export const OverviewPage = (): JSX.Element => {
                 </div>
 
                 {/* Stats & Conversion Metrics */}
-        <div className="flex flex-wrap flex-row items-center justify-between sm:space-x-8 space-y-0 mb-4 sm:mb-6">
+        <div className="flex flex-wrap items-center justify-evenly mb-4 sm:mb-6">
                   <motion.div 
                     className="text-center sm:text-left"
                     whileHover={{ scale: 1.05 }}
@@ -584,7 +585,7 @@ export const OverviewPage = (): JSX.Element => {
                       <div className="flex-1 min-w-0">
                         <p className="text-[11px] sm:text-sm text-white font-medium leading-relaxed tracking-tight truncate flex items-center gap-2">
                           {notification.title}
-                          <span className="hidden md:inline-flex text-[9px] px-1.5 py-0.5 rounded bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] font-semibold tracking-wide">NEW</span>
+                          <span className="flex text-[9px] px-1.5 py-0.5 rounded bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] font-semibold tracking-wide">NEW</span>
                         </p>
                         <p className="text-[10px] sm:text-xs text-white/40 mt-1 font-mono tracking-wide">{notification.time}</p>
                       </div>
