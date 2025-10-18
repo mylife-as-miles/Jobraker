@@ -76,11 +76,6 @@ const uniqueTokens = (tokens: string[]): string[] => Array.from(new Set(tokens))
 
 const clamp = (value: number, min = 0, max = 100) => Math.min(max, Math.max(min, value));
 
-const toPlainText = (value?: string | null): string => {
-  if (!value) return "";
-  return value.replace(/<[^>]+>/g, " ");
-};
-
 const buildTokenSet = (...segments: Array<string | undefined | null>): Set<string> => {
   const tokens = segments.flatMap((segment) => uniqueTokens(tokenize(segment)));
   return new Set(tokens);
@@ -2125,7 +2120,9 @@ export const JobPage = (): JSX.Element => {
                               </div>
                               <span className="text-[11px] uppercase tracking-wide text-white/35">Full brief</span>
                             </div>
-                            <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.description || '') }} />
+                            <div className="max-w-none text-[#ffffffcc] leading-relaxed whitespace-pre-wrap">
+                              {job.description || ''}
+                            </div>
                           </Card>
 
                           {/* AI Match Score Card - Always show for testing */}
@@ -2724,7 +2721,9 @@ export const JobPage = (): JSX.Element => {
                     </div>
                     <span className="text-[10px] uppercase tracking-wide text-white/35">Full brief</span>
                   </div>
-                  <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed text-[13px]" dangerouslySetInnerHTML={{ __html: sanitizeHtml(j.description || '') }} />
+                  <div className="max-w-none text-[#ffffffcc] leading-relaxed text-[13px] whitespace-pre-wrap">
+                    {j.description || ''}
+                  </div>
                 </Card>
 
                 {/* AI Match Score Card - Mobile - Always show for testing */}
