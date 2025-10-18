@@ -302,34 +302,33 @@ export const OverviewPage = (): JSX.Element => {
               <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 lg:p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-2">
                   <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Applications</h2>
-                  <span className="text-left sm:text-right text-2xl sm:text-2xl lg:text-3xl font-bold text-[#1dff00]">
-                    {appliedCount}/{interviewCount}
-                  </span>
+                  <div className="text-left sm:text-right">
+                    <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#1dff00]">{appliedCount}/{interviewCount}</span>
+                  </div>
                 </div>
 
                 {/* Period Selector + Stacked Toggle */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                  <div className="flex items-center gap-2">
-                    {["Today", "1 Week", "1 Month"].map((period) => (
-                      <Button
-                        key={period}
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedPeriod(period)}
-                        title={`Show data for ${period}`}
-                        aria-label={`Select period ${period}`}
-                        className={`text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${
-                          selectedPeriod === period
-                            ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-                            : "text-white hover:text-[#1dff00] hover:bg-[#1dff00]/10"
-                        }`}
-                      >
-                        {period}
-                      </Button>
-                    ))}
-                  </div>
-                  {/* Stacked toggle */}
-                  <div className="flex items-center self-end sm:self-center gap-2 text-xs sm:text-sm text-[#888]" title="Toggle stacked / overlapping series" aria-label="Stacked toggle">
+                <div className="flex flex-wrap items-center gap-2 mb-4 sm:mb-6">
+                  {["Today", "1 Week", "1 Month"].map((period) => (
+                    <Button
+                      key={period}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedPeriod(period)}
+                      title={`Show data for ${period}`}
+                      aria-label={`Select period ${period}`}
+                      className={`text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${
+                        selectedPeriod === period
+                          ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+                          : "text-white hover:text-[#1dff00] hover:bg-[#1dff00]/10"
+                      }`}
+                    >
+                      {period}
+                    </Button>
+                  ))}
+                  <div className="flex-1" />
+                  {/* Stacked toggle (repositioned after removal of search/export) */}
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-[#888]" title="Toggle stacked / overlapping series" aria-label="Stacked toggle">
                     <span>Stacked</span>
                     <Switch
                       checked={stacked && visibleSeries.length > 1}
@@ -375,7 +374,7 @@ export const OverviewPage = (): JSX.Element => {
                 </div>
 
                 {/* Stats & Conversion Metrics */}
-        <div className="flex flex-wrap items-center justify-evenly mb-4 sm:mb-6">
+        <div className="flex flex-wrap flex-row items-center justify-between sm:space-x-8 space-y-0 mb-4 sm:mb-6">
                   <motion.div 
                     className="text-center sm:text-left"
                     whileHover={{ scale: 1.05 }}
