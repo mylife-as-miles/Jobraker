@@ -12,6 +12,17 @@ function hostFromUrl(u: string): string | null {
   try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return null; }
 }
 
+// Helper to convert basic HTML to plain text
+const toPlainText = (html: string | null | undefined): string => {
+  if (!html) return '';
+  return html
+    .replace(/<style[^>]*>.*<\/style>/gms, '') // remove style blocks
+    .replace(/<script[^>]*>.*<\/script>/gms, '') // remove script blocks
+    .replace(/<[^>]+>/g, ' ') // remove all other tags
+    .replace(/\s+/g, ' ') // collapse whitespace
+    .trim();
+};
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -158,7 +169,7 @@ Deno.serve(async (req) => {
                 apply_link: { type: "string" }
               }
             },
-            prompt: "You are extracting structured job posting data. If the page does not explicitly state a field, infer it conservatively from the content. Return concise values. For salary, prefer annual ranges. Populate: title, company, description (concise summary if full content available separately), employment_type (e.g., Full-time, Contract, Internship), experience_level (e.g., Junior, Mid, Senior), tags (skills and technologies), salary, salary_min, salary_max, salary_currency (USD/GBP/EUR/CAD/AUD), location, deadline, apply_link."
+            prompt: "You are extracting structured job posting data. If the page does not explicitly state a field, infer it conservatively from the content. Return concise values. For salary, prefer annual ranges. Populate: title, company, description (the full, complete job description, do not summarize), employment_type (e.g., Full-time, Contract, Internship), experience_level (e.g., Junior, Mid, Senior), tags (skills and technologies), salary, salary_min, salary_max, salary_currency (USD/GBP/EUR/CAD/AUD), location, deadline, apply_link."
           },
           {
             type: "screenshot",
@@ -414,7 +425,7 @@ Deno.serve(async (req) => {
         title: item.title || rawQuery,
         company: item.company,
         company_logo: item.company_logo || null,
-        description: item.description || null,
+        description: toPlainText(item.description),
         location: item.location || location || 'Remote',
         remote_type: 'Remote',
         employment_type: item.employment_type || null,
