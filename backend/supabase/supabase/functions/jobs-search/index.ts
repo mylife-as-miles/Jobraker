@@ -2,6 +2,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/types.ts';
 import { withRetry, resolveFirecrawlApiKey, firecrawlFetch } from '../_shared/firecrawl.ts';
+import { generateAiDescription } from '../_shared/openai.ts';
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -11,17 +12,6 @@ const supabaseAdmin = createClient(
 function hostFromUrl(u: string): string | null {
   try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return null; }
 }
-
-// Helper to convert basic HTML to plain text
-const toPlainText = (html: string | null | undefined): string => {
-  if (!html) return '';
-  return html
-    .replace(/<style[^>]*>.*<\/style>/gms, '') // remove style blocks
-    .replace(/<script[^>]*>.*<\/script>/gms, '') // remove script blocks
-    .replace(/<[^>]+>/g, ' ') // remove all other tags
-    .replace(/\s+/g, ' ') // collapse whitespace
-    .trim();
-};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -350,10 +340,25 @@ Deno.serve(async (req) => {
       return 0;
     });
 
-    // Save jobs directly to database
-    console.log('jobs-search.saving_to_database', { count: filtered.length, user_id: userId });
-    
-    const jobsToInsert = filtered.map((item) => {
+    // Process and enrich jobs with AI, then save to the database
+    console.log('jobs-search.enriching_and_saving', { count: filtered.length, user_id: userId });
+
+    const jobsToInsert = await Promise.all(filtered.map(async (item) => {
+      // Enrich with AI
+      let aiData;
+      try {
+        aiData = await generateAiDescription(
+          item.html,
+          item.markdown,
+          item.description,
+          item.title || rawQuery
+        );
+      } catch (e) {
+        console.error('jobs-search.ai_enrichment_failed', { error: e.message, url: item.url });
+        // Fallback to raw data if AI fails
+        aiData = { description: item.description || '', tags: item.tags || [] };
+      }
+
       // Parse deadline if available
       let expiresAt = null;
       if (item.deadline) {
@@ -425,12 +430,12 @@ Deno.serve(async (req) => {
         title: item.title || rawQuery,
         company: item.company,
         company_logo: item.company_logo || null,
-        description: toPlainText(item.description),
+        description: aiData.description,
         location: item.location || location || 'Remote',
         remote_type: 'Remote',
         employment_type: item.employment_type || null,
         experience_level: item.experience_level || null,
-        tags: item.tags || null,
+        tags: aiData.tags,
         apply_url: item.apply_link || item.url,
         posted_at: new Date().toISOString(),
         expires_at: expiresAt,
