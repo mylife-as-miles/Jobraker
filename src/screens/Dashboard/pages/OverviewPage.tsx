@@ -339,7 +339,7 @@ export const OverviewPage = (): JSX.Element => {
                   </div>
                 </div>
                 {/* Status Filter Pills */}
-                <div id="overview-status-filter-buttons" data-tour="overview-status-filter-buttons" className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mb-4 sm:mb-6">
+                <div id="overview-status-filter-buttons" data-tour="overview-status-filter-buttons" className="flex flex-wrap items-center justify-start gap-1.5 sm:gap-2 mb-4 sm:mb-6">
                   {['All','Applied','Interview','Offer','Rejected'].map(s => {
                     const active = s === 'All' ? !statusFilter : statusFilter?.includes(s as ApplicationStatus);
                     const baseColors: Record<string,string> = {
@@ -374,7 +374,7 @@ export const OverviewPage = (): JSX.Element => {
                 </div>
 
                 {/* Stats & Conversion Metrics */}
-        <div className="flex flex-wrap flex-row items-center justify-between sm:space-x-8 space-y-0 mb-4 sm:mb-6">
+        <div className="flex flex-wrap items-center justify-start gap-4 sm:gap-8 mb-4 sm:mb-6">
                   <motion.div 
                     className="text-center sm:text-left"
                     whileHover={{ scale: 1.05 }}
