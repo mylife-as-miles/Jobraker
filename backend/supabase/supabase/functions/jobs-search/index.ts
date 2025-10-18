@@ -470,7 +470,7 @@ Deno.serve(async (req) => {
           }
         },
       };
-    });
+    }));
 
     const { data: insertedJobs, error: insertError } = await supabaseAdmin
       .from('jobs')
