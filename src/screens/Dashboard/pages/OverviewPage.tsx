@@ -302,13 +302,13 @@ export const OverviewPage = (): JSX.Element => {
               <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 lg:p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-2">
                   <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Applications</h2>
-                  <div className="text-left sm:text-right">
-                    <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#1dff00]">{appliedCount}/{interviewCount}</span>
-                  </div>
+                  <span className="text-left sm:text-right text-2xl sm:text-2xl lg:text-3xl font-bold text-[#1dff00]">
+                    {appliedCount}/{interviewCount}
+                  </span>
                 </div>
 
                 {/* Period Selector + Stacked Toggle */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 sm:mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <div className="flex items-center gap-2">
                     {["Today", "1 Week", "1 Month"].map((period) => (
                       <Button
@@ -585,7 +585,7 @@ export const OverviewPage = (): JSX.Element => {
                       <div className="flex-1 min-w-0">
                         <p className="text-[11px] sm:text-sm text-white font-medium leading-relaxed tracking-tight truncate flex items-center gap-2">
                           {notification.title}
-                          <span className="flex text-[9px] px-1.5 py-0.5 rounded bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] font-semibold tracking-wide">NEW</span>
+                          <span className="hidden md:inline-flex text-[9px] px-1.5 py-0.5 rounded bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] font-semibold tracking-wide">NEW</span>
                         </p>
                         <p className="text-[10px] sm:text-xs text-white/40 mt-1 font-mono tracking-wide">{notification.time}</p>
                       </div>
