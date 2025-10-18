@@ -366,24 +366,34 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
       aria-describedby={rangeSelectable ? 'calendar-range-hint' : undefined}
     >
       {showHeader && (
-        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <button
-            type="button"
-            aria-label="Previous month"
-            onClick={() => onMonthChange?.(addMonths(viewMonth, -1))}
-            className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-2 rounded transition"
-          >
-            ←
-          </button>
-          <div className="flex flex-col items-center min-w-[140px]">
-            <h3 className="text-sm sm:text-base font-semibold text-white select-none leading-tight">{monthLabel}</h3>
-            <div className="mt-1 flex items-center gap-1 opacity-70 text-[9px]">
-              <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10">{addMonths(viewMonth,-1).toLocaleString(undefined,{month:'short'})}</span>
-              <span className="px-1.5 py-0.5 rounded bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00]">{viewMonth.toLocaleString(undefined,{month:'short'})}</span>
-              <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10">{addMonths(viewMonth,1).toLocaleString(undefined,{month:'short'})}</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-4">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Previous month"
+              onClick={() => onMonthChange?.(addMonths(viewMonth, -1))}
+              className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-2 rounded transition"
+            >
+              ←
+            </button>
+            <div className="flex flex-col items-center min-w-[140px]">
+              <h3 className="text-sm sm:text-base font-semibold text-white select-none leading-tight">{monthLabel}</h3>
+              <div className="mt-1 flex items-center gap-1 opacity-70 text-[9px]">
+                <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10">{addMonths(viewMonth,-1).toLocaleString(undefined,{month:'short'})}</span>
+                <span className="px-1.5 py-0.5 rounded bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00]">{viewMonth.toLocaleString(undefined,{month:'short'})}</span>
+                <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10">{addMonths(viewMonth,1).toLocaleString(undefined,{month:'short'})}</span>
+              </div>
             </div>
+            <button
+              type="button"
+              aria-label="Next month"
+              onClick={() => onMonthChange?.(addMonths(viewMonth, 1))}
+              className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-2 rounded transition"
+            >
+              →
+            </button>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center justify-end flex-wrap gap-1">
             <button
               type="button"
               onClick={() => onMonthChange?.(startOfMonth(new Date()))}
@@ -393,16 +403,8 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
             </button>
             <button
               type="button"
-              aria-label="Next month"
-              onClick={() => onMonthChange?.(addMonths(viewMonth, 1))}
-              className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-2 rounded transition"
-            >
-              →
-            </button>
-            <button
-              type="button"
               onClick={() => onViewModeChange?.(viewMode === 'month' ? 'week' : 'month')}
-              className="ml-1 text-xs px-2 py-1 rounded border border-white/10 hover:border-[#1dff00]/40 text-white/80 hover:text-[#1dff00] transition"
+              className="text-xs px-2 py-1 rounded border border-white/10 hover:border-[#1dff00]/40 text-white/80 hover:text-[#1dff00] transition"
             >
               {viewMode === 'month' ? 'Week' : 'Month'}
             </button>
@@ -533,7 +535,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.94 }}
               className={[
-                'relative text-left px-1.5 pt-1.5 pb-1 rounded-xl transition-all duration-150 flex flex-col gap-0.5 min-h-[64px] sm:min-h-[76px] group shadow-inner',
+                'relative text-left p-2 rounded-xl transition-all duration-150 flex flex-col gap-1 min-h-[72px] sm:min-h-[84px] group shadow-inner',
                 'focus:outline-none focus-visible:ring-2 ring-[#1dff00]/60',
                 cell.inCurrent ? 'cursor-pointer' : 'cursor-pointer opacity-40',
                 isWeekend && !isToday ? 'bg-[#1dff00]/[0.04]' : '',
@@ -547,26 +549,26 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               style={heatmapStyle}
             >
               <div className='flex items-center justify-between w-full'>
-                <div className='text-[10px] sm:text-xs leading-none mb-0.5 font-medium tracking-wide'>{cell.date.getDate()}</div>
+                <div className='text-xs sm:text-sm leading-none mb-0.5 font-medium tracking-wide'>{cell.date.getDate()}</div>
                 {showDayEventCount && dayEvents.length > 0 && (
-                  <span className='text-[9px] px-1 rounded-md bg-[#1dff00]/15 text-[#1dff00] font-semibold shadow-sm'>{dayEvents.length}</span>
+                  <span className='text-[10px] px-1.5 rounded-md bg-[#1dff00]/15 text-[#1dff00] font-semibold shadow-sm'>{dayEvents.length}</span>
                 )}
               </div>
               <div className="flex-1 w-full overflow-hidden flex flex-col">
                 {densityMode==='compact' && dayEvents.length>0 && (
-                  <div className="flex flex-wrap gap-0.5 mt-[2px]">
+                  <div className="flex flex-wrap gap-1 mt-1">
                     {dayEvents.slice(0, limit).map(ev => (
-                      <span key={ev.id} title={ev.title} draggable={allowDrag} onDragStart={(e)=>handleDragStart(e,ev)} className="w-2 h-2 rounded-full border border-black/40 shadow" style={{ background: statusColor(ev.status) }} />
+                      <span key={ev.id} title={ev.title} draggable={allowDrag} onDragStart={(e)=>handleDragStart(e,ev)} className="w-2.5 h-2.5 rounded-full border border-black/40 shadow" style={{ background: statusColor(ev.status) }} />
                     ))}
                     {extra>0 && !expanded && (
-                      <button type="button" onClick={()=>toggleExpanded(dayKey)} className="text-[9px] px-1 rounded bg-white/5 text-white/60 hover:text-[#1dff00]">+{extra}</button>
+                      <button type="button" onClick={()=>toggleExpanded(dayKey)} className="text-[10px] px-1.5 rounded bg-white/5 text-white/60 hover:text-[#1dff00]">+{extra}</button>
                     )}
                   </div>
                 )}
                 {densityMode==='full' && dayEvents.slice(0, limit).map(ev => (
                   <div key={ev.id} draggable={allowDrag} onDragStart={(e)=>handleDragStart(e,ev)}
                        title={ev.subtitle ? ev.title + ' — ' + ev.subtitle : ev.title}
-                       className={"relative group truncate rounded-md px-1.5 py-[2px] text-[9px] sm:text-[10px] font-medium mb-[3px] last:mb-0 flex items-center gap-1 border "+(motionDisabled?'':'transition-all hover:scale-[1.02]')}
+                       className={"relative group truncate rounded-md px-2 py-1 text-xs sm:text-sm font-medium mb-1 last:mb-0 flex items-center gap-1.5 border "+(motionDisabled?'':'transition-all hover:scale-[1.02]')}
                        style={{
                          background: 'linear-gradient(135deg,'+statusColor(ev.status)+'30, '+statusColor(ev.status)+'10)',
                          color: statusColor(ev.status),

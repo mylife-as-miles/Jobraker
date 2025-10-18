@@ -241,8 +241,8 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
                     </svg>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  <div className="flex flex-wrap gap-2 justify-end max-w-[320px]">
+                <div className="flex flex-col items-start sm:items-end gap-2">
+                  <div className="flex flex-wrap gap-2 justify-start sm:justify-end max-w-full sm:max-w-[320px]">
                     {ALL_STATUSES.map(s => {
                       const count = statusCounts[s] || 0;
                       const active = activeStatuses[s] !== false;
