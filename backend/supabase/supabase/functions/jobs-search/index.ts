@@ -48,38 +48,20 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
-    // Pull allowed sources (domains); fallback to popular job boards
-    const settingsRes = await supabaseAuthed
-      .from('job_source_settings')
-      .select('allowed_domains')
-      .eq('id', userId)
-      .maybeSingle();
-    const allowedDomains: string[] = Array.isArray(settingsRes?.data?.allowed_domains) ? settingsRes.data.allowed_domains.filter(Boolean) : [];
+    const allowedDomains = [
+      'remote.co',
+      'remotive.com',
+      'remoteok.com',
+      'jobicy.com',
+      'levels.fyi',
+    ];
     // Blocklist: exclude problematic domains from search
     const blocked = new Set([
       'techsolutions.com',
     ]);
-    const defaultDomains = [
-      'indeed.com',
-      'linkedin.com',
-      'glassdoor.com',
-      'angel.co',
-      'wellfound.com',           // Formerly angel.co, startup and tech jobs
-      'weworkremotely.com',       // Remote-specific positions
-      'remote.co',                // Curated remote jobs
-      'remotive.com',             // Remote tech and non-tech jobs
-      'remoteok.com',             // Remote jobs aggregator
-      'jobicy.com',               // Remote jobs in various fields
-      'levels.fyi',               // Tech jobs with salary data
-      'flexjobs.com',             // Flexible and remote work
-      'upwork.com',               // Freelance opportunities
-      'freelancer.com',           // Freelance projects
-      'dice.com',                 // Tech jobs and IT positions
-      'jobberman.com',            // Jobs in Africa
-    ];
 
     // Start from user-configured domains if present; else use defaults
-    let domainList = (allowedDomains.length > 0 ? allowedDomains : defaultDomains)
+    let domainList = allowedDomains
       .map((d) => String(d).toLowerCase().replace(/^www\./, ''))
       .filter((d) => {
         // Exclude any domain that matches or is a subdomain of a blocked entry
