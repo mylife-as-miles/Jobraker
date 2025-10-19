@@ -596,6 +596,7 @@ export const JobPage = (): JSX.Element => {
   const [autoApplyStep, setAutoApplyStep] = useState<1 | 2>(1);
   const [coverLetterLibrary, setCoverLetterLibrary] = useState<CoverLetterLibraryEntry[]>([]);
   const [selectedCoverLetterId, setSelectedCoverLetterId] = useState<string | null>(null);
+  const [jobToAutoApply, setJobToAutoApply] = useState<Job | null>(null);
 
   // Debug payload capture for in-app panel
   const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);
@@ -1003,6 +1004,7 @@ export const JobPage = (): JSX.Element => {
     }, []);
 
     const openAutoApplyFlow = useCallback(() => {
+      setJobToAutoApply(null);
       setAutoApplyStep(1);
       setResumeDialogOpen(true);
       loadCoverLetterLibrary();
@@ -1023,14 +1025,16 @@ export const JobPage = (): JSX.Element => {
 
     // Apply all jobs by delegating to automation workflow, then prune applied rows
     const applyAllJobs = useCallback(async () => {
-      if (applyingAll || !jobs.length) return;
+      if (applyingAll) return;
+      const targetJobs = jobToAutoApply ? [jobToAutoApply] : jobs;
+      if (!targetJobs.length) return;
 
-      const jobsWithTargets = jobs
+      const jobsWithTargets = targetJobs
         .map((job) => ({ job, target: getJobApplyTarget(job) }))
         .filter((item): item is { job: Job; target: string } => Boolean(item.target));
 
       if (!jobsWithTargets.length) {
-        safeInfo('No automation targets', 'These jobs are missing apply links. Refresh your queue or open the job detail to locate one manually.');
+        safeInfo('No automation targets', 'This job is missing an apply link. Refresh your queue or open the job detail to locate one manually.');
         return;
       }
 
@@ -1245,7 +1249,8 @@ export const JobPage = (): JSX.Element => {
     const total = sortedJobs.length;
   const visibleJobCount = total;
   const canAdvanceFromStepOne = !resumesLoading && (!Array.isArray(resumes) || resumes.length === 0 || Boolean(selectedResumeId));
-  const canLaunchAutoApply = visibleJobCount > 0 && (!Array.isArray(resumes) || resumes.length === 0 || Boolean(selectedResumeId));
+  const autoApplyTargetCount = jobToAutoApply ? 1 : visibleJobCount;
+  const canLaunchAutoApply = autoApplyTargetCount > 0 && (!Array.isArray(resumes) || resumes.length === 0 || Boolean(selectedResumeId));
   const autoApplyPrimaryDisabled = autoApplyStep === 1 ? !canAdvanceFromStepOne : !canLaunchAutoApply;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const clampedPage = Math.min(Math.max(1, currentPage), totalPages);
@@ -2082,16 +2087,29 @@ export const JobPage = (): JSX.Element => {
                                         </div>
                                       </div>
                                     </div>
-                                    {primaryHref && (
-                                      <a
-                                        href={primaryHref}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 rounded-lg border border-[#1dff00]/50 bg-[#1dff00]/15 px-4 py-2 text-sm font-medium text-[#1dff00] transition hover:bg-[#1dff00]/25 hover:shadow-[0_10px_30px_rgba(29,255,0,0.2)]"
+                                    <div className="flex items-center gap-2">
+                                      {primaryHref && (
+                                        <a
+                                          href={primaryHref}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-2 rounded-lg border border-[#1dff00]/50 bg-[#1dff00]/15 px-4 py-2 text-sm font-medium text-[#1dff00] transition hover:bg-[#1dff00]/25 hover:shadow-[0_10px_30px_rgba(29,255,0,0.2)]"
+                                        >
+                                          View Posting
+                                        </a>
+                                      )}
+                                      <Button
+                                        variant="ghost"
+                                        onClick={() => {
+                                          setJobToAutoApply(job);
+                                          openAutoApplyFlow();
+                                        }}
+                                        className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
                                       >
-                                        View Posting
-                                      </a>
-                                    )}
+                                        <Briefcase className="w-4 h-4" />
+                                        Auto Apply
+                                      </Button>
+                                    </div>
                                   </div>
 
                                   {metaTiles.length > 0 && (
@@ -2257,12 +2275,12 @@ export const JobPage = (): JSX.Element => {
                     </div>
                     <h3 className="text-xl sm:text-2xl font-semibold">Launch enterprise-grade automation</h3>
                     <p className="text-sm text-white/60">
-                      Deploy applications across <span className="text-[#1dff00] font-medium">{visibleJobCount}</span> curated roles with governed pacing, telemetry, and resume intelligence.
+                      Deploy applications across <span className="text-[#1dff00] font-medium">{autoApplyTargetCount}</span> curated roles with governed pacing, telemetry, and resume intelligence.
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-2 text-right min-w-[150px]">
                     <div className="text-[11px] uppercase tracking-wide text-white/40">Jobs queued</div>
-                    <div className="text-2xl font-semibold text-[#1dff00]">{visibleJobCount}</div>
+                    <div className="text-2xl font-semibold text-[#1dff00]">{autoApplyTargetCount}</div>
                     {selectedResume && (
                       <div className="text-[11px] text-white/50 truncate max-w-[180px]">Resume • {selectedResume.name}</div>
                     )}
@@ -2494,7 +2512,7 @@ export const JobPage = (): JSX.Element => {
                           Execution summary
                         </div>
                         <div className="mt-4 flex items-baseline gap-2">
-                          <span className="text-3xl font-semibold text-[#1dff00]">{visibleJobCount}</span>
+                          <span className="text-3xl font-semibold text-[#1dff00]">{autoApplyTargetCount}</span>
                           <span className="text-sm text-white/75">jobs targeted</span>
                         </div>
                         <p className="mt-3 text-xs text-white/70">Applications are sequenced with rate-limit awareness, logging telemetry to Diagnostics as each job is processed.</p>
@@ -2698,16 +2716,29 @@ export const JobPage = (): JSX.Element => {
                             ))}
                           </div>
                         )}
-                        {primaryHref && (
-                          <a
-                            href={primaryHref}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#1dff00]/50 bg-[#1dff00]/15 px-3 py-2 text-[13px] font-medium text-[#1dff00] transition hover:bg-[#1dff00]/25"
+                        <div className="flex items-center gap-2">
+                          {primaryHref && (
+                            <a
+                              href={primaryHref}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#1dff00]/50 bg-[#1dff00]/15 px-3 py-2 text-[13px] font-medium text-[#1dff00] transition hover:bg-[#1dff00]/25"
+                            >
+                              View Posting
+                            </a>
+                          )}
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              setJobToAutoApply(j);
+                              openAutoApplyFlow();
+                            }}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-[13px] font-medium text-white transition hover:bg-white/20"
                           >
-                            View Posting
-                          </a>
-                        )}
+                            <Briefcase className="w-4 h-4" />
+                            Auto Apply
+                          </Button>
+                        </div>
                       </div>
                     </Card>
                   );

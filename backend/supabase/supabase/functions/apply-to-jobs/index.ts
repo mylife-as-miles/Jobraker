@@ -6,6 +6,8 @@
 //   additional_information?: string,
 //   resume?: string, // e.g., s3:// or https://
 //   cover_letter?: string, // optional: plaintext cover letter content
+//   user_input?: object, // optional: user profile data
+//   email?: string, // optional: user email
 //   workflow_id?: string, // defaults to env SKYVERN_WORKFLOW_ID
 //   proxy_location?: string, // optional, forwarded to Skyvern
 //   webhook_url?: string // optional, forwarded to Skyvern
@@ -13,7 +15,6 @@
 // Returns the Skyvern run response.
 
 import { corsHeaders } from "../_shared/types.ts";
-import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 
@@ -94,12 +95,14 @@ Deno.serve(async (req) => {
   const job_urls = (jobUrlsFromJobUrls.length ? jobUrlsFromJobUrls : jobUrlsFromJobs);
 
   let additional_information = typeof body?.additional_information === "string" ? body.additional_information : "";
-  let resume = typeof body?.resume === "string" ? body.resume : "";
+  const resume = typeof body?.resume === "string" ? body.resume : "";
   const cover_letter = typeof body?.cover_letter === "string" ? body.cover_letter : undefined;
   const proxy_location = typeof body?.proxy_location === "string" ? body.proxy_location : undefined;
   // Allow override, else use our function URL if configured
   let webhook_url = typeof body?.webhook_url === "string" ? body.webhook_url : undefined;
   const title = typeof body?.title === "string" ? body.title : undefined;
+  const user_input = typeof body?.user_input === "object" ? body.user_input : {};
+  const email = typeof body?.email === "string" ? body.email : "";
 
     // Secrets: prefer environment over header to avoid client override
     const envKey = Deno.env.get("SKYVERN_API_KEY");
@@ -117,67 +120,18 @@ Deno.serve(async (req) => {
     if (!job_urls.length) {
       return new Response(JSON.stringify({ error: "job_urls is required (array of URLs or jobs with sourceUrl)" }), { status: 400, headers: { ...corsHeaders, "content-type": "application/json" } });
     }
-    // Enrichment (profile/resume) if either missing
-    try {
-      if (!additional_information || !resume) {
-        const authHeader = req.headers.get('authorization') || '';
-        const token = authHeader.startsWith('Bearer ')? authHeader.slice(7) : null;
-        if (token) {
-          const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-          const anon = Deno.env.get('SUPABASE_ANON_KEY') || '';
-          if (supabaseUrl && anon) {
-            const sb = createClient(supabaseUrl, anon);
-            try { (sb as any).auth.setAuth(token); } catch {}
-            // Profile
-            if (!additional_information) {
-              const { data: prof } = await sb.from('profiles')
-                .select('id,first_name,last_name,job_title,experience_years,location,goals')
-                .limit(1).maybeSingle();
-              const { data: authUser } = await (sb.auth as any).getUser();
-              const email = (authUser as any)?.user?.email;
-              if (prof) {
-                const parts: string[] = [];
-                const fullName = [prof.first_name, prof.last_name].filter(Boolean).join(' ').trim();
-                if (fullName) parts.push(`Name: ${fullName}`);
-                if (email) parts.push(`Email: ${email}`);
-                if (prof.job_title) parts.push(`Current Title: ${prof.job_title}`);
-                if (prof.experience_years != null) parts.push(`Experience: ${prof.experience_years} years`);
-                if (prof.location) parts.push(`Location: ${prof.location}`);
-                if (Array.isArray(prof.goals) && prof.goals.length) parts.push(`Goals: ${prof.goals.join(', ')}`);
-                if (parts.length) additional_information = parts.join('\n');
-                console.log('apply-to-jobs: enriched profile', { user_id: prof.id, job_count: job_urls.length });
-              } else {
-                console.log('apply-to-jobs: profile missing', { job_count: job_urls.length });
-              }
-            }
-            // Resume
-            if (!resume) {
-              const { data: resumes } = await sb.from('resumes')
-                .select('file_path,is_favorite,updated_at,user_id')
-                .not('file_path','is',null)
-                .order('is_favorite', { ascending: false })
-                .order('updated_at', { ascending: false })
-                .limit(1);
-              const top = Array.isArray(resumes) && resumes.length ? resumes[0] : null;
-              if (top?.file_path) {
-                const { data: signed, error: signErr } = await (sb.storage as any)
-                  .from('resumes')
-                  .createSignedUrl(top.file_path, 60 * 60);
-                if (!signErr && signed?.signedUrl) {
-                  resume = signed.signedUrl;
-                  console.log('apply-to-jobs: enriched resume', { user_id: (top as any).user_id, job_count: job_urls.length });
-                } else {
-                  console.log('apply-to-jobs: resume sign error', { err: signErr?.message, job_count: job_urls.length });
-                }
-              } else {
-                console.log('apply-to-jobs: resume missing', { job_count: job_urls.length });
-              }
-            }
-          }
-        }
-      }
-    } catch (enrichErr) {
-      try { console.log('apply-to-jobs enrichment error', (enrichErr as any)?.message); } catch {}
+
+    // Construct additional_information from user_input if not provided
+    if (!additional_information && user_input && typeof user_input === 'object') {
+      const parts: string[] = [];
+      const fullName = [user_input.first_name, user_input.last_name].filter(Boolean).join(' ').trim();
+      if (fullName) parts.push(`Name: ${fullName}`);
+      if (email) parts.push(`Email: ${email}`);
+      if (user_input.job_title) parts.push(`Current Title: ${user_input.job_title}`);
+      if (user_input.experience_years != null) parts.push(`Experience: ${user_input.experience_years} years`);
+      if (user_input.location) parts.push(`Location: ${user_input.location}`);
+      if (Array.isArray(user_input.goals) && user_input.goals.length) parts.push(`Goals: ${user_input.goals.join(', ')}`);
+      if (parts.length) additional_information = parts.join('\n');
     }
 
     // Prepare Skyvern payload
