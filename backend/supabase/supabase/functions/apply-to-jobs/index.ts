@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
 
   let additional_information = typeof body?.additional_information === "string" ? body.additional_information : "";
   const resume = typeof body?.resume === "string" ? body.resume : "";
-  const cover_letter = typeof body?.cover_letter === "string" ? body.cover_letter : undefined;
+  let cover_letter = typeof body?.cover_letter === "string" ? body.cover_letter : "";
   const proxy_location = typeof body?.proxy_location === "string" ? body.proxy_location : undefined;
   // Allow override, else use our function URL if configured
   let webhook_url = typeof body?.webhook_url === "string" ? body.webhook_url : undefined;
@@ -134,13 +134,31 @@ Deno.serve(async (req) => {
       if (parts.length) additional_information = parts.join('\n');
     }
 
+    // If cover letter is missing, generate a default one.
+    if (!cover_letter || !cover_letter.trim()) {
+      const fullName = [user_input.first_name, user_input.last_name].filter(Boolean).join(' ').trim();
+      const applicantName = fullName || (additional_information.match(/Name:\s*(.*)/)?.[1] || 'the candidate');
+      cover_letter = `Dear Hiring Manager,
+
+I am writing to express my strong interest in the position. With a background in ${user_input?.job_title || 'a relevant field'} and ${user_input?.experience_years || 'several'} years of experience, I am confident that I possess the skills and qualifications necessary to excel in this role.
+
+My resume provides further detail on my accomplishments. I am eager to learn more about this opportunity and discuss how my experience can benefit your team.
+
+Thank you for your time and consideration.
+
+Sincerely,
+${applicantName}
+      `.trim();
+    }
+
     // Prepare Skyvern payload
     const parameters: Record<string, any> = {
       job_urls: stringifyArrayForSkyvern(job_urls),
       additional_information,
       resume,
+      cover_letter,
+      email,
     };
-    if (cover_letter && cover_letter.trim()) parameters.cover_letter = cover_letter;
   const skyvernRun: Record<string, any> = { workflow_id, parameters };
     if (proxy_location) skyvernRun.proxy_location = proxy_location;
     if (!webhook_url) {
