@@ -137,8 +137,9 @@ Deno.serve(async (req) => {
     // Prepare Skyvern payload
     const parameters: Record<string, any> = {
       job_urls: stringifyArrayForSkyvern(job_urls),
+      additional_information,
       resume,
-      user_input,
+      user_input: JSON.stringify(user_input),
       email,
     };
 
