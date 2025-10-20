@@ -18,6 +18,7 @@ import { applyToJobs } from "../../../services/applications/applyToJobs";
 import { cn } from "../../../lib/utils";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
+import { CompactMatchScore } from "../../../components/CompactMatchScore";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -554,9 +555,9 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
       status: dbJob.status,
       source_type: dbJob.source_type ?? null,
       source_id: dbJob.source_id ?? null,
-      matchScore: typeof insights?.score === 'number' ? insights.score : undefined,
-      matchBreakdown: Array.isArray(insights?.breakdown) ? insights.breakdown : undefined,
-      matchSummary: typeof insights?.summary === 'string' ? insights.summary : undefined,
+      matchScore: insights?.score,
+      matchBreakdown: insights?.breakdown,
+      matchSummary: insights?.summary,
     };
   };
 
@@ -1907,6 +1908,12 @@ export const JobPage = (): JSX.Element => {
                                 {job.posted_at ? formatRelative(job.posted_at) : ''}
                               </span>
                             </div>
+                             {typeof job.matchScore === 'number' && (
+                              <CompactMatchScore
+                                score={job.matchScore}
+                                summary={job.matchSummary}
+                              />
+                            )}
                           </div>
                         </div>
                       </div>
