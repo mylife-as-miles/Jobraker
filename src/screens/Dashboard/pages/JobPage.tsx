@@ -2275,9 +2275,11 @@ export const JobPage = (): JSX.Element => {
                       <Sparkles className="w-3 h-3" />
                       Auto Apply
                     </div>
-                    <h3 className="text-xl sm:text-2xl font-semibold">Launch enterprise-grade automation</h3>
+                    <h3 className="text-xl sm:text-2xl font-semibold">{jobToAutoApply ? 'Auto Apply to specific job' : 'Launch enterprise-grade automation'}</h3>
                     <p className="text-sm text-white/60">
-                      Deploy applications across <span className="text-[#1dff00] font-medium">{autoApplyTargetCount}</span> curated roles with governed pacing, telemetry, and resume intelligence.
+                      {jobToAutoApply ?
+                        <>Applying to <strong>{jobToAutoApply.title}</strong></> :
+                        <>Deploy applications across <span className="text-[#1dff00] font-medium">{autoApplyTargetCount}</span> curated roles with governed pacing, telemetry, and resume intelligence.</>}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-2 text-right min-w-[150px]">
