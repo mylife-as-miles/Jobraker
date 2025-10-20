@@ -1004,7 +1004,6 @@ export const JobPage = (): JSX.Element => {
     }, []);
 
     const openAutoApplyFlow = useCallback(() => {
-      setJobToAutoApply(null);
       setAutoApplyStep(1);
       setResumeDialogOpen(true);
       loadCoverLetterLibrary();
@@ -1472,7 +1471,10 @@ export const JobPage = (): JSX.Element => {
                     </div>
                     <Button
                       variant="ghost"
-                      onClick={openAutoApplyFlow}
+                      onClick={() => {
+                        setJobToAutoApply(null);
+                        openAutoApplyFlow();
+                      }}
                       className={`relative overflow-hidden border border-[#1dff00]/40 text-white px-3 py-2 sm:px-4 sm:py-2 md:px-5 rounded-xl transition-all duration-300 text-xs sm:text-sm ${applyingAll ? 'bg-[#1dff00]/20 text-[#1dff00]' : 'bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 hover:from-[#1dff00]/20 hover:to-[#1dff00]/5'}`}
                       title="Auto apply all visible jobs"
                       disabled={applyingAll || queueStatus !== 'ready' || jobs.length === 0}
