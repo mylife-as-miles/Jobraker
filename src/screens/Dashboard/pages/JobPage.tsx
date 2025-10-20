@@ -76,17 +76,6 @@ const uniqueTokens = (tokens: string[]): string[] => Array.from(new Set(tokens))
 
 const clamp = (value: number, min = 0, max = 100) => Math.min(max, Math.max(min, value));
 
-const toPlainText = (html?: string | null): string => {
-  if (!html) return "";
-  try {
-    const temp = document.createElement("div");
-    temp.innerHTML = html;
-    return temp.textContent || temp.innerText || "";
-  } catch {
-    return String(html);
-  }
-};
-
 const buildTokenSet = (...segments: Array<string | undefined | null>): Set<string> => {
   const tokens = segments.flatMap((segment) => uniqueTokens(tokenize(segment)));
   return new Set(tokens);
@@ -579,6 +568,15 @@ const sanitizeHtml = (html: string) => {
     out = out.replace(/href\s*=\s*(["'])javascript:[^"']*\1/gi, 'href="#"');
     out = out.replace(/ on[a-z]+\s*=\s*(["']).*?\1/gi, "");
     return out;
+};
+
+const toPlainText = (html: string) => {
+  if (typeof window === 'undefined' || !html) {
+    return '';
+  }
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return div.textContent || div.innerText || '';
 };
 
 export const JobPage = (): JSX.Element => {
@@ -1092,6 +1090,8 @@ export const JobPage = (): JSX.Element => {
           jobs: payloadJobs,
           title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
           cover_letter: coverLetterPayload,
+          user_input: profile,
+          email: profile?.email,
           ...(profileSnapshot ? { additional_information: profileSnapshot } : {}),
           ...(resumeSignedUrl ? { resume: resumeSignedUrl } : {}),
         });
