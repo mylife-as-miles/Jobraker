@@ -76,6 +76,17 @@ const uniqueTokens = (tokens: string[]): string[] => Array.from(new Set(tokens))
 
 const clamp = (value: number, min = 0, max = 100) => Math.min(max, Math.max(min, value));
 
+const toPlainText = (html?: string | null): string => {
+  if (!html) return "";
+  try {
+    const temp = document.createElement("div");
+    temp.innerHTML = html;
+    return temp.textContent || temp.innerText || "";
+  } catch {
+    return String(html);
+  }
+};
+
 const buildTokenSet = (...segments: Array<string | undefined | null>): Set<string> => {
   const tokens = segments.flatMap((segment) => uniqueTokens(tokenize(segment)));
   return new Set(tokens);

@@ -102,7 +102,12 @@ Deno.serve(async (req) => {
   let webhook_url = typeof body?.webhook_url === "string" ? body.webhook_url : undefined;
   const title = typeof body?.title === "string" ? body.title : undefined;
   const user_input = typeof body?.user_input === "object" ? body.user_input : {};
-  const email = typeof body?.email === "string" ? body.email : "";
+  let email = typeof body?.email === "string" ? body.email : "";
+
+    // If email is missing, try to get it from user_input
+    if (!email && user_input && typeof (user_input as any).email === 'string') {
+      email = (user_input as any).email;
+    }
 
     // Secrets: prefer environment over header to avoid client override
     const envKey = Deno.env.get("SKYVERN_API_KEY");
