@@ -15,6 +15,7 @@
 // Returns the Skyvern run response.
 
 import { corsHeaders } from "../_shared/types.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 
@@ -102,7 +103,25 @@ Deno.serve(async (req) => {
   let webhook_url = typeof body?.webhook_url === "string" ? body.webhook_url : undefined;
   const title = typeof body?.title === "string" ? body.title : undefined;
   const user_input = typeof body?.user_input === "object" ? body.user_input : {};
-  const email = typeof body?.email === "string" ? body.email : "";
+  let email = typeof body?.email === "string" ? body.email : "";
+
+    // If email is not provided, fetch it from the user's profile using user_id.
+    const user_id = user_input?.id;
+    if (!email && user_id) {
+      try {
+        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        const sb = createClient(Deno.env.get('SUPABASE_URL')!, serviceKey, { auth: { persistSession: false } });
+        const { data: user, error: userError } = await sb.from('users').select('email').eq('id', user_id).single();
+        if (userError) throw userError;
+        if (user?.email) {
+          email = user.email;
+        } else {
+          console.warn(`User email not found for user_id: ${user_id}`);
+        }
+      } catch (e) {
+        console.error(`Failed to fetch user email for user_id: ${user_id}`, e.message);
+      }
+    }
 
     // Secrets: prefer environment over header to avoid client override
     const envKey = Deno.env.get("SKYVERN_API_KEY");
@@ -184,6 +203,35 @@ Deno.serve(async (req) => {
     try { data = JSON.parse(text); } catch { data = { raw: text }; }
     if (!res.ok) {
       return new Response(JSON.stringify({ error: "Skyvern run failed", status: res.status, data }), { status: 502, headers: { ...corsHeaders, "content-type": "application/json" } });
+    }
+
+    // After successful run, create an application record in our DB for tracking.
+    const run_id = data?.run_id || data?.id;
+    if (run_id) {
+      const user_id = user_input?.id;
+      if (user_id) {
+        try {
+          const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+          const sb = createClient(Deno.env.get('SUPABASE_URL')!, serviceKey, { auth: { persistSession: false } });
+          const { error: dbError } = await sb.from('applications').insert({
+            run_id: run_id,
+            user_id: user_id,
+            provider_status: 'pending',
+            status: 'Submitted',
+            // Per webhook: Source: https://...
+            notes: `Source: ${job_urls.join('|')}`,
+            // Add user's email to the `reply_to` field, fixing the missing email issue.
+            reply_to: email,
+          });
+          if (dbError) {
+            console.error('Failed to insert application record', { run_id, user_id, error: dbError.message });
+          }
+        } catch (dbE) {
+          console.error('Exception during DB insert for application', { run_id, user_id, error: dbE.message });
+        }
+      } else {
+        console.warn('Cannot save application record: user_id missing from user_input', { run_id });
+      }
     }
 
     // Return provider response and echo useful fields
