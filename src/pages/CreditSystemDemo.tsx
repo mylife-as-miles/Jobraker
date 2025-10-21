@@ -19,37 +19,60 @@ const CreditSystemDemo: React.FC = () => {
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center gap-3">
             <Coins className="w-8 h-8 text-green-600" />
-            <h1 className="text-4xl font-bold text-gray-900">Credit Pack System</h1>
+            <h1 className="text-4xl font-bold text-gray-900">Subscription Tiers</h1>
           </div>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            One-time credit purchases with exceptional profit margins (33-57%)
+            Scalable monthly plans from free to enterprise - find the perfect fit
           </p>
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg max-w-4xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm">
-              <div className="text-center">
-                <div className="font-semibold text-blue-900">Mini Pack</div>
-                <div className="text-blue-700">$7 • 10 credits</div>
-                <Badge className="bg-blue-100 text-blue-800 text-xs">2.3x markup</Badge>
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg max-w-6xl mx-auto">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-xs">
+              <div className="text-center p-2 bg-gray-100 rounded">
+                <div className="font-semibold text-gray-900">FREE</div>
+                <div className="text-gray-700">Explorer</div>
+                <div className="text-green-600 font-medium">$0/mo</div>
+                <div className="text-gray-600">5 apps</div>
               </div>
-              <div className="text-center">
-                <div className="font-semibold text-blue-900">Starter Pack</div>
-                <div className="text-blue-700">$16 • 25 credits</div>
-                <Badge className="bg-blue-100 text-blue-800 text-xs">2.1x markup</Badge>
+              <div className="text-center p-2 bg-blue-100 rounded">
+                <div className="font-semibold text-blue-900">HOBBY</div>
+                <div className="text-blue-700">Weekend</div>
+                <div className="text-blue-600 font-medium">$9/mo</div>
+                <div className="text-blue-600">15 apps</div>
               </div>
-              <div className="text-center border-2 border-green-300 bg-green-50 rounded-lg p-2">
-                <div className="font-semibold text-green-900">Value Pack</div>
-                <div className="text-green-700">$42 • 75 credits</div>
-                <Badge className="bg-green-500 text-white text-xs">1.9x markup</Badge>
+              <div className="text-center p-2 bg-green-100 rounded border-2 border-green-300">
+                <div className="font-semibold text-green-900">STARTER</div>
+                <div className="text-green-700">Active</div>
+                <div className="text-green-600 font-medium">$29/mo</div>
+                <div className="text-green-600">50 apps</div>
               </div>
-              <div className="text-center">
-                <div className="font-semibold text-blue-900">Power Pack</div>
-                <div className="text-blue-700">$99 • 200 credits</div>
-                <Badge className="bg-blue-100 text-blue-800 text-xs">1.7x markup</Badge>
+              <div className="text-center p-2 bg-orange-100 rounded border-2 border-orange-300">
+                <div className="font-semibold text-orange-900">GROWTH</div>
+                <div className="text-orange-700">Changer</div>
+                <div className="text-orange-600 font-medium">$69/mo</div>
+                <div className="text-orange-600">100 apps</div>
               </div>
-              <div className="text-center">
-                <div className="font-semibold text-blue-900">Mega Pack</div>
-                <div className="text-blue-700">$225 • 500 credits</div>
-                <Badge className="bg-blue-100 text-blue-800 text-xs">1.5x markup</Badge>
+              <div className="text-center p-2 bg-purple-100 rounded">
+                <div className="font-semibold text-purple-900">PRO</div>
+                <div className="text-purple-700">Aggressive</div>
+                <div className="text-purple-600 font-medium">$149/mo</div>
+                <div className="text-purple-600">300 apps</div>
+              </div>
+              <div className="text-center p-2 bg-red-100 rounded">
+                <div className="font-semibold text-red-900">SCALE</div>
+                <div className="text-red-700">Powerhouse</div>
+                <div className="text-red-600 font-medium">$299/mo</div>
+                <div className="text-red-600">750 apps</div>
+              </div>
+              <div className="text-center p-2 bg-gray-900 text-white rounded">
+                <div className="font-semibold">ULTIMATE</div>
+                <div className="text-gray-300">Enterprise</div>
+                <div className="text-white font-medium">$599/mo</div>
+                <div className="text-gray-300">2K apps</div>
+              </div>
+              <div className="text-center p-2 bg-indigo-100 rounded">
+                <div className="font-semibold text-indigo-900">ENTERPRISE</div>
+                <div className="text-indigo-700">Custom</div>
+                <div className="text-indigo-600 font-medium">Custom</div>
+                <div className="text-indigo-600">Unlimited</div>
               </div>
             </div>
           </div>
@@ -59,7 +82,7 @@ const CreditSystemDemo: React.FC = () => {
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="plans">Credit Packs</TabsTrigger>
+            <TabsTrigger value="plans">Subscription Tiers</TabsTrigger>
             <TabsTrigger value="analytics">Usage Analytics</TabsTrigger>
             <TabsTrigger value="features">Feature Demo</TabsTrigger>
             <TabsTrigger value="admin">Admin Tools</TabsTrigger>

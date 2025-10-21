@@ -1,70 +1,106 @@
 -- Insert default subscription plans and credit costs
 -- This sets up the initial credit system configuration
 
--- Insert credit pack plans (one-time purchases with higher margins)
+-- Insert subscription tier plans (monthly recurring with application limits)
 INSERT INTO "public"."subscription_plans" (
     "name", "description", "price", "currency", "billing_cycle", "credits_per_cycle", 
     "features", "is_active", "sort_order"
 ) VALUES 
--- Mini Pack - 10 credits for $7 (2.3x markup)
+-- FREE - Job Seeker Explorer
 (
-    'Mini Pack',
-    '10 credits for quick job search tasks - Perfect for trying our premium features',
-    7.00,
+    'Job Seeker Explorer',
+    'Perfect for casual job searching and exploring opportunities',
+    0.00,
     'USD',
-    'lifetime',
-    10,
-    '["Basic job search", "Resume storage", "Application tracking", "AI assistance"]'::jsonb,
+    'monthly',
+    5,
+    '["Basic job search", "Resume storage", "Application tracking", "Community support"]'::jsonb,
     true,
     1
 ),
--- Starter Pack - 25 credits for $16 (2.1x markup)
+-- HOBBY - Weekend Searcher
 (
-    'Starter Pack',
-    '25 credits for regular job seekers - Great for active searching',
-    16.00,
+    'Weekend Searcher',
+    'Ideal for weekend job hunters and part-time seekers',
+    9.00,
     'USD',
-    'lifetime',
-    25,
-    '["Advanced job search", "AI resume optimization", "Cover letter generation", "Interview preparation", "Priority support"]'::jsonb,
+    'monthly',
+    15,
+    '["Everything in Explorer", "AI resume tips", "Basic cover letter templates", "Email support"]'::jsonb,
     true,
     2
 ),
--- Value Pack - 75 credits for $42 (1.9x markup) - BEST VALUE
+-- STARTER - Active Job Seeker
 (
-    'Value Pack',
-    '75 credits - Best value for serious job seekers! Save 33% compared to smaller packs',
-    42.00,
+    'Active Job Seeker',
+    'For those actively searching and applying regularly',
+    29.00,
     'USD',
-    'lifetime',
-    75,
-    '["Everything in Starter", "Advanced analytics", "Custom branding", "ATS optimization", "Salary insights", "Market analysis"]'::jsonb,
+    'monthly',
+    50,
+    '["Everything in Weekend", "AI resume optimization", "Custom cover letters", "Interview preparation", "Priority support"]'::jsonb,
     true,
     3
 ),
--- Power Pack - 200 credits for $99 (1.7x markup)
+-- GROWTH - Career Changer
 (
-    'Power Pack',
-    '200 credits for heavy users - Ideal for comprehensive job search campaigns',
-    99.00,
+    'Career Changer',
+    'Perfect for career transitions and comprehensive job searches',
+    69.00,
     'USD',
-    'lifetime',
-    200,
-    '["Everything in Value", "Priority processing", "API access", "Advanced integrations", "Dedicated support", "Bulk operations"]'::jsonb,
+    'monthly',
+    100,
+    '["Everything in Active", "Career transition tools", "Skills gap analysis", "Industry insights", "Personal job coach"]'::jsonb,
     true,
     4
 ),
--- Mega Pack - 500 credits for $225 (1.5x markup)
+-- PRO - Aggressive Applicant
 (
-    'Mega Pack',
-    '500 credits - Maximum value for power users and teams',
-    225.00,
+    'Aggressive Applicant',
+    'For serious job seekers who apply frequently and need advanced tools',
+    149.00,
     'USD',
-    'lifetime',
-    500,
-    '["Everything in Power", "Team collaboration", "Admin dashboard", "White labeling", "Custom workflows", "24/7 support"]'::jsonb,
+    'monthly',
+    300,
+    '["Everything in Career Changer", "Advanced analytics", "Bulk application tools", "Custom branding", "API access"]'::jsonb,
     true,
     5
+),
+-- SCALE - Professional Powerhouse
+(
+    'Professional Powerhouse',
+    'For power users and recruiters managing high-volume applications',
+    299.00,
+    'USD',
+    'monthly',
+    750,
+    '["Everything in Aggressive", "Team collaboration", "Advanced reporting", "White-label options", "Dedicated account manager"]'::jsonb,
+    true,
+    6
+),
+-- ULTIMATE - Enterprise Unlimited
+(
+    'Enterprise Unlimited',
+    'Maximum features for enterprise users and high-volume professionals',
+    599.00,
+    'USD',
+    'monthly',
+    2000,
+    '["Everything in Professional", "Unlimited team members", "Custom integrations", "24/7 phone support", "SLA guarantee"]'::jsonb,
+    true,
+    7
+),
+-- ENTERPRISE - Custom Solutions
+(
+    'Custom Solutions',
+    'Tailored enterprise solutions with custom pricing and features',
+    0.00,
+    'USD',
+    'yearly',
+    10000,
+    '["Custom feature development", "Dedicated infrastructure", "Enterprise security", "Custom SLA", "On-premise deployment options"]'::jsonb,
+    true,
+    8
 )
 ON CONFLICT DO NOTHING;
 
