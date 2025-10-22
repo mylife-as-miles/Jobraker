@@ -1,106 +1,46 @@
 -- Insert default subscription plans and credit costs
 -- This sets up the initial credit system configuration
 
--- Insert subscription tier plans (monthly recurring with application limits)
+-- Insert simplified subscription tier plans (3-tier model)
 INSERT INTO "public"."subscription_plans" (
     "name", "description", "price", "currency", "billing_cycle", "credits_per_cycle", 
     "features", "is_active", "sort_order"
 ) VALUES 
--- FREE - Job Seeker Explorer
+-- FREE - Basic Plan
 (
-    'Job Seeker Explorer',
-    'Perfect for casual job searching and exploring opportunities',
+    'Free',
+    'Perfect for getting started with basic job search features',
     0.00,
     'USD',
     'monthly',
-    5,
-    '["Basic job search", "Resume storage", "Application tracking", "Community support"]'::jsonb,
+    10,
+    '["Basic job search", "Resume storage", "Application tracking", "Community support", "Email notifications"]'::jsonb,
     true,
     1
 ),
--- HOBBY - Weekend Searcher
+-- PRO - Professional Plan
 (
-    'Weekend Searcher',
-    'Ideal for weekend job hunters and part-time seekers',
-    9.00,
+    'Pro',
+    'For serious job seekers who need advanced tools and higher limits',
+    49.00,
     'USD',
     'monthly',
-    15,
-    '["Everything in Explorer", "AI resume tips", "Basic cover letter templates", "Email support"]'::jsonb,
+    200,
+    '["Everything in Free", "AI resume optimization", "Custom cover letters", "Interview preparation", "Priority support", "Advanced analytics", "Bulk operations", "Custom branding", "API access"]'::jsonb,
     true,
     2
 ),
--- STARTER - Active Job Seeker
+-- ULTIMATE - Enterprise Plan
 (
-    'Active Job Seeker',
-    'For those actively searching and applying regularly',
-    29.00,
+    'Ultimate',
+    'Maximum features for enterprise users and high-volume professionals',
+    199.00,
     'USD',
     'monthly',
-    50,
-    '["Everything in Weekend", "AI resume optimization", "Custom cover letters", "Interview preparation", "Priority support"]'::jsonb,
+    1000,
+    '["Everything in Pro", "Unlimited team members", "Custom integrations", "24/7 phone support", "SLA guarantee", "White-label options", "Dedicated account manager", "Custom workflows", "Enterprise security"]'::jsonb,
     true,
     3
-),
--- GROWTH - Career Changer
-(
-    'Career Changer',
-    'Perfect for career transitions and comprehensive job searches',
-    69.00,
-    'USD',
-    'monthly',
-    100,
-    '["Everything in Active", "Career transition tools", "Skills gap analysis", "Industry insights", "Personal job coach"]'::jsonb,
-    true,
-    4
-),
--- PRO - Aggressive Applicant
-(
-    'Aggressive Applicant',
-    'For serious job seekers who apply frequently and need advanced tools',
-    149.00,
-    'USD',
-    'monthly',
-    300,
-    '["Everything in Career Changer", "Advanced analytics", "Bulk application tools", "Custom branding", "API access"]'::jsonb,
-    true,
-    5
-),
--- SCALE - Professional Powerhouse
-(
-    'Professional Powerhouse',
-    'For power users and recruiters managing high-volume applications',
-    299.00,
-    'USD',
-    'monthly',
-    750,
-    '["Everything in Aggressive", "Team collaboration", "Advanced reporting", "White-label options", "Dedicated account manager"]'::jsonb,
-    true,
-    6
-),
--- ULTIMATE - Enterprise Unlimited
-(
-    'Enterprise Unlimited',
-    'Maximum features for enterprise users and high-volume professionals',
-    599.00,
-    'USD',
-    'monthly',
-    2000,
-    '["Everything in Professional", "Unlimited team members", "Custom integrations", "24/7 phone support", "SLA guarantee"]'::jsonb,
-    true,
-    7
-),
--- ENTERPRISE - Custom Solutions
-(
-    'Custom Solutions',
-    'Tailored enterprise solutions with custom pricing and features',
-    0.00,
-    'USD',
-    'yearly',
-    10000,
-    '["Custom feature development", "Dedicated infrastructure", "Enterprise security", "Custom SLA", "On-premise deployment options"]'::jsonb,
-    true,
-    8
 )
 ON CONFLICT DO NOTHING;
 

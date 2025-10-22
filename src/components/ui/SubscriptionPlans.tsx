@@ -64,22 +64,12 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
 
   const getPlanIcon = (planName: string) => {
     switch (planName.toLowerCase()) {
-      case 'job seeker explorer':
+      case 'free':
         return <Star className="w-5 h-5 text-gray-600" />;
-      case 'weekend searcher':
+      case 'pro':
         return <Zap className="w-5 h-5 text-blue-600" />;
-      case 'active job seeker':
-        return <Crown className="w-5 h-5 text-green-600" />;
-      case 'career changer':
-        return <Crown className="w-5 h-5 text-orange-600" />;
-      case 'aggressive applicant':
+      case 'ultimate':
         return <Crown className="w-5 h-5 text-purple-600" />;
-      case 'professional powerhouse':
-        return <Crown className="w-5 h-5 text-red-600" />;
-      case 'enterprise unlimited':
-        return <Crown className="w-5 h-5 text-black" />;
-      case 'custom solutions':
-        return <Crown className="w-5 h-5 text-indigo-600" />;
       default:
         return <Star className="w-5 h-5" />;
     }
@@ -148,7 +138,7 @@ export const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
         {plans.map((plan) => (
           <PlanCard
             key={plan.id}
@@ -206,32 +196,18 @@ const PlanCard: React.FC<PlanCardProps> = ({
     if (isCurrentPlan) return 'border-green-500 ring-2 ring-green-200';
     
     switch (planName.toLowerCase()) {
-      case 'job seeker explorer':
+      case 'free':
         return 'border-gray-200 hover:border-gray-300';
-      case 'weekend searcher':
-        return 'border-blue-200 hover:border-blue-300';
-      case 'active job seeker':
-        return 'border-green-200 hover:border-green-300 shadow-md bg-gradient-to-b from-green-50 to-white';
-      case 'career changer':
-        return 'border-orange-200 hover:border-orange-300 shadow-md bg-gradient-to-b from-orange-50 to-white';
-      case 'aggressive applicant':
+      case 'pro':
+        return 'border-blue-200 hover:border-blue-300 shadow-md bg-gradient-to-b from-blue-50 to-white';
+      case 'ultimate':
         return 'border-purple-200 hover:border-purple-300';
-      case 'professional powerhouse':
-        return 'border-red-200 hover:border-red-300';
-      case 'enterprise unlimited':
-        return 'border-black hover:border-gray-700';
-      case 'custom solutions':
-        return 'border-indigo-200 hover:border-indigo-300';
       default:
         return 'border-gray-200 hover:border-gray-300';
     }
   };
 
-  const formatPrice = (price: number, billingCycle: string, planName: string) => {
-    if (planName.toLowerCase() === 'custom solutions') {
-      return 'Custom Pricing';
-    }
-    
+  const formatPrice = (price: number, billingCycle: string) => {
     if (price === 0) return 'Free';
     
     const cycleText = {
@@ -245,20 +221,11 @@ const PlanCard: React.FC<PlanCardProps> = ({
 
   return (
     <Card className={`relative transition-all duration-200 ${getPlanBorderColor(plan.name)}`}>
-      {plan.name.toLowerCase() === 'active job seeker' && (
+      {plan.name.toLowerCase() === 'pro' && (
         <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-          <Badge className="bg-green-500 text-white">
+          <Badge className="bg-blue-500 text-white">
             <Star className="w-3 h-3 mr-1" />
             Most Popular
-          </Badge>
-        </div>
-      )}
-      
-      {plan.name.toLowerCase() === 'career changer' && (
-        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-          <Badge className="bg-orange-500 text-white">
-            <Zap className="w-3 h-3 mr-1" />
-            Best Value
           </Badge>
         </div>
       )}
@@ -277,40 +244,34 @@ const PlanCard: React.FC<PlanCardProps> = ({
         {/* Pricing */}
         <div className="text-center">
           <div className="text-2xl font-bold text-gray-900">
-            {formatPrice(plan.price, plan.billingCycle, plan.name)}
+            {formatPrice(plan.price, plan.billingCycle)}
           </div>
           <div className="text-lg font-semibold text-blue-600 mt-1">
-            {plan.name.toLowerCase() === 'custom solutions' 
-              ? 'Unlimited applications'
-              : `${plan.creditsPerCycle} applications/month`
-            }
+            {plan.creditsPerCycle} applications/month
           </div>
-          {plan.price > 0 && plan.name.toLowerCase() !== 'custom solutions' && (
+          {plan.price > 0 && (
             <div className="text-xs text-gray-500">
               ${(plan.price / plan.creditsPerCycle).toFixed(2)} per application
             </div>
           )}
           
-          {/* Show value indicator for higher tiers */}
+          {/* Show value indicator for tiers */}
           {(() => {
-            const costPerApp = plan.price > 0 ? plan.price / plan.creditsPerCycle : 0;
-            const baseCostPerApp = 9 / 15; // Weekend Searcher baseline: $9/15 = $0.60
-            
             if (plan.price === 0) {
               return (
                 <div className="mt-2">
-                  <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
-                    Free Tier
+                  <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-300">
+                    Free Forever
                   </Badge>
                 </div>
               );
             }
             
-            if (costPerApp < baseCostPerApp * 0.8) {
+            if (plan.name.toLowerCase() === 'ultimate') {
               return (
                 <div className="mt-2">
-                  <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
-                    Great Value
+                  <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300">
+                    Best Value
                   </Badge>
                 </div>
               );
@@ -356,8 +317,6 @@ const PlanCard: React.FC<PlanCardProps> = ({
             </span>
           ) : isCurrentPlan ? (
             'Current Plan'
-          ) : plan.name.toLowerCase() === 'custom solutions' ? (
-            'Contact Sales'
           ) : (
             plan.price === 0 ? 'Get Started Free' : 'Subscribe Now'
           )}

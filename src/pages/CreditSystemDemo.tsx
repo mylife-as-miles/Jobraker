@@ -19,60 +19,33 @@ const CreditSystemDemo: React.FC = () => {
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center gap-3">
             <Coins className="w-8 h-8 text-green-600" />
-            <h1 className="text-4xl font-bold text-gray-900">Subscription Tiers</h1>
+            <h1 className="text-4xl font-bold text-gray-900">Simple Subscription Plans</h1>
           </div>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Scalable monthly plans from free to enterprise - find the perfect fit
+            Three simple tiers - Free to get started, Pro for professionals, Ultimate for power users
           </p>
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg max-w-6xl mx-auto">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-xs">
-              <div className="text-center p-2 bg-gray-100 rounded">
-                <div className="font-semibold text-gray-900">FREE</div>
-                <div className="text-gray-700">Explorer</div>
-                <div className="text-green-600 font-medium">$0/mo</div>
-                <div className="text-gray-600">5 apps</div>
+          <div className="mt-4 p-6 bg-blue-50 rounded-lg max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+              <div className="p-4 bg-gray-100 rounded-lg">
+                <div className="font-bold text-gray-900 text-lg">FREE</div>
+                <div className="text-gray-700 text-sm mb-2">Get Started</div>
+                <div className="text-green-600 font-bold text-2xl">$0/mo</div>
+                <div className="text-gray-600 text-sm">10 applications</div>
+                <div className="text-xs text-gray-500 mt-1">Perfect for exploring</div>
               </div>
-              <div className="text-center p-2 bg-blue-100 rounded">
-                <div className="font-semibold text-blue-900">HOBBY</div>
-                <div className="text-blue-700">Weekend</div>
-                <div className="text-blue-600 font-medium">$9/mo</div>
-                <div className="text-blue-600">15 apps</div>
+              <div className="p-4 bg-blue-100 rounded-lg border-2 border-blue-300">
+                <div className="font-bold text-blue-900 text-lg">PRO</div>
+                <div className="text-blue-700 text-sm mb-2">Most Popular</div>
+                <div className="text-blue-600 font-bold text-2xl">$49/mo</div>
+                <div className="text-blue-600 text-sm">200 applications</div>
+                <div className="text-xs text-blue-500 mt-1">$0.25 per application</div>
               </div>
-              <div className="text-center p-2 bg-green-100 rounded border-2 border-green-300">
-                <div className="font-semibold text-green-900">STARTER</div>
-                <div className="text-green-700">Active</div>
-                <div className="text-green-600 font-medium">$29/mo</div>
-                <div className="text-green-600">50 apps</div>
-              </div>
-              <div className="text-center p-2 bg-orange-100 rounded border-2 border-orange-300">
-                <div className="font-semibold text-orange-900">GROWTH</div>
-                <div className="text-orange-700">Changer</div>
-                <div className="text-orange-600 font-medium">$69/mo</div>
-                <div className="text-orange-600">100 apps</div>
-              </div>
-              <div className="text-center p-2 bg-purple-100 rounded">
-                <div className="font-semibold text-purple-900">PRO</div>
-                <div className="text-purple-700">Aggressive</div>
-                <div className="text-purple-600 font-medium">$149/mo</div>
-                <div className="text-purple-600">300 apps</div>
-              </div>
-              <div className="text-center p-2 bg-red-100 rounded">
-                <div className="font-semibold text-red-900">SCALE</div>
-                <div className="text-red-700">Powerhouse</div>
-                <div className="text-red-600 font-medium">$299/mo</div>
-                <div className="text-red-600">750 apps</div>
-              </div>
-              <div className="text-center p-2 bg-gray-900 text-white rounded">
-                <div className="font-semibold">ULTIMATE</div>
-                <div className="text-gray-300">Enterprise</div>
-                <div className="text-white font-medium">$599/mo</div>
-                <div className="text-gray-300">2K apps</div>
-              </div>
-              <div className="text-center p-2 bg-indigo-100 rounded">
-                <div className="font-semibold text-indigo-900">ENTERPRISE</div>
-                <div className="text-indigo-700">Custom</div>
-                <div className="text-indigo-600 font-medium">Custom</div>
-                <div className="text-indigo-600">Unlimited</div>
+              <div className="p-4 bg-purple-100 rounded-lg">
+                <div className="font-bold text-purple-900 text-lg">ULTIMATE</div>
+                <div className="text-purple-700 text-sm mb-2">Best Value</div>
+                <div className="text-purple-600 font-bold text-2xl">$199/mo</div>
+                <div className="text-purple-600 text-sm">1,000 applications</div>
+                <div className="text-xs text-purple-500 mt-1">$0.20 per application</div>
               </div>
             </div>
           </div>
