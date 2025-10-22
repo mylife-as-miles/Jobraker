@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders } from '../_shared/types.ts';
+import { getCorsHeaders } from '../_shared/types.ts';
 import { withRetry, resolveFirecrawlApiKey, firecrawlFetch } from '../_shared/firecrawl.ts';
 import { generateAiDescription } from '../_shared/openai.ts';
 
@@ -14,6 +14,10 @@ function hostFromUrl(u: string): string | null {
 }
 
 Deno.serve(async (req) => {
+  // Get dynamic CORS headers based on request origin
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }

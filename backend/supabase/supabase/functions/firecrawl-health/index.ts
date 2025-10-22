@@ -7,7 +7,7 @@
 // CORS friendly: allow preflight.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders } from '../_shared/types.ts';
+import { getCorsHeaders } from '../_shared/types.ts';
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -45,6 +45,8 @@ async function testFirecrawl(apiKey: string) {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }

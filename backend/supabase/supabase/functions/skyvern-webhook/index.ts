@@ -2,7 +2,7 @@
 // Skyvern webhook receiver to update application status and manage the user's job queue.
 // When a job application is successful, it is removed from the user's personal 'jobs' table.
 
-import { corsHeaders } from "../_shared/types.ts";
+import { getCorsHeaders } from "../_shared/types.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // Helper to extract the source_url from the 'notes' field of an application.
@@ -14,6 +14,8 @@ function extractSourceUrl(notes: string | null): string | null {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  
   // Immediately handle CORS preflight requests.
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });

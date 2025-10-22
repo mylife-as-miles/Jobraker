@@ -19,12 +19,7 @@
  * CORS enabled (allow *). Max duration ~30s enforced with AbortController.
  */
 
-// Basic CORS headers (dup to avoid shared import issues if path changes)
-const corsHeaders: Record<string, string> = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+import { getCorsHeaders } from "../_shared/types.ts";
 
 interface UIMessagePart { text?: string }
 interface UIMessage { id?: string; role: string; content?: string; parts?: UIMessagePart[] }
@@ -57,6 +52,8 @@ function sseEvent(event: string, payload: any) {
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }

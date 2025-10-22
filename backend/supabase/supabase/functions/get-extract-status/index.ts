@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders } from '../_shared/types.ts';
+import { getCorsHeaders } from '../_shared/types.ts';
 import { parseSalaryRangeToMinMax, inferSalaryMeta } from '../_shared/salary.ts';
 import { resolveFirecrawlApiKey } from '../_shared/firecrawl.ts';
 
@@ -10,6 +10,10 @@ const supabaseAdmin = createClient(
 );
 
 Deno.serve(async (req) => {
+  // Get dynamic CORS headers based on request origin
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }

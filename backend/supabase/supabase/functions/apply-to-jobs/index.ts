@@ -14,7 +14,7 @@
 // }
 // Returns the Skyvern run response.
 
-import { corsHeaders } from "../_shared/types.ts";
+import { getCorsHeaders } from "../_shared/types.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
@@ -78,6 +78,8 @@ async function withRetry(fn: () => Promise<any>, attempts = 3, baseDelayMs = 500
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

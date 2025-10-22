@@ -12,13 +12,8 @@
 // }
 // Returns: { text: string }
 
-// Basic CORS headers (inline to avoid missing shared import)
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
 import OpenAI from "npm:openai";
+import { getCorsHeaders } from "../_shared/types.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 function trimText(s: any): string {
@@ -33,6 +28,8 @@ function pick<T extends Record<string, any>>(obj: T | null | undefined, keys: st
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }

@@ -21,9 +21,13 @@
 // - Requires Authorization header; respects RLS to only return the caller's visible jobs.
 // - CORS preflight handled for browser usage.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/types.ts";
+import { getCorsHeaders } from "../_shared/types.ts";
 
 Deno.serve(async (req) => {
+  // Get dynamic CORS headers based on request origin
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   // Immediately handle CORS preflight requests.
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders } from '../_shared/types.ts';
+import { getCorsHeaders } from '../_shared/types.ts';
 import { withRetry, resolveFirecrawlApiKey, firecrawlFetch } from '../_shared/firecrawl.ts';
 
 // Use the admin client for elevated privileges to delete/insert into the jobs table.
@@ -10,6 +10,8 @@ const supabaseAdmin = createClient(
 );
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  
   // Immediately handle CORS preflight requests.
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
