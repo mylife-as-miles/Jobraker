@@ -1193,7 +1193,7 @@ export const JobPage = (): JSX.Element => {
         setApplyingAll(false);
         setAutoApplyStep(1);
       }
-  }, [applyingAll, jobs, profileSnapshot, selectedCoverLetter, selectedCoverLetterId, selectedJob, selectedResume, selectedResumeId, safeInfo, setError]);
+  }, [applyingAll, jobs, profile, profileSnapshot, selectedCoverLetter, selectedCoverLetterId, selectedJob, selectedResume, selectedResumeId, safeInfo, setError]);
 
     // Unified effect for initial load and real-time updates
   useEffect(() => {
@@ -1258,9 +1258,9 @@ export const JobPage = (): JSX.Element => {
 
     const total = sortedJobs.length;
   const visibleJobCount = total;
-  const canAdvanceFromStepOne = !resumesLoading && (!Array.isArray(resumes) || resumes.length === 0 || Boolean(selectedResumeId));
+  const canAdvanceFromStepOne = profileReady && !resumesLoading && (!Array.isArray(resumes) || resumes.length === 0 || Boolean(selectedResumeId));
   const autoApplyTargetCount = jobToAutoApply ? 1 : visibleJobCount;
-  const canLaunchAutoApply = autoApplyTargetCount > 0 && (!Array.isArray(resumes) || resumes.length === 0 || Boolean(selectedResumeId));
+  const canLaunchAutoApply = profileReady && autoApplyTargetCount > 0 && (!Array.isArray(resumes) || resumes.length === 0 || Boolean(selectedResumeId));
   const autoApplyPrimaryDisabled = autoApplyStep === 1 ? !canAdvanceFromStepOne : !canLaunchAutoApply;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const clampedPage = Math.min(Math.max(1, currentPage), totalPages);

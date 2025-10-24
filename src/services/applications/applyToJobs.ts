@@ -1,5 +1,7 @@
 import { createClient } from '../../lib/supabaseClient';
 
+import { type Profile } from "../../hooks/useProfileSettings";
+
 export type ApplyToJobsParams = {
   job_urls?: string[] | string;
   jobs?: Array<{ sourceUrl?: string; url?: string; source_url?: string }>;
@@ -11,6 +13,8 @@ export type ApplyToJobsParams = {
   proxy_location?: string;
   webhook_url?: string;
   title?: string;
+  user_input?: Profile | null;
+  email?: string | null;
 };
 
 export async function applyToJobs(payload: ApplyToJobsParams) {
