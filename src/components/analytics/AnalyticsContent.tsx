@@ -59,7 +59,7 @@ export function AnalyticsContent({ period = "30d", data = {} as any }: { period?
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 lg:space-y-8 p-1 sm:p-2">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8 p-1 sm:p-2 bg-black">
       {/* KPI Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         <button type="button" onClick={() => gotoApplications()} className="text-left rounded-xl border border-white/15 bg-white/[0.04] p-3 sm:p-4 hover:border-[#1dff00]/40 hover:bg-white/[0.08] transition">
