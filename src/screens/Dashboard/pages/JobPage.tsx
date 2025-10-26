@@ -1791,7 +1791,9 @@ export const JobPage = (): JSX.Element => {
                           )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start gap-1.5 sm:gap-2">
-                            <h3 className="text-white font-semibold truncate text-xs sm:text-sm md:text-base" title={job.title}>{job.title}</h3>
+                            <h3 className="text-white font-semibold truncate text-xs sm:text-sm md:text-base" title={job.title}>
+                              {job.title.length > 60 ? job.title.slice(0, 60) + '...' : job.title}
+                            </h3>
                             {(() => {
                               if (!job.posted_at) return null;
                               const postedTs = Date.parse(job.posted_at);
