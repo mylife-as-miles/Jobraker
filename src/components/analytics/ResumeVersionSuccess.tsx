@@ -104,10 +104,11 @@ export function ResumeVersionSuccess({ period: _period, data }: { period: Period
       transition={{ duration: 0.6, delay: 0.3 }}
       className="h-full"
     >
-      <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:bg-gradient-to-br hover:from-[#ffffff12] hover:to-[#ffffff08] transition-all duration-500 h-full flex flex-col">
-        <h2 className="text-xl font-bold text-white mb-6">Resume version success</h2>
+      <Card className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] backdrop-blur-[25px] p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 h-full flex flex-col">
+        <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
+        <h2 className="text-xl font-bold text-white mb-6 relative z-10">Resume version success</h2>
 
-        <div className="flex flex-col lg:flex-row items-center lg:space-x-6 space-y-4 lg:space-y-0 flex-1">
+        <div className="flex flex-col lg:flex-row items-center lg:space-x-6 space-y-4 lg:space-y-0 flex-1 relative z-10">
           <div className="w-36 h-36 flex-shrink-0">
             <canvas ref={canvasRef} className="w-full h-full" />
           </div>

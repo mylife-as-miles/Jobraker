@@ -67,7 +67,7 @@ export function AnalyticsPage() {
   });
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4">
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 bg-black min-h-full">
       {/* Local controls (compact to fit inside dashboard shell) */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3" id="analytics-controls" data-tour="analytics-controls">
         <div className="flex flex-wrap items-center gap-2">
@@ -115,7 +115,7 @@ export function AnalyticsPage() {
       {analytics.error && (
         <div className="text-xs text-red-400">{analytics.error}</div>
       )}
-  <Card id="analytics-main-card" data-tour="analytics-main-card" className="rounded-xl border border-white/15 bg-gradient-to-br from-white/[0.04] via-white/[0.06] to-white/[0.03] backdrop-blur-xl shadow-[0_0_0_1px_rgba(29,255,0,0.05)]">
+  <Card id="analytics-main-card" data-tour="analytics-main-card" className="rounded-xl border border-[#1dff00]/20 bg-black backdrop-blur-xl shadow-[0_0_0_1px_rgba(29,255,0,0.05)]">
         <CardContent className="p-3 sm:p-4 lg:p-6">
           <AnalyticsContent period={period} data={analytics} />
         </CardContent>
