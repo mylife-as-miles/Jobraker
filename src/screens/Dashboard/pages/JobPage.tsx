@@ -2182,7 +2182,7 @@ export const JobPage = (): JSX.Element => {
                                           <Sparkles className="w-3 h-3" />
                                           Featured Job
                                         </div>
-                                        <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold text-white leading-tight" title={job.title}>
+                                        <h1 className="text-base sm:text-lg md:text-xl font-semibold text-white leading-tight line-clamp-3" title={job.title}>
                                           {job.title.length > 30 ? job.title.slice(0, 30) + '...' : job.title}
                                         </h1>
                                         <div className="flex flex-wrap items-center gap-2 text-sm text-[#ffffffc0]">
