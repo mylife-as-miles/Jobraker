@@ -2165,26 +2165,30 @@ export const JobPage = (): JSX.Element => {
                                 <div className="relative flex flex-col gap-6">
                                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
                                     <div className="flex items-start gap-4 flex-1 min-w-0">
-                                      {job.logoUrl && !logoError[job.id] ? (
-                                        <img
-                                          src={job.logoUrl}
-                                          alt={job.company}
-                                          className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 rounded-2xl object-contain bg-white"
-                                          onError={() => setLogoError(e => ({ ...e, [job.id]: true }))}
-                                        />
-                                      ) : (
-                                        <div className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-2xl flex items-center justify-center text-black font-bold text-3xl sm:text-4xl">
-                                          {job.logo}
-                                        </div>
-                                      )}
                                       <div className="flex-1 min-w-0 space-y-2">
                                         <div className="inline-flex items-center gap-2 flex-wrap text-[11px] uppercase tracking-[0.3em] text-[#1dff00]/80">
                                           <Sparkles className="w-3 h-3" />
                                           Featured Job
                                         </div>
-                                        <h1 className="text-base sm:text-lg md:text-xl font-semibold text-white leading-tight line-clamp-3" title={job.title}>
-                                          {job.title.length > 30 ? job.title.slice(0, 30) + '...' : job.title}
-                                        </h1>
+                                        <div className="flex items-start gap-4">
+                                          <div className="flex-1 min-w-0">
+                                            <h1 className="text-base sm:text-lg md:text-xl font-semibold text-white leading-tight line-clamp-3" title={job.title}>
+                                              {job.title.length > 30 ? job.title.slice(0, 30) + '...' : job.title}
+                                            </h1>
+                                          </div>
+                                          {job.logoUrl && !logoError[job.id] ? (
+                                            <img
+                                              src={job.logoUrl}
+                                              alt={job.company}
+                                              className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-contain bg-white flex-shrink-0"
+                                              onError={() => setLogoError(e => ({ ...e, [job.id]: true }))}
+                                            />
+                                          ) : (
+                                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-2xl sm:text-3xl flex-shrink-0">
+                                              {job.logo}
+                                            </div>
+                                          )}
+                                        </div>
                                         <div className="flex flex-wrap items-center gap-2 text-sm text-[#ffffffc0]">
                                           <span className="font-medium text-white/90">{job.company}</span>
                                           {siteHost && (
