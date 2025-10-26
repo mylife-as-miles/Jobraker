@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { nanoid } from 'nanoid';
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
-import atomOneDark from 'react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark';
+import { atomOneDark } from 'react-syntax-highlighter/dist/cjs/styles/hljs';
 // Temporary lightweight chat hook placeholder (remove when real ai/react is available)
 type Persona = 'concise' | 'friendly' | 'analyst' | 'coach';
 interface BasicMessage { id: string; role: 'user' | 'assistant'; content: string; parts?: { type: 'text'; text: string }[]; streaming?: boolean; createdAt: number; meta?: { persona?: Persona; parent?: string } }
@@ -93,8 +93,8 @@ import { Conversation, ConversationContent, ConversationScrollButton } from '@/c
 
 
 const models = [
-  { id: 'gpt-4o', name: 'GPT-4o' },
-  { id: 'claude-opus-4-20250514', name: 'Claude 4 Opus' },
+  { id: 'agent-general', name: 'Ask an Agent' },
+  { id: 'agent-specialized', name: 'Ask a Specialist Agent' },
 ];
 
 export const ChatPage = () => {
