@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { nanoid } from 'nanoid';
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { atomOneDark } from "react-syntax-highlighter/dist/styles/atom-one-dark";
+import atomOneDark from 'react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark';
 // Temporary lightweight chat hook placeholder (remove when real ai/react is available)
 type Persona = 'concise' | 'friendly' | 'analyst' | 'coach';
 interface BasicMessage { id: string; role: 'user' | 'assistant'; content: string; parts?: { type: 'text'; text: string }[]; streaming?: boolean; createdAt: number; meta?: { persona?: Persona; parent?: string } }
