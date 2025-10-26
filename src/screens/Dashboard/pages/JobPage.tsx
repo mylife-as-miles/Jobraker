@@ -1,5 +1,5 @@
-import { Briefcase, Search, MapPin, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Sparkles, Check, ShieldCheck, Clock3, FileText, AlertTriangle, UserCheck, UserX, FileCheck2, FileWarning } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Briefcase, Search, MapPin, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Sparkles, Check, ShieldCheck, Clock3, FileText, AlertTriangle, UserCheck, UserX, FileCheck2, FileWarning, User } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
@@ -571,6 +571,7 @@ const toPlainText = (html: string) => {
 
 export const JobPage = (): JSX.Element => {
   const isMobile = useMediaQuery("(max-width: 1023px)");
+  const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedLocation, setSelectedLocation] = useState("Remote");
     const [selectedJob, setSelectedJob] = useState<string | null>(null);
@@ -1728,17 +1729,130 @@ export const JobPage = (): JSX.Element => {
               )}
 
               {queueStatus === 'empty' && (
-                <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-8 text-center">
-                  <Briefcase className="w-14 h-14 text-[#ffffff40] mx-auto mb-4" />
-                  <h3 className="text-xl font-medium text-white mb-2">Your Queue is Empty</h3>
-                  <p className="text-[#ffffff80] mb-2">Click "Find New Jobs" to build your personalized job feed.</p>
-                  {lastReason && (
-                    <p className="text-[#ffffff60] text-sm">
-                      {lastReason === 'no_sources' && 'No sources found. Broaden your search (e.g., remove seniority or location).'}
-                      {lastReason === 'no_structured_results' && 'Sources were found but could not be parsed.'}
-                    </p>
-                  )}
-                </Card>
+                <div className="relative min-h-[600px] flex items-center justify-center py-12">
+                  {/* Ambient Background Effects */}
+                  <div className="absolute inset-0 overflow-hidden rounded-3xl">
+                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#1dff00]/5 rounded-full blur-3xl animate-pulse" />
+                    <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#0a8246]/5 rounded-full blur-3xl animate-pulse delay-1000" />
+                  </div>
+
+                  {/* Main Content */}
+                  <Card className="relative z-10 max-w-2xl mx-auto bg-gradient-to-br from-[#0a0a0a] via-[#0d0d0d] to-[#000000] border border-[#1dff00]/20 backdrop-blur-xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_0_1px_rgba(29,255,0,0.1)]">
+                    <div className="p-8 sm:p-12 text-center space-y-8">
+                      {/* Icon Container with Animation */}
+                      <motion.div
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                        className="relative mx-auto w-32 h-32"
+                      >
+                        {/* Glowing Ring */}
+                        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#1dff00]/20 to-[#0a8246]/10 blur-xl animate-pulse" />
+                        
+                        {/* Icon Background */}
+                        <div className="relative w-full h-full rounded-full bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/5 border border-[#1dff00]/30 flex items-center justify-center shadow-[0_0_40px_rgba(29,255,0,0.15)]">
+                          <Briefcase className="w-16 h-16 text-[#1dff00] drop-shadow-[0_0_20px_rgba(29,255,0,0.6)]" strokeWidth={1.5} />
+                        </div>
+
+                        {/* Floating Particles */}
+                        <div className="absolute -top-2 -right-2 w-3 h-3 rounded-full bg-[#1dff00] animate-ping opacity-40" />
+                        <div className="absolute -bottom-2 -left-2 w-2 h-2 rounded-full bg-[#0a8246] animate-ping opacity-40 delay-500" />
+                      </motion.div>
+
+                      {/* Text Content */}
+                      <div className="space-y-4">
+                        <motion.h2
+                          initial={{ y: 20, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.2, duration: 0.5 }}
+                          className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-white via-[#ffffff] to-[#ffffff99] bg-clip-text text-transparent"
+                        >
+                          No Jobs Yet
+                        </motion.h2>
+
+                        <motion.p
+                          initial={{ y: 20, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.3, duration: 0.5 }}
+                          className="text-base sm:text-lg text-[#ffffff99] max-w-md mx-auto leading-relaxed"
+                        >
+                          Your personalized job feed is empty. Start discovering opportunities tailored to your profile and career goals.
+                        </motion.p>
+
+                        {lastReason && (
+                          <motion.div
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.4, duration: 0.5 }}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#ff8b8b]/10 border border-[#ff8b8b]/20 text-[#ff8b8b] text-sm"
+                          >
+                            <AlertTriangle className="w-4 h-4" />
+                            <span>
+                              {lastReason === 'no_sources' && 'Try broadening your search criteria'}
+                              {lastReason === 'no_structured_results' && 'Unable to parse job sources'}
+                            </span>
+                          </motion.div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <motion.div
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.5, duration: 0.5 }}
+                        className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4"
+                      >
+                        <Button
+                          onClick={() => populateQueue(searchQuery || "software engineer", selectedLocation)}
+                          disabled={incrementalMode}
+                          className="group relative overflow-hidden px-8 py-6 rounded-xl bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black font-semibold text-base shadow-[0_0_0_1px_#1dff00,0_8px_32px_rgba(29,255,0,0.4)] hover:shadow-[0_0_0_1px_#1dff00,0_12px_48px_rgba(29,255,0,0.6)] transition-all duration-300 hover:scale-105 active:scale-95"
+                        >
+                          <span className="relative z-10 flex items-center gap-3">
+                            <Search className="w-5 h-5" />
+                            Find New Jobs
+                          </span>
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                        </Button>
+
+                        <Button
+                          onClick={() => navigate('/dashboard/profile')}
+                          variant="ghost"
+                          className="px-6 py-6 rounded-xl border border-[#ffffff20] text-white hover:bg-white/5 hover:border-[#1dff00]/40 transition-all duration-300"
+                        >
+                          <span className="flex items-center gap-2">
+                            <User className="w-4 h-4" />
+                            Update Profile
+                          </span>
+                        </Button>
+                      </motion.div>
+
+                      {/* Feature Highlights */}
+                      <motion.div
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.6, duration: 0.5 }}
+                        className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-8 border-t border-[#ffffff10]"
+                      >
+                        {[
+                          { icon: Sparkles, label: 'AI-Powered', desc: 'Smart matching' },
+                          { icon: Clock3, label: 'Real-time', desc: 'Latest openings' },
+                          { icon: ShieldCheck, label: 'Verified', desc: 'Quality jobs' }
+                        ].map((feature) => (
+                          <div
+                            key={feature.label}
+                            className="flex flex-col items-center gap-2 p-4 rounded-lg bg-[#ffffff05] border border-[#ffffff08] hover:border-[#1dff00]/20 transition-colors"
+                          >
+                            <feature.icon className="w-5 h-5 text-[#1dff00]" />
+                            <div className="text-center">
+                              <div className="text-sm font-medium text-white">{feature.label}</div>
+                              <div className="text-xs text-[#ffffff60]">{feature.desc}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </motion.div>
+                    </div>
+                  </Card>
+                </div>
               )}
 
               {queueStatus === 'ready' && paginatedJobs.map((job, index) => (
