@@ -560,16 +560,6 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
     };
   };
 
-const sanitizeHtml = (html: string) => {
-    if (!html) return "";
-    let out = String(html);
-    out = out.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
-    out = out.replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "");
-    out = out.replace(/href\s*=\s*(["'])javascript:[^"']*\1/gi, 'href="#"');
-    out = out.replace(/ on[a-z]+\s*=\s*(["']).*?\1/gi, "");
-    return out;
-};
-
 const toPlainText = (html: string) => {
   if (typeof window === 'undefined' || !html) {
     return '';
@@ -1090,8 +1080,6 @@ export const JobPage = (): JSX.Element => {
           jobs: payloadJobs,
           title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
           cover_letter: coverLetterPayload,
-          user_input: profile,
-          email: profile?.email,
           ...(profileSnapshot ? { additional_information: profileSnapshot } : {}),
           ...(resumeSignedUrl ? { resume: resumeSignedUrl } : {}),
         });

@@ -19,7 +19,7 @@ import {
   Briefcase,
   Mail
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { useProfileSettings } from "../../hooks/useProfileSettings";
 import { useProductTour } from "../../providers/TourProvider";
@@ -458,16 +458,18 @@ export const Dashboard = (): JSX.Element => {
 
         {/* Page Content - Responsive */}
         <div className="flex-1 overflow-auto">
-          <motion.div
-            key={currentPage}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="h-full"
-          >
-            {renderPageContent()}
-          </motion.div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentPage}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="h-full"
+            >
+              {renderPageContent()}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     </div>
