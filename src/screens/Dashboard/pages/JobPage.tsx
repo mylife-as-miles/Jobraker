@@ -13,7 +13,7 @@ import { createClient } from "../../../lib/supabaseClient";
 import { useProfileSettings, type Profile } from "../../../hooks/useProfileSettings";
 import { events } from "../../../lib/analytics";
 import { useToast } from "../../../components/ui/toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+import { SimpleDropdown } from "../../../components/SimpleDropdown";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
 import { cn } from "../../../lib/utils";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
@@ -1563,16 +1563,17 @@ export const JobPage = (): JSX.Element => {
                 {(queueStatus === 'ready' || queueStatus === 'empty') && (
                   <div className="hidden sm:flex items-center gap-2">
                     <span className="text-[10px] sm:text-[11px] text-white/50">Sort</span>
-                    <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
-                      <SelectTrigger className="h-7 w-[130px] sm:h-8 sm:w-[160px] text-xs sm:text-sm">
-                        <SelectValue placeholder="Sort by" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="recent">Most recent</SelectItem>
-                        <SelectItem value="company">Company</SelectItem>
-                        <SelectItem value="deadline">Deadline</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <SimpleDropdown 
+                      value={sortBy} 
+                      onValueChange={(v) => setSortBy(v as any)}
+                      options={[
+                        { value: 'recent', label: 'Most recent' },
+                        { value: 'company', label: 'Company' },
+                        { value: 'deadline', label: 'Deadline' }
+                      ]}
+                      placeholder="Sort by"
+                      triggerClassName="h-7 w-[130px] sm:h-8 sm:w-[160px] text-xs sm:text-sm"
+                    />
                   </div>
                 )}
               </div>
@@ -1910,16 +1911,16 @@ export const JobPage = (): JSX.Element => {
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 md:gap-4">
                     <div className="flex items-center gap-1.5 sm:gap-2">
                       <span className="text-[10px] sm:text-[11px] text-white/50">Rows</span>
-                      <Select value={String(pageSize)} onValueChange={(v) => { const n = parseInt(v); if (!Number.isNaN(n)) { setPageSize(n); setCurrentPage(1); } }}>
-                        <SelectTrigger className="h-7 w-[80px] sm:h-8 sm:w-[90px] text-xs sm:text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="10">10</SelectItem>
-                          <SelectItem value="20">20</SelectItem>
-                          <SelectItem value="50">50</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <SimpleDropdown 
+                        value={String(pageSize)} 
+                        onValueChange={(v) => { const n = parseInt(v); if (!Number.isNaN(n)) { setPageSize(n); setCurrentPage(1); } }}
+                        options={[
+                          { value: '10', label: '10' },
+                          { value: '20', label: '20' },
+                          { value: '50', label: '50' }
+                        ]}
+                        triggerClassName="h-7 w-[80px] sm:h-8 sm:w-[90px] text-xs sm:text-sm"
+                      />
                     </div>
                     <div className="flex items-center gap-1">
                       <button
