@@ -299,8 +299,9 @@ export const ChatPage = () => {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/40 via-black/10 to-transparent" />
       <div className="mx-auto flex h-full w-full max-w-7xl gap-4 px-3 sm:px-5 lg:px-8 py-4">
         {/* Sidebar */}
-  <aside className="hidden md:flex w-60 flex-col rounded-2xl border border-neutral-800/60 bg-neutral-950/70 backdrop-blur-xl  shadow-[0_4px_18px_-4px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.03)] relative before:absolute before:inset-0 before:pointer-events-none before:rounded-2xl before:border before:border-white/5">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800/70">
+  <aside className="hidden md:flex w-60 flex-col rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] backdrop-blur-xl  shadow-[0_4px_18px_-4px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.03)] relative before:absolute before:inset-0 before:pointer-events-none before:rounded-2xl before:border before:border-white/5">
+          <span className="pointer-events-none absolute -top-12 -left-6 h-32 w-32 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
+          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800/70 relative z-10">
             <h3 className="text-xs font-semibold tracking-wide text-neutral-300">Sessions</h3>
             <button onClick={createSession} className="text-[11px] px-2 py-1 rounded-md bg-neutral-800/70 hover:bg-neutral-700 border border-neutral-700/70 text-neutral-300">New</button>
           </div>
@@ -329,7 +330,8 @@ export const ChatPage = () => {
         </aside>
         {/* Main Column */}
         <div className="flex flex-1 flex-col gap-4">
-          <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between rounded-2xl border border-neutral-800/60 bg-neutral-950/70 backdrop-blur-xl px-4 sm:px-6 py-4 shadow-[0_4px_24px_-6px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.04)] relative ">
+          <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] backdrop-blur-xl px-4 sm:px-6 py-4 shadow-[0_4px_24px_-6px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.04)] relative ">
+            <span className="pointer-events-none absolute -top-12 -right-6 h-32 w-32 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
             <div className="pointer-events-none absolute inset-0 opacity-[0.35] [mask-image:radial-gradient(circle_at_30%_30%,black,transparent_70%)] bg-[conic-gradient(from_140deg,rgba(29,255,0,0.12),rgba(10,130,70,0.05),transparent_70%)]" />
             <div className="flex flex-col">
               <h1 className="text-sm sm:text-base font-semibold tracking-wide bg-gradient-to-r from-[#1dff00] via-[#6dffb0] to-[#1dff00] bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(29,255,0,0.25)]">Intelligent Assistant</h1>
@@ -357,7 +359,8 @@ export const ChatPage = () => {
               </div>
             </div>
           </header>
-          <div className="flex-1 min-h-0 flex flex-col rounded-3xl border border-neutral-800/60 bg-neutral-950/70 backdrop-blur-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_12px_40px_-10px_rgba(0,0,0,0.7)]  relative">
+          <div className="flex-1 min-h-0 flex flex-col rounded-3xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] backdrop-blur-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_12px_40px_-10px_rgba(0,0,0,0.7)]  relative">
+            <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
             <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-black/60 to-transparent z-10" />
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent z-10" />
             <Conversation className="flex-1" data-tour="chat-transcript">
@@ -426,7 +429,8 @@ export const ChatPage = () => {
               </ConversationContent>
             </Conversation>
           </div>
-          <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/80 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_10px_36px_-8px_rgba(0,0,0,0.65)] relative ">
+          <div className="rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_10px_36px_-8px_rgba(0,0,0,0.65)] relative ">
+            <span className="pointer-events-none absolute -bottom-12 -right-6 h-32 w-32 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(29,255,0,0.07),transparent_35%,transparent_65%,rgba(10,130,70,0.08))] opacity-80" />
             {messages.length > 0 && (
               <div className="flex flex-wrap gap-2 px-4 pt-4 -mb-1">
