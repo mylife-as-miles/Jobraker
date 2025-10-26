@@ -137,27 +137,25 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
       transition={{ duration: 0.6 }}
       className="h-full"
     >
-      <Card className="relative overflow-hidden bg-gradient-to-br from-[#1dff00] via-[#16d918] via-[#0f8c2e] to-[#000000] border-none p-4 sm:p-6 rounded-2xl shadow-2xl hover:shadow-[0_0_20px_rgba(29,255,0,0.2)] transition-all duration-500 group h-full flex flex-col">
+      <Card className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] p-4 sm:p-6 rounded-2xl shadow-2xl hover:shadow-[0_0_20px_rgba(29,255,0,0.2)] transition-all duration-500 group h-full flex flex-col">
         {/* Animated background pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.2)_0%,transparent_50%)]"></div>
-          <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_70%_80%,rgba(255,255,255,0.1)_0%,transparent_50%)]"></div>
-        </div>
+        <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60 animate-pulse" />
+        <span className="pointer-events-none absolute -bottom-24 -left-12 h-56 w-56 rounded-full bg-[#1dff00]/10 blur-3xl opacity-40 animate-pulse" style={{ animationDelay: '1s' }} />
 
         <div className="relative z-10 flex flex-col h-full">
           <div className="flex items-center justify-between mb-4 sm:mb-6">
             <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30 shadow-lg">
-                <Lightbulb className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow-lg" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#1dff00]/10 border border-[#1dff00]/30 rounded-full flex items-center justify-center backdrop-blur-sm shadow-lg">
+                <Lightbulb className="w-5 h-5 sm:w-6 sm:h-6 text-[#1dff00] drop-shadow-lg" />
               </div>
               <h2 className="text-lg sm:text-xl font-bold text-white drop-shadow-lg">Insight</h2>
             </div>
             <div className="flex space-x-1 sm:space-x-2">
-              <button className="w-8 h-8 sm:w-10 sm:h-10 bg-white/15 rounded-full flex items-center justify-center hover:bg-white/25 transition-all duration-300 backdrop-blur-sm border border-white/20 hover:scale-110 group">
-                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-white group-hover:text-white/90" />
+              <button className="w-8 h-8 sm:w-10 sm:h-10 bg-white/5 border border-white/10 rounded-full flex items-center justify-center hover:bg-white/10 transition-all duration-300 backdrop-blur-sm hover:scale-110 group">
+                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-white/70 group-hover:text-white" />
               </button>
-              <button className="w-8 h-8 sm:w-10 sm:h-10 bg-white/15 rounded-full flex items-center justify-center hover:bg-white/25 transition-all duration-300 backdrop-blur-sm border border-white/20 hover:scale-110 group">
-                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-white group-hover:text-white/90" />
+              <button className="w-8 h-8 sm:w-10 sm:h-10 bg-white/5 border border-white/10 rounded-full flex items-center justify-center hover:bg-white/10 transition-all duration-300 backdrop-blur-sm hover:scale-110 group">
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-white/70 group-hover:text-white" />
               </button>
             </div>
           </div>

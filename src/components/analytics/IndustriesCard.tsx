@@ -145,12 +145,10 @@ export function IndustriesCard({ period, data }: { period: Period; data: any }) 
       transition={{ duration: 0.6, delay: 0.1 }}
       className="h-full"
     >
-      <Card className="bg-gradient-to-br from-[#1dff00] via-[#16d918] via-[#0f8c2e] to-[#000000] border-none p-4 sm:p-6 rounded-2xl shadow-2xl hover:shadow-[0_0_40px_rgba(29,255,0,0.3)] transition-all duration-500 group relative overflow-hidden h-full flex flex-col">
+      <Card className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] p-4 sm:p-6 rounded-2xl shadow-2xl hover:shadow-[0_0_40px_rgba(29,255,0,0.3)] transition-all duration-500 group h-full flex flex-col">
         {/* Animated background pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.2)_0%,transparent_50%)]"></div>
-          <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_70%_80%,rgba(255,255,255,0.1)_0%,transparent_50%)]"></div>
-        </div>
+        <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60 animate-pulse" />
+        <span className="pointer-events-none absolute -bottom-24 -left-12 h-56 w-56 rounded-full bg-[#1dff00]/10 blur-3xl opacity-40 animate-pulse" style={{ animationDelay: '1s' }} />
 
         <div className="relative z-10 flex flex-col h-full">
           <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -165,7 +163,7 @@ export function IndustriesCard({ period, data }: { period: Period; data: any }) 
               initial={{ scale: 0.9 }}
               animate={{ scale: 1 }}
               transition={{ duration: 0.3 }}
-              className="bg-white/15 border border-white/25 backdrop-blur-[15px] rounded-xl p-3 sm:p-4 text-center hover:scale-105 transition-all duration-300 group"
+              className="bg-white/5 border border-white/10 backdrop-blur-[15px] rounded-xl p-3 sm:p-4 text-center hover:scale-105 transition-all duration-300 group"
             >
               <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-1 group-hover:text-[#1dff00] transition-colors duration-300 drop-shadow-lg">
                 {metrics.applications}
@@ -181,7 +179,7 @@ export function IndustriesCard({ period, data }: { period: Period; data: any }) 
               initial={{ scale: 0.9 }}
               animate={{ scale: 1 }}
               transition={{ duration: 0.3, delay: 0.1 }}
-              className="bg-white/15 border border-white/25 backdrop-blur-[15px] rounded-xl p-3 sm:p-4 text-center hover:scale-105 transition-all duration-300 group"
+              className="bg-white/5 border border-white/10 backdrop-blur-[15px] rounded-xl p-3 sm:p-4 text-center hover:scale-105 transition-all duration-300 group"
             >
               <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-1 group-hover:text-[#1dff00] transition-colors duration-300 drop-shadow-lg">
                 {metrics.industries}
@@ -194,7 +192,7 @@ export function IndustriesCard({ period, data }: { period: Period; data: any }) 
               initial={{ scale: 0.9 }}
               animate={{ scale: 1 }}
               transition={{ duration: 0.3, delay: 0.2 }}
-              className="bg-white/15 border border-white/25 backdrop-blur-[15px] rounded-xl p-3 sm:p-4 text-center hover:scale-105 transition-all duration-300 group"
+              className="bg-white/5 border border-white/10 backdrop-blur-[15px] rounded-xl p-3 sm:p-4 text-center hover:scale-105 transition-all duration-300 group"
             >
               <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-1 group-hover:text-[#1dff00] transition-colors duration-300 drop-shadow-lg">
                 {metrics.interviews}
