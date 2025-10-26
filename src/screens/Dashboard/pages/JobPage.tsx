@@ -662,7 +662,6 @@ export const JobPage = (): JSX.Element => {
   }, []);
 
   // Guard flags to prevent overlapping runs/requests
-  const autoPopulatedRef = useRef(false);
   const matchInsightSignaturesRef = useRef<Map<string, string>>(new Map());
   // Removed per-URL incremental loop; keep a simple flag if needed in future
   // const startInFlightRef = useRef(false);
@@ -1190,15 +1189,10 @@ export const JobPage = (): JSX.Element => {
             return;
         }
 
-        // Define the initial loading sequence
+        // Define the initial loading sequence - only fetch existing jobs, don't auto-populate
         const initialLoad = async () => {
-            const initialJobs = await fetchJobQueue();
-            // If the queue is empty AND we have a profile with a job title, auto-populate it.
-      if (!autoPopulatedRef.current && initialJobs.length === 0 && profile?.job_title) {
-        autoPopulatedRef.current = true;
-        safeInfo("No results yet. Building a personalized job feed...", "This may take a moment.");
-        await populateQueue(profile.job_title, profile.location || undefined);
-            }
+            await fetchJobQueue();
+            // Auto-population removed - users must explicitly click "Find Job"
         };
 
         initialLoad();
@@ -1216,7 +1210,7 @@ export const JobPage = (): JSX.Element => {
         return () => {
             supabase.removeChannel(channel);
         };
-  }, [profileLoading, profile, fetchJobQueue, populateQueue, supabase, info, incrementalMode]);
+  }, [profileLoading, fetchJobQueue, supabase, incrementalMode]);
 
     // Effect to pre-fill search query from profile
     useEffect(() => {
