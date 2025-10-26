@@ -59,17 +59,21 @@ export function SimpleDropdown({
 
       {/* Dropdown Content */}
       {isOpen && (
-        <div className="absolute z-[9999] top-full mt-1 w-full min-w-[180px] bg-[#0a0a0a] border border-white/20 rounded-md shadow-[0_8px_32px_rgba(0,0,0,0.8)]">
+        <div className="fixed z-[9999] bg-[#0a0a0a] border border-[#333333] rounded-md shadow-2xl" style={{
+          top: dropdownRef.current?.getBoundingClientRect().bottom ? `${dropdownRef.current.getBoundingClientRect().bottom + 4}px` : 'auto',
+          left: dropdownRef.current?.getBoundingClientRect().left ? `${dropdownRef.current.getBoundingClientRect().left}px` : 'auto',
+          minWidth: dropdownRef.current?.getBoundingClientRect().width ? `${dropdownRef.current.getBoundingClientRect().width}px` : '180px'
+        }}>
           <div className="p-1">
             {options.map((option) => (
               <button
                 key={option.value}
                 onClick={() => handleSelect(option.value)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded text-left text-sm text-white hover:bg-white/10 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 rounded text-left text-sm text-white hover:bg-[#1a1a1a] transition-colors"
               >
                 <span>{option.label}</span>
                 {value === option.value && (
-                  <Check className="h-4 w-4 text-white" />
+                  <Check className="h-4 w-4 text-[#1dff00]" />
                 )}
               </button>
             ))}

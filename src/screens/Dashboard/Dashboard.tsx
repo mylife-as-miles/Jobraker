@@ -62,7 +62,6 @@ export const Dashboard = (): JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile } = useProfileSettings();
-  const { start: startTour } = useProductTour();
 
   const pages: DashboardPage[] = [
     "overview",
@@ -268,14 +267,6 @@ export const Dashboard = (): JSX.Element => {
             >
               <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
-          </div>
-          {/* Quick restart tour action (current page) */}
-          <div className="mt-3 flex gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => startTour(currentPage)}
-              className="text-[10px] px-2 py-1 rounded-md border border-[#1dff00]/30 text-[#1dff00]/80 hover:text-black hover:bg-[#1dff00] transition font-medium tracking-wide"
-            >Restart Tour</button>
           </div>
         </div>
 
