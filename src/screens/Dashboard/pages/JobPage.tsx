@@ -2166,31 +2166,30 @@ export const JobPage = (): JSX.Element => {
                                 <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
                                 <div className="relative flex flex-col gap-6">
                                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
-                                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                                    <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
+                                      {/* Logo - comes first */}
+                                      {job.logoUrl && !logoError[job.id] ? (
+                                        <img
+                                          src={job.logoUrl}
+                                          alt={job.company}
+                                          className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-xl object-contain bg-white flex-shrink-0"
+                                          onError={() => setLogoError(e => ({ ...e, [job.id]: true }))}
+                                        />
+                                      ) : (
+                                        <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-xl sm:text-2xl md:text-3xl flex-shrink-0">
+                                          {job.logo}
+                                        </div>
+                                      )}
+                                      
+                                      {/* Content stack - Featured Job, Title, Badges */}
                                       <div className="flex-1 min-w-0 space-y-2">
                                         <div className="inline-flex items-center gap-2 flex-wrap text-[11px] uppercase tracking-[0.3em] text-[#1dff00]/80">
                                           <Sparkles className="w-3 h-3" />
                                           Featured Job
                                         </div>
-                                        <div className="flex items-start gap-4">
-                                          <div className="flex-1 min-w-0">
-                                            <h1 className="text-base sm:text-lg md:text-xl font-semibold text-white leading-tight line-clamp-3" title={job.title}>
-                                              {job.title.length > 30 ? job.title.slice(0, 30) + '...' : job.title}
-                                            </h1>
-                                          </div>
-                                          {job.logoUrl && !logoError[job.id] ? (
-                                            <img
-                                              src={job.logoUrl}
-                                              alt={job.company}
-                                              className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-contain bg-white flex-shrink-0"
-                                              onError={() => setLogoError(e => ({ ...e, [job.id]: true }))}
-                                            />
-                                          ) : (
-                                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-2xl sm:text-3xl flex-shrink-0">
-                                              {job.logo}
-                                            </div>
-                                          )}
-                                        </div>
+                                        <h1 className="text-base sm:text-lg md:text-xl font-semibold text-white leading-tight line-clamp-3" title={job.title}>
+                                          {job.title.length > 30 ? job.title.slice(0, 30) + '...' : job.title}
+                                        </h1>
                                         <div className="flex flex-wrap items-center gap-2 text-sm text-[#ffffffc0]">
                                           <span className="font-medium text-white/90">{job.company}</span>
                                           {siteHost && (
