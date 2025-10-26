@@ -22,7 +22,6 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { useProfileSettings } from "../../hooks/useProfileSettings";
-import { useProductTour } from "../../providers/TourProvider";
 import { Skeleton } from "../../components/ui/skeleton";
 import { createClient } from "../../lib/supabaseClient";
 import { useNotifications } from "../../hooks/useNotifications";
