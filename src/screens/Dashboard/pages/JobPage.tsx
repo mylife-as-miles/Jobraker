@@ -1778,7 +1778,7 @@ export const JobPage = (): JSX.Element => {
                       <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-1 min-w-0">
                         {job.logoUrl && !logoError[job.id]
                           ? (
-                            <div className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 rounded-lg sm:rounded-xl bg-white flex-shrink-0">
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-lg sm:rounded-xl bg-white flex-shrink-0">
                               <img
                                 src={job.logoUrl}
                                 alt={job.company}
@@ -1787,12 +1787,12 @@ export const JobPage = (): JSX.Element => {
                               />
                             </div>
                           ) : (
-                            <div className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg sm:rounded-xl flex items-center justify-center text-black font-bold text-base sm:text-lg lg:text-2xl flex-shrink-0">{job.logo}</div>
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg sm:rounded-xl flex items-center justify-center text-black font-bold text-lg sm:text-xl lg:text-3xl flex-shrink-0">{job.logo}</div>
                           )}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start gap-1.5 sm:gap-2">
-                            <h3 className="text-white font-semibold truncate text-xs sm:text-sm md:text-base" title={job.title}>
-                              {job.title.length > 60 ? job.title.slice(0, 60) + '...' : job.title}
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                            <h3 className="text-white font-semibold text-sm sm:text-base md:text-lg" title={job.title}>
+                              {job.title.length > 30 ? job.title.slice(0, 30) + '...' : job.title}
                             </h3>
                             {(() => {
                               if (!job.posted_at) return null;
