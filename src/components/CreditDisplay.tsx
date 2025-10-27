@@ -94,6 +94,7 @@ export const CreditDisplay = () => {
       case 'Ultimate':
         return 'from-purple-500 to-purple-600';
       default:
+        // Match the exact green gradient from match score cards
         return 'from-[#1dff00] to-[#0a8246]';
     }
   };
@@ -101,9 +102,9 @@ export const CreditDisplay = () => {
   const getTierIcon = () => {
     switch (subscriptionTier) {
       case 'Pro':
-        return <Zap className="w-3 h-3 sm:w-4 sm:h-4" />;
+        return <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-black" />;
       case 'Ultimate':
-        return <Crown className="w-3 h-3 sm:w-4 sm:h-4" />;
+        return <Crown className="w-3 h-3 sm:w-4 sm:h-4 text-black" />;
       default:
         return null;
     }
@@ -121,15 +122,15 @@ export const CreditDisplay = () => {
   return (
     <button
       onClick={() => navigate('/dashboard/settings?tab=subscription')}
-      className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-gradient-to-r ${getTierColor()} hover:opacity-90 transition-all duration-300 hover:scale-105 cursor-pointer border border-white/20`}
+      className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r ${getTierColor()} hover:opacity-90 transition-all duration-300 hover:scale-105 cursor-pointer shadow-[0_0_0_1px_#1dff00,0_4px_16px_rgba(29,255,0,0.3)] hover:shadow-[0_0_0_1px_#1dff00,0_6px_24px_rgba(29,255,0,0.5)]`}
       title={`${subscriptionTier} Plan - ${credits} credits remaining. Click to manage subscription.`}
     >
-      <Coins className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
-      <span className="text-white font-semibold text-xs sm:text-sm whitespace-nowrap">
+      <Coins className="w-4 h-4 sm:w-5 sm:h-5 text-black" />
+      <span className="text-black font-bold text-sm sm:text-base whitespace-nowrap">
         {credits.toLocaleString()}
       </span>
       {getTierIcon()}
-      <span className="hidden lg:inline text-white/80 text-xs ml-0.5">
+      <span className="hidden lg:inline text-black/80 text-xs font-semibold ml-0.5">
         {subscriptionTier}
       </span>
     </button>
