@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
 import { parsePdfFile } from '@/utils/parsePdf';
 import { analyzeResumeText } from '@/utils/analyzeResume';
+import { parseResumeWithAI, type ParsedProfileData } from '@/services/ai/parseResumeProfile';
 import { events } from '@/lib/analytics';
 
 interface OnboardingStep {
@@ -217,15 +218,18 @@ export const Onboarding = (): JSX.Element => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
+      
       // Upload to storage (resumes bucket)
       const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
       const path = `${user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
       const bytes = await file.arrayBuffer();
       const blob = new Blob([bytes], { type: file.type || 'application/octet-stream' });
       setUploadProgress(25);
+      
       const { error: upErr } = await (supabase as any).storage.from('resumes').upload(path, blob, { upsert: false, contentType: file.type || undefined });
       if (upErr) throw upErr;
-      setUploadProgress(50);
+      setUploadProgress(40);
+      
       const insertPayload = {
         user_id: user.id,
         name: file.name.replace(/\.[^.]+$/, ''),
@@ -238,10 +242,12 @@ export const Onboarding = (): JSX.Element => {
         file_ext: ext,
         size: file.size,
       };
+      
       const { data: resumeRow, error: insErr } = await (supabase as any).from('resumes').insert(insertPayload).select('*').single();
       if (insErr) throw insErr;
-      setUploadProgress(65);
-      // Parse & analyze
+      setUploadProgress(50);
+      
+      // Parse PDF/text content
       setParsing(true);
       let rawText = '';
       if (ext === 'pdf') {
@@ -250,9 +256,38 @@ export const Onboarding = (): JSX.Element => {
       } else {
         rawText = await file.text();
       }
-      setUploadProgress(75);
+      setUploadProgress(60);
+      
+      // Try AI parsing first (if user has OpenAI key configured)
+      let aiParsedData: ParsedProfileData | null = null;
+      try {
+        // Check if user has OpenAI API key in settings
+        const { data: settingsData } = await (supabase as any)
+          .from('settings')
+          .select('openai_api_key')
+          .eq('user_id', user.id)
+          .single();
+        
+        const apiKey = settingsData?.openai_api_key;
+        
+        if (apiKey && apiKey.trim()) {
+          setUploadProgress(65);
+          aiParsedData = await parseResumeWithAI({
+            resumeText: rawText,
+            apiKey: apiKey,
+            model: 'gpt-4o-mini'
+          });
+          setUploadProgress(80);
+        }
+      } catch (aiErr: any) {
+        console.warn('AI parsing failed, falling back to heuristic:', aiErr);
+        // Fall through to heuristic parsing
+      }
+      
+      // Fallback: use heuristic analysis
       const analyzed = analyzeResumeText(rawText || '');
       setUploadProgress(85);
+      
       // Insert parsed snapshot (lightweight)
       try {
         await (supabase as any).from('parsed_resumes').insert({
@@ -262,25 +297,160 @@ export const Onboarding = (): JSX.Element => {
           json: { sections: analyzed.sections, entities: analyzed.entities },
         });
       } catch {}
-      // Prefill form data
-      const summary = analyzed.structured?.summary || '';
-      const educationSections = Array.isArray(analyzed.structured?.education) ? analyzed.structured.education : [];
-      const eduParsed = educationSections.map((s: any) => {
-        const lines = String(s.content || '').split(/\n+/).map((l: string) => l.trim()).filter(Boolean);
-        return { school: lines[0] || '', degree: lines[1] || '', start: '', end: '' };
-      }).slice(0, 5);
-      setFormData(prev => ({
-        ...prev,
-        about: prev.about || (typeof summary === 'string' ? summary : ''),
-        skills: Array.from(new Set([...(prev.skills||[]), ...(analyzed.skills||[])])).slice(0, 40),
-        jobTitle: prev.jobTitle || (analyzed.entities?.titles?.[0] || ''),
-        education: prev.education.length ? prev.education : eduParsed,
-      }));
+      
+      // Prepare profile data - prioritize AI parsing if available
+      let profileData: any = {};
+      
+      if (aiParsedData) {
+        // Use AI-parsed data
+        profileData = {
+          first_name: aiParsedData.firstName || null,
+          last_name: aiParsedData.lastName || null,
+          email: aiParsedData.email || (user as any).email || null,
+          phone: aiParsedData.phone || null,
+          location: aiParsedData.location || null,
+          job_title: aiParsedData.jobTitle || null,
+          experience_years: aiParsedData.experienceYears,
+          about: aiParsedData.about || null,
+          skills: aiParsedData.skills || [],
+          education: aiParsedData.education.length ? JSON.stringify(aiParsedData.education) : null,
+          experience: aiParsedData.experience.length ? JSON.stringify(aiParsedData.experience) : null,
+          onboarding_complete: true,
+          updated_at: new Date().toISOString(),
+        };
+        
+        // Save education to profile_education table
+        if (aiParsedData.education && aiParsedData.education.length > 0) {
+          const eduRows = aiParsedData.education
+            .filter(e => e.school || e.degree)
+            .map(e => ({
+              user_id: user.id,
+              degree: e.degree || '',
+              school: e.school || '',
+              location: '',
+              start_date: e.start ? `${e.start}-01` : new Date().toISOString(),
+              end_date: e.end ? `${e.end}-01` : null,
+              gpa: null,
+            }));
+          
+          if (eduRows.length > 0) {
+            try {
+              await (supabase as any).from('profile_education').insert(eduRows);
+            } catch (eduErr) {
+              console.warn('Failed to insert education:', eduErr);
+            }
+          }
+        }
+        
+        // Save skills to profile_skills table
+        if (aiParsedData.skills && aiParsedData.skills.length > 0) {
+          const skillRows = aiParsedData.skills.slice(0, 60).map(name => ({
+            user_id: user.id,
+            name: name.trim(),
+            level: null,
+            category: '',
+          })).filter(r => r.name);
+          
+          if (skillRows.length > 0) {
+            try {
+              await (supabase as any).from('profile_skills').insert(skillRows);
+            } catch (skillErr) {
+              console.warn('Failed to insert skills:', skillErr);
+            }
+          }
+        }
+      } else {
+        // Fallback to heuristic parsing
+        const summary = analyzed.structured?.summary || '';
+        const educationSections = Array.isArray(analyzed.structured?.education) ? analyzed.structured.education : [];
+        const eduParsed = educationSections.map((s: any) => {
+          const lines = String(s.content || '').split(/\n+/).map((l: string) => l.trim()).filter(Boolean);
+          return { school: lines[0] || '', degree: lines[1] || '', start: '', end: '' };
+        }).slice(0, 5);
+        
+        profileData = {
+          first_name: null,
+          last_name: null,
+          email: analyzed.emails?.[0] || (user as any).email || null,
+          phone: analyzed.phones?.[0] || null,
+          location: null,
+          job_title: analyzed.entities?.titles?.[0] || null,
+          experience_years: null,
+          about: typeof summary === 'string' ? summary : null,
+          skills: Array.from(new Set(analyzed.skills || [])).slice(0, 40),
+          education: eduParsed.length ? JSON.stringify(eduParsed) : null,
+          experience: null,
+          onboarding_complete: true,
+          updated_at: new Date().toISOString(),
+        };
+        
+        // Save education heuristically
+        if (eduParsed.length > 0) {
+          const eduRows = eduParsed
+            .filter((e: any) => e.school || e.degree)
+            .map((e: any) => ({
+              user_id: user.id,
+              degree: e.degree || '',
+              school: e.school || '',
+              location: '',
+              start_date: e.start ? `${e.start}-01` : new Date().toISOString(),
+              end_date: e.end ? `${e.end}-01` : null,
+              gpa: null,
+            }));
+          
+          if (eduRows.length > 0) {
+            try {
+              await (supabase as any).from('profile_education').insert(eduRows);
+            } catch (eduErr) {
+              console.warn('Failed to insert education:', eduErr);
+            }
+          }
+        }
+        
+        // Save skills heuristically
+        if (profileData.skills && profileData.skills.length > 0) {
+          const skillRows = profileData.skills.map((name: string) => ({
+            user_id: user.id,
+            name: name.trim(),
+            level: null,
+            category: '',
+          })).filter((r: any) => r.name);
+          
+          if (skillRows.length > 0) {
+            try {
+              await (supabase as any).from('profile_skills').insert(skillRows);
+            } catch (skillErr) {
+              console.warn('Failed to insert skills:', skillErr);
+            }
+          }
+        }
+      }
+      
+      // Save profile data
+      const { error: profileErr } = await (supabase as any).from('profiles').upsert(
+        { id: user.id, ...profileData },
+        { onConflict: 'id' }
+      );
+      
+      if (profileErr) throw profileErr;
+      
       setUploadProgress(100);
       setParsed(true);
       setParsing(false);
-      // Move user into step flow (start from first standard step so they can refine names etc.)
-      setCurrentStep(0);
+      
+      // Track analytics
+      try {
+        const startedAt = (user as any).created_at ? new Date((user as any).created_at).getTime() : undefined;
+        const elapsed = startedAt ? Date.now() - startedAt : undefined;
+        events.profileCompleted(elapsed as any);
+        (window as any).__profileCompletedTracked = true;
+      } catch {}
+      
+      // Redirect to dashboard after brief delay
+      setTimeout(() => {
+        navigate("/dashboard/overview");
+      }, 1500);
+      
     } catch (e: any) {
       setParseError(e.message || 'Failed to process resume');
     } finally {
@@ -288,7 +458,7 @@ export const Onboarding = (): JSX.Element => {
       setParsing(false);
       setTimeout(() => setUploadProgress(0), 1200);
     }
-  }, [supabase]);
+  }, [supabase, navigate]);
 
   const resumeModeScreen = (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-10 bg-black relative overflow-hidden">
@@ -298,22 +468,23 @@ export const Onboarding = (): JSX.Element => {
       </div>
       <div className="relative max-w-4xl w-full space-y-10">
         <div className="text-center space-y-4">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-white via-white to-[#1dff00] bg-clip-text text-transparent">Welcome – how do you want to get started?</h1>
-          <p className="text-white/70 max-w-2xl mx-auto text-sm md:text-base">Upload your existing resume for instant AI extraction, or build your profile manually. You can always refine everything afterward.</p>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-white via-white to-[#1dff00] bg-clip-text text-transparent">Welcome – let's set up your profile</h1>
+          <p className="text-white/70 max-w-2xl mx-auto text-sm md:text-base">Upload your resume for instant AI-powered profile creation, or manually enter your information step by step.</p>
         </div>
         <div className="grid gap-6 md:grid-cols-2">
           <button onClick={() => setMode('resume')} className="group relative overflow-hidden rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#101910] via-[#060a06] to-black p-8 text-left shadow-[0_0_0_1px_rgba(29,255,0,0.15),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(29,255,0,0.4),0_25px_50px_-12px_rgba(29,255,0,0.15)] transition">
+            <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-[#1dff00]/20 border border-[#1dff00]/40 text-[#1dff00] text-[10px] font-semibold uppercase tracking-wide">Recommended</div>
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-[#1dff00]/10 to-transparent transition" />
             <div className="flex items-center gap-3 mb-6">
               <div className="h-12 w-12 rounded-xl bg-[#1dff00]/15 flex items-center justify-center border border-[#1dff00]/30"><UploadCloud className="w-6 h-6 text-[#1dff00]" /></div>
-              <h2 className="text-xl font-semibold text-white">Upload & Auto‑Extract</h2>
+              <h2 className="text-xl font-semibold text-white">AI-Powered Setup</h2>
             </div>
             <ul className="space-y-2 text-sm text-white/70">
-              <li className="flex items-start gap-2"><Wand2 className="w-4 h-4 text-[#1dff00] mt-0.5" /> AI parses skills, summary, education & roles</li>
-              <li className="flex items-start gap-2"><FileText className="w-4 h-4 text-[#1dff00] mt-0.5" /> Prefills your profile instantly</li>
-              <li className="flex items-start gap-2"><ShieldCheck className="w-4 h-4 text-[#1dff00] mt-0.5" /> Your data stays private</li>
+              <li className="flex items-start gap-2"><Wand2 className="w-4 h-4 text-[#1dff00] mt-0.5" /> AI extracts all profile information automatically</li>
+              <li className="flex items-start gap-2"><FileText className="w-4 h-4 text-[#1dff00] mt-0.5" /> Saves directly to your account - no manual entry</li>
+              <li className="flex items-start gap-2"><ShieldCheck className="w-4 h-4 text-[#1dff00] mt-0.5" /> Fast, accurate & editable anytime</li>
             </ul>
-            <div className="mt-6 inline-flex items-center gap-2 text-[#1dff00] text-sm font-medium">Get started <ChevronRight className="w-4 h-4" /></div>
+            <div className="mt-6 inline-flex items-center gap-2 text-[#1dff00] text-sm font-medium">Upload Resume <ChevronRight className="w-4 h-4" /></div>
           </button>
           <button onClick={() => setMode('manual')} className="group relative overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-[#0d0d0d] via-[#060606] to-black p-8 text-left shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.25),0_25px_50px_-12px_rgba(0,0,0,0.5)] transition">
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-white/5 to-transparent transition" />
@@ -342,7 +513,7 @@ export const Onboarding = (): JSX.Element => {
       <div className="relative max-w-2xl w-full space-y-10">
         <div className="text-center space-y-4">
           <h1 id="uploadHeading" className="text-3xl font-bold tracking-tight text-white">Upload Your Resume</h1>
-          <p className="text-white/70 text-sm md:text-base max-w-xl mx-auto">We’ll parse skills, roles, education and summary. Nothing is final until you confirm.</p>
+          <p className="text-white/70 text-sm md:text-base max-w-xl mx-auto">We'll use AI to parse your profile information and automatically set up your account. You'll be redirected to your dashboard once complete.</p>
         </div>
         <div className="rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#081108] via-[#050805] to-black p-10 relative overflow-hidden" aria-live="polite">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(29,255,0,0.15),transparent_70%)] opacity-70" />
@@ -373,35 +544,45 @@ export const Onboarding = (): JSX.Element => {
                 </label>
                 {(uploading || parsing) && (
                   <div className="w-full space-y-2">
-                    <div className="flex items-center justify-between text-[11px] text-white/60"><span>{parsing ? 'Parsing & extracting content' : 'Uploading file'}</span><span>{uploadProgress}%</span></div>
+                    <div className="flex items-center justify-between text-[11px] text-white/60">
+                      <span>{parsing ? 'Parsing resume with AI & saving profile' : 'Uploading file'}</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
                     <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
                       <div className="h-full bg-gradient-to-r from-[#1dff00] via-[#7dff5c] to-[#1dff00] transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-white/40">
                       <div className="h-1.5 w-1.5 rounded-full bg-[#1dff00] animate-pulse" />
-                      <span>{parsing ? 'Extracting sections, skills & entities…' : 'Uploading to secure storage…'}</span>
+                      <span>{parsing ? 'Extracting profile data & creating your account…' : 'Uploading to secure storage…'}</span>
                     </div>
                   </div>
                 )}
                 {parseError && <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2 w-full">{parseError}</div>}
+                {parsed && !parseError && (
+                  <div className="text-xs text-[#1dff00] bg-[#1dff00]/10 border border-[#1dff00]/30 rounded-md px-3 py-2 w-full flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Profile created successfully! Redirecting to dashboard...</span>
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-3">
-                  <button onClick={() => setMode(null)} className="px-4 py-2 rounded-md border border-white/20 text-white/70 hover:text-white hover:border-white/40 text-sm">Back</button>
+                  <button onClick={() => setMode(null)} disabled={uploading || parsing} className="px-4 py-2 rounded-md border border-white/20 text-white/70 hover:text-white hover:border-white/40 text-sm disabled:opacity-50 disabled:cursor-not-allowed">Back</button>
                   {parseError && <button onClick={() => setParseError(null)} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium">Try Again</button>}
-                  {parsed && <button onClick={() => setMode('manual')} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium">Continue to Profile</button>}
                 </div>
               </div>
               {/* Preview / Extraction Panel */}
               <div className="flex-1 rounded-xl border border-white/10 bg-white/[0.03] p-5 flex flex-col gap-4 min-h-[320px]">
                 {!parsed && !(uploading||parsing) && (
                   <div className="text-white/50 text-sm leading-relaxed">
-                    <p className="font-medium mb-2 text-white/70">What we extract</p>
+                    <p className="font-medium mb-2 text-white/70">Automatic Profile Setup</p>
                     <ul className="list-disc list-inside space-y-1 text-xs">
-                      <li>Professional summary / profile</li>
-                      <li>Highlighted skills (tech & core)</li>
-                      <li>Education institutions & degrees</li>
-                      <li>Role titles and seniority indicators</li>
+                      <li>AI extracts name, email, phone & location</li>
+                      <li>Parses professional summary & job title</li>
+                      <li>Identifies skills and calculates experience</li>
+                      <li>Extracts education and work history</li>
+                      <li>Automatically saves to your profile</li>
+                      <li>Redirects to dashboard when complete</li>
                     </ul>
-                    <div className="mt-4 text-[10px] uppercase tracking-wide text-white/30">No external API calls • Parsed locally</div>
+                    <div className="mt-4 text-[10px] uppercase tracking-wide text-white/30">AI-Powered • Secure • Automatic</div>
                   </div>
                 )}
                 {(uploading || parsing) && (
@@ -419,23 +600,20 @@ export const Onboarding = (): JSX.Element => {
                 )}
                 {parsed && !uploading && !parsing && (
                   <div className="flex flex-col gap-4">
-                    <div>
-                      <div className="text-xs font-semibold text-white/70 mb-1">Extracted Summary</div>
-                      <div className="text-xs text-white/70 bg-black/40 border border-white/10 rounded-md p-3 max-h-32 overflow-auto whitespace-pre-wrap">{formData.about || '—'}</div>
+                    <div className="flex items-center gap-2 text-[#1dff00]">
+                      <CheckCircle className="w-5 h-5" />
+                      <span className="font-semibold">Profile Created Successfully!</span>
                     </div>
-                    <div>
-                      <div className="text-xs font-semibold text-white/70 mb-1 flex items-center gap-2">Skills <span className="text-white/30 font-normal">({formData.skills.length})</span></div>
-                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-auto">
-                        {formData.skills.slice(0,40).map(s => (
-                          <span key={s} className="px-2 py-0.5 rounded-full text-[10px] bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00]">{s}</span>
-                        ))}
-                        {!formData.skills.length && <span className="text-[10px] text-white/40">No skills detected</span>}
-                      </div>
-                    </div>
-                    <div className="flex gap-2 flex-wrap text-[10px] text-white/40">
-                      <button onClick={() => setParsed(false)} className="underline hover:text-white/70">Replace File</button>
-                      <button onClick={() => { setFormData(p=>({...p, about:'', skills:[], education:[]})); setParsed(false); }} className="underline hover:text-white/70">Reset Extraction</button>
-                      <button onClick={() => setMode('manual')} className="underline text-[#1dff00] hover:text-[#7dff5c]">Accept & Continue</button>
+                    <div className="text-xs text-white/70 space-y-2">
+                      <p>Your profile has been automatically created with:</p>
+                      <ul className="list-disc list-inside space-y-1 text-[11px] text-white/60 ml-2">
+                        <li>Personal information</li>
+                        <li>Professional summary</li>
+                        <li>Skills and experience</li>
+                        <li>Education history</li>
+                        <li>Work experience</li>
+                      </ul>
+                      <p className="mt-3 text-[11px] text-[#1dff00]/80">Redirecting you to the dashboard...</p>
                     </div>
                   </div>
                 )}
@@ -443,21 +621,21 @@ export const Onboarding = (): JSX.Element => {
             </div>
             <div className="grid grid-cols-3 gap-4 text-center text-[10px] text-white/40">
               <div className="flex flex-col gap-1">
-                <span className="font-medium text-white/60">Private</span>
-                <span>No external send</span>
+                <span className="font-medium text-white/60">Secure</span>
+                <span>AI-powered parsing</span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="font-medium text-white/60">Fast</span>
-                <span>&lt; 5s parse</span>
+                <span className="font-medium text-white/60">Automatic</span>
+                <span>Profile setup</span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="font-medium text-white/60">Re-usable</span>
-                <span>Edit anytime</span>
+                <span className="font-medium text-white/60">Editable</span>
+                <span>Modify anytime</span>
               </div>
             </div>
           </div>
         </div>
-        <div className="text-center text-xs text-white/40">Your file is used only to prefill profile data. You can delete the stored draft resume later.</div>
+        <div className="text-center text-xs text-white/40">Your resume is parsed with AI to automatically create your profile. All data can be edited later in settings.</div>
       </div>
     </div>
   );
