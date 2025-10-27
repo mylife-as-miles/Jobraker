@@ -1,4 +1,4 @@
-import { Briefcase, Search, MapPin, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Sparkles, Check, ShieldCheck, Clock3, FileText, AlertTriangle, UserCheck, UserX, FileCheck2, FileWarning, User } from "lucide-react";
+import { Briefcase, Search, MapPin, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Sparkles, Check, ShieldCheck, Clock3, FileText, AlertTriangle, UserCheck, UserX, FileCheck2, FileWarning, User, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -590,6 +590,7 @@ export const JobPage = (): JSX.Element => {
   const [applyingAll, setApplyingAll] = useState(false);
     const [applyProgress, setApplyProgress] = useState({ done: 0, total: 0, success: 0, fail: 0 });
     const [sortBy, setSortBy] = useState<"recent" | "company" | "deadline">("recent");
+  const [clearingJobs, setClearingJobs] = useState(false);
   // Resume attach dialog state
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
@@ -917,6 +918,46 @@ export const JobPage = (): JSX.Element => {
           return []; // Return empty array on error
         }
     }, [supabase]);
+
+    const clearAllJobs = useCallback(async () => {
+      if (!window.confirm('Are you sure you want to delete ALL jobs? This action cannot be undone.')) {
+        return;
+      }
+      
+      setClearingJobs(true);
+      setError(null);
+      
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const userId = authData?.user?.id;
+        
+        if (!userId) {
+          throw new Error('User not authenticated');
+        }
+
+        // Delete all jobs for the current user
+        const { error: deleteError } = await supabase
+          .from('jobs')
+          .delete()
+          .eq('user_id', userId);
+
+        if (deleteError) {
+          throw new Error(deleteError.message);
+        }
+
+        // Clear the UI state
+        setJobs([]);
+        setSelectedJob(null);
+        setQueueStatus('empty');
+        setCurrentPage(1);
+        
+        safeInfo('All jobs cleared', 'Successfully deleted all jobs from your list.');
+      } catch (e: any) {
+        setErrorDedup({ message: `Failed to clear jobs: ${e.message}` });
+      } finally {
+        setClearingJobs(false);
+      }
+    }, [supabase, safeInfo, setErrorDedup]);
 
     const populateQueue = useCallback(async (query: string, _location?: string) => {
       // Prevent re-entry if a run is active
@@ -1502,6 +1543,29 @@ export const JobPage = (): JSX.Element => {
                             : <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#1dff00]" />}
                           <span className="hidden sm:inline">{queueStatus === 'populating' ? 'Building results…' : 'Find Jobs Suite'}</span>
                           <span className="sm:hidden">{queueStatus === 'populating' ? 'Building…' : 'Find Jobs'}</span>
+                        </span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={clearAllJobs}
+                        className={`group relative overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${
+                          clearingJobs
+                            ? 'border-red-500/60 text-red-400 bg-red-500/15'
+                            : 'border-red-500/40 text-red-400 bg-red-500/10 hover:text-red-300 hover:border-red-500/60 hover:bg-red-500/20'
+                        }`}
+                        title="Clear all jobs from your list"
+                        disabled={clearingJobs || jobs.length === 0}
+                      >
+                        <span
+                          className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                          style={{ background: 'linear-gradient(120deg, transparent 0%, rgba(239,68,68,0.25) 45%, transparent 90%)' }}
+                        />
+                        <span className="relative inline-flex items-center gap-1.5 sm:gap-2">
+                          {clearingJobs
+                            ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                            : <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                          <span className="hidden sm:inline">{clearingJobs ? 'Clearing…' : 'Clear All Jobs'}</span>
+                          <span className="sm:hidden">{clearingJobs ? 'Clearing…' : 'Clear All'}</span>
                         </span>
                       </Button>
                     </div>
