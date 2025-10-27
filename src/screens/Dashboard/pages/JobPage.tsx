@@ -1548,12 +1548,14 @@ export const JobPage = (): JSX.Element => {
                       <Button
                         variant="ghost"
                         onClick={clearAllJobs}
-                        className={`group relative overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${
+                        className={`group relative overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md ${
                           clearingJobs
-                            ? 'border-red-500/60 text-red-400 bg-red-500/15'
+                            ? 'border-red-500/60 text-red-400 bg-red-500/15 cursor-not-allowed opacity-60'
+                            : jobs.length === 0
+                            ? 'border-red-500/20 text-red-400/40 bg-red-500/5 cursor-not-allowed opacity-40'
                             : 'border-red-500/40 text-red-400 bg-red-500/10 hover:text-red-300 hover:border-red-500/60 hover:bg-red-500/20'
                         }`}
-                        title="Clear all jobs from your list"
+                        title={jobs.length === 0 ? "No jobs to clear" : "Clear all jobs from your list"}
                         disabled={clearingJobs || jobs.length === 0}
                       >
                         <span
