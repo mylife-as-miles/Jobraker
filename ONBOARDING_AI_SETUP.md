@@ -1,8 +1,8 @@
-# AI-Powered Onboarding Setup
+# Enterprise AI-Powered Onboarding Setup
 
 ## Overview
 
-The onboarding flow now features **automatic AI-powered resume parsing** that extracts profile data and saves it directly to the database, eliminating the need for manual data entry.
+The onboarding flow features **enterprise-grade AI-powered resume parsing** using **GPT-4o** (OpenAI's most advanced model) that performs sophisticated career analysis and automatically creates rich, professional profiles with zero manual data entry.
 
 ## How It Works
 
@@ -12,19 +12,47 @@ When a user uploads their resume during onboarding:
 - A resume record is created in the `resumes` table
 - The file content is extracted (PDF or text)
 
-### 2. AI Parsing (Primary Method)
+### 2. Enterprise AI Analysis (Primary Method)
 If the user has configured an OpenAI API key in their settings:
-- The resume text is sent to OpenAI GPT-4o-mini
-- AI extracts structured profile data including:
-  - First name and last name
-  - Email and phone number
-  - Location
-  - Current job title
-  - Years of experience
-  - Professional summary (about)
-  - Skills array
-  - Education history (with schools, degrees, dates)
-  - Work experience (with companies, titles, descriptions)
+- The resume text is sent to **OpenAI GPT-4o** with an enterprise-level system prompt
+- AI performs deep analysis including:
+  
+  **📋 Contact & Identity Extraction:**
+  - First name and last name (with cultural awareness for compound names)
+  - Professional email (prioritizes company/edu domains)
+  - Phone number with international format recognition
+  - Complete location normalization (City, State, Country)
+  
+  **💼 Professional Profile Analysis:**
+  - Current/most recent job title identification
+  - Intelligent total experience calculation (handles overlaps, gaps, part-time roles)
+  - Career trajectory assessment
+  
+  **✍️ Professional Summary Generation:**
+  - Compelling 3-4 sentence "About" section
+  - Written in first person, executive-coach quality
+  - Highlights expertise, achievements, and unique value
+  - Showcases technical domains and career focus
+  
+  **🔧 Comprehensive Skill Extraction (15-40 skills):**
+  - Programming languages, frameworks, libraries
+  - Databases, cloud platforms, infrastructure tools
+  - Methodologies (Agile, TDD, CI/CD, Microservices)
+  - Soft skills (Leadership, Communication, Mentoring)
+  - Domain expertise (FinTech, Healthcare, ML, etc.)
+  - **Smart inference**: Extracts implicit skills from project descriptions
+  
+  **🎓 Education Parsing:**
+  - Reverse chronological order
+  - Full institution names (expands abbreviations)
+  - Complete degree details (type + major + minor)
+  - Standardized date formats
+  
+  **💻 Work Experience Enrichment:**
+  - Full company names
+  - Exact titles and locations
+  - Precise dates (YYYY-MM format)
+  - Impact-focused descriptions with metrics and technologies
 
 ### 3. Fallback Heuristic Parsing
 If no OpenAI key is configured or AI parsing fails:
@@ -39,6 +67,32 @@ Once parsed, the system automatically:
 - Inserts skills into `profile_skills` table
 - Marks `onboarding_complete` as `true`
 - Redirects user to the dashboard
+
+## AI Model Configuration
+
+### GPT-4o Enterprise Setup
+
+**Model**: `gpt-4o` (OpenAI's latest and most capable model)
+- **Temperature**: `0.3` - Balanced between factual accuracy and creative professional summaries
+- **Response Format**: Structured JSON object with strict schema validation
+- **System Prompt**: Enterprise-level career analyst persona with talent assessment expertise
+- **Timeout**: 30 seconds per request
+- **Token Limit**: ~128k context window (handles even lengthy resumes)
+
+### Why GPT-4o?
+
+1. **Superior Understanding**: Better context comprehension for implicit skill extraction
+2. **Professional Writing**: Generates executive-quality professional summaries
+3. **Complex Reasoning**: Accurately calculates experience years, handles career gaps, identifies career trajectory
+4. **Schema Adherence**: More reliable JSON output with fewer parsing errors
+5. **Multimodal Ready**: Future support for parsing resume images/scanned PDFs
+
+### Cost Optimization
+
+- Only called once per resume upload
+- Structured output reduces token usage vs. free-form responses
+- Cached results stored in `parsed_resumes` table
+- Falls back to free heuristic parser if API key unavailable
 
 ## Database Schema
 
