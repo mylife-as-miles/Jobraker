@@ -17,23 +17,30 @@ export const CreditDisplay = () => {
         const { data: userData } = await supabase.auth.getUser();
         const userId = userData?.user?.id;
         if (!userId) {
+          console.log('CreditDisplay: No user ID found');
           setLoading(false);
           return;
         }
 
+        console.log('CreditDisplay: Fetching credits for user:', userId);
+
         // Fetch credits
-        const { data: creditsData } = await supabase
+        const { data: creditsData, error: creditsError } = await supabase
           .from('user_credits')
           .select('balance')
           .eq('user_id', userId)
           .single();
 
+        console.log('CreditDisplay: Credits data:', creditsData, 'Error:', creditsError);
+
         if (creditsData) {
           setCredits(creditsData.balance);
+        } else {
+          console.warn('CreditDisplay: No credits data found for user');
         }
 
         // Fetch subscription tier
-        const { data: subscription } = await supabase
+        const { data: subscription, error: subError } = await supabase
           .from('user_subscriptions')
           .select('subscription_plans(name)')
           .eq('user_id', userId)
@@ -41,6 +48,8 @@ export const CreditDisplay = () => {
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
+
+        console.log('CreditDisplay: Subscription data:', subscription, 'Error:', subError);
 
         const planName = (subscription as any)?.subscription_plans?.name;
         if (planName) {
@@ -53,6 +62,7 @@ export const CreditDisplay = () => {
             .eq('id', userId)
             .single();
 
+          console.log('CreditDisplay: Profile tier:', profileData?.subscription_tier);
           setSubscriptionTier(profileData?.subscription_tier || 'Free');
         }
       } catch (error) {
