@@ -22,7 +22,7 @@ UPDATE subscription_plans
 SET 
     "credits_per_month" = 1000,
     "price" = 49.00,
-    "features" = '["1000 monthly credits", "Everything in Free", "AI match score analysis (5 credits)", "AI cover letter generation (5 credits)", "AI chat assistant access", "Priority support", "Advanced analytics", "Bulk operations"]'::jsonb,
+    "features" = '["1000 monthly credits", "Everything in Free", "AI match score analysis (free)", "AI cover letter generation (free)", "AI chat assistant access", "Priority support", "Advanced analytics", "Bulk operations"]'::jsonb,
     "updated_at" = NOW()
 WHERE "name" = 'Pro';
 
@@ -53,31 +53,31 @@ WHERE "feature_type" = 'job' AND "feature_name" = 'application';
 
 -- Add/Update match score analysis cost
 INSERT INTO credit_costs (feature_type, feature_name, cost, description, required_tier)
-VALUES ('analysis', 'match_score', 5, 'Analyze job match score with AI (5 credits) - Pro/Ultimate only', 'Pro')
+VALUES ('analysis', 'match_score', 0, 'Analyze job match score with AI (free for Pro/Ultimate) - Pro/Ultimate only', 'Pro')
 ON CONFLICT (feature_type, feature_name) 
 DO UPDATE SET 
-    "cost" = 5,
-    "description" = 'Analyze job match score with AI (5 credits) - Pro/Ultimate only',
+    "cost" = 0,
+    "description" = 'Analyze job match score with AI (free for Pro/Ultimate) - Pro/Ultimate only',
     "required_tier" = 'Pro',
     "updated_at" = NOW();
 
 -- Add/Update cover letter generation cost
 INSERT INTO credit_costs (feature_type, feature_name, cost, description, required_tier)
-VALUES ('cover_letter', 'ai_generation', 5, 'Generate personalized cover letter using AI (5 credits) - Pro/Ultimate only', 'Pro')
+VALUES ('cover_letter', 'ai_generation', 0, 'Generate personalized cover letter using AI (free for Pro/Ultimate) - Pro/Ultimate only', 'Pro')
 ON CONFLICT (feature_type, feature_name) 
 DO UPDATE SET 
-    "cost" = 5,
-    "description" = 'Generate personalized cover letter using AI (5 credits) - Pro/Ultimate only',
+    "cost" = 0,
+    "description" = 'Generate personalized cover letter using AI (free for Pro/Ultimate) - Pro/Ultimate only',
     "required_tier" = 'Pro',
     "updated_at" = NOW();
 
 -- Add/Update cover letter optimization cost
 INSERT INTO credit_costs (feature_type, feature_name, cost, description, required_tier)
-VALUES ('cover_letter', 'optimization', 5, 'Optimize existing cover letter for specific job (5 credits) - Pro/Ultimate only', 'Pro')
+VALUES ('cover_letter', 'optimization', 0, 'Optimize existing cover letter for specific job (free for Pro/Ultimate) - Pro/Ultimate only', 'Pro')
 ON CONFLICT (feature_type, feature_name) 
 DO UPDATE SET 
-    "cost" = 5,
-    "description" = 'Optimize existing cover letter for specific job (5 credits) - Pro/Ultimate only',
+    "cost" = 0,
+    "description" = 'Optimize existing cover letter for specific job (free for Pro/Ultimate) - Pro/Ultimate only',
     "required_tier" = 'Pro',
     "updated_at" = NOW();
 

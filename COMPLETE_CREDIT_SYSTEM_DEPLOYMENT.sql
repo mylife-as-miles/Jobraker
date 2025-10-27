@@ -169,9 +169,9 @@ INSERT INTO "public"."credit_costs" (
 ) VALUES 
 ('job', 'search', 1, 'Search for jobs', NULL, true),
 ('job', 'application', 5, 'Apply to a job', NULL, true),
-('analysis', 'match_score', 5, 'AI match score analysis', 'Pro', true),
-('cover_letter', 'ai_generation', 5, 'Generate cover letter with AI', 'Pro', true),
-('cover_letter', 'optimization', 5, 'Optimize cover letter', 'Pro', true),
+('analysis', 'match_score', 0, 'AI match score analysis - Free for Pro/Ultimate', 'Pro', true),
+('cover_letter', 'ai_generation', 0, 'Generate cover letter with AI - Free for Pro/Ultimate', 'Pro', true),
+('cover_letter', 'optimization', 0, 'Optimize cover letter - Free for Pro/Ultimate', 'Pro', true),
 ('bonus', 'signup', 50, 'New user signup bonus', NULL, true)
 ON CONFLICT (feature_type, feature_name) DO NOTHING;
 

@@ -18,7 +18,7 @@ SET
     "credits_per_cycle" = 1000,
     "price" = 49.00,
     "description" = 'Pro tier with 1000 monthly credits and advanced features',
-    "features" = '["1000 monthly credits", "Everything in Free", "AI match score analysis (5 credits)", "AI cover letter generation (5 credits)", "AI chat assistant access", "Priority support", "Advanced analytics", "Bulk operations"]'::jsonb,
+    "features" = '["1000 monthly credits", "Everything in Free", "AI match score analysis (free)", "AI cover letter generation (free)", "AI chat assistant access", "Priority support", "Advanced analytics", "Bulk operations"]'::jsonb,
     "updated_at" = timezone('utc'::text, now())
 WHERE "name" = 'Pro';
 
@@ -60,22 +60,22 @@ WHERE "feature_type" = 'job_search' AND "feature_name" = 'auto_apply';
 
 UPDATE "public"."credit_costs"
 SET 
-    "cost" = 5,
-    "description" = 'AI-powered job match score analysis (5 credits) - Pro/Ultimate only',
+    "cost" = 0,
+    "description" = 'AI-powered job match score analysis (free for Pro/Ultimate) - Pro/Ultimate only',
     "updated_at" = timezone('utc'::text, now())
 WHERE "feature_type" = 'job_search' AND "feature_name" = 'job_match_analysis';
 
 UPDATE "public"."credit_costs"
 SET 
-    "cost" = 5,
-    "description" = 'Generate personalized cover letter using AI (5 credits) - Pro/Ultimate only',
+    "cost" = 0,
+    "description" = 'Generate personalized cover letter using AI (free for Pro/Ultimate) - Pro/Ultimate only',
     "updated_at" = timezone('utc'::text, now())
 WHERE "feature_type" = 'cover_letter' AND "feature_name" = 'ai_generation';
 
 UPDATE "public"."credit_costs"
 SET 
-    "cost" = 5,
-    "description" = 'Optimize existing cover letter for specific job (5 credits) - Pro/Ultimate only',
+    "cost" = 0,
+    "description" = 'Optimize existing cover letter for specific job (free for Pro/Ultimate) - Pro/Ultimate only',
     "updated_at" = timezone('utc'::text, now())
 WHERE "feature_type" = 'cover_letter' AND "feature_name" = 'optimization';
 
