@@ -3,7 +3,7 @@ import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
-import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award, GraduationCap, Briefcase, Lightbulb } from "lucide-react";
+import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award, GraduationCap, Briefcase, Lightbulb, Crown, Zap } from "lucide-react";
 import { EmptyState } from "../../../components/ui/empty-state";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
@@ -19,6 +19,7 @@ const ProfilePage = (): JSX.Element => {
   const supabase = useMemo(() => createClient(), []);
   const [email, setEmail] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Pro' | 'Ultimate'>('Free');
   const initials = useMemo(() => {
     const a = (profile?.first_name || '').trim();
     const b = (profile?.last_name || '').trim();
@@ -32,6 +33,40 @@ const ProfilePage = (): JSX.Element => {
       const { data } = await supabase.auth.getUser();
       const em = (data as any)?.user?.email ?? "";
       setEmail(em);
+    })();
+  }, [supabase]);
+
+  // Fetch subscription tier
+  useEffect(() => {
+    (async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      if (!userId) return;
+      
+      // Try to get from active subscription first
+      const { data: subscription } = await supabase
+        .from('user_subscriptions')
+        .select('subscription_plans(name)')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (subscription && (subscription as any).subscription_plans?.name) {
+        setSubscriptionTier((subscription as any).subscription_plans.name);
+      } else {
+        // Fallback to profile subscription_tier
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('id', userId)
+          .single();
+        
+        if (profileData?.subscription_tier) {
+          setSubscriptionTier(profileData.subscription_tier);
+        }
+      }
     })();
   }, [supabase]);
 
@@ -98,6 +133,28 @@ const ProfilePage = (): JSX.Element => {
         return "bg-gray-500";
       default:
         return "bg-gray-500";
+    }
+  };
+
+  // Subscription tier badge helper
+  const getTierBadge = (tier: string) => {
+    switch (tier) {
+      case 'Pro':
+        return {
+          icon: Zap,
+          color: 'from-blue-500 to-cyan-500',
+          textColor: 'text-blue-300',
+          label: 'Pro'
+        };
+      case 'Ultimate':
+        return {
+          icon: Crown,
+          color: 'from-purple-500 to-pink-500',
+          textColor: 'text-purple-300',
+          label: 'Ultimate'
+        };
+      default:
+        return null;
     }
   };
 
@@ -190,6 +247,20 @@ const ProfilePage = (): JSX.Element => {
                     {(profile?.first_name || '').trim() || 'Your'} {(profile?.last_name || '').trim() || 'Name'}
                   </h2>
                   <p className="text-[#ffffff80] mb-2">{profile?.job_title || 'Add a job title'}</p>
+                  
+                  {/* Subscription Tier Badge */}
+                  {(() => {
+                    const tierBadge = getTierBadge(subscriptionTier);
+                    if (!tierBadge) return null;
+                    const TierIcon = tierBadge.icon;
+                    return (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 mb-3 rounded-full bg-gradient-to-r shadow-lg border border-white/20" style={{ backgroundImage: `linear-gradient(to right, var(--tw-gradient-stops))`, '--tw-gradient-from': tierBadge.color.split(' ')[0].replace('from-', ''), '--tw-gradient-to': tierBadge.color.split(' ')[1].replace('to-', '') } as any}>
+                        <TierIcon className="w-4 h-4 text-white" />
+                        <span className="text-sm font-semibold text-white">{tierBadge.label}</span>
+                      </div>
+                    );
+                  })()}
+                  
                   <p className="text-[#ffffff60] text-sm mb-4 flex items-center justify-center">
                     <MapPin className="w-4 h-4 mr-1" />
                     {profile?.location || 'Add location'}

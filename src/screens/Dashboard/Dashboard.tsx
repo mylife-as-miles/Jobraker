@@ -25,6 +25,7 @@ import { useProfileSettings } from "../../hooks/useProfileSettings";
 import { Skeleton } from "../../components/ui/skeleton";
 import { createClient } from "../../lib/supabaseClient";
 import { useNotifications } from "../../hooks/useNotifications";
+import { CreditDisplay } from "../../components/CreditDisplay";
 
 // Import sub-page components
 import { OverviewPage } from "./pages/OverviewPage";
@@ -362,6 +363,9 @@ export const Dashboard = (): JSX.Element => {
             
             {/* Header Actions - Responsive */}
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0 whitespace-nowrap">
+              {/* Credit Display */}
+              <CreditDisplay />
+              
               {/* Quick Actions */}
               <Button 
                 variant="ghost" 

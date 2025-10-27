@@ -1,4 +1,4 @@
-import { Briefcase, Search, MapPin, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Sparkles, Check, ShieldCheck, Clock3, FileText, AlertTriangle, UserCheck, UserX, FileCheck2, FileWarning, User, Trash2 } from "lucide-react";
+import { Briefcase, Search, MapPin, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Sparkles, Check, ShieldCheck, Clock3, FileText, AlertTriangle, UserCheck, UserX, FileCheck2, FileWarning, User, Trash2, Target, TrendingUp } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -18,6 +18,7 @@ import { applyToJobs } from "../../../services/applications/applyToJobs";
 import { cn } from "../../../lib/utils";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
+import { UpgradePrompt } from "../../../components/UpgradePrompt";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -598,6 +599,7 @@ export const JobPage = (): JSX.Element => {
   const [coverLetterLibrary, setCoverLetterLibrary] = useState<CoverLetterLibraryEntry[]>([]);
   const [selectedCoverLetterId, setSelectedCoverLetterId] = useState<string | null>(null);
   const [jobToAutoApply, setJobToAutoApply] = useState<Job | null>(null);
+  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Pro' | 'Ultimate'>('Free');
 
   // Debug payload capture for in-app panel
   const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);
@@ -1223,6 +1225,44 @@ export const JobPage = (): JSX.Element => {
         setAutoApplyStep(1);
       }
   }, [applyingAll, jobs, profileSnapshot, selectedCoverLetter, selectedCoverLetterId, selectedJob, selectedResume, selectedResumeId, safeInfo, setError]);
+
+  // Fetch subscription tier
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData?.user?.id;
+        if (!userId) return;
+        
+        // Try to get from active subscription first
+        const { data: subscription } = await supabase
+          .from('user_subscriptions')
+          .select('subscription_plans(name)')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (subscription && (subscription as any).subscription_plans?.name) {
+          setSubscriptionTier((subscription as any).subscription_plans.name);
+        } else {
+          // Fallback to profile subscription_tier
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('subscription_tier')
+            .eq('id', userId)
+            .single();
+          
+          if (profileData?.subscription_tier) {
+            setSubscriptionTier(profileData.subscription_tier);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching subscription tier:', error);
+      }
+    })();
+  }, [supabase]);
 
     // Unified effect for initial load and real-time updates
   useEffect(() => {
@@ -2328,12 +2368,39 @@ export const JobPage = (): JSX.Element => {
                             </div>
                           </Card>
 
-                          {/* AI Match Score Card - Always show for testing */}
-                          <MatchScorePieChart
-                            score={typeof job.matchScore === 'number' ? job.matchScore : 75}
-                            summary={job.matchSummary || "Match score analysis"}
-                            breakdown={job.matchBreakdown}
-                          />
+                          {/* AI Match Score Card - Gated for Pro/Ultimate */}
+                          {subscriptionTier === 'Free' ? (
+                            <UpgradePrompt
+                              title="AI Match Score Analysis"
+                              description="Get detailed compatibility insights powered by advanced AI to find your perfect job match."
+                              features={[
+                                {
+                                  icon: <Target className="h-5 w-5" />,
+                                  title: "Skills Compatibility",
+                                  description: "See how your skills align with job requirements"
+                                },
+                                {
+                                  icon: <TrendingUp className="h-5 w-5" />,
+                                  title: "Experience Match",
+                                  description: "Understand if your experience level fits"
+                                },
+                                {
+                                  icon: <Sparkles className="h-5 w-5" />,
+                                  title: "AI-Powered Insights",
+                                  description: "Get smart recommendations for improvement"
+                                }
+                              ]}
+                              requiredTier="Pro/Ultimate"
+                              icon={<Sparkles className="h-12 w-12 text-[#1dff00]" />}
+                              compact={true}
+                            />
+                          ) : (
+                            <MatchScorePieChart
+                              score={typeof job.matchScore === 'number' ? job.matchScore : 75}
+                              summary={job.matchSummary || "Match score analysis"}
+                              breakdown={job.matchBreakdown}
+                            />
+                          )}
 
                           {(() => {
                             const screenshot = (job as any)?.raw_data?.screenshot;
@@ -2944,12 +3011,39 @@ export const JobPage = (): JSX.Element => {
                   </div>
                 </Card>
 
-                {/* AI Match Score Card - Mobile - Always show for testing */}
-                <MatchScorePieChart
-                  score={typeof j.matchScore === 'number' ? j.matchScore : 75}
-                  summary={j.matchSummary || "Match score analysis"}
-                  breakdown={j.matchBreakdown}
-                />
+                {/* AI Match Score Card - Mobile - Gated for Pro/Ultimate */}
+                {subscriptionTier === 'Free' ? (
+                  <UpgradePrompt
+                    title="AI Match Score Analysis"
+                    description="Get detailed compatibility insights powered by advanced AI to find your perfect job match."
+                    features={[
+                      {
+                        icon: <Target className="h-5 w-5" />,
+                        title: "Skills Compatibility",
+                        description: "See how your skills align with job requirements"
+                      },
+                      {
+                        icon: <TrendingUp className="h-5 w-5" />,
+                        title: "Experience Match",
+                        description: "Understand if your experience level fits"
+                      },
+                      {
+                        icon: <Sparkles className="h-5 w-5" />,
+                        title: "AI-Powered Insights",
+                        description: "Get smart recommendations for improvement"
+                      }
+                    ]}
+                    requiredTier="Pro/Ultimate"
+                    icon={<Sparkles className="h-12 w-12 text-[#1dff00]" />}
+                    compact={true}
+                  />
+                ) : (
+                  <MatchScorePieChart
+                    score={typeof j.matchScore === 'number' ? j.matchScore : 75}
+                    summary={j.matchSummary || "Match score analysis"}
+                    breakdown={j.matchBreakdown}
+                  />
+                )}
 
                 {(() => {
                   const screenshot = (j as any)?.raw_data?.screenshot;

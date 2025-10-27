@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2, Check, Trash2, ArrowUp, ArrowDown, Printer, X, FileText, FileType } from "lucide-react";
+import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2, Check, Trash2, ArrowUp, ArrowDown, Printer, X, FileText, FileType, Lock } from "lucide-react";
 import { Button, Card } from "@reactive-resume/ui";
 import { createClient } from "@/lib/supabaseClient";
 import { useToast } from "@/components/ui/toast-provider";
@@ -54,6 +54,9 @@ export const CoverLetter = () => {
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
   const [libName, setLibName] = useState("");
   const [currentLibId, setCurrentLibId] = useState<string | null>(null);
+  
+  // Subscription tier state
+  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Pro' | 'Ultimate'>('Free');
 
   // Load/save from localStorage (keeps it functional without backend migrations)
   const STORAGE_KEY = "jr.coverLetter.draft.v2";
@@ -110,6 +113,46 @@ export const CoverLetter = () => {
       }
     } catch {}
   }, []);
+
+  // Fetch subscription tier
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData?.user?.id;
+        if (!userId) {
+          return;
+        }
+        
+        // Try to fetch from user_subscriptions first
+        const { data: subscription } = await supabase
+          .from('user_subscriptions')
+          .select('subscription_plans(name)')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        const planName = (subscription as any)?.subscription_plans?.name;
+        if (planName) {
+          setSubscriptionTier(planName as 'Free' | 'Pro' | 'Ultimate');
+        } else {
+          // Fallback to profiles table
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('subscription_tier')
+            .eq('id', userId)
+            .single();
+          
+          setSubscriptionTier(profileData?.subscription_tier || 'Free');
+        }
+      } catch (error) {
+        console.error('Error fetching subscription tier:', error);
+        setSubscriptionTier('Free');
+      }
+    })();
+  }, [supabase]);
 
   // Auto-hydrate sender details from profile/auth on first load if missing
   useEffect(() => {
@@ -476,6 +519,13 @@ export const CoverLetter = () => {
   };
   const aiPolish = async () => {
     if (aiLoading) return;
+    
+    // Check subscription tier
+    if (subscriptionTier === 'Free') {
+      toastError('Upgrade Required', 'AI cover letter features require a Pro or Ultimate subscription');
+      return;
+    }
+    
     setAiLoading(true);
     try {
       const payload = {
@@ -540,6 +590,13 @@ export const CoverLetter = () => {
   // Full AI write: replaces salutation/body/closing/signature using formal cover letter rules.
   const aiWriteFull = async () => {
     if (aiLoading) return;
+    
+    // Check subscription tier
+    if (subscriptionTier === 'Free') {
+      toastError('Upgrade Required', 'AI cover letter features require a Pro or Ultimate subscription');
+      return;
+    }
+    
     setAiLoading(true);
     try {
       const payload = {
@@ -720,8 +777,30 @@ export const CoverLetter = () => {
         </div>
         <div className="flex items-center gap-2 overflow-x-auto">
           <Button variant="outline" onClick={() => setInlineEdit((v)=>!v)} className={`rounded-xl whitespace-nowrap ${inlineEdit ? 'bg-primary/10 border-primary text-primary' : ''}`}> <Pencil className="w-4 h-4 mr-2"/> {inlineEdit ? 'Edit in Preview: On' : 'Edit in Preview'} </Button>
-          <Button variant="outline" disabled={aiLoading} onClick={aiPolish} className="rounded-xl whitespace-nowrap"> <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> {aiLoading ? 'Polishing…' : 'AI Polish'}</Button>
-          <Button variant="outline" disabled={aiLoading} onClick={aiWriteFull} className="rounded-xl whitespace-nowrap"> <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> {aiLoading ? 'Writing…' : 'AI Write (Full)'}</Button>
+          <Button 
+            variant="outline" 
+            disabled={aiLoading || subscriptionTier === 'Free'} 
+            onClick={aiPolish} 
+            className="rounded-xl whitespace-nowrap"
+            title={subscriptionTier === 'Free' ? 'Pro/Ultimate subscription required' : ''}
+          > 
+            {subscriptionTier === 'Free' && <Lock className="w-3 h-3 mr-1" />}
+            <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> 
+            {aiLoading ? 'Polishing…' : 'AI Polish'}
+            {subscriptionTier === 'Free' && <span className="ml-1 text-[10px] opacity-60">Pro</span>}
+          </Button>
+          <Button 
+            variant="outline" 
+            disabled={aiLoading || subscriptionTier === 'Free'} 
+            onClick={aiWriteFull} 
+            className="rounded-xl whitespace-nowrap"
+            title={subscriptionTier === 'Free' ? 'Pro/Ultimate subscription required' : ''}
+          > 
+            {subscriptionTier === 'Free' && <Lock className="w-3 h-3 mr-1" />}
+            <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> 
+            {aiLoading ? 'Writing…' : 'AI Write (Full)'}
+            {subscriptionTier === 'Free' && <span className="ml-1 text-[10px] opacity-60">Pro</span>}
+          </Button>
           <Button variant="outline" onClick={() => setExportOpen(true)} className="rounded-xl whitespace-nowrap"> <Download className="w-4 h-4 mr-2"/> Export</Button>
         </div>
       </div>

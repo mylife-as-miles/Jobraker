@@ -1,10 +1,13 @@
 // Clean AI-elements only Chat Page implementation
 import ModelDropdown from "@/components/ModelDropdown";
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { nanoid } from 'nanoid';
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import atomOneDarkStyle from 'react-syntax-highlighter/dist/styles/atom-one-dark';
+import { createClient } from "../../../lib/supabaseClient";
+import { MessageSquare, Wand2, Target, FileText, Sparkles, Zap } from 'lucide-react';
+import { UpgradePrompt } from "../../../components/UpgradePrompt";
 // Temporary lightweight chat hook placeholder (remove when real ai/react is available)
 type Persona = 'concise' | 'friendly' | 'analyst' | 'coach';
 interface BasicMessage { id: string; role: 'user' | 'assistant'; content: string; parts?: { type: 'text'; text: string }[]; streaming?: boolean; createdAt: number; meta?: { persona?: Persona; parent?: string } }
@@ -109,6 +112,53 @@ export const ChatPage = () => {
   const [sessions, setSessions] = useState<{ id: string; title: string; createdAt: number; updatedAt: number; messages: BasicMessage[] }[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [renamingSession, setRenamingSession] = useState<string | null>(null);
+  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Pro' | 'Ultimate' | null>(null);
+  const [loadingTier, setLoadingTier] = useState(true);
+  const supabase = useMemo(() => createClient(), []);
+  
+  // Check subscription tier access
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData?.user?.id;
+        if (!userId) {
+          setSubscriptionTier('Free');
+          setLoadingTier(false);
+          return;
+        }
+        
+        // Try to get from active subscription first
+        const { data: subscription } = await supabase
+          .from('user_subscriptions')
+          .select('subscription_plans(name)')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (subscription && (subscription as any).subscription_plans?.name) {
+          setSubscriptionTier((subscription as any).subscription_plans.name);
+        } else {
+          // Fallback to profile subscription_tier
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('subscription_tier')
+            .eq('id', userId)
+            .single();
+          
+          setSubscriptionTier(profileData?.subscription_tier || 'Free');
+        }
+      } catch (error) {
+        console.error('Error fetching subscription tier:', error);
+        setSubscriptionTier('Free');
+      } finally {
+        setLoadingTier(false);
+      }
+    })();
+  }, [supabase]);
+  
   useRegisterCoachMarks({
     page: 'chat',
     marks: [
@@ -294,6 +344,63 @@ export const ChatPage = () => {
 
   return (
     <div className="relative flex h-full w-full flex-col  font-sans">
+      {/* Loading state */}
+      {loadingTier && (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-white text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1dff00] mx-auto mb-4"></div>
+            <p>Loading...</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Access Gate for Free tier users */}
+      {!loadingTier && subscriptionTier === 'Free' && (
+        <div className="flex items-center justify-center h-full p-4 sm:p-6">
+          <UpgradePrompt
+            title="AI Chat Assistant"
+            description="Unlock intelligent job search conversations with our advanced AI assistant. Get personalized advice, resume tips, and career guidance 24/7."
+            features={[
+              {
+                icon: <MessageSquare className="h-5 w-5" />,
+                title: "Unlimited AI Conversations",
+                description: "Chat as much as you need about your job search strategy"
+              },
+              {
+                icon: <Wand2 className="h-5 w-5" />,
+                title: "Resume Optimization",
+                description: "Get AI-powered suggestions to improve your resume"
+              },
+              {
+                icon: <FileText className="h-5 w-5" />,
+                title: "Cover Letter Generation",
+                description: "Create tailored cover letters for any job posting"
+              },
+              {
+                icon: <Target className="h-5 w-5" />,
+                title: "Job Match Analysis",
+                description: "Understand how well you fit each opportunity"
+              },
+              {
+                icon: <Sparkles className="h-5 w-5" />,
+                title: "Smart Recommendations",
+                description: "Receive personalized career advice and insights"
+              },
+              {
+                icon: <Zap className="h-5 w-5" />,
+                title: "Priority Support",
+                description: "Get faster responses and dedicated assistance"
+              }
+            ]}
+            requiredTier="Pro/Ultimate"
+            icon={<MessageSquare className="h-12 w-12 text-[#1dff00]" />}
+          />
+        </div>
+      )}
+      
+      {/* Chat interface - only visible for Pro and Ultimate users */}
+      {!loadingTier && (subscriptionTier === 'Pro' || subscriptionTier === 'Ultimate') && (
+        <>
       {/* Ambient gradients */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_18%,#1dff0026,transparent_65%),radial-gradient(circle_at_85%_80%,#0a824626,transparent_55%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/40 via-black/10 to-transparent" />
@@ -498,6 +605,8 @@ export const ChatPage = () => {
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 };
