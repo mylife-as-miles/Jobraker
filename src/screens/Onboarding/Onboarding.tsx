@@ -302,6 +302,8 @@ export const Onboarding = (): JSX.Element => {
       let profileData: any = {};
       
       if (aiParsedData) {
+        console.log('✅ AI Parsed Data:', aiParsedData); // Debug log
+        
         // Use AI-parsed data
         profileData = {
           first_name: aiParsedData.firstName || null,
@@ -315,8 +317,12 @@ export const Onboarding = (): JSX.Element => {
           updated_at: new Date().toISOString(),
         };
         
+        console.log('💾 Saving profile:', profileData); // Debug log
+        
         // Save education to profile_education table
         if (aiParsedData.education && aiParsedData.education.length > 0) {
+          console.log(`📚 Saving ${aiParsedData.education.length} education entries`);
+          
           const eduRows = aiParsedData.education
             .filter(e => e.school || e.degree)
             .map(e => ({
@@ -324,22 +330,72 @@ export const Onboarding = (): JSX.Element => {
               degree: e.degree || '',
               school: e.school || '',
               location: '',
-              start_date: e.start ? `${e.start}-01` : new Date().toISOString(),
-              end_date: e.end ? `${e.end}-01` : null,
+              start_date: e.start ? `${e.start}-01-01` : new Date().toISOString().split('T')[0],
+              end_date: e.end && e.end !== 'Present' ? `${e.end}-01-01` : null,
               gpa: null,
             }));
           
           if (eduRows.length > 0) {
             try {
-              await (supabase as any).from('profile_education').insert(eduRows);
+              const { error: eduErr } = await (supabase as any).from('profile_education').insert(eduRows);
+              if (eduErr) {
+                console.error('❌ Education insert error:', eduErr);
+              } else {
+                console.log('✅ Education saved successfully');
+              }
             } catch (eduErr) {
               console.warn('Failed to insert education:', eduErr);
             }
           }
         }
         
+        // Save work experience to profile_experiences table
+        if (aiParsedData.experience && aiParsedData.experience.length > 0) {
+          console.log(`💼 Saving ${aiParsedData.experience.length} work experience entries`);
+          
+          const expRows = aiParsedData.experience
+            .filter(e => e.company || e.title)
+            .map(e => {
+              // Parse dates - handle YYYY-MM format or just YYYY
+              const parseDate = (dateStr: string | undefined) => {
+                if (!dateStr || dateStr === 'Present') return null;
+                // If YYYY-MM format, add -01 for first day of month
+                if (/^\d{4}-\d{2}$/.test(dateStr)) return `${dateStr}-01`;
+                // If YYYY format, add -01-01 for first day of year
+                if (/^\d{4}$/.test(dateStr)) return `${dateStr}-01-01`;
+                return dateStr;
+              };
+              
+              return {
+                user_id: user.id,
+                company: e.company || '',
+                title: e.title || '',
+                location: e.location || '',
+                start_date: parseDate(e.startDate) || new Date().toISOString().split('T')[0],
+                end_date: parseDate(e.endDate),
+                is_current: !e.endDate || e.endDate === 'Present',
+                description: e.description || '',
+              };
+            });
+          
+          if (expRows.length > 0) {
+            try {
+              const { error: expErr } = await (supabase as any).from('profile_experiences').insert(expRows);
+              if (expErr) {
+                console.error('❌ Experience insert error:', expErr);
+              } else {
+                console.log('✅ Experience saved successfully');
+              }
+            } catch (expErr) {
+              console.warn('Failed to insert experience:', expErr);
+            }
+          }
+        }
+        
         // Save skills to profile_skills table
         if (aiParsedData.skills && aiParsedData.skills.length > 0) {
+          console.log(`🔧 Saving ${aiParsedData.skills.length} skills`);
+          
           const skillRows = aiParsedData.skills.slice(0, 60).map(name => ({
             user_id: user.id,
             name: name.trim(),
@@ -349,7 +405,12 @@ export const Onboarding = (): JSX.Element => {
           
           if (skillRows.length > 0) {
             try {
-              await (supabase as any).from('profile_skills').insert(skillRows);
+              const { error: skillErr } = await (supabase as any).from('profile_skills').insert(skillRows);
+              if (skillErr) {
+                console.error('❌ Skills insert error:', skillErr);
+              } else {
+                console.log('✅ Skills saved successfully');
+              }
             } catch (skillErr) {
               console.warn('Failed to insert skills:', skillErr);
             }
