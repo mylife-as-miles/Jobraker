@@ -471,21 +471,28 @@ export const JobrackerSignup = (): JSX.Element => {
                               aria-invalid={isSignUp && formData.confirmPassword.length > 0 ? formData.confirmPassword !== formData.password : false}
                             />
                           </div>
-                          {/* Password rules & strength */}
-                          <div className="mt-3 space-y-2 text-xs sm:text-sm" id="password-strength">
-                            {/* Strength meter bar */}
-                            <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
-                              <div
-                                className="h-full bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] transition-all duration-300"
-                                style={{ width: `${(passwordCheck.score / 5) * 100}%` }}
-                              />
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-white/80">Strength</span>
-                              <span className={`font-semibold ${passwordCheck.score >= 4 ? "text-[#1dff00]" : passwordCheck.score >= 3 ? "text-yellow-300" : "text-red-400"}`}>
-                                {passwordCheck.strength}
-                              </span>
-                            </div>
+                          {/* Password rules & strength - Only show when user has started typing */}
+                          {formData.password.length > 0 && (
+                            <div className="mt-3 space-y-2 text-xs sm:text-sm" id="password-strength">
+                              {/* Strength meter bar */}
+                              <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                                <div
+                                  className={`h-full transition-all duration-300 ${
+                                    passwordCheck.score >= 4 
+                                      ? 'bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)]'
+                                      : passwordCheck.score >= 3
+                                      ? 'bg-yellow-400'
+                                      : 'bg-red-400'
+                                  }`}
+                                  style={{ width: `${(passwordCheck.score / 5) * 100}%` }}
+                                />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-white/80">Strength</span>
+                                <span className={`font-semibold ${passwordCheck.score >= 4 ? "text-[#1dff00]" : passwordCheck.score >= 3 ? "text-yellow-300" : "text-red-400"}`}>
+                                  {passwordCheck.strength}
+                                </span>
+                              </div>
                             <div className="grid grid-cols-2 gap-2 text-white/80">
                               {[
                                 { ok: passwordCheck.lengthOk, label: "8+ characters" },
@@ -505,13 +512,14 @@ export const JobrackerSignup = (): JSX.Element => {
                                 </div>
                               ))}
                             </div>
-                            {!passwordCheck.notEmail && (
+                            {!passwordCheck.notEmail && formData.email && (
                               <div className="flex items-center gap-2 text-red-400">
                                 <XCircle className="w-4 h-4" />
-                                <span>Don’t use your email in your password</span>
+                                <span>Don't use your email in your password</span>
                               </div>
                             )}
                           </div>
+                          )}
                         </motion.div>
                       )}
 
