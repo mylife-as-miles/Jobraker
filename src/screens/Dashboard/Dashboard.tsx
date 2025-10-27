@@ -37,6 +37,7 @@ import { NotificationPage } from "./pages/NotificationPage";
 import ProfilePage from "./pages/ProfilePage";
 import { ChatPage } from "./pages/ChatPage";
 import { ResumePage } from "./pages/ResumePage";
+import { BillingPage } from "./pages/BillingPage";
 
 type DashboardPage = 
   | "overview" 
@@ -49,7 +50,8 @@ type DashboardPage =
   | "notifications"
   | "profile"
   | "cover-letter"
-  | "pricing";
+  | "pricing"
+  | "billing";
 
 interface PageLink {
   id: DashboardPage;
@@ -71,6 +73,7 @@ export const Dashboard = (): JSX.Element => {
     "jobs",
     "application",
     "cover-letter",
+    "billing",
     "settings",
     "notifications",
     "profile",
@@ -221,6 +224,8 @@ export const Dashboard = (): JSX.Element => {
         return <ResumePage />;
       case "cover-letter":
         return <CoverLetterPage />;
+      case "billing":
+        return <BillingPage />;
       case "settings":
         return <SettingsPage />;
       case "notifications":
@@ -312,7 +317,7 @@ export const Dashboard = (): JSX.Element => {
                 <Button 
                   size="sm" 
                   className="bg-black text-white hover:bg-black/90 hover:scale-105 transition-all duration-300 text-xs sm:text-sm w-full"
-                  onClick={() => { window.location.href = '/pricing'; }}
+                  onClick={() => { navigate('/dashboard/billing'); }}
                 >
                   <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                   Upgrade

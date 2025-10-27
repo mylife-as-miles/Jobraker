@@ -69,7 +69,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
           <h3 className="mb-2 text-xl font-semibold text-white">{title}</h3>
           <p className="mb-6 text-sm text-white/60">{description}</p>
 
-          <Link to="/dashboard/settings?tab=subscription">
+          <Link to="/dashboard/billing">
             <Button className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] hover:from-[#1dff00]/90 hover:to-[#0a8246]/90 text-black font-semibold">
               Upgrade Now
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -192,7 +192,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
                     </li>
                   </ul>
 
-                  <Link to="/dashboard/settings?tab=subscription" className="block">
+                  <Link to="/dashboard/billing" className="block">
                     <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold">
                       Upgrade to Pro
                       <ArrowRight className="ml-2 h-4 w-4" />
@@ -245,7 +245,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
                     </li>
                   </ul>
 
-                  <Link to="/dashboard/settings?tab=subscription" className="block">
+                  <Link to="/dashboard/billing" className="block">
                     <Button className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold">
                       Upgrade to Ultimate
                       <ArrowRight className="ml-2 h-4 w-4" />
@@ -260,7 +260,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
           <motion.div variants={itemVariants} className="text-center">
             <p className="text-sm text-white/40">
               Need help deciding?{' '}
-              <Link to="/dashboard/settings?tab=subscription" className="text-[#1dff00] hover:text-[#1dff00]/80 transition-colors">
+              <Link to="/dashboard/billing" className="text-[#1dff00] hover:text-[#1dff00]/80 transition-colors">
                 Compare all plans
               </Link>
             </p>
