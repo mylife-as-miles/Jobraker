@@ -306,15 +306,11 @@ export const Onboarding = (): JSX.Element => {
         profileData = {
           first_name: aiParsedData.firstName || null,
           last_name: aiParsedData.lastName || null,
-          email: aiParsedData.email || (user as any).email || null,
           phone: aiParsedData.phone || null,
           location: aiParsedData.location || null,
           job_title: aiParsedData.jobTitle || null,
           experience_years: aiParsedData.experienceYears,
           about: aiParsedData.about || null,
-          skills: aiParsedData.skills || [],
-          education: aiParsedData.education.length ? JSON.stringify(aiParsedData.education) : null,
-          experience: aiParsedData.experience.length ? JSON.stringify(aiParsedData.experience) : null,
           onboarding_complete: true,
           updated_at: new Date().toISOString(),
         };
@@ -371,15 +367,11 @@ export const Onboarding = (): JSX.Element => {
         profileData = {
           first_name: null,
           last_name: null,
-          email: analyzed.emails?.[0] || (user as any).email || null,
           phone: analyzed.phones?.[0] || null,
           location: null,
           job_title: analyzed.entities?.titles?.[0] || null,
           experience_years: null,
           about: typeof summary === 'string' ? summary : null,
-          skills: Array.from(new Set(analyzed.skills || [])).slice(0, 40),
-          education: eduParsed.length ? JSON.stringify(eduParsed) : null,
-          experience: null,
           onboarding_complete: true,
           updated_at: new Date().toISOString(),
         };

@@ -50,7 +50,6 @@ The profile data is stored across multiple tables:
   id: uuid,
   first_name: text,
   last_name: text,
-  email: text,
   phone: text,
   location: text,
   job_title: text,
@@ -59,10 +58,14 @@ The profile data is stored across multiple tables:
   skills: text[],
   education: jsonb,
   experience: jsonb,
+  goals: text[],
   onboarding_complete: boolean,
+  avatar_url: text,
   updated_at: timestamp
 }
 ```
+
+**Note**: Email is stored in `auth.users` table, not in profiles.
 
 ### profile_education
 ```sql
