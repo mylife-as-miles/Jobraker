@@ -236,8 +236,15 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
       const applications = apps.length;
       const interviews = apps.filter((a: any) => String(a.status).toLowerCase() === "interview").length;
       const jobsFound = jobs.length;
+      
+      // Filter sources by allowed job source domains only
+      const allowedDomains = ['remote.co', 'remotive.com', 'remoteok.com', 'jobicy.com', 'levels.fyi'];
       const sourcesSet = new Set<string>();
-      for (const j of jobs) { if (j.source_type) sourcesSet.add(j.source_type); }
+      for (const j of jobs) {
+        if (j.source_type && allowedDomains.includes(j.source_type.toLowerCase())) {
+          sourcesSet.add(j.source_type);
+        }
+      }
       const sources = sourcesSet.size;
       const jobMatchEntries = jobs
         .map((j: any) => {
