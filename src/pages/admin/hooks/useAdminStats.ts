@@ -24,7 +24,7 @@ export const useAdminStats = () => {
         subscriptionsData,
         transactionsData,
       ] = await Promise.all([
-        supabase.from('profiles').select('id, created_at, email, last_sign_in_at'),
+        supabase.from('profiles').select('id, email, first_name, last_name, updated_at'),
         supabase.from('user_credits').select('balance, total_earned, total_consumed'),
         supabase.from('user_subscriptions').select('user_id, status, subscription_plans(name, price)').eq('status', 'active'),
         supabase.from('credit_transactions').select('type, amount, reference_type'),
@@ -43,11 +43,11 @@ export const useAdminStats = () => {
       // Calculate total users
       const totalUsers = users.length;
 
-      // Calculate active users (signed in within last 30 days)
+      // Calculate active users (updated within last 30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const activeUsers = users.filter(u => 
-        u.last_sign_in_at && new Date(u.last_sign_in_at) > thirtyDaysAgo
+        u.updated_at && new Date(u.updated_at) > thirtyDaysAgo
       ).length;
 
       // Calculate revenue
@@ -80,11 +80,11 @@ export const useAdminStats = () => {
       ).length;
       const conversionRate = totalUsers > 0 ? (paidSubscriptions / totalUsers) * 100 : 0;
 
-      // Calculate churn rate (simplified - users who haven't signed in for 60 days)
+      // Calculate churn rate (simplified - users who haven't updated in 60 days)
       const sixtyDaysAgo = new Date();
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
       const churnedUsers = users.filter(u => 
-        !u.last_sign_in_at || new Date(u.last_sign_in_at) < sixtyDaysAgo
+        !u.updated_at || new Date(u.updated_at) < sixtyDaysAgo
       ).length;
       const churnRate = totalUsers > 0 ? (churnedUsers / totalUsers) * 100 : 0;
 
@@ -130,7 +130,7 @@ export const useUserActivities = () => {
 
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, created_at, last_sign_in_at');
+        .select('id, email, first_name, last_name, updated_at');
 
       if (profilesError) throw profilesError;
 
@@ -163,19 +163,20 @@ export const useUserActivities = () => {
           const jobSearches = (transactions || []).filter(t => t.reference_type === 'job_search').length;
           const autoApplies = (transactions || []).filter(t => t.reference_type === 'auto_apply').length;
 
-          // Determine status
+          // Determine status based on profile updates
           const thirtyDaysAgo = new Date();
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-          const status = profile.last_sign_in_at && new Date(profile.last_sign_in_at) > thirtyDaysAgo
+          const status = profile.updated_at && new Date(profile.updated_at) > thirtyDaysAgo
             ? 'active'
             : 'inactive';
+
+          const full_name = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || null;
 
           return {
             id: profile.id,
             email: profile.email,
-            full_name: profile.full_name,
-            created_at: profile.created_at,
-            last_sign_in_at: profile.last_sign_in_at,
+            full_name,
+            updated_at: profile.updated_at,
             credits_balance: credits?.balance || 0,
             credits_consumed: credits?.total_consumed || 0,
             subscription_tier: (subscription?.subscription_plans as any)?.name || 'Free',

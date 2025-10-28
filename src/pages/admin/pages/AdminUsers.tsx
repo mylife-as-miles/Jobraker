@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-type SortField = 'email' | 'created_at' | 'credits_balance' | 'credits_consumed' | 'job_searches' | 'auto_applies';
+type SortField = 'email' | 'updated_at' | 'credits_balance' | 'credits_consumed' | 'job_searches' | 'auto_applies';
 type SortOrder = 'asc' | 'desc';
 
 export default function AdminUsers() {
@@ -24,7 +24,7 @@ export default function AdminUsers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTier, setFilterTier] = useState<'all' | 'Free' | 'Pro' | 'Ultimate'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
-  const [sortField, setSortField] = useState<SortField>('created_at');
+  const [sortField, setSortField] = useState<SortField>('updated_at');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   const handleSort = (field: SortField) => {
@@ -248,13 +248,13 @@ export default function AdminUsers() {
                   </div>
                 </th>
                 <th 
-                  onClick={() => handleSort('created_at')}
+                  onClick={() => handleSort('updated_at')}
                   className="px-6 py-4 text-left text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
-                    Joined
-                    {sortField === 'created_at' && (
+                    Last Updated
+                    {sortField === 'updated_at' && (
                       sortOrder === 'asc' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />
                     )}
                   </div>
@@ -300,7 +300,7 @@ export default function AdminUsers() {
                     {user.auto_applies}
                   </td>
                   <td className="px-6 py-4 text-gray-400 text-sm">
-                    {new Date(user.created_at).toLocaleDateString()}
+                    {new Date(user.updated_at).toLocaleDateString()}
                   </td>
                 </motion.tr>
               ))}

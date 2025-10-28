@@ -19,8 +19,7 @@ export interface UserActivity {
   id: string;
   email: string;
   full_name: string | null;
-  created_at: string;
-  last_sign_in_at: string | null;
+  updated_at: string;
   credits_balance: number;
   credits_consumed: number;
   subscription_tier: 'Free' | 'Pro' | 'Ultimate';
