@@ -19,7 +19,6 @@ import { cn } from "../../../lib/utils";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
-import { useJobSearchLimits } from "../../../hooks/useJobSearchLimits";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -611,7 +610,6 @@ export const JobPage = (): JSX.Element => {
   // Load user resumes for selection (used by the Auto Apply -> "Choose a resume" dialog)
   const { resumes, loading: resumesLoading } = useResumes();
   const { info } = useToast();
-  const { limits, incrementSearchCount } = useJobSearchLimits();
 
   // Register walkthrough for Jobs page
   useRegisterCoachMarks({
@@ -978,20 +976,17 @@ export const JobPage = (): JSX.Element => {
       setInsertedThisRun(0);
 
       try {
-        // Check job search limits before proceeding
-        if (limits && !limits.canSearch) {
-          setError({ 
-            message: `Search limit reached! You've used ${limits.currentCount} of ${limits.limit} searches this month.`,
-            link: '/dashboard/billing'
-          });
-          setQueueStatus('ready');
-          setIncrementalMode(false);
-          info(`Upgrade to ${limits.tier === 'Free' ? 'Pro for 50' : 'Ultimate for 100'} searches per month!`);
-          return;
+        // Determine max results per search based on subscription tier
+        // No monthly limits - users can search as many times as they want
+        let maxResultsPerSearch = 10; // Free tier
+        
+        if (subscriptionTier === 'Ultimate') {
+          maxResultsPerSearch = 100;
+        } else if (subscriptionTier === 'Pro') {
+          maxResultsPerSearch = 50;
+        } else if (subscriptionTier === 'Basics') {
+          maxResultsPerSearch = 20;
         }
-
-        // Determine search limit based on tier
-        const searchLimit = limits?.limit || 10; // Default to Free tier limit
 
         // Use backend jobs-search to discover and save jobs directly
         safeInfo("Searching the web for jobs…");
@@ -999,7 +994,7 @@ export const JobPage = (): JSX.Element => {
           const searchPayload = {
             searchQuery: query,
             location: 'Remote',  // Always search for remote jobs for broader results
-            limit: searchLimit, // Use tier-based limit
+            limit: maxResultsPerSearch, // Use tier-based result limit per search
           };
           if (debugMode) console.log('[debug] jobs-search request', searchPayload);
           setDbgSearchReq(searchPayload);
@@ -1036,11 +1031,6 @@ export const JobPage = (): JSX.Element => {
 
         // Jobs are now saved directly by jobs-search function
         const inserted = searchData?.jobsInserted || 0;
-
-        // Increment job search count based on results
-        if (inserted > 0 && incrementSearchCount) {
-          await incrementSearchCount(inserted);
-        }
 
         // Deduct credits for job search (1 credit per job)
         if (inserted > 0) {
@@ -1081,7 +1071,7 @@ export const JobPage = (): JSX.Element => {
         setQueueStatus('idle');
         setIncrementalMode(false);
       }
-  }, [supabase, debugMode, incrementalMode, fetchJobQueue, safeInfo, setErrorDedup, limits, incrementSearchCount, info]);
+  }, [supabase, debugMode, incrementalMode, fetchJobQueue, safeInfo, setErrorDedup, subscriptionTier, info]);
 
     // Removed old process-and-match and polling logic - jobs are now saved directly
 
@@ -1737,8 +1727,13 @@ export const JobPage = (): JSX.Element => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); populateQueue(searchQuery, selectedLocation); } }}
-                  className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white"
+                  className="pl-10 pr-24 bg-[#ffffff1a] border-[#ffffff33] text-white"
                 />
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <span className="text-[10px] text-white/40 bg-white/5 px-2 py-1 rounded border border-white/10 whitespace-nowrap">
+                    {subscriptionTier === 'Ultimate' ? '100' : subscriptionTier === 'Pro' ? '50' : subscriptionTier === 'Basics' ? '20' : '10'} results/search
+                  </span>
+                </div>
               </div>
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
