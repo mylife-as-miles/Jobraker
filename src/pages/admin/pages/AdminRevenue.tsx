@@ -2,12 +2,50 @@ import { useRevenueData } from '../hooks/useAdminStats';
 import { DollarSign, TrendingUp, CreditCard, Users, Loader2, ArrowUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Area, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Bar, BarChart, Legend, Line, ComposedChart } from 'recharts';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { createClient } from '@/lib/supabaseClient';
 
 export default function AdminRevenue() {
   const [timeRange, setTimeRange] = useState<30 | 60 | 90>(30);
   const { data: revenueData, loading } = useRevenueData(timeRange);
+  const [revenueByTier, setRevenueByTier] = useState<{[key: string]: {revenue: number, count: number}}>({});
+  const supabase = useMemo(() => createClient(), []);
+
+  // Fetch revenue breakdown by tier
+  useEffect(() => {
+    const fetchRevenueByTier = async () => {
+      try {
+        const { data: subscriptions } = await supabase
+          .from('user_subscriptions')
+          .select('subscription_plan_id, subscription_plans(name, price)')
+          .eq('status', 'active');
+
+        if (subscriptions) {
+          const breakdown: {[key: string]: {revenue: number, count: number}} = {};
+          
+          subscriptions.forEach((sub: any) => {
+            if (sub.subscription_plans && !Array.isArray(sub.subscription_plans)) {
+              const planName = sub.subscription_plans.name || 'Unknown';
+              const price = sub.subscription_plans.price || 0;
+              
+              if (!breakdown[planName]) {
+                breakdown[planName] = { revenue: 0, count: 0 };
+              }
+              breakdown[planName].revenue += price;
+              breakdown[planName].count += 1;
+            }
+          });
+
+          setRevenueByTier(breakdown);
+        }
+      } catch (error) {
+        console.error('Error fetching revenue by tier:', error);
+      }
+    };
+
+    fetchRevenueByTier();
+  }, [supabase]);
 
   const chartData = revenueData.map(item => ({
     date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -21,6 +59,16 @@ export default function AdminRevenue() {
   const avgDailyRevenue = revenueData.length > 0 ? totalRevenue / revenueData.length : 0;
   const totalNewSubs = revenueData.reduce((sum, item) => sum + item.new_subscriptions, 0);
   const currentMRR = revenueData.length > 0 ? revenueData[revenueData.length - 1].mrr : 0;
+
+  // Calculate total MRR from tier breakdown
+  const totalMRRFromTiers = Object.values(revenueByTier).reduce((sum, tier) => sum + tier.revenue, 0);
+
+  // Helper function to get tier data
+  const getTierData = (tierName: string) => {
+    const data = revenueByTier[tierName] || { revenue: 0, count: 0 };
+    const percentage = totalMRRFromTiers > 0 ? (data.revenue / totalMRRFromTiers * 100).toFixed(0) : '0';
+    return { ...data, percentage };
+  };
 
   if (loading) {
     return (
@@ -267,69 +315,89 @@ export default function AdminRevenue() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                      <DollarSign className="w-5 h-5 text-purple-400" />
+                {(() => {
+                  const ultimateData = getTierData('Ultimate');
+                  return (
+                    <div className="flex items-center justify-between p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                          <DollarSign className="w-5 h-5 text-purple-400" />
+                        </div>
+                        <div>
+                          <p className="text-white font-medium">Ultimate Plan</p>
+                          <p className="text-sm text-gray-400">{ultimateData.count} subscriber{ultimateData.count !== 1 ? 's' : ''}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-white">${ultimateData.revenue.toLocaleString()}</p>
+                        <p className="text-sm text-purple-400">{ultimateData.percentage}% of MRR</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-white font-medium">Ultimate Plan</p>
-                      <p className="text-sm text-gray-400">Premium tier</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xl font-bold text-white">$12,450</p>
-                    <p className="text-sm text-purple-400">42% of total</p>
-                  </div>
-                </div>
+                  );
+                })()}
 
-                <div className="flex items-center justify-between p-4 bg-[#1dff00]/10 border border-[#1dff00]/20 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-[#1dff00]/20 flex items-center justify-center">
-                      <DollarSign className="w-5 h-5 text-[#1dff00]" />
+                {(() => {
+                  const proData = getTierData('Pro');
+                  return (
+                    <div className="flex items-center justify-between p-4 bg-[#1dff00]/10 border border-[#1dff00]/20 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-[#1dff00]/20 flex items-center justify-center">
+                          <DollarSign className="w-5 h-5 text-[#1dff00]" />
+                        </div>
+                        <div>
+                          <p className="text-white font-medium">Pro Plan</p>
+                          <p className="text-sm text-gray-400">{proData.count} subscriber{proData.count !== 1 ? 's' : ''}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-white">${proData.revenue.toLocaleString()}</p>
+                        <p className="text-sm text-[#1dff00]">{proData.percentage}% of MRR</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-white font-medium">Pro Plan</p>
-                      <p className="text-sm text-gray-400">Mid tier</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xl font-bold text-white">$8,720</p>
-                    <p className="text-sm text-[#1dff00]">35% of total</p>
-                  </div>
-                </div>
+                  );
+                })()}
 
-                <div className="flex items-center justify-between p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
-                      <DollarSign className="w-5 h-5 text-yellow-400" />
+                {(() => {
+                  const basicsData = getTierData('Basics');
+                  return (
+                    <div className="flex items-center justify-between p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
+                          <DollarSign className="w-5 h-5 text-yellow-400" />
+                        </div>
+                        <div>
+                          <p className="text-white font-medium">Basics Plan</p>
+                          <p className="text-sm text-gray-400">{basicsData.count} subscriber{basicsData.count !== 1 ? 's' : ''}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-white">${basicsData.revenue.toLocaleString()}</p>
+                        <p className="text-sm text-yellow-400">{basicsData.percentage}% of MRR</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-white font-medium">Basics Plan</p>
-                      <p className="text-sm text-gray-400">Starter tier</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xl font-bold text-white">$2,340</p>
-                    <p className="text-sm text-yellow-400">15% of total</p>
-                  </div>
-                </div>
+                  );
+                })()}
 
-                <div className="flex items-center justify-between p-4 bg-gray-700/30 border border-gray-600/20 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-gray-600/20 flex items-center justify-center">
-                      <DollarSign className="w-5 h-5 text-gray-400" />
+                {(() => {
+                  const freeData = getTierData('Free');
+                  return (
+                    <div className="flex items-center justify-between p-4 bg-gray-700/30 border border-gray-600/20 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-gray-600/20 flex items-center justify-center">
+                          <DollarSign className="w-5 h-5 text-gray-400" />
+                        </div>
+                        <div>
+                          <p className="text-white font-medium">Free Plan</p>
+                          <p className="text-sm text-gray-400">{freeData.count} subscriber{freeData.count !== 1 ? 's' : ''}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-white">$0</p>
+                        <p className="text-sm text-gray-400">0% of MRR</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-white font-medium">Free Plan</p>
-                      <p className="text-sm text-gray-400">Basic tier</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xl font-bold text-white">$0</p>
-                    <p className="text-sm text-gray-400">0% of total</p>
-                  </div>
-                </div>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>
