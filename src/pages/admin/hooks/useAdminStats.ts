@@ -24,9 +24,9 @@ export const useAdminStats = () => {
         subscriptionsData,
         transactionsData,
       ] = await Promise.all([
-        supabase.from('profiles').select('id, email, first_name, last_name, updated_at'),
+        supabase.from('profiles').select('id, first_name, last_name, updated_at'),
         supabase.from('user_credits').select('balance, total_earned, total_consumed'),
-        supabase.from('user_subscriptions').select('user_id, status, subscription_plans(name, price)').eq('status', 'active'),
+        supabase.from('user_subscriptions').select('user_id, status, plan_id, subscription_plans!inner(name, price)').eq('status', 'active'),
         supabase.from('credit_transactions').select('type, amount, reference_type'),
       ]);
 
@@ -128,14 +128,22 @@ export const useUserActivities = () => {
       setLoading(true);
       setError(null);
 
+      // First get auth users to get emails
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      if (authError) throw authError;
+
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, email, first_name, last_name, updated_at');
+        .select('id, first_name, last_name, updated_at');
 
       if (profilesError) throw profilesError;
 
       const userActivities: UserActivity[] = await Promise.all(
         (profiles || []).map(async (profile) => {
+          // Find email from auth users
+          const authUser = authUsers?.users.find(u => u.id === profile.id);
+          const email = authUser?.email || 'unknown@email.com';
+
           // Get credits
           const { data: credits } = await supabase
             .from('user_credits')
@@ -146,7 +154,7 @@ export const useUserActivities = () => {
           // Get subscription
           const { data: subscription } = await supabase
             .from('user_subscriptions')
-            .select('subscription_plans(name, price)')
+            .select('plan_id, subscription_plans!inner(name, price)')
             .eq('user_id', profile.id)
             .eq('status', 'active')
             .order('created_at', { ascending: false })
@@ -174,7 +182,7 @@ export const useUserActivities = () => {
 
           return {
             id: profile.id,
-            email: profile.email,
+            email,
             full_name,
             updated_at: profile.updated_at,
             credits_balance: credits?.balance || 0,
@@ -215,7 +223,7 @@ export const useRevenueData = (days: number = 30) => {
 
       const { data: subscriptions, error } = await supabase
         .from('user_subscriptions')
-        .select('created_at, subscription_plans(price)')
+        .select('created_at, plan_id, subscription_plans!inner(price)')
         .gte('created_at', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString());
 
       if (error) throw error;
