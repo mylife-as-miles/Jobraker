@@ -239,7 +239,11 @@ export const BillingPage = () => {
                     <div className={`p-3 rounded-xl bg-gradient-to-br ${getTierGradient(subscriptionTier)}/10 border border-white/10`}>
                       {getTierIcon(subscriptionTier)}
                     </div>
-                    <span className={`text-xs font-semibold bg-gradient-to-r ${getTierGradient(subscriptionTier)} bg-clip-text text-transparent`}>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                      subscriptionTier === 'Pro' ? 'bg-blue-500/20 text-blue-300' :
+                      subscriptionTier === 'Ultimate' ? 'bg-purple-500/20 text-purple-300' :
+                      'bg-[#1dff00]/20 text-[#1dff00]'
+                    }`}>
                       {subscriptionTier.toUpperCase()}
                     </span>
                   </div>
@@ -248,7 +252,7 @@ export const BillingPage = () => {
                     <p className="text-4xl font-bold text-white">
                       {subscriptionTier}
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-400">
                       {plans.find(p => p.name === subscriptionTier)?.credits_per_month.toLocaleString() || 0} credits/month
                     </p>
                   </div>
@@ -404,7 +408,11 @@ export const BillingPage = () => {
                             className={`w-full h-12 font-semibold text-base transition-all duration-300 ${
                               isCurrentPlan
                                 ? 'bg-white/10 text-white cursor-default'
-                                : `bg-gradient-to-r ${getTierGradient(plan.name)} text-${plan.name === 'Free' ? 'black' : 'white'} hover:opacity-90 hover:scale-105 shadow-lg`
+                                : plan.name === 'Free'
+                                ? 'bg-gradient-to-r from-[#1dff00] via-[#0fc74f] to-[#0a8246] text-black hover:opacity-90 hover:scale-105 shadow-lg'
+                                : plan.name === 'Pro'
+                                ? 'bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
+                                : 'bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
                             }`}
                             disabled={isCurrentPlan}
                           >
@@ -431,7 +439,7 @@ export const BillingPage = () => {
             >
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold text-white mb-2">One-Time Credit Packs</h2>
-                <p className="text-gray-400">Purchase additional credits anytime to boost your balance</p>
+                <p className="text-gray-300">Purchase additional credits anytime to boost your balance</p>
               </div>
 
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
