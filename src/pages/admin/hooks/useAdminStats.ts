@@ -44,14 +44,17 @@ export const useAdminStats = () => {
         console.warn('Credit system tables not yet deployed');
       }
 
-      // Fetch subscriptions - handle gracefully if table doesn't exist
+      // Fetch subscriptions with plan details - handle gracefully if table doesn't exist
       let subscriptions: any[] = [];
       try {
         const { data, error } = await supabase
           .from('user_subscriptions')
-          .select('user_id, status, plan_id')
+          .select('user_id, status, subscription_plan_id, subscription_plans(name, price, credits_per_month)')
           .eq('status', 'active');
-        if (!error && data) subscriptions = data;
+        if (!error && data) {
+          subscriptions = data;
+          console.log('Subscriptions fetched:', subscriptions.length, subscriptions);
+        }
       } catch (e) {
         console.warn('Subscription tables not yet deployed');
       }
@@ -81,9 +84,18 @@ export const useAdminStats = () => {
         return profileUpdate && profileUpdate > thirtyDaysAgo;
       }).length;
 
-      // Calculate revenue (simplified since we don't have plan prices loaded)
-      const totalRevenue = subscriptions.length * 10; // Placeholder
-      const mrr = subscriptions.length * 10; // Placeholder
+      // Calculate revenue from active subscriptions
+      let totalRevenue = 0;
+      let mrr = 0;
+      subscriptions.forEach((sub: any) => {
+        if (sub.subscription_plans && !Array.isArray(sub.subscription_plans)) {
+          const price = sub.subscription_plans.price || 0;
+          mrr += price; // Monthly recurring revenue
+          totalRevenue += price; // For now, same as MRR (could be lifetime in the future)
+        }
+      });
+
+      console.log('Revenue calculated:', { totalRevenue, mrr, activeSubscriptions: subscriptions.length });
 
       // Calculate credit stats - use lifetime_earned and lifetime_spent
       const totalCreditsIssued = credits.reduce((sum: number, c: any) => sum + (c.lifetime_earned || 0), 0);
