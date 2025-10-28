@@ -1,5 +1,6 @@
--- Fix credit deduction functions to use the ACTUAL column name: transaction_type
--- The deployed database uses 'transaction_type' NOT 'type'
+-- Final fix for credit deduction functions
+-- Handle both possible schemas: 'type' or 'transaction_type' column
+-- Use 'consumed' value which is valid for both CHECK constraints
 
 DROP FUNCTION IF EXISTS public.deduct_job_search_credits(UUID, INTEGER);
 
@@ -16,6 +17,7 @@ DECLARE
     v_credits_to_deduct INTEGER;
     v_new_balance INTEGER;
     v_result JSON;
+    v_has_type_column BOOLEAN;
 BEGIN
     -- Calculate credits to deduct (1 credit per job, max 10 per search)
     v_credits_to_deduct := LEAST(p_jobs_count, 10);
@@ -52,22 +54,50 @@ BEGIN
     WHERE user_id = p_user_id
     RETURNING balance INTO v_new_balance;
     
-    -- Record the transaction using ACTUAL column name: transaction_type
-    INSERT INTO public.credit_transactions (
-        user_id,
-        transaction_type,
-        amount,
-        balance_after,
-        description,
-        reference_type
-    ) VALUES (
-        p_user_id,
-        'consumed',
-        v_credits_to_deduct,
-        v_new_balance,
-        'Job search - ' || p_jobs_count || ' jobs found',
-        'job_search'
-    );
+    -- Check which column exists: 'type' or 'transaction_type'
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'credit_transactions' 
+        AND column_name = 'type'
+    ) INTO v_has_type_column;
+    
+    -- Record the transaction using the correct column name
+    IF v_has_type_column THEN
+        -- Use 'type' column with 'consumed' value
+        INSERT INTO public.credit_transactions (
+            user_id,
+            type,
+            amount,
+            balance_after,
+            description,
+            reference_type
+        ) VALUES (
+            p_user_id,
+            'consumed',
+            v_credits_to_deduct,
+            v_new_balance,
+            'Job search - ' || p_jobs_count || ' jobs found',
+            'job_search'
+        );
+    ELSE
+        -- Use 'transaction_type' column with 'consumed' value
+        INSERT INTO public.credit_transactions (
+            user_id,
+            transaction_type,
+            amount,
+            balance_after,
+            description,
+            reference_type
+        ) VALUES (
+            p_user_id,
+            'consumed',
+            v_credits_to_deduct,
+            v_new_balance,
+            'Job search - ' || p_jobs_count || ' jobs found',
+            'job_search'
+        );
+    END IF;
     
     -- Return success result
     v_result := json_build_object(
@@ -106,6 +136,7 @@ DECLARE
     v_credits_to_deduct INTEGER;
     v_new_balance INTEGER;
     v_result JSON;
+    v_has_type_column BOOLEAN;
 BEGIN
     -- Calculate credits to deduct (5 credits per auto apply)
     v_credits_to_deduct := p_jobs_count * 5;
@@ -142,22 +173,50 @@ BEGIN
     WHERE user_id = p_user_id
     RETURNING balance INTO v_new_balance;
     
-    -- Record the transaction using ACTUAL column name: transaction_type
-    INSERT INTO public.credit_transactions (
-        user_id,
-        transaction_type,
-        amount,
-        balance_after,
-        description,
-        reference_type
-    ) VALUES (
-        p_user_id,
-        'consumed',
-        v_credits_to_deduct,
-        v_new_balance,
-        'Auto apply - ' || p_jobs_count || ' job' || (CASE WHEN p_jobs_count > 1 THEN 's' ELSE '' END) || ' applied',
-        'auto_apply'
-    );
+    -- Check which column exists: 'type' or 'transaction_type'
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'credit_transactions' 
+        AND column_name = 'type'
+    ) INTO v_has_type_column;
+    
+    -- Record the transaction using the correct column name
+    IF v_has_type_column THEN
+        -- Use 'type' column with 'consumed' value
+        INSERT INTO public.credit_transactions (
+            user_id,
+            type,
+            amount,
+            balance_after,
+            description,
+            reference_type
+        ) VALUES (
+            p_user_id,
+            'consumed',
+            v_credits_to_deduct,
+            v_new_balance,
+            'Auto apply - ' || p_jobs_count || ' job' || (CASE WHEN p_jobs_count > 1 THEN 's' ELSE '' END) || ' applied',
+            'auto_apply'
+        );
+    ELSE
+        -- Use 'transaction_type' column with 'consumed' value
+        INSERT INTO public.credit_transactions (
+            user_id,
+            transaction_type,
+            amount,
+            balance_after,
+            description,
+            reference_type
+        ) VALUES (
+            p_user_id,
+            'consumed',
+            v_credits_to_deduct,
+            v_new_balance,
+            'Auto apply - ' || p_jobs_count || ' job' || (CASE WHEN p_jobs_count > 1 THEN 's' ELSE '' END) || ' applied',
+            'auto_apply'
+        );
+    END IF;
     
     -- Return success result
     v_result := json_build_object(
@@ -185,5 +244,5 @@ $$;
 GRANT EXECUTE ON FUNCTION public.deduct_job_search_credits(UUID, INTEGER) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.deduct_auto_apply_credits(UUID, INTEGER) TO authenticated;
 
-COMMENT ON FUNCTION public.deduct_job_search_credits IS 'Deducts credits for job searches using transaction_type column (1 credit per job, max 10)';
-COMMENT ON FUNCTION public.deduct_auto_apply_credits IS 'Deducts credits for auto apply using transaction_type column (5 credits per job)';
+COMMENT ON FUNCTION public.deduct_job_search_credits IS 'Deducts credits for job searches - auto-detects column name and uses consumed value (1 credit per job, max 10)';
+COMMENT ON FUNCTION public.deduct_auto_apply_credits IS 'Deducts credits for auto apply - auto-detects column name and uses consumed value (5 credits per job)';
