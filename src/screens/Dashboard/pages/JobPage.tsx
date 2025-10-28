@@ -1042,6 +1042,30 @@ export const JobPage = (): JSX.Element => {
           await incrementSearchCount(inserted);
         }
 
+        // Deduct credits for job search (1 credit per job)
+        if (inserted > 0) {
+          try {
+            const { data: authData } = await supabase.auth.getUser();
+            const userId = authData?.user?.id;
+            if (userId) {
+              const { data: deductResult, error: deductError } = await supabase.rpc('deduct_job_search_credits', {
+                p_user_id: userId,
+                p_jobs_count: inserted
+              });
+              
+              if (deductError) {
+                console.error('Failed to deduct job search credits:', deductError);
+              } else if (deductResult && !deductResult.success) {
+                console.warn('Credit deduction failed:', deductResult.message);
+              } else if (deductResult?.success) {
+                console.log(`Deducted ${deductResult.credits_deducted} credits. Remaining: ${deductResult.remaining_balance}`);
+              }
+            }
+          } catch (creditErr) {
+            console.error('Error deducting job search credits:', creditErr);
+          }
+        }
+
         setStepIndex(1); // Complete: Saving Results
         setInsertedThisRun(inserted);
         
@@ -1114,6 +1138,40 @@ export const JobPage = (): JSX.Element => {
       setApplyProgress({ done: 0, total: jobsWithTargets.length, success: 0, fail: 0 });
 
       try {
+        // Check if user has enough credits for auto apply (5 credits per job)
+        const { data: authData } = await supabase.auth.getUser();
+        const userId = authData?.user?.id;
+        
+        if (userId) {
+          const { data: creditCheck, error: checkError } = await supabase.rpc('check_credits_available', {
+            p_user_id: userId,
+            p_feature_type: 'auto_apply',
+            p_quantity: jobsWithTargets.length
+          });
+          
+          if (checkError) {
+            console.error('Failed to check credits:', checkError);
+            setError({ 
+              message: 'Failed to verify credits. Please try again.',
+              link: '/dashboard/billing'
+            });
+            setApplyingAll(false);
+            return;
+          }
+          
+          if (!creditCheck?.available) {
+            const required = creditCheck?.required || (jobsWithTargets.length * 5);
+            const available = creditCheck?.current_balance || 0;
+            setError({ 
+              message: `Insufficient credits. Auto apply requires ${required} credits (5 per job × ${jobsWithTargets.length} jobs) but you only have ${available}.`,
+              link: '/dashboard/billing'
+            });
+            safeInfo('Not enough credits', `Upgrade or purchase credits to use auto apply.`);
+            setApplyingAll(false);
+            return;
+          }
+        }
+
         const coverLetterPayload = composeCoverLetterPayload(selectedCoverLetter);
         events.autoApplyStarted(jobsWithTargets.length, selectedResumeId || undefined, selectedCoverLetterId || undefined);
 
@@ -1150,8 +1208,7 @@ export const JobPage = (): JSX.Element => {
         });
 
         const { runId, workflowId, providerStatus, recordingUrl } = extractAutomationMetadata(automationResult);
-        const { data: authData } = await supabase.auth.getUser();
-        const userId = authData?.user?.id ?? null;
+        // userId already declared above, reuse it
         const applicationsToInsert: any[] = [];
         const appliedTimestamp = new Date().toISOString();
 
@@ -1220,6 +1277,27 @@ export const JobPage = (): JSX.Element => {
           }
         } else if (!userId) {
           console.warn('Skipping application inserts because user id is unavailable');
+        }
+
+        // Deduct credits for auto apply (5 credits per job)
+        if (userId && success > 0) {
+          try {
+            const { data: deductResult, error: deductError } = await supabase.rpc('deduct_auto_apply_credits', {
+              p_user_id: userId,
+              p_jobs_count: success
+            });
+            
+            if (deductError) {
+              console.error('Failed to deduct auto apply credits:', deductError);
+            } else if (deductResult && !deductResult.success) {
+              console.warn('Credit deduction failed:', deductResult.message);
+            } else if (deductResult?.success) {
+              console.log(`Deducted ${deductResult.credits_deducted} credits for ${success} auto-applied jobs. Remaining: ${deductResult.remaining_balance}`);
+              safeInfo('Credits deducted', `Used ${deductResult.credits_deducted} credits for auto apply. ${deductResult.remaining_balance} credits remaining.`);
+            }
+          } catch (creditErr) {
+            console.error('Error deducting auto apply credits:', creditErr);
+          }
         }
 
         events.autoApplyFinished(success, fail);
