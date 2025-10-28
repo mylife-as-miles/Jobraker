@@ -17,22 +17,21 @@ export const useAdminStats = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch profiles
-      const { data: users, error: usersError } = await supabase
+      // Get ALL auth users first (this is the real count)
+      const { data: authData } = await supabase.auth.admin.listUsers();
+      const allUsers = authData?.users || [];
+
+      // Fetch profiles to get additional info
+      const { data: profiles } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, updated_at');
-
-      if (usersError) {
-        console.error('Error fetching profiles:', usersError);
-        throw usersError;
-      }
 
       // Fetch credits - handle gracefully if table doesn't exist
       let credits: any[] = [];
       try {
         const { data, error } = await supabase
           .from('user_credits')
-          .select('balance, total_earned, total_consumed');
+          .select('user_id, balance, total_earned, total_consumed');
         if (!error) credits = data || [];
       } catch (e) {
         console.warn('Credit system tables not yet deployed');
@@ -55,21 +54,26 @@ export const useAdminStats = () => {
       try {
         const { data, error } = await supabase
           .from('credit_transactions')
-          .select('type, amount, reference_type');
+          .select('user_id, type, amount, reference_type');
         if (!error) transactions = data || [];
       } catch (e) {
         console.warn('Credit transactions table not yet deployed');
       }
 
-      // Calculate total users
-      const totalUsers = (users || []).length;
+      // Calculate total users from auth.users (real count)
+      const totalUsers = allUsers.length;
 
-      // Calculate active users (updated within last 30 days)
+      // Calculate active users (those with profiles updated within last 30 days OR recent auth activity)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const activeUsers = (users || []).filter((u: any) => 
-        u.updated_at && new Date(u.updated_at) > thirtyDaysAgo
-      ).length;
+      const activeUsers = allUsers.filter((user: any) => {
+        const profile = (profiles || []).find((p: any) => p.id === user.id);
+        const lastSignIn = user.last_sign_in_at ? new Date(user.last_sign_in_at) : null;
+        const profileUpdate = profile?.updated_at ? new Date(profile.updated_at) : null;
+        
+        return (lastSignIn && lastSignIn > thirtyDaysAgo) || 
+               (profileUpdate && profileUpdate > thirtyDaysAgo);
+      }).length;
 
       // Calculate revenue (simplified since we don't have plan prices loaded)
       const totalRevenue = subscriptions.length * 10; // Placeholder
@@ -91,12 +95,17 @@ export const useAdminStats = () => {
       const paidSubscriptions = subscriptions.length;
       const conversionRate = totalUsers > 0 ? (paidSubscriptions / totalUsers) * 100 : 0;
 
-      // Calculate churn rate (simplified - users who haven't updated in 60 days)
+      // Calculate churn rate (users who haven't signed in or updated in 60 days)
       const sixtyDaysAgo = new Date();
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-      const churnedUsers = (users || []).filter((u: any) => 
-        !u.updated_at || new Date(u.updated_at) < sixtyDaysAgo
-      ).length;
+      const churnedUsers = allUsers.filter((user: any) => {
+        const profile = (profiles || []).find((p: any) => p.id === user.id);
+        const lastSignIn = user.last_sign_in_at ? new Date(user.last_sign_in_at) : null;
+        const profileUpdate = profile?.updated_at ? new Date(profile.updated_at) : null;
+        
+        return (!lastSignIn || lastSignIn < sixtyDaysAgo) && 
+               (!profileUpdate || profileUpdate < sixtyDaysAgo);
+      }).length;
       const churnRate = totalUsers > 0 ? (churnedUsers / totalUsers) * 100 : 0;
 
       setStats({
@@ -139,20 +148,20 @@ export const useUserActivities = () => {
       setLoading(true);
       setError(null);
 
-      // First get auth users to get emails
-      const { data: authUsers } = await supabase.auth.admin.listUsers();
+      // Get ALL auth users (this is the source of truth)
+      const { data: authData } = await supabase.auth.admin.listUsers();
+      const authUsers = authData?.users || [];
       
-      const { data: profiles, error: profilesError } = await supabase
+      // Fetch profiles for additional info
+      const { data: profiles } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, updated_at');
 
-      if (profilesError) throw profilesError;
-
+      // Build user activities from ALL auth users
       const userActivities: UserActivity[] = await Promise.all(
-        (profiles || []).map(async (profile: any) => {
-          // Find email from auth users
-          const authUser = authUsers?.users?.find((u: any) => u.id === profile.id);
-          const email = authUser?.email || 'unknown@email.com';
+        authUsers.map(async (authUser: any) => {
+          const email = authUser.email || 'unknown@email.com';
+          const profile = (profiles || []).find((p: any) => p.id === authUser.id);
 
           // Get credits - handle gracefully if table doesn't exist
           let creditsBalance = 0;
@@ -161,7 +170,7 @@ export const useUserActivities = () => {
             const { data: credits } = await supabase
               .from('user_credits')
               .select('balance, total_consumed')
-              .eq('user_id', profile.id)
+              .eq('user_id', authUser.id)
               .maybeSingle();
             
             if (credits) {
@@ -179,7 +188,7 @@ export const useUserActivities = () => {
             const { data: subscription } = await supabase
               .from('user_subscriptions')
               .select('plan_id')
-              .eq('user_id', profile.id)
+              .eq('user_id', authUser.id)
               .eq('status', 'active')
               .order('created_at', { ascending: false })
               .limit(1)
@@ -200,7 +209,7 @@ export const useUserActivities = () => {
             const { data: transactions } = await supabase
               .from('credit_transactions')
               .select('reference_type')
-              .eq('user_id', profile.id)
+              .eq('user_id', authUser.id)
               .eq('type', 'consumed');
 
             jobSearches = (transactions || []).filter((t: any) => t.reference_type === 'job_search').length;
@@ -209,20 +218,32 @@ export const useUserActivities = () => {
             // Transaction table not deployed yet
           }
 
-          // Determine status based on profile updates
+          // Determine status based on last sign in or profile updates
           const thirtyDaysAgo = new Date();
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-          const status = profile.updated_at && new Date(profile.updated_at) > thirtyDaysAgo
+          const lastSignIn = authUser.last_sign_in_at ? new Date(authUser.last_sign_in_at) : null;
+          const profileUpdate = profile?.updated_at ? new Date(profile.updated_at) : null;
+          
+          const status = (lastSignIn && lastSignIn > thirtyDaysAgo) || 
+                        (profileUpdate && profileUpdate > thirtyDaysAgo)
             ? 'active'
             : 'inactive';
 
-          const full_name = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || null;
+          const full_name = profile 
+            ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') || null
+            : null;
+
+          // Use last_sign_in_at or profile updated_at, whichever is more recent
+          let updated_at = profile?.updated_at;
+          if (lastSignIn && (!updated_at || new Date(lastSignIn) > new Date(updated_at))) {
+            updated_at = authUser.last_sign_in_at;
+          }
 
           return {
-            id: profile.id,
+            id: authUser.id,
             email,
             full_name,
-            updated_at: profile.updated_at,
+            updated_at: updated_at || authUser.created_at,
             credits_balance: creditsBalance,
             credits_consumed: creditsConsumed,
             subscription_tier: subscriptionTier,
