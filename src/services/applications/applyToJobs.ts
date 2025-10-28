@@ -11,6 +11,7 @@ export type ApplyToJobsParams = {
   proxy_location?: string;
   webhook_url?: string;
   title?: string;
+  email?: string;
 };
 
 export async function applyToJobs(payload: ApplyToJobsParams) {

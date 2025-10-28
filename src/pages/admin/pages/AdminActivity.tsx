@@ -25,7 +25,7 @@ export default function AdminActivity() {
       const { data: transactions } = await supabase
         .from('credit_transactions')
         .select('*, profiles(email)')
-        .eq('type', 'consumed')
+        .eq('transaction_type', 'deduction')
         .order('created_at', { ascending: false })
         .limit(100);
 

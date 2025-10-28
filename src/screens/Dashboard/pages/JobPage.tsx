@@ -932,7 +932,7 @@ export const JobPage = (): JSX.Element => {
       try {
         const { data: authData } = await supabase.auth.getUser();
         const userId = authData?.user?.id;
-        
+
         if (!userId) {
           throw new Error('User not authenticated');
         }
@@ -1153,6 +1153,7 @@ export const JobPage = (): JSX.Element => {
         // Check if user has enough credits for auto apply (5 credits per job)
         const { data: authData } = await supabase.auth.getUser();
         const userId = authData?.user?.id;
+        const userEmail = authData?.user?.email;
         
         if (userId) {
           const { data: creditCheck, error: checkError } = await supabase.rpc('check_credits_available', {
@@ -1217,6 +1218,7 @@ export const JobPage = (): JSX.Element => {
           cover_letter: coverLetterPayload,
           ...(profileSnapshot ? { additional_information: profileSnapshot } : {}),
           ...(resumeSignedUrl ? { resume: resumeSignedUrl } : {}),
+          ...(userEmail ? { email: userEmail } : {}),
         });
 
         const { runId, workflowId, providerStatus, recordingUrl } = extractAutomationMetadata(automationResult);
