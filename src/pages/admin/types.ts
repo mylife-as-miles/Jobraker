@@ -13,6 +13,10 @@ export interface AdminStats {
   averageCreditsPerUser: number;
   conversionRate: number;
   churnRate: number;
+  subscriptionsByTier: {
+    tier: string;
+    count: number;
+  }[];
 }
 
 export interface UserActivity {

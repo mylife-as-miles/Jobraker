@@ -11,6 +11,7 @@ import {
   ArrowDown,
   Loader2
 } from 'lucide-react';
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Area, AreaChart, Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend, Pie, PieChart, Cell } from 'recharts';
 import { useRevenueData } from '../hooks/useAdminStats';
@@ -119,14 +120,26 @@ export default function AdminOverview() {
     },
   ];
 
-  // Subscription distribution data
-  const subscriptionData = [
-    { name: 'Free', value: 65, color: '#6b7280' },
-    { name: 'Pro', value: 25, color: '#1dff00' },
-    { name: 'Ultimate', value: 10, color: '#0a8246' },
-  ];
+  // Calculate subscription distribution from real data
+  const subscriptionData = useMemo(() => {
+    if (!stats || !stats.subscriptionsByTier) return [];
+    
+    const colorMap: { [key: string]: string } = {
+      'Free': '#6b7280',
+      'Pro': '#1dff00',
+      'Ultimate': '#0a8246',
+      'Starter': '#10b981',
+      'Business': '#059669',
+    };
+    
+    return stats.subscriptionsByTier.map(item => ({
+      name: item.tier,
+      value: item.count,
+      color: colorMap[item.tier] || '#6b7280',
+    })).filter(item => item.value > 0); // Only show tiers with users
+  }, [stats]);
 
-  // Credit usage trend data
+  // Credit usage trend data from real revenue data
   const creditUsageTrend = revenueData.map(item => ({
     date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     revenue: item.revenue,
