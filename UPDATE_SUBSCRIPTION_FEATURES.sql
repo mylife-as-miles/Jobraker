@@ -30,7 +30,7 @@ UPDATE subscription_plans
 SET 
     description = 'Maximum power for your job search journey',
     features = jsonb_build_array(
-        '100 job searches per month',
+        '100 job searches',
         '5,000 credits per month',
         'Everything in Pro',
         'AI interview preparation',
