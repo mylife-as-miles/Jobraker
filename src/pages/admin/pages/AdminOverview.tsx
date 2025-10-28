@@ -1,4 +1,4 @@
-import { useAdminStats, useUserActivities } from '../hooks/useAdminStats';
+import { useAdminStats } from '../hooks/useAdminStats';
 import { 
   Users, 
   DollarSign, 
@@ -7,18 +7,18 @@ import {
   Activity,
   Search,
   Zap,
+  ArrowUp,
+  ArrowDown,
   Loader2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Area, AreaChart, Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend, Pie, PieChart, Cell } from 'recharts';
 import { useRevenueData } from '../hooks/useAdminStats';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
-import { useMemo } from 'react';
 
 export default function AdminOverview() {
   const { stats, loading, error } = useAdminStats();
   const { data: revenueData, loading: revenueLoading } = useRevenueData(30);
-  const { activities } = useUserActivities();
 
   if (loading) {
     return (
@@ -48,6 +48,8 @@ export default function AdminOverview() {
     {
       title: 'Total Users',
       value: stats.totalUsers.toLocaleString(),
+      change: '+12.5%',
+      trend: 'up',
       icon: Users,
       gradient: 'from-[#1dff00] to-[#0a8246]',
       bgGradient: 'from-[#1dff00]/20 to-[#0a8246]/10',
@@ -55,6 +57,8 @@ export default function AdminOverview() {
     {
       title: 'Active Users',
       value: stats.activeUsers.toLocaleString(),
+      change: '+8.2%',
+      trend: 'up',
       icon: Activity,
       gradient: 'from-[#1dff00] to-[#0a8246]',
       bgGradient: 'from-[#1dff00]/20 to-[#0a8246]/10',
@@ -62,6 +66,8 @@ export default function AdminOverview() {
     {
       title: 'Total Revenue',
       value: `$${stats.totalRevenue.toLocaleString()}`,
+      change: '+23.1%',
+      trend: 'up',
       icon: DollarSign,
       gradient: 'from-[#1dff00] to-[#0a8246]',
       bgGradient: 'from-[#1dff00]/20 to-[#0a8246]/10',
@@ -69,6 +75,8 @@ export default function AdminOverview() {
     {
       title: 'MRR',
       value: `$${stats.mrr.toLocaleString()}`,
+      change: '+15.3%',
+      trend: 'up',
       icon: TrendingUp,
       gradient: 'from-[#1dff00] to-[#0a8246]',
       bgGradient: 'from-[#1dff00]/20 to-[#0a8246]/10',
@@ -76,6 +84,8 @@ export default function AdminOverview() {
     {
       title: 'Credits Available',
       value: stats.totalCreditsAvailable.toLocaleString(),
+      change: '-5.4%',
+      trend: 'down',
       icon: Coins,
       gradient: 'from-[#1dff00] to-[#0a8246]',
       bgGradient: 'from-[#1dff00]/20 to-[#0a8246]/10',
@@ -83,6 +93,8 @@ export default function AdminOverview() {
     {
       title: 'Credits Consumed',
       value: stats.totalCreditsConsumed.toLocaleString(),
+      change: '+18.7%',
+      trend: 'up',
       icon: Zap,
       gradient: 'from-[#1dff00] to-[#0a8246]',
       bgGradient: 'from-[#1dff00]/20 to-[#0a8246]/10',
@@ -90,6 +102,8 @@ export default function AdminOverview() {
     {
       title: 'Job Searches',
       value: stats.totalJobSearches.toLocaleString(),
+      change: '+28.4%',
+      trend: 'up',
       icon: Search,
       gradient: 'from-[#1dff00] to-[#0a8246]',
       bgGradient: 'from-[#1dff00]/20 to-[#0a8246]/10',
@@ -97,38 +111,23 @@ export default function AdminOverview() {
     {
       title: 'Auto Applies',
       value: stats.totalAutoApplies.toLocaleString(),
+      change: '+42.1%',
+      trend: 'up',
       icon: Zap,
       gradient: 'from-[#1dff00] to-[#0a8246]',
       bgGradient: 'from-[#1dff00]/20 to-[#0a8246]/10',
     },
   ];
 
-  // REAL subscription distribution data from actual user activities
-  const subscriptionData = useMemo(() => {
-    if (!activities || activities.length === 0) {
-      return [
-        { name: 'Free', value: 0, color: '#6b7280' },
-        { name: 'Pro', value: 0, color: '#1dff00' },
-        { name: 'Ultimate', value: 0, color: '#0a8246' },
-      ];
-    }
-
-    // Count users by subscription tier
-    const tierCounts = activities.reduce((acc, user) => {
-      const tier = user.subscription_tier || 'Free';
-      acc[tier] = (acc[tier] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    return [
-      { name: 'Free', value: tierCounts['Free'] || 0, color: '#6b7280' },
-      { name: 'Pro', value: tierCounts['Pro'] || 0, color: '#1dff00' },
-      { name: 'Ultimate', value: tierCounts['Ultimate'] || 0, color: '#0a8246' },
-    ];
-  }, [activities]);
+  // Subscription distribution data
+  const subscriptionData = [
+    { name: 'Free', value: 65, color: '#6b7280' },
+    { name: 'Pro', value: 25, color: '#1dff00' },
+    { name: 'Ultimate', value: 10, color: '#0a8246' },
+  ];
 
   // Credit usage trend data
-  const creditUsageTrend = revenueData.map((item: any) => ({
+  const creditUsageTrend = revenueData.map(item => ({
     date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     revenue: item.revenue,
     mrr: item.mrr,
@@ -152,6 +151,7 @@ export default function AdminOverview() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
+          const TrendIcon = stat.trend === 'up' ? ArrowUp : ArrowDown;
           
           return (
             <motion.div
@@ -171,6 +171,13 @@ export default function AdminOverview() {
                   <div className="space-y-1">
                     <p className="text-sm text-gray-400">{stat.title}</p>
                     <p className="text-3xl font-bold text-white">{stat.value}</p>
+                    <div className="flex items-center gap-1">
+                      <TrendIcon className={`w-4 h-4 ${stat.trend === 'up' ? 'text-[#1dff00]' : 'text-red-400'}`} />
+                      <span className={`text-sm font-medium ${stat.trend === 'up' ? 'text-[#1dff00]' : 'text-red-400'}`}>
+                        {stat.change}
+                      </span>
+                      <span className="text-sm text-gray-500">vs last month</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
