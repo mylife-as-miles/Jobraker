@@ -28,6 +28,18 @@ import { ROUTES } from "./routes";
 import { ToastEventBridge } from "./components/system/ToastEventBridge";
 import { AnimatePresence } from "framer-motion";
 import { PageTransition } from "./components/transitions";
+import AdminCheckCredits from "@/pages/AdminCheckCredits";
+import {
+  AdminLayout,
+  AdminOverview,
+  AdminUsers,
+  AdminRevenue,
+  AdminCredits,
+  AdminActivity,
+  AdminDatabase,
+  AdminPerformance,
+  AdminSettings,
+} from "@/pages/admin";
 
 // Error boundary component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
@@ -101,6 +113,21 @@ function AnimatedRoutes() {
 
         {/* Auth callback route */}
         <Route path="/auth/callback/gmail" element={<PageTransition><GmailCallbackPage /></PageTransition>} />
+        
+        {/* Admin Dashboard Routes */}
+        <Route path="/admin" element={<RequireAuth><AdminLayout /></RequireAuth>}>
+          <Route index element={<AdminOverview />} />
+          <Route path="users" element={<AdminUsers />} />
+          <Route path="revenue" element={<AdminRevenue />} />
+          <Route path="credits" element={<AdminCredits />} />
+          <Route path="activity" element={<AdminActivity />} />
+          <Route path="database" element={<AdminDatabase />} />
+          <Route path="performance" element={<AdminPerformance />} />
+          <Route path="settings" element={<AdminSettings />} />
+        </Route>
+
+        {/* Admin utility route - check user credits */}
+        <Route path="/admin/check-credits-old" element={<RequireAuth><PageTransition><AdminCheckCredits /></PageTransition></RequireAuth>} />
         
         {/* Artboard routes */}
         <Route element={<RequireAuth><Providers/></RequireAuth>}>
