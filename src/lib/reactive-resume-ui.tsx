@@ -106,7 +106,7 @@ export const DialogContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ 
 
   if (!isOpen) return null;
   return createPortal(
-    <div className="fixed inset-0 z-[99]">
+    <div className="fixed inset-0 z-[99] flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={() => ctx?.onOpenChange?.(false)}
@@ -118,8 +118,8 @@ export const DialogContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ 
         aria-labelledby="dialog-title"
         aria-describedby="dialog-description"
         className={[
-          "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]",
-          "w-[90vw] max-w-2xl max-h-[85vh] overflow-auto",
+          "relative z-[100]",
+          "w-full max-w-2xl max-h-[85vh] overflow-auto",
           "rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--popover))] text-[hsl(var(--popover-foreground))] shadow-xl",
           className,
         ].join(" ")}
@@ -536,10 +536,16 @@ export const PopoverContent: React.FC<{
       role="dialog"
       ref={contentRef}
       className={[
-        "fixed z-[120] min-w-[10rem] max-w-[calc(100vw-16px)] overflow-auto rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--popover))] text-[hsl(var(--popover-foreground))] shadow-lg",
+        "fixed z-[120] min-w-[10rem] max-w-[calc(100vw-32px)] overflow-auto rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--popover))] text-[hsl(var(--popover-foreground))] shadow-lg",
         className,
       ].join(" ")}
-      style={{ top: coords?.top, left: coords?.left, width: coords?.width, maxHeight: coords?.maxHeight, ...(style as any) }}
+      style={{ 
+        top: coords?.top ?? 0, 
+        left: coords?.left ?? 0, 
+        width: coords?.width, 
+        maxHeight: coords?.maxHeight,
+        ...(style as any) 
+      }}
       {...props}
     >
       {children}
