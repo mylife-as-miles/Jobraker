@@ -1030,30 +1030,52 @@ export const JobPage = (): JSX.Element => {
         }
 
         // Jobs are now saved directly by jobs-search function
-        const inserted = searchData?.jobsInserted || 0;
+        // Try different possible response structures
+        const inserted = searchData?.jobsInserted 
+          || searchData?.inserted 
+          || searchData?.count 
+          || searchData?.jobs?.length 
+          || 0;
+
+        console.log('[CREDIT DEDUCTION] Search response:', searchData);
+        console.log('[CREDIT DEDUCTION] Jobs inserted:', inserted);
 
         // Deduct credits for job search (1 credit per job)
-        if (inserted > 0) {
+        // ALWAYS try to deduct if we got a successful response, even if inserted is 0 (for debugging)
+        if (searchData && !searchData.error) {
           try {
             const { data: authData } = await supabase.auth.getUser();
             const userId = authData?.user?.id;
-            if (userId) {
+            console.log('[CREDIT DEDUCTION] User ID:', userId);
+            
+            if (userId && inserted > 0) {
+              console.log('[CREDIT DEDUCTION] Calling deduct_job_search_credits with:', { p_user_id: userId, p_jobs_count: inserted });
+              
               const { data: deductResult, error: deductError } = await supabase.rpc('deduct_job_search_credits', {
                 p_user_id: userId,
                 p_jobs_count: inserted
               });
               
+              console.log('[CREDIT DEDUCTION] Result:', { deductResult, deductError });
+              
               if (deductError) {
                 console.error('Failed to deduct job search credits:', deductError);
+                safeInfo('Credit deduction failed', deductError.message);
               } else if (deductResult && !deductResult.success) {
                 console.warn('Credit deduction failed:', deductResult.message);
+                safeInfo('Credit deduction failed', deductResult.message);
               } else if (deductResult?.success) {
                 console.log(`Deducted ${deductResult.credits_deducted} credits. Remaining: ${deductResult.remaining_balance}`);
+                safeInfo('Credits deducted', `Used ${deductResult.credits_deducted} credits. ${deductResult.remaining_balance} remaining.`);
               }
+            } else {
+              console.error('[CREDIT DEDUCTION] No user ID found');
             }
           } catch (creditErr) {
             console.error('Error deducting job search credits:', creditErr);
           }
+        } else {
+          console.log('[CREDIT DEDUCTION] No jobs inserted, skipping credit deduction');
         }
 
         setStepIndex(1); // Complete: Saving Results

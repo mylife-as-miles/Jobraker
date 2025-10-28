@@ -56,15 +56,17 @@ BEGIN
     -- Record the transaction
     INSERT INTO public.credit_transactions (
         user_id,
-        transaction_type,
+        type,
         amount,
+        balance_before,
         balance_after,
         description,
         reference_type
     ) VALUES (
         p_user_id,
-        'spent',
-        -v_credits_to_deduct,
+        'consumed',
+        v_credits_to_deduct,
+        v_current_balance,
         v_new_balance,
         'Job search - ' || p_jobs_count || ' jobs found',
         'job_search'
