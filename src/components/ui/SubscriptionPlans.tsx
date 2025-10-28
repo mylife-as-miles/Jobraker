@@ -285,12 +285,24 @@ const PlanCard: React.FC<PlanCardProps> = ({
         <div className="space-y-2">
           <p className="text-sm font-medium text-gray-700">Features:</p>
           <ul className="space-y-1">
-            {plan.features.slice(0, 4).map((feature, index) => (
-              <li key={index} className="flex items-start gap-2 text-sm text-gray-600">
-                <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                <span>{feature}</span>
-              </li>
-            ))}
+            {plan.features.slice(0, 4).map((feature: any, index: number) => {
+              // Handle both old string format and new object format
+              const featureName = typeof feature === 'string' ? feature : feature.name;
+              const featureValue = typeof feature === 'object' ? feature.value : null;
+              const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
+              
+              if (!isIncluded) return null;
+              
+              return (
+                <li key={index} className="flex items-start gap-2 text-sm text-gray-600">
+                  <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span>
+                    {featureName}
+                    {featureValue && <span className="text-gray-500 ml-1">• {featureValue}</span>}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
           {plan.features.length > 4 && (
             <p className="text-xs text-gray-500">

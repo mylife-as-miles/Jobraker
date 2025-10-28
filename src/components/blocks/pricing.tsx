@@ -176,12 +176,24 @@ export function Pricing({
               </p>
 
               <ul className="mt-5 gap-2 flex flex-col">
-                {plan.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
-                    <span className="text-left">{feature}</span>
-                  </li>
-                ))}
+                {plan.features.map((feature: any, idx: number) => {
+                  // Handle both old string format and new object format
+                  const featureName = typeof feature === 'string' ? feature : feature.name;
+                  const featureValue = typeof feature === 'object' ? feature.value : null;
+                  const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
+                  
+                  if (!isIncluded) return null;
+                  
+                  return (
+                    <li key={idx} className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                      <span className="text-left">
+                        {featureName}
+                        {featureValue && <span className="text-muted-foreground ml-1">• {featureValue}</span>}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
 
               <hr className="w-full my-4" />

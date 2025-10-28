@@ -707,12 +707,24 @@ export const LandingPage = () => {
                     
                     <div className="flex-grow">
                       <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8" role="list">
-                        {plan.features.map((feature, featureIndex) => (
-                          <li key={featureIndex} className="flex items-center text-sm sm:text-base">
-                            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#1dff00] mr-3 flex-shrink-0" />
-                            <span className="text-[#888888]">{feature}</span>
-                          </li>
-                        ))}
+                        {plan.features.map((feature: any, featureIndex: number) => {
+                          // Handle both old string format and new object format
+                          const featureName = typeof feature === 'string' ? feature : feature.name;
+                          const featureValue = typeof feature === 'object' ? feature.value : null;
+                          const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
+                          
+                          if (!isIncluded) return null;
+                          
+                          return (
+                            <li key={featureIndex} className="flex items-center text-sm sm:text-base">
+                              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#1dff00] mr-3 flex-shrink-0" />
+                              <span className="text-[#888888]">
+                                {featureName}
+                                {featureValue && <span className="text-[#888888]/70 ml-1">• {featureValue}</span>}
+                              </span>
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                     

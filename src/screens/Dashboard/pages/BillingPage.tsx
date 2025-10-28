@@ -393,14 +393,28 @@ export const BillingPage = () => {
 
                           {/* Features */}
                           <div className="space-y-3 py-4">
-                            {plan.features && plan.features.map((feature: string, idx: number) => (
-                              <div key={idx} className="flex items-start gap-3">
-                                <div className={`mt-1 p-0.5 rounded-full bg-gradient-to-br ${getTierGradient(plan.name)}`}>
-                                  <Check className="w-3 h-3 text-black" />
+                            {plan.features && Array.isArray(plan.features) && plan.features.map((feature: any, idx: number) => {
+                              // Handle both old string format and new object format
+                              const featureName = typeof feature === 'string' ? feature : feature.name;
+                              const featureValue = typeof feature === 'object' ? feature.value : null;
+                              const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
+                              
+                              if (!isIncluded) return null;
+                              
+                              return (
+                                <div key={idx} className="flex items-start gap-3">
+                                  <div className={`mt-1 p-0.5 rounded-full bg-gradient-to-br ${getTierGradient(plan.name)}`}>
+                                    <Check className="w-3 h-3 text-black" />
+                                  </div>
+                                  <div className="flex-1">
+                                    <span className="text-sm text-gray-300">
+                                      {featureName}
+                                      {featureValue && <span className="text-gray-400 ml-1">• {featureValue}</span>}
+                                    </span>
+                                  </div>
                                 </div>
-                                <span className="text-sm text-gray-300">{feature}</span>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
 
                           {/* CTA */}
