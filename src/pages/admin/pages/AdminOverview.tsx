@@ -17,6 +17,15 @@ import { Area, AreaChart, Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { useRevenueData } from '../hooks/useAdminStats';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 
+// Color mapping for subscription tiers (constant outside component)
+const TIER_COLOR_MAP: { [key: string]: string } = {
+  'Free': '#6b7280',
+  'Pro': '#1dff00',
+  'Ultimate': '#0a8246',
+  'Starter': '#10b981',
+  'Business': '#059669',
+};
+
 export default function AdminOverview() {
   const { stats, loading, error } = useAdminStats();
   const { data: revenueData, loading: revenueLoading } = useRevenueData(30);
@@ -124,18 +133,10 @@ export default function AdminOverview() {
   const subscriptionData = useMemo(() => {
     if (!stats || !stats.subscriptionsByTier) return [];
     
-    const colorMap: { [key: string]: string } = {
-      'Free': '#6b7280',
-      'Pro': '#1dff00',
-      'Ultimate': '#0a8246',
-      'Starter': '#10b981',
-      'Business': '#059669',
-    };
-    
     return stats.subscriptionsByTier.map(item => ({
       name: item.tier,
       value: item.count,
-      color: colorMap[item.tier] || '#6b7280',
+      color: TIER_COLOR_MAP[item.tier] || '#6b7280',
     })).filter(item => item.value > 0); // Only show tiers with users
   }, [stats]);
 
