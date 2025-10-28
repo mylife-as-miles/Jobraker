@@ -21,21 +21,43 @@ export default function AdminActivity() {
     try {
       setLoading(true);
 
-      // Fetch job search and auto apply activity
-      const { data: transactions } = await supabase
+      // Fetch job search and auto apply activity (without join to avoid FK error)
+      const { data: transactions, error: transError } = await supabase
         .from('credit_transactions')
-        .select('*, profiles(email)')
-        .eq('transaction_type', 'deduction')
+        .select('*')
+        .eq('type', 'consumed')
         .order('created_at', { ascending: false })
         .limit(100);
 
-      const jobSearches = (transactions || []).filter(t => t.reference_type === 'job_search');
-      const autoApplies = (transactions || []).filter(t => t.reference_type === 'auto_apply');
+      if (transError) {
+        console.error('Error fetching transactions:', transError);
+        setActivityData({ jobSearches: [], autoApplies: [], recentActivity: [] });
+        return;
+      }
+
+      // Fetch user emails separately
+      const userIds = [...new Set((transactions || []).map(t => t.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .in('id', userIds);
+
+      // Create a map of user_id to email
+      const emailMap = new Map((profiles || []).map(p => [p.id, p.email]));
+
+      // Enrich transactions with email data
+      const enrichedTransactions = (transactions || []).map(t => ({
+        ...t,
+        profiles: { email: emailMap.get(t.user_id) || 'Unknown' }
+      }));
+
+      const jobSearches = enrichedTransactions.filter(t => t.reference_type === 'job_search');
+      const autoApplies = enrichedTransactions.filter(t => t.reference_type === 'auto_apply');
 
       setActivityData({
         jobSearches,
         autoApplies,
-        recentActivity: transactions || [],
+        recentActivity: enrichedTransactions,
       });
     } catch (err) {
       console.error('Error fetching activity:', err);
