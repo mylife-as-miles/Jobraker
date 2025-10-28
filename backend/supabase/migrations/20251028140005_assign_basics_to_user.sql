@@ -89,15 +89,17 @@ BEGIN
     -- Record the credit transaction
     INSERT INTO public.credit_transactions (
         user_id,
-        transaction_type,
+        type,
         amount,
+        balance_before,
         balance_after,
         description
     )
     SELECT 
         target_user_id,
-        'refill',
+        'earned',
         200,
+        uc.balance - 200,
         uc.balance,
         'Basics plan subscription - 200 monthly credits'
     FROM public.user_credits uc

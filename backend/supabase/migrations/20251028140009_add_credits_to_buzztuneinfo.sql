@@ -36,15 +36,17 @@ BEGIN
     -- Record the transaction
     INSERT INTO public.credit_transactions (
         user_id,
-        transaction_type,
+        type,
         amount,
+        balance_before,
         balance_after,
         description
     )
     SELECT
         target_user_id,
-        'refill',
+        'earned',
         100,
+        uc.balance - 100,
         uc.balance,
         'Manual credit refill for testing'
     FROM public.user_credits uc
