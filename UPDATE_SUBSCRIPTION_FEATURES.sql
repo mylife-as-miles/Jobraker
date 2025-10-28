@@ -5,12 +5,9 @@ UPDATE subscription_plans
 SET 
     description = 'Perfect for getting started with job searching',
     features = jsonb_build_array(
-        '10 job searches per month',
+        '10 job searches',
         '10 credits per month',
-        'Basic job matching',
-        'Email notifications',
-        'Resume builder',
-        'Cover letter templates'
+        'Email notifications'
     )
 WHERE name = 'Free';
 
@@ -18,7 +15,7 @@ UPDATE subscription_plans
 SET 
     description = 'For serious job seekers who need more power',
     features = jsonb_build_array(
-        '50 job searches per month',
+        '50 job searches',
         '1,000 credits per month',
         'AI-powered job matching',
         'AI chat assistant',
