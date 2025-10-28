@@ -37,14 +37,28 @@ export const useAdminStats = () => {
         console.warn('Credit system tables not yet deployed');
       }
 
-      // Fetch subscriptions - handle gracefully if table doesn't exist
+      // Fetch subscriptions with plan details - handle gracefully if table doesn't exist
       let subscriptions: any[] = [];
+      let subscriptionPlans: any[] = [];
       try {
+        // First get subscription plans
+        const { data: plansData, error: plansError } = await supabase
+          .from('subscription_plans')
+          .select('id, name, price');
+        
+        if (!plansError && plansData) {
+          subscriptionPlans = plansData;
+        }
+
+        // Then get active subscriptions
         const { data, error } = await supabase
           .from('user_subscriptions')
           .select('user_id, status, plan_id')
           .eq('status', 'active');
-        if (!error) subscriptions = data || [];
+        
+        if (!error && data) {
+          subscriptions = data;
+        }
       } catch (e) {
         console.warn('Subscription tables not yet deployed');
       }
@@ -75,9 +89,17 @@ export const useAdminStats = () => {
                (profileUpdate && profileUpdate > thirtyDaysAgo);
       }).length;
 
-      // Calculate revenue (simplified since we don't have plan prices loaded)
-      const totalRevenue = subscriptions.length * 10; // Placeholder
-      const mrr = subscriptions.length * 10; // Placeholder
+      // Calculate REAL revenue from subscription plans
+      const totalRevenue = subscriptions.reduce((sum: number, sub: any) => {
+        const plan = subscriptionPlans.find((p: any) => p.id === sub.plan_id);
+        return sum + (plan?.price || 0);
+      }, 0);
+
+      // Calculate REAL MRR (Monthly Recurring Revenue)
+      const mrr = subscriptions.reduce((sum: number, sub: any) => {
+        const plan = subscriptionPlans.find((p: any) => p.id === sub.plan_id);
+        return sum + (plan?.price || 0);
+      }, 0);
 
       // Calculate credit stats
       const totalCreditsIssued = credits.reduce((sum: number, c: any) => sum + (c.total_earned || 0), 0);
@@ -157,6 +179,17 @@ export const useUserActivities = () => {
         .from('profiles')
         .select('id, first_name, last_name, updated_at');
 
+      // Fetch subscription plans once for lookup
+      let subscriptionPlans: any[] = [];
+      try {
+        const { data: plansData } = await supabase
+          .from('subscription_plans')
+          .select('id, name, price');
+        if (plansData) subscriptionPlans = plansData;
+      } catch (e) {
+        console.warn('Subscription plans table not deployed');
+      }
+
       // Build user activities from ALL auth users
       const userActivities: UserActivity[] = await Promise.all(
         authUsers.map(async (authUser: any) => {
@@ -181,7 +214,7 @@ export const useUserActivities = () => {
             // Credits table not deployed yet
           }
 
-          // Get subscription - handle gracefully if table doesn't exist
+          // Get REAL subscription data - handle gracefully if table doesn't exist
           let subscriptionTier: 'Free' | 'Pro' | 'Ultimate' = 'Free';
           let totalSpent = 0;
           try {
@@ -194,9 +227,13 @@ export const useUserActivities = () => {
               .limit(1)
               .maybeSingle();
 
-            if (subscription) {
-              subscriptionTier = 'Pro'; // Placeholder
-              totalSpent = 10; // Placeholder
+            if (subscription && subscription.plan_id) {
+              // Find the actual plan details
+              const plan = subscriptionPlans.find((p: any) => p.id === subscription.plan_id);
+              if (plan) {
+                subscriptionTier = plan.name as 'Free' | 'Pro' | 'Ultimate';
+                totalSpent = plan.price || 0;
+              }
             }
           } catch (e) {
             // Subscription tables not deployed yet
@@ -280,12 +317,23 @@ export const useRevenueData = (days: number = 30) => {
     try {
       setLoading(true);
 
-      // Try to fetch subscription data, handle gracefully if tables don't exist
+      // Fetch subscription plans for pricing
+      let subscriptionPlans: any[] = [];
+      try {
+        const { data: plansData } = await supabase
+          .from('subscription_plans')
+          .select('id, name, price');
+        if (plansData) subscriptionPlans = plansData;
+      } catch (e) {
+        console.warn('Subscription plans table not deployed');
+      }
+
+      // Fetch REAL subscription data
       let subscriptions: any[] = [];
       try {
         const { data, error } = await supabase
           .from('user_subscriptions')
-          .select('created_at, plan_id')
+          .select('created_at, plan_id, status')
           .gte('created_at', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString());
 
         if (!error && data) {
@@ -295,7 +343,7 @@ export const useRevenueData = (days: number = 30) => {
         console.warn('Subscription tables not yet deployed');
       }
 
-      // Group by date and calculate daily revenue
+      // Group by date and calculate REAL daily revenue
       const revenueByDate: { [key: string]: RevenueData } = {};
       
       subscriptions.forEach((sub: any) => {
@@ -309,8 +357,13 @@ export const useRevenueData = (days: number = 30) => {
             churned_subscriptions: 0,
           };
         }
-        revenueByDate[date].revenue += 10; // Placeholder price
-        revenueByDate[date].mrr += 10; // Placeholder price
+        
+        // Find the actual plan price
+        const plan = subscriptionPlans.find((p: any) => p.id === sub.plan_id);
+        const planPrice = plan?.price || 0;
+        
+        revenueByDate[date].revenue += planPrice;
+        revenueByDate[date].mrr += planPrice;
         revenueByDate[date].new_subscriptions += 1;
       });
 
