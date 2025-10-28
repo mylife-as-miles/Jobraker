@@ -386,7 +386,7 @@ export const BillingPage = () => {
                                 <span className="text-lg text-gray-400">/month</span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-500 mt-2">
+                            <p className="text-sm text-gray-400 mt-2">
                               {plan.credits_per_month.toLocaleString()} credits per month
                             </p>
                           </div>
@@ -481,7 +481,7 @@ export const BillingPage = () => {
                           <p className="text-4xl font-bold text-white mb-1">
                             {(pack.credits + pack.bonus).toLocaleString()}
                           </p>
-                          <p className="text-sm text-gray-400">
+                          <p className="text-sm text-gray-300">
                             {pack.credits.toLocaleString()} credits
                             {pack.bonus > 0 && ` + ${pack.bonus} bonus`}
                           </p>
@@ -489,7 +489,7 @@ export const BillingPage = () => {
 
                         <div className="pt-2">
                           <p className="text-3xl font-bold text-white mb-1">${pack.price}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-400">
                             ${(pack.price / (pack.credits + pack.bonus)).toFixed(3)} per credit
                           </p>
                         </div>
@@ -523,7 +523,7 @@ export const BillingPage = () => {
                     </div>
                     <div>
                       <p className="font-semibold text-white text-sm mb-1">{benefit.title}</p>
-                      <p className="text-xs text-gray-400">{benefit.desc}</p>
+                      <p className="text-xs text-gray-300">{benefit.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -561,8 +561,8 @@ export const BillingPage = () => {
                       <div className="p-4 rounded-2xl bg-white/5 mb-4">
                         <History className="w-8 h-8 text-gray-400" />
                       </div>
-                      <p className="text-gray-400 text-lg mb-2">No transactions yet</p>
-                      <p className="text-gray-500 text-sm">Your credit activity will appear here</p>
+                      <p className="text-gray-300 text-lg mb-2">No transactions yet</p>
+                      <p className="text-gray-400 text-sm">Your credit activity will appear here</p>
                     </div>
                   ) : (
                     <div className="divide-y divide-white/10">
@@ -591,7 +591,7 @@ export const BillingPage = () => {
                               }`}>
                                 {transaction.amount > 0 ? '+' : ''}{transaction.amount}
                               </p>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-gray-400">
                                 Balance: {transaction.balance_after}
                               </p>
                             </div>
