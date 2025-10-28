@@ -322,7 +322,6 @@ export const BillingPage = () => {
               <div className="grid gap-6 lg:grid-cols-3">
                 {plans.map((plan, index) => {
                   const isCurrentPlan = plan.name === subscriptionTier;
-                  const isPro = plan.name === 'Pro';
                   const isUltimate = plan.name === 'Ultimate';
                   
                   return (

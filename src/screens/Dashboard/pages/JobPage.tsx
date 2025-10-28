@@ -19,6 +19,7 @@ import { cn } from "../../../lib/utils";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
+import { useJobSearchLimits } from "../../../hooks/useJobSearchLimits";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -610,6 +611,7 @@ export const JobPage = (): JSX.Element => {
   // Load user resumes for selection (used by the Auto Apply -> "Choose a resume" dialog)
   const { resumes, loading: resumesLoading } = useResumes();
   const { info } = useToast();
+  const { limits, incrementSearchCount } = useJobSearchLimits();
 
   // Register walkthrough for Jobs page
   useRegisterCoachMarks({
@@ -976,13 +978,28 @@ export const JobPage = (): JSX.Element => {
       setInsertedThisRun(0);
 
       try {
+        // Check job search limits before proceeding
+        if (limits && !limits.canSearch) {
+          setError({ 
+            message: `Search limit reached! You've used ${limits.currentCount} of ${limits.limit} searches this month.`,
+            link: '/dashboard/billing'
+          });
+          setQueueStatus('ready');
+          setIncrementalMode(false);
+          info(`Upgrade to ${limits.tier === 'Free' ? 'Pro for 50' : 'Ultimate for 100'} searches per month!`);
+          return;
+        }
+
+        // Determine search limit based on tier
+        const searchLimit = limits?.limit || 10; // Default to Free tier limit
+
         // Use backend jobs-search to discover and save jobs directly
         safeInfo("Searching the web for jobs…");
         const attemptInvoke = async (): Promise<any> => {
           const searchPayload = {
             searchQuery: query,
             location: 'Remote',  // Always search for remote jobs for broader results
-            limit: 50,
+            limit: searchLimit, // Use tier-based limit
           };
           if (debugMode) console.log('[debug] jobs-search request', searchPayload);
           setDbgSearchReq(searchPayload);
@@ -1020,6 +1037,11 @@ export const JobPage = (): JSX.Element => {
         // Jobs are now saved directly by jobs-search function
         const inserted = searchData?.jobsInserted || 0;
 
+        // Increment job search count based on results
+        if (inserted > 0 && incrementSearchCount) {
+          await incrementSearchCount(inserted);
+        }
+
         setStepIndex(1); // Complete: Saving Results
         setInsertedThisRun(inserted);
         
@@ -1035,7 +1057,7 @@ export const JobPage = (): JSX.Element => {
         setQueueStatus('idle');
         setIncrementalMode(false);
       }
-  }, [supabase, debugMode, incrementalMode, fetchJobQueue, safeInfo, setErrorDedup]);
+  }, [supabase, debugMode, incrementalMode, fetchJobQueue, safeInfo, setErrorDedup, limits, incrementSearchCount, info]);
 
     // Removed old process-and-match and polling logic - jobs are now saved directly
 
