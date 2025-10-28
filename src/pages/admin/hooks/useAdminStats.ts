@@ -303,43 +303,84 @@ export const useRevenueData = (days: number = 30) => {
     try {
       setLoading(true);
 
-      // Try to fetch subscription data, handle gracefully if tables don't exist
-      let subscriptions: any[] = [];
+      // Fetch all active subscriptions with plan details
+      let allSubscriptions: any[] = [];
       try {
         const { data, error } = await supabase
           .from('user_subscriptions')
-          .select('created_at, plan_id')
+          .select('created_at, status, subscription_plan_id, subscription_plans(name, price)')
           .gte('created_at', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString());
 
         if (!error && data) {
-          subscriptions = data;
+          allSubscriptions = data;
+          console.log('Revenue data subscriptions:', allSubscriptions);
         }
       } catch (e) {
         console.warn('Subscription tables not yet deployed');
       }
 
+      // Get current active subscriptions for MRR calculation
+      let activeSubscriptions: any[] = [];
+      try {
+        const { data, error } = await supabase
+          .from('user_subscriptions')
+          .select('subscription_plan_id, subscription_plans(price)')
+          .eq('status', 'active');
+
+        if (!error && data) {
+          activeSubscriptions = data;
+        }
+      } catch (e) {
+        console.warn('Could not fetch active subscriptions');
+      }
+
+      // Calculate current MRR from active subscriptions
+      const currentMRR = activeSubscriptions.reduce((sum, sub) => {
+        if (sub.subscription_plans && !Array.isArray(sub.subscription_plans)) {
+          return sum + (sub.subscription_plans.price || 0);
+        }
+        return sum;
+      }, 0);
+
       // Group by date and calculate daily revenue
       const revenueByDate: { [key: string]: RevenueData } = {};
       
-      subscriptions.forEach((sub: any) => {
+      // Initialize all dates in range with zero values
+      for (let i = 0; i < days; i++) {
+        const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+        const dateStr = date.toISOString().split('T')[0];
+        revenueByDate[dateStr] = {
+          date: dateStr,
+          revenue: 0,
+          mrr: currentMRR, // Use current MRR for all dates (could be historical in future)
+          new_subscriptions: 0,
+          churned_subscriptions: 0,
+        };
+      }
+
+      // Add subscription data
+      allSubscriptions.forEach((sub: any) => {
         const date = new Date(sub.created_at).toISOString().split('T')[0];
-        if (!revenueByDate[date]) {
-          revenueByDate[date] = {
-            date,
-            revenue: 0,
-            mrr: 0,
-            new_subscriptions: 0,
-            churned_subscriptions: 0,
-          };
+        if (revenueByDate[date]) {
+          const price = sub.subscription_plans && !Array.isArray(sub.subscription_plans) 
+            ? (sub.subscription_plans.price || 0) 
+            : 0;
+          
+          revenueByDate[date].revenue += price;
+          revenueByDate[date].new_subscriptions += 1;
         }
-        revenueByDate[date].revenue += 10; // Placeholder price
-        revenueByDate[date].mrr += 10; // Placeholder price
-        revenueByDate[date].new_subscriptions += 1;
       });
 
       const sortedData = Object.values(revenueByDate).sort((a, b) => 
         new Date(a.date).getTime() - new Date(b.date).getTime()
       );
+
+      console.log('Revenue data calculated:', { 
+        days, 
+        totalRevenue: sortedData.reduce((sum, d) => sum + d.revenue, 0),
+        currentMRR,
+        subscriptionsCount: allSubscriptions.length 
+      });
 
       setData(sortedData);
     } catch (err) {
