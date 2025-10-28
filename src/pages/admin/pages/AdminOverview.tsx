@@ -121,8 +121,9 @@ export default function AdminOverview() {
 
   // Subscription distribution data
   const subscriptionData = [
-    { name: 'Free', value: 65, color: '#6b7280' },
-    { name: 'Pro', value: 25, color: '#1dff00' },
+    { name: 'Free', value: 60, color: '#6b7280' },
+    { name: 'Basics', value: 10, color: '#eab308' },
+    { name: 'Pro', value: 20, color: '#1dff00' },
     { name: 'Ultimate', value: 10, color: '#0a8246' },
   ];
 

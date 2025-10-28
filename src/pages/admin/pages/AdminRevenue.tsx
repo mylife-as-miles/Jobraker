@@ -299,6 +299,22 @@ export default function AdminRevenue() {
                   </div>
                 </div>
 
+                <div className="flex items-center justify-between p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
+                      <DollarSign className="w-5 h-5 text-yellow-400" />
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">Basics Plan</p>
+                      <p className="text-sm text-gray-400">Starter tier</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl font-bold text-white">$2,340</p>
+                    <p className="text-sm text-yellow-400">15% of total</p>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between p-4 bg-gray-700/30 border border-gray-600/20 rounded-xl">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-gray-600/20 flex items-center justify-center">

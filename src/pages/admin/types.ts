@@ -22,7 +22,7 @@ export interface UserActivity {
   updated_at: string;
   credits_balance: number;
   credits_consumed: number;
-  subscription_tier: 'Free' | 'Pro' | 'Ultimate';
+  subscription_tier: 'Free' | 'Basics' | 'Pro' | 'Ultimate';
   job_searches: number;
   auto_applies: number;
   total_spent: number;
@@ -52,7 +52,7 @@ export interface FeatureUsageData {
 }
 
 export interface SubscriptionDistribution {
-  tier: 'Free' | 'Pro' | 'Ultimate';
+  tier: 'Free' | 'Basics' | 'Pro' | 'Ultimate';
   count: number;
   revenue: number;
   percentage: number;

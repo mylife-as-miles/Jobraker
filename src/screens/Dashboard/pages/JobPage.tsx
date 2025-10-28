@@ -600,7 +600,7 @@ export const JobPage = (): JSX.Element => {
   const [coverLetterLibrary, setCoverLetterLibrary] = useState<CoverLetterLibraryEntry[]>([]);
   const [selectedCoverLetterId, setSelectedCoverLetterId] = useState<string | null>(null);
   const [jobToAutoApply, setJobToAutoApply] = useState<Job | null>(null);
-  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Pro' | 'Ultimate'>('Free');
+  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
 
   // Debug payload capture for in-app panel
   const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);

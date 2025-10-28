@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Crown,
   Zap,
+  Star,
   User,
   Mail,
   Calendar,
@@ -23,7 +24,7 @@ type SortOrder = 'asc' | 'desc';
 export default function AdminUsers() {
   const { activities, loading, error } = useUserActivities();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterTier, setFilterTier] = useState<'all' | 'Free' | 'Pro' | 'Ultimate'>('all');
+  const [filterTier, setFilterTier] = useState<'all' | 'Free' | 'Basics' | 'Pro' | 'Ultimate'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [sortField, setSortField] = useState<SortField>('updated_at');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -61,6 +62,7 @@ export default function AdminUsers() {
     switch (tier) {
       case 'Ultimate': return <Crown className="w-4 h-4 text-purple-400" />;
       case 'Pro': return <Zap className="w-4 h-4 text-blue-400" />;
+      case 'Basics': return <Star className="w-4 h-4 text-yellow-400" />;
       default: return <User className="w-4 h-4 text-gray-400" />;
     }
   };
@@ -69,6 +71,7 @@ export default function AdminUsers() {
     switch (tier) {
       case 'Ultimate': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
       case 'Pro': return 'bg-[#1dff00]/20 text-[#1dff00] border-[#1dff00]/30';
+      case 'Basics': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
       default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
   };
@@ -134,6 +137,7 @@ export default function AdminUsers() {
               >
                 <option value="all">All Tiers</option>
                 <option value="Free">Free</option>
+                <option value="Basics">Basics</option>
                 <option value="Pro">Pro</option>
                 <option value="Ultimate">Ultimate</option>
               </select>

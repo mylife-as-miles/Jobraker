@@ -112,7 +112,7 @@ export const ChatPage = () => {
   const [sessions, setSessions] = useState<{ id: string; title: string; createdAt: number; updatedAt: number; messages: BasicMessage[] }[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [renamingSession, setRenamingSession] = useState<string | null>(null);
-  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Pro' | 'Ultimate' | null>(null);
+  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate' | null>(null);
   const [loadingTier, setLoadingTier] = useState(true);
   const supabase = useMemo(() => createClient(), []);
   

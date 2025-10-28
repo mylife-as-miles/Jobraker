@@ -19,7 +19,7 @@ const ProfilePage = (): JSX.Element => {
   const supabase = useMemo(() => createClient(), []);
   const [email, setEmail] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Pro' | 'Ultimate'>('Free');
+  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
   const initials = useMemo(() => {
     const a = (profile?.first_name || '').trim();
     const b = (profile?.last_name || '').trim();

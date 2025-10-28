@@ -199,24 +199,28 @@ export const useUserActivities = () => {
           }
 
           // Get subscription - handle gracefully if table doesn't exist
-          let subscriptionTier: 'Free' | 'Pro' | 'Ultimate' = 'Free';
+          let subscriptionTier: 'Free' | 'Basics' | 'Pro' | 'Ultimate' = 'Free';
           let totalSpent = 0;
           try {
             const { data: subscription } = await supabase
               .from('user_subscriptions')
-              .select('plan_id')
+              .select('subscription_plan_id, subscription_plans(name, price)')
               .eq('user_id', profile.id)
               .eq('status', 'active')
               .order('created_at', { ascending: false })
               .limit(1)
-              .maybeSingle();
+              .single();
 
-            if (subscription) {
-              subscriptionTier = 'Pro'; // Placeholder
-              totalSpent = 10; // Placeholder
+            if (subscription && subscription.subscription_plans && !Array.isArray(subscription.subscription_plans)) {
+              const plan = subscription.subscription_plans as any;
+              const planName = plan.name;
+              if (planName === 'Free' || planName === 'Basics' || planName === 'Pro' || planName === 'Ultimate') {
+                subscriptionTier = planName;
+              }
+              totalSpent = plan.price || 0;
             }
           } catch (e) {
-            // Subscription tables not deployed yet
+            // Subscription tables not deployed yet or no active subscription
           }
 
           // Get feature usage - handle gracefully if table doesn't exist

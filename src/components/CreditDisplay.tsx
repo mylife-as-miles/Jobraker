@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 export const CreditDisplay = () => {
   const [credits, setCredits] = useState<number>(0);
-  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Pro' | 'Ultimate'>('Free');
+  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
   const [loading, setLoading] = useState(true);
   const supabase = useMemo(() => createClient(), []);
   const navigate = useNavigate();
@@ -52,8 +52,8 @@ export const CreditDisplay = () => {
         console.log('CreditDisplay: Subscription data:', subscription, 'Error:', subError);
 
         const planName = (subscription as any)?.subscription_plans?.name;
-        if (planName) {
-          setSubscriptionTier(planName as 'Free' | 'Pro' | 'Ultimate');
+        if (planName && (planName === 'Free' || planName === 'Basics' || planName === 'Pro' || planName === 'Ultimate')) {
+          setSubscriptionTier(planName as 'Free' | 'Basics' | 'Pro' | 'Ultimate');
         } else {
           // Fallback to profiles table
           const { data: profileData } = await supabase
@@ -63,7 +63,11 @@ export const CreditDisplay = () => {
             .single();
 
           console.log('CreditDisplay: Profile tier:', profileData?.subscription_tier);
-          setSubscriptionTier(profileData?.subscription_tier || 'Free');
+          if (profileData?.subscription_tier && (profileData.subscription_tier === 'Free' || profileData.subscription_tier === 'Basics' || profileData.subscription_tier === 'Pro' || profileData.subscription_tier === 'Ultimate')) {
+            setSubscriptionTier(profileData.subscription_tier);
+          } else {
+            setSubscriptionTier('Free');
+          }
         }
       } catch (error) {
         console.error('Error fetching credits and tier:', error);
@@ -99,6 +103,8 @@ export const CreditDisplay = () => {
 
   const getTierColor = () => {
     switch (subscriptionTier) {
+      case 'Basics':
+        return 'from-yellow-500 to-yellow-600';
       case 'Pro':
         return 'from-blue-500 to-blue-600';
       case 'Ultimate':
@@ -111,6 +117,8 @@ export const CreditDisplay = () => {
 
   const getTierIcon = () => {
     switch (subscriptionTier) {
+      case 'Basics':
+        return <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-black" />;
       case 'Pro':
         return <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-black" />;
       case 'Ultimate':

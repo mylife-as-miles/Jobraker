@@ -56,7 +56,7 @@ export const CoverLetter = () => {
   const [currentLibId, setCurrentLibId] = useState<string | null>(null);
   
   // Subscription tier state
-  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Pro' | 'Ultimate'>('Free');
+  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
 
   // Load/save from localStorage (keeps it functional without backend migrations)
   const STORAGE_KEY = "jr.coverLetter.draft.v2";
@@ -135,8 +135,8 @@ export const CoverLetter = () => {
           .single();
         
         const planName = (subscription as any)?.subscription_plans?.name;
-        if (planName) {
-          setSubscriptionTier(planName as 'Free' | 'Pro' | 'Ultimate');
+        if (planName && (planName === 'Free' || planName === 'Basics' || planName === 'Pro' || planName === 'Ultimate')) {
+          setSubscriptionTier(planName as 'Free' | 'Basics' | 'Pro' | 'Ultimate');
         } else {
           // Fallback to profiles table
           const { data: profileData } = await supabase
@@ -145,7 +145,11 @@ export const CoverLetter = () => {
             .eq('id', userId)
             .single();
           
-          setSubscriptionTier(profileData?.subscription_tier || 'Free');
+          if (profileData?.subscription_tier && (profileData.subscription_tier === 'Free' || profileData.subscription_tier === 'Basics' || profileData.subscription_tier === 'Pro' || profileData.subscription_tier === 'Ultimate')) {
+            setSubscriptionTier(profileData.subscription_tier);
+          } else {
+            setSubscriptionTier('Free');
+          }
         }
       } catch (error) {
         console.error('Error fetching subscription tier:', error);

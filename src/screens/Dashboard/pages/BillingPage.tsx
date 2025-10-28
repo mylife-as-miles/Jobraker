@@ -43,7 +43,7 @@ const creditPacks: CreditPack[] = [
 
 export const BillingPage = () => {
   const [currentCredits, setCurrentCredits] = useState(0);
-  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Pro' | 'Ultimate'>('Free');
+  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState<string | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
