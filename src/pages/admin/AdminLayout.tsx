@@ -12,7 +12,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../../components/ui/button';
 
@@ -31,12 +31,22 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a]">
       {/* Mobile sidebar backdrop */}
       <AnimatePresence>
-        {sidebarOpen && (
+        {sidebarOpen && !isDesktop && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -48,10 +58,11 @@ export default function AdminLayout() {
       </AnimatePresence>
 
       {/* Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{ x: sidebarOpen ? 0 : '-100%' }}
-        className="fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-[#030303] via-[#050505] to-[#0a160a] border-r border-[#1dff00]/20 lg:translate-x-0 transition-transform duration-300 backdrop-blur-xl shadow-[0_4px_18px_-4px_rgba(0,0,0,0.6)]"
+      <aside
+        style={{
+          transform: isDesktop ? 'translateX(0)' : sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+        }}
+        className="fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-[#030303] via-[#050505] to-[#0a160a] border-r border-[#1dff00]/20 transition-transform duration-300 backdrop-blur-xl shadow-[0_4px_18px_-4px_rgba(0,0,0,0.6)]"
       >
         {/* Logo & Close Button */}
         <div className="flex items-center justify-between h-20 px-6 border-b border-[#1dff00]/20">
@@ -122,7 +133,7 @@ export default function AdminLayout() {
             </div>
           </div>
         </div>
-      </motion.aside>
+      </aside>
 
       {/* Main Content */}
       <div className="lg:pl-72">
