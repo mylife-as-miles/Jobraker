@@ -13,8 +13,8 @@ export const CoverLetter = () => {
   const { success, error: toastError } = useToast();
   const [fontSize, setFontSize] = useState(16);
   // Meta/context
-  const [role, setRole] = useState("Software Engineer");
-  const [company, setCompany] = useState("Acme Corp");
+  const [role, setRole] = useState("");
+  const [company, setCompany] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [tone, setTone] = useState<"professional" | "friendly" | "enthusiastic">("professional");
   const [lengthPref, setLengthPref] = useState<"short" | "medium" | "long">("medium");
@@ -26,7 +26,7 @@ export const CoverLetter = () => {
   const [senderAddress, setSenderAddress] = useState("");
 
   // Recipient block
-  const [recipient, setRecipient] = useState("Hiring Manager");
+  const [recipient, setRecipient] = useState("");
   const [recipientTitle, setRecipientTitle] = useState("");
   const [recipientAddress, setRecipientAddress] = useState("");
 
@@ -76,8 +76,8 @@ export const CoverLetter = () => {
       const raw = rawV2 || rawV1;
       if (raw) {
         const parsed = JSON.parse(raw);
-        setRole(parsed?.role ?? "Software Engineer");
-        setCompany(parsed?.company ?? "Acme Corp");
+        setRole(parsed?.role ?? "");
+        setCompany(parsed?.company ?? "");
         setJobDescription(parsed?.jobDescription ?? "");
         setTone(parsed?.tone ?? "professional");
         setLengthPref(parsed?.lengthPref ?? "medium");
@@ -87,16 +87,16 @@ export const CoverLetter = () => {
         setSenderPhone(parsed?.senderPhone ?? "");
         setSenderAddress(parsed?.senderAddress ?? "");
 
-        setRecipient(parsed?.recipient ?? "Hiring Manager");
+        setRecipient(parsed?.recipient ?? "");
         setRecipientTitle(parsed?.recipientTitle ?? "");
         setRecipientAddress(parsed?.recipientAddress ?? "");
 
         setDate(parsed?.date ?? new Date().toISOString().slice(0, 10));
         setSubject(parsed?.subject ?? "");
-        setSalutation(parsed?.salutation ?? `Dear ${parsed?.recipient ?? "Hiring Manager"},`);
+        setSalutation(parsed?.salutation ?? "Dear Hiring Manager,");
         setParagraphs(Array.isArray(parsed?.paragraphs) ? parsed.paragraphs : []);
         setClosing(parsed?.closing ?? "Best regards,");
-        setSignatureName(parsed?.signatureName ?? parsed?.senderName ?? "");
+        setSignatureName(parsed?.signatureName ?? "");
 
         setContent(parsed?.content ?? "");
         setFontSize(parsed?.fontSize ?? 16);
@@ -237,11 +237,12 @@ export const CoverLetter = () => {
     return () => clearTimeout(t);
   }, [role, company, jobDescription, tone, lengthPref, senderName, senderEmail, senderPhone, senderAddress, recipient, recipientTitle, recipientAddress, date, subject, salutation, paragraphs, closing, signatureName, content, fontSize]);
 
+  // No hardcoded content - starts empty on new letters, uses user data from profile
   const fallbackBody = useMemo(() => {
     if (content.trim().length) return content;
-    return `I’m excited to apply for the ${role} role at ${company}. I bring hands-on experience building production-grade systems, a bias for ownership, and a track record shipping polished user experiences.\n\nHighlights:\n• Led end-to-end delivery of complex features across frontend/backends.\n• Collaborated across design, product, and data to align on impact.\n• Elevated code quality with tests, performance tuning, and strong reviews.\n\nI’d love to discuss how I can contribute to ${company}.`;
-  }, [content, role, company]);
-
+    return "";
+  }, [content]);
+  
   const finalBody = useMemo(() => {
     if (paragraphs.length) return paragraphs.join("\n\n");
     return fallbackBody;
@@ -463,60 +464,7 @@ export const CoverLetter = () => {
       toastError('Save failed', 'Could not save letter');
     }
   };
-  const loadFromLibrary = (id: string) => {
-    try {
-      const entry = (library || []).find((e) => e.id === id);
-      if (!entry) return;
-      const parsed = entry.data || {};
-      setRole(parsed?.role ?? "");
-      setCompany(parsed?.company ?? "");
-      setJobDescription(parsed?.jobDescription ?? "");
-      setTone(parsed?.tone ?? "professional");
-      setLengthPref(parsed?.lengthPref ?? "medium");
-      setSenderName(parsed?.senderName ?? "");
-      setSenderEmail(parsed?.senderEmail ?? "");
-      setSenderPhone(parsed?.senderPhone ?? "");
-      setSenderAddress(parsed?.senderAddress ?? "");
-      setRecipient(parsed?.recipient ?? "Hiring Manager");
-      setRecipientTitle(parsed?.recipientTitle ?? "");
-      setRecipientAddress(parsed?.recipientAddress ?? "");
-      setDate(parsed?.date ?? new Date().toISOString().slice(0, 10));
-      setSubject(parsed?.subject ?? "");
-      setSalutation(parsed?.salutation ?? `Dear ${parsed?.recipient ?? "Hiring Manager"},`);
-      setParagraphs(Array.isArray(parsed?.paragraphs) ? parsed.paragraphs : []);
-      setClosing(parsed?.closing ?? "Best regards,");
-      setSignatureName(parsed?.signatureName ?? parsed?.senderName ?? "");
-      setContent(parsed?.content ?? "");
-      setFontSize(parsed?.fontSize ?? 16);
-      setSavedAt(parsed?.savedAt ?? null);
-      setCurrentLibId(id);
-      setLibName(entry.name);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-    } catch {}
-  };
-  const renameLibraryEntry = (id: string, name: string) => {
-    const arr = [...library];
-    const idx = arr.findIndex((e) => e.id === id);
-    if (idx === -1) return;
-    arr[idx] = { ...arr[idx], name: name.trim() || arr[idx].name };
-    localStorage.setItem(LIB_KEY, JSON.stringify(arr));
-    setLibrary(arr);
-    if (currentLibId === id) setLibName(arr[idx].name);
-  };
-  const deleteLibraryEntry = (id: string) => {
-    const arr = (library || []).filter((e) => e.id !== id);
-    localStorage.setItem(LIB_KEY, JSON.stringify(arr));
-    setLibrary(arr);
-    if (currentLibId === id) {
-      setCurrentLibId(null);
-      setLibName("");
-    }
-  };
-  const setDefaultLibraryEntry = (id: string) => {
-    localStorage.setItem(LIB_DEFAULT_KEY, id);
-    setCurrentLibId(id);
-    success('Default set', 'This letter will be selected by default');
-  };
+  
   const aiPolish = async () => {
     if (aiLoading) return;
     
@@ -850,37 +798,24 @@ export const CoverLetter = () => {
             {/* Saved Letters (Library) */}
             <div className="grid gap-2">
               <div className="flex items-center justify-between">
-                <label className="text-xs opacity-70 uppercase tracking-wide">Saved Letters</label>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => saveToLibrary()}>Save</Button>
-                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => { setCurrentLibId(null); setLibName(""); }}>New</Button>
+                <label className="text-xs opacity-70 uppercase tracking-wide">Save Cover Letter</label>
+                <Button variant="outline" size="sm" className="rounded-xl" onClick={() => { setCurrentLibId(null); setLibName(""); }}>New</Button>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                <input value={libName} onChange={(e)=>setLibName(e.target.value)} placeholder="Enter letter name" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" onClick={() => saveToLibrary()} className="rounded-xl">
+                    {currentLibId ? 'Update' : 'Save'}
+                  </Button>
+                  <Button variant="outline" onClick={() => saveToLibrary(libName)} className="rounded-xl">Save As New</Button>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <input value={libName} onChange={(e)=>setLibName(e.target.value)} placeholder="Name" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-                <Button variant="outline" onClick={() => saveToLibrary(libName)} className="rounded-xl">Save As</Button>
-              </div>
-              {library.length > 0 ? (
-                <div className="grid gap-2 max-h-40 overflow-auto rounded-xl border border-border p-2">
-                  {library.map((e) => (
-                    <div key={e.id} className="flex items-center gap-2 text-sm">
-                      <button
-                        className={`px-2 py-1 rounded border ${currentLibId===e.id? 'border-primary text-primary' : 'border-border text-foreground/80 hover:border-primary/40'}`}
-                        onClick={() => loadFromLibrary(e.id)}
-                        title={new Date(e.updatedAt).toLocaleString()}
-                      >{e.name}</button>
-                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => {
-                        const name = prompt('Rename letter', e.name);
-                        if (name!=null) renameLibraryEntry(e.id, name);
-                      }}>Rename</Button>
-                      <Button variant="ghost" size="sm" className="h-8 px-2 text-red-500" onClick={() => deleteLibraryEntry(e.id)}>Delete</Button>
-                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => setDefaultLibraryEntry(e.id)}>Default</Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs opacity-60">No saved letters yet. Save your current draft to reuse it during applications.</p>
-              )}
+              <p className="text-xs opacity-60">
+                {library.length === 0 
+                  ? 'No saved letters yet. Name and save your letter to access it from the cover letters page.' 
+                  : `${library.length} letter${library.length === 1 ? '' : 's'} saved. View all letters from the cover letters page.`
+                }
+              </p>
             </div>
             {/* Sender */}
             <div className="grid gap-2">
