@@ -106,30 +106,32 @@ export const DialogContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ 
 
   if (!isOpen) return null;
   return createPortal(
-    <div className="fixed inset-0 z-[99] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[99] overflow-y-auto">
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={() => ctx?.onOpenChange?.(false)}
       />
-      <div
-        ref={contentRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="dialog-title"
-        aria-describedby="dialog-description"
-        className={[
-          "relative z-[100]",
-          "w-full max-w-2xl max-h-[85vh] overflow-auto",
-          "rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--popover))] text-[hsl(var(--popover-foreground))] shadow-xl",
-          className,
-        ].join(" ")}
-        style={style as any}
-        {...props}
-      >
-        {/* Focus trap sentinels */}
-        <span tabIndex={0} aria-hidden="true" />
-        {children}
-        <span tabIndex={0} aria-hidden="true" />
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div
+          ref={contentRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dialog-title"
+          aria-describedby="dialog-description"
+          className={[
+            "relative z-[100]",
+            "w-full max-w-2xl max-h-[85vh] overflow-auto",
+            "rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--popover))] text-[hsl(var(--popover-foreground))] shadow-xl",
+            className,
+          ].join(" ")}
+          style={style as any}
+          {...props}
+        >
+          {/* Focus trap sentinels */}
+          <span tabIndex={0} aria-hidden="true" />
+          {children}
+          <span tabIndex={0} aria-hidden="true" />
+        </div>
       </div>
     </div>,
     document.body
