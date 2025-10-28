@@ -25,10 +25,10 @@ export default function AdminPerformance() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-emerald-500/10 to-green-500/10 border border-emerald-500/20 rounded-2xl p-6"
+          className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border border-[#1dff00]/30 rounded-2xl p-6"
         >
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center mb-4">
-            <Server className="w-6 h-6 text-emerald-400" />
+          <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center mb-4">
+            <Server className="w-6 h-6 text-[#1dff00]" />
           </div>
           <p className="text-sm text-gray-400 mb-1">Uptime</p>
           <p className="text-3xl font-bold text-white">99.98%</p>
@@ -38,10 +38,10 @@ export default function AdminPerformance() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-2xl p-6"
+          className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border border-[#1dff00]/30 rounded-2xl p-6"
         >
-          <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4">
-            <Gauge className="w-6 h-6 text-blue-400" />
+          <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center mb-4">
+            <Gauge className="w-6 h-6 text-[#1dff00]" />
           </div>
           <p className="text-sm text-gray-400 mb-1">Avg Response Time</p>
           <p className="text-3xl font-bold text-white">194ms</p>
@@ -80,7 +80,7 @@ export default function AdminPerformance() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-gray-900 border border-gray-800 rounded-2xl p-6"
+          className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl p-6"
         >
           <div className="mb-6">
             <h3 className="text-xl font-bold text-white mb-1">Response Time</h3>
@@ -122,7 +122,7 @@ export default function AdminPerformance() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="bg-gray-900 border border-gray-800 rounded-2xl p-6"
+          className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl p-6"
         >
           <div className="mb-6">
             <h3 className="text-xl font-bold text-white mb-1">Request Volume</h3>

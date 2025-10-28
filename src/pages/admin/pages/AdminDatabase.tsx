@@ -26,10 +26,10 @@ export default function AdminDatabase() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-2xl p-6"
+          className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border border-[#1dff00]/30 rounded-2xl p-6"
         >
-          <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4">
-            <Table className="w-6 h-6 text-blue-400" />
+          <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center mb-4">
+            <Table className="w-6 h-6 text-[#1dff00]" />
           </div>
           <p className="text-sm text-gray-400 mb-1">Total Tables</p>
           <p className="text-3xl font-bold text-white">23</p>
@@ -39,10 +39,10 @@ export default function AdminDatabase() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-emerald-500/10 to-green-500/10 border border-emerald-500/20 rounded-2xl p-6"
+          className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border border-[#1dff00]/30 rounded-2xl p-6"
         >
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center mb-4">
-            <Layers className="w-6 h-6 text-emerald-400" />
+          <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center mb-4">
+            <Layers className="w-6 h-6 text-[#1dff00]" />
           </div>
           <p className="text-sm text-gray-400 mb-1">Total Rows</p>
           <p className="text-3xl font-bold text-white">72,345</p>
@@ -76,7 +76,7 @@ export default function AdminDatabase() {
       </div>
 
       {/* Tables List */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+      <div className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl overflow-hidden">
         <div className="p-6 border-b border-gray-800">
           <h3 className="text-xl font-bold text-white mb-1">Database Tables</h3>
           <p className="text-sm text-gray-400">Core application tables</p>
@@ -103,8 +103,8 @@ export default function AdminDatabase() {
                 >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                        <Table className="w-4 h-4 text-blue-400" />
+                      <div className="w-8 h-8 rounded-lg bg-[#1dff00]/20 flex items-center justify-center">
+                        <Table className="w-4 h-4 text-[#1dff00]" />
                       </div>
                       <span className="text-white font-mono">{table.name}</span>
                     </div>

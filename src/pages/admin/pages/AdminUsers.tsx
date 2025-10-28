@@ -4,17 +4,18 @@ import {
   Search, 
   Filter, 
   Download, 
-  Mail,
-  Calendar,
-  TrendingUp,
-  TrendingDown,
   Loader2,
   ChevronDown,
   Crown,
   Zap,
-  User
+  User,
+  Mail,
+  Calendar,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Card, CardContent } from '@/components/ui/card';
 
 type SortField = 'email' | 'updated_at' | 'credits_balance' | 'credits_consumed' | 'job_searches' | 'auto_applies';
 type SortOrder = 'asc' | 'desc';
@@ -67,14 +68,14 @@ export default function AdminUsers() {
   const getTierBadgeClass = (tier: string) => {
     switch (tier) {
       case 'Ultimate': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-      case 'Pro': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'Pro': return 'bg-[#1dff00]/20 text-[#1dff00] border-[#1dff00]/30';
       default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
   };
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+      case 'active': return 'bg-[#1dff00]/20 text-[#1dff00] border-[#1dff00]/30';
       case 'inactive': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
       default: return 'bg-red-500/20 text-red-400 border-red-500/30';
     }
@@ -84,7 +85,7 @@ export default function AdminUsers() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-emerald-500 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-[#1dff00] animate-spin mx-auto mb-4" />
           <p className="text-gray-400">Loading users...</p>
         </div>
       </div>
@@ -108,92 +109,102 @@ export default function AdminUsers() {
       </div>
 
       {/* Filters Bar */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search users..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-emerald-500 focus:outline-none transition-colors"
-            />
-          </div>
+      <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
+              />
+            </div>
 
-          {/* Tier Filter */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <select
-              value={filterTier}
-              onChange={(e) => setFilterTier(e.target.value as any)}
-              className="w-full pl-10 pr-10 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white appearance-none focus:border-emerald-500 focus:outline-none transition-colors cursor-pointer"
+            {/* Tier Filter */}
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <select
+                value={filterTier}
+                onChange={(e) => setFilterTier(e.target.value as any)}
+                className="w-full pl-10 pr-10 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white appearance-none focus:border-[#1dff00] focus:outline-none transition-colors cursor-pointer"
+              >
+                <option value="all">All Tiers</option>
+                <option value="Free">Free</option>
+                <option value="Pro">Pro</option>
+                <option value="Ultimate">Ultimate</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            </div>
+
+            {/* Status Filter */}
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value as any)}
+                className="w-full pl-10 pr-10 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white appearance-none focus:border-[#1dff00] focus:outline-none transition-colors cursor-pointer"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            </div>
+
+            {/* Export Button */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black font-medium rounded-xl hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all"
             >
-              <option value="all">All Tiers</option>
-              <option value="Free">Free</option>
-              <option value="Pro">Pro</option>
-              <option value="Ultimate">Ultimate</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+              <Download className="w-5 h-5" />
+              Export CSV
+            </motion.button>
           </div>
-
-          {/* Status Filter */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as any)}
-              className="w-full pl-10 pr-10 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white appearance-none focus:border-emerald-500 focus:outline-none transition-colors cursor-pointer"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-          </div>
-
-          {/* Export Button */}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-green-500 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-emerald-500/20 transition-all"
-          >
-            <Download className="w-5 h-5" />
-            Export CSV
-          </motion.button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-          <p className="text-sm text-gray-400 mb-1">Total Users</p>
-          <p className="text-2xl font-bold text-white">{activities.length}</p>
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-          <p className="text-sm text-gray-400 mb-1">Active Users</p>
-          <p className="text-2xl font-bold text-emerald-400">
-            {activities.filter(u => u.status === 'active').length}
-          </p>
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-          <p className="text-sm text-gray-400 mb-1">Paid Users</p>
-          <p className="text-2xl font-bold text-blue-400">
-            {activities.filter(u => u.subscription_tier !== 'Free').length}
-          </p>
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-          <p className="text-sm text-gray-400 mb-1">Showing</p>
-          <p className="text-2xl font-bold text-white">{filteredActivities.length}</p>
-        </div>
+        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+          <CardContent className="p-4">
+            <p className="text-sm text-gray-400 mb-1">Total Users</p>
+            <p className="text-2xl font-bold text-white">{activities.length}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+          <CardContent className="p-4">
+            <p className="text-sm text-gray-400 mb-1">Active Users</p>
+            <p className="text-2xl font-bold text-[#1dff00]">
+              {activities.filter(u => u.status === 'active').length}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+          <CardContent className="p-4">
+            <p className="text-sm text-gray-400 mb-1">Paid Users</p>
+            <p className="text-2xl font-bold text-[#1dff00]">
+              {activities.filter(u => u.subscription_tier !== 'Free').length}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+          <CardContent className="p-4">
+            <p className="text-sm text-gray-400 mb-1">Showing</p>
+            <p className="text-2xl font-bold text-white">{filteredActivities.length}</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Users Table */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+      <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-800/50 border-b border-gray-800">
+            <thead className="bg-gray-800/50 border-b border-[#1dff00]/20">
               <tr>
                 <th 
                   onClick={() => handleSort('email')}
@@ -313,7 +324,7 @@ export default function AdminUsers() {
             <p className="text-gray-400">No users found matching your filters</p>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

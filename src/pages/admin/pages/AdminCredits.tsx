@@ -92,7 +92,7 @@ export default function AdminCredits() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-emerald-500 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-[#1dff00] animate-spin mx-auto mb-4" />
           <p className="text-gray-400">Loading credit data...</p>
         </div>
       </div>
@@ -131,13 +131,13 @@ export default function AdminCredits() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-emerald-500/10 to-green-500/10 border border-emerald-500/20 rounded-2xl p-6"
+          className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border border-[#1dff00]/30 rounded-2xl p-6"
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-emerald-400" />
+            <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-[#1dff00]" />
             </div>
-            <div className="flex items-center gap-1 text-emerald-400">
+            <div className="flex items-center gap-1 text-[#1dff00]">
               <span className="text-sm font-medium">Issued</span>
             </div>
           </div>
@@ -167,13 +167,13 @@ export default function AdminCredits() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-2xl p-6"
+          className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border border-[#1dff00]/30 rounded-2xl p-6"
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-              <Coins className="w-6 h-6 text-blue-400" />
+            <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center">
+              <Coins className="w-6 h-6 text-[#1dff00]" />
             </div>
-            <div className="flex items-center gap-1 text-blue-400">
+            <div className="flex items-center gap-1 text-[#1dff00]">
               <span className="text-sm font-medium">Avg</span>
             </div>
           </div>
@@ -187,7 +187,7 @@ export default function AdminCredits() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="bg-gray-900 border border-gray-800 rounded-2xl p-6"
+        className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl p-6"
       >
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -201,7 +201,7 @@ export default function AdminCredits() {
                 onClick={() => setTimeRange(days)}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
                   timeRange === days
-                    ? 'bg-emerald-500 text-white'
+                    ? 'bg-[#1dff00] text-black'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -265,8 +265,8 @@ export default function AdminCredits() {
       </motion.div>
 
       {/* Transaction History */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-        <div className="p-6 border-b border-gray-800 flex items-center justify-between">
+      <div className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl overflow-hidden">
+        <div className="p-6 border-b border-[#1dff00]/20 flex items-center justify-between">
           <div>
             <h3 className="text-xl font-bold text-white mb-1">Recent Transactions</h3>
             <p className="text-sm text-gray-400">Last 100 credit transactions</p>
@@ -277,7 +277,7 @@ export default function AdminCredits() {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value as any)}
-              className="pl-9 pr-10 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm appearance-none focus:border-emerald-500 focus:outline-none cursor-pointer"
+              className="pl-9 pr-10 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm appearance-none focus:border-[#1dff00] focus:outline-none cursor-pointer"
             >
               <option value="all">All Types</option>
               <option value="earned">Earned</option>
@@ -290,7 +290,7 @@ export default function AdminCredits() {
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-800/50 border-b border-gray-800">
+            <thead className="bg-gray-800/50 border-b border-[#1dff00]/20">
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">User</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Type</th>
@@ -318,7 +318,7 @@ export default function AdminCredits() {
                     </span>
                   </td>
                   <td className={`px-6 py-4 text-right font-medium ${
-                    tx.type === 'consumed' ? 'text-red-400' : 'text-emerald-400'
+                    tx.type === 'consumed' ? 'text-red-400' : 'text-[#1dff00]'
                   }`}>
                     {tx.type === 'consumed' ? '-' : '+'}{tx.amount}
                   </td>

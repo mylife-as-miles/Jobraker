@@ -67,7 +67,7 @@ export default function AdminActivity() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-emerald-500 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-[#1dff00] animate-spin mx-auto mb-4" />
           <p className="text-gray-400">Loading activity data...</p>
         </div>
       </div>
@@ -87,13 +87,13 @@ export default function AdminActivity() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-2xl p-6"
+          className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border border-[#1dff00]/30 rounded-2xl p-6"
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-              <Search className="w-6 h-6 text-blue-400" />
+            <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center">
+              <Search className="w-6 h-6 text-[#1dff00]" />
             </div>
-            <div className="flex items-center gap-1 text-blue-400">
+            <div className="flex items-center gap-1 text-[#1dff00]">
               <TrendingUp className="w-4 h-4" />
               <span className="text-sm font-medium">+28.4%</span>
             </div>
@@ -106,13 +106,13 @@ export default function AdminActivity() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-emerald-500/10 to-green-500/10 border border-emerald-500/20 rounded-2xl p-6"
+          className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border border-[#1dff00]/30 rounded-2xl p-6"
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-              <Zap className="w-6 h-6 text-emerald-400" />
+            <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center">
+              <Zap className="w-6 h-6 text-[#1dff00]" />
             </div>
-            <div className="flex items-center gap-1 text-emerald-400">
+            <div className="flex items-center gap-1 text-[#1dff00]">
               <TrendingUp className="w-4 h-4" />
               <span className="text-sm font-medium">+42.1%</span>
             </div>
@@ -146,7 +146,7 @@ export default function AdminActivity() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-gray-900 border border-gray-800 rounded-2xl p-6"
+        className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl p-6"
       >
         <div className="mb-6">
           <h3 className="text-xl font-bold text-white mb-1">Activity Trend</h3>
@@ -181,7 +181,7 @@ export default function AdminActivity() {
       </motion.div>
 
       {/* Recent Activity Table */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+      <div className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl overflow-hidden">
         <div className="p-6 border-b border-gray-800">
           <h3 className="text-xl font-bold text-white mb-1">Recent Activity</h3>
           <p className="text-sm text-gray-400">Latest user actions</p>
@@ -223,8 +223,8 @@ export default function AdminActivity() {
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border text-xs font-medium ${
                       activity.reference_type === 'job_search' 
-                        ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                        : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                        ? 'bg-[#1dff00]/20 text-[#1dff00] border-blue-500/30'
+                        : 'bg-[#1dff00]/20 text-[#1dff00] border-emerald-500/30'
                     }`}>
                       {activity.reference_type === 'job_search' ? (
                         <><Search className="w-3 h-3" /> Job Search</>
