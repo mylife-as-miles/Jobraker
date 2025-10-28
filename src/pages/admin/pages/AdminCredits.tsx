@@ -14,7 +14,7 @@ export default function AdminCredits() {
     totalAvailable: 0,
     avgPerUser: 0,
   });
-  const [filterType, setFilterType] = useState<'all' | 'earned' | 'consumed' | 'bonus'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'earned' | 'consumed' | 'bonus' | 'refill' | 'spent'>('all');
   const [timeRange, setTimeRange] = useState(7);
 
   useEffect(() => {
@@ -25,24 +25,36 @@ export default function AdminCredits() {
     try {
       setLoading(true);
 
-      // Fetch credit stats
-      const { data: credits } = await supabase
+      // Fetch credit stats - use correct column names (lifetime_earned, lifetime_spent)
+      const { data: credits, error: creditsError } = await supabase
         .from('user_credits')
-        .select('balance, total_earned, total_consumed');
+        .select('balance, lifetime_earned, lifetime_spent');
 
-      const totalIssued = (credits || []).reduce((sum, c) => sum + c.total_earned, 0);
-      const totalConsumed = (credits || []).reduce((sum, c) => sum + c.total_consumed, 0);
-      const totalAvailable = (credits || []).reduce((sum, c) => sum + c.balance, 0);
+      if (creditsError) {
+        console.error('Error fetching credits:', creditsError);
+      }
+
+      console.log('Credits data:', credits);
+
+      const totalIssued = (credits || []).reduce((sum, c) => sum + (c.lifetime_earned || 0), 0);
+      const totalConsumed = (credits || []).reduce((sum, c) => sum + (c.lifetime_spent || 0), 0);
+      const totalAvailable = (credits || []).reduce((sum, c) => sum + (c.balance || 0), 0);
       const avgPerUser = credits && credits.length > 0 ? totalAvailable / credits.length : 0;
 
       setStats({ totalIssued, totalConsumed, totalAvailable, avgPerUser });
 
-      // Fetch recent transactions
-      const { data: txData } = await supabase
+      // Fetch recent transactions - use correct column name (transaction_type instead of type)
+      const { data: txData, error: txError } = await supabase
         .from('credit_transactions')
-        .select('*, profiles(email)')
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(100);
+
+      if (txError) {
+        console.error('Error fetching transactions:', txError);
+      }
+
+      console.log('Transactions data:', txData?.length || 0, 'records');
 
       setTransactions(txData || []);
     } catch (err) {
@@ -61,10 +73,12 @@ export default function AdminCredits() {
       if (!grouped[date]) {
         grouped[date] = { date, earned: 0, consumed: 0, net: 0 };
       }
-      if (tx.type === 'earned' || tx.type === 'bonus' || tx.type === 'refund') {
+      // Use transaction_type instead of type
+      const txType = tx.transaction_type || tx.type;
+      if (txType === 'earned' || txType === 'bonus' || txType === 'refund' || txType === 'refill') {
         grouped[date].earned += tx.amount;
         grouped[date].net += tx.amount;
-      } else if (tx.type === 'consumed') {
+      } else if (txType === 'consumed' || txType === 'spent') {
         grouped[date].consumed += tx.amount;
         grouped[date].net -= tx.amount;
       }
@@ -75,15 +89,18 @@ export default function AdminCredits() {
 
   const filteredTransactions = transactions.filter(tx => {
     if (filterType === 'all') return true;
-    return tx.type === filterType;
+    const txType = tx.transaction_type || tx.type;
+    return txType === filterType;
   });
 
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'earned': return 'text-green-400 bg-green-500/20 border-green-500/30';
-      case 'consumed': return 'text-red-400 bg-red-500/20 border-red-500/30';
+      case 'consumed': 
+      case 'spent': return 'text-red-400 bg-red-500/20 border-red-500/30';
       case 'bonus': return 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30';
-      case 'refund': return 'text-blue-400 bg-blue-500/20 border-blue-500/30';
+      case 'refund': 
+      case 'refill': return 'text-blue-400 bg-blue-500/20 border-blue-500/30';
       default: return 'text-gray-400 bg-gray-500/20 border-gray-500/30';
     }
   };
@@ -283,6 +300,8 @@ export default function AdminCredits() {
               <option value="earned">Earned</option>
               <option value="consumed">Consumed</option>
               <option value="bonus">Bonus</option>
+              <option value="refill">Refill</option>
+              <option value="spent">Spent</option>
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
@@ -301,7 +320,9 @@ export default function AdminCredits() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
-              {filteredTransactions.slice(0, 50).map((tx, index) => (
+              {filteredTransactions.slice(0, 50).map((tx, index) => {
+                const txType = tx.transaction_type || tx.type;
+                return (
                 <motion.tr
                   key={tx.id}
                   initial={{ opacity: 0, y: 10 }}
@@ -310,17 +331,17 @@ export default function AdminCredits() {
                   className="hover:bg-gray-800/30 transition-colors"
                 >
                   <td className="px-6 py-4">
-                    <p className="text-white text-sm">{(tx.profiles as any)?.email || 'Unknown'}</p>
+                    <p className="text-white text-sm">{tx.user_id?.substring(0, 8)}...</p>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex px-2.5 py-1 rounded-lg border text-xs font-medium ${getTypeColor(tx.type)}`}>
-                      {tx.type}
+                    <span className={`inline-flex px-2.5 py-1 rounded-lg border text-xs font-medium ${getTypeColor(txType)}`}>
+                      {txType}
                     </span>
                   </td>
                   <td className={`px-6 py-4 text-right font-medium ${
-                    tx.type === 'consumed' ? 'text-red-400' : 'text-[#1dff00]'
+                    txType === 'consumed' || txType === 'spent' ? 'text-red-400' : 'text-[#1dff00]'
                   }`}>
-                    {tx.type === 'consumed' ? '-' : '+'}{tx.amount}
+                    {txType === 'consumed' || txType === 'spent' ? '-' : '+'}{tx.amount}
                   </td>
                   <td className="px-6 py-4 text-gray-400 text-sm max-w-xs truncate">
                     {tx.description}
@@ -332,7 +353,7 @@ export default function AdminCredits() {
                     {new Date(tx.created_at).toLocaleString()}
                   </td>
                 </motion.tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>

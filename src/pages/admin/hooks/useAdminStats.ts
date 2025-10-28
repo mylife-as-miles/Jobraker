@@ -35,8 +35,11 @@ export const useAdminStats = () => {
       try {
         const { data, error } = await supabase
           .from('user_credits')
-          .select('user_id, balance, total_earned, total_consumed');
-        if (!error && data) credits = data;
+          .select('user_id, balance, lifetime_earned, lifetime_spent');
+        if (!error && data) {
+          credits = data;
+          console.log('Credits fetched:', credits.length, credits);
+        }
       } catch (e) {
         console.warn('Credit system tables not yet deployed');
       }
@@ -58,8 +61,11 @@ export const useAdminStats = () => {
       try {
         const { data, error } = await supabase
           .from('credit_transactions')
-          .select('user_id, type, amount, reference_type');
-        if (!error && data) transactions = data;
+          .select('user_id, transaction_type, amount, reference_type');
+        if (!error && data) {
+          transactions = data;
+          console.log('Transactions fetched:', transactions.length);
+        }
       } catch (e) {
         console.warn('Credit transactions table not yet deployed');
       }
@@ -79,12 +85,14 @@ export const useAdminStats = () => {
       const totalRevenue = subscriptions.length * 10; // Placeholder
       const mrr = subscriptions.length * 10; // Placeholder
 
-      // Calculate credit stats
-      const totalCreditsIssued = credits.reduce((sum: number, c: any) => sum + (c.total_earned || 0), 0);
-      const totalCreditsConsumed = credits.reduce((sum: number, c: any) => sum + (c.total_consumed || 0), 0);
+      // Calculate credit stats - use lifetime_earned and lifetime_spent
+      const totalCreditsIssued = credits.reduce((sum: number, c: any) => sum + (c.lifetime_earned || 0), 0);
+      const totalCreditsConsumed = credits.reduce((sum: number, c: any) => sum + (c.lifetime_spent || 0), 0);
       const totalCreditsAvailable = credits.reduce((sum: number, c: any) => sum + (c.balance || 0), 0);
 
-      // Calculate feature usage
+      console.log('Credit stats:', { totalCreditsIssued, totalCreditsConsumed, totalCreditsAvailable });
+
+      // Calculate feature usage - use transaction_type
       const jobSearches = transactions.filter((t: any) => t.reference_type === 'job_search').length;
       const autoApplies = transactions.filter((t: any) => t.reference_type === 'auto_apply').length;
 
@@ -178,13 +186,13 @@ export const useUserActivities = () => {
           try {
             const { data: credits } = await supabase
               .from('user_credits')
-              .select('balance, total_consumed')
+              .select('balance, lifetime_spent')
               .eq('user_id', profile.id)
               .maybeSingle();
             
             if (credits) {
               creditsBalance = credits.balance || 0;
-              creditsConsumed = credits.total_consumed || 0;
+              creditsConsumed = credits.lifetime_spent || 0;
             }
           } catch (e) {
             // Credits table not deployed yet
@@ -217,9 +225,9 @@ export const useUserActivities = () => {
           try {
             const { data: transactions } = await supabase
               .from('credit_transactions')
-              .select('reference_type')
+              .select('reference_type, transaction_type')
               .eq('user_id', profile.id)
-              .eq('type', 'consumed');
+              .in('transaction_type', ['consumed', 'spent']);
 
             jobSearches = (transactions || []).filter((t: any) => t.reference_type === 'job_search').length;
             autoApplies = (transactions || []).filter((t: any) => t.reference_type === 'auto_apply').length;
