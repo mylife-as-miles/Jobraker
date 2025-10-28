@@ -1,4 +1,4 @@
--- Fix all instances where transaction_type was used instead of type
+i-- Fix all instances where transaction_type was used instead of type
 -- This migration cleans up bad data from previous migrations
 
 -- The credit_transactions table uses 'type' column, not 'transaction_type'
