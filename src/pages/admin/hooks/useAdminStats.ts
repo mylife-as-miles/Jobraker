@@ -18,9 +18,15 @@ export const useAdminStats = () => {
       setError(null);
 
       // Get profiles - this is our primary source for user count
-      const { data: profiles } = await supabase
+      const { data: profiles, error: profileError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, updated_at');
+
+      if (profileError) {
+        console.error('Error fetching profiles:', profileError);
+      }
+
+      console.log('Admin Dashboard - Profiles fetched:', profiles?.length || 0, profiles);
 
       const allUsers = profiles || [];
 
