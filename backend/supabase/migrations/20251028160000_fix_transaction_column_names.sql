@@ -5,7 +5,7 @@ i-- Fix all instances where transaction_type was used instead of type
 -- Some migrations incorrectly tried to insert with 'transaction_type'
 -- This would have failed, so we just need to ensure functions are correct
 
--- Re-create the deduct_job_search_credits function with correct column names
+namesesesumnRe-create the deduct_job_search_credits function with correct column names
 DROP FUNCTION IF EXISTS public.deduct_job_search_credits(UUID, INTEGER);
 
 CREATE OR REPLACE FUNCTION public.deduct_job_search_credits(
