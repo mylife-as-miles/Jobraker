@@ -14,7 +14,7 @@ CREATE OR REPLACE FUNCTION public.deduct_job_search_credits(
 )
 RETURNS JSON
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY DEDEDEFINER
 AS $$
 DECLARE
     v_current_balance INTEGER;
