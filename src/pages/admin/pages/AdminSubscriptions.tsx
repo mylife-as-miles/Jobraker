@@ -79,14 +79,14 @@ export default function AdminSubscriptions() {
           // Get count of active subscriptions for this plan
           const { count: activeCount } = await supabase
             .from('user_subscriptions')
-            .select('*', { count: 'exact', head: true })
+            .select('*', { count: 'exact', head: false })
             .eq('plan_id', plan.id)
             .eq('status', 'active');
 
           // Get count of users with this tier in profiles (fallback)
           const { count: profileCount } = await supabase
             .from('profiles')
-            .select('*', { count: 'exact', head: true })
+            .select('*', { count: 'exact', head: false })
             .eq('subscription_tier', plan.name);
 
           // Use the higher count (active subscriptions or profile tier)
