@@ -19,13 +19,6 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/lib/reactive-resume-ui';
 import { useToast } from '@/components/ui/toast-provider';
 
 interface SubscriptionPlan {
@@ -526,24 +519,29 @@ function ViewPlanDialog({
   isOpen: boolean; 
   onClose: () => void;
 }) {
-  if (!plan) return null;
+  if (!plan || !isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/30 text-white">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold flex items-center gap-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      
+      {/* Dialog Content */}
+      <div className="relative max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/30 rounded-2xl text-white shadow-2xl">
+        <div className="sticky top-0 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-b border-[#1dff00]/20 p-6 z-10">
+          <div className="flex items-center gap-3 mb-2">
             <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center">
               <Crown className="w-6 h-6 text-[#1dff00]" />
             </div>
-            {plan.name}
-          </DialogTitle>
-          <DialogDescription className="text-gray-400">
-            View complete plan details and configuration
-          </DialogDescription>
-        </DialogHeader>
+            <h2 className="text-2xl font-bold">{plan.name}</h2>
+          </div>
+          <p className="text-gray-400 text-sm">View complete plan details and configuration</p>
+        </div>
 
-        <div className="space-y-6 mt-4">
+        <div className="p-6 space-y-6">
           {/* Pricing Info */}
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 bg-black/30 rounded-lg border border-gray-800">
@@ -621,9 +619,21 @@ function ViewPlanDialog({
               <p className="text-sm text-white">{new Date(plan.created_at).toLocaleDateString()}</p>
             </div>
           </div>
+          
+          {/* Close Button */}
+          <div className="flex justify-end pt-4 border-t border-gray-800">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={onClose}
+              className="px-6 py-3 bg-gray-800 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors"
+            >
+              Close
+            </motion.button>
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
 
@@ -662,19 +672,28 @@ function PlanFormDialog({
     });
   };
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/30 text-white">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">
-            {isEdit ? 'Edit Subscription Plan' : 'Create New Plan'}
-          </DialogTitle>
-          <DialogDescription className="text-gray-400">
-            {isEdit ? 'Update plan details and configuration' : 'Configure a new subscription plan for your users'}
-          </DialogDescription>
-        </DialogHeader>
+  if (!isOpen) return null;
 
-        <div className="space-y-6 mt-4">
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      
+      {/* Dialog Content */}
+      <div className="relative max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/30 rounded-2xl text-white shadow-2xl">
+        <div className="sticky top-0 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-b border-[#1dff00]/20 p-6 z-10">
+          <h2 className="text-2xl font-bold mb-2">
+            {isEdit ? 'Edit Subscription Plan' : 'Create New Plan'}
+          </h2>
+          <p className="text-gray-400 text-sm">
+            {isEdit ? 'Update plan details and configuration' : 'Configure a new subscription plan for your users'}
+          </p>
+        </div>
+
+        <div className="p-6 space-y-6">
           {/* Basic Info */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -839,8 +858,8 @@ function PlanFormDialog({
             </motion.button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
 
@@ -856,19 +875,25 @@ function DeleteConfirmDialog({
   onClose: () => void;
   onConfirm: () => void;
 }) {
-  if (!plan) return null;
+  if (!plan || !isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-red-500/30 text-white">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-red-400">Delete Subscription Plan</DialogTitle>
-          <DialogDescription className="text-gray-400">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      
+      {/* Dialog Content */}
+      <div className="relative max-w-md w-full mx-4 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-red-500/30 rounded-2xl text-white shadow-2xl">
+        <div className="p-6">
+          <h2 className="text-xl font-bold text-red-400 mb-2">Delete Subscription Plan</h2>
+          <p className="text-gray-400 text-sm mb-6">
             This action cannot be undone
-          </DialogDescription>
-        </DialogHeader>
+          </p>
 
-        <div className="space-y-4 mt-4">
+          <div className="space-y-4">
           <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
             <p className="text-sm text-white mb-2">
               You are about to delete <span className="font-bold">{plan.name}</span>
@@ -878,7 +903,7 @@ function DeleteConfirmDialog({
             </p>
           </div>
 
-          <div className="flex gap-3">
+                    <div className="flex gap-3">
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -896,8 +921,9 @@ function DeleteConfirmDialog({
               Delete Plan
             </motion.button>
           </div>
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
