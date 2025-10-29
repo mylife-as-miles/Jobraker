@@ -152,16 +152,26 @@ export default function AdminSubscriptions() {
     if (!selectedPlan) return;
 
     try {
-      // Remove subscriber_count as it's not a real database column
-      const { subscriber_count, ...updateData } = formData;
+      // Remove subscriber_count and any other computed fields
+      const { subscriber_count, created_at, updated_at, ...updateData } = formData;
       
-      const { error } = await supabase
+      // Ensure features is properly formatted as an array
+      const dataToUpdate = {
+        ...updateData,
+        features: Array.isArray(updateData.features) ? updateData.features : []
+      };
+
+      console.log('Updating plan with data:', dataToUpdate);
+      
+      const { error, data } = await supabase
         .from('subscription_plans')
-        .update(updateData)
-        .eq('id', selectedPlan.id);
+        .update(dataToUpdate)
+        .eq('id', selectedPlan.id)
+        .select();
 
       if (error) throw error;
       
+      console.log('Update successful:', data);
       success('Subscription plan updated successfully');
       setIsEditDialogOpen(false);
       setSelectedPlan(null);
@@ -220,7 +230,12 @@ export default function AdminSubscriptions() {
 
   const openEditDialog = (plan: SubscriptionPlan) => {
     setSelectedPlan(plan);
-    setFormData(plan);
+    // Remove subscriber_count and ensure features is an array
+    const { subscriber_count, ...planData } = plan;
+    setFormData({
+      ...planData,
+      features: Array.isArray(plan.features) ? plan.features : []
+    });
     setIsEditDialogOpen(true);
   };
 
@@ -759,18 +774,22 @@ function PlanFormDialog({
 
   const addFeature = () => {
     if (featureInput.trim()) {
+      const updatedFeatures = [...(formData.features || []), featureInput.trim()];
+      console.log('Adding feature, new features array:', updatedFeatures);
       setFormData({
         ...formData,
-        features: [...(formData.features || []), featureInput.trim()]
+        features: updatedFeatures
       });
       setFeatureInput('');
     }
   };
 
   const removeFeature = (index: number) => {
+    const updatedFeatures = (formData.features || []).filter((_, i) => i !== index);
+    console.log('Removing feature at index', index, ', new features array:', updatedFeatures);
     setFormData({
       ...formData,
-      features: (formData.features || []).filter((_, i) => i !== index)
+      features: updatedFeatures
     });
   };
 
