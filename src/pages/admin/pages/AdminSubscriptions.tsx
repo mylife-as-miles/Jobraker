@@ -11,11 +11,11 @@ import {
   User,
   DollarSign,
   Users,
-  TrendingUp,
   Check,
   X,
   Eye,
-  Copy
+  Copy,
+  TrendingUp
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -41,6 +41,7 @@ interface SubscriptionPlan {
   max_cover_letters?: number;
   created_at: string;
   updated_at: string;
+  subscriber_count?: number;
 }
 
 export default function AdminSubscriptions() {
@@ -77,15 +78,39 @@ export default function AdminSubscriptions() {
 
       if (error) throw error;
       
-      // Ensure features is always an array of strings
-      const normalizedData = (data || []).map(plan => ({
-        ...plan,
-        features: Array.isArray(plan.features) 
-          ? plan.features.map((f: any) => typeof f === 'string' ? f : (f.name || f.value || JSON.stringify(f)))
-          : []
-      }));
+      // Fetch subscriber counts for each plan
+      const plansWithCounts = await Promise.all(
+        (data || []).map(async (plan) => {
+          // Get count of active subscriptions for this plan
+          const { count: activeCount } = await supabase
+            .from('user_subscriptions')
+            .select('*', { count: 'exact', head: true })
+            .eq('plan_id', plan.id)
+            .eq('status', 'active');
+
+          // Get count of users with this tier in profiles (fallback)
+          const { count: profileCount } = await supabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true })
+            .eq('subscription_tier', plan.name);
+
+          // Use the higher count (active subscriptions or profile tier)
+          const subscriberCount = Math.max(activeCount || 0, profileCount || 0);
+
+          // Ensure features is always an array of strings
+          const features = Array.isArray(plan.features) 
+            ? plan.features.map((f: any) => typeof f === 'string' ? f : (f.name || f.value || JSON.stringify(f)))
+            : [];
+
+          return {
+            ...plan,
+            features,
+            subscriber_count: subscriberCount
+          };
+        })
+      );
       
-      setPlans(normalizedData);
+      setPlans(plansWithCounts);
     } catch (err: any) {
       console.error('Error fetching plans:', err);
       showError('Failed to load subscription plans');
@@ -213,11 +238,6 @@ export default function AdminSubscriptions() {
     }
   };
 
-  const getSubscriberCount = (_planId: string) => {
-    // This would come from actual data in production
-    return Math.floor(Math.random() * 100);
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -252,7 +272,7 @@ export default function AdminSubscriptions() {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
@@ -299,15 +319,33 @@ export default function AdminSubscriptions() {
         <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-400">Revenue Potential</p>
+              <p className="text-sm text-gray-400">Total Subscribers</p>
               <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-emerald-400" />
+                <Users className="w-5 h-5 text-emerald-400" />
               </div>
             </div>
             <p className="text-3xl font-bold text-white">
-              ${plans.reduce((sum, p) => sum + p.price, 0).toFixed(0)}
+              {plans.reduce((sum, p) => sum + (p.subscriber_count || 0), 0)}
             </p>
-            <p className="text-xs text-gray-500 mt-1">total pricing</p>
+            <p className="text-xs text-gray-500 mt-1">active users</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-400">MRR</p>
+              <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-green-400" />
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-white">
+              ${plans.reduce((sum, p) => {
+                const monthlyPrice = p.billing_cycle === 'yearly' ? p.price / 12 : p.price;
+                return sum + (monthlyPrice * (p.subscriber_count || 0));
+              }, 0).toFixed(0)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">monthly recurring</p>
           </CardContent>
         </Card>
       </div>
@@ -373,7 +411,7 @@ export default function AdminSubscriptions() {
                 {/* Subscribers */}
                 <div className="flex items-center gap-2 text-sm text-gray-400 mb-4">
                   <Users className="w-4 h-4" />
-                  <span>{getSubscriberCount(plan.id)} subscribers</span>
+                  <span>{plan.subscriber_count || 0} subscriber{plan.subscriber_count !== 1 ? 's' : ''}</span>
                 </div>
 
                 {/* Actions */}
