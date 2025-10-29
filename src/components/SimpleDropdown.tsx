@@ -43,10 +43,10 @@ export function SimpleDropdown({
 
   return (
     <div className={`relative inline-block ${className}`} ref={dropdownRef}>
-      {/* Trigger Button */}
+      {/* Trigger Button - Updated to match ModelDropdown styling */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`inline-flex items-center justify-between rounded-md px-3 py-2 text-sm bg-[#0a0a0a] text-white border border-white/20 hover:bg-[#0a0a0a]/80 hover:border-white/30 transition-colors ${triggerClassName}`}
+        className={`inline-flex items-center justify-between rounded-md px-3 py-2 text-sm bg-neutral-900 text-white border border-neutral-700 hover:bg-neutral-800 transition-colors ${triggerClassName}`}
         aria-label={placeholder}
       >
         <span>{selectedOption?.label || placeholder}</span>
@@ -57,23 +57,19 @@ export function SimpleDropdown({
         />
       </button>
 
-      {/* Dropdown Content */}
+      {/* Dropdown Content - Updated to match ModelDropdown styling */}
       {isOpen && (
-        <div className="fixed z-[9999] bg-[#0a0a0a] border border-[#333333] rounded-md shadow-2xl" style={{
-          top: dropdownRef.current?.getBoundingClientRect().bottom ? `${dropdownRef.current.getBoundingClientRect().bottom + 4}px` : 'auto',
-          left: dropdownRef.current?.getBoundingClientRect().left ? `${dropdownRef.current.getBoundingClientRect().left}px` : 'auto',
-          minWidth: dropdownRef.current?.getBoundingClientRect().width ? `${dropdownRef.current.getBoundingClientRect().width}px` : '180px'
-        }}>
+        <div className="absolute z-50 bottom-full mb-1 w-full bg-neutral-900 border border-neutral-700 rounded-md shadow-lg">
           <div className="p-1">
             {options.map((option) => (
               <button
                 key={option.value}
                 onClick={() => handleSelect(option.value)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded text-left text-sm text-white hover:bg-[#1a1a1a] transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 rounded text-left text-sm text-white bg-neutral-900 hover:bg-neutral-800"
               >
                 <span>{option.label}</span>
                 {value === option.value && (
-                  <Check className="h-4 w-4 text-[#1dff00]" />
+                  <Check className="h-4 w-4" />
                 )}
               </button>
             ))}
