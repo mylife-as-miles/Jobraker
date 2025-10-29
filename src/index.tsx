@@ -39,7 +39,8 @@ import {
   AdminDatabase,
   AdminPerformance,
   AdminSettings,
-} from "@/pages/admin";
+} from "./pages/admin";
+import AdminSubscriptions from "./pages/admin/pages/AdminSubscriptions";
 
 // Error boundary component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
@@ -118,6 +119,7 @@ function AnimatedRoutes() {
         <Route path="/admin" element={<RequireAuth><AdminLayout /></RequireAuth>}>
           <Route index element={<AdminOverview />} />
           <Route path="users" element={<AdminUsers />} />
+          <Route path="subscriptions" element={<AdminSubscriptions />} />
           <Route path="revenue" element={<AdminRevenue />} />
           <Route path="credits" element={<AdminCredits />} />
           <Route path="activity" element={<AdminActivity />} />

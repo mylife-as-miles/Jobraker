@@ -10,7 +10,8 @@ import {
   Zap,
   ChevronRight,
   Menu,
-  X
+  X,
+  Crown
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,6 +20,7 @@ import { Button } from '../../components/ui/button';
 const navigation = [
   { name: 'Overview', icon: LayoutDashboard, path: '/admin' },
   { name: 'Users', icon: Users, path: '/admin/users' },
+  { name: 'Subscriptions', icon: Crown, path: '/admin/subscriptions' },
   { name: 'Revenue', icon: TrendingUp, path: '/admin/revenue' },
   { name: 'Credits', icon: CreditCard, path: '/admin/credits' },
   { name: 'Activity', icon: Activity, path: '/admin/activity' },
