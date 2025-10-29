@@ -76,21 +76,37 @@ export default function AdminSubscriptions() {
       // Fetch subscriber counts for each plan
       const plansWithCounts = await Promise.all(
         (data || []).map(async (plan) => {
-          // Get count of active subscriptions for this plan
-          const { count: activeCount } = await supabase
-            .from('user_subscriptions')
-            .select('*', { count: 'exact', head: false })
-            .eq('plan_id', plan.id)
-            .eq('status', 'active');
+          let subscriberCount = 0;
+          
+          try {
+            // Try to get count of active subscriptions for this plan
+            const { count: activeCount, error: subsError } = await supabase
+              .from('user_subscriptions')
+              .select('*', { count: 'exact', head: false })
+              .eq('plan_id', plan.id)
+              .eq('status', 'active');
 
-          // Get count of users with this tier in profiles (fallback)
-          const { count: profileCount } = await supabase
-            .from('profiles')
-            .select('*', { count: 'exact', head: false })
-            .eq('subscription_tier', plan.name);
+            if (!subsError && activeCount) {
+              subscriberCount = activeCount;
+            }
+          } catch (err) {
+            console.warn('Could not fetch user_subscriptions:', err);
+          }
 
-          // Use the higher count (active subscriptions or profile tier)
-          const subscriberCount = Math.max(activeCount || 0, profileCount || 0);
+          try {
+            // Get count of users with this tier in profiles (fallback)
+            const { count: profileCount, error: profileError } = await supabase
+              .from('profiles')
+              .select('*', { count: 'exact', head: false })
+              .eq('subscription_tier', plan.name);
+
+            if (!profileError && profileCount) {
+              // Use the higher count (active subscriptions or profile tier)
+              subscriberCount = Math.max(subscriberCount, profileCount);
+            }
+          } catch (err) {
+            console.warn('Could not fetch profiles count:', err);
+          }
 
           // Ensure features is always an array of strings
           const features = Array.isArray(plan.features) 
@@ -136,9 +152,12 @@ export default function AdminSubscriptions() {
     if (!selectedPlan) return;
 
     try {
+      // Remove subscriber_count as it's not a real database column
+      const { subscriber_count, ...updateData } = formData;
+      
       const { error } = await supabase
         .from('subscription_plans')
-        .update(formData)
+        .update(updateData)
         .eq('id', selectedPlan.id);
 
       if (error) throw error;
