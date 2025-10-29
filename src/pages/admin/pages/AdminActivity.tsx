@@ -21,7 +21,7 @@ export default function AdminActivity() {
     try {
       setLoading(true);
 
-      // Fetch job search and auto apply activity (without join to avoid FK error)
+      // Fetch job search and auto apply activity
       const { data: transactions, error: transError } = await supabase
         .from('credit_transactions')
         .select('*')
@@ -35,20 +35,10 @@ export default function AdminActivity() {
         return;
       }
 
-      // Fetch user emails separately
-      const userIds = [...new Set((transactions || []).map(t => t.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, email')
-        .in('id', userIds);
-
-      // Create a map of user_id to email
-      const emailMap = new Map((profiles || []).map(p => [p.id, p.email]));
-
-      // Enrich transactions with email data
+      // Enrich transactions with user_id as identifier (email not available in profiles table)
       const enrichedTransactions = (transactions || []).map(t => ({
         ...t,
-        profiles: { email: emailMap.get(t.user_id) || 'Unknown' }
+        user_email: t.user_id.substring(0, 8) + '...' // Show partial user_id as identifier
       }));
 
       const jobSearches = enrichedTransactions.filter(t => t.reference_type === 'job_search');
@@ -240,7 +230,7 @@ export default function AdminActivity() {
                   className="hover:bg-gray-800/30 transition-colors"
                 >
                   <td className="px-6 py-4">
-                    <p className="text-white text-sm">{(activity.profiles as any)?.email || 'Unknown'}</p>
+                    <p className="text-white text-sm font-mono">{activity.user_email || activity.user_id?.substring(0, 8) + '...'}</p>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border text-xs font-medium ${
