@@ -15,7 +15,9 @@ import {
   X,
   Eye,
   Copy,
-  TrendingUp
+  TrendingUp,
+  Sparkles,
+  FileText
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -522,118 +524,199 @@ function ViewPlanDialog({
   if (!plan || !isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+    >
+      {/* Enhanced Backdrop with gradient */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="absolute inset-0 bg-gradient-to-br from-black/90 via-purple-900/10 to-black/90 backdrop-blur-md"
         onClick={onClose}
       />
       
-      {/* Dialog Content */}
-      <div className="relative max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/30 rounded-2xl text-white shadow-2xl">
-        <div className="sticky top-0 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-b border-[#1dff00]/20 p-6 z-10">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center">
-              <Crown className="w-6 h-6 text-[#1dff00]" />
-            </div>
-            <h2 className="text-2xl font-bold">{plan.name}</h2>
-          </div>
-          <p className="text-gray-400 text-sm">View complete plan details and configuration</p>
-        </div>
-
-        <div className="p-6 space-y-6">
-          {/* Pricing Info */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-black/30 rounded-lg border border-gray-800">
-              <p className="text-sm text-gray-400 mb-1">Price</p>
-              <p className="text-2xl font-bold text-white">${plan.price}</p>
-              <p className="text-xs text-gray-500">{plan.billing_cycle}</p>
-            </div>
-            <div className="p-4 bg-black/30 rounded-lg border border-gray-800">
-              <p className="text-sm text-gray-400 mb-1">Credits</p>
-              <p className="text-2xl font-bold text-[#1dff00]">{plan.credits_per_cycle}</p>
-              <p className="text-xs text-gray-500">per cycle</p>
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <h4 className="text-sm font-semibold text-gray-400 mb-2">Description</h4>
-            <p className="text-white">{plan.description}</p>
-          </div>
-
-          {/* Features */}
-          <div>
-            <h4 className="text-sm font-semibold text-gray-400 mb-3">Features</h4>
-            <div className="grid grid-cols-1 gap-2">
-              {plan.features?.map((feature, idx) => (
-                <div key={idx} className="flex items-start gap-2 p-2 bg-black/20 rounded-lg">
-                  <Check className="w-4 h-4 text-[#1dff00] mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-gray-300">{feature}</span>
+      {/* Dialog Content with glass morphism */}
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: "spring", duration: 0.5 }}
+        className="relative max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden rounded-3xl"
+      >
+        {/* Animated gradient border glow */}
+        <div className="absolute -inset-1 bg-gradient-to-r from-[#1dff00]/20 via-cyan-500/20 to-purple-500/20 rounded-3xl blur-2xl animate-pulse" />
+        
+        <div className="relative bg-gradient-to-br from-[#0a0a0a]/95 via-[#111111]/95 to-[#0a0a0a]/95 backdrop-blur-xl border border-[#1dff00]/20 rounded-3xl overflow-y-auto max-h-[90vh] shadow-2xl">
+          {/* Sticky Header with glass effect */}
+          <div className="sticky top-0 z-10 bg-gradient-to-br from-[#0a0a0a]/98 via-[#111111]/98 to-[#0a0a0a]/98 backdrop-blur-xl border-b border-[#1dff00]/20 p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <motion.div 
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#1dff00]/20 to-cyan-500/20 flex items-center justify-center backdrop-blur-sm border border-[#1dff00]/30 shadow-lg shadow-[#1dff00]/20"
+                >
+                  <Crown className="w-7 h-7 text-[#1dff00]" />
+                </motion.div>
+                <div>
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-white via-[#1dff00] to-cyan-400 bg-clip-text text-transparent">
+                    {plan.name}
+                  </h2>
+                  <p className="text-sm text-gray-400 flex items-center gap-2 mt-1">
+                    <Sparkles className="w-3 h-3 text-[#1dff00]" />
+                    Complete plan details and configuration
+                  </p>
                 </div>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={onClose}
+                className="p-2.5 hover:bg-white/5 rounded-xl transition-all duration-200 border border-transparent hover:border-[#1dff00]/30 group"
+              >
+                <X className="w-5 h-5 group-hover:text-[#1dff00] transition-colors" />
+              </motion.button>
+            </div>
+          </div>
+
+          <div className="p-8 space-y-6 text-white">
+          {/* Pricing Info with enhanced cards */}
+          <div className="grid grid-cols-2 gap-4">
+            <motion.div 
+              whileHover={{ scale: 1.02, y: -2 }}
+              className="p-5 bg-gradient-to-br from-black/40 to-purple-900/20 rounded-2xl border border-purple-500/30 backdrop-blur-sm relative overflow-hidden group"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+              <p className="text-sm text-gray-400 mb-1 flex items-center gap-2">
+                <DollarSign className="w-4 h-4" />
+                Price
+              </p>
+              <p className="text-3xl font-bold text-white">${plan.price}</p>
+              <p className="text-xs text-gray-500 mt-1">{plan.billing_cycle}</p>
+            </motion.div>
+            <motion.div 
+              whileHover={{ scale: 1.02, y: -2 }}
+              className="p-5 bg-gradient-to-br from-black/40 to-[#1dff00]/10 rounded-2xl border border-[#1dff00]/30 backdrop-blur-sm relative overflow-hidden group"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#1dff00]/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+              <p className="text-sm text-gray-400 mb-1 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-[#1dff00]" />
+                Credits
+              </p>
+              <p className="text-3xl font-bold text-[#1dff00]">{plan.credits_per_cycle}</p>
+              <p className="text-xs text-gray-500 mt-1">per cycle</p>
+            </motion.div>
+          </div>
+
+          {/* Description with enhanced styling */}
+          <div className="p-5 bg-gradient-to-br from-black/30 to-blue-900/10 rounded-2xl border border-blue-500/20">
+            <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-blue-400" />
+              Description
+            </h4>
+            <p className="text-white leading-relaxed">{plan.description}</p>
+          </div>
+
+          {/* Features with enhanced styling */}
+          <div>
+            <h4 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-[#1dff00]" />
+              Features Included
+            </h4>
+            <div className="grid grid-cols-1 gap-3">
+              {plan.features?.map((feature, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  whileHover={{ scale: 1.02, x: 4 }}
+                  className="flex items-start gap-3 p-3 bg-gradient-to-r from-black/40 to-[#1dff00]/5 rounded-xl border border-[#1dff00]/20 backdrop-blur-sm group"
+                >
+                  <div className="w-5 h-5 rounded-full bg-[#1dff00]/20 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
+                    <Check className="w-3 h-3 text-[#1dff00]" />
+                  </div>
+                  <span className="text-sm text-gray-200">{feature}</span>
+                </motion.div>
               ))}
             </div>
           </div>
 
-          {/* Limits */}
+          {/* Limits with enhanced cards */}
           {(plan.max_resumes || plan.max_cover_letters) && (
             <div>
-              <h4 className="text-sm font-semibold text-gray-400 mb-3">Limits</h4>
+              <h4 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-cyan-400" />
+                Usage Limits
+              </h4>
               <div className="grid grid-cols-2 gap-4">
                 {plan.max_resumes && (
-                  <div className="p-3 bg-black/30 rounded-lg border border-gray-800">
-                    <p className="text-xs text-gray-500 mb-1">Max Resumes</p>
-                    <p className="text-lg font-bold text-white">{plan.max_resumes}</p>
-                  </div>
+                  <motion.div 
+                    whileHover={{ scale: 1.05 }}
+                    className="p-4 bg-gradient-to-br from-black/40 to-cyan-900/20 rounded-xl border border-cyan-500/30 backdrop-blur-sm"
+                  >
+                    <p className="text-xs text-gray-400 mb-2">Max Resumes</p>
+                    <p className="text-2xl font-bold text-cyan-400">{plan.max_resumes}</p>
+                  </motion.div>
                 )}
                 {plan.max_cover_letters && (
-                  <div className="p-3 bg-black/30 rounded-lg border border-gray-800">
-                    <p className="text-xs text-gray-500 mb-1">Max Cover Letters</p>
-                    <p className="text-lg font-bold text-white">{plan.max_cover_letters}</p>
-                  </div>
+                  <motion.div 
+                    whileHover={{ scale: 1.05 }}
+                    className="p-4 bg-gradient-to-br from-black/40 to-purple-900/20 rounded-xl border border-purple-500/30 backdrop-blur-sm"
+                  >
+                    <p className="text-xs text-gray-400 mb-2">Max Cover Letters</p>
+                    <p className="text-2xl font-bold text-purple-400">{plan.max_cover_letters}</p>
+                  </motion.div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Status & Dates */}
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-800">
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Status</p>
+          {/* Status & Dates with enhanced styling */}
+          <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-700/50">
+            <div className="p-4 bg-gradient-to-br from-black/30 to-transparent rounded-xl border border-gray-700/30">
+              <p className="text-xs text-gray-400 mb-2">Status</p>
               <div className="flex items-center gap-2">
                 {plan.is_active ? (
                   <>
-                    <div className="w-2 h-2 rounded-full bg-[#1dff00]" />
-                    <span className="text-sm text-[#1dff00] font-medium">Active</span>
+                    <motion.div 
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ repeat: Infinity, duration: 2 }}
+                      className="w-2.5 h-2.5 rounded-full bg-[#1dff00] shadow-lg shadow-[#1dff00]/50" 
+                    />
+                    <span className="text-sm text-[#1dff00] font-semibold">Active</span>
                   </>
                 ) : (
                   <>
-                    <div className="w-2 h-2 rounded-full bg-red-500" />
-                    <span className="text-sm text-red-400 font-medium">Inactive</span>
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                    <span className="text-sm text-red-400 font-semibold">Inactive</span>
                   </>
                 )}
               </div>
             </div>
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Created</p>
-              <p className="text-sm text-white">{new Date(plan.created_at).toLocaleDateString()}</p>
+            <div className="p-4 bg-gradient-to-br from-black/30 to-transparent rounded-xl border border-gray-700/30">
+              <p className="text-xs text-gray-400 mb-2">Created</p>
+              <p className="text-sm text-white font-medium">{new Date(plan.created_at).toLocaleDateString()}</p>
             </div>
           </div>
           
-          {/* Close Button */}
-          <div className="flex justify-end pt-4 border-t border-gray-800">
+          {/* Close Button with enhanced styling */}
+          {/* Close Button with enhanced styling */}
+          <div className="flex justify-end pt-6 border-t border-gray-700/50">
             <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={onClose}
-              className="px-6 py-3 bg-gray-800 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors"
+              className="px-8 py-3.5 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-white rounded-xl font-semibold transition-all duration-200 border border-gray-700 hover:border-gray-600 shadow-lg"
             >
               Close
             </motion.button>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
+    </motion.div>
   );
 }
 
@@ -675,23 +758,62 @@ function PlanFormDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+    >
+      {/* Enhanced Backdrop */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="absolute inset-0 bg-gradient-to-br from-black/90 via-blue-900/10 to-black/90 backdrop-blur-md"
         onClick={onClose}
       />
       
-      {/* Dialog Content */}
-      <div className="relative max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/30 rounded-2xl text-white shadow-2xl">
-        <div className="sticky top-0 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-b border-[#1dff00]/20 p-6 z-10">
-          <h2 className="text-2xl font-bold mb-2">
-            {isEdit ? 'Edit Subscription Plan' : 'Create New Plan'}
-          </h2>
-          <p className="text-gray-400 text-sm">
-            {isEdit ? 'Update plan details and configuration' : 'Configure a new subscription plan for your users'}
-          </p>
-        </div>
+      {/* Dialog Content with animations */}
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: "spring", duration: 0.5 }}
+        className="relative max-w-3xl w-full mx-4 max-h-[90vh] overflow-hidden rounded-3xl"
+      >
+        {/* Animated gradient border glow */}
+        <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/30 via-[#1dff00]/30 to-purple-500/30 rounded-3xl blur-2xl animate-pulse" />
+        
+        <div className="relative bg-gradient-to-br from-[#0a0a0a]/95 via-[#111111]/95 to-[#0a0a0a]/95 backdrop-blur-xl border border-blue-500/20 rounded-3xl overflow-y-auto max-h-[90vh] shadow-2xl">
+          {/* Enhanced Sticky Header */}
+          <div className="sticky top-0 z-10 bg-gradient-to-br from-[#0a0a0a]/98 via-[#111111]/98 to-[#0a0a0a]/98 backdrop-blur-xl border-b border-blue-500/20 p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <motion.div 
+                  whileHover={{ rotate: 360 }}
+                  transition={{ duration: 0.5 }}
+                  className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/20 to-[#1dff00]/20 flex items-center justify-center backdrop-blur-sm border border-blue-500/30 shadow-lg shadow-blue-500/20"
+                >
+                  {isEdit ? <Edit className="w-7 h-7 text-blue-400" /> : <Plus className="w-7 h-7 text-[#1dff00]" />}
+                </motion.div>
+                <div>
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-white via-blue-200 to-[#1dff00] bg-clip-text text-transparent">
+                    {isEdit ? 'Edit Subscription Plan' : 'Create New Plan'}
+                  </h2>
+                  <p className="text-sm text-gray-400 flex items-center gap-2 mt-1">
+                    <Sparkles className="w-3 h-3" />
+                    {isEdit ? 'Update plan details and configuration' : 'Configure a new subscription plan for your users'}
+                  </p>
+                </div>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={onClose}
+                className="p-2.5 hover:bg-white/5 rounded-xl transition-all duration-200 border border-transparent hover:border-blue-500/30 group"
+              >
+                <X className="w-5 h-5 group-hover:text-blue-400 transition-colors" />
+              </motion.button>
+            </div>
+          </div>
 
         <div className="p-6 space-y-6">
           {/* Basic Info */}
@@ -838,28 +960,29 @@ function PlanFormDialog({
             </label>
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-4 border-t border-gray-800">
+          {/* Actions with enhanced buttons */}
+          <div className="flex gap-4 pt-6 border-t border-blue-500/20">
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={onClose}
-              className="flex-1 px-6 py-3 bg-gray-800 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors"
+              className="flex-1 px-8 py-3.5 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-white rounded-xl font-semibold transition-all duration-200 border border-gray-700 hover:border-gray-600"
             >
               Cancel
             </motion.button>
             <motion.button
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(29, 255, 0, 0.3)" }}
               whileTap={{ scale: 0.98 }}
               onClick={onSave}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black rounded-lg font-semibold hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all"
+              className="flex-1 px-8 py-3.5 bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black rounded-xl font-bold hover:shadow-2xl hover:shadow-[#1dff00]/30 transition-all duration-200 border border-[#1dff00]/50"
             >
               {isEdit ? 'Save Changes' : 'Create Plan'}
             </motion.button>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
+    </motion.div>
   );
 }
 
@@ -878,52 +1001,89 @@ function DeleteConfirmDialog({
   if (!plan || !isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+    >
+      {/* Enhanced Backdrop with red tint */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="absolute inset-0 bg-gradient-to-br from-black/90 via-red-900/10 to-black/90 backdrop-blur-md"
         onClick={onClose}
       />
       
-      {/* Dialog Content */}
-      <div className="relative max-w-md w-full mx-4 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-red-500/30 rounded-2xl text-white shadow-2xl">
-        <div className="p-6">
-          <h2 className="text-xl font-bold text-red-400 mb-2">Delete Subscription Plan</h2>
-          <p className="text-gray-400 text-sm mb-6">
-            This action cannot be undone
-          </p>
+      {/* Dialog Content with warning style */}
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: "spring", duration: 0.5 }}
+        className="relative max-w-md w-full mx-4 overflow-hidden rounded-3xl"
+      >
+        {/* Pulsing red border glow */}
+        <div className="absolute -inset-1 bg-gradient-to-r from-red-500/40 via-orange-500/40 to-red-500/40 rounded-3xl blur-2xl animate-pulse" />
+        
+        <div className="relative bg-gradient-to-br from-[#0a0a0a]/95 via-[#1a0a0a]/95 to-[#0a0a0a]/95 backdrop-blur-xl border border-red-500/30 rounded-3xl shadow-2xl">
+          <div className="p-8">
+            {/* Warning Header */}
+            <div className="flex items-center gap-4 mb-6">
+              <motion.div 
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center backdrop-blur-sm border border-red-500/30 shadow-lg shadow-red-500/20"
+              >
+                <Trash2 className="w-8 h-8 text-red-400" />
+              </motion.div>
+              <div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text text-transparent">
+                  Delete Plan?
+                </h2>
+                <p className="text-gray-400 text-sm mt-1">
+                  This action cannot be undone
+                </p>
+              </div>
+            </div>
 
-          <div className="space-y-4">
-          <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-            <p className="text-sm text-white mb-2">
-              You are about to delete <span className="font-bold">{plan.name}</span>
-            </p>
-            <p className="text-xs text-gray-400">
-              All users subscribed to this plan will need to be migrated to another plan.
-            </p>
-          </div>
+            {/* Warning Message */}
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="p-5 bg-gradient-to-br from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-2xl mb-6 backdrop-blur-sm"
+            >
+              <p className="text-sm text-white mb-3 flex items-center gap-2">
+                <Crown className="w-4 h-4 text-red-400" />
+                Deleting: <span className="font-bold text-red-300">{plan.name}</span>
+              </p>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                All users subscribed to this plan will need to be migrated to another plan. This will affect billing and access.
+              </p>
+            </motion.div>
 
-                    <div className="flex gap-3">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={onClose}
-              className="flex-1 px-6 py-3 bg-gray-800 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors"
-            >
-              Cancel
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={onConfirm}
-              className="flex-1 px-6 py-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors"
-            >
-              Delete Plan
-            </motion.button>
-          </div>
+            {/* Action Buttons */}
+            <div className="flex gap-4">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={onClose}
+                className="flex-1 px-6 py-3.5 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-white rounded-xl font-semibold transition-all duration-200 border border-gray-700 hover:border-gray-600"
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(239, 68, 68, 0.4)" }}
+                whileTap={{ scale: 0.98 }}
+                onClick={onConfirm}
+                className="flex-1 px-6 py-3.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-bold hover:shadow-2xl hover:shadow-red-500/30 transition-all duration-200 border border-red-500/50"
+              >
+                Delete Plan
+              </motion.button>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
