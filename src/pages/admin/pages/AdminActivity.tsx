@@ -11,6 +11,8 @@ export default function AdminActivity() {
     jobSearches: [],
     autoApplies: [],
     recentActivity: [],
+    totalJobsFound: 0,
+    totalJobsApplied: 0,
   });
 
   useEffect(() => {
@@ -44,10 +46,26 @@ export default function AdminActivity() {
       const jobSearches = enrichedTransactions.filter(t => t.reference_type === 'job_search');
       const autoApplies = enrichedTransactions.filter(t => t.reference_type === 'auto_apply');
 
+      // Calculate total jobs found by parsing descriptions
+      const totalJobsFound = jobSearches.reduce((sum, search) => {
+        // Parse "Job search - X jobs found" from description
+        const match = search.description?.match(/(\d+)\s+jobs?\s+found/i);
+        return sum + (match ? parseInt(match[1]) : 1);
+      }, 0);
+
+      // Calculate total jobs applied (parse from auto apply descriptions)
+      const totalJobsApplied = autoApplies.reduce((sum, apply) => {
+        // Parse "Auto apply - X job(s) applied" from description
+        const match = apply.description?.match(/(\d+)\s+jobs?/i);
+        return sum + (match ? parseInt(match[1]) : 1);
+      }, 0);
+
       setActivityData({
         jobSearches,
         autoApplies,
         recentActivity: enrichedTransactions,
+        totalJobsFound,
+        totalJobsApplied,
       });
     } catch (err) {
       console.error('Error fetching activity:', err);
@@ -111,7 +129,8 @@ export default function AdminActivity() {
             </div>
           </div>
           <p className="text-sm text-gray-400 mb-1">Total Job Searches</p>
-          <p className="text-3xl font-bold text-white">{activityData.jobSearches.length}</p>
+          <p className="text-3xl font-bold text-white">{activityData.totalJobsFound || 0}</p>
+          <p className="text-xs text-gray-500 mt-1">{activityData.jobSearches.length} search sessions</p>
         </motion.div>
 
         <motion.div
@@ -130,7 +149,8 @@ export default function AdminActivity() {
             </div>
           </div>
           <p className="text-sm text-gray-400 mb-1">Total Auto Applies</p>
-          <p className="text-3xl font-bold text-white">{activityData.autoApplies.length}</p>
+          <p className="text-3xl font-bold text-white">{activityData.totalJobsApplied || 0}</p>
+          <p className="text-xs text-gray-500 mt-1">{activityData.autoApplies.length} apply sessions</p>
         </motion.div>
 
         <motion.div
