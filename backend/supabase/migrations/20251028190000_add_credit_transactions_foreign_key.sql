@@ -29,8 +29,8 @@ ON public.credit_transactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_credit_transactions_reference_type 
 ON public.credit_transactions(reference_type);
 
-CREATE INDEX IF NOT EXISTS idx_credit_transactions_type 
-ON public.credit_transactions(type);
+CREATE INDEX IF NOT EXISTS idx_credit_transactions_transaction_type 
+ON public.credit_transactions(transaction_type);
 
 -- Add a comment explaining the table relationships
 COMMENT ON TABLE public.credit_transactions IS 'Credit transaction history. Foreign key to auth.users allows PostgREST joins with profiles table.';

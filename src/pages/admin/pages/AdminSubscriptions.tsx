@@ -83,7 +83,7 @@ export default function AdminSubscriptions() {
             const { count: activeCount, error: subsError } = await supabase
               .from('user_subscriptions')
               .select('*', { count: 'exact', head: false })
-              .eq('plan_id', plan.id)
+              .eq('subscription_plan_id', plan.id)
               .eq('status', 'active');
 
             if (!subsError && activeCount) {
