@@ -241,12 +241,25 @@ export const useUserActivities = () => {
           try {
             const { data: transactions } = await supabase
               .from('credit_transactions')
-              .select('reference_type, transaction_type')
+              .select('reference_type, transaction_type, description')
               .eq('user_id', profile.id)
               .eq('transaction_type', 'deduction'); // Use 'deduction' to match actual schema
 
-            jobSearches = (transactions || []).filter((t: any) => t.reference_type === 'job_search').length;
-            autoApplies = (transactions || []).filter((t: any) => t.reference_type === 'auto_apply').length;
+            // For job searches, parse the description to get actual job count
+            const jobSearchTransactions = (transactions || []).filter((t: any) => t.reference_type === 'job_search');
+            jobSearches = jobSearchTransactions.reduce((sum, t) => {
+              // Parse "Job search - X jobs found" from description
+              const match = t.description?.match(/(\d+)\s+jobs?\s+found/i);
+              return sum + (match ? parseInt(match[1]) : 1);
+            }, 0);
+
+            // For auto applies, parse the description to get actual job count
+            const autoApplyTransactions = (transactions || []).filter((t: any) => t.reference_type === 'auto_apply');
+            autoApplies = autoApplyTransactions.reduce((sum, t) => {
+              // Parse "Auto apply - X job(s) applied" from description
+              const match = t.description?.match(/(\d+)\s+jobs?/i);
+              return sum + (match ? parseInt(match[1]) : 1);
+            }, 0);
           } catch (e) {
             // Transaction table not deployed yet
           }
