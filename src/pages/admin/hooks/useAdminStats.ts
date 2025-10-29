@@ -243,7 +243,7 @@ export const useUserActivities = () => {
               .from('credit_transactions')
               .select('reference_type, transaction_type')
               .eq('user_id', profile.id)
-              .in('transaction_type', ['consumed', 'spent']);
+              .eq('transaction_type', 'deduction'); // Use 'deduction' to match actual schema
 
             jobSearches = (transactions || []).filter((t: any) => t.reference_type === 'job_search').length;
             autoApplies = (transactions || []).filter((t: any) => t.reference_type === 'auto_apply').length;
