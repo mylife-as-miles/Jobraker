@@ -76,7 +76,16 @@ export default function AdminSubscriptions() {
         .order('price', { ascending: true });
 
       if (error) throw error;
-      setPlans(data || []);
+      
+      // Ensure features is always an array of strings
+      const normalizedData = (data || []).map(plan => ({
+        ...plan,
+        features: Array.isArray(plan.features) 
+          ? plan.features.map((f: any) => typeof f === 'string' ? f : (f.name || f.value || JSON.stringify(f)))
+          : []
+      }));
+      
+      setPlans(normalizedData);
     } catch (err: any) {
       console.error('Error fetching plans:', err);
       showError('Failed to load subscription plans');
