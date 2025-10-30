@@ -1,14 +1,14 @@
 "use client"
 
-import { useEffect, useMemo, useRef } from "react"
+import { useMemo } from "react"
 import { Card } from "../ui/card"
 import { Lightbulb, ChevronLeft, ChevronRight } from "lucide-react"
 import { motion } from "framer-motion"
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 
 export function InsightCard({ period, data }: { period: Period; data: any }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
   const chartData = (data?.chartDataApps?.length ? data.chartDataApps : data?.chartDataJobs) || []
 
   const headline = useMemo(() => {
@@ -20,114 +20,12 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
     return `No activity in period`
   }, [data])
 
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    const rect = canvas.getBoundingClientRect()
-    canvas.width = rect.width * window.devicePixelRatio
-    canvas.height = rect.height * window.devicePixelRatio
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
-
-    ctx.clearRect(0, 0, rect.width, rect.height)
-
-    // Convert chart data to points
-    if (!chartData.length) return
-
-    const maxValue = Math.max(...chartData.map((d: any) => d.value))
-    const minValue = Math.min(...chartData.map((d: any) => d.value))
-    const valueRange = maxValue - minValue || 1
-
-    const points = chartData.map((data: any, index: number) => ({
-      x: (rect.width / (chartData.length - 1)) * index,
-      y: rect.height * 0.8 - ((data.value - minValue) / valueRange) * (rect.height * 0.6)
+  // Transform data for Recharts
+  const rechartData = useMemo(() => {
+    return chartData.map((item: any) => ({
+      name: item.name,
+      value: item.value || 0,
     }))
-
-    // Draw background glow
-    ctx.strokeStyle = "rgba(29, 255, 0, 0.3)"
-    ctx.lineWidth = 8
-    ctx.lineCap = "round"
-    ctx.lineJoin = "round"
-    ctx.shadowColor = "#1dff00"
-    ctx.shadowBlur = 10
-    ctx.shadowOffsetX = 0
-    ctx.shadowOffsetY = 0
-
-    ctx.beginPath()
-    ctx.moveTo(points[0].x, points[0].y)
-    for (let i = 1; i < points.length; i++) {
-      const prevPoint = points[i - 1]
-      const currentPoint = points[i]
-      const cpx = prevPoint.x + (currentPoint.x - prevPoint.x) * 0.5
-      const cpy1 = prevPoint.y
-      const cpy2 = currentPoint.y
-      ctx.bezierCurveTo(cpx, cpy1, cpx, cpy2, currentPoint.x, currentPoint.y)
-    }
-    ctx.stroke()
-
-    // Draw main line with enhanced glow
-    ctx.strokeStyle = "#1dff00"
-    ctx.lineWidth = 3
-    ctx.shadowBlur = 8
-
-    ctx.beginPath()
-    ctx.moveTo(points[0].x, points[0].y)
-    for (let i = 1; i < points.length; i++) {
-      const prevPoint = points[i - 1]
-      const currentPoint = points[i]
-      const cpx = prevPoint.x + (currentPoint.x - prevPoint.x) * 0.5
-      const cpy1 = prevPoint.y
-      const cpy2 = currentPoint.y
-      ctx.bezierCurveTo(cpx, cpy1, cpx, cpy2, currentPoint.x, currentPoint.y)
-    }
-    ctx.stroke()
-
-    // Draw enhanced area fill with multiple gradients
-    ctx.shadowBlur = 0
-    const gradient = ctx.createLinearGradient(0, 0, 0, rect.height)
-    gradient.addColorStop(0, "rgba(29, 255, 0, 0.4)")
-    gradient.addColorStop(0.5, "rgba(29, 255, 0, 0.2)")
-    gradient.addColorStop(1, "rgba(29, 255, 0, 0.05)")
-    
-    ctx.beginPath()
-    ctx.moveTo(points[0].x, points[0].y)
-    for (let i = 1; i < points.length; i++) {
-      const prevPoint = points[i - 1]
-      const currentPoint = points[i]
-      const cpx = prevPoint.x + (currentPoint.x - prevPoint.x) * 0.5
-      const cpy1 = prevPoint.y
-      const cpy2 = currentPoint.y
-      ctx.bezierCurveTo(cpx, cpy1, cpx, cpy2, currentPoint.x, currentPoint.y)
-    }
-    ctx.lineTo(rect.width, rect.height)
-    ctx.lineTo(0, rect.height)
-    ctx.closePath()
-    ctx.fillStyle = gradient
-    ctx.fill()
-
-    // Draw animated dots on the line
-  points.forEach((point: { x: number; y: number }, index: number) => {
-      ctx.beginPath()
-      ctx.arc(point.x, point.y, index === points.length - 1 ? 6 : 4, 0, 2 * Math.PI)
-      ctx.fillStyle = index === points.length - 1 ? "#ffffff" : "#1dff00"
-      ctx.shadowColor = "#1dff00"
-      ctx.shadowBlur = index === points.length - 1 ? 8 : 5
-      ctx.fill()
-      ctx.shadowBlur = 0
-    })
-
-    // Draw enhanced date labels
-    ctx.fillStyle = "rgba(255, 255, 255, 0.7)"
-    ctx.font = "11px Inter, sans-serif"
-    ctx.textAlign = "center"
-
-  chartData.forEach((data: any, index: number) => {
-      const x = (rect.width / (chartData.length - 1)) * index
-      ctx.fillText(data.name, x, rect.height - 8)
-    })
   }, [chartData])
 
   return (
@@ -160,7 +58,7 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
             </div>
           </div>
 
-          <div className="mb-4 sm:mb-6 flex-grow">
+          <div className="mb-4 sm:mb-6">
             <motion.div 
               key={(chartData[chartData.length - 1]?.value) ?? 'empty'}
               initial={{ scale: 0.9 }}
@@ -174,8 +72,55 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
             <p className="text-white/80 text-xs sm:text-sm lg:text-base leading-relaxed">Period: {String(period ?? '').toUpperCase()}</p>
           </div>
 
-          <div className="flex-shrink-0 h-16 sm:h-20 lg:h-24 xl:h-28 relative">
-            <canvas ref={canvasRef} className="w-full h-full" />
+          <div className="flex-1 min-h-[200px]">
+            {rechartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={rechartData}>
+                  <defs>
+                    <linearGradient id="insightGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#1dff00" stopOpacity={0.4}/>
+                      <stop offset="50%" stopColor="#1dff00" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#1dff00" stopOpacity={0.05}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                  <XAxis 
+                    dataKey="name" 
+                    stroke="rgba(255,255,255,0.5)"
+                    style={{ fontSize: '11px' }}
+                    tick={{ fill: 'rgba(255,255,255,0.7)' }}
+                  />
+                  <YAxis 
+                    stroke="rgba(255,255,255,0.5)"
+                    style={{ fontSize: '11px' }}
+                    tick={{ fill: 'rgba(255,255,255,0.7)' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(10, 10, 10, 0.95)', 
+                      border: '1px solid rgba(29, 255, 0, 0.3)',
+                      borderRadius: '12px',
+                      color: '#fff',
+                      backdropFilter: 'blur(10px)'
+                    }}
+                    labelStyle={{ color: '#1dff00', fontWeight: 'bold' }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="value" 
+                    stroke="#1dff00" 
+                    strokeWidth={3}
+                    fill="url(#insightGradient)"
+                    dot={{ fill: '#1dff00', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, fill: '#fff', stroke: '#1dff00', strokeWidth: 2 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-white/40 text-sm">
+                No data available for this period
+              </div>
+            )}
           </div>
         </div>
       </Card>
