@@ -136,11 +136,11 @@ export function KanbanCard({ id, children }: { id?: string; name?: string; colum
           : 'border-white/10 hover:border-[#1dff00]/40 shadow-md hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
       }`}
       draggable
-      onDragStart={(e) => {
+      onDragStart={(e: React.DragEvent<HTMLDivElement>) => {
         if (!id) return;
         setIsDragging(true);
-        e.dataTransfer?.setData('text/plain', id);
-        if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', id);
+        e.dataTransfer.effectAllowed = 'move';
       }}
       onDragEnd={() => setIsDragging(false)}
       whileHover={{ scale: isDragging ? 1.05 : 1.02, y: -2 }}
