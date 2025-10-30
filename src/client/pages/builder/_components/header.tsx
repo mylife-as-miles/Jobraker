@@ -26,56 +26,54 @@ export const BuilderHeader = () => {
     <div
       style={{ left: `${leftPanelSize}%`, right: `${rightPanelSize}%` }}
       className={cn(
-        "fixed inset-x-0 top-0 z-[60] h-16 bg-gradient-to-r from-[#0a0a0a]/98 via-[#0f0f0f]/98 to-[#0a0a0a]/98 backdrop-blur-xl border-b border-[#1dff00]/20 shadow-[0_0_30px_rgba(29,255,0,0.1)] lg:z-20",
+        "fixed inset-x-0 top-0 z-[60] h-16 bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 backdrop-blur-xl border-b border-[#1dff00]/30 shadow-[0_0_40px_rgba(29,255,0,0.15)] lg:z-20",
         !isDragging && "transition-[left,right]",
       )}
     >
       <div className="flex h-full items-center justify-between px-4 gap-4">
         <Button
           variant="ghost"
-          className="flex lg:hidden w-10 h-10 p-0 rounded-xl hover:bg-[#1dff00]/10 hover:text-[#1dff00] hover:border-[#1dff00]/30 transition-all duration-200 border border-transparent"
+          className="flex lg:hidden h-10 w-10 p-0 rounded-xl border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:scale-110 transition-all duration-200"
           onClick={() => {
             onToggle("left");
           }}
         >
-          <SidebarSimple />
+          <SidebarSimple className="text-[#1dff00]" />
         </Button>
 
-        <div className="flex items-center justify-center gap-x-2 lg:mx-auto">
+        <div className="flex items-center justify-center gap-x-3 lg:mx-auto">
           <Button 
             asChild 
             variant="ghost"
-            className="w-10 h-10 p-0 rounded-xl hover:bg-[#1dff00]/10 hover:text-[#1dff00] hover:border-[#1dff00]/30 hover:scale-110 transition-all duration-200 border border-transparent group"
+            className="h-10 w-10 p-0 rounded-xl border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:scale-110 transition-all duration-200 group"
           >
             <Link to="/dashboard/resumes">
               <HouseSimple className="group-hover:scale-110 transition-transform" />
             </Link>
           </Button>
 
-          <span className="mx-1 text-sm opacity-30 font-light">{"/"}</span>
+          <div className="h-6 w-px bg-gradient-to-b from-transparent via-[#1dff00]/40 to-transparent shadow-[0_0_10px_rgba(29,255,0,0.3)]" />
 
-          <h1 className="font-bold text-lg bg-gradient-to-r from-white via-white/95 to-[#1dff00]/90 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(29,255,0,0.3)]">
-            {title}
-          </h1>
-
-          {locked && (
-            <Tooltip content={t`This resume is locked, please unlock to make further changes.`}>
-              <div className="ml-2 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-1.5">
-                <Lock width={14} height={14} className="text-red-400" />
-                <span className="text-[10px] font-bold text-red-400 uppercase tracking-wide">Locked</span>
-              </div>
-            </Tooltip>
-          )}
+          <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-gradient-to-br from-[#1dff00]/10 to-[#1dff00]/5 border border-[#1dff00]/30">
+            <h1 className="font-bold text-white text-base tracking-tight">{title}</h1>
+            {locked && (
+              <Tooltip content={t`This resume is locked, please unlock to make further changes.`}>
+                <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-[#1dff00]/20 border border-[#1dff00]/40">
+                  <Lock width={14} height={14} className="text-[#1dff00]" />
+                </div>
+              </Tooltip>
+            )}
+          </div>
         </div>
 
         <Button
           variant="ghost"
-          className="flex lg:hidden w-10 h-10 p-0 rounded-xl hover:bg-[#1dff00]/10 hover:text-[#1dff00] hover:border-[#1dff00]/30 transition-all duration-200 border border-transparent"
+          className="flex lg:hidden h-10 w-10 p-0 rounded-xl border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:scale-110 transition-all duration-200"
           onClick={() => {
             onToggle("right");
           }}
         >
-          <SidebarSimple className="-scale-x-100" />
+          <SidebarSimple className="-scale-x-100 text-[#1dff00]" />
         </Button>
       </div>
     </div>

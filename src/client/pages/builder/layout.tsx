@@ -49,20 +49,17 @@ export const BuilderLayout = () => {
 
   if (isDesktop) {
     return (
-      <div className="relative size-full overflow-hidden bg-black">
+  <div className="relative size-full overflow-hidden bg-black">
         {/* Ambient Background Glows */}
-        <div className="fixed top-20 right-0 h-96 w-96 bg-[#1dff00]/3 rounded-full blur-3xl opacity-30 pointer-events-none -z-10" />
-        <div className="fixed bottom-20 left-0 h-96 w-96 bg-[#1dff00]/3 rounded-full blur-3xl opacity-20 pointer-events-none -z-10" />
+        <div className="fixed top-0 right-1/4 h-96 w-96 bg-[#1dff00]/3 rounded-full blur-3xl opacity-30 pointer-events-none -z-10" />
+        <div className="fixed bottom-0 left-1/4 h-96 w-96 bg-[#1dff00]/3 rounded-full blur-3xl opacity-20 pointer-events-none -z-10" />
         
         <PanelGroup direction="horizontal">
           <Panel
             minSize={25}
             maxSize={45}
             defaultSize={30}
-            className={cn(
-              "z-10 bg-gradient-to-b from-[#0a0a0a]/98 to-[#0f0f0f]/98 border-r border-[#1dff00]/20 shadow-[inset_0_0_30px_rgba(29,255,0,0.05)] backdrop-blur-xl", 
-              !leftHandle.isDragging && "transition-[flex]"
-            )}
+    className={cn("z-10 bg-gradient-to-br from-[#0a0a0a]/95 to-[#0f0f0f]/95 border-r border-[#1dff00]/20 shadow-[inset_-10px_0_30px_rgba(29,255,0,0.05)]", !leftHandle.isDragging && "transition-[flex]")}
             onResize={leftSetSize}
           >
             <LeftSidebar />
@@ -70,7 +67,7 @@ export const BuilderLayout = () => {
           <PanelResizeHandle
             isDragging={leftHandle.isDragging}
             onDragging={leftHandle.setDragging}
-            className="w-px bg-gradient-to-b from-transparent via-[#1dff00]/40 to-transparent hover:bg-[#1dff00]/60 hover:w-[2px] transition-all duration-200 relative group"
+            className="w-1 bg-gradient-to-b from-transparent via-[#1dff00]/40 to-transparent hover:bg-[#1dff00]/60 transition-colors"
           />
           <Panel className="bg-black relative">
             <OutletSlot />
@@ -78,16 +75,13 @@ export const BuilderLayout = () => {
           <PanelResizeHandle
             isDragging={rightHandle.isDragging}
             onDragging={rightHandle.setDragging}
-            className="w-px bg-gradient-to-b from-transparent via-[#1dff00]/40 to-transparent hover:bg-[#1dff00]/60 hover:w-[2px] transition-all duration-200 relative group"
+            className="w-1 bg-gradient-to-b from-transparent via-[#1dff00]/40 to-transparent hover:bg-[#1dff00]/60 transition-colors"
           />
           <Panel
             minSize={25}
             maxSize={45}
             defaultSize={30}
-            className={cn(
-              "z-10 bg-gradient-to-b from-[#0a0a0a]/98 to-[#0f0f0f]/98 border-l border-[#1dff00]/20 shadow-[inset_0_0_30px_rgba(29,255,0,0.05)] backdrop-blur-xl", 
-              !rightHandle.isDragging && "transition-[flex]"
-            )}
+            className={cn("z-10 bg-gradient-to-br from-[#0a0a0a]/95 to-[#0f0f0f]/95 border-l border-[#1dff00]/20 shadow-[inset_10px_0_30px_rgba(29,255,0,0.05)]", !rightHandle.isDragging && "transition-[flex]")}
             onResize={rightSetSize}
           >
             <RightSidebar />
