@@ -26,12 +26,12 @@ interface GanttProps {
   onBarClick?: (item: GanttItem, evt: React.MouseEvent) => void;
 }
 
-// Lightweight, dependency-free Gantt renderer (horizontal tiproceed to possibe furtger meline bars)
+// Modern Enterprise-Level Gantt Renderer
 export const Gantt: React.FC<GanttProps> = ({
   items,
   className = '',
   dayWidth,
-  height = 46,
+  height = 52,
   renderLabel,
   renderBarContent,
   showToday = true,
@@ -41,7 +41,7 @@ export const Gantt: React.FC<GanttProps> = ({
   dateRange,
   onBarClick,
 }) => {
-  const [uncontrolledZoom, setUncontrolledZoom] = React.useState(1); // default mid tier
+  const [uncontrolledZoom, setUncontrolledZoom] = React.useState(1);
   const zoom = controlledZoom ?? uncontrolledZoom;
   const setZoom = (z: number) => {
     const clamped = Math.min(4, Math.max(0, z));
@@ -50,7 +50,6 @@ export const Gantt: React.FC<GanttProps> = ({
 
   const valid = items.filter(i => i.start instanceof Date && !isNaN(i.start.getTime()) && i.end instanceof Date && !isNaN(i.end.getTime()) && i.end >= i.start);
 
-  // Derive timeline boundaries only if we have data
   let min: Date | null = null;
   let max: Date | null = null;
   if (valid.length) {
@@ -62,8 +61,8 @@ export const Gantt: React.FC<GanttProps> = ({
   }
 
   const totalDays = min && max ? Math.max(1, Math.ceil((max.getTime() - min.getTime()) / (24*3600*1000))) : 1;
-  const tierWidths = [10, 18, 28, 42, 64]; // increasingly wider per day
-  const autoDayWidth = dayWidth ?? tierWidths[zoom] ?? 28;
+  const tierWidths = [12, 24, 36, 52, 72];
+  const autoDayWidth = dayWidth ?? tierWidths[zoom] ?? 36;
   const timelineWidth = totalDays * autoDayWidth;
 
   const gridDays: Date[] = [];
@@ -76,7 +75,6 @@ export const Gantt: React.FC<GanttProps> = ({
     return (date.getTime() - min.getTime()) / (max.getTime() - min.getTime());
   };
 
-  // Grouping
   const groups = React.useMemo(() => {
     if (!groupBy) return [{ key: '_all', label: 'All', rows: valid }];
     const map = new Map<string, GanttItem[]>();
@@ -92,101 +90,164 @@ export const Gantt: React.FC<GanttProps> = ({
   const showTodayMarker = showToday && todayPercent != null && todayPercent >= 0 && todayPercent <= 1;
 
   return (
-    <div className={"relative w-full overflow-auto rounded-lg border border-white/10 bg-white/[0.03] " + className} style={{ WebkitOverflowScrolling: 'touch' }}>
+    <div className={"relative w-full overflow-auto rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] " + className} style={{ WebkitOverflowScrolling: 'touch' }}>
+      {/* Ambient glow effect */}
+      <div className="pointer-events-none absolute -top-20 right-0 h-64 w-64 rounded-full bg-[#1dff00]/10 blur-3xl opacity-40" />
+      
       {/* Header timeline scale + zoom controls */}
-      <div className="sticky top-0 z-20 border-b border-white/10 bg-black/60 backdrop-blur-md">
+      <div className="sticky top-0 z-20 border-b border-[#1dff00]/20 bg-[#0a0a0a]/95 backdrop-blur-xl">
         <div className="flex items-stretch">
-          <div className="w-48 flex items-center gap-2 px-2 border-r border-white/10 text-[10px] text-white/50">
-            <span>Timeline</span>
-            <div className="ml-auto inline-flex items-center gap-1">
-              <button aria-label="Zoom out" className="h-5 w-5 rounded bg-white/10 text-white/60 hover:text-white hover:bg-white/20 text-[10px]" onClick={() => setZoom(zoom-1)}>-</button>
-              <span className="px-1 tabular-nums">{zoom}</span>
-              <button aria-label="Zoom in" className="h-5 w-5 rounded bg-white/10 text-white/60 hover:text-white hover:bg-white/20 text-[10px]" onClick={() => setZoom(zoom+1)}>+</button>
+          <div className="w-64 flex items-center justify-between gap-3 px-4 py-3 border-r border-[#1dff00]/20">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-[#1dff00] shadow-[0_0_8px_rgba(29,255,0,0.6)]" />
+              <span className="text-xs font-medium bg-gradient-to-r from-[#1dff00] to-[#6dffb0] bg-clip-text text-transparent">Timeline View</span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-lg bg-neutral-900/60 p-1 border border-neutral-700/50">
+              <button 
+                aria-label="Zoom out" 
+                className="h-6 w-6 rounded-md bg-transparent hover:bg-neutral-800 text-white/60 hover:text-[#1dff00] text-xs font-medium transition-all duration-200 hover:scale-105" 
+                onClick={() => setZoom(zoom-1)}
+              >
+                −
+              </button>
+              <span className="px-2 text-xs tabular-nums text-white/70 font-medium min-w-[2ch]">{zoom}</span>
+              <button 
+                aria-label="Zoom in" 
+                className="h-6 w-6 rounded-md bg-transparent hover:bg-neutral-800 text-white/60 hover:text-[#1dff00] text-xs font-medium transition-all duration-200 hover:scale-105" 
+                onClick={() => setZoom(zoom+1)}
+              >
+                +
+              </button>
             </div>
           </div>
           {min && max ? (
-            <div className="relative" style={{ width: timelineWidth }}>
-              <div className="flex text-[10px] font-medium text-white/50 select-none">
-                {gridDays.map((d,i) => (
-                  <div key={i} style={{ width: autoDayWidth }} className="py-1 text-center border-r border-white/5 last:border-r-0">
-                    {d.toLocaleDateString(undefined,{ month:'short', day:'numeric' })}
-                  </div>
-                ))}
+            <div className="relative flex-1" style={{ width: timelineWidth }}>
+              <div className="flex text-[11px] font-medium text-white/60 select-none">
+                {gridDays.map((d,i) => {
+                  const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                  return (
+                    <div 
+                      key={i} 
+                      style={{ width: autoDayWidth }} 
+                      className={`py-2.5 text-center border-r border-[#1dff00]/5 last:border-r-0 transition-colors ${isWeekend ? 'bg-white/[0.02]' : ''}`}
+                    >
+                      <div className="text-white/40 text-[9px] uppercase tracking-wider">{d.toLocaleDateString(undefined,{ weekday:'short' })}</div>
+                      <div className="text-white/70 font-semibold">{d.toLocaleDateString(undefined,{ month:'short', day:'numeric' })}</div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ) : (
-            <div className="flex-1 flex items-center px-3 text-[11px] text-white/40">No data</div>
+            <div className="flex-1 flex items-center px-4 text-xs text-white/40">
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 w-1.5 rounded-full bg-white/20 animate-pulse" />
+                No timeline data available
+              </div>
+            </div>
           )}
         </div>
       </div>
-      <div className="relative" style={{ width: (min && max ? timelineWidth : 0) + 48 }}>
-        <div className="absolute inset-y-0 left-48 w-px bg-white/10" />
-        {/* vertical grid beyond label gutter */}
+      
+      <div className="relative" style={{ width: (min && max ? timelineWidth : 0) + 64 }}>
+        <div className="absolute inset-y-0 left-64 w-[1px] bg-gradient-to-b from-[#1dff00]/20 via-[#1dff00]/10 to-transparent" />
+        
+        {/* Vertical grid */}
         {min && max && (
-        <div className="absolute inset-y-0 left-48 right-0 pointer-events-none select-none">
+        <div className="absolute inset-y-0 left-64 right-0 pointer-events-none select-none">
           <div className="flex h-full w-full">
-            {gridDays.map((_,i) => (
-              <div key={i} style={{ width: autoDayWidth }} className="h-full border-r border-white/[0.05] last:border-r-0" />
-            ))}
+            {gridDays.map((d,i) => {
+              const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+              return (
+                <div 
+                  key={i} 
+                  style={{ width: autoDayWidth }} 
+                  className={`h-full border-r border-[#1dff00]/[0.03] last:border-r-0 ${isWeekend ? 'bg-white/[0.01]' : ''}`} 
+                />
+              );
+            })}
           </div>
           {showTodayMarker && (
-            <div className="absolute top-0 bottom-0" style={{ left: `calc(${todayPercent!*100}% + 48px)` }}>
-              <div className="h-full w-px bg-[#1dff00] shadow-[0_0_0_1px_rgba(29,255,0,0.4)]" />
-              <div className="absolute -top-2 -translate-x-1/2 px-1 py-0.5 rounded bg-[#1dff00] text-black text-[9px] font-semibold">Today</div>
+            <div className="absolute top-0 bottom-0" style={{ left: `${todayPercent!*100}%` }}>
+              <div className="h-full w-[2px] bg-gradient-to-b from-[#1dff00] via-[#1dff00]/80 to-[#1dff00]/20 shadow-[0_0_8px_rgba(29,255,0,0.5)]" />
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-1 rounded-md bg-[#1dff00] text-black text-[10px] font-bold tracking-wide shadow-lg">
+                Today
+              </div>
             </div>
           )}
         </div>
         )}
+        
         <div className="relative">
           {valid.length === 0 && (
-            <div className="p-4 text-xs text-white/50">No timeline data.</div>
+            <div className="p-8 text-center">
+              <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-white/5 border border-white/10 mb-3">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#1dff00]/20 to-transparent" />
+              </div>
+              <div className="text-sm text-white/50">No applications to display</div>
+              <div className="text-xs text-white/30 mt-1">Add applications to see them on the timeline</div>
+            </div>
           )}
           {valid.length > 0 && groups.map(g => (
             <div key={g.key} className="relative">
               {groups.length > 1 && (
-                <div className="sticky left-0 z-10 w-48 bg-black/30 backdrop-blur-sm border-r border-white/10 py-1 px-2 text-[11px] font-medium text-white/70">
-                  {g.label}
+                <div className="sticky left-0 z-10 w-64 bg-gradient-to-r from-[#0a0a0a] to-[#0a0a0a]/80 backdrop-blur-sm border-r border-[#1dff00]/20 py-2 px-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-[#1dff00]/60" />
+                    <span className="text-xs font-semibold text-white/80">{g.label}</span>
+                    <span className="ml-auto text-[10px] text-white/40 bg-white/5 px-1.5 py-0.5 rounded">{g.rows.length}</span>
+                  </div>
                 </div>
               )}
-              <div className={groups.length>1 ? 'pl-48' : ''}>
-                <div className="relative divide-y divide-white/5">
+              <div className={groups.length>1 ? 'pl-64' : ''}>
+                <div className="relative divide-y divide-[#1dff00]/5">
                   {g.rows.map(item => {
                     const startP = percent(item.start);
                     const endP = percent(item.end);
                     const left = startP * 100;
-                    const widthPct = Math.max(0.5, (endP - startP) * 100);
+                    const widthPct = Math.max(0.8, (endP - startP) * 100);
                     const color = statusColor(item.status);
                     const days = Math.max(1, Math.round((item.end.getTime() - item.start.getTime())/86400000));
                     return (
-                      <div key={item.id} className="relative group/item" style={{ height }}>
-                        <div className="absolute inset-y-0 left-0 flex items-center pl-2 pr-2 w-48 overflow-hidden">
-                          <div className="truncate text-xs text-white/70">
-                            {renderLabel ? renderLabel(item) : item.label}
+                      <div key={item.id} className="relative group/item hover:bg-white/[0.02] transition-colors" style={{ height }}>
+                        <div className="absolute inset-y-0 left-0 flex items-center pl-4 pr-3 w-64 overflow-hidden">
+                          <div className="flex items-center gap-2 w-full">
+                            <div className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${item.status === 'Applied' ? 'bg-[#1dff00]' : item.status === 'Interview' ? 'bg-amber-400' : item.status === 'Offer' ? 'bg-lime-400' : item.status === 'Rejected' ? 'bg-rose-400' : 'bg-gray-400'} shadow-[0_0_4px_currentColor]`} />
+                            <div className="truncate text-xs font-medium text-white/80">
+                              {renderLabel ? renderLabel(item) : item.label}
+                            </div>
                           </div>
                         </div>
-                        <div className="absolute inset-y-0 left-48" style={{ right: 0 }}>
+                        <div className="absolute inset-y-0 left-64" style={{ right: 0 }}>
                           <div className="relative h-full">
                             <div
-                              className="absolute group rounded-md overflow-hidden ring-1 ring-white/10 shadow-sm hover:ring-white/30 hover:shadow-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1dff00]/50"
-                              style={{ left: `calc(${left}% + 0px)`, width: widthPct + '%', top: height*0.2, height: height*0.6, background: color.bg }}
+                              className="absolute group rounded-lg overflow-hidden ring-1 ring-white/10 shadow-md hover:ring-[#1dff00]/40 hover:shadow-[0_0_20px_rgba(29,255,0,0.2)] transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1dff00]/60 transform hover:scale-[1.02]"
+                              style={{ left: `${left}%`, width: widthPct + '%', top: height*0.25, height: height*0.5, background: color.bg }}
                               title={`${item.label}\n${item.start.toLocaleDateString()} → ${item.end.toLocaleDateString()} (${days}d)`}
                               aria-label={`Timeline for ${item.label}`}
                               tabIndex={0}
                               onClick={(e) => onBarClick?.(item, e)}
                               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onBarClick?.(item, e as any); } }}
                             >
-                              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-white/5 transition" />
-                              <div className="flex h-full w-full items-center px-2 text-[10px] font-medium tracking-wide" style={{ color: color.fg }}>
+                              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-r from-white/10 via-transparent to-white/10 transition-opacity" />
+                              <div className="flex h-full w-full items-center justify-center px-3 text-[11px] font-semibold tracking-wide" style={{ color: color.fg }}>
                                 {renderBarContent ? renderBarContent(item) : (item.status || '')}
                               </div>
-                              {/* Tooltip */}
-                              <div className="absolute z-30 hidden group-hover:flex -top-2 left-1/2 -translate-y-full -translate-x-1/2 min-w-[180px] max-w-[260px] flex-col rounded-md border border-white/15 bg-black/80 backdrop-blur p-2 shadow-lg text-xs text-white/70">
-                                <div className="font-medium text-white truncate mb-1">{item.label}</div>
-                                <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-                                  <span className="text-white/40">Status</span><span>{item.status}</span>
-                                  <span className="text-white/40">Start</span><span>{item.start.toLocaleDateString()}</span>
-                                  <span className="text-white/40">End</span><span>{item.end.toLocaleDateString()}</span>
-                                  <span className="text-white/40">Length</span><span>{days}d</span>
+                              {/* Enhanced Tooltip */}
+                              <div className="absolute z-30 hidden group-hover:flex -top-3 left-1/2 -translate-y-full -translate-x-1/2 min-w-[220px] max-w-[280px] flex-col rounded-xl border border-[#1dff00]/30 bg-gradient-to-br from-[#0a0a0a] to-[#0f0f0f] backdrop-blur-xl p-3 shadow-[0_0_30px_rgba(29,255,0,0.2)]">
+                                <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/10">
+                                  <div className={`h-2 w-2 rounded-full ${item.status === 'Applied' ? 'bg-[#1dff00]' : item.status === 'Interview' ? 'bg-amber-400' : item.status === 'Offer' ? 'bg-lime-400' : item.status === 'Rejected' ? 'bg-rose-400' : 'bg-gray-400'}`} />
+                                  <div className="font-semibold text-white text-sm truncate">{item.label}</div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
+                                  <span className="text-white/40">Status</span>
+                                  <span className="text-white/90 font-medium">{item.status}</span>
+                                  <span className="text-white/40">Start Date</span>
+                                  <span className="text-white/90">{item.start.toLocaleDateString()}</span>
+                                  <span className="text-white/40">End Date</span>
+                                  <span className="text-white/90">{item.end.toLocaleDateString()}</span>
+                                  <span className="text-white/40">Duration</span>
+                                  <span className="text-[#1dff00] font-semibold">{days} day{days !== 1 ? 's' : ''}</span>
                                 </div>
                               </div>
                             </div>
@@ -201,7 +262,9 @@ export const Gantt: React.FC<GanttProps> = ({
           ))}
         </div>
       </div>
-      <div className="absolute top-0 left-0 w-48 h-full pointer-events-none bg-gradient-to-r from-black/50 to-transparent" />
+      
+      {/* Sidebar gradient overlay */}
+      <div className="absolute top-0 left-0 w-64 h-full pointer-events-none bg-gradient-to-r from-[#0a0a0a]/60 via-[#0a0a0a]/30 to-transparent" />
     </div>
   );
 };
