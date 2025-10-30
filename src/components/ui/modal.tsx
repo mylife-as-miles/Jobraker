@@ -32,22 +32,24 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, fo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-50">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       {side === "center" ? (
-        <div className={cn("relative z-10 w-full", sizes[size])}>
-          <div className="mx-auto flex w-full max-h-[calc(100vh-2rem)] flex-col rounded-lg border border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] shadow-[0_0_30px_rgba(29,255,0,0.2)]">
-            {title && (
-              <div className="border-b border-[#1dff00]/20 px-5 py-4">
-                <h3 className="text-white font-semibold">{title}</h3>
-              </div>
-            )}
-            <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
-            {footer && <div className="border-t border-[#1dff00]/20 px-5 py-4">{footer}</div>}
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <div className={cn("relative z-10 w-full max-h-[90vh] overflow-y-auto", sizes[size])}>
+            <div className="flex w-full flex-col rounded-lg border border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] shadow-[0_0_30px_rgba(29,255,0,0.2)]">
+              {title && (
+                <div className="border-b border-[#1dff00]/20 px-5 py-4">
+                  <h3 className="text-white font-semibold">{title}</h3>
+                </div>
+              )}
+              <div className="px-5 py-4">{children}</div>
+              {footer && <div className="border-t border-[#1dff00]/20 px-5 py-4">{footer}</div>}
+            </div>
           </div>
         </div>
       ) : (
-        <div className="relative z-10 ml-auto h-full w-full max-w-xl">
+        <div className="fixed inset-y-0 right-0 z-10 w-full max-w-xl">
           <div className="h-full w-full border-l border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] shadow-[0_0_30px_rgba(29,255,0,0.2)]">
             {title && (
               <div className="px-5 py-4 border-b border-[#1dff00]/20 sticky top-0 bg-transparent">
