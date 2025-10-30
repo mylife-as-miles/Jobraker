@@ -249,8 +249,8 @@ export const Dashboard = (): JSX.Element => {
 
       {/* Sidebar - Responsive */}
       <div className={`
-        fixed lg:static inset-y-0 left-0 z-50 w-56 sm:w-64 lg:w-72 xl:w-80 bg-[#0a0a0a] border-r border-[#1dff00]/20 flex flex-col
-        transform transition-transform duration-300 ease-in-out lg:transform-none
+        fixed inset-y-0 left-0 z-50 w-56 sm:w-64 lg:w-72 xl:w-80 bg-[#0a0a0a] border-r border-[#1dff00]/20 flex flex-col
+        transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* Logo - Responsive */}
@@ -329,7 +329,7 @@ export const Dashboard = (): JSX.Element => {
       </div>
 
       {/* Main Content - Responsive */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-72 xl:ml-80">
         {/* Header - Responsive */}
         <header className="sticky top-0 z-40 bg-[#0a0a0a]/95 backdrop-blur border-b border-[#1dff00]/20 p-2 sm:p-3 lg:p-4">
           <div className="flex items-center justify-between gap-2">
