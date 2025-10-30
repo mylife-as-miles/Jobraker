@@ -69,24 +69,24 @@ export const CoverLetterCard = ({ letter, onDelete, isSelected, onToggleSelect }
   return (
     <>
       <div
-        className={`group relative flex h-[300px] flex-col rounded-lg border transition-all ${
+        className={`group relative flex h-[300px] flex-col rounded-2xl border backdrop-blur-xl transition-all duration-300 overflow-hidden ${
           isSelected
-            ? 'border-[#1dff00] bg-[#1dff00]/10 shadow-[0_0_20px_-5px_rgba(29,255,0,0.4)]'
-            : 'border-white/10 bg-gradient-to-br from-white/5 to-transparent hover:border-[#1dff00]/50 hover:shadow-[0_0_30px_-5px_rgba(29,255,0,0.2)]'
+            ? 'border-[#1dff00] bg-gradient-to-br from-[#1dff00]/15 via-[#1dff00]/10 to-[#1dff00]/5 shadow-[0_0_30px_rgba(29,255,0,0.3)] scale-[1.02]'
+            : 'border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a]/95 via-[#0f0f0f]/95 to-[#0a0a0a]/95 hover:border-[#1dff00]/50 hover:shadow-[0_0_40px_rgba(29,255,0,0.2)] hover:scale-[1.02]'
         }`}
       >
         {/* Header */}
-        <div className="flex items-start justify-between p-4 border-b border-white/10">
+        <div className="flex items-start justify-between p-4 border-b border-[#1dff00]/20 bg-gradient-to-r from-black/30 to-transparent backdrop-blur-sm">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="flex-shrink-0 p-2 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30">
-              <FileText className="w-5 h-5 text-[#1dff00]" />
+            <div className="flex-shrink-0 p-2.5 rounded-xl bg-gradient-to-br from-[#1dff00]/15 to-[#1dff00]/5 border border-[#1dff00]/40 shadow-[0_0_15px_rgba(29,255,0,0.2)] group-hover:scale-110 transition-transform duration-300">
+              <FileText className="w-5 h-5 text-[#1dff00] drop-shadow-[0_0_8px_rgba(29,255,0,0.8)]" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-white truncate text-sm">
+              <h3 className="font-bold text-white truncate text-base group-hover:text-[#1dff00] transition-colors duration-300">
                 {letter.name}
               </h3>
-              <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
-                <Calendar className="w-3 h-3" />
+              <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-1">
+                <Calendar className="w-3.5 h-3.5 text-[#1dff00]/60" />
                 <span>{formatDate(letter.updatedAt)}</span>
               </div>
             </div>
@@ -98,30 +98,30 @@ export const CoverLetterCard = ({ letter, onDelete, isSelected, onToggleSelect }
               e.stopPropagation();
               onToggleSelect();
             }}
-            className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+            className={`flex-shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
               isSelected
-                ? 'bg-[#1dff00] border-[#1dff00]'
-                : 'border-white/30 hover:border-[#1dff00]/50'
+                ? 'bg-[#1dff00] border-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.5)] scale-110'
+                : 'border-white/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/10 hover:scale-110'
             }`}
           >
-            {isSelected && <Check className="w-3 h-3 text-black" />}
+            {isSelected && <Check className="w-4 h-4 text-black font-bold" />}
           </button>
         </div>
 
         {/* Content Preview */}
-        <div className="flex-1 p-4 space-y-2 overflow-hidden">
-          <div className="flex items-center gap-2 text-xs text-gray-300">
-            <Building2 className="w-3 h-3" />
-            <span className="truncate">{company}</span>
+        <div className="flex-1 p-4 space-y-3 overflow-hidden">
+          <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-gradient-to-br from-[#1dff00]/10 to-[#1dff00]/5 border border-[#1dff00]/20">
+            <Building2 className="w-4 h-4 text-[#1dff00] flex-shrink-0" />
+            <span className="truncate text-sm text-white font-medium">{company}</span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-gray-300">
-            <Briefcase className="w-3 h-3" />
-            <span className="truncate">{role}</span>
+          <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-gradient-to-br from-white/10 to-white/5 border border-white/20">
+            <Briefcase className="w-4 h-4 text-gray-300 flex-shrink-0" />
+            <span className="truncate text-sm text-gray-200">{role}</span>
           </div>
           
           {hasContent && (
-            <div className="mt-3 pt-3 border-t border-white/10">
-              <p className="text-xs text-gray-400 line-clamp-4">
+            <div className="mt-3 pt-3 border-t border-[#1dff00]/20">
+              <p className="text-xs text-gray-400 line-clamp-5 leading-relaxed">
                 {data.content || data.paragraphs?.[0] || 'No content yet...'}
               </p>
             </div>
@@ -129,12 +129,12 @@ export const CoverLetterCard = ({ letter, onDelete, isSelected, onToggleSelect }
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center gap-2 p-3 border-t border-white/10 bg-black/20">
+        <div className="flex items-center gap-2 p-3 border-t border-[#1dff00]/20 bg-gradient-to-r from-black/40 to-black/20 backdrop-blur-sm">
           <button
             onClick={handleOpen}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] text-xs font-medium hover:bg-[#1dff00]/20 transition-all"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br from-[#1dff00]/15 to-[#1dff00]/5 border border-[#1dff00]/40 text-[#1dff00] text-sm font-semibold hover:from-[#1dff00]/25 hover:to-[#1dff00]/10 hover:border-[#1dff00]/60 hover:shadow-[0_0_20px_rgba(29,255,0,0.2)] hover:scale-105 transition-all duration-200 group/btn"
           >
-            <Pencil className="w-3 h-3" />
+            <Pencil className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
             Edit
           </button>
           <button
@@ -142,95 +142,122 @@ export const CoverLetterCard = ({ letter, onDelete, isSelected, onToggleSelect }
               e.stopPropagation();
               setShowPreview(true);
             }}
-            className="px-3 py-2 rounded-lg border border-white/20 hover:border-white/40 text-white text-xs transition-all"
+            className="px-4 py-2.5 rounded-xl border border-white/30 hover:border-white/50 text-white text-sm hover:bg-white/10 hover:scale-105 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-200 group/btn"
             title="Preview"
           >
-            <Eye className="w-3 h-3" />
+            <Eye className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
           </button>
           <button
             onClick={handleDelete}
-            className="px-3 py-2 rounded-lg border border-red-500/40 hover:bg-red-500/10 text-red-400 text-xs transition-all"
+            className="px-4 py-2.5 rounded-xl border border-red-500/50 hover:bg-red-500/15 text-red-400 hover:text-red-300 text-sm hover:border-red-500/70 hover:scale-105 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all duration-200 group/btn"
             title="Delete"
           >
-            <Trash2 className="w-3 h-3" />
+            <Trash2 className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
           </button>
         </div>
 
-        {/* Hover glow */}
-        <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-[#1dff00]/0 via-[#1dff00]/5 to-[#1dff00]/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+        {/* Enhanced Hover glow */}
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#1dff00]/0 via-[#1dff00]/10 to-[#1dff00]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+        
+        {/* Ambient corner glows */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-[#1dff00]/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#1dff00]/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
       </div>
 
-      {/* Preview Modal */}
+      {/* Enhanced Preview Modal */}
       {showPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in-0 duration-300">
           <div 
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
+            className="absolute inset-0 bg-black/90 backdrop-blur-xl" 
             onClick={() => setShowPreview(false)}
           />
-          <div className="relative z-10 w-full max-w-3xl max-h-[80vh] overflow-auto rounded-xl border border-white/20 bg-white shadow-2xl">
-            <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b border-gray-200 bg-white">
-              <h3 className="font-semibold text-gray-900">{letter.name}</h3>
+          <div className="relative z-10 w-full max-w-4xl max-h-[85vh] overflow-hidden rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 shadow-[0_0_80px_rgba(29,255,0,0.3)] backdrop-blur-xl animate-in zoom-in-95 duration-300">
+            {/* Modal Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-[#1dff00]/30 bg-gradient-to-r from-[#0a0a0a]/98 to-[#0f0f0f]/98 backdrop-blur-xl">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-[#1dff00]/15 to-[#1dff00]/5 border border-[#1dff00]/40">
+                  <Eye className="w-5 h-5 text-[#1dff00]" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-white">{letter.name}</h3>
+                  <p className="text-xs text-gray-400">Cover Letter Preview</p>
+                </div>
+              </div>
               <button
                 onClick={() => setShowPreview(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="flex items-center justify-center w-10 h-10 rounded-xl border border-white/20 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/10 text-white hover:text-[#1dff00] transition-all duration-200 hover:scale-110"
               >
-                ✕
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
-            <div className="p-8 text-gray-900 text-sm leading-relaxed space-y-4">
-              {/* Sender */}
-              {data.senderName && (
-                <div className="text-right mb-4">
-                  <p className="font-semibold">{data.senderName}</p>
-                  {data.senderPhone && <p>{data.senderPhone}</p>}
-                  {data.senderEmail && <p>{data.senderEmail}</p>}
-                  {data.senderAddress && <p>{data.senderAddress}</p>}
+            
+            {/* Modal Content - Letter Preview */}
+            <div className="overflow-auto max-h-[calc(85vh-80px)] p-6">
+              <div className="mx-auto max-w-3xl rounded-2xl border border-white/20 bg-white shadow-[0_0_60px_rgba(0,0,0,0.5)] p-12">
+                <div className="text-gray-900 text-[15px] leading-relaxed space-y-5">
+                  {/* Sender */}
+                  {data.senderName && (
+                    <div className="text-right mb-6">
+                      <p className="font-bold text-base">{data.senderName}</p>
+                      {data.senderPhone && <p className="mt-1">{data.senderPhone}</p>}
+                      {data.senderEmail && <p className="mt-0.5">{data.senderEmail}</p>}
+                      {data.senderAddress && <p className="mt-0.5 text-gray-600">{data.senderAddress}</p>}
+                    </div>
+                  )}
+                  
+                  {/* Date */}
+                  {data.date && (
+                    <p className="text-right mb-6 text-gray-700">
+                      {new Date(data.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  )}
+                  
+                  {/* Recipient */}
+                  {(data.recipient || data.company) && (
+                    <div className="mb-6">
+                      {data.recipient && <p className="font-semibold">{data.recipient}</p>}
+                      {data.recipientTitle && <p className="text-gray-700 mt-0.5">{data.recipientTitle}</p>}
+                      {data.company && <p className="font-medium mt-1">{data.company}</p>}
+                      {data.recipientAddress && <p className="text-gray-600 mt-0.5">{data.recipientAddress}</p>}
+                    </div>
+                  )}
+                  
+                  {/* Subject */}
+                  {data.subject && (
+                    <p className="font-bold mb-6 text-gray-900">Subject: {data.subject}</p>
+                  )}
+                  
+                  {/* Salutation */}
+                  {data.salutation && <p className="mb-5 text-gray-900">{data.salutation}</p>}
+                  
+                  {/* Body */}
+                  {Array.isArray(data.paragraphs) && data.paragraphs.length > 0 ? (
+                    <div className="space-y-4">
+                      {data.paragraphs.map((p: string, i: number) => (
+                        <p key={i} className="whitespace-pre-wrap text-gray-800 leading-relaxed">{p}</p>
+                      ))}
+                    </div>
+                  ) : data.content ? (
+                    <div className="space-y-4">
+                      {data.content.split('\n\n').map((p: string, i: number) => (
+                        <p key={i} className="whitespace-pre-wrap text-gray-800 leading-relaxed">{p}</p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-400 italic text-center py-8">No content available</p>
+                  )}
+                  
+                  {/* Closing */}
+                  {(data.closing || data.signatureName) && (
+                    <div className="mt-8 pt-4">
+                      {data.closing && <p className="mb-12 text-gray-900">{data.closing}</p>}
+                      {data.signatureName && <p className="font-bold text-gray-900">{data.signatureName}</p>}
+                    </div>
+                  )}
                 </div>
-              )}
-              
-              {/* Date */}
-              {data.date && (
-                <p className="text-right mb-4">
-                  {new Date(data.date).toLocaleDateString()}
-                </p>
-              )}
-              
-              {/* Recipient */}
-              {(data.recipient || data.company) && (
-                <div className="mb-4">
-                  {data.recipient && <p>{data.recipient}</p>}
-                  {data.recipientTitle && <p>{data.recipientTitle}</p>}
-                  {data.company && <p>{data.company}</p>}
-                  {data.recipientAddress && <p>{data.recipientAddress}</p>}
-                </div>
-              )}
-              
-              {/* Subject */}
-              {data.subject && (
-                <p className="font-semibold mb-4">Subject: {data.subject}</p>
-              )}
-              
-              {/* Salutation */}
-              {data.salutation && <p className="mb-4">{data.salutation}</p>}
-              
-              {/* Body */}
-              {Array.isArray(data.paragraphs) && data.paragraphs.length > 0 ? (
-                data.paragraphs.map((p: string, i: number) => (
-                  <p key={i} className="whitespace-pre-wrap">{p}</p>
-                ))
-              ) : data.content ? (
-                <p className="whitespace-pre-wrap">{data.content}</p>
-              ) : (
-                <p className="text-gray-400 italic">No content</p>
-              )}
-              
-              {/* Closing */}
-              {(data.closing || data.signatureName) && (
-                <div className="mt-6">
-                  {data.closing && <p className="mb-8">{data.closing}</p>}
-                  {data.signatureName && <p className="font-semibold">{data.signatureName}</p>}
-                </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
