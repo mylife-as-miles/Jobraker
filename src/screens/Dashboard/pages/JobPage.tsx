@@ -1555,65 +1555,69 @@ export const JobPage = (): JSX.Element => {
     };
 
     return (
-      <div className="min-h-screen bg-black" role="main" aria-label="Job search">
-        <div className="w-full max-w-7xl mx-auto p-3 sm:p-6 lg:p-8">
-          <div className="mb-4 sm:mb-6 lg:mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-              <div>
-                <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-1 sm:mb-2">Job Search</h1>
-                <p className="text-[#ffffff80] text-xs sm:text-sm md:text-base">A personalized list of jobs waiting for you.</p>
+      <div className="relative min-h-screen bg-black" role="main" aria-label="Job search">
+        {/* Ambient Background Glow */}
+        <div className="fixed top-20 left-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10"></div>
+        <div className="fixed bottom-0 right-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10"></div>
+        
+        <div className="relative w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
+              <div className="space-y-1">
+                <h1 className="text-3xl sm:text-4xl font-bold text-white bg-gradient-to-r from-white to-white/70 bg-clip-text">Job Search</h1>
+                <p className="text-sm sm:text-base text-white/50">Discover opportunities matched to your profile and goals</p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                  <div className="relative flex w-full sm:min-w-[240px] sm:w-auto flex-col gap-2 sm:gap-3 rounded-xl sm:rounded-2xl border border-[#1dff00]/30 bg-[#1dff00]/10 px-3 py-2 sm:px-4 sm:py-3 text-white shadow-[0_12px_32px_rgba(29,255,0,0.18)] sm:flex-row sm:items-center sm:gap-4">
-                    <div className="space-y-1">
-                      <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.3em] sm:tracking-[0.35em] text-[#1dff00]/80">Automation readiness</div>
-                      <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium">
+              <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative flex w-full sm:min-w-[280px] sm:w-auto flex-col gap-3 rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#1dff00]/10 to-[#1dff00]/5 px-4 py-3 shadow-[0_0_30px_rgba(29,255,0,0.15)] backdrop-blur-sm sm:flex-row sm:items-center sm:gap-4">
+                    {/* Subtle gradient overlay */}
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/5 via-transparent to-transparent pointer-events-none"></div>
+                    
+                    <div className="relative z-10 space-y-1">
+                      <div className="text-[10px] uppercase tracking-[0.35em] text-[#1dff00]/80 font-semibold">Automation readiness</div>
+                      <div className="flex items-center gap-2 text-sm font-medium">
                         {profileReady && resumeLibraryReady ? (
                           <>
-                            <ShieldCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#1dff00]" />
-                            <span className="text-xs sm:text-sm">Ready to launch</span>
+                            <ShieldCheck className="h-4 w-4 text-[#1dff00]" />
+                            <span className="text-white">Ready to launch</span>
                           </>
                         ) : (
                           <>
-                            <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#ffb347]" />
-                            <span className="text-xs sm:text-sm">Action required</span>
+                            <AlertTriangle className="h-4 w-4 text-[#ffb347]" />
+                            <span className="text-white/90">Action required</span>
                           </>
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 md:gap-3">
+                    <div className="relative z-10 flex flex-wrap items-center gap-2">
                       {profileLoading ? (
-                        <span className="inline-flex items-center gap-1.5 sm:gap-2 rounded-lg border border-white/15 bg-white/10 px-2 py-1 sm:px-2.5 text-[10px] sm:text-[11px] text-white/70">
-                          <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin" />
+                        <span className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-white/70">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           Syncing…
                         </span>
                       ) : (
                         <Link
                           to="/dashboard/profile"
                           className={cn(
-                            "inline-flex items-center gap-1 sm:gap-1.5 rounded-lg border px-2 py-1 sm:px-2.5 text-[10px] sm:text-[11px] transition-all",
+                            "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all hover:scale-105",
                             profileReady
-                              ? "border-[#1dff00]/60 bg-[#1dff00]/15 text-[#e6ffe6] hover:border-[#1dff00]/80 hover:bg-[#1dff00]/25"
-                              : "border-[#ffb347]/50 bg-[#ffb347]/10 text-[#ffd9a8] hover:border-[#ffb347]/70 hover:bg-[#ffb347]/20",
+                              ? "border-[#1dff00]/60 bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_10px_rgba(29,255,0,0.15)] hover:shadow-[0_0_15px_rgba(29,255,0,0.25)]"
+                              : "border-[#ffb347]/50 bg-gradient-to-br from-[#ffb347]/15 to-[#ffb347]/5 text-[#ffb347] shadow-[0_0_10px_rgba(255,179,71,0.15)] hover:shadow-[0_0_15px_rgba(255,179,71,0.25)]",
                           )}
                           title={profileReady ? "Profile details detected" : "Complete your profile"}
                         >
                           {profileReady ? (
-                            <UserCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#1dff00]" />
+                            <UserCheck className="h-3.5 w-3.5 text-[#1dff00]" />
                           ) : (
-                            <UserX className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#ffb347]" />
+                            <UserX className="h-3.5 w-3.5 text-[#ffb347]" />
                           )}
-                          <span className="font-medium hidden sm:inline">
+                          <span className="font-medium">
                             {profileReady ? 'Profile verified' : 'Complete profile'}
-                          </span>
-                          <span className="font-medium sm:hidden">
-                            {profileReady ? 'Profile' : 'Setup'}
                           </span>
                         </Link>
                       )}
                       {resumesLoading ? (
-                        <span className="inline-flex items-center gap-1.5 sm:gap-2 rounded-lg border border-white/15 bg-white/10 px-2 py-1 sm:px-2.5 text-[10px] sm:text-[11px] text-white/70">
-                          <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin" />
+                        <span className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-white/70">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           <span className="hidden sm:inline">Loading resumes…</span>
                           <span className="sm:hidden">Loading…</span>
                         </span>
@@ -1621,19 +1625,19 @@ export const JobPage = (): JSX.Element => {
                         <Link
                           to="/dashboard/resumes"
                           className={cn(
-                            "inline-flex items-center gap-1 sm:gap-1.5 rounded-lg border px-2 py-1 sm:px-2.5 text-[10px] sm:text-[11px] transition-all",
+                            "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all hover:scale-105",
                             resumeLibraryReady
-                              ? "border-[#1dff00]/60 bg-[#1dff00]/15 text-[#e6ffe6] hover:border-[#1dff00]/80 hover:bg-[#1dff00]/25"
-                              : "border-[#ffb347]/50 bg-[#ffb347]/10 text-[#ffd9a8] hover:border-[#ffb347]/70 hover:bg-[#ffb347]/20",
+                              ? "border-[#1dff00]/60 bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_10px_rgba(29,255,0,0.15)] hover:shadow-[0_0_15px_rgba(29,255,0,0.25)]"
+                              : "border-[#ffb347]/50 bg-gradient-to-br from-[#ffb347]/15 to-[#ffb347]/5 text-[#ffb347] shadow-[0_0_10px_rgba(255,179,71,0.15)] hover:shadow-[0_0_15px_rgba(255,179,71,0.25)]",
                           )}
                           title={resumeLibraryReady ? (selectedResume?.name ? `Selected resume: ${selectedResume.name}` : 'Resume library ready') : 'Upload a resume to unlock automation'}
                         >
                           {resumeLibraryReady ? (
-                            <FileCheck2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#1dff00]" />
+                            <FileCheck2 className="h-3.5 w-3.5 text-[#1dff00]" />
                           ) : (
-                            <FileWarning className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#ffb347]" />
+                            <FileWarning className="h-3.5 w-3.5 text-[#ffb347]" />
                           )}
-                          <span className="max-w-[100px] sm:max-w-[140px] truncate font-medium">
+                          <span className="max-w-[140px] truncate font-medium">
                             {resumeLibraryReady
                               ? selectedResume?.name
                                 ? `Resume: ${selectedResume.name}`
@@ -1740,51 +1744,66 @@ export const JobPage = (): JSX.Element => {
             />
           )}
 
-          <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] p-3 sm:p-4 md:p-6 mb-4 sm:mb-6 lg:mb-8" id="jobs-search-filters" data-tour="jobs-search-filters">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-              <div className="lg:col-span-2 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
+          <Card className="relative overflow-hidden bg-gradient-to-br from-[#0a0a0a]/95 to-[#0f0f0f]/95 border border-[#1dff00]/20 p-5 sm:p-6 mb-6 sm:mb-8 rounded-2xl shadow-[0_0_30px_rgba(29,255,0,0.1)] backdrop-blur-xl" id="jobs-search-filters" data-tour="jobs-search-filters">
+            {/* Subtle gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#1dff00]/5 via-transparent to-transparent pointer-events-none"></div>
+            
+            <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="lg:col-span-2 relative group">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#1dff00]/60 transition-colors group-focus-within:text-[#1dff00]" />
                 <Input
                   id="jobs-search"
                   data-tour="jobs-search"
-                  placeholder="Search jobs, companies..."
+                  placeholder="Search jobs, companies, keywords..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); populateQueue(searchQuery, selectedLocation); } }}
-                  className="pl-10 pr-24 bg-[#ffffff1a] border-[#ffffff33] text-white"
+                  className="pl-12 pr-28 h-12 bg-gradient-to-br from-white/5 to-white/[0.02] border-[#1dff00]/20 text-white placeholder:text-white/40 focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all duration-200 rounded-xl"
                 />
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  <span className="text-[10px] text-white/40 bg-white/5 px-2 py-1 rounded border border-white/10 whitespace-nowrap">
-                    {subscriptionTier === 'Ultimate' ? '100' : subscriptionTier === 'Pro' ? '50' : subscriptionTier === 'Basics' ? '20' : '10'} results/search
+                  <span className="text-[10px] font-medium text-[#1dff00]/80 bg-gradient-to-br from-[#1dff00]/15 to-[#1dff00]/5 px-2.5 py-1 rounded-lg border border-[#1dff00]/30 whitespace-nowrap">
+                    {subscriptionTier === 'Ultimate' ? '100' : subscriptionTier === 'Pro' ? '50' : subscriptionTier === 'Basics' ? '20' : '10'} results
                   </span>
                 </div>
               </div>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
+              <div className="relative group">
+                <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#1dff00]/60 transition-colors group-focus-within:text-[#1dff00]" />
                 <Input
                   id="jobs-location"
                   data-tour="jobs-location"
-                  placeholder="Location..."
+                  placeholder="Location or 'Remote'..."
                   value={selectedLocation}
                   onChange={(e) => setSelectedLocation(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); populateQueue(searchQuery, selectedLocation); } }}
-                  className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white"
+                  className="pl-12 h-12 bg-gradient-to-br from-white/5 to-white/[0.02] border-[#1dff00]/20 text-white placeholder:text-white/40 focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all duration-200 rounded-xl"
                 />
               </div>
             </div>
           </Card>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
-            <div className="space-y-3 sm:space-y-4">
-              <div className="flex items-center justify-between mb-2 sm:mb-3 sticky top-0 z-10 bg-transparent backdrop-blur supports-[backdrop-filter]:bg-black/20 rounded-lg px-1 py-2 lg:static lg:px-0 lg:py-0">
-                <h2 className="text-base sm:text-lg md:text-xl font-semibold text-white">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-3 sticky top-0 z-10 backdrop-blur-xl bg-gradient-to-br from-[#0a0a0a]/95 to-black/95 rounded-xl px-4 py-3 border border-[#1dff00]/10 lg:static lg:px-0 lg:py-0 lg:bg-transparent lg:border-0 lg:backdrop-blur-none">
+                <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                  <svg className="w-5 h-5 text-[#1dff00]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
                   {queueStatus === 'loading' && "Loading results..."}
                   {queueStatus === 'populating' && "Building your results..."}
-                  {(queueStatus === 'ready' || queueStatus === 'empty') && `${total} Jobs Found`}
+                  {(queueStatus === 'ready' || queueStatus === 'empty') && (
+                    <>
+                      <span>{total} Jobs Found</span>
+                      {total > 0 && (
+                        <span className="ml-2 text-xs font-normal px-2 py-1 rounded-lg bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/30">
+                          AI Matched
+                        </span>
+                      )}
+                    </>
+                  )}
                 </h2>
                 {(queueStatus === 'ready' || queueStatus === 'empty') && (
                   <div className="hidden sm:flex items-center gap-2">
-                    <span className="text-[10px] sm:text-[11px] text-white/50">Sort</span>
+                    <span className="text-xs text-white/50 font-medium">Sort</span>
                     <SimpleDropdown 
                       value={sortBy} 
                       onValueChange={(v) => setSortBy(v as any)}
@@ -1794,19 +1813,19 @@ export const JobPage = (): JSX.Element => {
                         { value: 'deadline', label: 'Deadline' }
                       ]}
                       placeholder="Sort by"
-                      triggerClassName="h-7 w-[130px] sm:h-8 sm:w-[160px] text-xs sm:text-sm"
+                      triggerClassName="h-8 w-[160px] text-sm bg-white/5 border-white/20 hover:bg-white/10"
                     />
                   </div>
                 )}
               </div>
 
               {queueStatus === 'ready' && total > 0 && (
-                <div className="hidden lg:grid grid-cols-[auto,1fr,auto] items-center gap-3 px-2 text-[11px] uppercase tracking-wide text-white/40">
+                <div className="hidden lg:grid grid-cols-[auto,1fr,auto] items-center gap-3 px-3 py-2 text-xs uppercase tracking-wider text-[#1dff00]/60 font-semibold bg-gradient-to-br from-white/5 to-white/[0.02] border border-[#1dff00]/10 rounded-xl">
                   <span className="pl-2">Role</span>
                   <div className="grid grid-cols-3 gap-2">
                     <span>Company</span>
-                    <span>Meta</span>
-                    <span>Posting</span>
+                    <span>Details</span>
+                    <span>Posted</span>
                   </div>
                 </div>
               )}
