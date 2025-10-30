@@ -10,7 +10,6 @@ export default function SortDropdown() {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [selected, setSelected] = useState<string>("Best match");
-  const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
 
   const options: Option[] = [
     { value: "score", label: "Best match" },
@@ -19,23 +18,8 @@ export default function SortDropdown() {
     { value: "status", label: "Status" },
   ];
 
-  const updateCoords = () => {
-    const btn = triggerRef.current;
-    if (!btn) return setCoords(null);
-    const rect = btn.getBoundingClientRect();
-    setCoords({
-      top: rect.bottom + 6 + window.scrollY, // added spacing below button
-      left: rect.left + window.scrollX,
-      width: rect.width,
-    });
-  };
-
   const toggleOpen = () => {
-    setIsOpen((prev) => {
-      const next = !prev;
-      if (next) requestAnimationFrame(updateCoords);
-      return next;
-    });
+    setIsOpen((prev) => !prev);
   };
 
   // Close dropdown on outside click or Escape key
@@ -56,18 +40,6 @@ export default function SortDropdown() {
     };
   }, []);
 
-  // Recalculate position when open
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleReposition = () => updateCoords();
-    window.addEventListener("scroll", handleReposition, { passive: true });
-    window.addEventListener("resize", handleReposition);
-    return () => {
-      window.removeEventListener("scroll", handleReposition);
-      window.removeEventListener("resize", handleReposition);
-    };
-  }, [isOpen]);
-
   const handleSelect = (opt: Option) => {
     setSelected(opt.label);
     setIsOpen(false);
@@ -75,14 +47,14 @@ export default function SortDropdown() {
 
   return (
     <div className="relative inline-block text-sm" ref={rootRef}>
-      {/* Trigger Button */}
+      {/* Trigger Button - Updated to match ModelDropdown */}
       <button
         ref={triggerRef}
         type="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         onClick={toggleOpen}
-        className="inline-flex items-center justify-between w-[180px] px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-800 hover:bg-gray-50 transition"
+        className="inline-flex items-center justify-between w-[180px] px-3 py-2 rounded-md bg-neutral-900 text-white border border-neutral-700 hover:bg-neutral-800 transition-colors"
       >
         <span className="truncate">{selected}</span>
         <ChevronDown
@@ -90,36 +62,21 @@ export default function SortDropdown() {
         />
       </button>
 
-      {/* Dropdown Menu */}
-      {isOpen && coords && (
-        <div
-          style={{
-            position: "absolute",
-            top: "100%", // directly below the button
-            left: 0,
-            marginTop: "6px",
-            width: coords.width,
-          }}
-          className="z-[9999] mt-1"
-        >
-          <div className="bg-white border border-gray-200 rounded-md shadow-lg overflow-hidden max-h-[180px] overflow-y-auto">
-            <div role="listbox" aria-label="Sort options" className="p-1">
-              {options.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => handleSelect(opt)}
-                  className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm rounded transition ${
-                    selected === opt.label
-                      ? "bg-gray-100 text-gray-900"
-                      : "text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  <span className="truncate">{opt.label}</span>
-                  {selected === opt.label && <Check className="h-4 w-4 text-gray-700" />}
-                </button>
-              ))}
-            </div>
+      {/* Dropdown Menu - Updated to match ModelDropdown */}
+      {isOpen && (
+        <div className="absolute z-50 bottom-full mb-1 w-[180px] bg-neutral-900 border border-neutral-700 rounded-md shadow-lg">
+          <div role="listbox" aria-label="Sort options" className="p-1">
+            {options.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => handleSelect(opt)}
+                className="w-full flex items-center justify-between px-3 py-2 rounded text-left text-sm text-white bg-neutral-900 hover:bg-neutral-800"
+              >
+                <span className="truncate">{opt.label}</span>
+                {selected === opt.label && <Check className="h-4 w-4" />}
+              </button>
+            ))}
           </div>
         </div>
       )}
