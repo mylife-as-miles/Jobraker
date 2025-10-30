@@ -718,177 +718,420 @@ export const CoverLetter = () => {
   };
 
   return (
-    <div id="cover-page-root" className="flex min-h-[calc(100vh-4rem)] flex-col gap-4 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+    <div id="cover-page-root" className="relative flex min-h-[calc(100vh-4rem)] flex-col gap-6 px-4 sm:px-6 lg:px-8 py-6">
+      {/* Ambient Background Glows */}
+      <div className="fixed top-20 right-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10" />
+      <div className="fixed bottom-20 left-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10" />
+      
       {/* Header */}
-  <div id="cover-header" data-tour="cover-header" className="flex items-center justify-between sticky top-0 z-10 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-xl border border-border px-3 sm:px-4 py-2 sm:py-3">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-9 w-9 p-0" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-4 h-4" />
+      <div id="cover-header" data-tour="cover-header" className="flex items-center justify-between sticky top-0 z-10 bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 backdrop-blur-xl border border-[#1dff00]/30 rounded-2xl shadow-[0_0_40px_rgba(29,255,0,0.15)] px-4 sm:px-6 py-5">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" className="h-11 w-11 p-0 rounded-xl border border-transparent hover:border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:text-[#1dff00] hover:scale-110 hover:shadow-[0_0_20px_rgba(29,255,0,0.1)] transition-all duration-200" onClick={() => navigate(-1)}>
+            <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-lg sm:text-xl md:text-2xl font-semibold tracking-tight">Cover Letter</h1>
+          <div className="h-10 w-px bg-gradient-to-b from-transparent via-[#1dff00]/30 to-transparent" />
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-white via-white/95 to-[#1dff00] bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(29,255,0,0.3)]">
+              Cover Letter Builder
+            </h1>
+            <p className="text-xs sm:text-sm text-gray-400 mt-1.5 flex items-center gap-2">
+              <span className="inline-block w-2 h-2 bg-[#1dff00] rounded-full animate-pulse shadow-[0_0_8px_rgba(29,255,0,0.6)]" />
+              Create professional, tailored cover letters with AI assistance
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto">
-          <Button variant="outline" onClick={() => setInlineEdit((v)=>!v)} className={`rounded-xl whitespace-nowrap ${inlineEdit ? 'bg-primary/10 border-primary text-primary' : ''}`}> <Pencil className="w-4 h-4 mr-2"/> {inlineEdit ? 'Edit in Preview: On' : 'Edit in Preview'} </Button>
+        <div className="flex items-center gap-2.5 overflow-x-auto">
+          <Button 
+            variant="outline" 
+            onClick={() => setInlineEdit((v)=>!v)} 
+            className={`rounded-xl whitespace-nowrap h-11 px-4 transition-all duration-200 ${
+              inlineEdit 
+                ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 border-2 border-[#1dff00] text-[#1dff00] shadow-[0_0_30px_rgba(29,255,0,0.3)] scale-105' 
+                : 'border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
+            }`}
+          > 
+            <Pencil className="w-4 h-4 mr-2"/> 
+            {inlineEdit ? 'Live Edit: On' : 'Enable Live Edit'} 
+          </Button>
           <Button 
             variant="outline" 
             disabled={aiLoading || subscriptionTier === 'Free'} 
             onClick={aiPolish} 
-            className="rounded-xl whitespace-nowrap"
-            title={subscriptionTier === 'Free' ? 'Pro/Ultimate subscription required' : ''}
+            className="rounded-xl whitespace-nowrap h-11 px-4 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-200"
+            title={subscriptionTier === 'Free' ? 'Pro/Ultimate subscription required' : 'Polish existing content with AI'}
           > 
-            {subscriptionTier === 'Free' && <Lock className="w-3 h-3 mr-1" />}
-            <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> 
+            {subscriptionTier === 'Free' && <Lock className="w-3.5 h-3.5 mr-1.5 text-[#1dff00]/60" />}
+            <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse text-[#1dff00]' : ''}`}/> 
             {aiLoading ? 'Polishing…' : 'AI Polish'}
-            {subscriptionTier === 'Free' && <span className="ml-1 text-[10px] opacity-60">Pro</span>}
+            {subscriptionTier === 'Free' && <span className="ml-1.5 text-[10px] opacity-60 uppercase tracking-wide">Pro</span>}
           </Button>
           <Button 
             variant="outline" 
             disabled={aiLoading || subscriptionTier === 'Free'} 
             onClick={aiWriteFull} 
-            className="rounded-xl whitespace-nowrap"
-            title={subscriptionTier === 'Free' ? 'Pro/Ultimate subscription required' : ''}
+            className="rounded-xl whitespace-nowrap h-11 px-4 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-200"
+            title={subscriptionTier === 'Free' ? 'Pro/Ultimate subscription required' : 'Generate complete cover letter with AI'}
           > 
-            {subscriptionTier === 'Free' && <Lock className="w-3 h-3 mr-1" />}
-            <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> 
-            {aiLoading ? 'Writing…' : 'AI Write (Full)'}
-            {subscriptionTier === 'Free' && <span className="ml-1 text-[10px] opacity-60">Pro</span>}
+            {subscriptionTier === 'Free' && <Lock className="w-3.5 h-3.5 mr-1.5 text-[#1dff00]/60" />}
+            <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse text-[#1dff00]' : ''}`}/> 
+            {aiLoading ? 'Writing…' : 'AI Generate'}
+            {subscriptionTier === 'Free' && <span className="ml-1.5 text-[10px] opacity-60 uppercase tracking-wide">Pro</span>}
           </Button>
-          <Button variant="outline" onClick={() => setExportOpen(true)} className="rounded-xl whitespace-nowrap"> <Download className="w-4 h-4 mr-2"/> Export</Button>
+          <Button 
+            variant="outline" 
+            onClick={() => setExportOpen(true)} 
+            className="rounded-xl whitespace-nowrap h-11 px-4 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)] transition-all duration-200"
+          > 
+            <Download className="w-4 h-4 mr-2"/> 
+            Export
+          </Button>
         </div>
       </div>
 
       {exportOpen && (
-        <div id="cover-actions" data-tour="cover-actions" className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={() => setExportOpen(false)} />
-          <div role="dialog" aria-modal="true" className="relative z-10 w-full max-w-md rounded-xl border border-border bg-popover shadow-lg p-4 sm:p-6 animate-in fade-in-0 zoom-in-95">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-semibold">Export Cover Letter</h2>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setExportOpen(false)}><X className="w-4 h-4"/></Button>
-            </div>
-            <p className="text-xs opacity-70 mb-4">Choose a format or action below. Use Print to save as PDF.</p>
-            <div className="grid gap-2">
-              <Button variant="outline" disabled={!!exportBusy} data-active={lastExport==='txt'} className="justify-start rounded-xl data-[active=true]:border-primary data-[active=true]:bg-primary/5" onClick={async () => { exportTxt(); setExportOpen(false); }}>
-                <FileText className="w-4 h-4 mr-2"/> Download .TXT {lastExport==='txt' && <span className="ml-auto text-[10px] uppercase tracking-wide text-primary">Last</span>}
-              </Button>
-              <Button variant="outline" disabled={!!exportBusy} data-active={lastExport==='pdf'} className="justify-start rounded-xl data-[active=true]:border-primary data-[active=true]:bg-primary/5" onClick={async () => { await exportPdf(); setExportOpen(false); }}>
-                <Printer className="w-4 h-4 mr-2"/> Export PDF {exportBusy==='pdf' && <span className="ml-auto text-[10px] animate-pulse">…</span>} {lastExport==='pdf' && exportBusy!=='pdf' && <span className="ml-auto text-[10px] uppercase tracking-wide text-primary">Last</span>}
-              </Button>
-              <Button variant="outline" disabled={!!exportBusy} data-active={lastExport==='docx'} className="justify-start rounded-xl data-[active=true]:border-primary data-[active=true]:bg-primary/5" onClick={async () => { await exportDocx(); setExportOpen(false); }}>
-                <FileType className="w-4 h-4 mr-2"/> Export DOCX {exportBusy==='docx' && <span className="ml-auto text-[10px] animate-pulse">…</span>} {lastExport==='docx' && exportBusy!=='docx' && <span className="ml-auto text-[10px] uppercase tracking-wide text-primary">Last</span>}
-              </Button>
-              <Button variant="outline" disabled={!!exportBusy} className="justify-start rounded-xl" onClick={() => { printLetter(); setExportOpen(false); }}>
-                <Printer className="w-4 h-4 mr-2"/> Print View
-              </Button>
-              <Button variant="outline" disabled={!!exportBusy} className="justify-start rounded-xl" onClick={() => { copyPlain(); setExportOpen(false); }}>
-                {copied ? <Check className="w-4 h-4 mr-2"/> : <Share2 className="w-4 h-4 mr-2 rotate-90"/>} Copy Plain Text
-              </Button>
-              <Button variant="outline" disabled={!!exportBusy} className="justify-start rounded-xl" onClick={() => { share(); setExportOpen(false); }}>
-                <Share2 className="w-4 h-4 mr-2"/> Share (system)
-              </Button>
-              <div className="pt-2 flex items-center justify-between text-[11px] opacity-60">
-                <span>Default highlights last used format.</span>
-                {exportBusy && <span className="text-primary">Exporting…</span>}
+        <div id="cover-actions" data-tour="cover-actions" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-xl" onClick={() => setExportOpen(false)} />
+          <div role="dialog" aria-modal="true" className="relative z-10 w-full max-w-lg rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 shadow-[0_0_50px_rgba(29,255,0,0.2)] backdrop-blur-xl p-6 animate-in fade-in-0 zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-white via-white/95 to-[#1dff00] bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(29,255,0,0.3)]">Export Cover Letter</h2>
+                <p className="text-xs text-gray-400 mt-2 flex items-center gap-2">
+                  <span className="inline-block w-1.5 h-1.5 bg-[#1dff00] rounded-full" />
+                  Choose your preferred format below
+                </p>
               </div>
+              <Button variant="ghost" size="sm" className="h-10 w-10 p-0 rounded-xl hover:bg-[#1dff00]/10 hover:text-[#1dff00] hover:scale-110 transition-all" onClick={() => setExportOpen(false)}>
+                <X className="w-5 h-5"/>
+              </Button>
             </div>
+            <div className="grid gap-3.5">
+              <Button 
+                variant="outline" 
+                disabled={!!exportBusy} 
+                data-active={lastExport==='txt'} 
+                className="justify-start rounded-xl h-14 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:shadow-[0_0_25px_rgba(29,255,0,0.15)] data-[active=true]:border-[#1dff00] data-[active=true]:bg-gradient-to-br data-[active=true]:from-[#1dff00]/15 data-[active=true]:to-[#1dff00]/5 data-[active=true]:shadow-[0_0_30px_rgba(29,255,0,0.2)] transition-all group" 
+                onClick={async () => { exportTxt(); setExportOpen(false); }}
+              >
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 mr-3 group-hover:bg-[#1dff00]/20 group-hover:border-[#1dff00]/50 group-hover:scale-110 transition-all">
+                  <FileText className="w-5 h-5 text-[#1dff00]"/> 
+                </div>
+                <div className="flex-1 text-left">
+                  <span className="font-semibold text-white">Download .TXT</span>
+                  <p className="text-xs text-gray-400 mt-0.5">Plain text format</p>
+                </div>
+                {lastExport==='txt' && <span className="ml-auto text-[10px] uppercase tracking-wider font-bold text-[#1dff00] px-3 py-1.5 bg-[#1dff00]/15 rounded-lg border border-[#1dff00]/30">Last</span>}
+              </Button>
+              <Button 
+                variant="outline" 
+                disabled={!!exportBusy} 
+                data-active={lastExport==='pdf'} 
+                className="justify-start rounded-xl h-14 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:shadow-[0_0_25px_rgba(29,255,0,0.15)] data-[active=true]:border-[#1dff00] data-[active=true]:bg-gradient-to-br data-[active=true]:from-[#1dff00]/15 data-[active=true]:to-[#1dff00]/5 data-[active=true]:shadow-[0_0_30px_rgba(29,255,0,0.2)] transition-all group" 
+                onClick={async () => { await exportPdf(); setExportOpen(false); }}
+              >
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 mr-3 group-hover:bg-[#1dff00]/20 group-hover:border-[#1dff00]/50 group-hover:scale-110 transition-all">
+                  <svg className="w-5 h-5 text-[#1dff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                </div>
+                <div className="flex-1 text-left">
+                  <span className="font-semibold text-white">Export PDF</span>
+                  <p className="text-xs text-gray-400 mt-0.5">Professional document format</p>
+                </div>
+                {exportBusy==='pdf' && <span className="ml-auto text-[10px] text-[#1dff00] animate-pulse flex items-center gap-1.5"><span className="inline-block w-1.5 h-1.5 bg-[#1dff00] rounded-full animate-pulse" />Processing…</span>}
+                {lastExport==='pdf' && exportBusy!=='pdf' && <span className="ml-auto text-[10px] uppercase tracking-wider font-bold text-[#1dff00] px-3 py-1.5 bg-[#1dff00]/15 rounded-lg border border-[#1dff00]/30">Last</span>}
+              </Button>
+              <Button 
+                variant="outline" 
+                disabled={!!exportBusy} 
+                data-active={lastExport==='docx'} 
+                className="justify-start rounded-xl h-14 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:shadow-[0_0_25px_rgba(29,255,0,0.15)] data-[active=true]:border-[#1dff00] data-[active=true]:bg-gradient-to-br data-[active=true]:from-[#1dff00]/15 data-[active=true]:to-[#1dff00]/5 data-[active=true]:shadow-[0_0_30px_rgba(29,255,0,0.2)] transition-all group" 
+                onClick={async () => { await exportDocx(); setExportOpen(false); }}
+              >
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 mr-3 group-hover:bg-[#1dff00]/20 group-hover:border-[#1dff00]/50 group-hover:scale-110 transition-all">
+                  <FileType className="w-5 h-5 text-[#1dff00]"/> 
+                </div>
+                <div className="flex-1 text-left">
+                  <span className="font-semibold text-white">Export DOCX</span>
+                  <p className="text-xs text-gray-400 mt-0.5">Microsoft Word format</p>
+                </div>
+                {exportBusy==='docx' && <span className="ml-auto text-[10px] text-[#1dff00] animate-pulse flex items-center gap-1.5"><span className="inline-block w-1.5 h-1.5 bg-[#1dff00] rounded-full animate-pulse" />Processing…</span>}
+                {lastExport==='docx' && exportBusy!=='docx' && <span className="ml-auto text-[10px] uppercase tracking-wider font-bold text-[#1dff00] px-3 py-1.5 bg-[#1dff00]/15 rounded-lg border border-[#1dff00]/30">Last</span>}
+              </Button>
+              <div className="h-px bg-gradient-to-r from-transparent via-[#1dff00]/30 to-transparent my-2" />
+              <Button 
+                variant="outline" 
+                disabled={!!exportBusy} 
+                className="justify-start rounded-xl h-12 border-white/20 hover:border-white/30 hover:bg-white/5 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-all group" 
+                onClick={() => { printLetter(); setExportOpen(false); }}
+              >
+                <Printer className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform"/> 
+                <span className="font-medium">Print Preview</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                disabled={!!exportBusy} 
+                className="justify-start rounded-xl h-12 border-white/20 hover:border-white/30 hover:bg-white/5 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-all group" 
+                onClick={() => { copyPlain(); setExportOpen(false); }}
+              >
+                {copied ? <Check className="w-5 h-5 mr-3 text-green-400 group-hover:scale-110 transition-transform"/> : <Share2 className="w-5 h-5 mr-3 rotate-90 group-hover:scale-110 transition-transform"/>} 
+                <span className="font-medium">{copied ? 'Copied!' : 'Copy Plain Text'}</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                disabled={!!exportBusy} 
+                className="justify-start rounded-xl h-12 border-white/20 hover:border-white/30 hover:bg-white/5 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-all group" 
+                onClick={() => { share(); setExportOpen(false); }}
+              >
+                <Share2 className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform"/> 
+                <span className="font-medium">Share (System)</span>
+              </Button>
+            </div>
+            {exportBusy && (
+              <div className="mt-4 pt-4 border-t border-[#1dff00]/20">
+                <p className="text-xs text-[#1dff00] text-center flex items-center justify-center gap-2">
+                  <span className="inline-block w-2 h-2 bg-[#1dff00] rounded-full animate-pulse" />
+                  Exporting your cover letter...
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* Workspace */}
-  <div id="cover-main-layout" className="grid gap-4 grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)]">
+      <div id="cover-main-layout" className="grid gap-6 grid-cols-1 xl:grid-cols-[460px_minmax(0,1fr)] max-w-[1800px] mx-auto w-full">
         {/* Left: Controls */}
-  <Card id="cover-meta-panel" data-tour="cover-meta-panel" className="p-4 rounded-xl">
-          <div className="grid gap-4">
+        <Card id="cover-meta-panel" data-tour="cover-meta-panel" className="p-6 rounded-2xl bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 border border-[#1dff00]/30 shadow-[0_0_40px_rgba(29,255,0,0.15)] backdrop-blur-xl hover:shadow-[0_0_50px_rgba(29,255,0,0.2)] transition-all">
+          <div className="grid gap-6">
             {/* Saved Letters (Library) */}
-            <div className="grid gap-2">
+            <div className="grid gap-3">
               <div className="flex items-center justify-between">
-                <label className="text-xs opacity-70 uppercase tracking-wide">Save Cover Letter</label>
-                <Button variant="outline" size="sm" className="rounded-xl" onClick={() => { setCurrentLibId(null); setLibName(""); }}>New</Button>
+                <label className="text-sm font-semibold text-white flex items-center gap-2.5">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30">
+                    <svg className="w-4 h-4 text-[#1dff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                  </div>
+                  Save Cover Letter
+                </label>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="rounded-xl h-9 px-4 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 hover:scale-105 transition-all" 
+                  onClick={() => { setCurrentLibId(null); setLibName(""); }}
+                >
+                  New
+                </Button>
               </div>
-              <div className="grid grid-cols-1 gap-2">
-                <input value={libName} onChange={(e)=>setLibName(e.target.value)} placeholder="Enter letter name" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" onClick={() => saveToLibrary()} className="rounded-xl">
+              <div className="grid grid-cols-1 gap-3">
+                <input 
+                  value={libName} 
+                  onChange={(e)=>setLibName(e.target.value)} 
+                  placeholder="Enter letter name" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => saveToLibrary()} 
+                    className="rounded-xl h-11 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:shadow-[0_0_25px_rgba(29,255,0,0.15)] hover:scale-105 transition-all"
+                  >
                     {currentLibId ? 'Update' : 'Save'}
                   </Button>
-                  <Button variant="outline" onClick={() => saveToLibrary(libName)} className="rounded-xl">Save As New</Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => saveToLibrary(libName)} 
+                    className="rounded-xl h-11 border-white/20 hover:border-white/30 hover:bg-white/5 hover:scale-105 transition-all"
+                  >
+                    Save As New
+                  </Button>
                 </div>
               </div>
-              <p className="text-xs opacity-60">
+              <p className="text-xs text-gray-400 bg-gradient-to-br from-[#1dff00]/10 to-[#1dff00]/5 rounded-xl p-3.5 border border-[#1dff00]/20">
                 {library.length === 0 
-                  ? 'No saved letters yet. Name and save your letter to access it from the cover letters page.' 
-                  : `${library.length} letter${library.length === 1 ? '' : 's'} saved. View all letters from the cover letters page.`
+                  ? '💡 No saved letters yet. Name and save your letter to access it from the cover letters page.' 
+                  : `✓ ${library.length} letter${library.length === 1 ? '' : 's'} saved. View all from the cover letters page.`
                 }
               </p>
             </div>
             {/* Sender */}
-            <div className="grid gap-2">
+            <div className="grid gap-3">
               <div className="flex items-center justify-between">
-                <label className="text-xs opacity-70 uppercase tracking-wide">Sender</label>
+                <label className="text-sm font-semibold text-white flex items-center gap-2.5">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30">
+                    <svg className="w-4 h-4 text-[#1dff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  Sender Information
+                </label>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="rounded-xl" onClick={loadProfile}>Use Profile</Button>
-                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => { setSenderName(""); setSenderEmail(""); setSenderPhone(""); setSenderAddress(""); }}>Clear</Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="rounded-xl h-9 px-3 text-xs border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 hover:scale-105 transition-all" 
+                    onClick={loadProfile}
+                  >
+                    Use Profile
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="rounded-xl h-9 px-3 text-xs border-white/20 hover:border-white/30 hover:bg-white/5 hover:scale-105 transition-all" 
+                    onClick={() => { setSenderName(""); setSenderEmail(""); setSenderPhone(""); setSenderAddress(""); }}
+                  >
+                    Clear
+                  </Button>
                 </div>
               </div>
-              <input value={senderName} onChange={(e)=>setSenderName(e.target.value)} placeholder="Your name" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+              <input 
+                value={senderName} 
+                onChange={(e)=>setSenderName(e.target.value)} 
+                placeholder="Your name" 
+                className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input value={senderEmail} onChange={(e)=>setSenderEmail(e.target.value)} placeholder="Email" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-                <input value={senderPhone} onChange={(e)=>setSenderPhone(e.target.value)} placeholder="Phone" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                <input 
+                  value={senderEmail} 
+                  onChange={(e)=>setSenderEmail(e.target.value)} 
+                  placeholder="Email" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
+                <input 
+                  value={senderPhone} 
+                  onChange={(e)=>setSenderPhone(e.target.value)} 
+                  placeholder="Phone" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
               </div>
-              <input value={senderAddress} onChange={(e)=>setSenderAddress(e.target.value)} placeholder="Address" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+              <input 
+                value={senderAddress} 
+                onChange={(e)=>setSenderAddress(e.target.value)} 
+                placeholder="Address" 
+                className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+              />
             </div>
 
             {/* Recipient */}
-            <div className="grid gap-2">
-              <label className="text-xs opacity-70 uppercase tracking-wide">Recipient</label>
+            <div className="grid gap-3">
+              <label className="text-sm font-semibold text-white flex items-center gap-2.5">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30">
+                  <svg className="w-4 h-4 text-[#1dff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                Recipient Information
+              </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input value={recipient} onChange={(e)=>setRecipient(e.target.value)} placeholder="Recipient name" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-                <input value={recipientTitle} onChange={(e)=>setRecipientTitle(e.target.value)} placeholder="Recipient title" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                <input 
+                  value={recipient} 
+                  onChange={(e)=>setRecipient(e.target.value)} 
+                  placeholder="Recipient name" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
+                <input 
+                  value={recipientTitle} 
+                  onChange={(e)=>setRecipientTitle(e.target.value)} 
+                  placeholder="Recipient title" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input value={company} onChange={(e)=>setCompany(e.target.value)} placeholder="Company" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-                <input value={recipientAddress} onChange={(e)=>setRecipientAddress(e.target.value)} placeholder="Company address" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                <input 
+                  value={company} 
+                  onChange={(e)=>setCompany(e.target.value)} 
+                  placeholder="Company" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
+                <input 
+                  value={recipientAddress} 
+                  onChange={(e)=>setRecipientAddress(e.target.value)} 
+                  placeholder="Company address" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
               </div>
             </div>
 
             {/* Header/meta */}
-            <div className="grid gap-2">
-              <label className="text-xs opacity-70 uppercase tracking-wide">Letter Details</label>
+            <div className="grid gap-3">
+              <label className="text-sm font-semibold text-white flex items-center gap-2.5">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30">
+                  <svg className="w-4 h-4 text-[#1dff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                Letter Details
+              </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input type="date" value={date} onChange={(e)=>setDate(e.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-                <input value={subject} onChange={(e)=>setSubject(e.target.value)} placeholder="Subject (optional)" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                <div className="relative">
+                  <input 
+                    type="date" 
+                    value={date} 
+                    onChange={(e)=>setDate(e.target.value)} 
+                    className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all h-12" 
+                  />
+                </div>
+                <input 
+                  value={subject} 
+                  onChange={(e)=>setSubject(e.target.value)} 
+                  placeholder="Subject (optional)" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
               </div>
-              <input value={salutation} onChange={(e)=>setSalutation(e.target.value)} placeholder="Salutation (e.g., Dear …,)" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+              <input 
+                value={salutation} 
+                onChange={(e)=>setSalutation(e.target.value)} 
+                placeholder="Salutation (e.g., Dear Hiring Manager,)" 
+                className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+              />
             </div>
 
             {/* Closing/signature */}
-            <div className="grid gap-2">
-              <label className="text-xs opacity-70 uppercase tracking-wide">Closing & Signature</label>
+            <div className="grid gap-3">
+              <label className="text-sm font-semibold text-white flex items-center gap-2.5">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30">
+                  <svg className="w-4 h-4 text-[#1dff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </div>
+                Closing & Signature
+              </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input value={closing} onChange={(e)=>setClosing(e.target.value)} placeholder="Closing (e.g., Best regards,)" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-                <input value={signatureName} onChange={(e)=>setSignatureName(e.target.value)} placeholder="Signature name" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                <input 
+                  value={closing} 
+                  onChange={(e)=>setClosing(e.target.value)} 
+                  placeholder="Closing (e.g., Best regards,)" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
+                <input 
+                  value={signatureName} 
+                  onChange={(e)=>setSignatureName(e.target.value)} 
+                  placeholder="Signature name" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
               </div>
             </div>
 
             {/* AI Config */}
-            <div className="grid gap-2">
-              <label className="text-xs opacity-70 uppercase tracking-wide">AI Settings</label>
+            <div className="grid gap-4 p-5 rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-[#1dff00]/5 to-transparent">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[#1dff00] flex items-center gap-2">
+                <Wand2 className="w-4 h-4" />
+                AI Settings
+              </label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="text-[11px] opacity-60">Role</label>
-                  <input value={role} onChange={(e)=>setRole(e.target.value)} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                  <label className="text-[11px] text-gray-400 mb-1.5 block">Role</label>
+                  <input value={role} onChange={(e)=>setRole(e.target.value)} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-3 py-2.5 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all h-11" placeholder="e.g., Software Engineer" />
                 </div>
                 <div>
-                  <label className="text-[11px] opacity-60">Tone</label>
-                  <select value={tone} onChange={(e)=>setTone(e.target.value as any)} className="mt-1 w-full rounded-xl border border-border bg-background px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
+                  <label className="text-[11px] text-gray-400 mb-1.5 block">Tone</label>
+                  <select value={tone} onChange={(e)=>setTone(e.target.value as any)} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-3 py-2.5 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all h-11">
                     <option value="professional">Professional</option>
                     <option value="friendly">Friendly</option>
                     <option value="enthusiastic">Enthusiastic</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] opacity-60">Length</label>
-                  <select value={lengthPref} onChange={(e)=>setLengthPref(e.target.value as any)} className="mt-1 w-full rounded-xl border border-border bg-background px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
+                  <label className="text-[11px] text-gray-400 mb-1.5 block">Length</label>
+                  <select value={lengthPref} onChange={(e)=>setLengthPref(e.target.value as any)} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-3 py-2.5 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all h-11">
                     <option value="short">Short</option>
                     <option value="medium">Medium</option>
                     <option value="long">Long</option>
@@ -896,67 +1139,67 @@ export const CoverLetter = () => {
                 </div>
               </div>
               <div>
-                <label className="text-[11px] opacity-60">Job Description (optional)</label>
-                <textarea value={jobDescription} onChange={(e)=>setJobDescription(e.target.value)} rows={4} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" placeholder="Paste job description here to tailor the letter..." />
+                <label className="text-[11px] text-gray-400 mb-1.5 block">Job Description (optional)</label>
+                <textarea value={jobDescription} onChange={(e)=>setJobDescription(e.target.value)} rows={4} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all" placeholder="Paste job description here to tailor the letter..." />
               </div>
             </div>
 
             {/* Body controls */}
-            <div>
+            <div className="grid gap-3">
               <div className="flex items-center justify-between">
-                <label className="text-xs opacity-70">Body (raw)</label>
+                <label className="text-sm font-semibold text-white">Body (raw)</label>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="rounded-xl" onClick={splitContentIntoParagraphs}>Split into paragraphs</Button>
-                  <span className="text-[11px] opacity-60">{content.length} chars</span>
+                  <Button variant="outline" size="sm" className="rounded-xl h-9 px-3 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 hover:scale-105 transition-all" onClick={splitContentIntoParagraphs}>Split into paragraphs</Button>
+                  <span className="text-[11px] text-gray-400 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10">{content.length} chars</span>
                 </div>
               </div>
-              <textarea id="cover-letter-content" value={content} onChange={(e)=>setContent(e.target.value)} rows={8} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" placeholder="Write or paste your cover letter here..." />
+              <textarea id="cover-letter-content" value={content} onChange={(e)=>setContent(e.target.value)} rows={8} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all" placeholder="Write or paste your cover letter here..." />
             </div>
 
-            <div className="grid gap-2">
+            <div className="grid gap-3">
               <div className="flex items-center justify-between">
-                <label className="text-xs opacity-70">Paragraphs (advanced)</label>
-                <Button variant="outline" size="sm" className="rounded-xl" onClick={addParagraph}><Plus className="w-4 h-4 mr-1"/>Add paragraph</Button>
+                <label className="text-sm font-semibold text-white">Paragraphs (advanced)</label>
+                <Button variant="outline" size="sm" className="rounded-xl h-9 px-3 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 hover:scale-105 transition-all" onClick={addParagraph}><Plus className="w-4 h-4 mr-1.5"/>Add paragraph</Button>
               </div>
               <div className="grid gap-3">
                 {paragraphs.map((p, idx) => (
-                  <div key={idx} className="rounded-xl border border-border bg-background/50">
-                    <div className="flex items-center justify-between px-2 py-1 border-b border-border/70">
-                      <span className="text-[11px] opacity-60">Paragraph {idx + 1}</span>
+                  <div key={idx} className="rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] overflow-hidden hover:border-[#1dff00]/30 transition-all">
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-[#1dff00]/20 bg-black/20">
+                      <span className="text-[11px] font-medium text-gray-300">Paragraph {idx + 1}</span>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => moveParagraphUp(idx)} disabled={idx === 0}><ArrowUp className="w-4 h-4"/></Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => moveParagraphDown(idx)} disabled={idx === paragraphs.length - 1}><ArrowDown className="w-4 h-4"/></Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-400 hover:text-red-500" onClick={() => removeParagraph(idx)}><Trash2 className="w-4 h-4"/></Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-[#1dff00]/10 hover:text-[#1dff00] disabled:opacity-30 transition-all" onClick={() => moveParagraphUp(idx)} disabled={idx === 0}><ArrowUp className="w-4 h-4"/></Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-[#1dff00]/10 hover:text-[#1dff00] disabled:opacity-30 transition-all" onClick={() => moveParagraphDown(idx)} disabled={idx === paragraphs.length - 1}><ArrowDown className="w-4 h-4"/></Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-400 hover:bg-red-500/10 hover:text-red-500 transition-all" onClick={() => removeParagraph(idx)}><Trash2 className="w-4 h-4"/></Button>
                       </div>
                     </div>
-                    <textarea value={p} onChange={(e)=>updateParagraph(idx, e.target.value)} rows={4} className="w-full rounded-b-xl bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" placeholder="Write paragraph..." />
+                    <textarea value={p} onChange={(e)=>updateParagraph(idx, e.target.value)} rows={4} className="w-full bg-transparent px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#1dff00]/20" placeholder="Write paragraph..." />
                   </div>
                 ))}
                 {!paragraphs.length && (
-                  <p className="text-xs opacity-60">No paragraphs added yet. Use AI, paste into the raw body, or click "Add paragraph".</p>
+                  <p className="text-xs text-gray-400 text-center py-6 px-4 rounded-xl border border-dashed border-white/10 bg-white/[0.02]">No paragraphs added yet. Use AI, paste into the raw body, or click "Add paragraph".</p>
                 )}
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={zoomOut}>
+            <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl border border-white/10 bg-white/[0.02]">
+              <Button variant="outline" size="sm" className="h-10 w-10 p-0 rounded-xl hover:bg-white/5 hover:scale-110 transition-all" onClick={zoomOut}>
                 <Minus className="w-4 h-4" />
               </Button>
-              <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={zoomIn}>
+              <Button variant="outline" size="sm" className="h-10 w-10 p-0 rounded-xl hover:bg-white/5 hover:scale-110 transition-all" onClick={zoomIn}>
                 <Plus className="w-4 h-4" />
               </Button>
-              <span className="text-xs opacity-70">Font: {fontSize}px</span>
+              <span className="text-xs text-gray-400 px-3 py-1.5 rounded-lg bg-white/5">Font: {fontSize}px</span>
               <div className="ml-auto flex items-center gap-2">
-                <Button variant="outline" size="sm" className="rounded-xl" onClick={clearDraft}>Clear</Button>
-                {savedAt && <span className="text-[11px] opacity-60">Saved {new Date(savedAt).toLocaleTimeString()}</span>}
+                <Button variant="outline" size="sm" className="rounded-xl h-9 px-4 border-red-500/40 text-red-400 hover:bg-red-500/10 hover:border-red-500/60 transition-all" onClick={clearDraft}>Clear</Button>
+                {savedAt && <span className="text-[11px] text-gray-400 flex items-center gap-1.5"><span className="inline-block w-1.5 h-1.5 bg-[#1dff00] rounded-full" />Saved {new Date(savedAt).toLocaleTimeString()}</span>}
               </div>
             </div>
           </div>
         </Card>
 
         {/* Right: Preview */}
-        <Card id="cover-editor" data-tour="cover-editor" className="p-3 sm:p-4 md:p-6 overflow-hidden rounded-xl">
-          <div ref={previewRef} className="mx-auto w-full max-w-[800px] rounded-xl border border-border bg-white text-black shadow-xl">
-            <div className="p-6 sm:p-8" style={{ fontSize: `${fontSize}px`, lineHeight: 1.6 }}>
+        <Card id="cover-editor" data-tour="cover-editor" className="p-4 sm:p-6 md:p-8 overflow-hidden rounded-2xl bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 border border-[#1dff00]/30 shadow-[0_0_40px_rgba(29,255,0,0.15)] backdrop-blur-xl">
+          <div ref={previewRef} className="mx-auto w-full max-w-[800px] rounded-xl border border-white/10 bg-white text-black shadow-[0_0_50px_rgba(0,0,0,0.3)] hover:shadow-[0_0_60px_rgba(0,0,0,0.4)] transition-all">
+            <div className="p-8 sm:p-10 md:p-12" style={{ fontSize: `${fontSize}px`, lineHeight: 1.6 }}>
               {/* Sender (right-aligned for professional layout) */}
               {(senderName || senderPhone || senderEmail || senderAddress) && (
                 <div className="mb-6 flex">
