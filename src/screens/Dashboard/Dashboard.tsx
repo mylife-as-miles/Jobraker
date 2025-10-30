@@ -276,7 +276,7 @@ export const Dashboard = (): JSX.Element => {
         </div>
 
         {/* Navigation - Responsive */}
-        <nav className="flex-1 p-2 sm:p-3 lg:p-4 overflow-y-auto">
+        <nav className="flex-1 p-2 sm:p-3 lg:p-4 overflow-y-auto min-h-0">
           <div className="space-y-1 sm:space-y-2">
             {navigationItems.map((item) => {
               const path = item.id === "resume" ? "/dashboard/resumes" : `/dashboard/${item.id}`;
@@ -304,8 +304,8 @@ export const Dashboard = (): JSX.Element => {
           </div>
         </nav>
 
-        {/* Premium Card - Responsive */}
-        <div className="p-2 sm:p-3 lg:p-4">
+        {/* Premium Card - Responsive - Fixed to bottom */}
+        <div className="flex-shrink-0 p-2 sm:p-3 lg:p-4 border-t border-[#1dff00]/20 bg-[#0a0a0a]">
           <Card className="bg-gradient-to-br from-[#1dff00] to-[#0a8246] border-none hover:scale-105 transition-transform duration-300">
             <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="text-center">
