@@ -7,7 +7,7 @@ import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
 
 import { Button } from "../../../components/ui/button";
-import { Card, CardContent } from "../../../components/ui/card";
+import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 
 
@@ -196,91 +196,157 @@ function ApplicationPage() {
   const initialLoading = appsLoading && applications.length === 0;
   
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 space-y-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <h1 className="text-2xl font-semibold text-white">Applications</h1>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10" onClick={exportCSV}>Export CSV</Button>
-          <Button variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10" onClick={() => refresh()}>
-            <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+    <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      {/* Ambient Background Glow */}
+      <div className="fixed top-20 right-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10"></div>
+      <div className="fixed bottom-0 left-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10"></div>
+      
+      {/* Header Section */}
+      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold text-white bg-gradient-to-r from-white to-white/70 bg-clip-text">Applications</h1>
+          <p className="text-sm text-white/50">Track and manage your job applications in one place</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            className="border-[#1dff00]/30 bg-gradient-to-br from-[#1dff00]/5 to-transparent text-white hover:bg-[#1dff00]/10 hover:border-[#1dff00]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]" 
+            onClick={exportCSV}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export CSV
+          </Button>
+          <Button 
+            variant="outline" 
+            className="border-[#1dff00]/30 bg-gradient-to-br from-[#1dff00]/5 to-transparent text-white hover:bg-[#1dff00]/10 hover:border-[#1dff00]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]" 
+            onClick={() => refresh()}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" /> 
+            Refresh
           </Button>
         </div>
       </div>
 
       {/* Toolbar */}
-      <Card className="p-4 sm:p-6 bg-white/[0.04] border border-white/10 rounded-xl">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
-                <Input
-                  id="application-search"
-                  data-tour="application-search"
-                  placeholder="Search applications..."
-                  value={rawSearch}
-                  onChange={(e) => setRawSearch(e.target.value)}
-                  className="pl-10 bg-white/10 border-white/15 text-white placeholder:text-white/50 focus:border-white focus:ring-0"
-                />
+      <Card className="relative overflow-hidden p-6 bg-gradient-to-br from-[#0a0a0a]/95 to-[#0f0f0f]/95 border border-[#1dff00]/20 rounded-2xl shadow-[0_0_30px_rgba(29,255,0,0.1)] backdrop-blur-xl">
+        {/* Subtle gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#1dff00]/5 via-transparent to-transparent pointer-events-none"></div>
+        
+        <div className="relative z-10 flex flex-col gap-5">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 relative group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#1dff00]/60 transition-colors group-focus-within:text-[#1dff00]" />
+              <Input
+                id="application-search"
+                data-tour="application-search"
+                placeholder="Search by title, company, location, or status..."
+                value={rawSearch}
+                onChange={(e) => setRawSearch(e.target.value)}
+                className="pl-12 h-12 bg-gradient-to-br from-white/5 to-white/[0.02] border-[#1dff00]/20 text-white placeholder:text-white/40 focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all duration-200 rounded-xl"
+              />
             </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-            <SortDropdown />
+            <div className="flex items-center gap-3">
+              <SortDropdown />
 
-
-              <div id="application-view-toggle" className="inline-flex rounded-lg border border-white/20 overflow-hidden bg-white/5 backdrop-blur-sm" data-tour="application-view-toggle">
+              <div id="application-view-toggle" className="inline-flex rounded-xl border border-[#1dff00]/30 overflow-hidden bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-sm shadow-lg" data-tour="application-view-toggle">
                 <button
-                  className={`px-3 py-2 text-sm text-white/70 hover:text-white transition ${viewMode==='gantt' ? 'bg-white/20 text-white' : ''}`}
+                  className={`group px-4 py-3 text-sm transition-all duration-200 relative ${viewMode==='gantt' ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
                   title="Gantt view"
                   onClick={() => setViewMode('gantt')}
                 >
-                  <GanttChart className="w-4 h-4" />
+                  <GanttChart className="w-5 h-5" />
+                  {viewMode === 'gantt' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#1dff00] to-transparent"></div>
+                  )}
                 </button>
                 <button
-                  className={`px-3 py-2 text-sm text-white/70 hover:text-white transition border-l border-white/15 ${viewMode==='list' ? 'bg-white/20 text-white' : ''}`}
+                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode==='list' ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
                   title="List view"
                   onClick={() => setViewMode('list')}
                 >
-                  <ListIcon className="w-4 h-4" />
+                  <ListIcon className="w-5 h-5" />
+                  {viewMode === 'list' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#1dff00] to-transparent"></div>
+                  )}
                 </button>
                 <button
-                  className={`px-3 py-2 text-sm text-white/70 hover:text-white transition border-l border-white/15 ${viewMode==='kanban' ? 'bg-white/20 text-white' : ''}`}
+                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode==='kanban' ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
                   title="Kanban view"
                   onClick={() => setViewMode('kanban')}
                 >
-                  <Columns className="w-4 h-4" />
+                  <Columns className="w-5 h-5" />
+                  {viewMode === 'kanban' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#1dff00] to-transparent"></div>
+                  )}
                 </button>
                 <button
-                  className={`px-3 py-2 text-sm text-white/70 hover:text-white transition border-l border-white/15 ${viewMode==='calendar' ? 'bg-white/20 text-white' : ''}`}
+                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode==='calendar' ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
                   title="Calendar view"
                   onClick={() => setViewMode('calendar')}
                 >
-                  <CalendarIcon className="w-4 h-4" />
+                  <CalendarIcon className="w-5 h-5" />
+                  {viewMode === 'calendar' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#1dff00] to-transparent"></div>
+                  )}
                 </button>
                 <button
-                  className={`px-3 py-2 text-sm text-white/70 hover:text-white transition border-l border-white/15 ${viewMode==='table' ? 'bg-white/20 text-white' : ''}`}
+                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode==='table' ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
                   title="Table view"
                   onClick={() => setViewMode('table')}
                 >
-                  <TableIcon className="w-4 h-4" />
+                  <TableIcon className="w-5 h-5" />
+                  {viewMode === 'table' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#1dff00] to-transparent"></div>
+                  )}
                 </button>
               </div>
             </div>
           </div>
-          <div id="application-status-filters" className="flex flex-wrap gap-2 -m-1 items-center" data-tour="application-status-filters">
-            {(["All", "Pending", "Applied", "Interview", "Offer", "Rejected", "Withdrawn"] as const).map((s) => (
-              <Button
-                key={s}
-                size="sm"
-                variant="ghost"
-                onClick={() => setSelectedStatus(s)}
-                className={`m-1 text-xs sm:text-sm rounded-full ${selectedStatus===s ? 'bg-white text-black' : 'text-white hover:bg-white/10'} transition`}
-              >
-                {s}
-              </Button>
-            ))}
+          <div id="application-status-filters" className="flex flex-wrap gap-2 items-center" data-tour="application-status-filters">
+            {(["All", "Pending", "Applied", "Interview", "Offer", "Rejected", "Withdrawn"] as const).map((s) => {
+              const statusColors: Record<string, string> = {
+                All: '#ffffff',
+                Pending: '#6B7280',
+                Applied: '#1dff00',
+                Interview: '#F59E0B',
+                Offer: '#10B981',
+                Rejected: '#EF4444',
+                Withdrawn: '#94A3B8',
+              };
+              const color = statusColors[s] || '#ffffff';
+              const isActive = selectedStatus === s;
+              
+              return (
+                <Button
+                  key={s}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSelectedStatus(s)}
+                  className={`text-sm px-4 py-2 rounded-xl transition-all duration-200 border ${
+                    isActive 
+                      ? 'border-[#1dff00]/50 bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' 
+                      : 'border-white/10 text-white/70 hover:text-white hover:bg-white/5 hover:border-white/20'
+                  }`}
+                  style={isActive ? {} : { color: color + 'b3' }}
+                >
+                  {isActive && (
+                    <span className="w-2 h-2 rounded-full mr-2 animate-pulse" style={{ backgroundColor: color }}></span>
+                  )}
+                  {s}
+                </Button>
+              );
+            })}
             {viewMode === 'gantt' && (
-              <div className="m-1 flex items-center gap-2 text-[10px] text-white/60 border-l border-white/10 pl-3">
-                <label className="inline-flex items-center gap-1 cursor-pointer">
-                  <input type="checkbox" className="accent-[#1dff00]" checked={showFuture} onChange={e => setShowFuture(e.target.checked)} />
+              <div className="flex items-center gap-2 text-xs text-white/60 border-l border-[#1dff00]/20 pl-4 ml-2">
+                <label className="inline-flex items-center gap-2 cursor-pointer hover:text-white/80 transition-colors">
+                  <input 
+                    type="checkbox" 
+                    className="w-4 h-4 accent-[#1dff00] rounded border-white/20 bg-white/5" 
+                    checked={showFuture} 
+                    onChange={e => setShowFuture(e.target.checked)} 
+                  />
                   <span>Extend active bars to today</span>
                 </label>
               </div>
@@ -290,42 +356,78 @@ function ApplicationPage() {
       </Card>
 <div className="h-6"></div>
       {/* Content */}
-      <Card className="bg-transparent border-none shadow-none">
-        <CardContent className="p-0">
-          {initialLoading ? (
-            <ApplicationPageSkeleton viewMode={viewMode} />
-          ) : applications.length === 0 ? (
-            <div className="border border-white/15 bg-black/30 rounded-xl p-8 text-center text-[#ffffffb3]">
-              <div className="mx-auto w-12 h-12 rounded-full bg-[#1dff00]/15 grid place-items-center mb-4">
-                <Columns className="w-6 h-6 text-[#1dff00]" />
+      <div className="relative">
+        {initialLoading ? (
+          <ApplicationPageSkeleton viewMode={viewMode} />
+        ) : applications.length === 0 ? (
+          <div className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] to-[#0f0f0f] rounded-2xl p-12 text-center shadow-[0_0_30px_rgba(29,255,0,0.1)]">
+            {/* Ambient glow */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 bg-[#1dff00]/10 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
+            
+            <div className="relative z-10 space-y-6">
+              <div className="mx-auto w-20 h-20 rounded-2xl bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 border border-[#1dff00]/30 grid place-items-center shadow-[0_0_30px_rgba(29,255,0,0.2)]">
+                <Columns className="w-10 h-10 text-[#1dff00]" />
               </div>
-              <h3 className="text-white text-lg font-medium mb-1">No applications yet</h3>
-              <p className="text-sm text-[#ffffff80] mb-4">Start by applying to a job or importing an existing application.</p>
-              <div className="flex items-center justify-center gap-2">
-                <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => refresh()}>
-                  <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+              <div className="space-y-2">
+                <h3 className="text-white text-2xl font-bold">No applications yet</h3>
+                <p className="text-base text-white/60 max-w-md mx-auto">Start tracking your job search journey by applying to jobs or importing existing applications.</p>
+              </div>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <Button 
+                  variant="outline" 
+                  className="border-[#1dff00]/40 bg-gradient-to-br from-[#1dff00]/10 to-transparent text-[#1dff00] hover:bg-[#1dff00]/20 hover:border-[#1dff00]/60 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.2)]" 
+                  onClick={() => refresh()}
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" /> 
+                  Refresh
                 </Button>
               </div>
             </div>
-          ) : filtered.length === 0 ? (
-            <div className="border border-white/15 bg-black/30 rounded-xl p-8 text-center text-[#ffffffb3]">
-              <div className="mx-auto w-12 h-12 rounded-full bg-yellow-400/15 grid place-items-center mb-4">
-                <Search className="w-6 h-6 text-yellow-400" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] to-[#0f0f0f] rounded-2xl p-12 text-center shadow-[0_0_30px_rgba(29,255,0,0.1)]">
+            {/* Ambient glow */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 bg-yellow-400/10 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
+            
+            <div className="relative z-10 space-y-6">
+              <div className="mx-auto w-20 h-20 rounded-2xl bg-gradient-to-br from-yellow-400/20 to-yellow-400/5 border border-yellow-400/30 grid place-items-center shadow-[0_0_30px_rgba(250,204,21,0.2)]">
+                <Search className="w-10 h-10 text-yellow-400" />
               </div>
-              <h3 className="text-white text-lg font-medium mb-1">No matching applications</h3>
-              <p className="text-sm text-[#ffffff80] mb-4">Try adjusting your search or status filters.</p>
+              <div className="space-y-2">
+                <h3 className="text-white text-2xl font-bold">No matching applications</h3>
+                <p className="text-base text-white/60 max-w-md mx-auto">We couldn't find any applications matching your current filters. Try adjusting your search or status filters.</p>
+              </div>
             </div>
-          ) : (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
+          </div>
+        ) : (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}>
               {viewMode === 'gantt' && (
-                <div className="space-y-4">
-                  <div className="text-xs text-white/60 flex flex-wrap gap-3">
-                    <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#71717a] to-[#27272a]" /> Pending</span>
-                    <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#1dff00] to-[#0a8246]" /> Applied</span>
-                    <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#fbbf24] to-[#a16207]" /> Interview</span>
-                    <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#84cc16] to-[#166534]" /> Offer</span>
-                    <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#fb7185] to-[#881337]" /> Rejected</span>
-                    <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-gradient-to-r from-[#94a3b8] to-[#334155]" /> Withdrawn</span>
+                <div className="space-y-6">
+                  <div className="flex flex-wrap gap-4 text-xs text-white/60 bg-gradient-to-br from-white/5 to-white/[0.02] border border-[#1dff00]/10 rounded-xl p-4">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#71717a] to-[#27272a] shadow-lg" />
+                      <span className="font-medium">Pending</span>
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#1dff00] to-[#0a8246] shadow-lg shadow-[#1dff00]/20" />
+                      <span className="font-medium">Applied</span>
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#fbbf24] to-[#a16207] shadow-lg shadow-amber-400/20" />
+                      <span className="font-medium">Interview</span>
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#84cc16] to-[#166534] shadow-lg shadow-lime-400/20" />
+                      <span className="font-medium">Offer</span>
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#fb7185] to-[#881337] shadow-lg shadow-rose-400/20" />
+                      <span className="font-medium">Rejected</span>
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#94a3b8] to-[#334155] shadow-lg" />
+                      <span className="font-medium">Withdrawn</span>
+                    </span>
                   </div>
                   <div id="application-gantt" data-tour="application-gantt">
                     <Gantt
@@ -623,8 +725,8 @@ function ApplicationPage() {
               )}
             </motion.div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      
       <Modal open={!!detailApp} onClose={() => setDetailId(null)} title="" side="right" size="lg">
         {detailApp ? (
           <div className="space-y-6">
