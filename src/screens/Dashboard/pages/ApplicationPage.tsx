@@ -544,61 +544,175 @@ function ApplicationPage() {
           )}
         </CardContent>
       </Card>
-      <Modal open={!!detailApp} onClose={() => setDetailId(null)} title={detailApp?.job_title} side="right" size="lg">
+      <Modal open={!!detailApp} onClose={() => setDetailId(null)} title="" side="right" size="lg">
         {detailApp ? (
-          <div className="space-y-4 text-sm text-white/80">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <div className="text-white/40 text-xs uppercase tracking-wide mb-1">Company</div>
-                <div>{detailApp.company}</div>
+          <div className="space-y-6">
+            {/* Header Section with Status Badge */}
+            <div className="relative pb-6 border-b border-[#1dff00]/10">
+              <div className="absolute top-0 right-0">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                  detailApp.status === 'Applied' ? 'bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/20' :
+                  detailApp.status === 'Interview' ? 'bg-amber-400/10 text-amber-400 border border-amber-400/20' :
+                  detailApp.status === 'Offer' ? 'bg-lime-400/10 text-lime-400 border border-lime-400/20' :
+                  detailApp.status === 'Rejected' ? 'bg-rose-400/10 text-rose-400 border border-rose-400/20' :
+                  'bg-gray-400/10 text-gray-400 border border-gray-400/20'
+                }`}>
+                  <div className={`h-1.5 w-1.5 rounded-full ${
+                    detailApp.status === 'Applied' ? 'bg-[#1dff00]' :
+                    detailApp.status === 'Interview' ? 'bg-amber-400' :
+                    detailApp.status === 'Offer' ? 'bg-lime-400' :
+                    detailApp.status === 'Rejected' ? 'bg-rose-400' :
+                    'bg-gray-400'
+                  } shadow-[0_0_4px_currentColor]`} />
+                  {detailApp.status}
+                </span>
               </div>
-              <div>
-                <div className="text-white/40 text-xs uppercase tracking-wide mb-1">Status</div>
-                <div>{detailApp.status}</div>
-              </div>
-              <div>
-                <div className="text-white/40 text-xs uppercase tracking-wide mb-1">Applied</div>
-                <div>{new Date(detailApp.applied_date).toLocaleString()}</div>
-              </div>
-              <div>
-                <div className="text-white/40 text-xs uppercase tracking-wide mb-1">Updated</div>
-                <div>{new Date(detailApp.updated_at).toLocaleString()}</div>
-              </div>
-              {detailApp.interview_date && (
-                <div>
-                  <div className="text-white/40 text-xs uppercase tracking-wide mb-1">Interview</div>
-                  <div>{new Date(detailApp.interview_date).toLocaleString()}</div>
+              <div className="space-y-2 pr-32">
+                <h2 className="text-2xl font-bold text-white">{detailApp.job_title}</h2>
+                <div className="flex items-center gap-2 text-white/60">
+                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 flex items-center justify-center">
+                    <span className="text-xs font-bold text-[#1dff00]">{detailApp.company.charAt(0)}</span>
+                  </div>
+                  <span className="text-base font-medium text-white/80">{detailApp.company}</span>
                 </div>
-              )}
-              {detailApp.salary && (
-                <div>
-                  <div className="text-white/40 text-xs uppercase tracking-wide mb-1">Salary</div>
-                  <div>{detailApp.salary}</div>
-                </div>
-              )}
+              </div>
             </div>
-            {detailApp.notes && (
-              <div>
-                <div className="text-white/40 text-xs uppercase tracking-wide mb-1">Notes</div>
-                <div className="whitespace-pre-wrap text-white/70 text-xs border border-white/10 rounded p-2 bg-white/5 max-h-60 overflow-auto">{detailApp.notes}</div>
+
+            {/* Timeline & Key Dates */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">Timeline</h3>
+              <div className="space-y-2">
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/5 hover:border-[#1dff00]/20 transition-colors">
+                  <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-gradient-to-br from-[#1dff00]/10 to-transparent border border-[#1dff00]/20 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-[#1dff00]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-white/40">Applied Date</div>
+                    <div className="text-sm font-medium text-white/90">{new Date(detailApp.applied_date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                  </div>
+                </div>
+                
+                {detailApp.interview_date && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-400/[0.02] border border-amber-400/10 hover:border-amber-400/30 transition-colors">
+                    <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-gradient-to-br from-amber-400/10 to-transparent border border-amber-400/20 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs text-amber-400/60">Interview Scheduled</div>
+                      <div className="text-sm font-medium text-amber-400">{new Date(detailApp.interview_date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/5">
+                  <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-white/40">Last Updated</div>
+                    <div className="text-sm font-medium text-white/70">{new Date(detailApp.updated_at).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Information */}
+            {detailApp.salary && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">Compensation</h3>
+                <div className="p-4 rounded-xl bg-gradient-to-br from-[#1dff00]/5 to-transparent border border-[#1dff00]/20">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-[#1dff00]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-lg font-bold text-[#1dff00]">{detailApp.salary}</span>
+                  </div>
+                </div>
               </div>
             )}
-            <div className="flex flex-wrap gap-2 pt-2">
-              {detailApp.app_url && (
-                <a href={detailApp.app_url} target="_blank" rel="noreferrer" className="text-[#1dff00] hover:underline text-xs">Open Application</a>
-              )}
-              {detailApp.recording_url && (
-                <a href={detailApp.recording_url} target="_blank" rel="noreferrer" className="text-white/70 hover:text-white text-xs">Recording</a>
-              )}
-              {detailApp.run_id && (
-                <button
-                  onClick={() => navigator.clipboard?.writeText(detailApp.run_id!)}
-                  className="text-white/60 hover:text-white text-xs underline decoration-dotted"
-                >Copy Run ID</button>
-              )}
+
+            {/* Notes Section */}
+            {detailApp.notes && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">Notes & Details</h3>
+                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/10 max-h-60 overflow-auto scrollbar-thin scrollbar-thumb-[#1dff00]/30 scrollbar-track-transparent">
+                  <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap">{detailApp.notes}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Quick Actions */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">Quick Actions</h3>
+              <div className="flex flex-wrap gap-2">
+                {detailApp.app_url && (
+                  <a 
+                    href={detailApp.app_url} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/20 hover:shadow-[0_0_20px_rgba(29,255,0,0.2)] transition-all duration-200 text-sm font-medium"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    Open Application
+                  </a>
+                )}
+                {detailApp.recording_url && (
+                  <a 
+                    href={detailApp.recording_url} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-200 text-sm font-medium"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    View Recording
+                  </a>
+                )}
+                {detailApp.run_id && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard?.writeText(detailApp.run_id!);
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-200 text-sm font-medium"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Copy Run ID
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="pt-4 flex gap-2">
-              <Button size="sm" variant="outline" className="border-white/20" onClick={() => setDetailId(null)}>Close</Button>
+
+            {/* Footer Actions */}
+            <div className="pt-4 border-t border-white/10 flex gap-3">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="flex-1 border-white/20 hover:border-white/30 hover:bg-white/5 text-white/70 hover:text-white transition-all"
+                onClick={() => setDetailId(null)}
+              >
+                Close
+              </Button>
+              <Button 
+                size="sm" 
+                className="flex-1 bg-gradient-to-r from-[#1dff00] to-[#0a8246] hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] text-black font-semibold transition-all"
+                onClick={() => {
+                  // Edit functionality can be added here
+                  console.log('Edit application:', detailApp.id);
+                }}
+              >
+                Edit Details
+              </Button>
             </div>
           </div>
         ) : null}
