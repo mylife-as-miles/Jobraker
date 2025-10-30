@@ -723,69 +723,77 @@ export const CoverLetter = () => {
       <div className="fixed top-20 right-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10" />
       <div className="fixed bottom-20 left-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10" />
       
-      {/* Header */}
-      <div id="cover-header" data-tour="cover-header" className="flex items-center justify-between sticky top-0 z-10 bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 backdrop-blur-xl border border-[#1dff00]/30 rounded-2xl shadow-[0_0_40px_rgba(29,255,0,0.15)] px-4 sm:px-6 py-5">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" className="h-11 w-11 p-0 rounded-xl border border-transparent hover:border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:text-[#1dff00] hover:scale-110 hover:shadow-[0_0_20px_rgba(29,255,0,0.1)] transition-all duration-200" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-5 h-5" />
+      {/* Enhanced Header */}
+      <div id="cover-header" data-tour="cover-header" className="relative flex items-center justify-between sticky top-0 z-10 bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 backdrop-blur-xl border border-[#1dff00]/30 rounded-2xl shadow-[0_0_40px_rgba(29,255,0,0.15)] px-4 sm:px-6 py-5 overflow-hidden group">
+        {/* Animated gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/0 via-[#1dff00]/5 to-[#1dff00]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+        
+        <div className="relative flex items-center gap-4">
+          <Button variant="ghost" size="sm" className="h-12 w-12 p-0 rounded-xl border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:text-[#1dff00] hover:scale-110 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)] transition-all duration-200 group/btn" onClick={() => navigate(-1)}>
+            <ArrowLeft className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
           </Button>
-          <div className="h-10 w-px bg-gradient-to-b from-transparent via-[#1dff00]/30 to-transparent" />
+          <div className="h-12 w-px bg-gradient-to-b from-transparent via-[#1dff00]/40 to-transparent shadow-[0_0_10px_rgba(29,255,0,0.3)]" />
           <div>
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-white via-white/95 to-[#1dff00] bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(29,255,0,0.3)]">
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight bg-gradient-to-r from-white via-[#1dff00]/95 to-[#1dff00] bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(29,255,0,0.4)]">
               Cover Letter Builder
             </h1>
-            <p className="text-xs sm:text-sm text-gray-400 mt-1.5 flex items-center gap-2">
-              <span className="inline-block w-2 h-2 bg-[#1dff00] rounded-full animate-pulse shadow-[0_0_8px_rgba(29,255,0,0.6)]" />
+            <p className="text-xs sm:text-sm text-gray-400 mt-1.5 flex items-center gap-2.5">
+              <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-[#1dff00]/20 border border-[#1dff00]/40">
+                <span className="inline-block w-2 h-2 bg-[#1dff00] rounded-full animate-pulse shadow-[0_0_8px_rgba(29,255,0,0.8)]" />
+              </span>
               Create professional, tailored cover letters with AI assistance
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2.5 overflow-x-auto">
+        <div className="relative flex items-center gap-2.5 overflow-x-auto">
           <Button 
             variant="outline" 
             onClick={() => setInlineEdit((v)=>!v)} 
-            className={`rounded-xl whitespace-nowrap h-11 px-4 transition-all duration-200 ${
+            className={`rounded-xl whitespace-nowrap h-11 px-4 font-semibold transition-all duration-300 group/btn ${
               inlineEdit 
-                ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 border-2 border-[#1dff00] text-[#1dff00] shadow-[0_0_30px_rgba(29,255,0,0.3)] scale-105' 
-                : 'border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
+                ? 'bg-gradient-to-br from-[#1dff00]/25 to-[#1dff00]/15 border-2 border-[#1dff00] text-[#1dff00] shadow-[0_0_35px_rgba(29,255,0,0.35)] scale-105' 
+                : 'border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)]'
             }`}
           > 
-            <Pencil className="w-4 h-4 mr-2"/> 
+            <Pencil className="w-4 h-4 mr-2 group-hover/btn:rotate-12 transition-transform"/> 
             {inlineEdit ? 'Live Edit: On' : 'Enable Live Edit'} 
           </Button>
           <Button 
             variant="outline" 
             disabled={aiLoading || subscriptionTier === 'Free'} 
             onClick={aiPolish} 
-            className="rounded-xl whitespace-nowrap h-11 px-4 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-200"
+            className="rounded-xl whitespace-nowrap h-11 px-4 font-semibold border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_30px_rgba(29,255,0,0.25)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-300 group/btn"
             title={subscriptionTier === 'Free' ? 'Pro/Ultimate subscription required' : 'Polish existing content with AI'}
           > 
             {subscriptionTier === 'Free' && <Lock className="w-3.5 h-3.5 mr-1.5 text-[#1dff00]/60" />}
-            <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse text-[#1dff00]' : ''}`}/> 
+            <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin text-[#1dff00]' : 'group-hover/btn:rotate-12 transition-transform'}`}/> 
             {aiLoading ? 'Polishing…' : 'AI Polish'}
-            {subscriptionTier === 'Free' && <span className="ml-1.5 text-[10px] opacity-60 uppercase tracking-wide">Pro</span>}
+            {subscriptionTier === 'Free' && <span className="ml-1.5 text-[10px] opacity-60 uppercase tracking-wide font-bold">Pro</span>}
           </Button>
           <Button 
             variant="outline" 
             disabled={aiLoading || subscriptionTier === 'Free'} 
             onClick={aiWriteFull} 
-            className="rounded-xl whitespace-nowrap h-11 px-4 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-200"
+            className="rounded-xl whitespace-nowrap h-11 px-4 font-semibold border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_30px_rgba(29,255,0,0.25)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-300 group/btn"
             title={subscriptionTier === 'Free' ? 'Pro/Ultimate subscription required' : 'Generate complete cover letter with AI'}
           > 
             {subscriptionTier === 'Free' && <Lock className="w-3.5 h-3.5 mr-1.5 text-[#1dff00]/60" />}
-            <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse text-[#1dff00]' : ''}`}/> 
+            <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin text-[#1dff00]' : 'group-hover/btn:rotate-12 transition-transform'}`}/> 
             {aiLoading ? 'Writing…' : 'AI Generate'}
-            {subscriptionTier === 'Free' && <span className="ml-1.5 text-[10px] opacity-60 uppercase tracking-wide">Pro</span>}
+            {subscriptionTier === 'Free' && <span className="ml-1.5 text-[10px] opacity-60 uppercase tracking-wide font-bold">Pro</span>}
           </Button>
           <Button 
             variant="outline" 
             onClick={() => setExportOpen(true)} 
-            className="rounded-xl whitespace-nowrap h-11 px-4 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)] transition-all duration-200"
+            className="rounded-xl whitespace-nowrap h-11 px-4 font-semibold border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_30px_rgba(29,255,0,0.25)] transition-all duration-300 group/btn"
           > 
-            <Download className="w-4 h-4 mr-2"/> 
+            <Download className="w-4 h-4 mr-2 group-hover/btn:translate-y-0.5 transition-transform"/> 
             Export
           </Button>
         </div>
+        
+        {/* Corner accent glow */}
+        <div className="absolute top-0 right-0 w-40 h-40 bg-[#1dff00]/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
       </div>
 
       {exportOpen && (
