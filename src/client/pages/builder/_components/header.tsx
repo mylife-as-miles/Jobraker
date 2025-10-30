@@ -26,15 +26,14 @@ export const BuilderHeader = () => {
     <div
       style={{ left: `${leftPanelSize}%`, right: `${rightPanelSize}%` }}
       className={cn(
-        "fixed inset-x-0 top-0 z-[60] h-16 bg-secondary-accent/50 backdrop-blur-lg lg:z-20",
+        "fixed inset-x-0 top-0 z-[60] h-16 bg-gradient-to-r from-[#0a0a0a]/98 via-[#0f0f0f]/98 to-[#0a0a0a]/98 backdrop-blur-xl border-b border-[#1dff00]/20 shadow-[0_0_30px_rgba(29,255,0,0.1)] lg:z-20",
         !isDragging && "transition-[left,right]",
       )}
     >
-      <div className="flex h-full items-center justify-between px-4">
+      <div className="flex h-full items-center justify-between px-4 gap-4">
         <Button
-          size="icon"
           variant="ghost"
-          className="flex lg:hidden"
+          className="flex lg:hidden w-10 h-10 p-0 rounded-xl hover:bg-[#1dff00]/10 hover:text-[#1dff00] hover:border-[#1dff00]/30 transition-all duration-200 border border-transparent"
           onClick={() => {
             onToggle("left");
           }}
@@ -42,28 +41,36 @@ export const BuilderHeader = () => {
           <SidebarSimple />
         </Button>
 
-        <div className="flex items-center justify-center gap-x-1 lg:mx-auto">
-          <Button asChild size="icon" variant="ghost">
+        <div className="flex items-center justify-center gap-x-2 lg:mx-auto">
+          <Button 
+            asChild 
+            variant="ghost"
+            className="w-10 h-10 p-0 rounded-xl hover:bg-[#1dff00]/10 hover:text-[#1dff00] hover:border-[#1dff00]/30 hover:scale-110 transition-all duration-200 border border-transparent group"
+          >
             <Link to="/dashboard/resumes">
-              <HouseSimple />
+              <HouseSimple className="group-hover:scale-110 transition-transform" />
             </Link>
           </Button>
 
-          <span className="mr-2 text-xs opacity-40">{"/"}</span>
+          <span className="mx-1 text-sm opacity-30 font-light">{"/"}</span>
 
-          <h1 className="font-medium">{title}</h1>
+          <h1 className="font-bold text-lg bg-gradient-to-r from-white via-white/95 to-[#1dff00]/90 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(29,255,0,0.3)]">
+            {title}
+          </h1>
 
           {locked && (
             <Tooltip content={t`This resume is locked, please unlock to make further changes.`}>
-              <Lock width={14} height={14} className="ml-2 opacity-75" />
+              <div className="ml-2 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-1.5">
+                <Lock width={14} height={14} className="text-red-400" />
+                <span className="text-[10px] font-bold text-red-400 uppercase tracking-wide">Locked</span>
+              </div>
             </Tooltip>
           )}
         </div>
 
         <Button
-          size="icon"
           variant="ghost"
-          className="flex lg:hidden"
+          className="flex lg:hidden w-10 h-10 p-0 rounded-xl hover:bg-[#1dff00]/10 hover:text-[#1dff00] hover:border-[#1dff00]/30 transition-all duration-200 border border-transparent"
           onClick={() => {
             onToggle("right");
           }}
