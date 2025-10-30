@@ -354,8 +354,8 @@ export const ChatPage = () => {
         </div>
       )}
       
-      {/* Access Gate for Free tier users */}
-      {!loadingTier && subscriptionTier === 'Free' && (
+      {/* Access Gate for Free and Basics tier users */}
+      {!loadingTier && (subscriptionTier === 'Free' || subscriptionTier === 'Basics') && (
         <div className="flex items-center justify-center h-full p-4 sm:p-6">
           <UpgradePrompt
             title="AI Chat Assistant"
