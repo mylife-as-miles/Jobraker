@@ -2633,7 +2633,7 @@ export const JobPage = (): JSX.Element => {
             size="lg"
             side="center"
           >
-            <div className="relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#040404] via-[#060606] to-[#0a0a0a] text-white">
+            <div className="relative overflow-hidden rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#040404] via-[#060606] to-[#0a0a0a] text-white">
               <div
                 className="pointer-events-none absolute -top-32 right-0 h-72 w-72 rounded-full bg-[#1dff00]/20 blur-3xl opacity-40"
               />
