@@ -127,6 +127,17 @@ export function KanbanCards<T extends Item>({ id, children }: { id: string; chil
 export function KanbanCard({ id, children }: { id?: string; name?: string; column?: string; children: React.ReactNode }) {
   const [isDragging, setIsDragging] = React.useState(false);
   
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!id) return;
+    setIsDragging(true);
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
+  
   return (
     <motion.div
       layout
@@ -136,13 +147,8 @@ export function KanbanCard({ id, children }: { id?: string; name?: string; colum
           : 'border-white/10 hover:border-[#1dff00]/40 shadow-md hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
       }`}
       draggable
-      onDragStart={(e: React.DragEvent<HTMLDivElement>) => {
-        if (!id) return;
-        setIsDragging(true);
-        e.dataTransfer.setData('text/plain', id);
-        e.dataTransfer.effectAllowed = 'move';
-      }}
-      onDragEnd={() => setIsDragging(false)}
+      onDragStart={handleDragStart as any}
+      onDragEnd={handleDragEnd as any}
       whileHover={{ scale: isDragging ? 1.05 : 1.02, y: -2 }}
       whileTap={{ scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
