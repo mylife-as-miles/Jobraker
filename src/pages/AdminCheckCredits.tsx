@@ -1,16 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createClient } from '@/lib/supabaseClient';
+import { ShieldAlert } from 'lucide-react';
 
 /**
  * Admin utility to check user credits by email
  * Navigate to this page and enter an email to see their credit balance
  */
 export default function AdminCheckCredits() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('siscostarters@gmail.com');
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [checking, setChecking] = useState(true);
   const supabase = createClient();
+
+  // Check admin status on mount
+  useEffect(() => {
+    const checkAdminAccess = async () => {
+      try {
+        const { isCurrentUserAdmin } = await import('@/lib/adminUtils');
+        const admin = await isCurrentUserAdmin();
+        setIsAdmin(admin);
+        
+        if (!admin) {
+          // Redirect non-admin users to dashboard
+          navigate('/dashboard', { replace: true });
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+        setIsAdmin(false);
+        navigate('/dashboard', { replace: true });
+      } finally {
+        setChecking(false);
+      }
+    };
+    
+    checkAdminAccess();
+  }, [navigate]);
 
   const checkCredits = async () => {
     setLoading(true);
@@ -79,6 +108,41 @@ export default function AdminCheckCredits() {
       setLoading(false);
     }
   };
+
+  // Show loading state while checking admin status
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-400 text-sm">Verifying admin access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show access denied if not admin
+  if (isAdmin === false) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-red-900/20 border border-red-500/50 rounded-lg p-8 text-center">
+          <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-6">
+            <ShieldAlert className="w-10 h-10 text-red-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-3">Access Denied</h1>
+          <p className="text-gray-400 mb-6">
+            Admin privileges required to access this tool.
+          </p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-medium transition-colors"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 p-8">

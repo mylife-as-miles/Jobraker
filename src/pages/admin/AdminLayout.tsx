@@ -11,7 +11,8 @@ import {
   ChevronRight,
   Menu,
   X,
-  Crown
+  Crown,
+  ShieldAlert
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -34,6 +35,32 @@ export default function AdminLayout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [checking, setChecking] = useState(true);
+
+  // Check admin status on mount
+  useEffect(() => {
+    const checkAdminAccess = async () => {
+      try {
+        const { isCurrentUserAdmin } = await import('@/lib/adminUtils');
+        const admin = await isCurrentUserAdmin();
+        setIsAdmin(admin);
+        
+        if (!admin) {
+          // Redirect non-admin users to dashboard
+          navigate('/dashboard', { replace: true });
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+        setIsAdmin(false);
+        navigate('/dashboard', { replace: true });
+      } finally {
+        setChecking(false);
+      }
+    };
+    
+    checkAdminAccess();
+  }, [navigate]);
 
   // Handle window resize
   useEffect(() => {
@@ -43,6 +70,45 @@ export default function AdminLayout() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Show loading state while checking admin status
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[#1dff00]/20 border-t-[#1dff00] rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-400 text-sm">Verifying admin access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show access denied if not admin (shouldn't reach here due to redirect, but safety check)
+  if (isAdmin === false) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] flex items-center justify-center p-6">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full bg-gradient-to-br from-red-900/20 to-red-950/20 border border-red-500/50 rounded-2xl p-8 text-center"
+        >
+          <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-6">
+            <ShieldAlert className="w-10 h-10 text-red-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-3">Access Denied</h1>
+          <p className="text-gray-400 mb-6">
+            You don't have permission to access the admin dashboard. Admin privileges are required.
+          </p>
+          <Button
+            onClick={() => navigate('/dashboard')}
+            className="bg-[#1dff00] hover:bg-[#1dff00]/90 text-black font-semibold"
+          >
+            Return to Dashboard
+          </Button>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a]">
