@@ -585,6 +585,7 @@ export const JobPage = (): JSX.Element => {
   const [currentSource, setCurrentSource] = useState<string | null>(null);
   const [lastReason, setLastReason] = useState<string | null>(null);
     const [debugMode, setDebugMode] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [logoError, setLogoError] = useState<Record<string, boolean>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -827,6 +828,22 @@ export const JobPage = (): JSX.Element => {
       decorateJobsRef.current = decorateJobs;
       setJobs((prev) => (prev.length ? decorateJobs(prev) : prev));
     }, [decorateJobs]);
+
+    // Check admin status
+    useEffect(() => {
+      const checkAdmin = async () => {
+        try {
+          const { isCurrentUserAdmin } = await import('@/lib/adminUtils');
+          const admin = await isCurrentUserAdmin();
+          setIsAdmin(admin);
+        } catch (error) {
+          console.error('Error checking admin status:', error);
+          setIsAdmin(false);
+        }
+      };
+      checkAdmin();
+    }, []);
+
     const profileSnapshot = useMemo(() => composeProfileSnapshot(profile), [profile]);
     const profileReady = Boolean(profileSnapshot);
     const resumeLibraryReady = useMemo(
@@ -1650,18 +1667,20 @@ export const JobPage = (): JSX.Element => {
                   </div>
                   {/* Target selector removed: fixed to 10 to minimize API usage and keep runs bounded */}
                   <div className="w-full sm:w-auto flex flex-wrap items-center gap-2 sm:gap-3">
-                    <div className="flex items-center gap-2 text-xs text-[#ffffff70] select-none">
-                      <button
-                        type="button"
-                        onClick={() => setDebugMode(v => !v)}
-                        className="px-1 py-0.5 rounded hover:text-white focus:outline-none focus:ring-1 focus:ring-[#1dff00]/50"
-                        aria-pressed={debugMode}
-                        title="Toggle Diagnostics"
-                      >
-                        Diagnostics
-                      </button>
-                      <Switch checked={debugMode} onCheckedChange={setDebugMode} />
-                    </div>
+                    {isAdmin && (
+                      <div className="flex items-center gap-2 text-xs text-[#ffffff70] select-none">
+                        <button
+                          type="button"
+                          onClick={() => setDebugMode(v => !v)}
+                          className="px-1 py-0.5 rounded hover:text-white focus:outline-none focus:ring-1 focus:ring-[#1dff00]/50"
+                          aria-pressed={debugMode}
+                          title="Toggle Diagnostics"
+                        >
+                          Diagnostics
+                        </button>
+                        <Switch checked={debugMode} onCheckedChange={setDebugMode} />
+                      </div>
+                    )}
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                       <Button
                         variant="ghost"

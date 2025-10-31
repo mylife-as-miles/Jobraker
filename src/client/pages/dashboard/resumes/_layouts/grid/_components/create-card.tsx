@@ -2,23 +2,58 @@ import { t } from "@lingui/macro";
 import { Plus } from "@phosphor-icons/react";
 import { BaseCard } from "./base-card";
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 
 // Feature flag strategy:
 // 1. Build-time: import.meta.env.VITE_ENABLE_CREATE_RESUME === 'true'
 // 2. Runtime override: localStorage['feature:createResume'] === '1'
+// 3. Admin bypass: Admins always have access
 // Set via DevTools: localStorage.setItem('feature:createResume','1'); location.reload();
 // Disable: localStorage.removeItem('feature:createResume'); location.reload();
-const isFeatureEnabled = () => {
+const isFeatureEnabled = async () => {
   try {
     const runtime = localStorage.getItem('feature:createResume');
     if (runtime != null) return runtime === '1';
   } catch { /* ignore */ }
+  
+  // Check if user is admin
+  try {
+    const { isCurrentUserAdmin } = await import('@/lib/adminUtils');
+    const isAdmin = await isCurrentUserAdmin();
+    if (isAdmin) return true;
+  } catch (error) {
+    console.error('Error checking admin status:', error);
+  }
+  
   return import.meta.env.VITE_ENABLE_CREATE_RESUME === 'true';
 };
 
 export const CreateResumeCard = () => {
   const navigate = useNavigate();
-  const enabled = isFeatureEnabled();
+  const [enabled, setEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    isFeatureEnabled().then((result) => {
+      setEnabled(result);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) {
+    return (
+      <BaseCard
+        className="opacity-50 cursor-wait"
+      >
+        <div className="flex flex-col items-center justify-center gap-4 text-center select-none h-full">
+          <div className="relative flex items-center justify-center w-16 h-16 rounded-xl bg-gradient-to-br from-[#1dff00]/10 to-[#1dff00]/5 border-2 border-[#1dff00]/20">
+            <div className="w-6 h-6 border-2 border-[#1dff00]/20 border-t-[#1dff00] rounded-full animate-spin" />
+          </div>
+          <p className="text-sm text-white/40">Loading...</p>
+        </div>
+      </BaseCard>
+    );
+  }
 
   if (!enabled) {
     return (
