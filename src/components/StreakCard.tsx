@@ -17,7 +17,7 @@ export const StreakCard = ({
   completionRate,
   activeDays = [false, false, false, false, false, false, false],
 }: StreakCardProps): JSX.Element => {
-  const daysOfWeek = ["M", "T", "W", "T", "F", "S", "S"];
+  const daysOfWeek = ["M", "T", "W", "Th", "F", "S", "Su"];
 
   const progressPercent = useMemo(() => {
     return Math.min(100, (weekProgress / 7) * 100);

@@ -257,8 +257,13 @@ export const OverviewPage = (): JSX.Element => {
   // Calculate streak data from applications
   const streakData = useMemo(() => {
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Calculate start of current week (Monday)
+    const currentDayOfWeek = today.getDay();
+    const daysFromMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
     const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Monday
+    startOfWeek.setDate(today.getDate() - daysFromMonday);
     startOfWeek.setHours(0, 0, 0, 0);
 
     // Get activity for this week (Mon-Sun)
@@ -267,36 +272,46 @@ export const OverviewPage = (): JSX.Element => {
 
     applications.forEach(app => {
       const appDate = new Date(app.applied_date);
-      const dayOfWeek = appDate.getDay();
-      const mondayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert to Mon=0, Sun=6
-
+      appDate.setHours(0, 0, 0, 0);
+      
       // Check if in current week
       const weekEnd = new Date(startOfWeek);
       weekEnd.setDate(startOfWeek.getDate() + 7);
+      
       if (appDate >= startOfWeek && appDate < weekEnd) {
-        if (!weekActivity[mondayIndex]) {
-          weekActivity[mondayIndex] = true;
-          weekCount++;
+        const daysSinceMonday = Math.floor((appDate.getTime() - startOfWeek.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysSinceMonday >= 0 && daysSinceMonday < 7) {
+          if (!weekActivity[daysSinceMonday]) {
+            weekActivity[daysSinceMonday] = true;
+            weekCount++;
+          }
         }
       }
     });
 
-    // Calculate current streak (consecutive days with activity)
+    // Calculate current streak (consecutive days with activity, counting back from today or yesterday)
     let currentStreak = 0;
     const sortedDates = applications
-      .map(app => new Date(app.applied_date))
+      .map(app => {
+        const d = new Date(app.applied_date);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      })
       .sort((a, b) => b.getTime() - a.getTime());
 
     if (sortedDates.length > 0) {
+      // Start from today
       let checkDate = new Date(today);
-      checkDate.setHours(0, 0, 0, 0);
+      
+      // Check if there's activity today, if not start from yesterday
+      const hasToday = sortedDates.some(d => d.getTime() === checkDate.getTime());
+      if (!hasToday) {
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
 
+      // Count consecutive days backwards
       while (true) {
-        const hasActivity = sortedDates.some(d => {
-          const appDay = new Date(d);
-          appDay.setHours(0, 0, 0, 0);
-          return appDay.getTime() === checkDate.getTime();
-        });
+        const hasActivity = sortedDates.some(d => d.getTime() === checkDate.getTime());
 
         if (hasActivity) {
           currentStreak++;
@@ -313,14 +328,12 @@ export const OverviewPage = (): JSX.Element => {
     const uniqueDays = new Set(
       applications.map(app => {
         const d = new Date(app.applied_date);
-        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        d.setHours(0, 0, 0, 0);
+        return d.getTime();
       })
     );
     const sortedUniqueDays = Array.from(uniqueDays)
-      .map(str => {
-        const [y, m, d] = str.split('-').map(Number);
-        return new Date(y, m, d);
-      })
+      .map(timestamp => new Date(timestamp))
       .sort((a, b) => a.getTime() - b.getTime());
 
     for (let i = 0; i < sortedUniqueDays.length; i++) {
@@ -329,7 +342,7 @@ export const OverviewPage = (): JSX.Element => {
       } else {
         const prevDay = sortedUniqueDays[i - 1];
         const currDay = sortedUniqueDays[i];
-        const diffDays = (currDay.getTime() - prevDay.getTime()) / (1000 * 60 * 60 * 24);
+        const diffDays = Math.round((currDay.getTime() - prevDay.getTime()) / (1000 * 60 * 60 * 24));
         if (diffDays === 1) {
           tempStreak++;
         } else {
@@ -341,8 +354,8 @@ export const OverviewPage = (): JSX.Element => {
     longestStreak = Math.max(longestStreak, tempStreak);
 
     // Calculate completion rate (active days / total days since first application)
-    const completionRate = applications.length > 0
-      ? (uniqueDays.size / Math.max(1, sortedUniqueDays.length)) * 100
+    const completionRate = sortedUniqueDays.length > 0
+      ? (uniqueDays.size / sortedUniqueDays.length) * 100
       : 0;
 
     return {
