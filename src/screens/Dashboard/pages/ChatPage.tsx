@@ -96,8 +96,8 @@ import { Conversation, ConversationContent, ConversationScrollButton } from '@/c
 
 
 const models = [
-  { id: 'agent-general', name: 'Ask an Agent' },
-  { id: 'agent-specialized', name: 'Ask a Specialist Agent' },
+  { id: 'ask', name: 'Ask' },
+  { id: 'agent', name: 'Agent' },
 ];
 
 export const ChatPage = () => {
@@ -265,12 +265,12 @@ export const ChatPage = () => {
     return parseMarkdown(raw).map((b, i) => {
       if (b.type === 'code') {
         return (
-          <div key={i} className="mt-3 mb-2 rounded-lg border border-neutral-800 bg-neutral-950/80  text-[12px]">
-            <div className="flex items-center justify-between px-3 py-1.5 bg-neutral-900/80 text-neutral-400 uppercase tracking-wider text-[10px]">
+          <div key={i} className="mt-3 mb-2 rounded-lg border border-white/10 bg-black/40 text-[12px]">
+            <div className="flex items-center justify-between px-3 py-1.5 bg-white/5 text-white/60 uppercase tracking-wider text-[10px]">
               <span>{b.lang || 'code'}</span>
               <button
                 onClick={() => navigator.clipboard.writeText(b.content)}
-                className="px-2 py-0.5 rounded-md bg-neutral-800 hover:bg-neutral-700 text-[10px] text-neutral-300"
+                className="px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 text-[10px] text-white/70 hover:text-white/90 transition"
               >Copy</button>
             </div>
             <div className="max-h-[480px] overflow-auto">
@@ -286,7 +286,7 @@ export const ChatPage = () => {
         );
       }
       const segs = b.content.split(/(`[^`]+`)/g).map((seg, j) => seg.startsWith('`') && seg.endsWith('`') ? (
-        <code key={j} className="px-1.5 py-0.5 rounded-md bg-neutral-800/70 text-[#9efca0] text-[12px] font-mono">{seg.slice(1, -1)}</code>
+        <code key={j} className="px-1.5 py-0.5 rounded-md bg-[#1dff00]/10 text-[#1dff00] text-[12px] font-mono border border-[#1dff00]/20">{seg.slice(1, -1)}</code>
       ) : <span key={j}>{seg}</span>);
       return <div key={i} className="whitespace-pre-wrap break-words selection:bg-[#1dff00]/30">{segs}</div>;
     });
@@ -343,13 +343,13 @@ export const ChatPage = () => {
   ];
 
   return (
-    <div className="relative flex h-full w-full flex-col  font-sans">
+    <div className="relative flex h-full w-full flex-col font-sans bg-black">
       {/* Loading state */}
       {loadingTier && (
         <div className="flex items-center justify-center h-full">
           <div className="text-white text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1dff00] mx-auto mb-4"></div>
-            <p>Loading...</p>
+            <p className="text-white/90">Loading...</p>
           </div>
         </div>
       )}
@@ -401,72 +401,71 @@ export const ChatPage = () => {
       {/* Chat interface - only visible for Pro and Ultimate users */}
       {!loadingTier && (subscriptionTier === 'Pro' || subscriptionTier === 'Ultimate') && (
         <>
-      {/* Ambient gradients */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_18%,#1dff0026,transparent_65%),radial-gradient(circle_at_85%_80%,#0a824626,transparent_55%)]" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/40 via-black/10 to-transparent" />
+      {/* Ambient gradients matching MatchScore theme */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_18%,rgba(29,255,0,0.15),transparent_65%),radial-gradient(circle_at_85%_80%,rgba(10,130,70,0.1),transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/60 via-black/20 to-transparent" />
       <div className="mx-auto flex h-full w-full max-w-7xl gap-4 px-3 sm:px-5 lg:px-8 py-4">
         {/* Sidebar */}
-  <aside className="hidden md:flex w-60 flex-col rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] backdrop-blur-xl  shadow-[0_4px_18px_-4px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.03)] relative before:absolute before:inset-0 before:pointer-events-none before:rounded-2xl before:border before:border-white/5">
-          <span className="pointer-events-none absolute -top-12 -left-6 h-32 w-32 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
-          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800/70 relative z-10">
-            <h3 className="text-xs font-semibold tracking-wide text-neutral-300">Sessions</h3>
-            <button onClick={createSession} className="text-[11px] px-2 py-1 rounded-md bg-neutral-800/70 hover:bg-neutral-700 border border-neutral-700/70 text-neutral-300">New</button>
+  <aside className="hidden md:flex w-60 flex-col rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] backdrop-blur-xl shadow-[0_4px_18px_-4px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.03)] relative overflow-hidden">
+          <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#1dff00]/10 relative z-10">
+            <h3 className="text-xs font-semibold tracking-wide text-white/90">Sessions</h3>
+            <button onClick={createSession} className="text-[11px] px-2 py-1 rounded-md bg-[#1dff00]/10 hover:bg-[#1dff00]/20 border border-[#1dff00]/30 text-[#1dff00] transition-colors">New</button>
           </div>
           <div className="flex-1 overflow-auto">
             {sessions.map(s => (
-              <div key={s.id} onClick={() => setActiveSessionId(s.id)} className={`group border-b border-neutral-900/60 px-3 py-2.5 text-[11px] cursor-pointer flex flex-col gap-1 ${s.id === activeSessionId ? 'bg-neutral-900/60' : 'hover:bg-neutral-900/30'}`}> 
+              <div key={s.id} onClick={() => setActiveSessionId(s.id)} className={`group border-b border-white/5 px-3 py-2.5 text-[11px] cursor-pointer flex flex-col gap-1 transition-colors ${s.id === activeSessionId ? 'bg-[#1dff00]/5 border-l-2 border-l-[#1dff00]' : 'hover:bg-white/5'}`}> 
                 {renamingSession === s.id ? (
-                  <input autoFocus defaultValue={s.title} onBlur={e => { renameSession(s.id, e.target.value || 'Untitled'); setRenamingSession(null); }} onKeyDown={e => { if (e.key==='Enter') (e.target as HTMLInputElement).blur(); }} className="px-1.5 py-1 rounded bg-neutral-800/70 text-neutral-200 text-[11px] outline-none border border-neutral-700/70 w-full" />
+                  <input autoFocus defaultValue={s.title} onBlur={e => { renameSession(s.id, e.target.value || 'Untitled'); setRenamingSession(null); }} onKeyDown={e => { if (e.key==='Enter') (e.target as HTMLInputElement).blur(); }} className="px-1.5 py-1 rounded bg-white/5 text-white/90 text-[11px] outline-none border border-[#1dff00]/30 w-full focus:border-[#1dff00]/50" />
                 ) : (
                   <div className="flex items-center justify-between gap-1">
-                    <span className="truncate" title={s.title}>{s.title}</span>
+                    <span className="truncate text-white/90" title={s.title}>{s.title}</span>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={(e)=>{ e.stopPropagation(); setRenamingSession(s.id); }} className="px-1 py-0.5 rounded bg-neutral-800/70 hover:bg-neutral-700 text-neutral-400">✎</button>
-                      <button onClick={(e)=>{ e.stopPropagation(); deleteSession(s.id); }} className="px-1 py-0.5 rounded bg-neutral-800/70 hover:bg-red-600/30 text-neutral-400">✕</button>
+                      <button onClick={(e)=>{ e.stopPropagation(); setRenamingSession(s.id); }} className="px-1 py-0.5 rounded bg-[#1dff00]/10 hover:bg-[#1dff00]/20 text-[#1dff00] border border-[#1dff00]/20">✎</button>
+                      <button onClick={(e)=>{ e.stopPropagation(); deleteSession(s.id); }} className="px-1 py-0.5 rounded bg-white/5 hover:bg-red-500/20 text-white/60 hover:text-red-400 border border-white/10">✕</button>
                     </div>
                   </div>
                 )}
-                <div className="flex justify-between text-[9px] text-neutral-500">
+                <div className="flex justify-between text-[9px] text-white/40">
                   <span>{new Date(s.updatedAt).toLocaleDateString()}</span>
                   <span>{s.messages.length}</span>
                 </div>
               </div>
             ))}
-            {!sessions.length && <div className="p-4 text-[11px] text-neutral-500">No sessions</div>}
+            {!sessions.length && <div className="p-4 text-[11px] text-white/40">No sessions</div>}
           </div>
         </aside>
         {/* Main Column */}
         <div className="flex flex-1 flex-col gap-4">
-          <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] backdrop-blur-xl px-4 sm:px-6 py-4 shadow-[0_4px_24px_-6px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.04)] relative ">
-            <span className="pointer-events-none absolute -top-12 -right-6 h-32 w-32 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
-            <div className="pointer-events-none absolute inset-0 opacity-[0.35] [mask-image:radial-gradient(circle_at_30%_30%,black,transparent_70%)] bg-[conic-gradient(from_140deg,rgba(29,255,0,0.12),rgba(10,130,70,0.05),transparent_70%)]" />
-            <div className="flex flex-col">
+          <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] backdrop-blur-xl px-4 sm:px-6 py-4 shadow-[0_4px_24px_-6px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.04)] relative overflow-hidden">
+            <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
+            <div className="flex flex-col relative z-10">
               <h1 className="text-sm sm:text-base font-semibold tracking-wide bg-gradient-to-r from-[#1dff00] via-[#6dffb0] to-[#1dff00] bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(29,255,0,0.25)]">Intelligent Assistant</h1>
-              <p className="text-[11px] sm:text-xs text-neutral-400/80">Ask about applications, resumes, interviews & more.</p>
+              <p className="text-[11px] sm:text-xs text-white/60">Ask about applications, resumes, interviews & more.</p>
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-[10px] sm:text-xs text-neutral-400">
+            <div className="flex flex-wrap items-center gap-3 text-[10px] sm:text-xs text-white/60 relative z-10">
               <div className="flex items-center gap-2">
-                <span className={status === 'in_progress' ? 'text-[#1dff00] animate-pulse' : ''}>{status === 'in_progress' ? 'Generating…' : 'Idle'}</span>
-                <span className="h-4 w-px bg-neutral-800" />
-                <span>{messages.filter(m=>m.role==='user').length} msg</span>
+                <span className={status === 'in_progress' ? 'text-[#1dff00] animate-pulse' : 'text-white/90'}>{status === 'in_progress' ? 'Generating…' : 'Idle'}</span>
+                <span className="h-4 w-px bg-white/10" />
+                <span className="text-white/90">{messages.filter(m=>m.role==='user').length} msg</span>
               </div>
               <div className="flex items-center gap-1">
-                <label className="uppercase tracking-wider text-[9px] text-neutral-500">Persona</label>
-                <select value={persona} onChange={e=>setPersona(e.target.value as Persona)} className="bg-neutral-900/70 border border-neutral-700/60 rounded-md px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-[#1dff00]/60">
-                  {Object.entries(personaLabel).map(([val,label]) => <option key={val} value={val}>{label}</option>)}
+                <label className="uppercase tracking-wider text-[9px] text-white/40">Persona</label>
+                <select value={persona} onChange={e=>setPersona(e.target.value as Persona)} className="bg-white/5 border border-[#1dff00]/20 rounded-md px-2 py-1 text-[11px] text-white/90 focus:outline-none focus:ring-1 focus:ring-[#1dff00]/60 focus:border-[#1dff00]/50">
+                  {Object.entries(personaLabel).map(([val,label]) => <option key={val} value={val} className="bg-[#030303] text-white/90">{label}</option>)}
                 </select>
-                <span className="ml-1 inline-flex items-center gap-1 rounded-full border border-neutral-700/60 bg-neutral-900/60 px-2 py-0.5 text-[10px] text-neutral-400">
+                <span className="ml-1 inline-flex items-center gap-1 rounded-full border border-[#1dff00]/30 bg-[#1dff00]/10 px-2 py-0.5 text-[10px] text-[#1dff00]">
                   <span className="inline-block h-2 w-2 rounded-full bg-gradient-to-br from-[#1dff00] to-[#0a8246] shadow-[0_0_0_2px_rgba(29,255,0,0.25)]" />
                   {personaLabel[persona]}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                {status === 'in_progress' && <button onClick={stop} className="px-2 py-1 rounded-md text-[10px] bg-red-600/20 text-red-300 border border-red-500/30 hover:bg-red-600/30 transition">Stop</button>}
-                {status !== 'in_progress' && messages.some(m=>m.role==='assistant') && <button onClick={regenerate} className="px-2 py-1 rounded-md text-[10px] bg-neutral-800/70 text-neutral-300 border border-neutral-700 hover:bg-neutral-700 transition">Regenerate</button>}
+                {status === 'in_progress' && <button onClick={stop} className="px-2 py-1 rounded-md text-[10px] bg-red-500/15 text-red-300 border border-red-500/30 hover:bg-red-500/25 transition-colors">Stop</button>}
+                {status !== 'in_progress' && messages.some(m=>m.role==='assistant') && <button onClick={regenerate} className="px-2 py-1 rounded-md text-[10px] bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/30 hover:bg-[#1dff00]/20 transition-colors">Regenerate</button>}
               </div>
             </div>
           </header>
-          <div className="flex-1 min-h-0 flex flex-col rounded-3xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] backdrop-blur-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_12px_40px_-10px_rgba(0,0,0,0.7)]  relative">
+          <div className="flex-1 min-h-0 flex flex-col rounded-3xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] backdrop-blur-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_12px_40px_-10px_rgba(0,0,0,0.7)] relative overflow-hidden">
             <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
             <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-black/60 to-transparent z-10" />
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent z-10" />
@@ -474,12 +473,12 @@ export const ChatPage = () => {
               <ConversationContent className="px-3 sm:px-6 py-8 space-y-7">
                 {messages.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-24 text-center gap-6">
-                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#1dff00]/20 to-[#0a8246]/10 border border-[#1dff00]/25 flex items-center justify-center shadow-inner"><GlobeIcon className="w-9 h-9 text-[#1dff00]" /></div>
+                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#1dff00]/20 to-[#0a8246]/10 border border-[#1dff00]/30 flex items-center justify-center shadow-[0_0_25px_rgba(29,255,0,0.2)]"><GlobeIcon className="w-9 h-9 text-[#1dff00]" /></div>
                     <div className="max-w-sm mx-auto flex flex-col gap-3">
-                      <h2 className="text-lg font-semibold tracking-wide text-neutral-100">Start a conversation</h2>
-                      <p className="text-xs leading-relaxed text-neutral-400">Use the prompt box below to ask anything about your job search workflow. Attach resumes or enable web search for richer answers.</p>
+                      <h2 className="text-lg font-semibold tracking-wide text-white/90">Start a conversation</h2>
+                      <p className="text-xs leading-relaxed text-white/60">Use the prompt box below to ask anything about your job search workflow. Attach resumes or enable web search for richer answers.</p>
                       <div className="flex flex-wrap gap-2 justify-center pt-2">
-                        {quickPrompts.slice(0,3).map(q => <button key={q} onClick={()=>{ setText(q); setEditing(false); }} className="px-3 py-1.5 rounded-full text-[11px] bg-neutral-900/70 hover:bg-neutral-800 border border-neutral-700/70 text-neutral-300 hover:text-white transition">{q}</button>)}
+                        {quickPrompts.slice(0,3).map(q => <button key={q} onClick={()=>{ setText(q); setEditing(false); }} className="px-3 py-1.5 rounded-full text-[11px] bg-[#1dff00]/10 hover:bg-[#1dff00]/20 border border-[#1dff00]/30 text-[#1dff00] hover:text-white transition-colors">{q}</button>)}
                       </div>
                     </div>
                   </div>
@@ -487,8 +486,8 @@ export const ChatPage = () => {
                 {messages.map((msg, idx) => {
                   const isUser = msg.role==='user';
                   const bubble = isUser
-                    ? 'bg-gradient-to-br from-[#1dff00] via-[#45d86e] to-[#0a8246] text-black shadow-[0_8px_24px_-6px_rgba(29,255,0,0.35)]'
-                    : 'bg-neutral-900/80 text-neutral-100 border border-neutral-800/70 shadow-[0_4px_18px_-4px_rgba(0,0,0,0.55)]';
+                    ? 'bg-gradient-to-br from-[#1dff00] via-[#45d86e] to-[#0a8246] text-black shadow-[0_8px_24px_-6px_rgba(29,255,0,0.35)] border border-[#1dff00]/50'
+                    : 'bg-gradient-to-br from-white/5 to-white/[0.02] text-white/90 border border-[#1dff00]/20 shadow-[0_4px_18px_-4px_rgba(0,0,0,0.55)]';
                   const time = new Date(msg.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                   const textContent = msg.parts?.[0]?.text || msg.content;
                   const lastUserIdLocal = lastUserId;
@@ -505,7 +504,7 @@ export const ChatPage = () => {
                     <div key={msg.id} className="group relative flex flex-col gap-2">
                       <div className={`flex items-end gap-3 ${isUser ? 'justify-end' : 'justify-start'} animate-[fadeIn_0.5s_ease]`}> 
                         {!isUser && showAvatar && <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#1dff00]/30 to-[#0a8246]/30 text-[11px] font-semibold text-[#1dff00] border border-[#1dff00]/30 shadow-inner backdrop-blur-sm">AI</div>}
-                        {isUser && showAvatar && <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-800/80 text-[11px] font-semibold text-neutral-200 border border-neutral-700 shadow-inner">You</div>}
+                        {isUser && showAvatar && <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-[11px] font-semibold text-white/90 border border-white/10 shadow-inner">You</div>}
                         <div className={`relative max-w-[92%] md:max-w-3xl ${radius} px-4 py-3 text-sm leading-relaxed tracking-wide backdrop-blur-sm transition-shadow ${bubble}`}> 
                           {msg.streaming ? (
                             <div className="whitespace-pre-wrap break-words selection:bg-[#1dff00]/30 flex items-center gap-1">
@@ -517,14 +516,14 @@ export const ChatPage = () => {
                               </span>
                             </div>
                           ) : renderRichText(textContent)}
-                          <div className="absolute -bottom-6 left-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-neutral-500">
-                            <button onClick={()=>copyMessage(msg.id, textContent)} className="px-1.5 py-0.5 rounded-md bg-neutral-800/70 hover:bg-neutral-700 text-neutral-300 hover:text-white border border-neutral-700/70 shadow-inner">{copiedId===msg.id ? 'Copied' : 'Copy'}</button>
-                            {isLastUser && !editing && <button onClick={()=>{ setText(textContent); setEditing(true); }} className="px-1.5 py-0.5 rounded-md bg-neutral-800/70 hover:bg-neutral-700 text-neutral-300 hover:text-white border border-neutral-700/70 shadow-inner">Edit</button>}
+                          <div className="absolute -bottom-6 left-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-white/50">
+                            <button onClick={()=>copyMessage(msg.id, textContent)} className="px-1.5 py-0.5 rounded-md bg-[#1dff00]/10 hover:bg-[#1dff00]/20 text-[#1dff00] hover:text-white border border-[#1dff00]/30 shadow-inner">{copiedId===msg.id ? 'Copied' : 'Copy'}</button>
+                            {isLastUser && !editing && <button onClick={()=>{ setText(textContent); setEditing(true); }} className="px-1.5 py-0.5 rounded-md bg-[#1dff00]/10 hover:bg-[#1dff00]/20 text-[#1dff00] hover:text-white border border-[#1dff00]/30 shadow-inner">Edit</button>}
                             {!isUser && <>
-                              <button className="px-1.5 py-0.5 rounded-md bg-neutral-800/70 hover:bg-neutral-700 text-neutral-300 border border-neutral-700/70 shadow-inner">👍</button>
-                              <button className="px-1.5 py-0.5 rounded-md bg-neutral-800/70 hover:bg-neutral-700 text-neutral-300 border border-neutral-700/70 shadow-inner">👎</button>
+                              <button className="px-1.5 py-0.5 rounded-md bg-white/5 hover:bg-white/10 text-white/70 hover:text-white/90 border border-white/10 shadow-inner">👍</button>
+                              <button className="px-1.5 py-0.5 rounded-md bg-white/5 hover:bg-white/10 text-white/70 hover:text-white/90 border border-white/10 shadow-inner">👎</button>
                             </>}
-                            <span className="select-none hidden sm:inline">{isUser ? 'You' : 'AI'} • {time}</span>
+                            <span className="select-none hidden sm:inline text-white/60">{isUser ? 'You' : 'AI'} • {time}</span>
                           </div>
                         </div>
                         {isUser && showAvatar && <div className="w-9" />}
@@ -536,30 +535,29 @@ export const ChatPage = () => {
               </ConversationContent>
             </Conversation>
           </div>
-          <div className="rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_10px_36px_-8px_rgba(0,0,0,0.65)] relative ">
-            <span className="pointer-events-none absolute -bottom-12 -right-6 h-32 w-32 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(29,255,0,0.07),transparent_35%,transparent_65%,rgba(10,130,70,0.08))] opacity-80" />
+          <div className="rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_10px_36px_-8px_rgba(0,0,0,0.65)] relative overflow-hidden">
+            <span className="pointer-events-none absolute -bottom-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
             {messages.length > 0 && (
-              <div className="flex flex-wrap gap-2 px-4 pt-4 -mb-1">
-                {quickPrompts.map(q => <button key={q} onClick={()=>{ setText(q); setEditing(false); }} className="px-3 py-1.5 rounded-full text-[11px] bg-neutral-900/70 hover:bg-neutral-800 border border-neutral-700/70 text-neutral-300 hover:text-white transition">{q}</button>)}
+              <div className="flex flex-wrap gap-2 px-4 pt-4 -mb-1 relative z-10">
+                {quickPrompts.map(q => <button key={q} onClick={()=>{ setText(q); setEditing(false); }} className="px-3 py-1.5 rounded-full text-[11px] bg-[#1dff00]/10 hover:bg-[#1dff00]/20 border border-[#1dff00]/30 text-[#1dff00] hover:text-white transition-colors">{q}</button>)}
               </div>
             )}
-            <PromptInput onSubmit={handleSubmit} className="p-3 sm:p-4" multiple globalDrop>
-              <PromptInputBody className="relative rounded-xl border border-neutral-800/70 bg-neutral-900/70 focus-within:border-[#1dff00]/50 transition-colors shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_4px_18px_-6px_rgba(0,0,0,0.7)]">
-                <div className="pointer-events-none absolute inset-0 rounded-xl bg-[radial-gradient(circle_at_70%_30%,rgba(29,255,0,0.18),transparent_70%)] opacity-30 -z-10" />
+            <PromptInput onSubmit={handleSubmit} className="p-3 sm:p-4 relative z-10" multiple globalDrop>
+              <PromptInputBody className="relative rounded-xl border border-[#1dff00]/20 bg-white/[0.02] focus-within:border-[#1dff00]/50 transition-colors shadow-[0_0_0_1px_rgba(29,255,0,0.15),0_4px_18px_-6px_rgba(0,0,0,0.7)]">
+                <div className="pointer-events-none absolute inset-0 rounded-xl bg-[radial-gradient(circle_at_70%_30%,rgba(29,255,0,0.12),transparent_70%)] opacity-40 -z-10" />
                 <PromptInputAttachments>{file => <PromptInputAttachment data={file} />}</PromptInputAttachments>
                 <PromptInputTextarea value={text} onChange={e=>{ setText(e.target.value); setShowCommands(e.target.value.startsWith('/') && e.target.value.length <= 30); }} placeholder={editing ? 'Edit your message…' : 'Ask anything about your applications, resumes, interviews...'} className="min-h-[64px]" ref={textareaRef} data-tour="chat-input" />
                 {showCommands && !text.includes(' ') && (
-                  <div className="absolute left-2 right-2 top-2 z-20 rounded-lg border border-neutral-800/70 bg-neutral-950/95 backdrop-blur-md p-2 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.65)] animate-[fadeIn_0.18s_ease]">
+                  <div className="absolute left-2 right-2 top-2 z-20 rounded-lg border border-[#1dff00]/20 bg-[#030303]/95 backdrop-blur-md p-2 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.65)] animate-[fadeIn_0.18s_ease]">
                     <ul className="flex flex-col gap-1 max-h-52 overflow-auto text-[11px]">
                       {commandList.map(c => (
                         <li key={c.key}>
                           <button
                             onClick={()=>{ setText(c.key + ' '); setShowCommands(false); textareaRef.current?.focus(); }}
-                            className="w-full flex items-start gap-2 rounded-md px-2 py-1.5 text-left hover:bg-neutral-800/80 transition group"
+                            className="w-full flex items-start gap-2 rounded-md px-2 py-1.5 text-left hover:bg-white/5 transition group"
                           >
                             <span className="font-mono text-[#1dff00] group-hover:translate-x-px transition-transform">{c.key}</span>
-                            <span className="text-neutral-400 group-hover:text-neutral-300">{c.desc}</span>
+                            <span className="text-white/60 group-hover:text-white/90 transition-colors">{c.desc}</span>
                           </button>
                         </li>
                       ))}
@@ -592,10 +590,10 @@ export const ChatPage = () => {
                 </PromptInputTools>
                 <PromptInputSubmit disabled={!text && status !== 'in_progress'} status={status === 'in_progress' ? 'in_progress' : undefined as any} className="shadow-[0_0_0_1px_#1dff00,0_4px_18px_-4px_rgba(29,255,0,0.45)] hover:shadow-[0_0_0_1px_#1dff00,0_6px_24px_-4px_rgba(29,255,0,0.65)] transition-shadow" />
               </PromptInputToolbar>
-              <div className="pt-1 text-[10px] tracking-wider text-neutral-500 flex justify-between font-mono opacity-70">
+              <div className="pt-1 text-[10px] tracking-wider text-white/40 flex justify-between font-mono opacity-70">
                 <span className="flex items-center gap-2">
                   <span className="inline-flex items-center gap-1">
-                    <span className={`h-2 w-2 rounded-full ${status==='in_progress' ? 'bg-[#1dff00] animate-pulse' : 'bg-neutral-600'}`} />
+                    <span className={`h-2 w-2 rounded-full ${status==='in_progress' ? 'bg-[#1dff00] animate-pulse' : 'bg-white/20'}`} />
                     {editing ? 'Editing – submit to resend' : status === 'in_progress' ? 'Generating response… (Esc to stop)' : 'Idle (Ctrl+Enter to send)'}
                   </span>
                 </span>
