@@ -1549,87 +1549,91 @@ export const SettingsPage = (): JSX.Element => {
                 </Button>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-3">
-                {subscriptionPlans.slice(0, 3).map((plan) => {
+              <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
+                {subscriptionPlans.slice(0, 4).map((plan) => {
                   const isCurrentPlan = plan.name === billingSubscriptionTier;
                   
                   return (
                     <div
                       key={plan.id}
-                      className={`relative p-5 rounded-xl border transition-all ${
+                      className={`group relative p-5 rounded-xl border transition-all hover:shadow-lg hover:shadow-[#1dff00]/5 hover:-translate-y-0.5 ${
                         isCurrentPlan 
-                          ? 'border-[#1dff00]/40 bg-[#1dff00]/[0.05]' 
-                          : 'border-white/[0.08] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.03]'
+                          ? 'border-[#1dff00]/40 bg-gradient-to-br from-[#1dff00]/[0.08] to-transparent shadow-[0_0_20px_rgba(29,255,0,0.1)]' 
+                          : 'border-white/[0.08] bg-gradient-to-br from-white/[0.02] to-transparent'
                       }`}
                     >
-                      {isCurrentPlan && (
-                        <div className="absolute top-3 right-3">
-                          <span className="bg-[#1dff00] text-black text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                            <Check className="w-3 h-3" />
+                      {/* Header */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-10 h-10 rounded-lg bg-black/30 flex items-center justify-center">
+                            {getTierIcon(plan.name)}
+                          </div>
+                          <div>
+                            <h4 className="text-base font-bold text-white">{plan.name}</h4>
+                            <p className="text-xs text-gray-400">monthly</p>
+                          </div>
+                        </div>
+                        {isCurrentPlan && (
+                          <span className="px-1.5 py-0.5 text-xs font-medium bg-[#1dff00] text-black border border-[#1dff00] rounded-md flex items-center gap-1">
+                            <Check className="w-2.5 h-2.5" />
                             ACTIVE
                           </span>
-                        </div>
-                      )}
-
-                      <div className="space-y-4">
-                        <div className={`inline-flex p-2 rounded-lg bg-gradient-to-br ${getTierGradient(plan.name)}/10 border border-white/10`}>
-                          {getTierIcon(plan.name)}
-                        </div>
-                        
-                        <div>
-                          <h4 className="text-lg font-semibold text-white mb-1">{plan.name}</h4>
-                          <p className="text-xs text-white/50">{plan.description}</p>
-                        </div>
-
-                        <div className="py-2">
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-3xl font-bold text-white">
-                              ${plan.price}
-                            </span>
-                            {plan.price > 0 && (
-                              <span className="text-sm text-white/50">/month</span>
-                            )}
-                          </div>
-                          <p className="text-xs text-white/50 mt-1">
-                            {plan.credits_per_month?.toLocaleString()} credits/month
-                          </p>
-                        </div>
-
-                        <div className="space-y-2 py-2">
-                          {plan.features && Array.isArray(plan.features) && plan.features.slice(0, 3).map((feature: any, idx: number) => {
-                            const featureName = typeof feature === 'string' ? feature : feature.name;
-                            const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
-                            
-                            if (!isIncluded) return null;
-                            
-                            return (
-                              <div key={idx} className="flex items-start gap-2">
-                                <div className={`mt-0.5 p-0.5 rounded-full bg-gradient-to-br ${getTierGradient(plan.name)}`}>
-                                  <Check className="w-2.5 h-2.5 text-black" />
-                                </div>
-                                <span className="text-xs text-white/70 flex-1">
-                                  {featureName}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {!isCurrentPlan && (
-                          <Button
-                            className={`w-full h-10 font-medium text-sm transition-all ${
-                              plan.name === 'Pro'
-                                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:opacity-90'
-                                : plan.name === 'Ultimate'
-                                ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:opacity-90'
-                                : 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90'
-                            }`}
-                            onClick={() => { window.location.href = '/dashboard/billing'; }}
-                          >
-                            Upgrade to {plan.name}
-                          </Button>
                         )}
                       </div>
+
+                      {/* Price */}
+                      <div className="mb-3">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-bold text-white">${plan.price}</span>
+                          {plan.price > 0 && (
+                            <span className="text-sm text-gray-400">/mo</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1 line-clamp-2">{plan.description}</p>
+                      </div>
+
+                      {/* Credits */}
+                      <div className="flex items-center gap-2 p-2.5 bg-black/30 rounded-lg mb-3">
+                        <Zap className="w-3.5 h-3.5 text-[#1dff00]" />
+                        <span className="text-xs text-white font-medium">{plan.credits_per_month} credits</span>
+                        <span className="text-xs text-gray-500">per cycle</span>
+                      </div>
+
+                      {/* Features */}
+                      <div className="space-y-1.5 mb-4">
+                        {plan.features && Array.isArray(plan.features) && plan.features.slice(0, 3).map((feature: any, idx: number) => {
+                          const featureName = typeof feature === 'string' ? feature : feature.name;
+                          const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
+                          
+                          if (!isIncluded) return null;
+                          
+                          return (
+                            <div key={idx} className="flex items-start gap-2">
+                              <Check className="w-3.5 h-3.5 text-[#1dff00] mt-0.5 flex-shrink-0" />
+                              <span className="text-xs text-gray-300 line-clamp-1">{featureName}</span>
+                            </div>
+                          );
+                        })}
+                        {(plan.features?.length || 0) > 3 && (
+                          <p className="text-xs text-gray-500 pl-5">+{plan.features.length - 3} more</p>
+                        )}
+                      </div>
+
+                      {/* CTA */}
+                      {!isCurrentPlan && (
+                        <Button
+                          className={`w-full h-9 font-medium text-xs transition-all ${
+                            plan.name === 'Pro'
+                              ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:opacity-90 hover:scale-105'
+                              : plan.name === 'Ultimate'
+                              ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:opacity-90 hover:scale-105'
+                              : 'bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black hover:opacity-90 hover:scale-105'
+                          }`}
+                          onClick={() => { window.location.href = '/dashboard/billing'; }}
+                        >
+                          Upgrade to {plan.name}
+                        </Button>
+                      )}
                     </div>
                   );
                 })}

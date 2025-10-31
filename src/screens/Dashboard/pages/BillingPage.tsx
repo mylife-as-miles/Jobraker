@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabaseClient';
 import { 
   Coins, Crown, Zap, ArrowRight, Calendar, History, TrendingUp, 
-  Sparkles, Package, Check, Star, Flame, ArrowUpRight, Download,
+  Sparkles, Package, Check, Star, ArrowUpRight, Download,
   Shield, Infinity, Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -323,10 +323,10 @@ export const BillingPage = () => {
               exit={{ opacity: 0, x: 20 }}
               className="space-y-8"
             >
-              <div className="grid gap-6 lg:grid-cols-3">
+              <div className="grid gap-6 lg:grid-cols-3 xl:grid-cols-4">
                 {plans.map((plan, index) => {
                   const isCurrentPlan = plan.name === subscriptionTier;
-                  const isUltimate = plan.name === 'Ultimate';
+                  const isPro = plan.name === 'Pro';
                   
                   return (
                     <motion.div
@@ -336,97 +336,92 @@ export const BillingPage = () => {
                       transition={{ delay: index * 0.1 }}
                       className="relative"
                     >
-                      {isUltimate && (
-                        <div className="absolute -top-4 left-0 right-0 flex justify-center z-10">
-                          <span className="bg-gradient-to-r from-purple-500 to-purple-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg flex items-center gap-1">
-                            <Flame className="w-3 h-3" />
-                            MOST POPULAR
+                      {isPro && (
+                        <div className="absolute -top-3 left-0 right-0 flex justify-center z-10">
+                          <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                            BEST VALUE
                           </span>
                         </div>
                       )}
                       
-                      <Card className={`relative overflow-hidden transition-all duration-300 hover:scale-[1.02] ${
+                      <Card className={`group relative overflow-hidden bg-gradient-to-br ${getTierGradient(plan.name)} border transition-all hover:shadow-xl hover:shadow-[#1dff00]/10 hover:-translate-y-1 ${
                         isCurrentPlan 
-                          ? 'border-[#1dff00] bg-gradient-to-br from-[#1dff00]/10 via-transparent to-transparent shadow-[0_0_50px_rgba(29,255,0,0.15)]' 
-                          : isUltimate
-                          ? 'border-purple-500/30 bg-gradient-to-br from-purple-500/5 via-transparent to-transparent'
-                          : 'border-white/10 bg-gradient-to-br from-white/5 to-transparent'
+                          ? 'border-[#1dff00] shadow-[0_0_30px_rgba(29,255,0,0.15)]'
+                          : 'border-white/10'
                       }`}>
-                        {/* Glow effect */}
-                        <div className={`absolute inset-0 bg-gradient-to-br ${getTierGradient(plan.name)}/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-                        
                         {isCurrentPlan && (
                           <div className="absolute top-4 right-4 z-10">
-                            <span className="bg-[#1dff00] text-black text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                            <span className="px-2 py-1 text-xs font-medium bg-[#1dff00] text-black border border-[#1dff00] rounded-lg flex items-center gap-1">
                               <Check className="w-3 h-3" />
                               ACTIVE
                             </span>
                           </div>
                         )}
 
-                        <CardContent className="relative p-8 space-y-6">
+                        <CardContent className="p-6">
                           {/* Header */}
-                          <div className="space-y-4">
-                            <div className={`inline-flex p-3 rounded-2xl bg-gradient-to-br ${getTierGradient(plan.name)}/10 border border-white/10`}>
-                              {getTierIcon(plan.name)}
-                            </div>
-                            <div>
-                              <h3 className="text-2xl font-bold text-white mb-2">{plan.name}</h3>
-                              <p className="text-sm text-gray-400">{plan.description}</p>
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center">
+                                {getTierIcon(plan.name)}
+                              </div>
+                              <div>
+                                <h3 className="text-xl font-bold text-white">{plan.name}</h3>
+                                <p className="text-xs text-gray-400">monthly</p>
+                              </div>
                             </div>
                           </div>
 
-                          {/* Pricing */}
-                          <div className="py-4">
-                            <div className="flex items-baseline gap-2">
-                              <span className="text-5xl font-bold text-white">
-                                ${plan.price}
-                              </span>
+                          {/* Price */}
+                          <div className="mb-4">
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-4xl font-bold text-white">${plan.price}</span>
                               {plan.price > 0 && (
-                                <span className="text-lg text-gray-400">/month</span>
+                                <span className="text-gray-400">/mo</span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-400 mt-2">
-                              {plan.credits_per_month.toLocaleString()} credits per month
-                            </p>
+                            <p className="text-sm text-gray-400 mt-2 line-clamp-2">{plan.description}</p>
+                          </div>
+
+                          {/* Credits */}
+                          <div className="flex items-center gap-2 p-3 bg-black/30 rounded-lg mb-4">
+                            <Zap className="w-4 h-4 text-[#1dff00]" />
+                            <span className="text-sm text-white font-medium">{plan.credits_per_month} credits</span>
+                            <span className="text-xs text-gray-500">per cycle</span>
                           </div>
 
                           {/* Features */}
-                          <div className="space-y-3 py-4">
-                            {plan.features && Array.isArray(plan.features) && plan.features.map((feature: any, idx: number) => {
-                              // Handle both old string format and new object format
+                          <div className="space-y-2 mb-4">
+                            {plan.features && Array.isArray(plan.features) && plan.features.slice(0, 3).map((feature: any, idx: number) => {
                               const featureName = typeof feature === 'string' ? feature : feature.name;
-                              const featureValue = typeof feature === 'object' ? feature.value : null;
                               const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
                               
                               if (!isIncluded) return null;
                               
                               return (
-                                <div key={idx} className="flex items-start gap-3">
-                                  <div className={`mt-1 p-0.5 rounded-full bg-gradient-to-br ${getTierGradient(plan.name)}`}>
-                                    <Check className="w-3 h-3 text-black" />
-                                  </div>
-                                  <div className="flex-1">
-                                    <span className="text-sm text-gray-300">
-                                      {featureName}
-                                      {featureValue && <span className="text-gray-400 ml-1">• {featureValue}</span>}
-                                    </span>
-                                  </div>
+                                <div key={idx} className="flex items-start gap-2">
+                                  <Check className="w-4 h-4 text-[#1dff00] mt-0.5 flex-shrink-0" />
+                                  <span className="text-sm text-gray-300 line-clamp-1">{featureName}</span>
                                 </div>
                               );
                             })}
+                            {(plan.features?.length || 0) > 3 && (
+                              <p className="text-xs text-gray-500 pl-6">+{plan.features.length - 3} more features</p>
+                            )}
                           </div>
 
                           {/* CTA */}
                           <Button
-                            className={`w-full h-12 font-semibold text-base transition-all duration-300 ${
+                            className={`w-full h-11 font-semibold text-sm transition-all duration-300 ${
                               isCurrentPlan
                                 ? 'bg-white/10 text-white cursor-default'
-                                : plan.name === 'Free'
+                                : plan.name === 'Basics'
                                 ? 'bg-gradient-to-r from-[#1dff00] via-[#0fc74f] to-[#0a8246] text-black hover:opacity-90 hover:scale-105 shadow-lg'
                                 : plan.name === 'Pro'
                                 ? 'bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
-                                : 'bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
+                                : plan.name === 'Ultimate'
+                                ? 'bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
+                                : 'bg-gradient-to-r from-gray-600 to-gray-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
                             }`}
                             disabled={isCurrentPlan}
                           >
