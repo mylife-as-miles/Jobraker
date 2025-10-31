@@ -17,6 +17,14 @@ export const StreakCard = ({
 }: StreakCardProps): JSX.Element => {
   const daysOfWeek = ["M", "T", "W", "Th", "F", "S", "Su"];
 
+  // Get current day of week (0 = Sunday, 1 = Monday, etc.)
+  const currentDayIndex = useMemo(() => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    // Convert to Monday = 0, Sunday = 6
+    return dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  }, []);
+
   const progressPercent = useMemo(() => {
     return Math.min(100, (weekProgress / 7) * 100);
   }, [weekProgress]);
@@ -71,19 +79,23 @@ export const StreakCard = ({
         <div className="flex items-center justify-between gap-1 sm:gap-1.5 mb-3 sm:mb-4">
           {daysOfWeek.map((day, index) => {
             const isActive = activeDays[index];
+            const isToday = index === currentDayIndex;
             return (
               <motion.div
                 key={`${day}-${index}`}
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.3, delay: 0.1 * index }}
-                className={`flex-1 h-8 sm:h-9 rounded-lg flex items-center justify-center text-[9px] sm:text-[10px] font-bold uppercase tracking-wide transition-all duration-300 ${
+                className={`flex-1 h-8 sm:h-9 rounded-lg flex items-center justify-center text-[9px] sm:text-[10px] font-bold uppercase tracking-wide transition-all duration-300 relative ${
                   isActive
                     ? "bg-[#1dff00] text-black shadow-lg shadow-[#1dff00]/40 border border-[#1dff00]"
                     : "bg-white/[0.04] text-white/40 border border-white/[0.08]"
                 }`}
               >
                 {day}
+                {isToday && (
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#1dff00] shadow-lg shadow-[#1dff00]/50" />
+                )}
               </motion.div>
             );
           })}
