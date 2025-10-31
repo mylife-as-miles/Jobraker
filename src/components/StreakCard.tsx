@@ -29,31 +29,34 @@ export const StreakCard = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
       whileHover={{ scale: 1.02 }}
-      className="relative overflow-hidden h-[220px] rounded-xl border border-white/[0.06] bg-gradient-to-br from-black via-[#0a0a0a] to-black backdrop-blur-[25px] shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500"
+      className="relative overflow-hidden min-h-[200px] sm:min-h-[220px] rounded-xl border border-white/[0.06] bg-gradient-to-br from-black via-[#0a0a0a] to-black backdrop-blur-[25px] shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500"
     >
       <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[#1dff00]/5 blur-3xl" />
       <div className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full bg-[#1dff00]/3 blur-2xl" />
 
-      <div className="relative z-10 p-5 h-full flex flex-col">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 border border-[#1dff00]/30 flex items-center justify-center shadow-inner">
-              <Flame className="w-5 h-5 text-[#1dff00]" />
+      {/* Content */}
+      <div className="relative z-10 p-4 sm:p-5 h-full flex flex-col">
+        {/* Header Row */}
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 border border-[#1dff00]/30 flex items-center justify-center shadow-inner">
+              <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-[#1dff00]" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-white tracking-tight">Streak</h3>
-              <p className="text-[10px] text-white/50 uppercase tracking-wider font-medium">Daily Activity</p>
+              <h3 className="text-sm sm:text-base font-semibold text-white tracking-tight">Streak</h3>
+              <p className="text-[9px] sm:text-[10px] text-white/50 uppercase tracking-wider font-medium">Daily Activity</p>
             </div>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold text-[#1dff00]">{currentStreak}</div>
-            <div className="text-[9px] text-white/40 uppercase tracking-wide">Days</div>
+            <div className="text-xl sm:text-2xl font-bold text-[#1dff00]">{currentStreak}</div>
+            <div className="text-[8px] sm:text-[9px] text-white/40 uppercase tracking-wide">Days</div>
           </div>
         </div>
 
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] text-white/60 uppercase tracking-wider font-medium">Week Progress</span>
+        {/* Week Progress Bar */}
+        <div className="mb-3 sm:mb-4">
+          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+            <span className="text-[9px] sm:text-[10px] text-white/60 uppercase tracking-wider font-medium">Week Progress</span>
             <span className="text-xs font-semibold text-[#1dff00]">{weekProgress}/7</span>
           </div>
           <div className="relative w-full h-2 rounded-full bg-white/[0.08] overflow-hidden">
@@ -66,7 +69,8 @@ export const StreakCard = ({
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-1.5 mb-4">
+        {/* Day Pills */}
+        <div className="flex items-center justify-between gap-1 sm:gap-1.5 mb-3 sm:mb-4">
           {daysOfWeek.map((day, index) => {
             const isActive = activeDays[index];
             return (
@@ -75,7 +79,7 @@ export const StreakCard = ({
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.3, delay: 0.1 * index }}
-                className={`flex-1 h-9 rounded-lg flex items-center justify-center text-[10px] font-bold uppercase tracking-wide transition-all duration-300 ${
+                className={`flex-1 h-8 sm:h-9 rounded-lg flex items-center justify-center text-[9px] sm:text-[10px] font-bold uppercase tracking-wide transition-all duration-300 ${
                   isActive
                     ? "bg-[#1dff00] text-black shadow-lg shadow-[#1dff00]/40 border border-[#1dff00]"
                     : "bg-white/[0.04] text-white/40 border border-white/[0.08]"
@@ -87,38 +91,42 @@ export const StreakCard = ({
           })}
         </div>
 
-        <div className="flex items-center gap-2 mt-auto">
+        {/* Bottom Metrics Cards */}
+        <div className="flex items-center gap-1.5 sm:gap-2 mt-auto">
+          {/* Streak Metric */}
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg p-2.5 hover:border-[#1dff00]/40 hover:bg-[#1dff00]/5 transition-all duration-300"
+            className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg p-2 sm:p-2.5 hover:border-[#1dff00]/40 hover:bg-[#1dff00]/5 transition-all duration-300"
           >
-            <div className="flex items-center gap-1.5 mb-1">
-              <Flame className="w-3.5 h-3.5 text-[#1dff00]" />
-              <span className="text-[9px] text-white/50 uppercase tracking-wider font-medium">Streak</span>
+            <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5 sm:mb-1">
+              <Flame className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#1dff00]" />
+              <span className="text-[8px] sm:text-[9px] text-white/50 uppercase tracking-wider font-medium">Streak</span>
             </div>
-            <div className="text-sm font-bold text-white">{currentStreak}d</div>
+            <div className="text-xs sm:text-sm font-bold text-white">{currentStreak}d</div>
           </motion.div>
 
+          {/* Week Metric */}
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg p-2.5 hover:border-[#1dff00]/40 hover:bg-[#1dff00]/5 transition-all duration-300"
+            className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg p-2 sm:p-2.5 hover:border-[#1dff00]/40 hover:bg-[#1dff00]/5 transition-all duration-300"
           >
-            <div className="flex items-center gap-1.5 mb-1">
-              <Target className="w-3.5 h-3.5 text-[#1dff00]" />
-              <span className="text-[9px] text-white/50 uppercase tracking-wider font-medium">Week</span>
+            <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5 sm:mb-1">
+              <Target className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#1dff00]" />
+              <span className="text-[8px] sm:text-[9px] text-white/50 uppercase tracking-wider font-medium">Week</span>
             </div>
-            <div className="text-sm font-bold text-white">{weekProgress}/7</div>
+            <div className="text-xs sm:text-sm font-bold text-white">{weekProgress}/7</div>
           </motion.div>
 
+          {/* Completion Metric */}
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg p-2.5 hover:border-[#1dff00]/40 hover:bg-[#1dff00]/5 transition-all duration-300"
+            className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg p-2 sm:p-2.5 hover:border-[#1dff00]/40 hover:bg-[#1dff00]/5 transition-all duration-300"
           >
-            <div className="flex items-center gap-1.5 mb-1">
-              <TrendingUp className="w-3.5 h-3.5 text-[#1dff00]" />
-              <span className="text-[9px] text-white/50 uppercase tracking-wider font-medium">Rate</span>
+            <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5 sm:mb-1">
+              <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#1dff00]" />
+              <span className="text-[8px] sm:text-[9px] text-white/50 uppercase tracking-wider font-medium">Rate</span>
             </div>
-            <div className="text-sm font-bold text-white">{Math.round(completionRate)}%</div>
+            <div className="text-xs sm:text-sm font-bold text-white">{Math.round(completionRate)}%</div>
           </motion.div>
         </div>
       </div>
