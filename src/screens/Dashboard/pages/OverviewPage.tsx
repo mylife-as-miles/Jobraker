@@ -13,6 +13,7 @@ import { Skeleton } from "../../../components/ui/skeleton";
 import { SplitLineAreaChart } from "./SplitLineAreaChart";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { useAnalyticsData } from "../../../hooks/useAnalyticsData";
+import { StreakCard } from "../../../components/StreakCard";
 // SplitLineAreaChart removed; chart moved to Application section
 
 // Using realtime notifications; no local interface needed here
@@ -251,6 +252,106 @@ export const OverviewPage = (): JSX.Element => {
         status: app.status,
       };
     });
+  }, [applications]);
+
+  // Calculate streak data from applications
+  const streakData = useMemo(() => {
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Monday
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    // Get activity for this week (Mon-Sun)
+    const weekActivity = [false, false, false, false, false, false, false];
+    let weekCount = 0;
+
+    applications.forEach(app => {
+      const appDate = new Date(app.applied_date);
+      const dayOfWeek = appDate.getDay();
+      const mondayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert to Mon=0, Sun=6
+
+      // Check if in current week
+      const weekEnd = new Date(startOfWeek);
+      weekEnd.setDate(startOfWeek.getDate() + 7);
+      if (appDate >= startOfWeek && appDate < weekEnd) {
+        if (!weekActivity[mondayIndex]) {
+          weekActivity[mondayIndex] = true;
+          weekCount++;
+        }
+      }
+    });
+
+    // Calculate current streak (consecutive days with activity)
+    let currentStreak = 0;
+    const sortedDates = applications
+      .map(app => new Date(app.applied_date))
+      .sort((a, b) => b.getTime() - a.getTime());
+
+    if (sortedDates.length > 0) {
+      let checkDate = new Date(today);
+      checkDate.setHours(0, 0, 0, 0);
+
+      while (true) {
+        const hasActivity = sortedDates.some(d => {
+          const appDay = new Date(d);
+          appDay.setHours(0, 0, 0, 0);
+          return appDay.getTime() === checkDate.getTime();
+        });
+
+        if (hasActivity) {
+          currentStreak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+    }
+
+    // Calculate longest streak
+    let longestStreak = 0;
+    let tempStreak = 0;
+    const uniqueDays = new Set(
+      applications.map(app => {
+        const d = new Date(app.applied_date);
+        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      })
+    );
+    const sortedUniqueDays = Array.from(uniqueDays)
+      .map(str => {
+        const [y, m, d] = str.split('-').map(Number);
+        return new Date(y, m, d);
+      })
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    for (let i = 0; i < sortedUniqueDays.length; i++) {
+      if (i === 0) {
+        tempStreak = 1;
+      } else {
+        const prevDay = sortedUniqueDays[i - 1];
+        const currDay = sortedUniqueDays[i];
+        const diffDays = (currDay.getTime() - prevDay.getTime()) / (1000 * 60 * 60 * 24);
+        if (diffDays === 1) {
+          tempStreak++;
+        } else {
+          longestStreak = Math.max(longestStreak, tempStreak);
+          tempStreak = 1;
+        }
+      }
+    }
+    longestStreak = Math.max(longestStreak, tempStreak);
+
+    // Calculate completion rate (active days / total days since first application)
+    const completionRate = applications.length > 0
+      ? (uniqueDays.size / Math.max(1, sortedUniqueDays.length)) * 100
+      : 0;
+
+    return {
+      currentStreak,
+      longestStreak,
+      weekProgress: weekCount,
+      completionRate,
+      activeDays: weekActivity,
+    };
   }, [applications]);
 
   // Product tour coach marks for overview dashboard
@@ -515,6 +616,15 @@ export const OverviewPage = (): JSX.Element => {
 
           {/* Right Column - Notifications and Match Scores */}
           <div className="space-y-4 sm:space-y-6">
+            {/* Streak Card */}
+            <StreakCard
+              currentStreak={streakData.currentStreak}
+              longestStreak={streakData.longestStreak}
+              weekProgress={streakData.weekProgress}
+              completionRate={streakData.completionRate}
+              activeDays={streakData.activeDays}
+            />
+
             {/* Notifications Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
