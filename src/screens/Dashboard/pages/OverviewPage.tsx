@@ -632,7 +632,6 @@ export const OverviewPage = (): JSX.Element => {
             {/* Streak Card */}
             <StreakCard
               currentStreak={streakData.currentStreak}
-              longestStreak={streakData.longestStreak}
               weekProgress={streakData.weekProgress}
               completionRate={streakData.completionRate}
               activeDays={streakData.activeDays}

@@ -4,7 +4,6 @@ import { Flame, Target, TrendingUp } from "lucide-react";
 
 interface StreakCardProps {
   currentStreak: number;
-  longestStreak: number;
   weekProgress: number;
   completionRate: number;
   activeDays?: boolean[];
@@ -12,7 +11,6 @@ interface StreakCardProps {
 
 export const StreakCard = ({
   currentStreak,
-  longestStreak,
   weekProgress,
   completionRate,
   activeDays = [false, false, false, false, false, false, false],
