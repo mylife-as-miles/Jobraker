@@ -271,15 +271,17 @@ export const OverviewPage = (): JSX.Element => {
     let weekCount = 0;
 
     applications.forEach(app => {
+      // Parse the date string and create a local date (not UTC)
       const appDate = new Date(app.applied_date);
-      appDate.setHours(0, 0, 0, 0);
+      // Normalize to local midnight
+      const localDate = new Date(appDate.getFullYear(), appDate.getMonth(), appDate.getDate());
       
       // Check if in current week
       const weekEnd = new Date(startOfWeek);
       weekEnd.setDate(startOfWeek.getDate() + 7);
       
-      if (appDate >= startOfWeek && appDate < weekEnd) {
-        const daysSinceMonday = Math.floor((appDate.getTime() - startOfWeek.getTime()) / (1000 * 60 * 60 * 24));
+      if (localDate >= startOfWeek && localDate < weekEnd) {
+        const daysSinceMonday = Math.floor((localDate.getTime() - startOfWeek.getTime()) / (1000 * 60 * 60 * 24));
         if (daysSinceMonday >= 0 && daysSinceMonday < 7) {
           if (!weekActivity[daysSinceMonday]) {
             weekActivity[daysSinceMonday] = true;
@@ -294,8 +296,8 @@ export const OverviewPage = (): JSX.Element => {
     const sortedDates = applications
       .map(app => {
         const d = new Date(app.applied_date);
-        d.setHours(0, 0, 0, 0);
-        return d;
+        // Normalize to local midnight
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
       })
       .sort((a, b) => b.getTime() - a.getTime());
 
@@ -328,8 +330,9 @@ export const OverviewPage = (): JSX.Element => {
     const uniqueDays = new Set(
       applications.map(app => {
         const d = new Date(app.applied_date);
-        d.setHours(0, 0, 0, 0);
-        return d.getTime();
+        // Normalize to local midnight
+        const localDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        return localDate.getTime();
       })
     );
     const sortedUniqueDays = Array.from(uniqueDays)
