@@ -5,7 +5,7 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles, Mail } from "lucide-react";
+import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles, Mail, Zap, Crown, Check, ArrowRight } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
 import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
@@ -119,6 +119,13 @@ export const SettingsPage = (): JSX.Element => {
   const [groupEnabledFirst, setGroupEnabledFirst] = useState(true);
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
+  
+  // Billing state
+  const [currentCredits, setCurrentCredits] = useState(0);
+  const [billingSubscriptionTier, setBillingSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
+  const [currentPeriodEnd, setCurrentPeriodEnd] = useState<string | null>(null);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<any[]>([]);
+  
   // Small helper for URL validation (used for Custom JSON)
   const isValidUrl = (value: string) => {
     try { new URL(value); return true; } catch { return false; }
@@ -210,6 +217,55 @@ export const SettingsPage = (): JSX.Element => {
       }));
     })();
   }, [profile, supabase]);
+
+  // Fetch billing data
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData?.user?.id;
+        if (!userId) return;
+
+        // Fetch current credits
+        const { data: creditsData } = await supabase
+          .from('user_credits')
+          .select('balance')
+          .eq('user_id', userId)
+          .single();
+
+        if (creditsData) {
+          setCurrentCredits(creditsData.balance);
+        }
+
+        // Fetch subscription
+        const { data: subscription } = await supabase
+          .from('user_subscriptions')
+          .select('subscription_plans(name, credits_per_month), current_period_end')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .single();
+
+        if (subscription) {
+          const planName = (subscription as any)?.subscription_plans?.name;
+          setBillingSubscriptionTier(planName || 'Free');
+          setCurrentPeriodEnd((subscription as any).current_period_end);
+        }
+
+        // Fetch all subscription plans
+        const { data: plansData } = await supabase
+          .from('subscription_plans')
+          .select('*')
+          .eq('is_active', true)
+          .order('price', { ascending: true });
+
+        if (plansData) {
+          setSubscriptionPlans(plansData);
+        }
+      } catch (error) {
+        console.error('Error fetching billing data:', error);
+      }
+    })();
+  }, [supabase]);
 
   useEffect(() => {
     // ensure settings exist lazily on first toggle
@@ -419,6 +475,28 @@ export const SettingsPage = (): JSX.Element => {
     if (error) return toastError('Failed to update password', error.message);
     success('Password updated');
     setFormData((p) => ({ ...p, currentPassword: '', newPassword: '', confirmPassword: '' }));
+  };
+
+  const getTierIcon = (tier: string) => {
+    switch (tier) {
+      case 'Pro':
+        return <Zap className="w-5 h-5" />;
+      case 'Ultimate':
+        return <Crown className="w-5 h-5" />;
+      default:
+        return <Sparkles className="w-5 h-5" />;
+    }
+  };
+
+  const getTierGradient = (tier: string) => {
+    switch (tier) {
+      case 'Pro':
+        return 'from-blue-500 via-blue-600 to-blue-700';
+      case 'Ultimate':
+        return 'from-purple-500 via-purple-600 to-purple-700';
+      default:
+        return 'from-[#1dff00] via-[#0fc74f] to-[#0a8246]';
+    }
   };
 
   const renderTabContent = () => {
@@ -1391,32 +1469,200 @@ export const SettingsPage = (): JSX.Element => {
       case "billing":
         return (
           <div id="settings-tab-billing" data-tour="settings-tab-billing" className="space-y-6">
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
-              <h3 className="text-base font-medium text-white/95 mb-6">Current Plan</h3>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-white/90">Free Plan</p>
-                  <p className="text-xs text-white/50 mt-0.5">Basic features included</p>
+            {/* Current Stats */}
+            <div className="grid gap-4 md:grid-cols-3">
+              {/* Credits Balance */}
+              <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.1] transition-all">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="p-3 rounded-xl bg-[#1dff00]/10 border border-[#1dff00]/20">
+                    <Sparkles className="w-5 h-5 text-[#1dff00]" />
+                  </div>
+                  <span className="text-xs font-semibold text-[#1dff00] bg-[#1dff00]/10 px-2 py-1 rounded-full">
+                    BALANCE
+                  </span>
                 </div>
-                <Button
-                  className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 font-medium transition-all"
-                  onClick={() => { window.location.href = '/pricing'; }}
-                >
-                  Upgrade to Premium
-                </Button>
+                <div className="space-y-1">
+                  <p className="text-xs text-white/50 uppercase tracking-wider">Current Credits</p>
+                  <p className="text-3xl font-bold text-white">
+                    {currentCredits.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Active Plan */}
+              <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.1] transition-all">
+                <div className="flex items-start justify-between mb-4">
+                  <div className={`p-3 rounded-xl bg-gradient-to-br ${getTierGradient(billingSubscriptionTier)}/10 border border-white/10`}>
+                    {getTierIcon(billingSubscriptionTier)}
+                  </div>
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                    billingSubscriptionTier === 'Pro' ? 'bg-blue-500/20 text-blue-300' :
+                    billingSubscriptionTier === 'Ultimate' ? 'bg-purple-500/20 text-purple-300' :
+                    'bg-[#1dff00]/20 text-[#1dff00]'
+                  }`}>
+                    {billingSubscriptionTier.toUpperCase()}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-white/50 uppercase tracking-wider">Active Plan</p>
+                  <p className="text-3xl font-bold text-white">
+                    {billingSubscriptionTier}
+                  </p>
+                  <p className="text-xs text-white/50">
+                    {subscriptionPlans.find(p => p.name === billingSubscriptionTier)?.credits_per_month?.toLocaleString() || 0} credits/month
+                  </p>
+                </div>
+              </div>
+
+              {/* Next Refill */}
+              <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.1] transition-all">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                    <CreditCard className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <span className="text-xs font-semibold text-blue-400 bg-blue-400/10 px-2 py-1 rounded-full">
+                    REFILL
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-white/50 uppercase tracking-wider">Next Credit Refill</p>
+                  <p className="text-sm font-semibold text-white">
+                    {currentPeriodEnd ? new Date(currentPeriodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not scheduled'}
+                  </p>
+                </div>
               </div>
             </div>
 
+            {/* Available Plans */}
             <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
-              <h3 className="text-base font-medium text-white/95 mb-6">Payment Method</h3>
-              <p className="text-sm text-white/50 mb-4">No payment method on file</p>
-              <Button
-                variant="outline"
-                className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] transition-all"
-              >
-                <CreditCard className="w-4 h-4 mr-2" />
-                Add Payment Method
-              </Button>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-base font-medium text-white/95">Subscription Plans</h3>
+                  <p className="text-sm text-white/50 mt-0.5">Choose the plan that fits your needs</p>
+                </div>
+                <Button
+                  className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 font-medium transition-all"
+                  onClick={() => { window.location.href = '/dashboard/billing'; }}
+                >
+                  View All Plans
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                {subscriptionPlans.slice(0, 3).map((plan) => {
+                  const isCurrentPlan = plan.name === billingSubscriptionTier;
+                  
+                  return (
+                    <div
+                      key={plan.id}
+                      className={`relative p-5 rounded-xl border transition-all ${
+                        isCurrentPlan 
+                          ? 'border-[#1dff00]/40 bg-[#1dff00]/[0.05]' 
+                          : 'border-white/[0.08] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.03]'
+                      }`}
+                    >
+                      {isCurrentPlan && (
+                        <div className="absolute top-3 right-3">
+                          <span className="bg-[#1dff00] text-black text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <Check className="w-3 h-3" />
+                            ACTIVE
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="space-y-4">
+                        <div className={`inline-flex p-2 rounded-lg bg-gradient-to-br ${getTierGradient(plan.name)}/10 border border-white/10`}>
+                          {getTierIcon(plan.name)}
+                        </div>
+                        
+                        <div>
+                          <h4 className="text-lg font-semibold text-white mb-1">{plan.name}</h4>
+                          <p className="text-xs text-white/50">{plan.description}</p>
+                        </div>
+
+                        <div className="py-2">
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-3xl font-bold text-white">
+                              ${plan.price}
+                            </span>
+                            {plan.price > 0 && (
+                              <span className="text-sm text-white/50">/month</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-white/50 mt-1">
+                            {plan.credits_per_month?.toLocaleString()} credits/month
+                          </p>
+                        </div>
+
+                        <div className="space-y-2 py-2">
+                          {plan.features && Array.isArray(plan.features) && plan.features.slice(0, 3).map((feature: any, idx: number) => {
+                            const featureName = typeof feature === 'string' ? feature : feature.name;
+                            const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
+                            
+                            if (!isIncluded) return null;
+                            
+                            return (
+                              <div key={idx} className="flex items-start gap-2">
+                                <div className={`mt-0.5 p-0.5 rounded-full bg-gradient-to-br ${getTierGradient(plan.name)}`}>
+                                  <Check className="w-2.5 h-2.5 text-black" />
+                                </div>
+                                <span className="text-xs text-white/70 flex-1">
+                                  {featureName}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {!isCurrentPlan && (
+                          <Button
+                            className={`w-full h-10 font-medium text-sm transition-all ${
+                              plan.name === 'Pro'
+                                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:opacity-90'
+                                : plan.name === 'Ultimate'
+                                ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:opacity-90'
+                                : 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90'
+                            }`}
+                            onClick={() => { window.location.href = '/dashboard/billing'; }}
+                          >
+                            Upgrade to {plan.name}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <h3 className="text-base font-medium text-white/95 mb-4">Quick Actions</h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Button
+                  variant="outline"
+                  className="justify-start border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] h-auto py-3"
+                  onClick={() => { window.location.href = '/dashboard/billing'; }}
+                >
+                  <CreditCard className="w-4 h-4 mr-3" />
+                  <div className="text-left">
+                    <div className="text-sm font-medium">Purchase Credits</div>
+                    <div className="text-xs text-white/50">Buy one-time credit packs</div>
+                  </div>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] h-auto py-3"
+                  onClick={() => { window.location.href = '/dashboard/billing'; }}
+                >
+                  <Download className="w-4 h-4 mr-3" />
+                  <div className="text-left">
+                    <div className="text-sm font-medium">View History</div>
+                    <div className="text-xs text-white/50">See all transactions</div>
+                  </div>
+                </Button>
+              </div>
             </div>
           </div>
         );
