@@ -253,24 +253,24 @@ export const SettingsPage = (): JSX.Element => {
 
   const TabSkeleton = () => (
     <div className="space-y-6">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <Card key={i} className="bg-white/5 border-white/10 p-6 rounded-xl">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="bg-white/[0.02] border border-white/[0.06] p-6 rounded-xl">
           <div className="space-y-4">
-            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-5 w-48 bg-white/[0.05]" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {Array.from({ length: 4 }).map((__, j) => (
                 <div key={j} className="space-y-2">
-                  <Skeleton className="h-3 w-24" />
-                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-3 w-24 bg-white/[0.05]" />
+                  <Skeleton className="h-10 w-full bg-white/[0.05]" />
                 </div>
               ))}
             </div>
             <div className="flex gap-3 pt-2">
-              <Skeleton className="h-9 w-24" />
-              <Skeleton className="h-9 w-20" />
+              <Skeleton className="h-9 w-24 bg-white/[0.05]" />
+              <Skeleton className="h-9 w-20 bg-white/[0.05]" />
             </div>
           </div>
-        </Card>
+        </div>
       ))}
     </div>
   );
@@ -426,95 +426,105 @@ export const SettingsPage = (): JSX.Element => {
       case "profile":
         return (
           <div id="settings-tab-profile" data-tour="settings-tab-profile" className="space-y-6">
-            <div className="flex items-center space-x-6">
-              <div className="w-24 h-24 rounded-full overflow-hidden bg-primary/20 border border-primary flex items-center justify-center text-primary-foreground font-bold text-2xl">
-                {avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <span>{initials}</span>
-                )}
+            {/* Avatar Section */}
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <h3 className="text-base font-medium text-white/95 mb-6">Profile Picture</h3>
+              <div className="flex items-center gap-6">
+                <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-white/90 font-semibold text-xl">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{initials}</span>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={handleUploadAvatar}
+                    className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] hover:border-[#1dff00]/30 transition-all"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload
+                  </Button>
+                  {avatarUrl && (
+                    <Button
+                      variant="outline"
+                      onClick={handleRemoveAvatar}
+                      className="border-white/[0.08] text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:border-red-500/30 transition-all"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Remove
+                    </Button>
+                  )}
+                </div>
               </div>
-              <div className="space-y-2">
+            </div>
+
+            {/* Personal Information */}
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <h3 className="text-base font-medium text-white/95 mb-6">Personal Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-white/50 mb-2 uppercase tracking-wider">First Name</label>
+                  <Input
+                    value={formData.firstName}
+                    onChange={(e) => handleInputChange("firstName", e.target.value)}
+                    className="bg-white/[0.02] border-white/[0.08] text-white/90 placeholder:text-white/30 focus:border-[#1dff00]/30 focus:bg-white/[0.04] transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-white/50 mb-2 uppercase tracking-wider">Last Name</label>
+                  <Input
+                    value={formData.lastName}
+                    onChange={(e) => handleInputChange("lastName", e.target.value)}
+                    className="bg-white/[0.02] border-white/[0.08] text-white/90 placeholder:text-white/30 focus:border-[#1dff00]/30 focus:bg-white/[0.04] transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-white/50 mb-2 uppercase tracking-wider">Email</label>
+                  <Input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    className="bg-white/[0.02] border-white/[0.08] text-white/90 placeholder:text-white/30 focus:border-[#1dff00]/30 focus:bg-white/[0.04] transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-white/50 mb-2 uppercase tracking-wider">Phone</label>
+                  <Input
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange("phone", e.target.value)}
+                    className="bg-white/[0.02] border-white/[0.08] text-white/90 placeholder:text-white/30 focus:border-[#1dff00]/30 focus:bg-white/[0.04] transition-all"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-white/50 mb-2 uppercase tracking-wider">Location</label>
+                  <Input
+                    value={formData.location}
+                    onChange={(e) => handleInputChange("location", e.target.value)}
+                    className="bg-white/[0.02] border-white/[0.08] text-white/90 placeholder:text-white/30 focus:border-[#1dff00]/30 focus:bg-white/[0.04] transition-all"
+                    placeholder="City, Country"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-6 mt-6 border-t border-white/[0.06]">
+                <Button
+                  onClick={handleSaveProfile}
+                  className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 font-medium transition-all"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Changes
+                </Button>
                 <Button
                   variant="outline"
-                  onClick={handleUploadAvatar}
-                  className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50 hover:scale-105 transition-all duration-300"
+                  onClick={handleResetForm}
+                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] transition-all"
                 >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload Photo
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={handleRemoveAvatar}
-                  className="text-destructive hover:text-destructive/90 hover:bg-destructive/10 hover:scale-105 transition-all duration-300"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Remove Photo
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Reset
                 </Button>
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">First Name</label>
-                <Input
-                  value={formData.firstName}
-                  onChange={(e) => handleInputChange("firstName", e.target.value)}
-                  className="bg-card/10 border-border/20 text-foreground focus:border-primary hover:border-border/30 transition-all duration-300"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">Last Name</label>
-                <Input
-                  value={formData.lastName}
-                  onChange={(e) => handleInputChange("lastName", e.target.value)}
-                  className="bg-card/10 border-border/20 text-foreground focus:border-primary hover:border-border/30 transition-all duration-300"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">Email</label>
-                <Input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  className="bg-card/10 border-border/20 text-foreground focus:border-primary hover:border-border/30 transition-all duration-300"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">Phone</label>
-                <Input
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange("phone", e.target.value)}
-                  className="bg-card/10 border-border/20 text-foreground focus:border-primary hover:border-border/30 transition-all duration-300"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-muted-foreground mb-2">Location</label>
-                <Input
-                  value={formData.location}
-                  onChange={(e) => handleInputChange("location", e.target.value)}
-                  className="bg-card/10 border-border/20 text-foreground focus:border-primary hover:border-border/30 transition-all duration-300"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3 pt-4">
-              <Button
-                onClick={handleSaveProfile}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 transition-all duration-300"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Save Changes
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleResetForm}
-                className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50 hover:scale-105 transition-all duration-300"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Reset
-              </Button>
             </div>
           </div>
         );
@@ -522,38 +532,42 @@ export const SettingsPage = (): JSX.Element => {
       case "notifications":
         return (
           <div id="settings-tab-notifications" data-tour="settings-tab-notifications" className="space-y-6">
-            <div className="space-y-4">
-              {[
-                { key: "email_notifications", label: "Email Notifications", description: "Receive notifications via email" },
-                { key: "push_notifications", label: "Push Notifications", description: "Receive push notifications in browser" },
-                { key: "job_alerts", label: "Job Alerts", description: "Get notified about new job opportunities" },
-                { key: "application_updates", label: "Application Updates", description: "Updates on your job applications" },
-                { key: "weekly_digest", label: "Weekly Digest", description: "Weekly summary of your activity" },
-                { key: "marketing_emails", label: "Marketing Emails", description: "Promotional emails and updates" }
-              ].map((setting) => (
-                <motion.div
-                  key={setting.key}
-                  className="flex items-center justify-between p-4 bg-card/10 rounded-lg border border-border/20 hover:border-primary/50 hover:bg-card/20 transition-all duration-300"
-                  whileHover={{ scale: 1.01 }}
-                >
-                  <div>
-                    <h4 className="text-foreground font-medium">{setting.label}</h4>
-                    <p className="text-sm text-muted-foreground">{setting.description}</p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleNotificationChange(setting.key, !(notif as any)?.[setting.key])}
-                    className={`transition-all duration-300 hover:scale-105 ${
-                      (notif as any)?.[setting.key]
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    }`}
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <h3 className="text-base font-medium text-white/95 mb-6">Notification Preferences</h3>
+              <div className="space-y-3">
+                {[
+                  { key: "email_notifications", label: "Email Notifications", description: "Receive notifications via email" },
+                  { key: "push_notifications", label: "Push Notifications", description: "Receive push notifications in browser" },
+                  { key: "job_alerts", label: "Job Alerts", description: "Get notified about new job opportunities" },
+                  { key: "application_updates", label: "Application Updates", description: "Updates on your job applications" },
+                  { key: "weekly_digest", label: "Weekly Digest", description: "Weekly summary of your activity" },
+                  { key: "marketing_emails", label: "Marketing Emails", description: "Promotional emails and updates" }
+                ].map((setting) => (
+                  <div
+                    key={setting.key}
+                    className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] hover:bg-white/[0.03] transition-all"
                   >
-                    {(notif as any)?.[setting.key] ? "Enabled" : "Disabled"}
-                  </Button>
-                </motion.div>
-              ))}
+                    <div>
+                      <h4 className="text-sm font-medium text-white/90">{setting.label}</h4>
+                      <p className="text-xs text-white/50 mt-0.5">{setting.description}</p>
+                    </div>
+                    <button
+                      onClick={() => handleNotificationChange(setting.key, !(notif as any)?.[setting.key])}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        (notif as any)?.[setting.key]
+                          ? "bg-[#1dff00]"
+                          : "bg-white/[0.1]"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          (notif as any)?.[setting.key] ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         );
@@ -834,87 +848,91 @@ export const SettingsPage = (): JSX.Element => {
 
       case "appearance":
         return (
-          <div id="settings-tab-appearance" data-tour="settings-tab-appearance" className="space-y-8">
-            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
-              <CardContent className="p-4">
-                <h3 className="text-foreground font-medium mb-4">Theme</h3>
-                <div className="grid grid-cols-3 gap-3">
-                  {["Dark", "Light", "Auto"].map((theme) => (
-                    <motion.div
-                      key={theme}
-                      onClick={async () => {
-                        const value = theme.toLowerCase() as 'dark' | 'light' | 'auto';
-                        try {
-                          if (!appearanceSettings) await (appearance as any).createSettings({ theme: value });
-                          else await (appearance as any).updateSettings({ theme: value });
-                        } catch (e: any) { toastError('Failed to set theme', e.message); }
-                      }}
-                      className={`p-4 rounded-lg border cursor-pointer transition-all duration-300 ${
-                        (appearanceSettings?.theme || 'auto') === theme.toLowerCase()
-                          ? "border-primary bg-primary/20"
-                          : "border-border/20 hover:border-border/30"
-                      }`}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <div className="text-center">
-                        <div className={`w-8 h-8 rounded mx-auto mb-2 ${
-                          theme === "Dark" ? "bg-zinc-900" : theme === "Light" ? "bg-zinc-100" : "bg-gradient-to-r from-zinc-900 to-zinc-100"
-                        }`}></div>
-                        <p className="text-foreground text-sm">{theme}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
-              <CardContent className="p-4">
-                <h3 className="text-foreground font-medium mb-4">Accent Color</h3>
-                <div className="grid grid-cols-6 gap-3">
-                  {["#1dff00", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#10b981"].map((color) => (
-                    <motion.div
-                      key={color}
-                      onClick={async () => {
-                        try {
-                          if (!appearanceSettings) await (appearance as any).createSettings({ accent_color: color });
-                          else await (appearance as any).updateSettings({ accent_color: color });
-                        } catch (e: any) { toastError('Failed to set accent', e.message); }
-                      }}
-                      className={`w-8 h-8 rounded cursor-pointer border-2 transition-all duration-300 ${
-                        (appearanceSettings?.accent_color || '#1dff00').toLowerCase() === color.toLowerCase()
-                          ? "border-foreground"
-                          : "border-transparent"
-                      }`}
-                      style={{ backgroundColor: color }}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                    ></motion.div>
-                  ))}
-                </div>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-muted-foreground mb-2">Reduced motion</label>
-                  <Button
-                    variant="ghost"
-                    size="sm"
+          <div id="settings-tab-appearance" data-tour="settings-tab-appearance" className="space-y-6">
+            {/* Theme Selection */}
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <h3 className="text-base font-medium text-white/95 mb-6">Theme</h3>
+              <div className="grid grid-cols-3 gap-3">
+                {["Dark", "Light", "Auto"].map((theme) => (
+                  <button
+                    key={theme}
                     onClick={async () => {
+                      const value = theme.toLowerCase() as 'dark' | 'light' | 'auto';
                       try {
-                        if (!appearanceSettings) await (appearance as any).createSettings({ reduce_motion: true });
-                        else await (appearance as any).updateSettings({ reduce_motion: !(appearanceSettings.reduce_motion ?? false) });
-                      } catch (e: any) { toastError('Failed to update motion preference', e.message); }
+                        if (!appearanceSettings) await (appearance as any).createSettings({ theme: value });
+                        else await (appearance as any).updateSettings({ theme: value });
+                      } catch (e: any) { toastError('Failed to set theme', e.message); }
                     }}
-                    className={`transition-all duration-300 hover:scale-105 ${
-                      (appearanceSettings?.reduce_motion ?? false)
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    className={`p-4 rounded-lg border transition-all ${
+                      (appearanceSettings?.theme || 'auto') === theme.toLowerCase()
+                        ? "border-[#1dff00]/40 bg-[#1dff00]/[0.08]"
+                        : "border-white/[0.08] hover:border-white/[0.12] hover:bg-white/[0.02]"
                     }`}
                   >
-                    {(appearanceSettings?.reduce_motion ?? false) ? 'Reduced motion: On' : 'Reduced motion: Off'}
-                  </Button>
+                    <div className="text-center">
+                      <div className={`w-10 h-10 rounded-lg mx-auto mb-3 border border-white/[0.1] ${
+                        theme === "Dark" ? "bg-zinc-900" : theme === "Light" ? "bg-zinc-100" : "bg-gradient-to-r from-zinc-900 to-zinc-100"
+                      }`}></div>
+                      <p className="text-white/90 text-sm font-medium">{theme}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Accent Color */}
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <h3 className="text-base font-medium text-white/95 mb-6">Accent Color</h3>
+              <div className="grid grid-cols-6 gap-3">
+                {["#1dff00", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#10b981"].map((color) => (
+                  <button
+                    key={color}
+                    onClick={async () => {
+                      try {
+                        if (!appearanceSettings) await (appearance as any).createSettings({ accent_color: color });
+                        else await (appearance as any).updateSettings({ accent_color: color });
+                      } catch (e: any) { toastError('Failed to set accent', e.message); }
+                    }}
+                    className={`w-12 h-12 rounded-xl cursor-pointer border-2 transition-all hover:scale-110 ${
+                      (appearanceSettings?.accent_color || '#1dff00').toLowerCase() === color.toLowerCase()
+                        ? "border-white/50 ring-2 ring-white/20"
+                        : "border-transparent hover:border-white/20"
+                    }`}
+                    style={{ backgroundColor: color }}
+                  ></button>
+                ))}
+              </div>
+            </div>
+
+            {/* Preferences */}
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <h3 className="text-base font-medium text-white/95 mb-6">Preferences</h3>
+              <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                <div>
+                  <p className="text-sm font-medium text-white/90">Reduced Motion</p>
+                  <p className="text-xs text-white/50 mt-0.5">Minimize animations and transitions</p>
                 </div>
-              </CardContent>
-            </Card>
+                <button
+                  onClick={async () => {
+                    try {
+                      if (!appearanceSettings) await (appearance as any).createSettings({ reduce_motion: true });
+                      else await (appearance as any).updateSettings({ reduce_motion: !(appearanceSettings.reduce_motion ?? false) });
+                    } catch (e: any) { toastError('Failed to update motion preference', e.message); }
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    (appearanceSettings?.reduce_motion ?? false)
+                      ? "bg-[#1dff00]"
+                      : "bg-white/[0.1]"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      (appearanceSettings?.reduce_motion ?? false) ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
           </div>
         );
 
@@ -1340,68 +1358,66 @@ export const SettingsPage = (): JSX.Element => {
 
       case "integrations":
         return (
-          <div id="settings-tab-integrations" data-tour="settings-tab-integrations" className="space-y-8">
-            <Card className="bg-card/10 border-border/20 transition-all duration-300">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center justify-center">
-                      <Mail className="w-6 h-6 text-red-500" />
-                    </div>
-                    <div>
-                      <h3 className="text-foreground font-medium">Connect to your Gmail</h3>
-                      <p className="text-sm text-muted-foreground">To get job alert and schedule interview</p>
-                    </div>
+          <div id="settings-tab-integrations" data-tour="settings-tab-integrations" className="space-y-6">
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.1] transition-all">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500/10 to-red-500/5 border border-red-500/20 flex items-center justify-center">
+                    <Mail className="w-6 h-6 text-red-400" />
                   </div>
-                  <Button
-                    variant="outline"
-                    className="border-border/20 text-foreground hover:bg-card/20 hover:scale-105 transition-all duration-300"
-                    onClick={handleConnectGmail}
-                    disabled={isGmailConnected}
-                  >
-                    <Link className="w-4 h-4 mr-2" />
-                    {isGmailConnected ? "Connected" : "Connect"}
-                  </Button>
+                  <div>
+                    <h3 className="text-sm font-medium text-white/95">Gmail</h3>
+                    <p className="text-xs text-white/50 mt-0.5">Connect to receive job alerts and schedule interviews</p>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+                <Button
+                  variant="outline"
+                  className={`border-white/[0.08] transition-all ${
+                    isGmailConnected 
+                      ? "text-[#1dff00] border-[#1dff00]/30 bg-[#1dff00]/[0.05]" 
+                      : "text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
+                  }`}
+                  onClick={handleConnectGmail}
+                  disabled={isGmailConnected}
+                >
+                  <Link className="w-4 h-4 mr-2" />
+                  {isGmailConnected ? "Connected" : "Connect"}
+                </Button>
+              </div>
+            </div>
           </div>
         );
 
       case "billing":
         return (
-          <div id="settings-tab-billing" data-tour="settings-tab-billing" className="space-y-8">
-            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
-              <CardContent className="p-4">
-                <h3 className="text-foreground font-medium mb-4">Current Plan</h3>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-foreground font-medium">Free Plan</p>
-                    <p className="text-sm text-muted-foreground">Basic features included</p>
-                  </div>
-                  <Button
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 transition-all duration-300"
-                    onClick={() => { window.location.href = '/pricing'; }}
-                  >
-                    Upgrade to Premium
-                  </Button>
+          <div id="settings-tab-billing" data-tour="settings-tab-billing" className="space-y-6">
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <h3 className="text-base font-medium text-white/95 mb-6">Current Plan</h3>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-white/90">Free Plan</p>
+                  <p className="text-xs text-white/50 mt-0.5">Basic features included</p>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
-              <CardContent className="p-4">
-                <h3 className="text-foreground font-medium mb-4">Payment Method</h3>
-                <p className="text-muted-foreground mb-4">No payment method on file</p>
                 <Button
-                  variant="outline"
-                  className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50 hover:scale-105 transition-all duration-300"
+                  className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 font-medium transition-all"
+                  onClick={() => { window.location.href = '/pricing'; }}
                 >
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Add Payment Method
+                  Upgrade to Premium
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <h3 className="text-base font-medium text-white/95 mb-6">Payment Method</h3>
+              <p className="text-sm text-white/50 mb-4">No payment method on file</p>
+              <Button
+                variant="outline"
+                className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] transition-all"
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                Add Payment Method
+              </Button>
+            </div>
           </div>
         );
 
@@ -1412,67 +1428,86 @@ export const SettingsPage = (): JSX.Element => {
 
   return (
     <>
-    <div className="min-h-screen bg-background">
-      <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 sm:gap-8">
-          {/* Settings Navigation */}
-          <div className="lg:col-span-1 space-y-2" id="settings-tablist" data-tour="settings-tabs">
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-6 flex items-center">
-              <SettingsIcon className="w-6 h-6 mr-2" />
-              Settings
-            </h1>
-            
-            {tabs.map((tab) => (
+    <div className="min-h-screen bg-black">
+      <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-6">
+        {/* Modern Header */}
+        <div className="mb-8 border-b border-white/[0.06] pb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-medium tracking-tight text-white/95 mb-1">Settings</h1>
+              <p className="text-sm text-white/50">Manage your account preferences and configurations</p>
+            </div>
+            <div className="flex items-center gap-3">
               <Button
+                variant="outline"
+                onClick={handleResetForm}
+                className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] hover:border-white/[0.12] transition-all"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Reset
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleExportData}
+                className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] hover:border-white/[0.12] transition-all"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export Data
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+          {/* Minimal Sidebar Navigation */}
+          <div className="lg:col-span-1 space-y-1" id="settings-tablist" data-tour="settings-tabs">
+            {tabs.map((tab) => (
+              <button
                 key={tab.id}
-                variant="ghost"
                 onClick={() => {
                   setActiveTab(tab.id);
                   try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'settings_tab_switch', tab: tab.id } })); } catch {}
                 }}
                 id={`settings-tab-btn-${tab.id}`}
                 data-tour={`settings-tab-btn-${tab.id}`}
-                className={`w-full justify-start transition-all duration-300 hover:scale-105 ${
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all ${
                   activeTab === tab.id
-                    ? "text-foreground bg-primary/10 border-r-2 border-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    ? "text-white/95 bg-white/[0.06] border border-white/[0.08]"
+                    : "text-white/50 hover:text-white/80 hover:bg-white/[0.03]"
                 }`}
               >
-                {tab.icon}
-                <span className="ml-3">{tab.label}</span>
-              </Button>
+                <span className={activeTab === tab.id ? "text-[#1dff00]" : "text-white/40"}>
+                  {tab.icon}
+                </span>
+                <span className="font-medium">{tab.label}</span>
+              </button>
             ))}
             
-            <div className="pt-4 border-t border-border/20">
-              <Button
-                variant="ghost"
+            <div className="pt-4 mt-4 border-t border-white/[0.06]">
+              <button
                 onClick={async () => {
                   await supabase.auth.signOut();
                   window.location.href = '/login';
                 }}
-                className="w-full justify-start text-destructive hover:text-destructive/90 hover:bg-destructive/10 hover:scale-105 transition-all duration-300"
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all"
               >
-                <LogOut className="w-4 h-4 mr-3" />
-                Sign Out
-              </Button>
+                <LogOut className="w-4 h-4" />
+                <span className="font-medium">Sign Out</span>
+              </button>
             </div>
           </div>
 
-          {/* Settings Content */}
-          <div className="lg:col-span-3">
+          {/* Content Area */}
+          <div className="lg:col-span-4">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
             >
-              <Card className="bg-card/50 border-border/20 backdrop-blur-sm hover:shadow-lg transition-all duration-300">
-                <CardContent className="p-6">
-                  <div id="settings-profile-form" data-tour="settings-profile-form">
-                    {activeLoading ? <TabSkeleton /> : renderTabContent()}
-                  </div>
-                </CardContent>
-              </Card>
+              <div id="settings-profile-form" data-tour="settings-profile-form">
+                {activeLoading ? <TabSkeleton /> : renderTabContent()}
+              </div>
             </motion.div>
           </div>
         </div>
