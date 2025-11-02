@@ -323,7 +323,7 @@ export const BillingPage = () => {
               exit={{ opacity: 0, x: 20 }}
               className="space-y-8"
             >
-              <div className="grid gap-6 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 {plans.map((plan, index) => {
                   const isCurrentPlan = plan.name === subscriptionTier;
                   const isPro = plan.name === 'Pro';
