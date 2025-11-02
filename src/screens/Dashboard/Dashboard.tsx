@@ -36,14 +36,12 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { NotificationPage } from "./pages/NotificationPage";
 import ProfilePage from "./pages/ProfilePage";
 import { ChatPage } from "./pages/ChatPage";
-import { ResumePage } from "./pages/ResumePage";
 import { BillingPage } from "./pages/BillingPage";
 
 type DashboardPage = 
   | "overview" 
   | "analytics" 
   | "chat" 
-  | "resume" 
   | "jobs" 
   | "application" 
   | "settings"
@@ -69,7 +67,6 @@ export const Dashboard = (): JSX.Element => {
     "overview",
     "analytics",
     "chat",
-    "resume",
     "jobs",
     "application",
     "cover-letter",
@@ -84,7 +81,7 @@ export const Dashboard = (): JSX.Element => {
 
   const currentPage = useMemo(() => {
     const segment = (location.pathname.split("/")[2] || "").toLowerCase();
-    const normalized = segment === "resumes" ? "resume" : (segment as DashboardPage);
+    const normalized = (segment as DashboardPage);
     return pages.includes(normalized) ? normalized : "overview";
   }, [location.pathname]);
   // const resumeSubRoute = useMemo(() => {
@@ -142,12 +139,6 @@ export const Dashboard = (): JSX.Element => {
       label: "Chat",
       icon: <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />,
       path: "Dashboard / Chat"
-    },
-    {
-      id: "resume",
-      label: "Resume",
-      icon: <FileText className="w-4 h-4 sm:w-5 sm:h-5" />,
-      path: "Dashboard / Resume"
     },
     {
       id: "cover-letter",
@@ -220,8 +211,6 @@ export const Dashboard = (): JSX.Element => {
         return <ApplicationPage />;
       case "chat":
         return <ChatPage />;
-      case "resume":
-        return <ResumePage />;
       case "cover-letter":
         return <CoverLetterPage />;
       case "billing":
