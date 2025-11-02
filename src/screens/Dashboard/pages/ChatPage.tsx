@@ -8,69 +8,83 @@ import atomOneDarkStyle from 'react-syntax-highlighter/dist/styles/atom-one-dark
 import { createClient } from "../../../lib/supabaseClient";
 import { MessageSquare, Wand2, Target, FileText, Sparkles, Zap, Plus, Search, Trash2, Edit3 } from 'lucide-react';
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
-// Temporary lightweight chat hook placeholder (remove when real ai/react is available)
 type Persona = 'concise' | 'friendly' | 'analyst' | 'coach';
 interface BasicMessage { id: string; role: 'user' | 'assistant'; content: string; parts?: { type: 'text'; text: string }[]; streaming?: boolean; createdAt: number; meta?: { persona?: Persona; parent?: string } }
-interface UseChatReturn { messages: BasicMessage[]; status: 'idle' | 'in_progress'; append: (m: { role: 'user'; content: string }) => void; regenerate: () => void; stop: () => void }
-const useChat = (_opts: { api: string }): UseChatReturn => {
-  const [messages, setMessages] = useState<BasicMessage[]>([]);
+interface UseChatReturn { messages: BasicMessage[]; status: 'idle' | 'in_progress'; append: (m: { role: 'user'; content: string; model: string }) => void; regenerate: () => void; stop: () => void; setMessages: (m: BasicMessage[])=>void; }
+const useChat = (_opts: { api: string; initialMessages?: BasicMessage[] }): UseChatReturn => {
+  const [messages, setMessages] = useState<BasicMessage[]>(_opts.initialMessages || []);
   const [status, setStatus] = useState<'idle' | 'in_progress'>('idle');
-  const cancelRef = useRef<{ cancelled: boolean }>({ cancelled: false });
-  const lastUserContentRef = useRef<string>('');
+  const supabase = useMemo(() => createClient(), []);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Persistence
-  useEffect(()=>{
-    try {
-      const raw = localStorage.getItem('chat_session_default');
-      if (raw) {
-        const parsed: BasicMessage[] = JSON.parse(raw);
-        setMessages(parsed);
-      }
-    } catch {}
-  }, []);
-  useEffect(()=>{
-    try { localStorage.setItem('chat_session_default', JSON.stringify(messages)); } catch {}
-  }, [messages]);
+  useEffect(() => {
+    setMessages(_opts.initialMessages || []);
+  }, [_opts.initialMessages]);
 
-  const streamAssistant = (assistantId: string, tokens: string[], i: number) => {
-    setMessages(prev => prev.map(msg => msg.id === assistantId
-      ? { ...msg, parts: [{ type: 'text', text: tokens.slice(0, i + 1).join(' ') }], streaming: i + 1 < tokens.length }
-      : msg));
-    if (cancelRef.current.cancelled) {
-      setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, streaming: false } : m));
+  const append = async (m: { role: 'user'; content: string; model: string }) => {
+    setStatus('in_progress');
+    const userMessage: BasicMessage = { id: nanoid(), role: 'user', content: m.content, createdAt: Date.now() };
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+
+    const assistantId = nanoid();
+    let assistantMessage: BasicMessage = { id: assistantId, role: 'assistant', content: '', streaming: true, createdAt: Date.now() };
+    setMessages([...newMessages, assistantMessage]);
+
+    abortControllerRef.current = new AbortController();
+
+    const { data, error } = await supabase.functions.invoke('ai-chat', {
+      body: {
+        model: m.model,
+        messages: newMessages,
+      },
+      signal: abortControllerRef.current.signal,
+    });
+
+    if (error || !data) {
+      assistantMessage = { ...assistantMessage, content: 'Sorry, I had an error. Please try again.', streaming: false };
+      setMessages([...newMessages, assistantMessage]);
       setStatus('idle');
       return;
     }
-    if (i + 1 < tokens.length) {
-      setTimeout(() => streamAssistant(assistantId, tokens, i + 1), 40 + Math.random()*60);
-    } else {
+
+    const reader = (data as ReadableStream).getReader();
+    const decoder = new TextDecoder();
+    let fullContent = '';
+
+    const processStream = async () => {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n\n');
+        for (const line of lines) {
+          if (line.startsWith('event: message')) {
+            const data = JSON.parse(line.split('data: ')[1]);
+            fullContent += data.delta;
+            assistantMessage = { ...assistantMessage, content: fullContent, streaming: true };
+            setMessages([...newMessages, assistantMessage]);
+          }
+        }
+      }
+      assistantMessage = { ...assistantMessage, content: fullContent, streaming: false };
+      setMessages([...newMessages, assistantMessage]);
       setStatus('idle');
+    };
+
+    processStream();
+  };
+
+  const regenerate = () => {
+    // Implement if needed
+  };
+
+  const stop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
   };
 
-  const append = (m: { role: 'user'; content: string }) => {
-    const userId = Math.random().toString(36).slice(2);
-    lastUserContentRef.current = m.content;
-    setMessages(prev => [...prev, { id: userId, role: m.role, content: m.content, createdAt: Date.now(), parts: [{ type: 'text', text: m.content }] }]);
-    // Simulated streaming assistant reply
-    setStatus('in_progress');
-    const assistantId = Math.random().toString(36).slice(2);
-    const reply = `You said: "${m.content}". This is a simulated streaming response demonstrating incremental token updates.`;
-    const tokens = reply.split(/\s+/);
-    cancelRef.current.cancelled = false;
-    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: reply, createdAt: Date.now(), parts: [{ type: 'text', text: '' }], streaming: true, meta: { parent: userId } }]);
-    // start token streaming
-    setTimeout(() => streamAssistant(assistantId, tokens, 0), 120);
-  };
-  const regenerate = () => {
-    if (status === 'in_progress') return;
-    const lastUser = [...messages].reverse().find(m => m.role === 'user');
-    if (!lastUser) return;
-    append({ role: 'user', content: lastUser.content });
-  };
-  const stop = () => {
-    cancelRef.current.cancelled = true;
-  };
   return { messages, status, append, regenerate, stop };
 };
 import { GlobeIcon, MicIcon } from 'lucide-react';
@@ -171,8 +185,11 @@ export const ChatPage = () => {
   });
   
   // Chat logic
-  const chat = useChat({ api: '/api/chat' });
-  const { messages, status, append, regenerate, stop } = chat;
+  const activeSessionMessages = useMemo(() => {
+    return sessions.find(s => s.id === activeSessionId)?.messages || [];
+  }, [sessions, activeSessionId]);
+  const chat = useChat({ api: '/api/chat', initialMessages: activeSessionMessages });
+  const { messages, status, append, regenerate, stop, setMessages: setChatMessages } = chat;
 
   // Session persistence ------------------------------------------------------
   useEffect(() => {
@@ -206,13 +223,18 @@ export const ChatPage = () => {
 
   const createSession = () => {
     const id = nanoid();
-    setSessions(prev => [{ id, title: 'New Chat', createdAt: Date.now(), updatedAt: Date.now(), messages: [] }, ...prev]);
+    const newSession = { id, title: 'New Chat', createdAt: Date.now(), updatedAt: Date.now(), messages: [] };
+    setSessions(prev => [newSession, ...prev]);
     setActiveSessionId(id);
-    // reset chat state (simple page-level reset)
-    window.location.hash = '#chat-' + id; // hint without full navigation
-    // Hard reset by reloading for simplicity to reuse hook state; optional improvement: refactor hook to accept external messages.
-    // For now mimic reset:
+    setChatMessages([]);
   };
+
+  useEffect(() => {
+    const activeSession = sessions.find(s => s.id === activeSessionId);
+    if (activeSession) {
+      setChatMessages(activeSession.messages);
+    }
+  }, [activeSessionId, sessions, setChatMessages]);
 
   const deleteSession = (id: string) => {
     setSessions(prev => prev.filter(s => s.id !== id));
@@ -307,7 +329,7 @@ export const ChatPage = () => {
       coach: 'Answer like a career coach with actionable steps. '
     }[persona];
     const finalText = prefix + (message.text || 'Sent with attachments');
-    append({ role: 'user', content: finalText });
+    append({ role: 'user', content: finalText, model });
     // update session title on first message
     setSessions(prev => prev.map(s => s.id === activeSessionId && s.messages.length === 0 ? { ...s, title: (message.text || 'New Chat').slice(0,48) } : s));
     setText('');
