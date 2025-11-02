@@ -5,7 +5,7 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles, Mail, Zap, Crown, Check, ArrowRight } from "lucide-react";
+import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles, Mail, Zap, Crown, Check, ArrowRight, Linkedin } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
 import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
@@ -80,11 +80,16 @@ export const SettingsPage = (): JSX.Element => {
   const [totpCode, setTotpCode] = useState<string>("");
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [isGmailConnected, setIsGmailConnected] = useState(false);
+  const [isLinkedInConnected, setIsLinkedInConnected] = useState(false);
   const passwordCheck = useMemo(() => validatePassword(formData.newPassword, formData.email), [formData.newPassword, formData.email]);
 
   const handleConnectGmail = async () => {
     const mcpServerUrl = import.meta.env.VITE_GMAIL_MCP_SERVER_URL || "http://localhost:3000";
     window.open(`${mcpServerUrl}/auth`, "_blank", "noopener,noreferrer");
+  };
+
+  const handleConnectLinkedIn = async () => {
+    toastError("Coming soon!", "LinkedIn integration is not yet available.");
   };
 
   useEffect(() => {
@@ -599,6 +604,32 @@ export const SettingsPage = (): JSX.Element => {
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Reset
+                </Button>
+              </div>
+            </div>
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.1] transition-all">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20 flex items-center justify-center">
+                    <Linkedin className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-white/95">LinkedIn</h3>
+                    <p className="text-xs text-white/50 mt-0.5">Connect to sync your profile and apply to jobs</p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className={`border-white/[0.08] transition-all ${
+                    isLinkedInConnected
+                      ? "text-[#1dff00] border-[#1dff00]/30 bg-[#1dff00]/[0.05]"
+                      : "text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
+                  }`}
+                  onClick={handleConnectLinkedIn}
+                  disabled={isLinkedInConnected}
+                >
+                  <Link className="w-4 h-4 mr-2" />
+                  {isLinkedInConnected ? "Connected" : "Connect"}
                 </Button>
               </div>
             </div>
