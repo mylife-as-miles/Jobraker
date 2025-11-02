@@ -16,7 +16,6 @@ import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
 import { validatePassword } from "../../../utils/password";
 import { CheckCircle2, XCircle } from "lucide-react";
-import { ResumeChecker } from "../../../client/components/ResumeChecker";
 // Lazy-load qrcode to avoid bundler resolution issues during build
 let QRCodeLib: any | null = null;
 async function getQRCode() {
@@ -278,7 +277,6 @@ export const SettingsPage = (): JSX.Element => {
     { id: "security", label: "Security", icon: <Shield className="w-4 h-4" /> },
     { id: "appearance", label: "Appearance", icon: <Palette className="w-4 h-4" /> },
     { id: "privacy", label: "Privacy", icon: <Globe className="w-4 h-4" /> },
-    { id: "resume-checker", label: "Resume Checker", icon: <Sparkles className="w-4 h-4" /> },
     { id: "job-sources", label: "Job Sources", icon: <SettingsIcon className="w-4 h-4" /> },
     { id: "integrations", label: "Integrations", icon: <Link className="w-4 h-4" /> },
     { id: "billing", label: "Billing", icon: <CreditCard className="w-4 h-4" /> }
@@ -1424,13 +1422,6 @@ export const SettingsPage = (): JSX.Element => {
                 </Button>
               </div>
             </div>
-          </div>
-        );
-
-      case "resume-checker":
-        return (
-          <div id="settings-tab-resume-checker" data-tour="settings-tab-resume-checker" className="space-y-8">
-            <ResumeChecker />
           </div>
         );
 
