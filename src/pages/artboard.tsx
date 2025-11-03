@@ -50,9 +50,11 @@ export const ArtboardPage = () => {
   // Receive resume from parent via postMessage when embedded as iframe
   useEffect(() => {
     const handler = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+
       const msg = event?.data;
       if (!msg || typeof msg !== 'object') return;
-      if (msg.type === 'SET_RESUME' && msg.payload?.resume) {
+      if (typeof msg.type === 'string' && msg.type === 'SET_RESUME' && msg.payload?.resume) {
         try { setResume(msg.payload.resume); } catch {}
       }
     };
