@@ -416,7 +416,7 @@ export const BillingPage = () => {
                               isCurrentPlan
                                 ? 'bg-white/10 text-white cursor-default'
                                 : plan.name === 'Basics'
-                                ? 'bg-gradient-to-r from-[#1dff00] via-[#0fc74f] to-[#0a8246] text-black hover:opacity-90 hover:scale-105 shadow-lg'
+                                ? 'bg-gradient-to-r from-[#1dff00] via-[#0fc74f] to-[#0a8246] text-white hover:opacity-90 hover:scale-105 shadow-lg'
                                 : plan.name === 'Pro'
                                 ? 'bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
                                 : plan.name === 'Ultimate'
