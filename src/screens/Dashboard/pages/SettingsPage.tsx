@@ -84,8 +84,36 @@ export const SettingsPage = (): JSX.Element => {
   const passwordCheck = useMemo(() => validatePassword(formData.newPassword, formData.email), [formData.newPassword, formData.email]);
 
   const handleConnectGmail = async () => {
-    const mcpServerUrl = import.meta.env.VITE_GMAIL_MCP_SERVER_URL || "http://localhost:3000";
-    window.open(`${mcpServerUrl}/auth`, "_blank", "noopener,noreferrer");
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        toastError("Please sign in to connect your Gmail account.");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke(
+        "composio-gmail-auth",
+        {
+          body: {
+            userId: user.id,
+            authConfigId: import.meta.env.VITE_COMPOSIO_GMAIL_CONFIG_ID,
+            action: "initiate",
+          },
+        }
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      const { connectionId, redirectUrl } = data;
+      localStorage.setItem("composio-connection-id", connectionId);
+      window.open(redirectUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      toastError("Failed to connect Gmail", (error as Error).message);
+    }
   };
 
   const handleConnectLinkedIn = async () => {
@@ -93,14 +121,41 @@ export const SettingsPage = (): JSX.Element => {
   };
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       if (event.origin !== window.location.origin) {
         return;
       }
 
       if (event.data === "gmail-auth-success") {
-        setIsGmailConnected(true);
-        success("Gmail connected successfully!");
+        const connectionId = localStorage.getItem("composio-connection-id");
+        if (connectionId) {
+          try {
+            const {
+              data: { user },
+            } = await supabase.auth.getUser();
+            if (!user) {
+              toastError("Please sign in to connect your Gmail account.");
+              return;
+            }
+
+            await supabase.functions.invoke("composio-gmail-auth", {
+              body: {
+                userId: user.id,
+                authConfigId: import.meta.env.VITE_COMPOSIO_GMAIL_CONFIG_ID,
+                action: "verify",
+                connectionId: connectionId,
+              },
+            });
+            setIsGmailConnected(true);
+            success("Gmail connected successfully!");
+            localStorage.removeItem("composio-connection-id");
+          } catch (error) {
+            toastError(
+              "Failed to verify Gmail connection",
+              (error as Error).message
+            );
+          }
+        }
       }
     };
 
@@ -109,7 +164,7 @@ export const SettingsPage = (): JSX.Element => {
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, [success]);
+  }, [supabase, success, toastError]);
 
   const initials = useMemo(() => {
     const a = (formData.firstName || '').trim();

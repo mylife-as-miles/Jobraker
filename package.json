@@ -5,7 +5,7 @@
   "name": "jobraker",
   "description": "A job app",
   "scripts": {
-    "dev": "concurrently \"npm:mcp:gmail\" \"vite\"",
+    "dev": "vite",
     "build": "vite build",
     "lint": "echo 'lint not configured' && exit 0",
     "lint:migrations": "node backend/scripts/run-lint-migrations.cjs",
