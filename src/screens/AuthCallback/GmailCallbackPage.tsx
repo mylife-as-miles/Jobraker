@@ -3,7 +3,9 @@ import React, { useEffect } from 'react';
 const GmailCallbackPage = () => {
   useEffect(() => {
     // Send a message to the parent window to indicate that the auth was successful
-    window.opener?.postMessage('gmail-auth-success', window.location.origin);
+    if (window.opener) {
+      window.opener.postMessage('gmail-auth-success', window.location.origin);
+    }
     // Close the popup window
     window.close();
   }, []);
