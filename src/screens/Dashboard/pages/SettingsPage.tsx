@@ -607,32 +607,6 @@ export const SettingsPage = (): JSX.Element => {
                 </Button>
               </div>
             </div>
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.1] transition-all">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20 flex items-center justify-center">
-                    <Linkedin className="w-6 h-6 text-blue-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-white/95">LinkedIn</h3>
-                    <p className="text-xs text-white/50 mt-0.5">Connect to sync your profile and apply to jobs</p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  className={`border-white/[0.08] transition-all ${
-                    isLinkedInConnected
-                      ? "text-[#1dff00] border-[#1dff00]/30 bg-[#1dff00]/[0.05]"
-                      : "text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
-                  }`}
-                  onClick={handleConnectLinkedIn}
-                  disabled={isLinkedInConnected}
-                >
-                  <Link className="w-4 h-4 mr-2" />
-                  {isLinkedInConnected ? "Connected" : "Connect"}
-                </Button>
-              </div>
-            </div>
           </div>
         );
 
