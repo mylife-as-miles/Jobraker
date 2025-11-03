@@ -380,18 +380,18 @@ export const BillingPage = () => {
                                 <span className="text-gray-400">/mo</span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-400 mt-2 line-clamp-2">{plan.description}</p>
+                            <p className="text-sm text-gray-400 mt-2 line-clamp-2 h-10">{plan.description}</p>
                           </div>
 
                           {/* Credits */}
                           <div className="flex items-center gap-2 p-3 bg-black/30 rounded-lg mb-4">
                             <Zap className="w-4 h-4 text-[#1dff00]" />
-                            <span className="text-sm text-white font-medium">{plan.credits_per_month} credits</span>
+                            <span className="text-sm text-white font-medium">{plan.credits_per_month.toLocaleString()} credits</span>
                             <span className="text-xs text-gray-500">per cycle</span>
                           </div>
 
                           {/* Features */}
-                          <div className="space-y-2 mb-4">
+                          <div className="space-y-2 mb-4 h-24">
                             {plan.features && Array.isArray(plan.features) && plan.features.slice(0, 3).map((feature: any, idx: number) => {
                               const featureName = typeof feature === 'string' ? feature : feature.name;
                               const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
