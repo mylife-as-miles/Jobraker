@@ -20,8 +20,6 @@ import KiboCalendar, { CalendarEvent } from "../../../components/ui/kibo-ui/cale
 import CalendarDayDetail from "../../../components/ui/kibo-ui/CalendarDayDetail";
 import Modal from "../../../components/ui/modal";
 
-type SortOption = "score" | "recent" | "company" | "status";
-
 function ApplicationPage() {
   const { applications, exportCSV, update, refresh, loading: appsLoading } = useApplications();
 
@@ -29,7 +27,7 @@ function ApplicationPage() {
   const [rawSearch, setRawSearch] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<"All" | ApplicationStatus>("All");
-  const [sortBy, setSortBy] = useState<SortOption>("score");
+  const [sortBy, setSortBy] = useState<"score" | "recent" | "company" | "status">("score");
   const [viewMode, setViewMode] = useState<"gantt" | "list" | "kanban" | "calendar" | "table">("gantt");
   const [ganttZoom, setGanttZoom] = useState(() => {
     const z = Number(localStorage.getItem('jr.apps.gantt.zoom') || '1');
@@ -250,10 +248,7 @@ function ApplicationPage() {
               />
             </div>
             <div className="flex items-center gap-3">
-              <SortDropdown
-                value={sortBy}
-                onChange={(newSortBy) => setSortBy(newSortBy as SortOption)}
-              />
+              <SortDropdown />
 
               <div id="application-view-toggle" className="inline-flex rounded-xl border border-[#1dff00]/30 overflow-hidden bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-sm shadow-lg" data-tour="application-view-toggle">
                 <button
