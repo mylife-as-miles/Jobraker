@@ -36,12 +36,14 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { NotificationPage } from "./pages/NotificationPage";
 import ProfilePage from "./pages/ProfilePage";
 import { ChatPage } from "./pages/ChatPage";
+import { ResumePage } from "./pages/ResumePage";
 import { BillingPage } from "./pages/BillingPage";
 
 type DashboardPage = 
   | "overview" 
   | "analytics" 
   | "chat" 
+  | "resume"
   | "jobs" 
   | "application" 
   | "settings"
@@ -62,11 +64,23 @@ export const Dashboard = (): JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile } = useProfileSettings();
+  const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate('/signIn');
+      }
+    };
+    checkAuth();
+  }, [navigate, supabase]);
 
   const pages: DashboardPage[] = [
     "overview",
     "analytics",
     "chat",
+    "resume",
     "jobs",
     "application",
     "cover-letter",
@@ -81,15 +95,13 @@ export const Dashboard = (): JSX.Element => {
 
   const currentPage = useMemo(() => {
     const segment = (location.pathname.split("/")[2] || "").toLowerCase();
-    const normalized = (segment as DashboardPage);
-    return pages.includes(normalized) ? normalized : "overview";
+    return pages.includes(segment as DashboardPage) ? (segment as DashboardPage) : "overview";
   }, [location.pathname]);
   // const resumeSubRoute = useMemo(() => {
   //   const parts = location.pathname.split("/");
   //   return (parts[3] || "").toLowerCase();
   // }, [location.pathname]);
 
-  const supabase = useMemo(() => createClient(), []);
   const [email, setEmail] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const { items: recentNotifications } = useNotifications(20);
@@ -139,6 +151,12 @@ export const Dashboard = (): JSX.Element => {
       label: "Chat",
       icon: <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />,
       path: "Dashboard / Chat"
+    },
+    {
+      id: "resume",
+      label: "Resume",
+      icon: <FileText className="w-4 h-4 sm:w-5 sm:h-5" />,
+      path: "Dashboard / Resume"
     },
     {
       id: "cover-letter",
@@ -211,6 +229,8 @@ export const Dashboard = (): JSX.Element => {
         return <ApplicationPage />;
       case "chat":
         return <ChatPage />;
+      case "resume":
+        return <ResumePage />;
       case "cover-letter":
         return <CoverLetterPage />;
       case "billing":
@@ -268,7 +288,7 @@ export const Dashboard = (): JSX.Element => {
         <nav className="flex-1 p-2 sm:p-3 lg:p-4 overflow-y-auto min-h-0">
           <div className="space-y-1 sm:space-y-2">
             {navigationItems.map((item) => {
-              const path = item.id === "resume" ? "/dashboard/resumes" : `/dashboard/${item.id}`;
+              const path = `/dashboard/${item.id}`;
               const isActive = currentPage === item.id;
               return (
                 <Button
@@ -358,7 +378,7 @@ export const Dashboard = (): JSX.Element => {
             {/* Header Actions - Responsive */}
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0 whitespace-nowrap">
               {/* Credit Display */}
-              <CreditDisplay />
+              {profile && <CreditDisplay />}
               
               {/* Quick Actions */}
               <Button 
@@ -390,7 +410,7 @@ export const Dashboard = (): JSX.Element => {
               </Button>
               
               {/* Profile Button - Responsive */}
-              {profile === null ? (
+              {!profile ? (
                 <div className="hidden sm:flex items-center space-x-3">
                   <Skeleton className="w-8 h-8 lg:w-10 lg:h-10 rounded-full" />
                   <div className="hidden lg:flex flex-col space-y-1">
