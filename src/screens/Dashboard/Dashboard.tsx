@@ -279,7 +279,7 @@ export const Dashboard = (): JSX.Element => {
         <nav className="flex-1 p-2 sm:p-3 lg:p-4 overflow-y-auto min-h-0">
           <div className="space-y-1 sm:space-y-2">
             {navigationItems.map((item) => {
-              const path = item.id === "resume" ? "/dashboard/resumes" : `/dashboard/${item.id}`;
+              const path = `/dashboard/${item.id}`;
               const isActive = currentPage === item.id;
               return (
                 <Button
