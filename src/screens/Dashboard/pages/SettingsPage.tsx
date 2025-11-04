@@ -111,14 +111,47 @@ export const SettingsPage = (): JSX.Element => {
       const { connectionId, redirectUrl } = data;
       localStorage.setItem("composio-connection-id", connectionId);
       window.open(redirectUrl, "_blank", "noopener,noreferrer");
-    } catch (error) {
-      toastError("Failed to connect Gmail", (error as Error).message);
+    } catch (error: any) {
+      const errorMessage =
+        error.details || (error as Error).message || "An unknown error occurred.";
+      toastError("Failed to connect Gmail", errorMessage);
     }
   };
 
   const handleConnectLinkedIn = async () => {
     toastError("Coming soon!", "LinkedIn integration is not yet available.");
   };
+
+  useEffect(() => {
+    const checkGmailConnection = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          const { data, error } = await supabase.functions.invoke(
+            "composio-gmail-auth",
+            {
+              body: {
+                userId: user.id,
+                authConfigId: import.meta.env.VITE_COMPOSIO_GMAIL_CONFIG_ID,
+                action: "status",
+              },
+            }
+          );
+          if (error) {
+            throw error;
+          }
+          setIsGmailConnected(data.isConnected);
+        }
+      } catch (error: any) {
+        // It's okay if this fails, the user will just see the "Connect" button
+        console.error("Failed to check Gmail connection status:", error);
+      }
+    };
+
+    checkGmailConnection();
+  }, [supabase]);
 
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
@@ -149,11 +182,12 @@ export const SettingsPage = (): JSX.Element => {
             setIsGmailConnected(true);
             success("Gmail connected successfully!");
             localStorage.removeItem("composio-connection-id");
-          } catch (error) {
-            toastError(
-              "Failed to verify Gmail connection",
-              (error as Error).message
-            );
+          } catch (error: any) {
+            const errorMessage =
+              error.details ||
+              (error as Error).message ||
+              "An unknown error occurred.";
+            toastError("Failed to verify Gmail connection", errorMessage);
           }
         }
       }

@@ -32,7 +32,8 @@ serve(async (req) => {
     if (action === "initiate") {
       const connectionRequest = await composio.connectedAccounts.initiate(
         userId,
-        authConfigId
+        authConfigId,
+        { allowMultiple: true }
       );
 
       return new Response(
@@ -67,6 +68,26 @@ serve(async (req) => {
         JSON.stringify({
           message: "Verification successful",
           connectedAccount,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    } else if (action === "status") {
+      const { data: connectedAccounts } =
+        await composio.connectedAccounts.list({
+          userIds: [userId],
+        });
+      const isConnected =
+        connectedAccounts &&
+        connectedAccounts.some(
+          (account) => account.authConfigId === authConfigId
+        );
+
+      return new Response(
+        JSON.stringify({
+          isConnected,
         }),
         {
           status: 200,
