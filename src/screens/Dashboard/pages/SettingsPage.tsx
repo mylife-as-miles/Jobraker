@@ -5,7 +5,7 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles, Mail, Zap, Crown, Check, ArrowRight, Linkedin } from "lucide-react";
+import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles, Mail, Zap, Crown, Check, ArrowRight } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
 import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
@@ -16,6 +16,7 @@ import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
 import { validatePassword } from "../../../utils/password";
 import { CheckCircle2, XCircle } from "lucide-react";
+import { ResumeChecker } from "../../../client/components/ResumeChecker";
 // Lazy-load qrcode to avoid bundler resolution issues during build
 let QRCodeLib: any | null = null;
 async function getQRCode() {
@@ -80,7 +81,6 @@ export const SettingsPage = (): JSX.Element => {
   const [totpCode, setTotpCode] = useState<string>("");
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [isGmailConnected, setIsGmailConnected] = useState(false);
-  const [isLinkedInConnected, setIsLinkedInConnected] = useState(false);
   const passwordCheck = useMemo(() => validatePassword(formData.newPassword, formData.email), [formData.newPassword, formData.email]);
 
   const handleConnectGmail = async () => {
@@ -116,10 +116,6 @@ export const SettingsPage = (): JSX.Element => {
         error.details || (error as Error).message || "An unknown error occurred.";
       toastError("Failed to connect Gmail", errorMessage);
     }
-  };
-
-  const handleConnectLinkedIn = async () => {
-    toastError("Coming soon!", "LinkedIn integration is not yet available.");
   };
 
   useEffect(() => {
@@ -371,6 +367,7 @@ export const SettingsPage = (): JSX.Element => {
     { id: "security", label: "Security", icon: <Shield className="w-4 h-4" /> },
     { id: "appearance", label: "Appearance", icon: <Palette className="w-4 h-4" /> },
     { id: "privacy", label: "Privacy", icon: <Globe className="w-4 h-4" /> },
+    { id: "resume-checker", label: "Resume Checker", icon: <Sparkles className="w-4 h-4" /> },
     { id: "job-sources", label: "Job Sources", icon: <SettingsIcon className="w-4 h-4" /> },
     { id: "integrations", label: "Integrations", icon: <Link className="w-4 h-4" /> },
     { id: "billing", label: "Billing", icon: <CreditCard className="w-4 h-4" /> }
@@ -1516,6 +1513,13 @@ export const SettingsPage = (): JSX.Element => {
                 </Button>
               </div>
             </div>
+          </div>
+        );
+
+      case "resume-checker":
+        return (
+          <div id="settings-tab-resume-checker" data-tour="settings-tab-resume-checker" className="space-y-8">
+            <ResumeChecker />
           </div>
         );
 

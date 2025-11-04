@@ -323,7 +323,7 @@ export const BillingPage = () => {
               exit={{ opacity: 0, x: 20 }}
               className="space-y-8"
             >
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-6 lg:grid-cols-3 xl:grid-cols-4">
                 {plans.map((plan, index) => {
                   const isCurrentPlan = plan.name === subscriptionTier;
                   const isPro = plan.name === 'Pro';
@@ -380,18 +380,18 @@ export const BillingPage = () => {
                                 <span className="text-gray-400">/mo</span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-400 mt-2 line-clamp-2 h-10">{plan.description}</p>
+                            <p className="text-sm text-gray-400 mt-2 line-clamp-2">{plan.description}</p>
                           </div>
 
                           {/* Credits */}
                           <div className="flex items-center gap-2 p-3 bg-black/30 rounded-lg mb-4">
                             <Zap className="w-4 h-4 text-[#1dff00]" />
-                            <span className="text-sm text-white font-medium">{plan.credits_per_month.toLocaleString()} credits</span>
+                            <span className="text-sm text-white font-medium">{plan.credits_per_month} credits</span>
                             <span className="text-xs text-gray-500">per cycle</span>
                           </div>
 
                           {/* Features */}
-                          <div className="space-y-2 mb-4 h-24">
+                          <div className="space-y-2 mb-4">
                             {plan.features && Array.isArray(plan.features) && plan.features.slice(0, 3).map((feature: any, idx: number) => {
                               const featureName = typeof feature === 'string' ? feature : feature.name;
                               const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
@@ -416,7 +416,7 @@ export const BillingPage = () => {
                               isCurrentPlan
                                 ? 'bg-white/10 text-white cursor-default'
                                 : plan.name === 'Basics'
-                                ? 'bg-gradient-to-r from-[#1dff00] via-[#0fc74f] to-[#0a8246] text-white hover:opacity-90 hover:scale-105 shadow-lg'
+                                ? 'bg-gradient-to-r from-[#1dff00] via-[#0fc74f] to-[#0a8246] text-black hover:opacity-90 hover:scale-105 shadow-lg'
                                 : plan.name === 'Pro'
                                 ? 'bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
                                 : plan.name === 'Ultimate'
