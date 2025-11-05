@@ -242,6 +242,8 @@ export const Dashboard = (): JSX.Element => {
         return <ResumePage />;
       case "cover-letter":
         return <CoverLetterPage />;
+      case "resume":
+        return <ResumeBuilderRoute />;
       case "billing":
         return <BillingPage />;
       case "settings":

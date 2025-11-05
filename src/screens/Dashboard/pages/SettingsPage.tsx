@@ -5,7 +5,7 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles, Mail, Zap, Crown, Check, ArrowRight, Github, Linkedin } from "lucide-react";
+import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles, Mail, Zap, Crown, Check, ArrowRight } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
 import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
@@ -15,7 +15,7 @@ import { useAppearanceSettings } from "../../../hooks/useAppearanceSettings";
 import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
 import { validatePassword } from "../../../utils/password";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Linkedin, Github, Link } from "lucide-react";
 import { ResumeChecker } from "../../../client/components/ResumeChecker";
 // Lazy-load qrcode to avoid bundler resolution issues during build
 let QRCodeLib: any | null = null;
@@ -690,51 +690,6 @@ export const SettingsPage = (): JSX.Element => {
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Reset
-                </Button>
-              </div>
-            </div>
-            {/* GitHub Integration */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.1] transition-all">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-500/10 to-gray-500/5 border border-gray-500/20 flex items-center justify-center">
-                    <Github className="w-6 h-6 text-gray-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-white/95">GitHub</h3>
-                    <p className="text-xs text-white/50 mt-0.5">Connect to sync your repositories and profile</p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] transition-all"
-                  onClick={() => success("Coming Soon!", "GitHub integration is under development.")}
-                >
-                  <Link className="w-4 h-4 mr-2" />
-                  Connect
-                </Button>
-              </div>
-            </div>
-
-            {/* LinkedIn Integration */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.1] transition-all">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20 flex items-center justify-center">
-                    <Linkedin className="w-6 h-6 text-blue-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-white/95">LinkedIn</h3>
-                    <p className="text-xs text-white/50 mt-0.5">Connect to sync your profile and job applications</p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] transition-all"
-                  onClick={() => success("Coming Soon!", "LinkedIn integration is under development.")}
-                >
-                  <Link className="w-4 h-4 mr-2" />
-                  Connect
                 </Button>
               </div>
             </div>
@@ -1585,8 +1540,8 @@ export const SettingsPage = (): JSX.Element => {
                 <Button
                   variant="outline"
                   className={`border-white/[0.08] transition-all ${
-                    isGmailConnected 
-                      ? "text-[#1dff00] border-[#1dff00]/30 bg-[#1dff00]/[0.05]" 
+                    isGmailConnected
+                      ? "text-[#1dff00] border-[#1dff00]/30 bg-[#1dff00]/[0.05]"
                       : "text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
                   }`}
                   onClick={handleConnectGmail}
@@ -1594,6 +1549,46 @@ export const SettingsPage = (): JSX.Element => {
                 >
                   <Link className="w-4 h-4 mr-2" />
                   {isGmailConnected ? "Connected" : "Connect"}
+                </Button>
+              </div>
+            </div>
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.1] transition-all">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20 flex items-center justify-center">
+                    <Linkedin className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-white/95">LinkedIn</h3>
+                    <p className="text-xs text-white/50 mt-0.5">Connect to sync your profile and apply to jobs</p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
+                >
+                  <Link className="w-4 h-4 mr-2" />
+                  Connect
+                </Button>
+              </div>
+            </div>
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.1] transition-all">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-500/10 to-gray-500/5 border border-gray-500/20 flex items-center justify-center">
+                    <Github className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-white/95">GitHub</h3>
+                    <p className="text-xs text-white/50 mt-0.5">Connect to showcase your projects</p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
+                >
+                  <Link className="w-4 h-4 mr-2" />
+                  Connect
                 </Button>
               </div>
             </div>
