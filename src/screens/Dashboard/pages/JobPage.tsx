@@ -19,6 +19,7 @@ import { cn } from "../../../lib/utils";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
+import { AnimatedSVGBackground } from "../../../components/AnimatedSVGBackground";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -1573,6 +1574,9 @@ export const JobPage = (): JSX.Element => {
 
     return (
       <div className="relative min-h-screen bg-black" role="main" aria-label="Job search">
+        {/* Animated SVG Background */}
+        <AnimatedSVGBackground />
+        
         {/* Ambient Background Glow */}
         <div className="fixed top-20 left-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10"></div>
         <div className="fixed bottom-0 right-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10"></div>
