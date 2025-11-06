@@ -168,12 +168,6 @@ export const Dashboard = (): JSX.Element => {
       path: "Dashboard / Cover Letter"
     },
     {
-      id: "resume",
-      label: "Resume",
-      icon: <FileText className="w-4 h-4 sm:w-5 sm:h-5" />,
-      path: "Dashboard / Resume"
-    },
-    {
       id: "jobs",
       label: "Jobs",
       icon: <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" />,
@@ -242,8 +236,6 @@ export const Dashboard = (): JSX.Element => {
         return <ResumePage />;
       case "cover-letter":
         return <CoverLetterPage />;
-      case "resume":
-        return <ResumeBuilderRoute />;
       case "billing":
         return <BillingPage />;
       case "settings":
