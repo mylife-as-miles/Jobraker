@@ -18,8 +18,13 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, fo
     }
     if (open) {
       document.addEventListener("keydown", onKey);
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = "hidden";
     }
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -32,11 +37,11 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, fo
   };
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-[9999] overflow-y-auto">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       {side === "center" ? (
-        <div className="fixed inset-0 flex items-center justify-center p-4">
-          <div className={cn("relative z-10 w-full max-h-[90vh] overflow-y-auto", sizes[size])}>
+        <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
+          <div className={cn("relative z-10 w-full max-h-[90vh] overflow-y-auto pointer-events-auto", sizes[size])}>
             <div className="flex w-full flex-col rounded-lg border border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] shadow-[0_0_30px_rgba(29,255,0,0.2)]">
               {title && (
                 <div className="border-b border-[#1dff00]/20 px-5 py-4">
