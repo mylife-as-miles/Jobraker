@@ -1804,8 +1804,8 @@ export const JobPage = (): JSX.Element => {
             </div>
           </Card>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
-            <div className="lg:col-span-7 space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+            <div className="space-y-4">
               <div className="flex items-center justify-between mb-3 sticky top-0 z-10 backdrop-blur-xl bg-gradient-to-br from-[#0a0a0a]/95 to-black/95 rounded-xl px-4 py-3 border border-[#1dff00]/10 lg:static lg:px-0 lg:py-0 lg:bg-transparent lg:border-0 lg:backdrop-blur-none">
                 <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
                   <svg className="w-5 h-5 text-[#1dff00]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2149,26 +2149,26 @@ export const JobPage = (): JSX.Element => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: index * 0.04 }}
                 >
-                  <Card className={`relative overflow-hidden group bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border p-4 sm:p-5 md:p-6 transition-all duration-300 ${selectedJob === job.id ? 'border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.25)]' : 'border-[#ffffff15] hover:border-[#1dff00]/40'}`}>
+                  <Card className={`relative overflow-hidden group bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border p-3 sm:p-4 md:p-5 lg:p-6 transition-all duration-300 ${selectedJob === job.id ? 'border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.25)]' : 'border-[#ffffff15] hover:border-[#1dff00]/40'}`}>
                     <span className={`pointer-events-none absolute left-0 top-0 h-full w-[2px] sm:w-[3px] ${selectedJob === job.id ? 'bg-[#1dff00]' : 'bg-transparent group-hover:bg-[#1dff00]/70'} transition-colors`} />
                     <div className="flex items-start justify-between gap-2 sm:gap-3 md:gap-4">
                       <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-1 min-w-0">
                         {job.logoUrl && !logoError[job.id]
                           ? (
-                            <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-18 md:h-18 rounded-xl bg-white flex-shrink-0 p-2">
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 rounded-lg sm:rounded-xl bg-white flex-shrink-0">
                               <img
                                 src={job.logoUrl}
                                 alt={job.company}
-                                className="w-full h-full rounded-lg object-contain"
+                                className="w-full h-full rounded-lg sm:rounded-xl object-contain"
                                 onError={() => setLogoError(e => ({...e, [job.id]: true}))}
                               />
                             </div>
                           ) : (
-                            <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-18 md:h-18 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg sm:text-xl flex-shrink-0">{job.logo}</div>
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg sm:rounded-xl flex items-center justify-center text-black font-bold text-base sm:text-lg lg:text-2xl flex-shrink-0">{job.logo}</div>
                           )}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start gap-1.5 sm:gap-2 flex-wrap">
-                            <h3 className="text-white font-semibold text-sm sm:text-base md:text-lg leading-snug" title={job.title}>
+                          <div className="flex items-start gap-1.5 sm:gap-2">
+                            <h3 className="text-white font-semibold truncate text-xs sm:text-sm md:text-base" title={job.title}>
                               {job.title.length > 60 ? job.title.slice(0, 60) + '...' : job.title}
                             </h3>
                             {(() => {
@@ -2185,17 +2185,17 @@ export const JobPage = (): JSX.Element => {
                               <span className={`shrink-0 text-[9px] sm:text-[10px] px-1.5 py-0.5 sm:px-2 rounded-full border ${job.status === 'applied' ? 'border-[#14b8a6]/40 text-[#14b8a6] bg-[#14b8a6]/10' : 'border-[#ffffff24] text-[#ffffffb3] bg-[#ffffff0a]'}`}>{job.status}</span>
                             )}
                           </div>
-                          <div className="mt-2 sm:mt-3 space-y-1.5 sm:space-y-2">
+                          <div className="mt-1.5 sm:mt-2 space-y-1 sm:space-y-1.5">
                             {/* Line 1: company + location + remote + salary + host (right) */}
-                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                              <span className="text-[#ffffffb3] text-xs sm:text-sm md:text-base font-medium truncate" title={job.company || ''}>{job.company}</span>
+                            <div className="flex flex-wrap items-center gap-1">
+                              <span className="text-[#ffffffb3] text-[10px] sm:text-[11px] md:text-sm truncate" title={job.company || ''}>{job.company}</span>
                               {job.location && (
-                                <span className="text-[11px] sm:text-xs px-2 py-1 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d] whitespace-nowrap" title={job.location}>
+                                <span className="text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d] whitespace-nowrap" title={job.location}>
                                   {job.location}
                                 </span>
                               )}
                               {job.remote_type && (
-                                <span className="text-[11px] sm:text-xs px-2 py-1 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10 whitespace-nowrap" title={job.remote_type}>
+                                <span className="text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10 whitespace-nowrap" title={job.remote_type}>
                                   {job.remote_type}
                                 </span>
                               )}
@@ -2389,7 +2389,7 @@ export const JobPage = (): JSX.Element => {
               )}
             </div>
 
-      <div className="lg:col-span-5 hidden lg:block lg:sticky lg:top-6 lg:h-fit lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
+      <div className="hidden lg:block lg:sticky lg:top-6 lg:h-fit">
         {selectedJob && (() => {
                   const job = jobs.find(j => j.id === selectedJob);
                   if (!job) return null;
@@ -2429,7 +2429,7 @@ export const JobPage = (): JSX.Element => {
                             ].filter(Boolean) as { label: string; value: string; tone?: 'urgent' | 'soon' | 'future' }[];
 
                             return (
-                              <Card id="jobs-ai-match" data-tour="jobs-ai-match" className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] p-5 sm:p-6 md:p-7">
+                              <Card id="jobs-ai-match" data-tour="jobs-ai-match" className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] p-6">
                                 <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
                                 <div className="relative flex flex-col gap-6">
                                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
@@ -2454,8 +2454,8 @@ export const JobPage = (): JSX.Element => {
                                           <Sparkles className="w-3 h-3" />
                                           Featured Job
                                         </div>
-                                        <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-snug line-clamp-2" title={job.title}>
-                                          {job.title}
+                                        <h1 className="text-base sm:text-lg md:text-xl font-semibold text-white leading-tight line-clamp-3" title={job.title}>
+                                          {job.title.length > 30 ? job.title.slice(0, 30) + '...' : job.title}
                                         </h1>
                                         <div className="flex items-center gap-2 text-sm text-[#ffffffc0] overflow-x-auto scrollbar-hide">
                                           <span className="font-medium text-white/90 whitespace-nowrap">{job.company}</span>
