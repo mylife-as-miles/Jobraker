@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "../../lib/utils";
 
 interface ModalProps {
@@ -36,7 +37,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, fo
     xl: "max-w-4xl",
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[9999] overflow-y-auto">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       {side === "center" ? (
@@ -66,7 +67,8 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, fo
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 };
 
