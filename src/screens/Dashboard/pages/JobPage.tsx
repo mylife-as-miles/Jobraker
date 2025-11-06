@@ -2389,8 +2389,9 @@ export const JobPage = (): JSX.Element => {
               )}
             </div>
 
-      <div className="hidden lg:block lg:sticky lg:top-6 lg:h-fit">
-        {selectedJob && (() => {
+            {/* Right Column: Job Details Panel */}
+            <div className="hidden lg:block lg:sticky lg:top-6 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto scrollbar-thin scrollbar-thumb-[#1dff00]/20 scrollbar-track-transparent hover:scrollbar-thumb-[#1dff00]/40">
+              {selectedJob && (() => {
                   const job = jobs.find(j => j.id === selectedJob);
                   if (!job) return null;
           return (
