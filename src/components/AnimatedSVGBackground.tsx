@@ -1,7 +1,22 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 
+// Generate stable particle data once
+const generateParticles = (count: number) => {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `particle-${i}`,
+    left: Math.random() * 100,
+    top: Math.random() * 100,
+    xOffset: Math.random() * 20 - 10,
+    duration: 3 + Math.random() * 2,
+    delay: Math.random() * 5,
+  }));
+};
+
 export const AnimatedSVGBackground: React.FC = () => {
+  // Generate particles once on mount
+  const particles = useMemo(() => generateParticles(15), []);
+
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
       {/* Animated SVG Grid Pattern */}
@@ -128,24 +143,24 @@ export const AnimatedSVGBackground: React.FC = () => {
       </svg>
 
       {/* Particle System */}
-      {[...Array(15)].map((_, i) => (
+      {particles.map((particle) => (
         <motion.div
-          key={i}
+          key={particle.id}
           className="absolute w-1 h-1 bg-[#1dff00] rounded-full"
           style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
+            left: `${particle.left}%`,
+            top: `${particle.top}%`,
           }}
           animate={{
             y: [0, -30, 0],
-            x: [0, Math.random() * 20 - 10, 0],
+            x: [0, particle.xOffset, 0],
             opacity: [0, 1, 0],
             scale: [0, 1.5, 0],
           }}
           transition={{
-            duration: 3 + Math.random() * 2,
+            duration: particle.duration,
             repeat: Infinity,
-            delay: Math.random() * 5,
+            delay: particle.delay,
             ease: "easeInOut",
           }}
         />

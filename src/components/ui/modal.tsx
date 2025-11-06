@@ -20,9 +20,13 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, fo
       if (e.key === "Escape") onClose();
     }
     
+    // Prevent body scroll when modal is open
     document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    
     return () => {
       document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
     };
   }, [open, onClose]);
 
