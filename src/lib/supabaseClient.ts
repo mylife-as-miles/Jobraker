@@ -54,7 +54,18 @@ export function createClient(): SupabaseClient {
     return mock;
   }
 
-  const client = createBrowserClient(supabaseUrl, supabaseAnonKey);
+  const client = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
+      },
+    },
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  });
 
   // Avoid noisy 403s: if there is no session, don’t call /auth/v1/user
   // Attach a lightweight auth state listener once to capture invalid refresh scenarios
