@@ -13,6 +13,20 @@ function hostFromUrl(u: string): string | null {
   try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return null; }
 }
 
+function stripHtmlTags(html: string): string {
+  // Remove HTML tags and decode common HTML entities
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 Deno.serve(async (req) => {
   // Get dynamic CORS headers based on request origin
   const origin = req.headers.get('origin');
@@ -341,8 +355,9 @@ Deno.serve(async (req) => {
         );
       } catch (e) {
         console.error('jobs-search.ai_enrichment_failed', { error: e.message, url: item.url });
-        // Fallback to raw data if AI fails
-        aiData = { description: item.description || '', tags: item.tags || [] };
+        // Fallback to markdown or stripped HTML (cleaner than raw HTML) if AI fails
+        const fallbackDescription = item.markdown || (item.description ? stripHtmlTags(item.description) : '');
+        aiData = { description: fallbackDescription, tags: item.tags || [] };
       }
 
       // Parse deadline if available
