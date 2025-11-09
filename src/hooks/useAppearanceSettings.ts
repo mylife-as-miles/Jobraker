@@ -34,12 +34,19 @@ function hexToHsl(hex: string): { h: number, s: number, l: number } | null {
 }
 
 function applyAppearanceToDOM({ theme, accent_color, reduce_motion }: { theme: 'dark' | 'light' | 'auto'; accent_color: string; reduce_motion: boolean; }) {
-  if (typeof document === 'undefined') return;
+  // Guard against SSR and ensure DOM is available
+  if (typeof document === 'undefined' || typeof window === 'undefined') return;
   const root = document.documentElement;
-  // Theme class
-  const prefersDark = typeof window !== 'undefined' && (window as any).matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  root.classList.remove('dark');
-  if (theme === 'dark' || (theme === 'auto' && prefersDark)) root.classList.add('dark');
+  // Theme class - use requestAnimationFrame to ensure DOM is ready
+  if (typeof window.matchMedia === 'function') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    root.classList.remove('dark');
+    if (theme === 'dark' || (theme === 'auto' && prefersDark)) root.classList.add('dark');
+  } else {
+    // Fallback if matchMedia not available
+    root.classList.remove('dark');
+    if (theme === 'dark') root.classList.add('dark');
+  }
 
   // Accent color variables
   const hsl = hexToHsl(accent_color);

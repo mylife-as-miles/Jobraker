@@ -7,8 +7,14 @@ export const CreditDisplay = () => {
   const [credits, setCredits] = useState<number>(0);
   const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const supabase = useMemo(() => createClient(), []);
   const navigate = useNavigate();
+
+  // Ensure component is mounted before rendering to avoid hydration issues
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Fetch credits and subscription tier
   useEffect(() => {
@@ -18,6 +24,8 @@ export const CreditDisplay = () => {
         const userId = userData?.user?.id;
         if (!userId) {
           console.log('CreditDisplay: No user ID found');
+          setCredits(0);
+          setSubscriptionTier('Free');
           setLoading(false);
           return;
         }
@@ -128,7 +136,9 @@ export const CreditDisplay = () => {
     }
   };
 
-  if (loading) {
+  // Always render consistently to avoid hydration mismatches
+  // Show loading state until mounted to prevent SSR/client mismatch
+  if (!mounted || loading) {
     return (
       <div className="flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white/5 border border-white/10 animate-pulse">
         <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-white/10" />
@@ -137,6 +147,7 @@ export const CreditDisplay = () => {
     );
   }
 
+  // Render empty placeholder if no credits data (avoids hydration issues)
   return (
     <button
       onClick={() => navigate('/dashboard/billing')}
