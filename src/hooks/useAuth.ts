@@ -18,7 +18,16 @@ export const useAuth = () => {
     // Get initial user
     const getUser = async () => {
       try {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const { data: { user: authUser }, error } = await supabase.auth.getUser();
+        
+        // If there's an auth error (like invalid refresh token), clear user state
+        if (error) {
+          console.error('Error getting user:', error);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+        
         setUser(authUser ? { 
           id: authUser.id, 
           email: authUser.email 
