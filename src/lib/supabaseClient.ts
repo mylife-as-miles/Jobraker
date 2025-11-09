@@ -67,32 +67,64 @@ export function createClient(): SupabaseClient {
     },
   });
 
-  // Avoid noisy 403s: if there is no session, don’t call /auth/v1/user
-  // Attach a lightweight auth state listener once to capture invalid refresh scenarios
-  try {
-    let handledInvalid = false;
-    client.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'TOKEN_REFRESHED') return; // normal path
-      if (event === 'SIGNED_OUT') return;
-      // If session is null but we previously had one, sign out fully
-      if (!session && !handledInvalid) {
-        handledInvalid = true;
-        return;
-      }
-    });
-  } catch {}
+  // Global flag to prevent multiple invalid token handlers from running
+  let handledInvalidToken = false;
 
-  // Wrap refreshSession to detect invalid refresh token errors and force sign-out once.
+  // Global auth state listener to handle invalid refresh token errors
+  client.auth.onAuthStateChange(async (event, session) => {
+    // Handle normal events
+    if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_OUT') return;
+    
+    // If session is null unexpectedly, it might be due to an invalid refresh token
+    if (!session && event !== 'SIGNED_IN' && !handledInvalidToken) {
+      handledInvalidToken = true;
+      console.warn('Session lost, clearing auth state');
+      try {
+        await client.auth.signOut();
+        // Clear any stale tokens from localStorage
+        localStorage.removeItem('supabase.auth.token');
+        // Redirect to login if not already there
+        if (window.location.pathname !== '/signin' && window.location.pathname !== '/signup') {
+          window.location.href = '/signin';
+        }
+      } catch (err) {
+        console.error('Error during forced sign out:', err);
+      }
+    }
+  });
+
+  // Wrap refreshSession to detect invalid refresh token errors and force sign-out
   const originalRefresh = client.auth.refreshSession.bind(client.auth);
   (client.auth as any).refreshSession = async (...args: any[]) => {
     try {
-      return await originalRefresh(...args);
+      const result = await originalRefresh(...args);
+      // Reset the flag on successful refresh
+      if (result.data?.session) {
+        handledInvalidToken = false;
+      }
+      return result;
     } catch (e: any) {
       const msg = (e as AuthError)?.message || '';
-      if (/invalid refresh token/i.test(msg) || /refresh token not found/i.test(msg)) {
-        try { await client.auth.signOut(); } catch {}
-        // Surface a normalized object so callers treat it as logged out instead of looping
-        return { data: { session: null }, error: null };
+      const isInvalidToken = /invalid refresh token/i.test(msg) || 
+                            /refresh token not found/i.test(msg) ||
+                            /refresh token.+expired/i.test(msg);
+      
+      if (isInvalidToken && !handledInvalidToken) {
+        handledInvalidToken = true;
+        console.warn('Invalid refresh token detected, signing out');
+        try {
+          await client.auth.signOut();
+          // Clear any stale tokens from localStorage
+          localStorage.removeItem('supabase.auth.token');
+          // Redirect to login
+          if (window.location.pathname !== '/signin' && window.location.pathname !== '/signup') {
+            window.location.href = '/signin';
+          }
+        } catch (err) {
+          console.error('Error during forced sign out:', err);
+        }
+        // Return a clean state instead of throwing
+        return { data: { session: null, user: null }, error: null };
       }
       throw e;
     }
