@@ -367,7 +367,7 @@ export const BillingPage = () => {
                               </div>
                               <div>
                                 <h3 className="text-xl font-bold text-white">{plan.name}</h3>
-                                <p className="text-xs text-gray-400">monthly</p>
+                                <p className="text-xs text-white/70">monthly</p>
                               </div>
                             </div>
                           </div>
@@ -377,17 +377,17 @@ export const BillingPage = () => {
                             <div className="flex items-baseline gap-1">
                               <span className="text-4xl font-bold text-white">${plan.price}</span>
                               {plan.price > 0 && (
-                                <span className="text-gray-400">/mo</span>
+                                <span className="text-white/70">/mo</span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-400 mt-2 line-clamp-2">{plan.description}</p>
+                            <p className="text-sm text-white/80 mt-2 line-clamp-2">{plan.description}</p>
                           </div>
 
                           {/* Credits */}
                           <div className="flex items-center gap-2 p-3 bg-black/30 rounded-lg mb-4">
                             <Zap className="w-4 h-4 text-[#1dff00]" />
                             <span className="text-sm text-white font-medium">{plan.credits_per_month} credits</span>
-                            <span className="text-xs text-gray-500">per cycle</span>
+                            <span className="text-xs text-white/60">per cycle</span>
                           </div>
 
                           {/* Features */}
@@ -401,12 +401,12 @@ export const BillingPage = () => {
                               return (
                                 <div key={idx} className="flex items-start gap-2">
                                   <Check className="w-4 h-4 text-[#1dff00] mt-0.5 flex-shrink-0" />
-                                  <span className="text-sm text-gray-300 line-clamp-1">{featureName}</span>
+                                  <span className="text-sm text-white/90 line-clamp-1">{featureName}</span>
                                 </div>
                               );
                             })}
                             {(plan.features?.length || 0) > 3 && (
-                              <p className="text-xs text-gray-500 pl-6">+{plan.features.length - 3} more features</p>
+                              <p className="text-xs text-white/60 pl-6">+{plan.features.length - 3} more features</p>
                             )}
                           </div>
 
@@ -490,7 +490,7 @@ export const BillingPage = () => {
                           <p className="text-4xl font-bold text-white mb-1">
                             {(pack.credits + pack.bonus).toLocaleString()}
                           </p>
-                          <p className="text-sm text-gray-300">
+                          <p className="text-sm text-white/80">
                             {pack.credits.toLocaleString()} credits
                             {pack.bonus > 0 && ` + ${pack.bonus} bonus`}
                           </p>
@@ -498,7 +498,7 @@ export const BillingPage = () => {
 
                         <div className="pt-2">
                           <p className="text-3xl font-bold text-white mb-1">${pack.price}</p>
-                          <p className="text-xs text-gray-400">
+                          <p className="text-xs text-white/70">
                             ${(pack.price / (pack.credits + pack.bonus)).toFixed(3)} per credit
                           </p>
                         </div>
