@@ -537,13 +537,14 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               className={[
                 'relative text-left p-2 rounded-xl transition-all duration-150 flex flex-col gap-1 min-h-[72px] sm:min-h-[84px] group shadow-inner',
                 'focus:outline-none focus-visible:ring-2 ring-[#1dff00]/60',
+                'bg-[#0a0a0a]', // Base dark background for all cells
                 cell.inCurrent ? 'cursor-pointer' : 'cursor-pointer opacity-40',
-                isWeekend && !isToday ? 'bg-[#1dff00]/[0.04]' : '',
-                isToday ? 'bg-gradient-to-br from-[#1dff00] to-[#15c944] text-black font-bold shadow-lg ring-1 ring-[#1dff00]/60' : '',
-                !isToday && cell.inCurrent ? 'text-[#e5e5e5] hover:bg-[#1dff00]/10 hover:text-[#1dff00]' : '',
-                !cell.inCurrent && !isToday ? 'text-[#565656] hover:bg-[#1dff00]/10' : '',
-                isSelected && !isToday ? 'border border-[#1dff00]/70 shadow-lg shadow-[#1dff00]/10' : 'border border-white/5',
-                inSelectedRange(cell.date) && !isToday ? 'bg-gradient-to-br from-[#1dff00]/15 to-[#1dff00]/5 backdrop-blur-sm' : '',
+                isWeekend && !isToday ? 'bg-[#0c0c0c]' : '', // Slightly lighter for weekends
+                isToday ? '!bg-gradient-to-br from-[#1dff00] to-[#15c944] text-black font-bold shadow-lg ring-1 ring-[#1dff00]/60' : '',
+                !isToday && cell.inCurrent ? 'text-[#e5e5e5] hover:bg-[#1a1a1a] hover:text-[#1dff00]' : '',
+                !cell.inCurrent && !isToday ? 'text-[#565656] hover:bg-[#141414]' : '',
+                isSelected && !isToday ? 'border border-[#1dff00]/70 shadow-lg shadow-[#1dff00]/10 !bg-[#111111]' : 'border border-white/5',
+                inSelectedRange(cell.date) && !isToday ? '!bg-gradient-to-br from-[#1dff00]/15 to-[#1dff00]/5 backdrop-blur-sm' : '',
                 focusContrast && dayEvents.length===0 && !isToday ? 'opacity-30 hover:opacity-60' : ''
               ].join(' ')}
               style={heatmapStyle}
