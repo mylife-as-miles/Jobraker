@@ -85,6 +85,12 @@ export const SettingsPage = (): JSX.Element => {
 
   const handleConnectGmail = async () => {
     try {
+      const composioConfigId = import.meta.env.VITE_COMPOSIO_GMAIL_CONFIG_ID;
+      if (!composioConfigId) {
+        toastError("Gmail integration is not configured. Please contact support.");
+        return;
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -98,7 +104,7 @@ export const SettingsPage = (): JSX.Element => {
         {
           body: {
             userId: user.id,
-            authConfigId: import.meta.env.VITE_COMPOSIO_GMAIL_CONFIG_ID,
+            authConfigId: composioConfigId,
             action: "initiate",
           },
         }
@@ -121,6 +127,12 @@ export const SettingsPage = (): JSX.Element => {
   useEffect(() => {
     const checkGmailConnection = async () => {
       try {
+        const composioConfigId = import.meta.env.VITE_COMPOSIO_GMAIL_CONFIG_ID;
+        if (!composioConfigId) {
+          // Gmail integration not configured - silently skip
+          return;
+        }
+
         const {
           data: { user },
         } = await supabase.auth.getUser();
@@ -130,7 +142,7 @@ export const SettingsPage = (): JSX.Element => {
             {
               body: {
                 userId: user.id,
-                authConfigId: import.meta.env.VITE_COMPOSIO_GMAIL_CONFIG_ID,
+                authConfigId: composioConfigId,
                 action: "status",
               },
             }
@@ -159,6 +171,13 @@ export const SettingsPage = (): JSX.Element => {
         const connectionId = localStorage.getItem("composio-connection-id");
         if (connectionId) {
           try {
+            const composioConfigId = import.meta.env.VITE_COMPOSIO_GMAIL_CONFIG_ID;
+            if (!composioConfigId) {
+              toastError("Gmail integration is not configured. Please contact support.");
+              localStorage.removeItem("composio-connection-id");
+              return;
+            }
+
             const {
               data: { user },
             } = await supabase.auth.getUser();
@@ -170,7 +189,7 @@ export const SettingsPage = (): JSX.Element => {
             await supabase.functions.invoke("composio-gmail-auth", {
               body: {
                 userId: user.id,
-                authConfigId: import.meta.env.VITE_COMPOSIO_GMAIL_CONFIG_ID,
+                authConfigId: composioConfigId,
                 action: "verify",
                 connectionId: connectionId,
               },

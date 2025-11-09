@@ -80,32 +80,55 @@ export function useNotifications(limit: number = 10) {
   // realtime subscription with toast feedback
   useEffect(() => {
     if (!userId) return;
-    const channel = (supabase as any)
-      .channel(`notifications:${userId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, (payload: any) => {
-        const { eventType } = payload;
-        if (eventType === 'INSERT') {
-          const inserted = payload.new as NotificationRow;
-            // Push new item local state
-          setItems(prev => [inserted, ...prev].slice(0, limit));
-          // Only toast if not part of the initial hydration
-          if (!initialLoadRef.current) {
-            if (inserted.priority === 'high') {
-              warning?.(inserted.title || 'High priority notification', inserted.message || undefined, 6000);
-            } else if (inserted.priority === 'medium') {
-              info?.(inserted.title || 'New notification', inserted.message || undefined, 4500);
+    
+    let channel: any = null;
+    let subscribed = false;
+    
+    try {
+      channel = (supabase as any)
+        .channel(`notifications:${userId}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, (payload: any) => {
+          const { eventType } = payload;
+          if (eventType === 'INSERT') {
+            const inserted = payload.new as NotificationRow;
+              // Push new item local state
+            setItems(prev => [inserted, ...prev].slice(0, limit));
+            // Only toast if not part of the initial hydration
+            if (!initialLoadRef.current) {
+              if (inserted.priority === 'high') {
+                warning?.(inserted.title || 'High priority notification', inserted.message || undefined, 6000);
+              } else if (inserted.priority === 'medium') {
+                info?.(inserted.title || 'New notification', inserted.message || undefined, 4500);
+              }
             }
+          } else if (eventType === 'UPDATE') {
+            setItems(prev => prev.map(n => n.id === payload.new.id ? (payload.new as NotificationRow) : n));
+          } else if (eventType === 'DELETE') {
+            setItems(prev => prev.filter(n => n.id !== payload.old.id));
           }
-        } else if (eventType === 'UPDATE') {
-          setItems(prev => prev.map(n => n.id === payload.new.id ? (payload.new as NotificationRow) : n));
-        } else if (eventType === 'DELETE') {
-          setItems(prev => prev.filter(n => n.id !== payload.old.id));
-        }
-      })
-      .subscribe();
+        })
+        .subscribe((status: string) => {
+          if (status === 'SUBSCRIBED') {
+            subscribed = true;
+          }
+        });
+    } catch (error) {
+      console.error('Failed to setup realtime subscription:', error);
+    }
+    
     // After a small delay mark initial load complete so subsequent inserts toast
     const t = setTimeout(() => { initialLoadRef.current = false; }, 1000);
-    return () => { try { (supabase as any).removeChannel(channel); } catch {} clearTimeout(t); };
+    
+    return () => {
+      clearTimeout(t);
+      if (channel) {
+        try {
+          (supabase as any).removeChannel(channel);
+        } catch (error) {
+          console.error('Failed to remove realtime channel:', error);
+        }
+      }
+    };
   }, [supabase, userId, limit, warning, info]);
 
   // Listen for local optimistic creation events (in case realtime not yet delivered)
