@@ -315,3 +315,4 @@ export const SbResumeCard = ({ resume }: Props) => {
           alt={template}
           className="absolute inset-0 w-full h-full object-cover rounded-sm opacity-0"
           onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/templates/jpg/Modern.jpg"; }}
+        />
