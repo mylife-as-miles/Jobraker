@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   Sparkles,
@@ -21,90 +21,86 @@ import { useOpenAiStore } from "../stores/openai";
 import { parsePdfFile } from "../../utils/parsePdf";
 import { analyzeResumeWithOpenAI, type ResumeAnalysisResult } from "../../services/ai/analyzeResume";
 
-export function ResumeChecker() {
-  const { resumes, getSignedUrl } = useResumes();
-  const [selectedResume, setSelectedResume] = useState<string>("");
-  const [history, setHistory] = useState<Record<string, { result: ResumeAnalysisResult; analyzedAt: number }>>({});
-  const [rcLoading, setRcLoading] = useState(false);
-  const [rcError, setRcError] = useState<string | null>(null);
-  const [resumePreview, setResumePreview] = useState<string>("");
-  const lastPreviewedIdRef = useRef<string | null>(null);
+interface HistoryEntry {
+  result: ResumeAnalysisResult;
+  analyzedAt: number;
+}
 
-  const { profile: rcProfile, experiences: rcExperiences, education: rcEducation, skills: rcSkills } = useProfileSettings();
-  const { apiKey, model: rcModel, baseURL: rcBaseURL } = useOpenAiStore((state: any) => ({
-    apiKey: state.apiKey,
-    model: state.model,
-    baseURL: state.baseURL,
-  }));
-
-  const activeResume = useMemo(() => resumes.find((r) => r.id === selectedResume) || null, [resumes, selectedResume]);
-  const activeEntry = selectedResume && history[selectedResume] ? history[selectedResume] : null;
-  const analysis = activeEntry?.result || null;
-  const lastAnalyzedAt = activeEntry?.analyzedAt || null;
-  const activeResumeId = activeResume?.id ?? null;
-  const activeResumePath = activeResume?.file_path ?? null;
-  const activeResumeExt = activeResume?.file_ext ?? null;
-  const activeResumeName = activeResume?.name ?? "resume";
-
-  // Auto-select first resume
-  useEffect(() => {
-    if (!selectedResume && resumes.length > 0) {
-      setSelectedResume(resumes[0].id);
+async function parseResumeBlob(blob: Blob, extension: string | null, basename: string): Promise<string> {
+  const ext = (extension || "").toLowerCase();
+  
+  if (ext === "pdf") {
+    const file = new File([blob], `${basename || "resume"}.pdf`, { type: "application/pdf" });
+    const parsed = await parsePdfFile(file);
+    return parsed.text;
+  }
+  
+  if (["txt", "text", "md", "markdown"].includes(ext)) {
+    return await blob.text();
+  }
+  
+  if (ext === "json") {
+    try {
+      const raw = await blob.text();
+      const obj = JSON.parse(raw);
+      return JSON.stringify(obj, null, 2).slice(0, 18000);
+    } catch {
+      return await blob.text();
     }
+  }
+  
+  throw new Error("Only PDF or text-based resumes are supported for AI analysis right now.");
+}
+
+export function ResumeChecker() {
+  // All hooks called unconditionally at top level
+  const { resumes, getSignedUrl } = useResumes();
+  const { profile, experiences, education, skills } = useProfileSettings();
+  const openAiState = useOpenAiStore();
+  const apiKey = openAiState?.apiKey || null;
+  const model = openAiState?.model || null;
+  const baseURL = openAiState?.baseURL || null;
+
+  // State declarations
+  const [selectedResume, setSelectedResume] = useState<string>("");
+  const [history, setHistory] = useState<Record<string, HistoryEntry>>({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resumePreview, setResumePreview] = useState<string>("");
+  
+  const lastPreviewedIdRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Memoized values
+  const activeResume = useMemo(() => {
+    return resumes.find((r) => r.id === selectedResume) || null;
   }, [resumes, selectedResume]);
 
-  // Load resume preview
-  useEffect(() => {
-    if (!activeResumeId || !activeResumePath) {
-      lastPreviewedIdRef.current = null;
-      setResumePreview("");
-      return;
-    }
-    if (lastPreviewedIdRef.current === activeResumeId) return;
-    
-    let aborted = false;
-    lastPreviewedIdRef.current = activeResumeId;
-    setResumePreview("");
-    
-    (async () => {
-      try {
-        const url = await getSignedUrl(activeResumePath);
-        if (!url || aborted) {
-          if (!aborted) lastPreviewedIdRef.current = null;
-          return;
-        }
-        
-        const res = await fetch(url);
-        if (!res.ok || aborted) {
-          if (!aborted) lastPreviewedIdRef.current = null;
-          return;
-        }
-        
-        const blob = await res.blob();
-        const text = await parseResumeBlob(blob, activeResumeExt, activeResumeName);
-        if (!aborted) setResumePreview(text.slice(0, 600));
-      } catch {
-        if (!aborted) lastPreviewedIdRef.current = null;
-      }
-    })();
-    
-    return () => {
-      aborted = true;
-    };
-  }, [activeResumeId, activeResumePath, activeResumeExt, activeResumeName, getSignedUrl]);
+  const activeEntry = useMemo(() => {
+    return selectedResume && history[selectedResume] ? history[selectedResume] : null;
+  }, [selectedResume, history]);
 
-  const experiencesData = rcExperiences?.data ?? [];
-  const educationData = rcEducation?.data ?? [];
-  const skillsData = rcSkills?.data ?? [];
+  const analysis = useMemo(() => {
+    return activeEntry?.result || null;
+  }, [activeEntry]);
 
+  const lastAnalyzedAt = useMemo(() => {
+    return activeEntry?.analyzedAt || null;
+  }, [activeEntry]);
+
+  // Profile summary computation
   const profileSummary = useMemo(() => {
-    if (!rcProfile) return "Profile not completed.";
+    if (!profile) return "Profile not completed.";
     
-    const fullName = [rcProfile.first_name, rcProfile.last_name].filter(Boolean).join(" ") || "Unknown";
-    const title = rcProfile.job_title || "n/a";
-    const years = rcProfile.experience_years != null ? `${rcProfile.experience_years} yrs` : "n/a";
-    const location = rcProfile.location || "n/a";
-    const goals = Array.isArray(rcProfile.goals) && rcProfile.goals.length ? rcProfile.goals.join(", ") : "n/a";
+    const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Unknown";
+    const title = profile.job_title || "n/a";
+    const years = profile.experience_years != null ? `${profile.experience_years} yrs` : "n/a";
+    const location = profile.location || "n/a";
+    const goals = Array.isArray(profile.goals) && profile.goals.length ? profile.goals.join(", ") : "n/a";
+    
+    const experiencesData = experiences?.data || [];
+    const educationData = education?.data || [];
+    const skillsData = skills?.data || [];
     
     const roleLines = experiencesData.slice(0, 3).map((exp: any) => {
       const span = exp.end_date ? `${exp.start_date} → ${exp.end_date}` : `${exp.start_date} → present`;
@@ -133,29 +129,86 @@ export function ResumeChecker() {
     ]
       .filter(Boolean)
       .join("\n");
-  }, [
-    rcProfile,
-    experiencesData,
-    educationData,
-    skillsData,
-  ]);
+  }, [profile, experiences, education, skills]);
 
-  const handleAnalyze = async () => {
+  // Auto-select first resume
+  useEffect(() => {
+    if (!selectedResume && resumes.length > 0) {
+      setSelectedResume(resumes[0].id);
+    }
+  }, [resumes, selectedResume]);
+
+  // Load resume preview
+  useEffect(() => {
+    // Cleanup previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    if (!activeResume?.id || !activeResume?.file_path) {
+      lastPreviewedIdRef.current = null;
+      setResumePreview("");
+      return;
+    }
+
+    if (lastPreviewedIdRef.current === activeResume.id) {
+      return;
+    }
+    
+    lastPreviewedIdRef.current = activeResume.id;
+    setResumePreview("");
+    
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    
+    (async () => {
+      try {
+        const url = await getSignedUrl(activeResume.file_path);
+        if (!url || controller.signal.aborted) {
+          if (!controller.signal.aborted) lastPreviewedIdRef.current = null;
+          return;
+        }
+        
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok || controller.signal.aborted) {
+          if (!controller.signal.aborted) lastPreviewedIdRef.current = null;
+          return;
+        }
+        
+        const blob = await res.blob();
+        const text = await parseResumeBlob(blob, activeResume.file_ext, activeResume.name);
+        if (!controller.signal.aborted) {
+          setResumePreview(text.slice(0, 600));
+        }
+      } catch (err: any) {
+        if (err.name !== 'AbortError' && !controller.signal.aborted) {
+          lastPreviewedIdRef.current = null;
+        }
+      }
+    })();
+    
+    return () => {
+      controller.abort();
+    };
+  }, [activeResume?.id, activeResume?.file_path, activeResume?.file_ext, activeResume?.name, getSignedUrl]);
+
+  // Analyze handler
+  const handleAnalyze = useCallback(async () => {
     if (!apiKey) {
-      setRcError("Add an OpenAI API key in Settings → Integrations to run the checker.");
+      setError("Add an OpenAI API key in Settings → Integrations to run the checker.");
       return;
     }
     if (!activeResume) {
-      setRcError("Select a resume to analyze.");
+      setError("Select a resume to analyze.");
       return;
     }
     if (!activeResume.file_path) {
-      setRcError("This resume has no file attached yet. Upload or export it first.");
+      setError("This resume has no file attached yet. Upload or export it first.");
       return;
     }
 
-    setRcError(null);
-    setRcLoading(true);
+    setError(null);
+    setLoading(true);
 
     try {
       const url = await getSignedUrl(activeResume.file_path);
@@ -176,8 +229,8 @@ export function ResumeChecker() {
         resumeText: normalized,
         profileSummary,
         apiKey,
-        model: rcModel,
-        baseURL: rcBaseURL,
+        model: model || undefined,
+        baseURL: baseURL || undefined,
       });
 
       setHistory((prev) => ({
@@ -185,11 +238,11 @@ export function ResumeChecker() {
         [activeResume.id]: { result, analyzedAt: Date.now() },
       }));
     } catch (err: any) {
-      setRcError(err?.message || "Resume analysis failed.");
+      setError(err?.message || "Resume analysis failed.");
     } finally {
-      setRcLoading(false);
+      setLoading(false);
     }
-  };
+  }, [apiKey, activeResume, getSignedUrl, profileSummary, model, baseURL]);
 
   const SCORE_LABELS = [
     { key: "overallScore" as const, label: "Overall Quality" },
@@ -240,10 +293,10 @@ export function ResumeChecker() {
 
                 <Button
                   onClick={handleAnalyze}
-                  disabled={rcLoading || !selectedResume || !apiKey}
+                  disabled={loading || !selectedResume || !apiKey}
                   className="w-full bg-[#1dff00]/80 text-black hover:bg-[#1dff00]"
                 >
-                  {rcLoading ? "Analyzing…" : "Run Deep Analysis"}
+                  {loading ? "Analyzing…" : "Run Deep Analysis"}
                 </Button>
 
                 {!apiKey && (
@@ -270,10 +323,10 @@ export function ResumeChecker() {
               </div>
             )}
 
-            {rcError && (
+            {error && (
               <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-3 text-[12px] text-red-200">
                 <AlertTriangle className="mr-2 inline h-3.5 w-3.5" />
-                {rcError}
+                {error}
               </div>
             )}
           </div>
@@ -365,13 +418,13 @@ export function ResumeChecker() {
                     <p className="text-sm font-semibold">{title}</p>
                   </div>
                   <div className="mt-3 space-y-2">
-                    {rcLoading && !items?.length && (
+                    {loading && !items?.length && (
                       <>
                         <Skeleton className="h-6 w-full rounded-lg bg-white/10" />
                         <Skeleton className="h-6 w-5/6 rounded-lg bg-white/10" />
                       </>
                     )}
-                    {!rcLoading && (!items || items.length === 0) && (
+                    {!loading && (!items || items.length === 0) && (
                       <p className="text-xs text-white/50">{placeholder}</p>
                     )}
                     {items && items.length > 0 && (
@@ -397,14 +450,14 @@ export function ResumeChecker() {
                 <p className="text-sm font-semibold">High-Impact Recommendations</p>
               </div>
               <div className="mt-4 space-y-3">
-                {rcLoading && !analysis?.recommendations?.length && (
+                {loading && !analysis?.recommendations?.length && (
                   <>
                     <Skeleton className="h-7 w-full rounded-lg bg-white/10" />
                     <Skeleton className="h-7 w-5/6 rounded-lg bg-white/10" />
                     <Skeleton className="h-7 w-4/6 rounded-lg bg-white/10" />
                   </>
                 )}
-                {!rcLoading && (!analysis?.recommendations || analysis.recommendations.length === 0) && (
+                {!loading && (!analysis?.recommendations || analysis.recommendations.length === 0) && (
                   <p className="text-xs text-white/50">
                     Actionable playbooks will unlock after you run an analysis.
                   </p>
@@ -446,29 +499,3 @@ export function ResumeChecker() {
   );
 }
 
-// Helper function to parse resume blob
-async function parseResumeBlob(blob: Blob, extension: string | null, basename: string): Promise<string> {
-  const ext = (extension || "").toLowerCase();
-  
-  if (ext === "pdf") {
-    const file = new File([blob], `${basename || "resume"}.pdf`, { type: "application/pdf" });
-    const parsed = await parsePdfFile(file);
-    return parsed.text;
-  }
-  
-  if (["txt", "text", "md", "markdown"].includes(ext)) {
-    return await blob.text();
-  }
-  
-  if (ext === "json") {
-    try {
-      const raw = await blob.text();
-      const obj = JSON.parse(raw);
-      return JSON.stringify(obj, null, 2).slice(0, 18000);
-    } catch {
-      return await blob.text();
-    }
-  }
-  
-  throw new Error("Only PDF or text-based resumes are supported for AI analysis right now.");
-}
