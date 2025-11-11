@@ -523,21 +523,85 @@ export const SettingsPage = (): JSX.Element => {
       const { data: u } = await supabase.auth.getUser();
       const uid = (u as any)?.user?.id;
       if (!uid) return toastError('Not signed in', 'Please sign in again');
-      const [{ data: prof }, { data: notifData }, { data: resumes }, { data: privacyData }] = await Promise.all([
+      
+      // Fetch all user data in parallel
+      const [
+        { data: prof },
+        { data: notifData },
+        { data: resumes },
+        { data: privacyData },
+        { data: applications },
+        { data: jobs },
+        { data: bookmarks },
+        { data: creditTransactions },
+        { data: userCredits },
+        { data: userSubscriptions },
+        { data: notifications },
+        { data: education },
+        { data: experience },
+        { data: skills },
+        { data: appearanceSettings },
+        { data: securitySettings },
+      ] = await Promise.all([
         (supabase as any).from('profiles').select('*').eq('id', uid).maybeSingle(),
         (supabase as any).from('notification_settings').select('*').eq('id', uid).maybeSingle(),
         (supabase as any).from('resumes').select('*').eq('user_id', uid).order('updated_at', { ascending: false }),
         (supabase as any).from('privacy_settings').select('*').eq('id', uid).maybeSingle(),
+        (supabase as any).from('applications').select('*').eq('user_id', uid).order('applied_date', { ascending: false }),
+        (supabase as any).from('jobs').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+        (supabase as any).from('bookmarks').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+        (supabase as any).from('credit_transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+        (supabase as any).from('user_credits').select('*').eq('user_id', uid).maybeSingle(),
+        (supabase as any).from('user_subscriptions').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+        (supabase as any).from('notifications').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+        (supabase as any).from('profile_education').select('*').eq('user_id', uid).order('start_date', { ascending: false }),
+        (supabase as any).from('profile_experiences').select('*').eq('user_id', uid).order('start_date', { ascending: false }),
+        (supabase as any).from('profile_skills').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+        (supabase as any).from('appearance_settings').select('*').eq('id', uid).maybeSingle().catch(() => ({ data: null })),
+        (supabase as any).from('security_settings').select('*').eq('id', uid).maybeSingle().catch(() => ({ data: null })),
       ]);
 
       const payload = {
         exported_at: new Date().toISOString(),
-        user: { id: uid, email: (u as any)?.user?.email },
+        export_version: '2.0',
+        user: { 
+          id: uid, 
+          email: (u as any)?.user?.email,
+          created_at: (u as any)?.user?.created_at,
+          last_sign_in_at: (u as any)?.user?.last_sign_in_at,
+        },
         profile: prof || null,
-  notification_settings: notifData || null,
-  privacy_settings: privacyData || null,
+        notification_settings: notifData || null,
+        privacy_settings: privacyData || null,
+        appearance_settings: appearanceSettings || null,
+        security_settings: securitySettings || null,
         resumes: resumes || [],
+        applications: applications || [],
+        jobs: jobs || [],
+        bookmarks: bookmarks || [],
+        credit_transactions: creditTransactions || [],
+        user_credits: userCredits || null,
+        user_subscriptions: userSubscriptions || [],
+        notifications: notifications || [],
+        education: education || [],
+        experience: experience || [],
+        skills: skills || [],
+        summary: {
+          total_resumes: resumes?.length || 0,
+          total_applications: applications?.length || 0,
+          total_jobs: jobs?.length || 0,
+          total_bookmarks: bookmarks?.length || 0,
+          total_credit_transactions: creditTransactions?.length || 0,
+          current_credits: userCredits?.balance || 0,
+          active_subscriptions: userSubscriptions?.filter((s: any) => s.status === 'active').length || 0,
+          total_notifications: notifications?.length || 0,
+          unread_notifications: notifications?.filter((n: any) => !n.read).length || 0,
+          education_records: education?.length || 0,
+          experience_records: experience?.length || 0,
+          skills_count: skills?.length || 0,
+        },
       };
+      
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
