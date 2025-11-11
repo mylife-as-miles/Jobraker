@@ -136,25 +136,40 @@ export const SettingsPage = (): JSX.Element => {
         const {
           data: { user },
         } = await supabase.auth.getUser();
-        if (user) {
-          const { data, error } = await supabase.functions.invoke(
-            "composio-gmail-auth",
-            {
-              body: {
-                userId: user.id,
-                authConfigId: composioConfigId,
-                action: "status",
-              },
-            }
-          );
-          if (error) {
-            throw error;
+        if (!user) {
+          return;
+        }
+
+        const { data, error } = await supabase.functions.invoke(
+          "composio-gmail-auth",
+          {
+            body: {
+              userId: user.id,
+              authConfigId: composioConfigId,
+              action: "status",
+            },
           }
+        );
+
+        if (error) {
+          // Check if it's the "Invalid action" error (means deployed version doesn't support status yet)
+          if (error.message?.includes("Invalid action") || error.message?.includes("400")) {
+            // Silently fail - the deployed function doesn't support status check yet
+            // User will just see the "Connect" button instead of connection status
+            return;
+          }
+          throw error;
+        }
+
+        if (data?.isConnected !== undefined) {
           setIsGmailConnected(data.isConnected);
         }
       } catch (error: any) {
+        // Only log unexpected errors, not the expected "Invalid action" error
+        if (!error.message?.includes("Invalid action") && !error.message?.includes("400")) {
+          console.error("Failed to check Gmail connection status:", error);
+        }
         // It's okay if this fails, the user will just see the "Connect" button
-        console.error("Failed to check Gmail connection status:", error);
       }
     };
 

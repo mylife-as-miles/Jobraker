@@ -9,12 +9,28 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  let body;
+  try {
+    body = await req.json();
+  } catch (error) {
+    return new Response(
+      JSON.stringify({
+        error: "Invalid JSON in request body",
+        details: error.message,
+      }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      }
+    );
+  }
+
   const {
     userId,
     authConfigId,
     action = "initiate",
     connectionId,
-  } = await req.json();
+  } = body;
 
   if (!userId || !authConfigId) {
     return new Response(
