@@ -37,6 +37,8 @@ function ApplicationPage() {
   });
   const [showFuture, setShowFuture] = useState(() => localStorage.getItem('jr.apps.gantt.future') !== '0');
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [nextStepOpen, setNextStepOpen] = useState(false);
+  const [nextStepText, setNextStepText] = useState("");
   const detailApp = useMemo(() => applications.find(a => a.id === detailId) || null, [detailId, applications]);
 
   // Restore preferences on mount
@@ -878,6 +880,15 @@ function ApplicationPage() {
                     Copy Run ID
                   </button>
                 )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setNextStepText(detailApp.next_step || ""); setNextStepOpen(true); }}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-200 text-sm font-medium"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add Follow-up Note
+                </button>
               </div>
             </div>
 
@@ -904,6 +915,43 @@ function ApplicationPage() {
             </div>
           </div>
         ) : null}
+      </Modal>
+
+      {/* Next Step Note Modal */}
+      <Modal open={nextStepOpen} onClose={() => setNextStepOpen(false)} title="Enter follow-up note" size="md" side="center">
+        <div className="space-y-4 p-1">
+          <textarea
+            value={nextStepText}
+            onChange={(e) => setNextStepText(e.target.value)}
+            placeholder="e.g., Email recruiter on Friday about take-home; prep system design"
+            className="w-full min-h-[140px] rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-white/40 p-3 outline-none focus:border-[#1dff00]/40 focus:ring-2 focus:ring-[#1dff00]/20"
+          />
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              className="border-white/20 hover:border-white/30 hover:bg-white/5 text-white/70 hover:text-white"
+              onClick={() => setNextStepOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black font-semibold hover:shadow-[0_0_20px_rgba(29,255,0,0.3)]"
+              onClick={async () => {
+                if (!detailApp) { setNextStepOpen(false); return; }
+                try {
+                  await update(detailApp.id, { next_step: nextStepText || null });
+                  setNextStepOpen(false);
+                } catch {
+                  // Fallback refresh to reflect state if update failed silently
+                  await refresh();
+                  setNextStepOpen(false);
+                }
+              }}
+            >
+              Save Note
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
