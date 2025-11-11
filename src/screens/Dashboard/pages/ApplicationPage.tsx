@@ -39,7 +39,17 @@ function ApplicationPage() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [nextStepOpen, setNextStepOpen] = useState(false);
   const [nextStepText, setNextStepText] = useState("");
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesText, setNotesText] = useState("");
   const detailApp = useMemo(() => applications.find(a => a.id === detailId) || null, [detailId, applications]);
+  
+  // Update notes text when detailApp changes
+  useEffect(() => {
+    if (detailApp) {
+      setNotesText(detailApp.notes || "");
+      setEditingNotes(false);
+    }
+  }, [detailApp]);
 
   // Restore preferences on mount
   useEffect(() => {
@@ -828,14 +838,73 @@ function ApplicationPage() {
             )}
 
             {/* Notes Section */}
-            {detailApp.notes && (
-              <div className="space-y-3">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">Notes & Details</h3>
-                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/10 max-h-60 overflow-auto scrollbar-thin scrollbar-thumb-[#1dff00]/30 scrollbar-track-transparent">
-                  <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap">{detailApp.notes}</p>
-                </div>
+                {!editingNotes && (
+                  <button
+                    onClick={() => setEditingNotes(true)}
+                    className="text-xs text-[#1dff00] hover:text-[#1dff00]/80 transition-colors flex items-center gap-1"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Edit
+                  </button>
+                )}
               </div>
-            )}
+              {editingNotes ? (
+                <div className="space-y-3">
+                  <textarea
+                    value={notesText}
+                    onChange={(e) => setNotesText(e.target.value)}
+                    placeholder="Add notes about this application..."
+                    className="w-full min-h-[140px] rounded-xl bg-white/5 border border-[#1dff00]/30 text-white placeholder:text-white/40 p-4 outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all resize-y"
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-white/20 hover:border-white/30 hover:bg-white/5 text-white/70 hover:text-white"
+                      onClick={() => {
+                        setNotesText(detailApp?.notes || "");
+                        setEditingNotes(false);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black font-semibold hover:shadow-[0_0_20px_rgba(29,255,0,0.3)]"
+                      onClick={async () => {
+                        if (!detailApp) return;
+                        try {
+                          await update(detailApp.id, { notes: notesText || null });
+                          setEditingNotes(false);
+                        } catch {
+                          await refresh();
+                          setEditingNotes(false);
+                        }
+                      }}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div 
+                  className="p-4 rounded-xl bg-white/[0.02] border border-white/10 max-h-60 overflow-auto scrollbar-thin scrollbar-thumb-[#1dff00]/30 scrollbar-track-transparent cursor-text hover:border-white/20 transition-colors"
+                  onClick={() => setEditingNotes(true)}
+                >
+                  {detailApp.notes ? (
+                    <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap">{detailApp.notes}</p>
+                  ) : (
+                    <p className="text-sm text-white/40 italic">Click to add notes...</p>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Quick Actions */}
             <div className="space-y-3">
