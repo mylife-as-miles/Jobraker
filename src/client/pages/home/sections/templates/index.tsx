@@ -41,7 +41,8 @@ export const TemplatesSection = () => (
               <img
                 alt={template}
                 loading="lazy"
-                src={`/templates/jpg/${template}.jpg`}
+                src={`/templates/jpg/${encodeURIComponent((template || 'Modern').trim() || 'Modern')}.jpg`}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/templates/jpg/Modern.jpg"; }}
                 className="aspect-[1/1.4142] h-[400px] rounded object-cover lg:h-[600px]"
               />
             </motion.a>

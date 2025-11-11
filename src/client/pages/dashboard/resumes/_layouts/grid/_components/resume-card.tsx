@@ -88,7 +88,8 @@ export const ResumeCard = ({ resume }: Props) => {
           </div>
 
           <img
-            src={`/templates/jpg/${template}.jpg`}
+            src={`/templates/jpg/${encodeURIComponent((template || 'Modern').trim() || 'Modern')}.jpg`}
+            onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/templates/jpg/Modern.jpg"; }}
             alt={template}
             className="rounded-xl opacity-90 contrast-110"
           />

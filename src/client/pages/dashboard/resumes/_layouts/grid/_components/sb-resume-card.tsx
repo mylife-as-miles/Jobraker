@@ -311,25 +311,6 @@ export const SbResumeCard = ({ resume }: Props) => {
         )}
         {/* Fallback image (shows underneath the canvas or if PDF not available) */}
         <img
-          src={`/templates/jpg/${template}.jpg`}
+          src={`/templates/jpg/${encodeURIComponent((template || 'Modern').trim() || 'Modern')}.jpg`}
           alt={template}
-          className={`rounded-sm opacity-90 contrast-110 ${resume.file_ext === 'pdf' ? 'invisible aria-hidden' : ''}`}
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = "/templates/jpg/Modern.jpg";
-          }}
-        />
-        {resume.is_favorite && (
-          <div className="absolute -left-2 top-6 rotate-[-90deg] origin-top-left z-20">
-            <span className="px-2 py-0.5 text-[10px] tracking-wide font-semibold rounded-t bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black shadow">FAVORITE</span>
-          </div>
-        )}
-        {resume.file_ext && (
-          <div className="absolute top-1.5 right-1.5 z-20 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur text-[9px] font-medium border border-[#1dff00]/40 text-[#1dff00] shadow-[0_0_4px_rgba(29,255,0,0.4)]">
-            {(resume.file_ext || '').toUpperCase()}
-          </div>
-        )}
-      </div>
-
-    </BaseCard>
-  );
-};
+          className={`

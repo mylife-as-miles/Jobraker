@@ -20,7 +20,8 @@ export const ResumeListItem = ({ resume }: { resume: ResumeDto }) => {
         <p className="truncate text-xs opacity-70">{t`Last updated ${lastUpdated}`}</p>
       </div>
       <img
-        src={`/templates/jpg/${resume.data.metadata.template}.jpg`}
+        src={`/templates/jpg/${encodeURIComponent((resume?.data?.metadata?.template || 'Modern').trim() || 'Modern')}.jpg`}
+        onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/templates/jpg/Modern.jpg"; }}
         alt={resume.data.metadata.template}
         className="h-10 w-8 rounded-xl object-cover opacity-90 contrast-110"
       />
