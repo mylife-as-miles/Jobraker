@@ -419,7 +419,7 @@ export const SettingsPage = (): JSX.Element => {
       { id: 'settings-tab-job-sources', selector: '#settings-tab-btn-job-sources', title: 'Job Sources', body: 'Enable/disable and prioritize job ingestion sources.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-integrations' },
       { id: 'settings-tab-integrations', selector: '#settings-tab-btn-integrations', title: 'Integrations', body: 'Connect your accounts from other services.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-billing' },
       { id: 'settings-tab-billing', selector: '#settings-tab-btn-billing', title: 'Billing', body: 'Manage subscription and payment information (coming soon).', condition: { type: 'click', autoNext: true }, next: 'settings-tour-complete' },
-      { id: 'settings-tour-complete', selector: '#settings-tablist', title: 'All Set', body: 'That's the settings navigation. You can restart this tour anytime from the tour menu.' }
+      { id: 'settings-tour-complete', selector: '#settings-tablist', title: 'All Set', body: 'That\'s the settings navigation. You can restart this tour anytime from the tour menu.' }
     ]
   });
 
