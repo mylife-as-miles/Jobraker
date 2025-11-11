@@ -27,7 +27,11 @@ function stripHtmlTags(html: string): string {
     .trim();
 }
 
-Deno.serve(async (req) => {
+Deno.serve({
+  onListen: ({ port }) => {
+    console.log(`jobs-search function listening on port ${port}`);
+  },
+}, async (req) => {
   // Get dynamic CORS headers based on request origin
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
@@ -35,6 +39,11 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  // Set a timeout to prevent hanging requests
+  const timeoutId = setTimeout(() => {
+    console.error('jobs-search.timeout', { message: 'Function execution exceeded timeout' });
+  }, 55000); // 55 seconds (just under typical 60s limit)
 
   try {
     const authHeader = req.headers.get('authorization');
@@ -343,7 +352,11 @@ Deno.serve(async (req) => {
     // Process and enrich jobs with AI, then save to the database
     console.log('jobs-search.enriching_and_saving', { count: filtered.length, user_id: userId });
 
-    const jobsToInsert = await Promise.all(filtered.map(async (item) => {
+    // Limit processing to prevent timeout - process max 20 jobs at a time
+    const maxJobsToProcess = Math.min(filtered.length, 20);
+    const jobsToProcess = filtered.slice(0, maxJobsToProcess);
+
+    const jobsToInsert = await Promise.all(jobsToProcess.map(async (item) => {
       // Enrich with AI
       let aiData;
       try {
@@ -491,6 +504,9 @@ Deno.serve(async (req) => {
 
     // Note: Enrichment occurs inline (before save) via Firecrawl JSON schema + parsing.
 
+    // Clear timeout on success
+    clearTimeout(timeoutId);
+
     // Return success response with count
     return new Response(
       JSON.stringify({ 
@@ -502,6 +518,21 @@ Deno.serve(async (req) => {
     );
 
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: e?.message || 'An unexpected error occurred.' }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    // Clear timeout on error
+    clearTimeout(timeoutId);
+    
+    const errorMessage = e?.message || 'An unexpected error occurred.';
+    console.error('jobs-search.error', { error: errorMessage, stack: e?.stack });
+    
+    return new Response(
+      JSON.stringify({ 
+        error: errorMessage,
+        type: e?.name || 'Error'
+      }), 
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'content-type': 'application/json' } 
+      }
+    );
   }
 });
