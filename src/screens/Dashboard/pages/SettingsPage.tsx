@@ -419,7 +419,7 @@ export const SettingsPage = (): JSX.Element => {
       { id: 'settings-tab-job-sources', selector: '#settings-tab-btn-job-sources', title: 'Job Sources', body: 'Enable/disable and prioritize job ingestion sources.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-integrations' },
       { id: 'settings-tab-integrations', selector: '#settings-tab-btn-integrations', title: 'Integrations', body: 'Connect your accounts from other services.', condition: { type: 'click', autoNext: true }, next: 'settings-tab-billing' },
       { id: 'settings-tab-billing', selector: '#settings-tab-btn-billing', title: 'Billing', body: 'Manage subscription and payment information (coming soon).', condition: { type: 'click', autoNext: true }, next: 'settings-tour-complete' },
-      { id: 'settings-tour-complete', selector: '#settings-tablist', title: 'All Set', body: 'That’s the settings navigation. You can restart this tour anytime from the tour menu.' }
+      { id: 'settings-tour-complete', selector: '#settings-tablist', title: 'All Set', body: 'That's the settings navigation. You can restart this tour anytime from the tour menu.' }
     ]
   });
 
@@ -525,42 +525,61 @@ export const SettingsPage = (): JSX.Element => {
       const uid = (u as any)?.user?.id;
       if (!uid) return toastError('Not signed in', 'Please sign in again');
       
-      // Fetch all user data in parallel
+      // Build promises (no .catch chaining on builders to avoid non-thenable issues)
+      const profP = (supabase as any).from('profiles').select('*').eq('id', uid).maybeSingle();
+      const notifP = (supabase as any).from('notification_settings').select('*').eq('id', uid).maybeSingle();
+      const resumesP = (supabase as any).from('resumes').select('*').eq('user_id', uid).order('updated_at', { ascending: false });
+      const privacyP = (supabase as any).from('privacy_settings').select('*').eq('id', uid).maybeSingle();
+      const appsP = (supabase as any).from('applications').select('*').eq('user_id', uid).order('applied_date', { ascending: false });
+      const jobsP = (supabase as any).from('jobs').select('*').eq('user_id', uid).order('created_at', { ascending: false });
+      const bookmarksP = (supabase as any).from('bookmarks').select('*').eq('user_id', uid).order('created_at', { ascending: false });
+      const creditTxP = (supabase as any).from('credit_transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false });
+      const creditsP = (supabase as any).from('user_credits').select('*').eq('user_id', uid).maybeSingle();
+      const subsP = (supabase as any).from('user_subscriptions').select('*').eq('user_id', uid).order('created_at', { ascending: false });
+      const notifsP = (supabase as any).from('notifications').select('*').eq('user_id', uid).order('created_at', { ascending: false });
+      const eduP = (supabase as any).from('profile_education').select('*').eq('user_id', uid).order('start_date', { ascending: false });
+      const expP = (supabase as any).from('profile_experiences').select('*').eq('user_id', uid).order('start_date', { ascending: false });
+      const skillsP = (supabase as any).from('profile_skills').select('*').eq('user_id', uid).order('created_at', { ascending: false });
+      const appearanceP = (supabase as any).from('appearance_settings').select('*').eq('id', uid).maybeSingle();
+      const securityP = (supabase as any).from('security_settings').select('*').eq('id', uid).maybeSingle();
+
       const [
-        { data: prof },
-        { data: notifData },
-        { data: resumes },
-        { data: privacyData },
-        { data: applications },
-        { data: jobs },
-        { data: bookmarks },
-        { data: creditTransactions },
-        { data: userCredits },
-        { data: userSubscriptions },
-        { data: notifications },
-        { data: education },
-        { data: experience },
-        { data: skills },
-        { data: appearanceSettings },
-        { data: securitySettings },
+        profRes,
+        notifRes,
+        resumesRes,
+        privacyRes,
+        appsRes,
+        jobsRes,
+        bookmarksRes,
+        creditTxRes,
+        creditsRes,
+        subsRes,
+        notifsRes,
+        eduRes,
+        expRes,
+        skillsRes,
+        appearanceRes,
+        securityRes,
       ] = await Promise.all([
-        (supabase as any).from('profiles').select('*').eq('id', uid).maybeSingle(),
-        (supabase as any).from('notification_settings').select('*').eq('id', uid).maybeSingle(),
-        (supabase as any).from('resumes').select('*').eq('user_id', uid).order('updated_at', { ascending: false }),
-        (supabase as any).from('privacy_settings').select('*').eq('id', uid).maybeSingle(),
-        (supabase as any).from('applications').select('*').eq('user_id', uid).order('applied_date', { ascending: false }),
-        (supabase as any).from('jobs').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        (supabase as any).from('bookmarks').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        (supabase as any).from('credit_transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        (supabase as any).from('user_credits').select('*').eq('user_id', uid).maybeSingle(),
-        (supabase as any).from('user_subscriptions').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        (supabase as any).from('notifications').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        (supabase as any).from('profile_education').select('*').eq('user_id', uid).order('start_date', { ascending: false }),
-        (supabase as any).from('profile_experiences').select('*').eq('user_id', uid).order('start_date', { ascending: false }),
-        (supabase as any).from('profile_skills').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        (supabase as any).from('appearance_settings').select('*').eq('id', uid).maybeSingle().catch(() => ({ data: null })),
-        (supabase as any).from('security_settings').select('*').eq('id', uid).maybeSingle().catch(() => ({ data: null })),
+        profP, notifP, resumesP, privacyP, appsP, jobsP, bookmarksP, creditTxP, creditsP, subsP, notifsP, eduP, expP, skillsP, appearanceP, securityP
       ]);
+
+      const prof = (profRes as any)?.data ?? null;
+      const notifData = (notifRes as any)?.data ?? null;
+      const resumes = (resumesRes as any)?.data ?? [];
+      const privacyData = (privacyRes as any)?.data ?? null;
+      const applications = (appsRes as any)?.data ?? [];
+      const jobs = (jobsRes as any)?.data ?? [];
+      const bookmarks = (bookmarksRes as any)?.data ?? [];
+      const creditTransactions = (creditTxRes as any)?.data ?? [];
+      const userCredits = (creditsRes as any)?.data ?? null;
+      const userSubscriptions = (subsRes as any)?.data ?? [];
+      const notifications = (notifsRes as any)?.data ?? [];
+      const education = (eduRes as any)?.data ?? [];
+      const experience = (expRes as any)?.data ?? [];
+      const skills = (skillsRes as any)?.data ?? [];
+      const appearanceSettings = (appearanceRes as any)?.data ?? null;
+      const securitySettings = (securityRes as any)?.data ?? null;
 
       const payload = {
         exported_at: new Date().toISOString(),
