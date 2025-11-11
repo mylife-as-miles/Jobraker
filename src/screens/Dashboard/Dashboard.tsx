@@ -17,7 +17,8 @@ import {
   Home,
   ChevronRight as BreadcrumbChevron,
   Briefcase,
-  Mail
+  Mail,
+  CreditCard
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
@@ -208,6 +209,12 @@ export const Dashboard = (): JSX.Element => {
       label: "Pricing",
       icon: <Plus className="w-4 h-4 sm:w-5 sm:h-5" />,
       path: "Dashboard / Pricing"
+    },
+    {
+      id: "billing",
+      label: "Billing",
+      icon: <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />,
+      path: "Dashboard / Billing"
     }
   ];
 
