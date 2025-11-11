@@ -116,13 +116,14 @@ export const BillingPage = () => {
   };
 
   const getTierIcon = (tier: string) => {
+    const iconColor = tier === 'Free' || tier === 'Basics' ? 'text-black' : 'text-white';
     switch (tier) {
       case 'Pro':
-        return <Zap className="w-5 h-5" />;
+        return <Zap className={`w-5 h-5 ${iconColor}`} />;
       case 'Ultimate':
-        return <Crown className="w-5 h-5" />;
+        return <Crown className={`w-5 h-5 ${iconColor}`} />;
       default:
-        return <Coins className="w-5 h-5" />;
+        return <Coins className={`w-5 h-5 ${iconColor}`} />;
     }
   };
 
@@ -134,6 +135,36 @@ export const BillingPage = () => {
         return 'from-purple-500 via-purple-600 to-purple-700';
       default:
         return 'from-[#1dff00] via-[#0fc74f] to-[#0a8246]';
+    }
+  };
+
+  const getTierTextColor = (tier: string) => {
+    // For bright green backgrounds (Free, Basics), use dark text
+    // For darker backgrounds (Pro, Ultimate), use white text
+    switch (tier) {
+      case 'Free':
+      case 'Basics':
+        return {
+          primary: 'text-black',
+          secondary: 'text-black/70',
+          tertiary: 'text-black/80',
+          muted: 'text-black/60'
+        };
+      case 'Pro':
+      case 'Ultimate':
+        return {
+          primary: 'text-white',
+          secondary: 'text-white/70',
+          tertiary: 'text-white/80',
+          muted: 'text-white/60'
+        };
+      default:
+        return {
+          primary: 'text-white',
+          secondary: 'text-white/70',
+          tertiary: 'text-white/80',
+          muted: 'text-white/60'
+        };
     }
   };
 
@@ -359,56 +390,79 @@ export const BillingPage = () => {
                         )}
 
                         <CardContent className="p-6">
-                          {/* Header */}
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center">
-                                {getTierIcon(plan.name)}
-                              </div>
-                              <div>
-                                <h3 className="text-xl font-bold text-white">{plan.name}</h3>
-                                <p className="text-xs text-white/70">monthly</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Price */}
-                          <div className="mb-4">
-                            <div className="flex items-baseline gap-1">
-                              <span className="text-4xl font-bold text-white">${plan.price}</span>
-                              {plan.price > 0 && (
-                                <span className="text-white/70">/mo</span>
-                              )}
-                            </div>
-                            <p className="text-sm text-white/80 mt-2 line-clamp-2">{plan.description}</p>
-                          </div>
-
-                          {/* Credits */}
-                          <div className="flex items-center gap-2 p-3 bg-black/30 rounded-lg mb-4">
-                            <Zap className="w-4 h-4 text-[#1dff00]" />
-                            <span className="text-sm text-white font-medium">{plan.credits_per_month} credits</span>
-                            <span className="text-xs text-white/60">per cycle</span>
-                          </div>
-
-                          {/* Features */}
-                          <div className="space-y-2 mb-4">
-                            {plan.features && Array.isArray(plan.features) && plan.features.slice(0, 3).map((feature: any, idx: number) => {
-                              const featureName = typeof feature === 'string' ? feature : feature.name;
-                              const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
-                              
-                              if (!isIncluded) return null;
-                              
-                              return (
-                                <div key={idx} className="flex items-start gap-2">
-                                  <Check className="w-4 h-4 text-[#1dff00] mt-0.5 flex-shrink-0" />
-                                  <span className="text-sm text-white/90 line-clamp-1">{featureName}</span>
+                          {(() => {
+                            const textColors = getTierTextColor(plan.name);
+                            return (
+                              <>
+                                {/* Header */}
+                                <div className="flex items-start justify-between mb-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                                      plan.name === 'Free' || plan.name === 'Basics' 
+                                        ? 'bg-black/20' 
+                                        : 'bg-black/30'
+                                    }`}>
+                                      {getTierIcon(plan.name)}
+                                    </div>
+                                    <div>
+                                      <h3 className={`text-xl font-bold ${textColors.primary}`}>{plan.name}</h3>
+                                      <p className={`text-xs ${textColors.secondary}`}>monthly</p>
+                                    </div>
+                                  </div>
                                 </div>
-                              );
-                            })}
-                            {(plan.features?.length || 0) > 3 && (
-                              <p className="text-xs text-white/60 pl-6">+{plan.features.length - 3} more features</p>
-                            )}
-                          </div>
+
+                                {/* Price */}
+                                <div className="mb-4">
+                                  <div className="flex items-baseline gap-1">
+                                    <span className={`text-4xl font-bold ${textColors.primary}`}>${plan.price}</span>
+                                    {plan.price > 0 && (
+                                      <span className={textColors.secondary}>/mo</span>
+                                    )}
+                                  </div>
+                                  <p className={`text-sm ${textColors.tertiary} mt-2 line-clamp-2`}>{plan.description}</p>
+                                </div>
+
+                                {/* Credits */}
+                                <div className={`flex items-center gap-2 p-3 rounded-lg mb-4 ${
+                                  plan.name === 'Free' || plan.name === 'Basics'
+                                    ? 'bg-black/20'
+                                    : 'bg-black/30'
+                                }`}>
+                                  <Zap className={`w-4 h-4 ${
+                                    plan.name === 'Free' || plan.name === 'Basics'
+                                      ? 'text-black'
+                                      : 'text-[#1dff00]'
+                                  }`} />
+                                  <span className={`text-sm font-medium ${textColors.primary}`}>{plan.credits_per_month} credits</span>
+                                  <span className={`text-xs ${textColors.muted}`}>per cycle</span>
+                                </div>
+
+                                {/* Features */}
+                                <div className="space-y-2 mb-4">
+                                  {plan.features && Array.isArray(plan.features) && plan.features.slice(0, 3).map((feature: any, idx: number) => {
+                                    const featureName = typeof feature === 'string' ? feature : feature.name;
+                                    const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
+                                    
+                                    if (!isIncluded) return null;
+                                    
+                                    return (
+                                      <div key={idx} className="flex items-start gap-2">
+                                        <Check className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                                          plan.name === 'Free' || plan.name === 'Basics'
+                                            ? 'text-black'
+                                            : 'text-[#1dff00]'
+                                        }`} />
+                                        <span className={`text-sm ${textColors.tertiary} line-clamp-1`}>{featureName}</span>
+                                      </div>
+                                    );
+                                  })}
+                                  {(plan.features?.length || 0) > 3 && (
+                                    <p className={`text-xs ${textColors.muted} pl-6`}>+{plan.features.length - 3} more features</p>
+                                  )}
+                                </div>
+                              </>
+                            );
+                          })()}
 
                           {/* CTA */}
                           <Button
