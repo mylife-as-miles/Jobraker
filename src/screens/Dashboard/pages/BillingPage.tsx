@@ -263,30 +263,47 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <Card className="relative overflow-hidden border-white/10 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent">
-                <div className={`absolute inset-0 bg-gradient-to-br ${getTierGradient(subscriptionTier)}/5`} />
+              <Card className={`relative overflow-hidden border-white/10 ${
+                subscriptionTier === 'Free' || subscriptionTier === 'Basics'
+                  ? 'bg-gradient-to-br from-[#1dff00] via-[#0fc74f] to-[#0a8246]'
+                  : 'bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent'
+              }`}>
+                {subscriptionTier !== 'Free' && subscriptionTier !== 'Basics' && (
+                  <div className={`absolute inset-0 bg-gradient-to-br ${getTierGradient(subscriptionTier)}/5`} />
+                )}
                 <CardContent className="relative p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`p-3 rounded-xl bg-gradient-to-br ${getTierGradient(subscriptionTier)}/10 border border-white/10`}>
-                      {getTierIcon(subscriptionTier)}
-                    </div>
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                      subscriptionTier === 'Pro' ? 'bg-blue-500/20 text-blue-300' :
-                      subscriptionTier === 'Ultimate' ? 'bg-purple-500/20 text-purple-300' :
-                      'bg-[#1dff00]/20 text-[#1dff00]'
-                    }`}>
-                      {subscriptionTier.toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-400">Active Plan</p>
-                    <p className="text-4xl font-bold text-white">
-                      {subscriptionTier}
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      {plans.find(p => p.name === subscriptionTier)?.credits_per_month.toLocaleString() || 0} credits/month
-                    </p>
-                  </div>
+                  {(() => {
+                    const textColors = getTierTextColor(subscriptionTier);
+                    return (
+                      <>
+                        <div className="flex items-start justify-between mb-4">
+                          <div className={`p-3 rounded-xl ${
+                            subscriptionTier === 'Free' || subscriptionTier === 'Basics'
+                              ? 'bg-black/20'
+                              : `bg-gradient-to-br ${getTierGradient(subscriptionTier)}/10 border border-white/10`
+                          }`}>
+                            {getTierIcon(subscriptionTier)}
+                          </div>
+                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                            subscriptionTier === 'Pro' ? 'bg-blue-500/20 text-blue-300' :
+                            subscriptionTier === 'Ultimate' ? 'bg-purple-500/20 text-purple-300' :
+                            'bg-black/20 text-black'
+                          }`}>
+                            {subscriptionTier.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className={`text-sm ${subscriptionTier === 'Free' || subscriptionTier === 'Basics' ? 'text-black/70' : 'text-gray-400'}`}>Active Plan</p>
+                          <p className={`text-4xl font-bold ${textColors.primary}`}>
+                            {subscriptionTier}
+                          </p>
+                          <p className={`text-sm ${subscriptionTier === 'Free' || subscriptionTier === 'Basics' ? 'text-black/70' : 'text-gray-400'}`}>
+                            {plans.find(p => p.name === subscriptionTier)?.credits_per_month.toLocaleString() || 0} credits/month
+                          </p>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </motion.div>
