@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2, Check, Trash2, ArrowUp, ArrowDown, Printer, X, FileText, FileType, Lock } from "lucide-react";
 import { Button, Card } from "@reactive-resume/ui";
 import { createClient } from "@/lib/supabaseClient";
@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast-provider";
 // It includes a header, the cover letter content, and a footer with controls.
 export const CoverLetter = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError } = useToast();
   const [fontSize, setFontSize] = useState(16);
@@ -66,6 +67,9 @@ export const CoverLetter = () => {
         const userId = userData?.user?.id;
         if (!userId) return;
 
+        // Check if loading a specific letter by ID from URL
+        const letterId = searchParams.get('id');
+
         // Load library from Supabase
         const { data: coverLetters, error: libError } = await (supabase as any)
           .from('cover_letters')
@@ -104,34 +108,41 @@ export const CoverLetter = () => {
           }));
           setLibrary(entries);
 
-          // Find default or most recent
-          const defaultLetter = coverLetters.find((cl: any) => cl.is_default) || coverLetters[0];
-          if (defaultLetter) {
-            setCurrentLibId(defaultLetter.id);
-            setLibName(defaultLetter.name || 'Untitled Cover Letter');
+          // Load specific letter by ID if provided, otherwise find default or most recent
+          let targetLetter = null;
+          if (letterId) {
+            targetLetter = coverLetters.find((cl: any) => cl.id === letterId);
+          }
+          if (!targetLetter) {
+            targetLetter = coverLetters.find((cl: any) => cl.is_default) || coverLetters[0];
+          }
+
+          if (targetLetter) {
+            setCurrentLibId(targetLetter.id);
+            setLibName(targetLetter.name || 'Untitled Cover Letter');
             
-            // Load default letter data
-            setRole(defaultLetter.role ?? "");
-            setCompany(defaultLetter.company ?? "");
-            setJobDescription(defaultLetter.job_description ?? "");
-            setTone((defaultLetter.tone as any) ?? "professional");
-            setLengthPref((defaultLetter.length_pref as any) ?? "medium");
-            setSenderName(defaultLetter.sender_name ?? "");
-            setSenderEmail(defaultLetter.sender_email ?? "");
-            setSenderPhone(defaultLetter.sender_phone ?? "");
-            setSenderAddress(defaultLetter.sender_address ?? "");
-            setRecipient(defaultLetter.recipient ?? "");
-            setRecipientTitle(defaultLetter.recipient_title ?? "");
-            setRecipientAddress(defaultLetter.recipient_address ?? "");
-            setDate(defaultLetter.date ?? new Date().toISOString().slice(0, 10));
-            setSubject(defaultLetter.subject ?? "");
-            setSalutation(defaultLetter.salutation ?? "Dear Hiring Manager,");
-            setParagraphs(Array.isArray(defaultLetter.paragraphs) ? defaultLetter.paragraphs : []);
-            setClosing(defaultLetter.closing ?? "Best regards,");
-            setSignatureName(defaultLetter.signature_name ?? "");
-            setContent(defaultLetter.content ?? "");
-            setFontSize(defaultLetter.font_size ?? 16);
-            setSavedAt(defaultLetter.updated_at ?? null);
+            // Load letter data
+            setRole(targetLetter.role ?? "");
+            setCompany(targetLetter.company ?? "");
+            setJobDescription(targetLetter.job_description ?? "");
+            setTone((targetLetter.tone as any) ?? "professional");
+            setLengthPref((targetLetter.length_pref as any) ?? "medium");
+            setSenderName(targetLetter.sender_name ?? "");
+            setSenderEmail(targetLetter.sender_email ?? "");
+            setSenderPhone(targetLetter.sender_phone ?? "");
+            setSenderAddress(targetLetter.sender_address ?? "");
+            setRecipient(targetLetter.recipient ?? "");
+            setRecipientTitle(targetLetter.recipient_title ?? "");
+            setRecipientAddress(targetLetter.recipient_address ?? "");
+            setDate(targetLetter.date ?? new Date().toISOString().slice(0, 10));
+            setSubject(targetLetter.subject ?? "");
+            setSalutation(targetLetter.salutation ?? "Dear Hiring Manager,");
+            setParagraphs(Array.isArray(targetLetter.paragraphs) ? targetLetter.paragraphs : []);
+            setClosing(targetLetter.closing ?? "Best regards,");
+            setSignatureName(targetLetter.signature_name ?? "");
+            setContent(targetLetter.content ?? "");
+            setFontSize(targetLetter.font_size ?? 16);
+            setSavedAt(targetLetter.updated_at ?? null);
           }
         }
 
@@ -172,7 +183,7 @@ export const CoverLetter = () => {
         console.error('Error loading cover letters:', error);
       }
     })();
-  }, [supabase]);
+  }, [supabase, searchParams]);
 
   // Fetch subscription tier
   useEffect(() => {
@@ -251,55 +262,90 @@ export const CoverLetter = () => {
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => {
+    const t = setTimeout(async () => {
       try {
-        const payload = {
-          role,
-          company,
-          jobDescription,
-          tone,
-          lengthPref,
-          senderName,
-          senderEmail,
-          senderPhone,
-          senderAddress,
-          recipient,
-          recipientTitle,
-          recipientAddress,
-          date,
-          subject,
-          salutation,
-          paragraphs,
-          closing,
-          signatureName,
-          content,
-          fontSize,
-          savedAt: new Date().toISOString(),
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-        setSavedAt(payload.savedAt);
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData?.user?.id;
+        if (!userId) return;
 
-        // If a library entry is active, keep it updated live
+        const savedAt = new Date().toISOString();
+        setSavedAt(savedAt);
+
+        // If a library entry is active, update it in Supabase
         if (currentLibId) {
-          const libRaw = localStorage.getItem(LIB_KEY);
-          let arr: LibraryEntry[] = [];
-          if (libRaw) {
-            try {
-              const parsed = JSON.parse(libRaw);
-              if (Array.isArray(parsed)) arr = parsed;
-            } catch {}
-          }
-          const idx = arr.findIndex((e) => e.id === currentLibId);
-          if (idx !== -1) {
-            arr[idx] = { id: currentLibId, name: arr[idx].name, updatedAt: payload.savedAt!, data: payload } as LibraryEntry;
-            localStorage.setItem(LIB_KEY, JSON.stringify(arr));
-            setLibrary(arr);
+          const { error } = await (supabase as any)
+            .from('cover_letters')
+            .update({
+              role: role || null,
+              company: company || null,
+              job_description: jobDescription || null,
+              tone: tone || 'professional',
+              length_pref: lengthPref || 'medium',
+              sender_name: senderName || null,
+              sender_email: senderEmail || null,
+              sender_phone: senderPhone || null,
+              sender_address: senderAddress || null,
+              recipient: recipient || null,
+              recipient_title: recipientTitle || null,
+              recipient_address: recipientAddress || null,
+              date: date || null,
+              subject: subject || null,
+              salutation: salutation || 'Dear Hiring Manager,',
+              paragraphs: paragraphs || [],
+              closing: closing || 'Best regards,',
+              signature_name: signatureName || null,
+              content: content || null,
+              font_size: fontSize || 16,
+              updated_at: savedAt,
+            })
+            .eq('id', currentLibId)
+            .eq('user_id', userId);
+
+          if (!error) {
+            // Update local library state
+            setLibrary((prev) => {
+              const idx = prev.findIndex((e) => e.id === currentLibId);
+              if (idx !== -1) {
+                const updated = [...prev];
+                updated[idx] = {
+                  ...updated[idx],
+                  updatedAt: savedAt,
+                  data: {
+                    role,
+                    company,
+                    jobDescription,
+                    tone,
+                    lengthPref,
+                    senderName,
+                    senderEmail,
+                    senderPhone,
+                    senderAddress,
+                    recipient,
+                    recipientTitle,
+                    recipientAddress,
+                    date,
+                    subject,
+                    salutation,
+                    paragraphs,
+                    closing,
+                    signatureName,
+                    content,
+                    fontSize,
+                    savedAt,
+                  },
+                };
+                return updated;
+              }
+              return prev;
+            });
           }
         }
-      } catch {}
+      } catch (error) {
+        console.error('Error auto-saving cover letter:', error);
+      }
     }, 400);
     return () => clearTimeout(t);
-  }, [role, company, jobDescription, tone, lengthPref, senderName, senderEmail, senderPhone, senderAddress, recipient, recipientTitle, recipientAddress, date, subject, salutation, paragraphs, closing, signatureName, content, fontSize]);
+  }, [role, company, jobDescription, tone, lengthPref, senderName, senderEmail, senderPhone, senderAddress, recipient, recipientTitle, recipientAddress, date, subject, salutation, paragraphs, closing, signatureName, content, fontSize, currentLibId, supabase]);
 
   // No hardcoded content - starts empty on new letters, uses user data from profile
   const fallbackBody = useMemo(() => {
@@ -482,50 +528,162 @@ export const CoverLetter = () => {
       toastError('Copy failed', 'Clipboard not available');
     }
   };
-  const saveToLibrary = (name?: string) => {
+  const saveToLibrary = async (name?: string) => {
     try {
-      const payload = {
-        role,
-        company,
-        jobDescription,
-        tone,
-        lengthPref,
-        senderName,
-        senderEmail,
-        senderPhone,
-        senderAddress,
-        recipient,
-        recipientTitle,
-        recipientAddress,
-        date,
-        subject,
-        salutation,
-        paragraphs,
-        closing,
-        signatureName,
-        content,
-        fontSize,
-        savedAt: new Date().toISOString(),
-      };
-      const libRaw = localStorage.getItem(LIB_KEY);
-      let arr: LibraryEntry[] = [];
-      if (libRaw) {
-        try { const parsed = JSON.parse(libRaw); if (Array.isArray(parsed)) arr = parsed; } catch {}
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      if (!userId) {
+        toastError('Not signed in', 'Please sign in to save cover letters');
+        return;
       }
-      const id = currentLibId || crypto.randomUUID();
-      const entryName = (name || libName || `Letter ${arr.length + 1}`).trim();
-      const idx = arr.findIndex((e) => e.id === id);
-      const entry: LibraryEntry = { id, name: entryName || `Letter ${arr.length + 1}`, updatedAt: payload.savedAt, data: payload };
-      if (idx === -1) arr.push(entry); else arr[idx] = entry;
-      localStorage.setItem(LIB_KEY, JSON.stringify(arr));
-      setLibrary(arr);
-      setCurrentLibId(id);
-      localStorage.setItem(LIB_DEFAULT_KEY, id);
-      setLibName(entry.name);
-      success('Saved to Library', 'Cover letter saved for reuse');
-    } catch (e) {
+
+      const savedAt = new Date().toISOString();
+      const entryName = (name || libName || `Letter ${library.length + 1}`).trim() || `Letter ${library.length + 1}`;
+
+      if (currentLibId) {
+        // Update existing
+        const { error } = await (supabase as any)
+          .from('cover_letters')
+          .update({
+            name: entryName,
+            role: role || null,
+            company: company || null,
+            job_description: jobDescription || null,
+            tone: tone || 'professional',
+            length_pref: lengthPref || 'medium',
+            sender_name: senderName || null,
+            sender_email: senderEmail || null,
+            sender_phone: senderPhone || null,
+            sender_address: senderAddress || null,
+            recipient: recipient || null,
+            recipient_title: recipientTitle || null,
+            recipient_address: recipientAddress || null,
+            date: date || null,
+            subject: subject || null,
+            salutation: salutation || 'Dear Hiring Manager,',
+            paragraphs: paragraphs || [],
+            closing: closing || 'Best regards,',
+            signature_name: signatureName || null,
+            content: content || null,
+            font_size: fontSize || 16,
+            updated_at: savedAt,
+          })
+          .eq('id', currentLibId)
+          .eq('user_id', userId);
+
+        if (error) throw error;
+
+        setLibName(entryName);
+        setLibrary((prev) => {
+          const idx = prev.findIndex((e) => e.id === currentLibId);
+          if (idx !== -1) {
+            const updated = [...prev];
+            updated[idx] = {
+              id: currentLibId,
+              name: entryName,
+              updatedAt: savedAt,
+              data: {
+                role,
+                company,
+                jobDescription,
+                tone,
+                lengthPref,
+                senderName,
+                senderEmail,
+                senderPhone,
+                senderAddress,
+                recipient,
+                recipientTitle,
+                recipientAddress,
+                date,
+                subject,
+                salutation,
+                paragraphs,
+                closing,
+                signatureName,
+                content,
+                fontSize,
+                savedAt,
+              },
+            };
+            return updated;
+          }
+          return prev;
+        });
+        success('Saved to Library', 'Cover letter updated');
+      } else {
+        // Create new
+        const { data, error } = await (supabase as any)
+          .from('cover_letters')
+          .insert({
+            user_id: userId,
+            name: entryName,
+            role: role || null,
+            company: company || null,
+            job_description: jobDescription || null,
+            tone: tone || 'professional',
+            length_pref: lengthPref || 'medium',
+            sender_name: senderName || null,
+            sender_email: senderEmail || null,
+            sender_phone: senderPhone || null,
+            sender_address: senderAddress || null,
+            recipient: recipient || null,
+            recipient_title: recipientTitle || null,
+            recipient_address: recipientAddress || null,
+            date: date || null,
+            subject: subject || null,
+            salutation: salutation || 'Dear Hiring Manager,',
+            paragraphs: paragraphs || [],
+            closing: closing || 'Best regards,',
+            signature_name: signatureName || null,
+            content: content || null,
+            font_size: fontSize || 16,
+            is_default: library.length === 0, // First letter is default
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        const newId = data.id;
+        setCurrentLibId(newId);
+        setLibName(entryName);
+        setLibrary((prev) => [
+          ...prev,
+          {
+            id: newId,
+            name: entryName,
+            updatedAt: savedAt,
+            data: {
+              role,
+              company,
+              jobDescription,
+              tone,
+              lengthPref,
+              senderName,
+              senderEmail,
+              senderPhone,
+              senderAddress,
+              recipient,
+              recipientTitle,
+              recipientAddress,
+              date,
+              subject,
+              salutation,
+              paragraphs,
+              closing,
+              signatureName,
+              content,
+              fontSize,
+              savedAt,
+            },
+          },
+        ]);
+        success('Saved to Library', 'Cover letter saved for reuse');
+      }
+    } catch (e: any) {
       console.error('saveToLibrary error', e);
-      toastError('Save failed', 'Could not save letter');
+      toastError('Save failed', e?.message || 'Could not save letter');
     }
   };
   
@@ -1428,3 +1586,4 @@ export const CoverLetter = () => {
     </div>
   );
 };
+

@@ -1,6 +1,7 @@
 import { FileText, Calendar, Building2, Briefcase, Trash2, Eye, Pencil, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { createClient } from "@/lib/supabaseClient";
 
 type LibraryEntry = { id: string; name: string; updatedAt: string; data: any };
 
@@ -11,41 +12,37 @@ interface CoverLetterCardProps {
   onToggleSelect: () => void;
 }
 
-const LIB_KEY = "jr.coverLetters.library.v1";
-const LIB_DEFAULT_KEY = "jr.coverLetters.defaultId";
-const STORAGE_KEY = "jr.coverLetter.draft.v2";
-
 export const CoverLetterCard = ({ letter, onDelete, isSelected, onToggleSelect }: CoverLetterCardProps) => {
   const navigate = useNavigate();
+  const supabase = useMemo(() => createClient(), []);
   const [showPreview, setShowPreview] = useState(false);
 
   const handleOpen = () => {
-    // Load this letter and navigate to editor
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(letter.data));
-    localStorage.setItem(LIB_DEFAULT_KEY, letter.id);
-    navigate('/dashboard/cover-letter?edit=true');
+    // Navigate to editor - the editor will load the letter by ID from Supabase
+    navigate(`/dashboard/cover-letter?id=${letter.id}`);
   };
 
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm(`Delete "${letter.name}"?`)) return;
     
     try {
-      const libRaw = localStorage.getItem(LIB_KEY);
-      if (libRaw) {
-        const arr = JSON.parse(libRaw);
-        const filtered = arr.filter((l: LibraryEntry) => l.id !== letter.id);
-        localStorage.setItem(LIB_KEY, JSON.stringify(filtered));
-        
-        // Clear default if this was it
-        const defaultId = localStorage.getItem(LIB_DEFAULT_KEY);
-        if (defaultId === letter.id) {
-          localStorage.removeItem(LIB_DEFAULT_KEY);
-        }
-        
-        onDelete();
-      }
-    } catch {}
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      if (!userId) return;
+
+      const { error } = await (supabase as any)
+        .from('cover_letters')
+        .delete()
+        .eq('id', letter.id)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      onDelete();
+    } catch (error) {
+      console.error('Error deleting cover letter:', error);
+    }
   };
 
   const formatDate = (dateString: string) => {

@@ -1,42 +1,83 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Trash2 } from 'lucide-react';
+import { createClient } from "@/lib/supabaseClient";
 
 import { CreateCoverLetterCard } from "./_components/create-card";
 import { CoverLetterCard } from "./_components/cover-letter-card";
 
 type LibraryEntry = { id: string; name: string; updatedAt: string; data: any };
-const LIB_KEY = "jr.coverLetters.library.v1";
 
 export const GridView = () => {
+  const supabase = useMemo(() => createClient(), []);
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
 
-  // Load library from localStorage
-  useEffect(() => {
+  // Load library from Supabase
+  const loadLibrary = useCallback(async () => {
     try {
-      const libRaw = localStorage.getItem(LIB_KEY);
-      if (libRaw) {
-        const arr = JSON.parse(libRaw);
-        if (Array.isArray(arr)) setLibrary(arr);
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      if (!userId) {
+        setLibrary([]);
+        return;
       }
-    } catch {}
-  }, []);
 
-  // Reload library (callback for cards to trigger refresh)
-  const reloadLibrary = useCallback(() => {
-    try {
-      const libRaw = localStorage.getItem(LIB_KEY);
-      if (libRaw) {
-        const arr = JSON.parse(libRaw);
-        if (Array.isArray(arr)) setLibrary(arr);
+      const { data: coverLetters, error } = await (supabase as any)
+        .from('cover_letters')
+        .select('*')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (coverLetters) {
+        const entries: LibraryEntry[] = coverLetters.map((cl: any) => ({
+          id: cl.id,
+          name: cl.name || 'Untitled Cover Letter',
+          updatedAt: cl.updated_at,
+          data: {
+            role: cl.role,
+            company: cl.company,
+            jobDescription: cl.job_description,
+            tone: cl.tone,
+            lengthPref: cl.length_pref,
+            senderName: cl.sender_name,
+            senderEmail: cl.sender_email,
+            senderPhone: cl.sender_phone,
+            senderAddress: cl.sender_address,
+            recipient: cl.recipient,
+            recipientTitle: cl.recipient_title,
+            recipientAddress: cl.recipient_address,
+            date: cl.date,
+            subject: cl.subject,
+            salutation: cl.salutation,
+            paragraphs: Array.isArray(cl.paragraphs) ? cl.paragraphs : [],
+            closing: cl.closing,
+            signatureName: cl.signature_name,
+            content: cl.content,
+            fontSize: cl.font_size,
+            savedAt: cl.updated_at,
+          },
+        }));
+        setLibrary(entries);
       } else {
         setLibrary([]);
       }
-    } catch {
+    } catch (error) {
+      console.error('Error loading cover letters:', error);
       setLibrary([]);
     }
-  }, []);
+  }, [supabase]);
+
+  useEffect(() => {
+    loadLibrary();
+  }, [loadLibrary]);
+
+  // Reload library (callback for cards to trigger refresh)
+  const reloadLibrary = useCallback(() => {
+    loadLibrary();
+  }, [loadLibrary]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelected(prev => 
@@ -46,14 +87,26 @@ export const GridView = () => {
 
   const clearSelection = useCallback(() => setSelected([]), []);
 
-  const bulkDelete = useCallback(() => {
+  const bulkDelete = useCallback(async () => {
     try {
-      const remaining = library.filter(l => !selected.includes(l.id));
-      localStorage.setItem(LIB_KEY, JSON.stringify(remaining));
-      setLibrary(remaining);
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      if (!userId) return;
+
+      const { error } = await (supabase as any)
+        .from('cover_letters')
+        .delete()
+        .eq('user_id', userId)
+        .in('id', selected);
+
+      if (error) throw error;
+
+      setLibrary((prev) => prev.filter(l => !selected.includes(l.id)));
       setSelected([]);
-    } catch {}
-  }, [library, selected]);
+    } catch (error) {
+      console.error('Error deleting cover letters:', error);
+    }
+  }, [library, selected, supabase]);
 
   return (
     <div className="relative">
