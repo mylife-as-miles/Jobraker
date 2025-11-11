@@ -313,4 +313,5 @@ export const SbResumeCard = ({ resume }: Props) => {
         <img
           src={`/templates/jpg/${encodeURIComponent((template || 'Modern').trim() || 'Modern')}.jpg`}
           alt={template}
-          className={`
+          className="absolute inset-0 w-full h-full object-cover rounded-sm opacity-0"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/templates/jpg/Modern.jpg"; }}
