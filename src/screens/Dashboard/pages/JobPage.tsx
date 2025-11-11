@@ -1853,7 +1853,42 @@ export const JobPage = (): JSX.Element => {
                 </div>
               )}
 
-              { (queueStatus === 'loading' || queueStatus === 'populating') && (
+              {queueStatus === 'loading' && (
+                <div className="space-y-4">
+                  <div className="grid gap-4">
+                    {Array.from({ length: pageSize }).map((_, i) => (
+                      <Card
+                        key={i}
+                        className="relative overflow-hidden border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-5 sm:p-6"
+                      >
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex flex-1 items-start gap-4">
+                            <div className="h-16 w-16 shrink-0 rounded-xl border border-white/10 bg-white/5" />
+                            <div className="flex-1 space-y-3">
+                              <div className="h-4 w-3/5 rounded bg-white/10" />
+                              <div className="h-3 w-1/2 rounded bg-white/8" />
+                              <div className="flex flex-wrap items-center gap-2">
+                                {Array.from({ length: 3 }).map((__, chipIdx) => (
+                                  <span key={chipIdx} className="inline-flex h-5 w-16 rounded-full border border-white/10 bg-white/5" />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grid w-full max-w-[240px] grid-cols-2 gap-2 text-[10px] text-white/60 sm:w-auto">
+                            {Array.from({ length: 4 }).map((__, metricIdx) => (
+                              <div key={metricIdx} className="rounded-lg border border-white/10 bg-white/5 p-3">
+                                <div className="h-3 rounded bg-white/10" />
+                                <div className="mt-2 h-4 rounded bg-white/8" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {queueStatus === 'populating' && (
                 <div className="space-y-5">
                   <Card className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#041206] via-[#050a08] to-[#020403] p-6 sm:p-7">
                     <motion.div
@@ -2635,7 +2670,7 @@ export const JobPage = (): JSX.Element => {
                       </motion.div>
                   );
               })()}
-              {queueStatus === 'populating' && !selectedJob && (
+              {(queueStatus === 'loading' || queueStatus === 'populating') && !selectedJob && (
                 <div className="animate-pulse">
                   <Card className="relative overflow-hidden bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-6 mb-6">
                     <div className="flex items-start gap-4 mb-6">
