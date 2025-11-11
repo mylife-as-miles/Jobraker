@@ -58,61 +58,121 @@ export const CoverLetter = () => {
   // Subscription tier state
   const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
 
-  // Load/save from localStorage (keeps it functional without backend migrations)
-  const STORAGE_KEY = "jr.coverLetter.draft.v2";
+  // Load from Supabase
   useEffect(() => {
-    try {
-      // Load library
-      const libRaw = localStorage.getItem(LIB_KEY);
-      if (libRaw) {
-        const arr = JSON.parse(libRaw);
-        if (Array.isArray(arr)) setLibrary(arr);
-      }
-      const defId = localStorage.getItem(LIB_DEFAULT_KEY);
-      if (defId) setCurrentLibId(defId);
+    (async () => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData?.user?.id;
+        if (!userId) return;
 
-      const rawV2 = localStorage.getItem(STORAGE_KEY);
-      const rawV1 = !rawV2 ? localStorage.getItem("jr.coverLetter.draft.v1") : null; // backwards compat
-      const raw = rawV2 || rawV1;
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setRole(parsed?.role ?? "");
-        setCompany(parsed?.company ?? "");
-        setJobDescription(parsed?.jobDescription ?? "");
-        setTone(parsed?.tone ?? "professional");
-        setLengthPref(parsed?.lengthPref ?? "medium");
+        // Load library from Supabase
+        const { data: coverLetters, error: libError } = await (supabase as any)
+          .from('cover_letters')
+          .select('*')
+          .eq('user_id', userId)
+          .order('updated_at', { ascending: false });
 
-        setSenderName(parsed?.senderName ?? "");
-        setSenderEmail(parsed?.senderEmail ?? "");
-        setSenderPhone(parsed?.senderPhone ?? "");
-        setSenderAddress(parsed?.senderAddress ?? "");
+        if (!libError && coverLetters) {
+          const entries: LibraryEntry[] = coverLetters.map((cl: any) => ({
+            id: cl.id,
+            name: cl.name || 'Untitled Cover Letter',
+            updatedAt: cl.updated_at,
+            data: {
+              role: cl.role,
+              company: cl.company,
+              jobDescription: cl.job_description,
+              tone: cl.tone,
+              lengthPref: cl.length_pref,
+              senderName: cl.sender_name,
+              senderEmail: cl.sender_email,
+              senderPhone: cl.sender_phone,
+              senderAddress: cl.sender_address,
+              recipient: cl.recipient,
+              recipientTitle: cl.recipient_title,
+              recipientAddress: cl.recipient_address,
+              date: cl.date,
+              subject: cl.subject,
+              salutation: cl.salutation,
+              paragraphs: Array.isArray(cl.paragraphs) ? cl.paragraphs : [],
+              closing: cl.closing,
+              signatureName: cl.signature_name,
+              content: cl.content,
+              fontSize: cl.font_size,
+              savedAt: cl.updated_at,
+            },
+          }));
+          setLibrary(entries);
 
-        setRecipient(parsed?.recipient ?? "");
-        setRecipientTitle(parsed?.recipientTitle ?? "");
-        setRecipientAddress(parsed?.recipientAddress ?? "");
-
-        setDate(parsed?.date ?? new Date().toISOString().slice(0, 10));
-        setSubject(parsed?.subject ?? "");
-        setSalutation(parsed?.salutation ?? "Dear Hiring Manager,");
-        setParagraphs(Array.isArray(parsed?.paragraphs) ? parsed.paragraphs : []);
-        setClosing(parsed?.closing ?? "Best regards,");
-        setSignatureName(parsed?.signatureName ?? "");
-
-        setContent(parsed?.content ?? "");
-        setFontSize(parsed?.fontSize ?? 16);
-        setSavedAt(parsed?.savedAt ?? null);
-
-        // If migrating from v1 with only content, populate paragraphs
-        if ((!parsed?.paragraphs || !parsed.paragraphs.length) && (parsed?.content || "").trim()) {
-          const parts = String(parsed.content)
-            .split(/\n\s*\n+/)
-            .map((p: string) => p.trim())
-            .filter(Boolean);
-          if (parts.length) setParagraphs(parts);
+          // Find default or most recent
+          const defaultLetter = coverLetters.find((cl: any) => cl.is_default) || coverLetters[0];
+          if (defaultLetter) {
+            setCurrentLibId(defaultLetter.id);
+            setLibName(defaultLetter.name || 'Untitled Cover Letter');
+            
+            // Load default letter data
+            setRole(defaultLetter.role ?? "");
+            setCompany(defaultLetter.company ?? "");
+            setJobDescription(defaultLetter.job_description ?? "");
+            setTone((defaultLetter.tone as any) ?? "professional");
+            setLengthPref((defaultLetter.length_pref as any) ?? "medium");
+            setSenderName(defaultLetter.sender_name ?? "");
+            setSenderEmail(defaultLetter.sender_email ?? "");
+            setSenderPhone(defaultLetter.sender_phone ?? "");
+            setSenderAddress(defaultLetter.sender_address ?? "");
+            setRecipient(defaultLetter.recipient ?? "");
+            setRecipientTitle(defaultLetter.recipient_title ?? "");
+            setRecipientAddress(defaultLetter.recipient_address ?? "");
+            setDate(defaultLetter.date ?? new Date().toISOString().slice(0, 10));
+            setSubject(defaultLetter.subject ?? "");
+            setSalutation(defaultLetter.salutation ?? "Dear Hiring Manager,");
+            setParagraphs(Array.isArray(defaultLetter.paragraphs) ? defaultLetter.paragraphs : []);
+            setClosing(defaultLetter.closing ?? "Best regards,");
+            setSignatureName(defaultLetter.signature_name ?? "");
+            setContent(defaultLetter.content ?? "");
+            setFontSize(defaultLetter.font_size ?? 16);
+            setSavedAt(defaultLetter.updated_at ?? null);
+          }
         }
+
+        // Fallback: try to migrate from localStorage if no Supabase data
+        if (!coverLetters || coverLetters.length === 0) {
+          const STORAGE_KEY = "jr.coverLetter.draft.v2";
+          const rawV2 = localStorage.getItem(STORAGE_KEY);
+          const rawV1 = !rawV2 ? localStorage.getItem("jr.coverLetter.draft.v1") : null;
+          const raw = rawV2 || rawV1;
+          if (raw) {
+            try {
+              const parsed = JSON.parse(raw);
+              setRole(parsed?.role ?? "");
+              setCompany(parsed?.company ?? "");
+              setJobDescription(parsed?.jobDescription ?? "");
+              setTone(parsed?.tone ?? "professional");
+              setLengthPref(parsed?.lengthPref ?? "medium");
+              setSenderName(parsed?.senderName ?? "");
+              setSenderEmail(parsed?.senderEmail ?? "");
+              setSenderPhone(parsed?.senderPhone ?? "");
+              setSenderAddress(parsed?.senderAddress ?? "");
+              setRecipient(parsed?.recipient ?? "");
+              setRecipientTitle(parsed?.recipientTitle ?? "");
+              setRecipientAddress(parsed?.recipientAddress ?? "");
+              setDate(parsed?.date ?? new Date().toISOString().slice(0, 10));
+              setSubject(parsed?.subject ?? "");
+              setSalutation(parsed?.salutation ?? "Dear Hiring Manager,");
+              setParagraphs(Array.isArray(parsed?.paragraphs) ? parsed.paragraphs : []);
+              setClosing(parsed?.closing ?? "Best regards,");
+              setSignatureName(parsed?.signatureName ?? "");
+              setContent(parsed?.content ?? "");
+              setFontSize(parsed?.fontSize ?? 16);
+              setSavedAt(parsed?.savedAt ?? null);
+            } catch {}
+          }
+        }
+      } catch (error) {
+        console.error('Error loading cover letters:', error);
       }
-    } catch {}
-  }, []);
+    })();
+  }, [supabase]);
 
   // Fetch subscription tier
   useEffect(() => {
