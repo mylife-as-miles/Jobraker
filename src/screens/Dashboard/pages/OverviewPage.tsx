@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { MatchScoreAnalytics } from "../../../components/analytics/MatchScoreAnalytics";
 import { Switch } from "../../../components/ui/switch";
 import { Button } from "../../../components/ui/button";
@@ -19,6 +20,7 @@ import { StreakCard } from "../../../components/StreakCard";
 // Using realtime notifications; no local interface needed here
 
 export const OverviewPage = (): JSX.Element => {
+  const navigate = useNavigate();
   const [selectedPeriod, setSelectedPeriod] = useState("1 Month");
   const [stacked, setStacked] = useState(false);
   const [stackedTouched, setStackedTouched] = useState(false);
@@ -663,6 +665,7 @@ export const OverviewPage = (): JSX.Element => {
                   <Button 
                     variant="ghost" 
                     size="sm" 
+                    onClick={() => navigate('/dashboard/notifications')}
                     className="text-white/70 hover:text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-105 transition-all duration-300 text-xs sm:text-sm font-medium border border-transparent hover:border-[#1dff00]/40 px-3"
                   >
                     View all
