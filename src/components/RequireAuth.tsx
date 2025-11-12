@@ -49,6 +49,49 @@ export const RequireAuth: React.FC<Props> = ({ children }) => {
           return;
         }
         
+        // Track session activity and check security settings
+        if (session?.access_token) {
+          try {
+            const { updateSessionActivity, checkSecuritySettings, enforceMaxSessions } = await import('../utils/sessionManagement');
+            await updateSessionActivity(session.access_token);
+            
+            // Check security settings
+            const securityCheck = await checkSecuritySettings(data.user.id);
+            if (!securityCheck.allowed) {
+              await supabase.auth.signOut();
+              if (!mounted) return;
+              navigate(ROUTES.SIGNIN, { replace: true });
+              return;
+            }
+            
+            // Enforce max concurrent sessions
+            const { data: secSettings } = await supabase
+              .from('security_settings')
+              .select('max_concurrent_sessions, session_timeout_minutes')
+              .eq('id', data.user.id)
+              .maybeSingle();
+            
+            if (secSettings?.max_concurrent_sessions) {
+              await enforceMaxSessions(data.user.id, secSettings.max_concurrent_sessions);
+            }
+            
+            // Check session timeout
+            if (secSettings?.session_timeout_minutes && secSettings.session_timeout_minutes > 0) {
+              const sessionAge = Date.now() - (session.expires_at ? session.expires_at * 1000 : Date.now());
+              const timeoutMs = secSettings.session_timeout_minutes * 60 * 1000;
+              if (sessionAge > timeoutMs) {
+                await supabase.auth.signOut();
+                if (!mounted) return;
+                navigate(ROUTES.SIGNIN, { replace: true });
+                return;
+              }
+            }
+          } catch (e) {
+            console.warn('Session management error:', e);
+            // Continue with auth check even if session management fails
+          }
+        }
+        
         // Fetch profile to determine onboarding status
         const { data: profile, error: profErr } = await supabase
           .from('profiles')

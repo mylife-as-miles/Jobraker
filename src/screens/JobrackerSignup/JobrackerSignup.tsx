@@ -99,12 +99,49 @@ export const JobrackerSignup = (): JSX.Element => {
   success("Sign up successful", "We sent a verification link to your email.");
   setShowVerifyModal(true);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data: signInData, error } = await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
         });
         if (error) throw error;
-  navigate(ROUTES.DASHBOARD);
+        
+        // Track session and enforce security settings
+        if (signInData.session && signInData.user) {
+          const { createActiveSession, enforceMaxSessions, logSecurityEvent, checkSecuritySettings } = await import('../../utils/sessionManagement');
+          
+          // Check security settings
+          const securityCheck = await checkSecuritySettings(signInData.user.id);
+          if (!securityCheck.allowed) {
+            await supabase.auth.signOut();
+            toastError('Login blocked', securityCheck.reason || 'Security policy violation');
+            return;
+          }
+          
+          // Create active session
+          const expiresAt = signInData.session.expires_at 
+            ? new Date(signInData.session.expires_at * 1000)
+            : undefined;
+          await createActiveSession(signInData.user.id, signInData.session.access_token, expiresAt);
+          
+          // Enforce max concurrent sessions
+          const { data: settings } = await supabase
+            .from('security_settings')
+            .select('max_concurrent_sessions')
+            .eq('id', signInData.user.id)
+            .maybeSingle();
+          const maxSessions = settings?.max_concurrent_sessions || 5;
+          await enforceMaxSessions(signInData.user.id, maxSessions);
+          
+          // Log login event
+          await logSecurityEvent(
+            signInData.user.id,
+            'login',
+            `User logged in from ${navigator.userAgent}`,
+            'low'
+          );
+        }
+        
+        navigate(ROUTES.DASHBOARD);
       }
     } catch (error: any) {
       console.error("Supabase auth error:", error);

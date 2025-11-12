@@ -57,18 +57,7 @@ BEGIN
     ALTER TABLE public.security_settings ADD COLUMN api_keys_enabled boolean DEFAULT false;
   END IF;
   
-  -- Enterprise features
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'security_settings' AND column_name = 'sso_enabled') THEN
-    ALTER TABLE public.security_settings ADD COLUMN sso_enabled boolean DEFAULT false;
-  END IF;
-  
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'security_settings' AND column_name = 'sso_provider') THEN
-    ALTER TABLE public.security_settings ADD COLUMN sso_provider text;
-  END IF;
-  
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'security_settings' AND column_name = 'security_questions_enabled') THEN
-    ALTER TABLE public.security_settings ADD COLUMN security_questions_enabled boolean DEFAULT false;
-  END IF;
+  -- Enterprise features (removed SSO and security questions as they're not implemented)
   
   -- Password policy
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'security_settings' AND column_name = 'password_min_length') THEN
@@ -122,6 +111,12 @@ CREATE INDEX IF NOT EXISTS idx_security_active_sessions_expires ON public.securi
 
 ALTER TABLE public.security_active_sessions ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Read own active sessions" ON public.security_active_sessions;
+DROP POLICY IF EXISTS "Insert own active sessions" ON public.security_active_sessions;
+DROP POLICY IF EXISTS "Update own active sessions" ON public.security_active_sessions;
+DROP POLICY IF EXISTS "Delete own active sessions" ON public.security_active_sessions;
+
 CREATE POLICY "Read own active sessions"
   ON public.security_active_sessions FOR SELECT
   USING (auth.uid() = user_id);
@@ -160,6 +155,9 @@ CREATE INDEX IF NOT EXISTS idx_security_audit_log_risk_level ON public.security_
 
 ALTER TABLE public.security_audit_log ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policy if it exists
+DROP POLICY IF EXISTS "Read own audit log" ON public.security_audit_log;
+
 CREATE POLICY "Read own audit log"
   ON public.security_audit_log FOR SELECT
   USING (auth.uid() = user_id);
@@ -185,6 +183,12 @@ CREATE INDEX IF NOT EXISTS idx_security_api_keys_hash ON public.security_api_key
 
 ALTER TABLE public.security_api_keys ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Read own API keys" ON public.security_api_keys;
+DROP POLICY IF EXISTS "Insert own API keys" ON public.security_api_keys;
+DROP POLICY IF EXISTS "Update own API keys" ON public.security_api_keys;
+DROP POLICY IF EXISTS "Delete own API keys" ON public.security_api_keys;
+
 CREATE POLICY "Read own API keys"
   ON public.security_api_keys FOR SELECT
   USING (auth.uid() = user_id);
@@ -202,36 +206,7 @@ CREATE POLICY "Delete own API keys"
   ON public.security_api_keys FOR DELETE
   USING (auth.uid() = user_id);
 
--- Create security_questions table
-CREATE TABLE IF NOT EXISTS public.security_questions (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  question text NOT NULL,
-  answer_hash text NOT NULL, -- SHA-256 hash
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_security_questions_user_id ON public.security_questions(user_id);
-
-ALTER TABLE public.security_questions ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Read own security questions"
-  ON public.security_questions FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Insert own security questions"
-  ON public.security_questions FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Update own security questions"
-  ON public.security_questions FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Delete own security questions"
-  ON public.security_questions FOR DELETE
-  USING (auth.uid() = user_id);
+-- Security questions table removed - not implemented in application
 
 -- Update existing rows with defaults
 UPDATE public.security_settings
@@ -248,8 +223,6 @@ SET
   allowed_ips = COALESCE(allowed_ips, ARRAY[]::text[]),
   blocked_ips = COALESCE(blocked_ips, ARRAY[]::text[]),
   api_keys_enabled = COALESCE(api_keys_enabled, false),
-  sso_enabled = COALESCE(sso_enabled, false),
-  security_questions_enabled = COALESCE(security_questions_enabled, false),
   password_min_length = COALESCE(password_min_length, 8),
   password_require_uppercase = COALESCE(password_require_uppercase, true),
   password_require_lowercase = COALESCE(password_require_lowercase, true),
@@ -273,10 +246,25 @@ COMMENT ON COLUMN public.security_settings.ip_whitelist_enabled IS 'Enable IP wh
 COMMENT ON COLUMN public.security_settings.allowed_ips IS 'Array of allowed IP addresses';
 COMMENT ON COLUMN public.security_settings.blocked_ips IS 'Array of blocked IP addresses';
 COMMENT ON COLUMN public.security_settings.api_keys_enabled IS 'Enable API key management';
-COMMENT ON COLUMN public.security_settings.sso_enabled IS 'Enable Single Sign-On';
-COMMENT ON COLUMN public.security_settings.sso_provider IS 'SSO provider name (e.g., Google, Microsoft, Okta)';
 
--- Enable realtime for new tables
-ALTER PUBLICATION supabase_realtime ADD TABLE public.security_active_sessions;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.security_api_keys;
+-- Enable realtime for new tables (ignore if already added)
+DO $$ 
+BEGIN
+  -- Add to realtime publication if not already there
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' 
+    AND tablename = 'security_active_sessions'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.security_active_sessions;
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' 
+    AND tablename = 'security_api_keys'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.security_api_keys;
+  END IF;
+END $$;
 

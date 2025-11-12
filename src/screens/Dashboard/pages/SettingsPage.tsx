@@ -721,8 +721,45 @@ export const SettingsPage = (): JSX.Element => {
       toastError('Weak password', 'Please choose a stronger password that meets the requirements.');
       return;
     }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toastError('Authentication error', 'Please sign in again');
+      return;
+    }
+    
     const { error } = await supabase.auth.updateUser({ password: formData.newPassword });
     if (error) return toastError('Failed to update password', error.message);
+    
+    // Log security event
+    try {
+      const { logSecurityEvent } = await import('../../../utils/sessionManagement');
+      await logSecurityEvent(
+        user.id,
+        'password_change',
+        'User changed their password',
+        'medium'
+      );
+      
+      // Send notification if enabled
+      const { data: secSettings } = await supabase
+        .from('security_settings')
+        .select('password_change_alerts')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      if (secSettings?.password_change_alerts !== false) {
+        const { createNotification } = await import('../../../utils/notifications');
+        createNotification({
+          user_id: user.id,
+          type: 'system',
+          title: 'Password changed',
+          message: 'Your password was successfully changed. If you did not make this change, please secure your account immediately.',
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to log password change event:', e);
+    }
+    
     success('Password updated');
     setFormData((p) => ({ ...p, currentPassword: '', newPassword: '', confirmPassword: '' }));
   };
@@ -1785,14 +1822,14 @@ export const SettingsPage = (): JSX.Element => {
                   )}
                 </div>
 
-                {/* Enterprise Features */}
+                {/* Additional Security */}
                 <div className="space-y-3 pt-4 border-t border-white/[0.06]">
-                  <h4 className="text-sm font-medium text-white/80">Enterprise Features</h4>
+                  <h4 className="text-sm font-medium text-white/80">Additional Security</h4>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
                       <div className="flex-1">
                         <p className="text-sm font-medium text-white/90">API Keys</p>
-                        <p className="text-xs text-white/50 mt-0.5">Enable API key management</p>
+                        <p className="text-xs text-white/50 mt-0.5">Enable API key management for programmatic access</p>
                       </div>
                       <button
                         onClick={() => {
@@ -1807,28 +1844,6 @@ export const SettingsPage = (): JSX.Element => {
                         <span
                           className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                             (sec?.api_keys_enabled ?? false) ? "translate-x-6" : "translate-x-1"
-                          }`}
-                        />
-                      </button>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-white/90">Require 2FA for Login</p>
-                        <p className="text-xs text-white/50 mt-0.5">Force 2FA on all login attempts</p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          if (!sec) createSecurity({ require_2fa_for_login: !(sec?.require_2fa_for_login ?? false) });
-                          else updateSecurity({ require_2fa_for_login: !(sec.require_2fa_for_login ?? false) });
-                        }}
-                        disabled={securityLoading || !sec?.two_factor_enabled}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                          (sec?.require_2fa_for_login ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            (sec?.require_2fa_for_login ?? false) ? "translate-x-6" : "translate-x-1"
                           }`}
                         />
                       </button>

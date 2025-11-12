@@ -74,9 +74,24 @@ export const Dashboard = (): JSX.Element => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         navigate('/signIn');
+      } else if (session.access_token) {
+        // Update session activity periodically
+        const { updateSessionActivity } = await import('../../utils/sessionManagement');
+        updateSessionActivity(session.access_token);
       }
     };
     checkAuth();
+    
+    // Update session activity every 5 minutes
+    const interval = setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        const { updateSessionActivity } = await import('../../utils/sessionManagement');
+        updateSessionActivity(session.access_token);
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+    
+    return () => clearInterval(interval);
   }, [navigate, supabase]);
 
   const pages: DashboardPage[] = [

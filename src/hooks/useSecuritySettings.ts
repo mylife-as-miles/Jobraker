@@ -25,10 +25,6 @@ export interface SecuritySettings {
   blocked_ips?: string[];
   // API Security
   api_keys_enabled?: boolean;
-  // Enterprise features
-  sso_enabled?: boolean;
-  sso_provider?: string | null;
-  security_questions_enabled?: boolean;
   // Password policy
   password_min_length?: number;
   password_require_uppercase?: boolean;
@@ -191,8 +187,6 @@ export function useSecuritySettings() {
         allowed_ips: [],
         blocked_ips: [],
         api_keys_enabled: false,
-        sso_enabled: false,
-        security_questions_enabled: false,
         password_min_length: 8,
         password_require_uppercase: true,
         password_require_lowercase: true,
