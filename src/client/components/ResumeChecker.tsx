@@ -12,14 +12,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import SimpleDropdown from "../../../components/SimpleDropdown";
 
 import { useResumes } from "@/hooks/useResumes";
 import { useProfileSettings } from "@/hooks/useProfileSettings";
-import { useOpenAiStore } from "../stores/openai";
 import { parsePdfFile } from "../../utils/parsePdf";
-import { analyzeResumeWithOpenAI, type ResumeAnalysisResult } from "../../services/ai/analyzeResume";
+import { createClient } from "../../../lib/supabaseClient";
+import type { ResumeAnalysisResult } from "../../services/ai/analyzeResume";
 
 interface HistoryEntry {
   result: ResumeAnalysisResult;
@@ -56,10 +56,7 @@ export function ResumeChecker() {
   // All hooks called unconditionally at top level
   const { resumes, getSignedUrl } = useResumes();
   const { profile, experiences, education, skills } = useProfileSettings();
-  const openAiState = useOpenAiStore();
-  const apiKey = openAiState?.apiKey || null;
-  const model = openAiState?.model || null;
-  const baseURL = openAiState?.baseURL || null;
+  const supabase = useMemo(() => createClient(), []);
 
   // State declarations
   const [selectedResume, setSelectedResume] = useState<string>("");
@@ -194,10 +191,6 @@ export function ResumeChecker() {
 
   // Analyze handler
   const handleAnalyze = useCallback(async () => {
-    if (!apiKey) {
-      setError("Add an OpenAI API key in Settings → Integrations to run the checker.");
-      return;
-    }
     if (!activeResume) {
       setError("Select a resume to analyze.");
       return;
@@ -211,6 +204,12 @@ export function ResumeChecker() {
     setLoading(true);
 
     try {
+      // Get user auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("You must be logged in to analyze resumes.");
+      }
+
       const url = await getSignedUrl(activeResume.file_path);
       if (!url) throw new Error("Unable to retrieve resume file.");
 
@@ -225,13 +224,30 @@ export function ResumeChecker() {
       }
 
       const normalized = text.slice(0, 15000);
-      const result = await analyzeResumeWithOpenAI({
-        resumeText: normalized,
-        profileSummary,
-        apiKey,
-        model: model || undefined,
-        baseURL: baseURL || undefined,
+      
+      // Call Supabase Edge Function
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const functionUrl = `${supabaseUrl}/functions/v1/analyze-resume`;
+      
+      const functionResponse = await fetch(functionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          resumeText: normalized,
+          profileSummary,
+          resumeId: activeResume.id,
+        }),
       });
+
+      if (!functionResponse.ok) {
+        const errorData = await functionResponse.json().catch(() => ({ error: functionResponse.statusText }));
+        throw new Error(errorData.error || "Failed to analyze resume");
+      }
+
+      const result: ResumeAnalysisResult = await functionResponse.json();
 
       setHistory((prev) => ({
         ...prev,
@@ -242,7 +258,7 @@ export function ResumeChecker() {
     } finally {
       setLoading(false);
     }
-  }, [apiKey, activeResume, getSignedUrl, profileSummary, model, baseURL]);
+  }, [activeResume, getSignedUrl, profileSummary, supabase]);
 
   const SCORE_LABELS = [
     { key: "overallScore" as const, label: "Overall Quality" },
@@ -272,38 +288,26 @@ export function ResumeChecker() {
                     No resumes found. Create or import one from the Resume Builder.
                   </p>
                 ) : (
-                  <Select value={selectedResume} onValueChange={setSelectedResume}>
-                    <SelectTrigger className="bg-white/5 border-white/15 text-sm">
-                      <SelectValue placeholder="Choose a resume" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {resumes.map((resume: any) => (
-                        <SelectItem key={resume.id} value={resume.id}>
-                          <div className="flex flex-col">
-                            <span>{resume.name}</span>
-                            <span className="text-[10px] uppercase text-white/40">
-                              Updated {new Date(resume.updated_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SimpleDropdown
+                    value={selectedResume}
+                    onValueChange={setSelectedResume}
+                    options={resumes.map((resume: any) => ({
+                      value: resume.id,
+                      label: resume.name
+                    }))}
+                    placeholder="Choose a resume"
+                    className="w-full"
+                    triggerClassName="w-full justify-between bg-white/5 border-white/15 text-white hover:bg-white/10"
+                  />
                 )}
 
                 <Button
                   onClick={handleAnalyze}
-                  disabled={loading || !selectedResume || !apiKey}
+                  disabled={loading || !selectedResume}
                   className="w-full bg-[#1dff00]/80 text-black hover:bg-[#1dff00]"
                 >
                   {loading ? "Analyzing…" : "Run Deep Analysis"}
                 </Button>
-
-                {!apiKey && (
-                  <p className="text-[11px] text-amber-300/80">
-                    Connect your OpenAI key in Settings → Integrations to enable intelligent resume scoring.
-                  </p>
-                )}
               </div>
             </div>
 
