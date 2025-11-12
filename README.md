@@ -7,7 +7,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 
-> **The world's first fully autonomous job application platform.** JobRaker leverages advanced AI to search, apply, and optimize your job hunt 24/7 while you focus on what matters most.
+> **The world's first fully autonomous job application platform.** JobRaker leverages advanced AI to search, apply, and optimize your job hunt 24/7 while you focus on what matters most
 
 ## 📋 Table of Contents
 
