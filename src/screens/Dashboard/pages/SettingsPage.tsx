@@ -123,7 +123,26 @@ export const SettingsPage = (): JSX.Element => {
   const [deletionRequestType, setDeletionRequestType] = useState<'full_deletion' | 'partial_deletion' | 'anonymization'>('partial_deletion');
   const [deletionRequestReason, setDeletionRequestReason] = useState("");
   const [selectedDataTypes, setSelectedDataTypes] = useState<string[]>([]);
+  // Account deletion modal state
+  const [showAccountDeletionModal, setShowAccountDeletionModal] = useState(false);
+  const [accountDeletionEmail, setAccountDeletionEmail] = useState("");
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [isDeleting, setIsDeleting] = useState(false);
   const passwordCheck = useMemo(() => validatePassword(formData.newPassword, formData.email), [formData.newPassword, formData.email]);
+
+  // Get user email for account deletion confirmation
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (data?.user?.email) {
+          setUserEmail(data.user.email);
+        }
+      } catch (e) {
+        console.error('Failed to get user email:', e);
+      }
+    })();
+  }, [supabase]);
 
   const handleConnectGmail = async () => {
     try {
@@ -2311,26 +2330,9 @@ export const SettingsPage = (): JSX.Element => {
               </div>
               <Button
                 variant="outline"
-                onClick={async () => {
-                  if (!confirm('Delete your account? This cannot be undone.')) return;
-                  const { data } = await supabase.auth.getUser();
-                  const uid = (data as any)?.user?.id;
-                  try {
-                    if (uid) {
-                      await logPrivacyAction('account_deletion_requested');
-                      await (supabase as any).from('profiles').delete().eq('id', uid);
-                      await (supabase as any).from('notification_settings').delete().eq('id', uid);
-                      await (supabase as any).from('security_settings').delete().eq('id', uid);
-                      await (supabase as any).from('security_backup_codes').delete().eq('user_id', uid);
-                      await (supabase as any).from('security_trusted_devices').delete().eq('user_id', uid);
-                      await (supabase as any).from('privacy_settings').delete().eq('id', uid);
-                    }
-                    await supabase.auth.signOut();
-                    success('Account deleted');
-                    window.location.href = '/';
-                  } catch (e: any) {
-                    toastError('Delete failed', e.message);
-                  }
+                onClick={() => {
+                  setShowAccountDeletionModal(true);
+                  setAccountDeletionEmail("");
                 }}
                 className="w-full border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-500"
               >
@@ -3222,6 +3224,198 @@ export const SettingsPage = (): JSX.Element => {
               setSelectedDataTypes([]);
             }}
             className="border-white/[0.1] text-white/70 hover:bg-white/[0.05]"
+          >
+            Cancel
+          </Button>
+        </div>
+      </div>
+    </Modal>
+    {/* Account Deletion Confirmation Modal */}
+    <Modal
+      open={showAccountDeletionModal}
+      onClose={() => {
+        if (!isDeleting) {
+          setShowAccountDeletionModal(false);
+          setAccountDeletionEmail("");
+        }
+      }}
+      title="Delete Account Permanently"
+      size="lg"
+      side="center"
+    >
+      <div className="space-y-4">
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-400 mb-2">⚠️ This action cannot be undone</p>
+              <p className="text-xs text-red-300/80 leading-relaxed">
+                Deleting your account will permanently remove all your data including:
+              </p>
+              <ul className="text-xs text-red-300/80 mt-2 space-y-1 list-disc list-inside">
+                <li>Your profile and personal information</li>
+                <li>All job applications and saved jobs</li>
+                <li>Resumes, cover letters, and documents</li>
+                <li>Notification and privacy settings</li>
+                <li>Security settings and backup codes</li>
+                <li>Credit balance and transaction history</li>
+                <li>All other account-related data</li>
+              </ul>
+              <p className="text-xs text-red-300/80 mt-3 font-medium">
+                This process is irreversible. Please ensure you have exported any data you wish to keep.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+          <p className="text-sm text-yellow-400 font-medium mb-2">🔒 Security Confirmation Required</p>
+          <p className="text-xs text-yellow-300/80">
+            To confirm account deletion, please type your email address below:
+          </p>
+          <p className="text-xs text-yellow-300/60 mt-1 font-mono">
+            {userEmail}
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-white/90 mb-2">
+            Type your email to confirm deletion
+          </label>
+          <Input
+            type="email"
+            value={accountDeletionEmail}
+            onChange={(e) => setAccountDeletionEmail(e.target.value)}
+            placeholder={userEmail || "your@email.com"}
+            disabled={isDeleting}
+            className="bg-white/[0.05] border-white/[0.1] text-white placeholder-white/40"
+            autoComplete="off"
+          />
+          {accountDeletionEmail && accountDeletionEmail.toLowerCase().trim() !== userEmail.toLowerCase().trim() && (
+            <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+              <X className="w-3 h-3" />
+              Email does not match
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-start gap-2 p-3 bg-white/[0.02] border border-white/[0.06] rounded-lg">
+          <input
+            type="checkbox"
+            id="confirm-deletion"
+            className="mt-1"
+            disabled={isDeleting}
+          />
+          <label htmlFor="confirm-deletion" className="text-xs text-white/70 cursor-pointer">
+            I understand that this action is permanent and cannot be undone. I have exported any data I wish to keep.
+          </label>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <Button
+            onClick={async () => {
+              const emailInput = accountDeletionEmail.toLowerCase().trim();
+              const userEmailLower = userEmail.toLowerCase().trim();
+              
+              if (!emailInput) {
+                toastError('Validation Error', 'Please enter your email address');
+                return;
+              }
+
+              if (emailInput !== userEmailLower) {
+                toastError('Validation Error', 'Email address does not match');
+                return;
+              }
+
+              const checkbox = document.getElementById('confirm-deletion') as HTMLInputElement;
+              if (!checkbox?.checked) {
+                toastError('Validation Error', 'Please confirm that you understand this action is permanent');
+                return;
+              }
+
+              setIsDeleting(true);
+              try {
+                const { data } = await supabase.auth.getUser();
+                const uid = (data as any)?.user?.id;
+                
+                if (!uid) {
+                  throw new Error('User not found');
+                }
+
+                // Log the deletion request with security audit
+                await logPrivacyAction('account_deletion_confirmed', {
+                  email_confirmed: true,
+                  deletion_method: 'user_initiated'
+                });
+
+                // Create a deletion request record
+                try {
+                  await createDeletionRequest('full_deletion', undefined, 'User-initiated account deletion');
+                } catch (e) {
+                  console.warn('Failed to create deletion request record:', e);
+                }
+
+                // Delete all user data (RLS policies will ensure user can only delete their own data)
+                const deletePromises = [
+                  (supabase as any).from('profiles').delete().eq('id', uid),
+                  (supabase as any).from('notification_settings').delete().eq('id', uid),
+                  (supabase as any).from('security_settings').delete().eq('id', uid),
+                  (supabase as any).from('security_backup_codes').delete().eq('user_id', uid),
+                  (supabase as any).from('security_trusted_devices').delete().eq('user_id', uid),
+                  (supabase as any).from('security_active_sessions').delete().eq('user_id', uid),
+                  (supabase as any).from('security_api_keys').delete().eq('user_id', uid),
+                  (supabase as any).from('privacy_settings').delete().eq('id', uid),
+                  (supabase as any).from('privacy_audit_log').delete().eq('user_id', uid),
+                  (supabase as any).from('privacy_data_deletion_requests').delete().eq('user_id', uid),
+                  (supabase as any).from('applications').delete().eq('user_id', uid),
+                  (supabase as any).from('jobs').delete().eq('user_id', uid),
+                  (supabase as any).from('bookmarks').delete().eq('user_id', uid),
+                  (supabase as any).from('notifications').delete().eq('user_id', uid),
+                  (supabase as any).from('resumes').delete().eq('user_id', uid),
+                  (supabase as any).from('cover_letters').delete().eq('user_id', uid),
+                  (supabase as any).from('credit_transactions').delete().eq('user_id', uid),
+                  (supabase as any).from('user_credits').delete().eq('user_id', uid),
+                  (supabase as any).from('user_subscriptions').delete().eq('user_id', uid),
+                ];
+
+                await Promise.all(deletePromises);
+
+                // Sign out and redirect
+                await supabase.auth.signOut();
+                success('Account deleted successfully');
+                
+                // Small delay before redirect to show success message
+                setTimeout(() => {
+                  window.location.href = '/';
+                }, 1000);
+              } catch (e: any) {
+                setIsDeleting(false);
+                toastError('Deletion failed', e.message || 'An error occurred while deleting your account. Please try again or contact support.');
+              }
+            }}
+            disabled={isDeleting || accountDeletionEmail.toLowerCase().trim() !== userEmail.toLowerCase().trim()}
+            className="flex-1 bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isDeleting ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Deleting Account...
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete My Account
+              </>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowAccountDeletionModal(false);
+              setAccountDeletionEmail("");
+            }}
+            disabled={isDeleting}
+            className="border-white/[0.1] text-white/70 hover:bg-white/[0.05] disabled:opacity-50"
           >
             Cancel
           </Button>
