@@ -461,9 +461,10 @@ export const SettingsPage = (): JSX.Element => {
 
   // ... existing rendering logic below will conditionally use activeLoading & TabSkeleton
 
-  const handleNotificationChange = async (setting: string, value: boolean) => {
+  const handleNotificationChange = async (setting: string, value: boolean | string) => {
     try {
-      if (setting === 'push_notifications' && value) {
+      // Handle push notification permission request
+      if (setting === 'push_notifications' && value === true) {
         if (typeof window === 'undefined' || !('Notification' in window)) {
           toastError('Push not supported', 'This browser does not support notifications');
           return;
@@ -481,6 +482,26 @@ export const SettingsPage = (): JSX.Element => {
         }
       }
 
+      // Handle desktop notifications permission
+      if (setting === 'desktop_notifications' && value === true) {
+        if (typeof window === 'undefined' || !('Notification' in window)) {
+          toastError('Desktop notifications not supported', 'This browser does not support desktop notifications');
+          return;
+        }
+        if (Notification.permission === 'denied') {
+          toastError('Notifications blocked', 'Allow notifications in your browser settings');
+          return;
+        }
+        if (Notification.permission === 'default') {
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            toastError('Permission required', 'Enable notifications to turn this on');
+            return;
+          }
+        }
+      }
+
+      // Update settings
       if (!notif) {
         await createSettings({ [setting as any]: value });
       } else {
@@ -817,28 +838,28 @@ export const SettingsPage = (): JSX.Element => {
       case "notifications":
         return (
           <div id="settings-tab-notifications" data-tour="settings-tab-notifications" className="space-y-6">
+            {/* General Notification Settings */}
             <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
-              <h3 className="text-base font-medium text-white/95 mb-6">Notification Preferences</h3>
+              <h3 className="text-base font-medium text-white/95 mb-6">General Settings</h3>
               <div className="space-y-3">
                 {[
-                  { key: "email_notifications", label: "Email Notifications", description: "Receive notifications via email" },
-                  { key: "push_notifications", label: "Push Notifications", description: "Receive push notifications in browser" },
-                  { key: "job_alerts", label: "Job Alerts", description: "Get notified about new job opportunities" },
-                  { key: "application_updates", label: "Application Updates", description: "Updates on your job applications" },
-                  { key: "weekly_digest", label: "Weekly Digest", description: "Weekly summary of your activity" },
-                  { key: "marketing_emails", label: "Marketing Emails", description: "Promotional emails and updates" }
+                  { key: "email_notifications", label: "Email Notifications", description: "Master toggle for all email notifications" },
+                  { key: "push_notifications", label: "Push Notifications", description: "Master toggle for browser push notifications" },
+                  { key: "desktop_notifications", label: "Desktop Notifications", description: "Show desktop/browser notifications" },
+                  { key: "sound_enabled", label: "Sound Alerts", description: "Play sound when receiving notifications" }
                 ].map((setting) => (
                   <div
                     key={setting.key}
                     className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] hover:bg-white/[0.03] transition-all"
                   >
-                    <div>
+                    <div className="flex-1">
                       <h4 className="text-sm font-medium text-white/90">{setting.label}</h4>
                       <p className="text-xs text-white/50 mt-0.5">{setting.description}</p>
                     </div>
                     <button
                       onClick={() => handleNotificationChange(setting.key, !(notif as any)?.[setting.key])}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      disabled={notifLoading}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                         (notif as any)?.[setting.key]
                           ? "bg-[#1dff00]"
                           : "bg-white/[0.1]"
@@ -852,6 +873,179 @@ export const SettingsPage = (): JSX.Element => {
                     </button>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Type-Specific In-App Notifications */}
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <h3 className="text-base font-medium text-white/95 mb-4">In-App Notifications</h3>
+              <p className="text-xs text-white/50 mb-6">Control which notification types appear in your dashboard</p>
+              <div className="space-y-3">
+                {[
+                  { key: "notify_interviews", label: "Interview Notifications", description: "Updates about interviews and scheduling" },
+                  { key: "notify_applications", label: "Application Updates", description: "Status changes and updates on your applications" },
+                  { key: "notify_company_updates", label: "Company Updates", description: "News and updates from companies" },
+                  { key: "notify_system", label: "System Messages", description: "Important system notifications and alerts" }
+                ].map((setting) => (
+                  <div
+                    key={setting.key}
+                    className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] hover:bg-white/[0.03] transition-all"
+                  >
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-white/90">{setting.label}</h4>
+                      <p className="text-xs text-white/50 mt-0.5">{setting.description}</p>
+                    </div>
+                    <button
+                      onClick={() => handleNotificationChange(setting.key, !((notif as any)?.[setting.key] ?? true))}
+                      disabled={notifLoading}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                        ((notif as any)?.[setting.key] ?? true)
+                          ? "bg-[#1dff00]"
+                          : "bg-white/[0.1]"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          ((notif as any)?.[setting.key] ?? true) ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Email Notification Settings */}
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <h3 className="text-base font-medium text-white/95 mb-4">Email Notifications</h3>
+              <p className="text-xs text-white/50 mb-6">Choose which updates you receive via email</p>
+              <div className="space-y-3">
+                {[
+                  { key: "email_interviews", label: "Interview Emails", description: "Email notifications for interview-related updates" },
+                  { key: "email_applications", label: "Application Emails", description: "Email notifications for application status changes" },
+                  { key: "email_company_updates", label: "Company Update Emails", description: "Email notifications from companies" },
+                  { key: "email_system", label: "System Emails", description: "Important system messages via email" },
+                  { key: "job_alerts", label: "Job Alerts", description: "Get notified about new job opportunities matching your profile" },
+                  { key: "weekly_digest", label: "Weekly Digest", description: "Weekly summary of your activity and progress" },
+                  { key: "marketing_emails", label: "Marketing Emails", description: "Promotional emails and product updates" }
+                ].map((setting) => (
+                  <div
+                    key={setting.key}
+                    className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] hover:bg-white/[0.03] transition-all"
+                  >
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-white/90">{setting.label}</h4>
+                      <p className="text-xs text-white/50 mt-0.5">{setting.description}</p>
+                    </div>
+                    <button
+                      onClick={() => handleNotificationChange(setting.key, !((notif as any)?.[setting.key] ?? (setting.key === 'marketing_emails' ? false : true)))}
+                      disabled={notifLoading || !(notif as any)?.email_notifications}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                        ((notif as any)?.[setting.key] ?? (setting.key === 'marketing_emails' ? false : true))
+                          ? "bg-[#1dff00]"
+                          : "bg-white/[0.1]"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          ((notif as any)?.[setting.key] ?? (setting.key === 'marketing_emails' ? false : true)) ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Push Notification Settings */}
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <h3 className="text-base font-medium text-white/95 mb-4">Push Notifications</h3>
+              <p className="text-xs text-white/50 mb-6">Control browser push notifications by type</p>
+              <div className="space-y-3">
+                {[
+                  { key: "push_interviews", label: "Interview Push Notifications", description: "Push notifications for interview updates" },
+                  { key: "push_applications", label: "Application Push Notifications", description: "Push notifications for application changes" },
+                  { key: "push_company_updates", label: "Company Update Push", description: "Push notifications from companies" },
+                  { key: "push_system", label: "System Push Notifications", description: "Important system messages as push notifications" }
+                ].map((setting) => (
+                  <div
+                    key={setting.key}
+                    className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] hover:bg-white/[0.03] transition-all"
+                  >
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-white/90">{setting.label}</h4>
+                      <p className="text-xs text-white/50 mt-0.5">{setting.description}</p>
+                    </div>
+                    <button
+                      onClick={() => handleNotificationChange(setting.key, !((notif as any)?.[setting.key] ?? true))}
+                      disabled={notifLoading || !(notif as any)?.push_notifications}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                        ((notif as any)?.[setting.key] ?? true)
+                          ? "bg-[#1dff00]"
+                          : "bg-white/[0.1]"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          ((notif as any)?.[setting.key] ?? true) ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Quiet Hours */}
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <h3 className="text-base font-medium text-white/95 mb-4">Quiet Hours</h3>
+              <p className="text-xs text-white/50 mb-6">Suppress notifications during specified hours</p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-white/90">Enable Quiet Hours</h4>
+                    <p className="text-xs text-white/50 mt-0.5">Pause notifications during your selected time</p>
+                  </div>
+                  <button
+                    onClick={() => handleNotificationChange("quiet_hours_enabled", !((notif as any)?.quiet_hours_enabled ?? false))}
+                    disabled={notifLoading}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      ((notif as any)?.quiet_hours_enabled ?? false)
+                        ? "bg-[#1dff00]"
+                        : "bg-white/[0.1]"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        ((notif as any)?.quiet_hours_enabled ?? false) ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+                {((notif as any)?.quiet_hours_enabled ?? false) && (
+                  <div className="grid grid-cols-2 gap-4 p-4 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                    <div>
+                      <label className="block text-xs text-white/70 mb-2">Start Time</label>
+                      <Input
+                        type="time"
+                        value={(notif as any)?.quiet_hours_start || '22:00'}
+                        onChange={(e) => handleNotificationChange("quiet_hours_start", e.target.value)}
+                        disabled={notifLoading}
+                        className="bg-white/[0.05] border-white/[0.1] text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-white/70 mb-2">End Time</label>
+                      <Input
+                        type="time"
+                        value={(notif as any)?.quiet_hours_end || '08:00'}
+                        onChange={(e) => handleNotificationChange("quiet_hours_end", e.target.value)}
+                        disabled={notifLoading}
+                        className="bg-white/[0.05] border-white/[0.1] text-white"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
