@@ -203,3 +203,8 @@ BEGIN
     END IF;
 END;
 $$ LANGUAGE plpgsql STABLE;
+
+-- Grant execute permissions to the authenticated role
+GRANT EXECUTE ON FUNCTION deduct_job_search_credits(UUID, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION deduct_auto_apply_credits(UUID, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION check_credits_available(UUID, TEXT, INTEGER) TO authenticated;
