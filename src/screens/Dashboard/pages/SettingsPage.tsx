@@ -61,6 +61,19 @@ export const SettingsPage = (): JSX.Element => {
     devices,
     trustDevice,
     revokeDevice,
+    // Active sessions
+    activeSessions,
+    listActiveSessions,
+    revokeSession,
+    revokeAllOtherSessions,
+    // Audit log
+    auditLogs,
+    listAuditLogs,
+    // API keys
+    apiKeys,
+    createApiKey,
+    revokeApiKey,
+    deleteApiKey,
   } = security as any;
   const securityLoading = (security as any).loading || false;
   const [formData, setFormData] = useState({
@@ -82,6 +95,15 @@ export const SettingsPage = (): JSX.Element => {
   const [totpCode, setTotpCode] = useState<string>("");
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [isGmailConnected, setIsGmailConnected] = useState(false);
+  // API Key state
+  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
+  const [newApiKeyName, setNewApiKeyName] = useState("");
+  const [newApiKeyExpiry, setNewApiKeyExpiry] = useState<number | undefined>();
+  const [newApiKeyIpRestrictions, setNewApiKeyIpRestrictions] = useState<string>("");
+  const [createdApiKey, setCreatedApiKey] = useState<string | null>(null);
+  // IP Management state
+  const [newAllowedIp, setNewAllowedIp] = useState("");
+  const [newBlockedIp, setNewBlockedIp] = useState("");
   const passwordCheck = useMemo(() => validatePassword(formData.newPassword, formData.email), [formData.newPassword, formData.email]);
 
   const handleConnectGmail = async () => {
@@ -1137,16 +1159,22 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* Two-Factor Authentication */}
-            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
-              <CardContent className="p-4">
-                <h3 className="text-foreground font-medium mb-4">Two-Factor Authentication</h3>
-                <p className="text-muted-foreground mb-4">Add an extra layer of security to your account</p>
+            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-medium text-white/95">Two-Factor Authentication</h3>
+                  <p className="text-xs text-white/50 mt-1">Add an extra layer of security to your account</p>
+                </div>
                 <div className="flex items-center gap-3">
+                  <span className={`text-sm px-3 py-1 rounded ${sec?.two_factor_enabled ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white/50'}`}>
+                    {sec?.two_factor_enabled ? 'Enabled' : 'Disabled'}
+                  </span>
                   <Button
-                    variant={sec?.two_factor_enabled ? 'secondary' : 'outline'}
+                    variant={sec?.two_factor_enabled ? 'outline' : 'default'}
                     onClick={async () => {
                       try {
                         if (sec?.two_factor_enabled) {
+                          if (!confirm('Disable two-factor authentication? This will reduce your account security.')) return;
                           await disableTotp();
                           return;
                         }
@@ -1162,41 +1190,133 @@ export const SettingsPage = (): JSX.Element => {
                         toastError('2FA setup failed', e.message);
                       }
                     }}
-                    className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50 hover:scale-105 transition-all duration-300"
+                    className={sec?.two_factor_enabled ? "border-white/[0.1] text-white/70 hover:bg-white/[0.05]" : "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"}
                   >
                     {sec?.two_factor_enabled ? 'Disable 2FA' : 'Enable 2FA'}
                   </Button>
-                  <span className="text-sm text-muted-foreground">Status: {sec?.two_factor_enabled ? 'Enabled' : 'Disabled'}</span>
                 </div>
-              </CardContent>
+              </div>
+              {sec?.two_factor_enabled && (
+                <div className="space-y-3 pt-4 border-t border-white/[0.06]">
+                  <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white/90">Require 2FA for Login</p>
+                      <p className="text-xs text-white/50 mt-0.5">Force 2FA verification on all login attempts</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (!sec) createSecurity({ require_2fa_for_login: !(sec?.require_2fa_for_login ?? false) });
+                        else updateSecurity({ require_2fa_for_login: !(sec.require_2fa_for_login ?? false) });
+                      }}
+                      disabled={securityLoading}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                        (sec?.require_2fa_for_login ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          (sec?.require_2fa_for_login ?? false) ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white/90">Require Backup Codes</p>
+                      <p className="text-xs text-white/50 mt-0.5">Require backup codes to be generated before enabling 2FA</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (!sec) createSecurity({ backup_codes_required: !(sec?.backup_codes_required ?? true) });
+                        else updateSecurity({ backup_codes_required: !(sec.backup_codes_required ?? true) });
+                      }}
+                      disabled={securityLoading}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                        (sec?.backup_codes_required ?? true) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          (sec?.backup_codes_required ?? true) ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              )}
             </Card>
 
             {/* Sign-in Alerts */}
-            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
-              <CardContent className="p-4">
-                <h3 className="text-foreground font-medium mb-4">Sign-in Alerts</h3>
-                <div className="space-y-3">
-                  <motion.div
-                    className="flex items-center justify-between p-3 bg-card/5 rounded border border-border/10 hover:border-primary/30 transition-all duration-300"
-                    whileHover={{ scale: 1.01 }}
+            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <h3 className="text-base font-medium text-white/95 mb-4">Security Alerts</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white/90">Login Alerts</p>
+                    <p className="text-xs text-white/50 mt-0.5">Notify me when a new device signs in</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!sec) createSecurity({ login_alerts_enabled: !(sec?.login_alerts_enabled ?? true) });
+                      else updateSecurity({ login_alerts_enabled: !(sec.login_alerts_enabled ?? true) });
+                    }}
+                    disabled={securityLoading}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                      (sec?.login_alerts_enabled ?? true) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                    }`}
                   >
-                    <div>
-                      <p className="text-foreground font-medium">Email alerts</p>
-                      <p className="text-sm text-muted-foreground">Notify me when a new device signs in</p>
-                    </div>
-                    <Button
-                      variant="ghost" size="sm"
-                      onClick={async () => {
-                        if (!sec) await createSecurity({ sign_in_alerts: true });
-                        else await updateSecurity({ sign_in_alerts: !sec.sign_in_alerts });
-                      }}
-                      className={`transition-all duration-300 hover:scale-105 ${(sec?.sign_in_alerts ?? true) ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-                    >
-                      {(sec?.sign_in_alerts ?? true) ? 'Enabled' : 'Disabled'}
-                    </Button>
-                  </motion.div>
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        (sec?.login_alerts_enabled ?? true) ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
                 </div>
-              </CardContent>
+                <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white/90">Suspicious Login Alerts</p>
+                    <p className="text-xs text-white/50 mt-0.5">Alert on unusual login patterns or locations</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!sec) createSecurity({ suspicious_login_alerts: !(sec?.suspicious_login_alerts ?? true) });
+                      else updateSecurity({ suspicious_login_alerts: !(sec.suspicious_login_alerts ?? true) });
+                    }}
+                    disabled={securityLoading}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                      (sec?.suspicious_login_alerts ?? true) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        (sec?.suspicious_login_alerts ?? true) ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white/90">Password Change Alerts</p>
+                    <p className="text-xs text-white/50 mt-0.5">Notify when your password is changed</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!sec) createSecurity({ password_change_alerts: !(sec?.password_change_alerts ?? true) });
+                      else updateSecurity({ password_change_alerts: !(sec.password_change_alerts ?? true) });
+                    }}
+                    disabled={securityLoading}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                      (sec?.password_change_alerts ?? true) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        (sec?.password_change_alerts ?? true) ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
             </Card>
 
             {/* Backup Codes */}
@@ -1304,23 +1424,418 @@ export const SettingsPage = (): JSX.Element => {
               </CardContent>
             </Card>
 
-            {/* Active Sessions (placeholder) */}
-            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
-              <CardContent className="p-4">
-                <h3 className="text-foreground font-medium mb-4">Active Sessions</h3>
-                <div className="space-y-3">
-                  <motion.div
-                    className="flex items-center justify-between p-3 bg-card/5 rounded border border-border/10 hover:border-primary/30 transition-all duration-300"
-                    whileHover={{ scale: 1.01 }}
-                  >
-                    <div>
-                      <p className="text-foreground font-medium">Current Session</p>
-                      <p className="text-sm text-muted-foreground">Your current browser</p>
-                    </div>
-                    <span className="text-xs text-success-foreground bg-success/80 px-2 py-1 rounded">Active</span>
-                  </motion.div>
+            {/* Active Sessions */}
+            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-medium text-white/95">Active Sessions</h3>
+                  <p className="text-xs text-white/50 mt-1">Manage your active login sessions</p>
                 </div>
-              </CardContent>
+                {activeSessions && activeSessions.length > 1 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      if (!confirm('Revoke all other sessions? You will remain logged in on this device.')) return;
+                      try {
+                        await revokeAllOtherSessions();
+                      } catch (e: any) {
+                        toastError('Failed to revoke sessions', e.message);
+                      }
+                    }}
+                    className="border-white/[0.1] text-white/70 hover:bg-white/[0.05] hover:border-white/[0.2]"
+                  >
+                    Revoke All Others
+                  </Button>
+                )}
+              </div>
+              <div className="space-y-2">
+                {activeSessions && activeSessions.length > 0 ? (
+                  activeSessions.map((session: any) => (
+                    <div
+                      key={session.id}
+                      className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm font-medium text-white/90">
+                            {session.device_name || session.device_type || 'Unknown Device'}
+                          </p>
+                          {session.is_current && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-[#1dff00]/20 text-[#1dff00]">Current</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-white/50 space-y-0.5">
+                          {session.browser && <p>Browser: {session.browser}</p>}
+                          {session.os && <p>OS: {session.os}</p>}
+                          {session.ip_address && <p>IP: {session.ip_address}</p>}
+                          {session.location && <p>Location: {session.location}</p>}
+                          <p>Last active: {new Date(session.last_activity_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+                      {!session.is_current && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={async () => {
+                            if (!confirm('Revoke this session?')) return;
+                            try {
+                              await revokeSession(session.id);
+                            } catch (e: any) {
+                              toastError('Failed to revoke session', e.message);
+                            }
+                          }}
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                        >
+                          Revoke
+                        </Button>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-white/50 py-4 text-center">No active sessions found</p>
+                )}
+              </div>
+            </Card>
+
+            {/* Security Audit Log */}
+            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-medium text-white/95">Security Audit Log</h3>
+                  <p className="text-xs text-white/50 mt-1">View your account security events</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => listAuditLogs(100)}
+                  className="border-white/[0.1] text-white/70 hover:bg-white/[0.05]"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </Button>
+              </div>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {auditLogs && auditLogs.length > 0 ? (
+                  auditLogs.map((log: any) => (
+                    <div
+                      key={log.id}
+                      className="flex items-start justify-between p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm font-medium text-white/90">{log.event_type}</p>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded ${
+                              log.risk_level === 'critical'
+                                ? 'bg-red-500/20 text-red-400'
+                                : log.risk_level === 'high'
+                                ? 'bg-orange-500/20 text-orange-400'
+                                : log.risk_level === 'medium'
+                                ? 'bg-yellow-500/20 text-yellow-400'
+                                : 'bg-green-500/20 text-green-400'
+                            }`}
+                          >
+                            {log.risk_level}
+                          </span>
+                        </div>
+                        {log.event_description && (
+                          <p className="text-xs text-white/50 mb-1">{log.event_description}</p>
+                        )}
+                        <div className="text-xs text-white/40 space-y-0.5">
+                          {log.ip_address && <p>IP: {log.ip_address}</p>}
+                          {log.location && <p>Location: {log.location}</p>}
+                          <p>{new Date(log.created_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-white/50 py-4 text-center">No audit logs yet</p>
+                )}
+              </div>
+            </Card>
+
+            {/* API Keys */}
+            {sec?.api_keys_enabled && (
+              <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-base font-medium text-white/95">API Keys</h3>
+                    <p className="text-xs text-white/50 mt-1">Manage your API keys for programmatic access</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setNewApiKeyName("");
+                      setNewApiKeyExpiry(undefined);
+                      setNewApiKeyIpRestrictions("");
+                      setCreatedApiKey(null);
+                      setApiKeyModalOpen(true);
+                    }}
+                    className="border-white/[0.1] text-white/70 hover:bg-white/[0.05]"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Key
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {apiKeys && apiKeys.length > 0 ? (
+                    apiKeys.map((key: any) => (
+                      <div
+                        key={key.id}
+                        className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06]"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-sm font-medium text-white/90">{key.key_name}</p>
+                            <span className={`text-xs px-2 py-0.5 rounded ${key.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                              {key.is_active ? 'Active' : 'Revoked'}
+                            </span>
+                          </div>
+                          <div className="text-xs text-white/50 space-y-0.5">
+                            <p>Prefix: {key.key_prefix}...</p>
+                            {key.last_used_at && <p>Last used: {new Date(key.last_used_at).toLocaleString()}</p>}
+                            {key.expires_at && <p>Expires: {new Date(key.expires_at).toLocaleString()}</p>}
+                            {key.ip_restrictions && key.ip_restrictions.length > 0 && (
+                              <p>IP Restrictions: {key.ip_restrictions.join(', ')}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {key.is_active ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={async () => {
+                                if (!confirm('Revoke this API key?')) return;
+                                try {
+                                  await revokeApiKey(key.id);
+                                } catch (e: any) {
+                                  toastError('Failed to revoke key', e.message);
+                                }
+                              }}
+                              className="text-orange-400 hover:text-orange-300"
+                            >
+                              Revoke
+                            </Button>
+                          ) : null}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={async () => {
+                              if (!confirm('Permanently delete this API key? This action cannot be undone.')) return;
+                              try {
+                                await deleteApiKey(key.id);
+                              } catch (e: any) {
+                                toastError('Failed to delete key', e.message);
+                              }
+                            }}
+                            className="text-red-400 hover:text-red-300"
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-white/50 py-4 text-center">No API keys created yet</p>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {/* Advanced Security Settings */}
+            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <h3 className="text-base font-medium text-white/95 mb-4">Advanced Security</h3>
+              <div className="space-y-4">
+                {/* Session Management */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-white/80">Session Management</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-white/90">Auto-logout Inactive Sessions</p>
+                        <p className="text-xs text-white/50 mt-0.5">Automatically logout inactive sessions</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (!sec) createSecurity({ auto_logout_inactive: !(sec?.auto_logout_inactive ?? true) });
+                          else updateSecurity({ auto_logout_inactive: !(sec.auto_logout_inactive ?? true) });
+                        }}
+                        disabled={securityLoading}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                          (sec?.auto_logout_inactive ?? true) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            (sec?.auto_logout_inactive ?? true) ? "translate-x-6" : "translate-x-1"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-white/70 mb-2">Session Timeout (minutes)</label>
+                        <Input
+                          type="number"
+                          value={sec?.session_timeout_minutes || 60}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 60;
+                            if (!sec) createSecurity({ session_timeout_minutes: val });
+                            else updateSecurity({ session_timeout_minutes: val });
+                          }}
+                          disabled={securityLoading}
+                          className="bg-white/[0.05] border-white/[0.1] text-white"
+                          min="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-white/70 mb-2">Max Concurrent Sessions</label>
+                        <Input
+                          type="number"
+                          value={sec?.max_concurrent_sessions || 5}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 5;
+                            if (!sec) createSecurity({ max_concurrent_sessions: val });
+                            else updateSecurity({ max_concurrent_sessions: val });
+                          }}
+                          disabled={securityLoading}
+                          className="bg-white/[0.05] border-white/[0.1] text-white"
+                          min="1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* IP Security */}
+                <div className="space-y-3 pt-4 border-t border-white/[0.06]">
+                  <h4 className="text-sm font-medium text-white/80">IP Security</h4>
+                  <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white/90">IP Whitelist</p>
+                      <p className="text-xs text-white/50 mt-0.5">Restrict access to specific IP addresses</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (!sec) createSecurity({ ip_whitelist_enabled: !(sec?.ip_whitelist_enabled ?? false) });
+                        else updateSecurity({ ip_whitelist_enabled: !(sec.ip_whitelist_enabled ?? false) });
+                      }}
+                      disabled={securityLoading}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                        (sec?.ip_whitelist_enabled ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          (sec?.ip_whitelist_enabled ?? false) ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  {(sec?.ip_whitelist_enabled ?? false) && (
+                    <div className="space-y-2 p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                      <div className="flex gap-2">
+                        <Input
+                          type="text"
+                          placeholder="Enter IP address"
+                          value={newAllowedIp}
+                          onChange={(e) => setNewAllowedIp(e.target.value)}
+                          className="bg-white/[0.05] border-white/[0.1] text-white flex-1"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (!newAllowedIp.trim()) return;
+                            const current = sec?.allowed_ips || [];
+                            const updated = [...current, newAllowedIp.trim()];
+                            if (!sec) createSecurity({ allowed_ips: updated });
+                            else updateSecurity({ allowed_ips: updated });
+                            setNewAllowedIp("");
+                          }}
+                          className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      <div className="space-y-1">
+                        {(sec?.allowed_ips || []).map((ip: string, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between text-sm text-white/70">
+                            <span>{ip}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const current = sec?.allowed_ips || [];
+                                const updated = current.filter((_, i) => i !== idx);
+                                if (!sec) createSecurity({ allowed_ips: updated });
+                                else updateSecurity({ allowed_ips: updated });
+                              }}
+                              className="text-red-400 hover:text-red-300 h-6 px-2"
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Enterprise Features */}
+                <div className="space-y-3 pt-4 border-t border-white/[0.06]">
+                  <h4 className="text-sm font-medium text-white/80">Enterprise Features</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-white/90">API Keys</p>
+                        <p className="text-xs text-white/50 mt-0.5">Enable API key management</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (!sec) createSecurity({ api_keys_enabled: !(sec?.api_keys_enabled ?? false) });
+                          else updateSecurity({ api_keys_enabled: !(sec.api_keys_enabled ?? false) });
+                        }}
+                        disabled={securityLoading}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                          (sec?.api_keys_enabled ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            (sec?.api_keys_enabled ?? false) ? "translate-x-6" : "translate-x-1"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-white/90">Require 2FA for Login</p>
+                        <p className="text-xs text-white/50 mt-0.5">Force 2FA on all login attempts</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (!sec) createSecurity({ require_2fa_for_login: !(sec?.require_2fa_for_login ?? false) });
+                          else updateSecurity({ require_2fa_for_login: !(sec.require_2fa_for_login ?? false) });
+                        }}
+                        disabled={securityLoading || !sec?.two_factor_enabled}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                          (sec?.require_2fa_for_login ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            (sec?.require_2fa_for_login ?? false) ? "translate-x-6" : "translate-x-1"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </Card>
           </div>
         );
@@ -2216,6 +2731,132 @@ export const SettingsPage = (): JSX.Element => {
     </div>
     {/* 2FA Setup Modal */}
     <TwoFAModal />
+    {/* API Key Creation Modal */}
+    <Modal
+      open={apiKeyModalOpen}
+      onClose={() => {
+        setApiKeyModalOpen(false);
+        setCreatedApiKey(null);
+        setNewApiKeyName("");
+        setNewApiKeyExpiry(undefined);
+        setNewApiKeyIpRestrictions("");
+      }}
+      title={createdApiKey ? "API Key Created" : "Create New API Key"}
+      size="md"
+      side="center"
+    >
+      {createdApiKey ? (
+        <div className="space-y-4">
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+            <p className="text-sm text-yellow-400 font-medium mb-2">⚠️ Important: Save this key now</p>
+            <p className="text-xs text-yellow-300/80">You won't be able to see this key again. Copy it to a secure location.</p>
+          </div>
+          <div className="bg-white/[0.05] border border-white/[0.1] rounded-lg p-4">
+            <p className="text-xs text-white/50 mb-2">Your API Key:</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 bg-black/50 border border-white/[0.1] rounded px-3 py-2 text-sm text-white/90 font-mono break-all">
+                {createdApiKey}
+              </code>
+              <Button
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(createdApiKey);
+                  success('API key copied to clipboard');
+                }}
+                className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+              >
+                Copy
+              </Button>
+            </div>
+          </div>
+          <Button
+            onClick={() => {
+              setApiKeyModalOpen(false);
+              setCreatedApiKey(null);
+              setNewApiKeyName("");
+              setNewApiKeyExpiry(undefined);
+              setNewApiKeyIpRestrictions("");
+            }}
+            className="w-full bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+          >
+            Done
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-white/90 mb-2">Key Name</label>
+            <Input
+              type="text"
+              placeholder="e.g., Production API, Development"
+              value={newApiKeyName}
+              onChange={(e) => setNewApiKeyName(e.target.value)}
+              className="bg-white/[0.05] border-white/[0.1] text-white"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-white/90 mb-2">Expires In (days, optional)</label>
+            <Input
+              type="number"
+              placeholder="Leave empty for no expiration"
+              value={newApiKeyExpiry || ""}
+              onChange={(e) => setNewApiKeyExpiry(e.target.value ? parseInt(e.target.value) : undefined)}
+              className="bg-white/[0.05] border-white/[0.1] text-white"
+              min="1"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-white/90 mb-2">IP Restrictions (comma-separated, optional)</label>
+            <Input
+              type="text"
+              placeholder="e.g., 192.168.1.1, 10.0.0.1"
+              value={newApiKeyIpRestrictions}
+              onChange={(e) => setNewApiKeyIpRestrictions(e.target.value)}
+              className="bg-white/[0.05] border-white/[0.1] text-white"
+            />
+            <p className="text-xs text-white/50 mt-1">Leave empty to allow from any IP</p>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              onClick={async () => {
+                if (!newApiKeyName.trim()) {
+                  toastError('Validation Error', 'Key name is required');
+                  return;
+                }
+                try {
+                  const ipRestrictions = newApiKeyIpRestrictions
+                    .split(',')
+                    .map(ip => ip.trim())
+                    .filter(ip => ip.length > 0);
+                  const result = await createApiKey(newApiKeyName, newApiKeyExpiry, ipRestrictions.length > 0 ? ipRestrictions : undefined);
+                  if (result && result.key) {
+                    setCreatedApiKey(result.key);
+                  }
+                } catch (e: any) {
+                  toastError('Failed to create API key', e.message);
+                }
+              }}
+              disabled={!newApiKeyName.trim()}
+              className="flex-1 bg-[#1dff00] text-black hover:bg-[#1dff00]/90 disabled:opacity-50"
+            >
+              Create Key
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setApiKeyModalOpen(false);
+                setNewApiKeyName("");
+                setNewApiKeyExpiry(undefined);
+                setNewApiKeyIpRestrictions("");
+              }}
+              className="border-white/[0.1] text-white/70 hover:bg-white/[0.05]"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
     </>
   );
 
