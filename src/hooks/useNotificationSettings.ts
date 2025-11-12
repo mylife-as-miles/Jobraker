@@ -208,7 +208,7 @@ export function useNotificationSettings() {
         setSettings(data);
         success("Notification settings updated");
         // Clear notification settings cache
-        const { clearNotificationSettingsCache } = await import('../../utils/notifications');
+        const { clearNotificationSettingsCache } = await import('../utils/notifications');
         clearNotificationSettingsCache(userId);
       }
     } catch (e: any) {
@@ -235,7 +235,7 @@ export function useNotificationSettings() {
       setSettings(data);
       success("Notification settings created");
       // Clear notification settings cache
-      const { clearNotificationSettingsCache } = await import('../../utils/notifications');
+      const { clearNotificationSettingsCache } = await import('../utils/notifications');
       clearNotificationSettingsCache(userId);
     } catch (e: any) {
       setError(e.message || "Failed to create notification settings");
