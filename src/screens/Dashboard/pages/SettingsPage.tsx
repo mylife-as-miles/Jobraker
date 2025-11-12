@@ -104,6 +104,9 @@ export const SettingsPage = (): JSX.Element => {
   // IP Management state
   const [newAllowedIp, setNewAllowedIp] = useState("");
   const [newBlockedIp, setNewBlockedIp] = useState("");
+  // Backup codes state
+  const [generatedBackupCodes, setGeneratedBackupCodes] = useState<string[] | null>(null);
+  const [showBackupCodesModal, setShowBackupCodesModal] = useState(false);
   const passwordCheck = useMemo(() => validatePassword(formData.newPassword, formData.email), [formData.newPassword, formData.email]);
 
   const handleConnectGmail = async () => {
@@ -1357,53 +1360,76 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* Backup Codes */}
-            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-foreground font-medium">Backup Codes</h3>
-                  <Button
-                    variant="outline"
-                    className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50"
-                    onClick={async () => {
-                      try {
-                        const codes = await generateBackupCodes(10);
+            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-medium text-white/95">Backup Codes</h3>
+                  <p className="text-xs text-white/50 mt-1">One-time use codes for account recovery</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-white/[0.1] text-white/70 hover:bg-white/[0.05] hover:border-white/[0.2]"
+                  onClick={async () => {
+                    try {
+                      const codes = await generateBackupCodes(10);
+                      if (codes && codes.length > 0) {
+                        setGeneratedBackupCodes(codes);
+                        setShowBackupCodesModal(true);
+                        // Also download as backup
                         const blob = new Blob([codes.join('\n')], { type: 'text/plain' });
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement('a');
-                        a.href = url; a.download = 'jobraker-backup-codes.txt'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-                        success('Backup codes downloaded');
-                      } catch (e: any) {
-                        toastError('Failed to generate codes', e.message);
+                        a.href = url;
+                        a.download = `jobraker-backup-codes-${new Date().toISOString().split('T')[0]}.txt`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
                       }
-                    }}
-                  >Generate</Button>
-                </div>
-                <p className="text-muted-foreground text-sm mb-3">Store these one-time use codes in a safe place. Each can be used once.</p>
-                <div className="mt-3 border border-border/10 rounded-md overflow-hidden">
-                  <div className="grid grid-cols-3 text-xs text-muted-foreground bg-card/5 py-2 px-3">
-                    <div>ID</div>
-                    <div>Status</div>
-                    <div>Note</div>
-                  </div>
-                  <div className="divide-y divide-border/10">
-                    {backupCodes && backupCodes.length > 0 ? (
-                      backupCodes.map((bc: any) => (
-                        <div key={bc.id} className="grid grid-cols-3 items-center text-sm py-2 px-3">
-                          <div className="text-foreground">{bc.id}</div>
+                    } catch (e: any) {
+                      toastError('Failed to generate codes', e.message);
+                    }
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Generate New Codes
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {backupCodes && backupCodes.length > 0 ? (
+                  <div className="border border-white/[0.06] rounded-lg overflow-hidden">
+                    <div className="grid grid-cols-3 text-xs text-white/50 bg-white/[0.02] py-2 px-4 border-b border-white/[0.06]">
+                      <div>ID</div>
+                      <div>Status</div>
+                      <div>Created</div>
+                    </div>
+                    <div className="divide-y divide-white/[0.06]">
+                      {backupCodes.map((bc: any) => (
+                        <div key={bc.id} className="grid grid-cols-3 items-center text-sm py-2 px-4 hover:bg-white/[0.02] transition-colors">
+                          <div className="text-white/90 font-mono text-xs">#{bc.id}</div>
                           <div>
-                            <span className={`text-xs px-2 py-1 rounded ${bc.used ? 'text-destructive-foreground bg-destructive/80' : 'text-success-foreground bg-success/80' }`}>
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              bc.used 
+                                ? 'bg-red-500/20 text-red-400' 
+                                : 'bg-green-500/20 text-green-400'
+                            }`}>
                               {bc.used ? 'Used' : 'Unused'}
                             </span>
                           </div>
-                          <div className="text-muted-foreground">Plaintext shown only on generation</div>
+                          <div className="text-xs text-white/50">
+                            {bc.created_at ? new Date(bc.created_at).toLocaleDateString() : 'N/A'}
+                          </div>
                         </div>
-                      ))
-                    ) : (
-                      <div className="text-sm text-muted-foreground py-3 px-3">No backup codes yet. Generate to create a new set.</div>
-                    )}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
+                ) : (
+                  <div className="text-sm text-white/50 py-8 text-center border border-white/[0.06] rounded-lg bg-white/[0.02]">
+                    No backup codes generated yet. Click "Generate New Codes" to create your first set.
+                  </div>
+                )}
+              </div>
             </Card>
 
             {/* Trusted Devices */}
@@ -2746,6 +2772,78 @@ export const SettingsPage = (): JSX.Element => {
     </div>
     {/* 2FA Setup Modal */}
     <TwoFAModal />
+    {/* Backup Codes Display Modal */}
+    <Modal
+      open={showBackupCodesModal}
+      onClose={() => {
+        setShowBackupCodesModal(false);
+        setGeneratedBackupCodes(null);
+      }}
+      title="Your Backup Codes"
+      size="lg"
+      side="center"
+    >
+      {generatedBackupCodes && generatedBackupCodes.length > 0 ? (
+        <div className="space-y-4">
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+            <p className="text-sm text-yellow-400 font-medium mb-2">⚠️ Important: Save these codes now</p>
+            <p className="text-xs text-yellow-300/80">
+              These codes are shown only once. Store them in a safe place. Each code can only be used once.
+              A file has been automatically downloaded to your device.
+            </p>
+          </div>
+          <div className="bg-white/[0.05] border border-white/[0.1] rounded-lg p-4">
+            <div className="grid grid-cols-2 gap-3">
+              {generatedBackupCodes.map((code, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-2 bg-black/50 border border-white/[0.1] rounded font-mono text-sm text-white/90"
+                >
+                  <span>{code}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(code);
+                      success(`Code ${index + 1} copied`);
+                    }}
+                    className="h-6 w-6 p-0 text-white/50 hover:text-white hover:bg-white/[0.1]"
+                  >
+                    <Download className="w-3 h-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => {
+                const allCodes = generatedBackupCodes.join('\n');
+                navigator.clipboard.writeText(allCodes);
+                success('All codes copied to clipboard');
+              }}
+              className="flex-1 bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+            >
+              Copy All Codes
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowBackupCodesModal(false);
+                setGeneratedBackupCodes(null);
+              }}
+              className="border-white/[0.1] text-white/70 hover:bg-white/[0.05]"
+            >
+              I've Saved Them
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="text-center py-8">
+          <p className="text-white/70">No codes to display</p>
+        </div>
+      )}
+    </Modal>
     {/* API Key Creation Modal */}
     <Modal
       open={apiKeyModalOpen}
