@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, CalendarDays, Briefcase, Clock, Building2, BellPlus } from 'lucide-react';
 import MatchScoreBadge from '../../jobs/MatchScoreBadge';
 import { ApplicationRecord } from '../../../hooks/useApplications';
+import Modal from '../modal';
+import { Button } from '../button';
 
 export interface CalendarDayDetailProps {
   date: Date | null;
@@ -26,6 +28,9 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
   const [qaCompany, setQaCompany] = useState('');
   const [qaStatus, setQaStatus] = useState<ApplicationRecord['status']>('Applied');
   const [qaSaving, setQaSaving] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [followUpText, setFollowUpText] = useState('');
+  const [followUpAppId, setFollowUpAppId] = useState<string | null>(null);
 
   const toggleStatus = (s: string) => {
     setActiveStatuses(prev => ({ ...prev, [s]: !prev[s] }));
@@ -197,6 +202,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
   };
 
   return (
+    <>
     <AnimatePresence>
       {active && (
         <motion.div
@@ -375,8 +381,9 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
                             title="Add follow-up reminder"
                             onClick={() => {
                               if (!onUpdateApplication) return;
-                              const followup = prompt('Enter follow-up note (saved to next_step)');
-                              if (followup) onUpdateApplication(a.id, { next_step: `Follow-up: ${followup}` });
+                              setFollowUpAppId(a.id);
+                              setFollowUpText(a.next_step?.replace(/^Follow-up: /, '') || '');
+                              setFollowUpOpen(true);
                             }}
                           ><BellPlus className="w-3 h-3" /></button>
                         </div>
@@ -414,6 +421,48 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
         </motion.div>
       )}
     </AnimatePresence>
+
+    {/* Follow-up Note Modal */}
+    <Modal open={followUpOpen} onClose={() => setFollowUpOpen(false)} title="Enter follow-up note (saved to next_step)" size="md" side="center">
+      <div className="space-y-4 p-1">
+        <textarea
+          value={followUpText}
+          onChange={(e) => setFollowUpText(e.target.value)}
+          placeholder="e.g., Email recruiter on Friday about take-home; prep system design"
+          className="w-full min-h-[140px] rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-white/40 p-3 outline-none focus:border-[#1dff00]/40 focus:ring-2 focus:ring-[#1dff00]/20"
+        />
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            className="border-white/20 hover:border-white/30 hover:bg-white/5 text-white/70 hover:text-white"
+            onClick={() => setFollowUpOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black font-semibold hover:shadow-[0_0_20px_rgba(29,255,0,0.3)]"
+            onClick={async () => {
+              if (!onUpdateApplication || !followUpAppId) {
+                setFollowUpOpen(false);
+                return;
+              }
+              try {
+                await onUpdateApplication(followUpAppId, { next_step: followUpText.trim() ? `Follow-up: ${followUpText.trim()}` : null });
+                setFollowUpOpen(false);
+                setFollowUpText('');
+                setFollowUpAppId(null);
+              } catch (error) {
+                console.error('Failed to save follow-up note:', error);
+                setFollowUpOpen(false);
+              }
+            }}
+          >
+            Save Note
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  </>
   );
 };
 
