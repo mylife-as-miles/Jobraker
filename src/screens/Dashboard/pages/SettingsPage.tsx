@@ -5,7 +5,7 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles, Mail, Zap, Crown, Check, ArrowRight } from "lucide-react";
+import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles, Mail, Zap, Crown, Check, ArrowRight, FileText, Clock, Database, Cookie, MapPin, Activity, Share2, AlertTriangle, History, X } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
 import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
@@ -42,7 +42,18 @@ export const SettingsPage = (): JSX.Element => {
   const [jobSources, setJobSources] = useState(defaultJobSources);
   const { profile, updateProfile, createProfile, refresh: refreshProfile, loading: profileLoading } = useProfileSettings();
   const { settings: notif, updateSettings, createSettings, refresh: refreshNotif, loading: notifLoading } = useNotificationSettings() as any;
-  const { settings: privacy, createSettings: createPrivacy, updateSettings: updatePrivacy, refresh: refreshPrivacy, loading: privacyLoading } = usePrivacySettings() as any;
+  const { 
+    settings: privacy, 
+    createSettings: createPrivacy, 
+    updateSettings: updatePrivacy, 
+    refresh: refreshPrivacy, 
+    loading: privacyLoading,
+    auditLogs: privacyAuditLogs,
+    deletionRequests: privacyDeletionRequests,
+    createDeletionRequest,
+    updateGDPRConsent,
+    logPrivacyAction
+  } = usePrivacySettings();
   const security = useSecuritySettings();
   const appearance = useAppearanceSettings();
   const appearanceSettings = (appearance as any).settings;
@@ -107,6 +118,11 @@ export const SettingsPage = (): JSX.Element => {
   // Backup codes state
   const [generatedBackupCodes, setGeneratedBackupCodes] = useState<string[] | null>(null);
   const [showBackupCodesModal, setShowBackupCodesModal] = useState(false);
+  // Privacy modals state
+  const [showDeletionRequestModal, setShowDeletionRequestModal] = useState(false);
+  const [deletionRequestType, setDeletionRequestType] = useState<'full_deletion' | 'partial_deletion' | 'anonymization'>('partial_deletion');
+  const [deletionRequestReason, setDeletionRequestReason] = useState("");
+  const [selectedDataTypes, setSelectedDataTypes] = useState<string[]>([]);
   const passwordCheck = useMemo(() => validatePassword(formData.newPassword, formData.email), [formData.newPassword, formData.email]);
 
   const handleConnectGmail = async () => {
@@ -1974,105 +1990,353 @@ export const SettingsPage = (): JSX.Element => {
       case "privacy":
         return (
           <div id="settings-tab-privacy" data-tour="settings-tab-privacy" className="space-y-6">
-            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
-              <CardContent className="p-4">
-                <h3 className="text-foreground font-medium mb-4">Data & Privacy</h3>
-                <div className="space-y-4">
-                  {/* Privacy toggles */}
-                  {[{
-                    key: 'is_profile_public',
-                    label: 'Public profile',
-                    desc: 'Allow your profile to be visible to others.'
-                  },{
-                    key: 'show_email',
-                    label: 'Show email',
-                    desc: 'Display your email address on your profile.'
-                  },{
-                    key: 'allow_search_indexing',
-                    label: 'Search engine indexing',
-                    desc: 'Allow search engines to index your public profile.'
-                  },{
-                    key: 'share_analytics',
-                    label: 'Share anonymized analytics',
-                    desc: 'Help improve the product by sharing anonymized usage data.'
-                  },{
-                    key: 'personalized_ads',
-                    label: 'Personalized ads',
-                    desc: 'Use your data to personalize ads.'
-                  },{
-                    key: 'resume_default_public',
-                    label: 'New resumes are public by default',
-                    desc: 'When enabled, newly created resumes are public unless you change them.'
-                  }].map((row: any) => (
-                    <motion.div key={row.key} className="flex items-center justify-between p-3 bg-card/5 rounded border border-border/10 hover:border-primary/30 transition-all duration-300" whileHover={{ scale: 1.01 }}>
-                      <div>
-                        <p className="text-foreground font-medium">{row.label}</p>
-                        <p className="text-sm text-muted-foreground">{row.desc}</p>
+            {/* Profile Visibility */}
+            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <User className="w-5 h-5 text-white/70" />
+                <h3 className="text-base font-medium text-white/95">Profile Visibility</h3>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { key: 'is_profile_public', label: 'Public Profile', desc: 'Allow your profile to be visible to others', icon: Globe },
+                  { key: 'show_email', label: 'Show Email', desc: 'Display your email address on your profile', icon: Mail },
+                  { key: 'allow_profile_search', label: 'Profile Search', desc: 'Allow your profile to appear in search results', icon: Search },
+                  { key: 'share_with_recruiters', label: 'Share with Recruiters', desc: 'Allow recruiters to view your profile', icon: Users },
+                  { key: 'allow_company_access', label: 'Company Access', desc: 'Allow companies to access your profile data', icon: Building },
+                  { key: 'show_application_status', label: 'Show Application Status', desc: 'Display application status to companies', icon: Briefcase }
+                ].map((row: any) => (
+                  <div key={row.key} className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                    <div className="flex items-center gap-3 flex-1">
+                      <row.icon className="w-4 h-4 text-white/50" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-white/90">{row.label}</p>
+                        <p className="text-xs text-white/50 mt-0.5">{row.desc}</p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            if (!privacy) await createPrivacy({ [row.key]: true } as any);
-                            else await updatePrivacy({ [row.key]: !(privacy as any)[row.key] } as any);
-                          } catch (e: any) { toastError('Failed to update privacy', e.message); }
-                        }}
-                        className={`transition-all duration-300 hover:scale-105 ${
-                          ((privacy as any)?.[row.key] ?? false)
-                            ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          if (!privacy) await createPrivacy({ [row.key]: !((privacy as any)?.[row.key] ?? false) } as any);
+                          else await updatePrivacy({ [row.key]: !(privacy as any)[row.key] } as any);
+                        } catch (e: any) { toastError('Failed to update privacy', e.message); }
+                      }}
+                      disabled={privacyLoading}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                        ((privacy as any)?.[row.key] ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          ((privacy as any)?.[row.key] ?? false) ? "translate-x-6" : "translate-x-1"
                         }`}
-                      >
-                        {((privacy as any)?.[row.key] ?? false) ? 'Enabled' : 'Disabled'}
-                      </Button>
-                    </motion.div>
-                  ))}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </Card>
 
+            {/* Data Sharing & Analytics */}
+            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <Share2 className="w-5 h-5 text-white/70" />
+                <h3 className="text-base font-medium text-white/95">Data Sharing & Analytics</h3>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { key: 'share_analytics', label: 'Share Anonymized Analytics', desc: 'Help improve the product by sharing anonymized usage data', icon: Activity },
+                  { key: 'allow_third_party_sharing', label: 'Third-Party Sharing', desc: 'Share data with third-party services and partners', icon: Share2 },
+                  { key: 'allow_activity_tracking', label: 'Activity Tracking', desc: 'Track user activity for analytics and improvements', icon: Activity },
+                  { key: 'allow_location_sharing', label: 'Location Sharing', desc: 'Share location data for job matching', icon: MapPin },
+                  { key: 'allow_search_indexing', label: 'Search Engine Indexing', desc: 'Allow search engines to index your public profile', icon: Search }
+                ].map((row: any) => (
+                  <div key={row.key} className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                    <div className="flex items-center gap-3 flex-1">
+                      <row.icon className="w-4 h-4 text-white/50" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-white/90">{row.label}</p>
+                        <p className="text-xs text-white/50 mt-0.5">{row.desc}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          if (!privacy) await createPrivacy({ [row.key]: !((privacy as any)?.[row.key] ?? false) } as any);
+                          else await updatePrivacy({ [row.key]: !(privacy as any)[row.key] } as any);
+                        } catch (e: any) { toastError('Failed to update privacy', e.message); }
+                      }}
+                      disabled={privacyLoading}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                        ((privacy as any)?.[row.key] ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          ((privacy as any)?.[row.key] ?? false) ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Cookie Preferences */}
+            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <Cookie className="w-5 h-5 text-white/70" />
+                <h3 className="text-base font-medium text-white/95">Cookie Preferences</h3>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { key: 'allow_cookie_tracking', label: 'Cookie Tracking', desc: 'Allow cookie-based tracking and personalization', icon: Cookie },
+                  { key: 'allow_functional_cookies', label: 'Functional Cookies', desc: 'Required for basic site functionality', icon: Check },
+                  { key: 'allow_analytics_cookies', label: 'Analytics Cookies', desc: 'Help us understand how you use the platform', icon: Activity },
+                  { key: 'allow_advertising_cookies', label: 'Advertising Cookies', desc: 'Used for personalized ads and marketing', icon: Zap },
+                  { key: 'personalized_ads', label: 'Personalized Ads', desc: 'Use your data to personalize advertisements', icon: Sparkles }
+                ].map((row: any) => (
+                  <div key={row.key} className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                    <div className="flex items-center gap-3 flex-1">
+                      <row.icon className="w-4 h-4 text-white/50" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-white/90">{row.label}</p>
+                        <p className="text-xs text-white/50 mt-0.5">{row.desc}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          if (!privacy) await createPrivacy({ [row.key]: !((privacy as any)?.[row.key] ?? false) } as any);
+                          else await updatePrivacy({ [row.key]: !(privacy as any)[row.key] } as any);
+                        } catch (e: any) { toastError('Failed to update privacy', e.message); }
+                      }}
+                      disabled={privacyLoading}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                        ((privacy as any)?.[row.key] ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          ((privacy as any)?.[row.key] ?? false) ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Data Retention & Management */}
+            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <Database className="w-5 h-5 text-white/70" />
+                <h3 className="text-base font-medium text-white/95">Data Retention & Management</h3>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white/90 mb-1">Data Retention Period</p>
+                    <p className="text-xs text-white/50">Number of days to retain your data (0 = indefinite)</p>
+                  </div>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={privacy?.data_retention_days ?? 365}
+                    onChange={(e) => {
+                      const days = parseInt(e.target.value) || 0;
+                      if (!privacy) createPrivacy({ data_retention_days: days } as any);
+                      else updatePrivacy({ data_retention_days: days } as any);
+                    }}
+                    className="w-24 bg-white/[0.05] border-white/[0.1] text-white"
+                  />
+                </div>
+                {[
+                  { key: 'auto_delete_inactive', label: 'Auto-Delete Inactive Accounts', desc: 'Automatically delete data for inactive accounts after retention period', icon: Trash2 },
+                  { key: 'resume_default_public', label: 'Resumes Public by Default', desc: 'New resumes are public unless you change them', icon: FileText },
+                  { key: 'allow_marketing_emails', label: 'Marketing Emails', desc: 'Receive marketing and promotional emails', icon: Mail }
+                ].map((row: any) => (
+                  <div key={row.key} className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                    <div className="flex items-center gap-3 flex-1">
+                      <row.icon className="w-4 h-4 text-white/50" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-white/90">{row.label}</p>
+                        <p className="text-xs text-white/50 mt-0.5">{row.desc}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          if (!privacy) await createPrivacy({ [row.key]: !((privacy as any)?.[row.key] ?? false) } as any);
+                          else await updatePrivacy({ [row.key]: !(privacy as any)[row.key] } as any);
+                        } catch (e: any) { toastError('Failed to update privacy', e.message); }
+                      }}
+                      disabled={privacyLoading}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                        ((privacy as any)?.[row.key] ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          ((privacy as any)?.[row.key] ?? false) ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* GDPR Compliance */}
+            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <Shield className="w-5 h-5 text-white/70" />
+                <h3 className="text-base font-medium text-white/95">GDPR & Data Rights</h3>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white/90 mb-1">GDPR Consent</p>
+                    <p className="text-xs text-white/50">
+                      {privacy?.gdpr_consent_given 
+                        ? `Given on ${privacy.gdpr_consent_date ? new Date(privacy.gdpr_consent_date).toLocaleDateString() : 'N/A'}`
+                        : 'You have not given GDPR consent yet'}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await updateGDPRConsent(!privacy?.gdpr_consent_given);
+                      } catch (e: any) {
+                        toastError('Failed to update consent', e.message);
+                      }
+                    }}
+                    className="border-white/[0.1] text-white/70 hover:bg-white/[0.05]"
+                  >
+                    {privacy?.gdpr_consent_given ? 'Withdraw Consent' : 'Give Consent'}
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
                   <Button
                     variant="outline"
                     onClick={handleExportData}
-                    className="w-full justify-start border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50 hover:scale-105 transition-all duration-300"
+                    className="border-white/[0.1] text-white/70 hover:bg-white/[0.05] justify-start"
                   >
                     <Download className="w-4 h-4 mr-2" />
-                    Download Your Data
+                    Export My Data
                   </Button>
                   <Button
                     variant="outline"
-                    className="w-full justify-start border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50 hover:scale-105 transition-all duration-300"
-                  >
-                    <Shield className="w-4 h-4 mr-2" />
-                    Privacy Settings
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={async () => {
-                      if (!confirm('Delete your account? This cannot be undone.')) return;
-                      const { data } = await supabase.auth.getUser();
-                      const uid = (data as any)?.user?.id;
-                      try {
-                        if (uid) {
-                          await (supabase as any).from('profiles').delete().eq('id', uid);
-                          await (supabase as any).from('notification_settings').delete().eq('id', uid);
-                          await (supabase as any).from('security_settings').delete().eq('id', uid);
-                          await (supabase as any).from('security_backup_codes').delete().eq('user_id', uid);
-                          await (supabase as any).from('security_trusted_devices').delete().eq('user_id', uid);
-                          await (supabase as any).from('privacy_settings').delete().eq('id', uid);
-                        }
-                        await supabase.auth.signOut();
-                        success('Account deleted');
-                        window.location.href = '/';
-                      } catch (e: any) {
-                        toastError('Delete failed', e.message);
-                      }
-                    }}
-                    className="w-full justify-start border-destructive/50 text-destructive hover:bg-destructive/10 hover:border-destructive hover:scale-105 transition-all duration-300"
+                    onClick={() => setShowDeletionRequestModal(true)}
+                    className="border-red-500/50 text-red-400 hover:bg-red-500/10 justify-start"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Account
+                    Request Data Deletion
                   </Button>
                 </div>
-              </CardContent>
+              </div>
+            </Card>
+
+            {/* Privacy Audit Log */}
+            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <History className="w-5 h-5 text-white/70" />
+                <h3 className="text-base font-medium text-white/95">Privacy Activity Log</h3>
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {privacyAuditLogs && privacyAuditLogs.length > 0 ? (
+                  privacyAuditLogs.slice(0, 10).map((log: any) => (
+                    <div key={log.id} className="flex items-start gap-3 p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-white/90 capitalize">{log.action_type.replace(/_/g, ' ')}</p>
+                        {log.setting_name && (
+                          <p className="text-xs text-white/50 mt-0.5">
+                            {log.setting_name}: {log.old_value} → {log.new_value}
+                          </p>
+                        )}
+                        <p className="text-xs text-white/40 mt-1">
+                          {new Date(log.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-white/50 py-4 text-center">
+                    No privacy activity logged yet
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Data Deletion Requests */}
+            {privacyDeletionRequests && privacyDeletionRequests.length > 0 && (
+              <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                  <h3 className="text-base font-medium text-white/95">Active Deletion Requests</h3>
+                </div>
+                <div className="space-y-2">
+                  {privacyDeletionRequests.filter((r: any) => r.status !== 'completed' && r.status !== 'cancelled').map((req: any) => (
+                    <div key={req.id} className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-yellow-400 capitalize">{req.request_type.replace(/_/g, ' ')}</p>
+                          <p className="text-xs text-yellow-300/80 mt-1">Status: {req.status}</p>
+                          {req.scheduled_deletion_date && (
+                            <p className="text-xs text-yellow-300/80 mt-1">
+                              Scheduled: {new Date(req.scheduled_deletion_date).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          req.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                          req.status === 'processing' ? 'bg-blue-500/20 text-blue-400' :
+                          'bg-gray-500/20 text-gray-400'
+                        }`}>
+                          {req.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            {/* Account Deletion */}
+            <Card className="bg-white/[0.02] border border-red-500/30 rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+                <h3 className="text-base font-medium text-red-400">Danger Zone</h3>
+              </div>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  if (!confirm('Delete your account? This cannot be undone.')) return;
+                  const { data } = await supabase.auth.getUser();
+                  const uid = (data as any)?.user?.id;
+                  try {
+                    if (uid) {
+                      await logPrivacyAction('account_deletion_requested');
+                      await (supabase as any).from('profiles').delete().eq('id', uid);
+                      await (supabase as any).from('notification_settings').delete().eq('id', uid);
+                      await (supabase as any).from('security_settings').delete().eq('id', uid);
+                      await (supabase as any).from('security_backup_codes').delete().eq('user_id', uid);
+                      await (supabase as any).from('security_trusted_devices').delete().eq('user_id', uid);
+                      await (supabase as any).from('privacy_settings').delete().eq('id', uid);
+                    }
+                    await supabase.auth.signOut();
+                    success('Account deleted');
+                    window.location.href = '/';
+                  } catch (e: any) {
+                    toastError('Delete failed', e.message);
+                  }
+                }}
+                className="w-full border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-500"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Account Permanently
+              </Button>
             </Card>
           </div>
         );
@@ -2843,6 +3107,126 @@ export const SettingsPage = (): JSX.Element => {
           <p className="text-white/70">No codes to display</p>
         </div>
       )}
+    </Modal>
+    {/* Data Deletion Request Modal */}
+    <Modal
+      open={showDeletionRequestModal}
+      onClose={() => {
+        setShowDeletionRequestModal(false);
+        setDeletionRequestType('partial_deletion');
+        setDeletionRequestReason("");
+        setSelectedDataTypes([]);
+      }}
+      title="Request Data Deletion"
+      size="lg"
+      side="center"
+    >
+      <div className="space-y-4">
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+          <p className="text-sm text-yellow-400 font-medium mb-2">⚠️ Important Information</p>
+          <p className="text-xs text-yellow-300/80">
+            Data deletion requests are processed within 30 days. Once deleted, data cannot be recovered.
+            You can cancel a pending request at any time before processing begins.
+          </p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-white/90 mb-2">Deletion Type</label>
+          <div className="space-y-2">
+            {[
+              { value: 'partial_deletion', label: 'Partial Deletion', desc: 'Delete specific data types only' },
+              { value: 'anonymization', label: 'Anonymization', desc: 'Remove personally identifiable information' },
+              { value: 'full_deletion', label: 'Full Account Deletion', desc: 'Delete all data and close account' }
+            ].map((type) => (
+              <label key={type.value} className="flex items-start gap-3 p-3 bg-white/[0.05] border border-white/[0.1] rounded-lg cursor-pointer hover:bg-white/[0.08] transition-colors">
+                <input
+                  type="radio"
+                  name="deletionType"
+                  value={type.value}
+                  checked={deletionRequestType === type.value}
+                  onChange={(e) => setDeletionRequestType(e.target.value as any)}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-white/90">{type.label}</p>
+                  <p className="text-xs text-white/50 mt-0.5">{type.desc}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+        {deletionRequestType === 'partial_deletion' && (
+          <div>
+            <label className="block text-sm font-medium text-white/90 mb-2">Select Data Types to Delete</label>
+            <div className="space-y-2">
+              {['profile', 'applications', 'resumes', 'notifications', 'jobs', 'bookmarks', 'cover_letters'].map((type) => (
+                <label key={type} className="flex items-center gap-3 p-2 bg-white/[0.05] border border-white/[0.1] rounded-lg cursor-pointer hover:bg-white/[0.08] transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={selectedDataTypes.includes(type)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedDataTypes([...selectedDataTypes, type]);
+                      } else {
+                        setSelectedDataTypes(selectedDataTypes.filter(t => t !== type));
+                      }
+                    }}
+                  />
+                  <span className="text-sm text-white/90 capitalize">{type.replace(/_/g, ' ')}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+        <div>
+          <label className="block text-sm font-medium text-white/90 mb-2">Reason (Optional)</label>
+          <textarea
+            value={deletionRequestReason}
+            onChange={(e) => setDeletionRequestReason(e.target.value)}
+            placeholder="Tell us why you're requesting data deletion..."
+            className="w-full p-3 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white placeholder-white/40 text-sm resize-none"
+            rows={3}
+          />
+        </div>
+        <div className="flex gap-3">
+          <Button
+            onClick={async () => {
+              try {
+                if (deletionRequestType === 'partial_deletion' && selectedDataTypes.length === 0) {
+                  toastError('Validation Error', 'Please select at least one data type for partial deletion');
+                  return;
+                }
+                await createDeletionRequest(
+                  deletionRequestType,
+                  deletionRequestType === 'partial_deletion' ? selectedDataTypes : undefined,
+                  deletionRequestReason || undefined
+                );
+                success('Deletion request submitted');
+                setShowDeletionRequestModal(false);
+                setDeletionRequestType('partial_deletion');
+                setDeletionRequestReason("");
+                setSelectedDataTypes([]);
+              } catch (e: any) {
+                toastError('Failed to submit request', e.message);
+              }
+            }}
+            className="flex-1 bg-red-500 text-white hover:bg-red-600"
+          >
+            Submit Request
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowDeletionRequestModal(false);
+              setDeletionRequestType('partial_deletion');
+              setDeletionRequestReason("");
+              setSelectedDataTypes([]);
+            }}
+            className="border-white/[0.1] text-white/70 hover:bg-white/[0.05]"
+          >
+            Cancel
+          </Button>
+        </div>
+      </div>
     </Modal>
     {/* API Key Creation Modal */}
     <Modal
