@@ -1,210 +1,205 @@
--- Add credit deduction functions for job search and auto apply actions
--- This ensures credits are properly deducted when users perform actions
+-- Drop the functions if they already exist
+DROP FUNCTION IF EXISTS deduct_job_search_credits(UUID, INTEGER);
+DROP FUNCTION IF EXISTS deduct_auto_apply_credits(UUID, INTEGER);
+DROP FUNCTION IF EXISTS check_credits_available(UUID, TEXT, INTEGER);
 
--- Function to deduct credits for job search
--- Returns JSON with success status and remaining balance
-CREATE OR REPLACE FUNCTION "public"."deduct_job_search_credits"(
-    p_user_id uuid,
-    p_jobs_count integer DEFAULT 1
-) RETURNS jsonb AS $$
+-- Create a function to deduct credits for job searches
+CREATE OR REPLACE FUNCTION deduct_job_search_credits(p_user_id UUID, p_jobs_count INTEGER)
+RETURNS JSON AS $$
 DECLARE
-    v_cost_per_job integer := 1; -- 1 credit per job searched
-    v_total_cost integer;
-    v_current_balance integer;
-    v_feature_description text := 'Job search';
+    v_cost_per_job INTEGER;
+    v_total_cost INTEGER;
+    v_current_balance INTEGER;
+    v_new_balance INTEGER;
+    v_transaction_id UUID;
 BEGIN
-    -- Calculate total cost
-    v_total_cost := v_cost_per_job * p_jobs_count;
-    
-    -- Get current balance
-    SELECT balance INTO v_current_balance
-    FROM user_credits 
-    WHERE user_id = p_user_id;
-    
-    IF v_current_balance IS NULL THEN
-        -- Initialize credits if not exists (should not happen, but safety check)
-        INSERT INTO user_credits (user_id, balance, total_earned, last_reset_at)
-        VALUES (p_user_id, 0, 0, timezone('utc'::text, now()));
-        v_current_balance := 0;
+    -- Get the cost for a single job search
+    SELECT cost INTO v_cost_per_job
+    FROM credit_costs
+    WHERE feature_type = 'job' AND feature_name = 'search';
+
+    -- If no cost is defined, raise an exception
+    IF v_cost_per_job IS NULL THEN
+        RAISE EXCEPTION 'Credit cost for job search not found';
     END IF;
-    
+
+    -- Calculate the total cost
+    v_total_cost := v_cost_per_job * p_jobs_count;
+
+    -- Get the user's current credit balance
+    SELECT balance INTO v_current_balance FROM user_credits WHERE user_id = p_user_id FOR UPDATE;
+
+    -- If user credits not found, raise an exception
+    IF v_current_balance IS NULL THEN
+        RAISE EXCEPTION 'User credits not found';
+    END IF;
+
+    -- Check if the user has enough credits
     IF v_current_balance < v_total_cost THEN
-        -- Insufficient credits
-        RETURN jsonb_build_object(
+        RETURN json_build_object(
             'success', false,
-            'error', 'insufficient_credits',
+            'message', 'Insufficient credits for job search',
             'required', v_total_cost,
-            'available', v_current_balance,
-            'message', format('Insufficient credits. Need %s but only have %s.', v_total_cost, v_current_balance)
+            'available', v_current_balance
         );
     END IF;
-    
-    -- Deduct credits
-    UPDATE user_credits 
-    SET 
-        balance = balance - v_total_cost,
-        total_consumed = total_consumed + v_total_cost,
-        updated_at = timezone('utc'::text, now())
+
+    -- Deduct the credits
+    v_new_balance := v_current_balance - v_total_cost;
+    UPDATE user_credits
+    SET
+        balance = v_new_balance,
+        lifetime_spent = lifetime_spent + v_total_cost,
+        updated_at = NOW()
     WHERE user_id = p_user_id;
-    
-    -- Record transaction
-    INSERT INTO credit_transactions (
-        user_id,
-        type,
-        amount,
-        balance_before,
-        balance_after,
-        description,
-        reference_type,
-        metadata
-    ) VALUES (
+
+    -- Create a transaction record
+    INSERT INTO credit_transactions (user_id, amount, transaction_type, description, balance_after, metadata)
+    VALUES (
         p_user_id,
-        'consumed',
-        v_total_cost,
-        v_current_balance,
-        v_current_balance - v_total_cost,
-        format('%s (%s job%s)', v_feature_description, p_jobs_count, CASE WHEN p_jobs_count > 1 THEN 's' ELSE '' END),
-        'job_search',
-        jsonb_build_object('jobs_count', p_jobs_count, 'cost_per_job', v_cost_per_job)
-    );
-    
-    RETURN jsonb_build_object(
+        -v_total_cost,
+        'deduction',
+        format('Used %s credits for searching %s jobs', v_total_cost, p_jobs_count),
+        v_new_balance,
+        jsonb_build_object('jobs_count', p_jobs_count)
+    )
+    RETURNING id INTO v_transaction_id;
+
+    -- Return a success response
+    RETURN json_build_object(
         'success', true,
         'credits_deducted', v_total_cost,
-        'remaining_balance', v_current_balance - v_total_cost,
-        'jobs_count', p_jobs_count
+        'remaining_balance', v_new_balance,
+        'transaction_id', v_transaction_id
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to deduct credits for auto apply
--- Returns JSON with success status and remaining balance
-CREATE OR REPLACE FUNCTION "public"."deduct_auto_apply_credits"(
-    p_user_id uuid,
-    p_jobs_count integer DEFAULT 1
-) RETURNS jsonb AS $$
+-- Create a function to deduct credits for auto-applying to jobs
+CREATE OR REPLACE FUNCTION deduct_auto_apply_credits(p_user_id UUID, p_jobs_count INTEGER)
+RETURNS JSON AS $$
 DECLARE
-    v_cost_per_job integer := 5; -- 5 credits per auto apply (from credit_costs table)
-    v_total_cost integer;
-    v_current_balance integer;
-    v_feature_description text := 'Auto apply to job';
+    v_cost_per_job INTEGER;
+    v_total_cost INTEGER;
+    v_current_balance INTEGER;
+    v_new_balance INTEGER;
+    v_transaction_id UUID;
 BEGIN
-    -- Calculate total cost
-    v_total_cost := v_cost_per_job * p_jobs_count;
-    
-    -- Get current balance
-    SELECT balance INTO v_current_balance
-    FROM user_credits 
-    WHERE user_id = p_user_id;
-    
-    IF v_current_balance IS NULL THEN
-        -- Initialize credits if not exists (should not happen, but safety check)
-        INSERT INTO user_credits (user_id, balance, total_earned, last_reset_at)
-        VALUES (p_user_id, 0, 0, timezone('utc'::text, now()));
-        v_current_balance := 0;
+    -- Get the cost for a single job application
+    SELECT cost INTO v_cost_per_job
+    FROM credit_costs
+    WHERE feature_type = 'job' AND feature_name = 'application';
+
+    -- If no cost is defined, raise an exception
+    IF v_cost_per_job IS NULL THEN
+        RAISE EXCEPTION 'Credit cost for job application not found';
     END IF;
-    
+
+    -- Calculate the total cost
+    v_total_cost := v_cost_per_job * p_jobs_count;
+
+    -- Get the user's current credit balance
+    SELECT balance INTO v_current_balance FROM user_credits WHERE user_id = p_user_id FOR UPDATE;
+
+    -- If user credits not found, raise an exception
+    IF v_current_balance IS NULL THEN
+        RAISE EXCEPTION 'User credits not found';
+    END IF;
+
+    -- Check if the user has enough credits
     IF v_current_balance < v_total_cost THEN
-        -- Insufficient credits
-        RETURN jsonb_build_object(
+        RETURN json_build_object(
             'success', false,
-            'error', 'insufficient_credits',
+            'message', 'Insufficient credits for auto apply',
             'required', v_total_cost,
-            'available', v_current_balance,
-            'message', format('Insufficient credits. Need %s but only have %s.', v_total_cost, v_current_balance)
+            'available', v_current_balance
         );
     END IF;
-    
-    -- Deduct credits
-    UPDATE user_credits 
-    SET 
-        balance = balance - v_total_cost,
-        total_consumed = total_consumed + v_total_cost,
-        updated_at = timezone('utc'::text, now())
+
+    -- Deduct the credits
+    v_new_balance := v_current_balance - v_total_cost;
+    UPDATE user_credits
+    SET
+        balance = v_new_balance,
+        lifetime_spent = lifetime_spent + v_total_cost,
+        updated_at = NOW()
     WHERE user_id = p_user_id;
-    
-    -- Record transaction
-    INSERT INTO credit_transactions (
-        user_id,
-        type,
-        amount,
-        balance_before,
-        balance_after,
-        description,
-        reference_type,
-        metadata
-    ) VALUES (
+
+    -- Create a transaction record
+    INSERT INTO credit_transactions (user_id, amount, transaction_type, description, balance_after, metadata)
+    VALUES (
         p_user_id,
-        'consumed',
-        v_total_cost,
-        v_current_balance,
-        v_current_balance - v_total_cost,
-        format('%s (%s application%s)', v_feature_description, p_jobs_count, CASE WHEN p_jobs_count > 1 THEN 's' ELSE '' END),
-        'auto_apply',
-        jsonb_build_object('jobs_count', p_jobs_count, 'cost_per_job', v_cost_per_job)
-    );
-    
-    RETURN jsonb_build_object(
+        -v_total_cost,
+        'deduction',
+        format('Used %s credits for auto-applying to %s jobs', v_total_cost, p_jobs_count),
+        v_new_balance,
+        jsonb_build_object('jobs_count', p_jobs_count)
+    )
+    RETURNING id INTO v_transaction_id;
+
+    -- Return a success response
+    RETURN json_build_object(
         'success', true,
         'credits_deducted', v_total_cost,
-        'remaining_balance', v_current_balance - v_total_cost,
-        'jobs_count', p_jobs_count
+        'remaining_balance', v_new_balance,
+        'transaction_id', v_transaction_id
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to check if user has enough credits before action
-CREATE OR REPLACE FUNCTION "public"."check_credits_available"(
-    p_user_id uuid,
-    p_feature_type text, -- 'job_search' or 'auto_apply'
-    p_quantity integer DEFAULT 1
-) RETURNS jsonb AS $$
+-- Create a function to check if a user has enough credits for a given feature
+CREATE OR REPLACE FUNCTION check_credits_available(p_user_id UUID, p_feature_type TEXT, p_quantity INTEGER)
+RETURNS JSONB AS $$
 DECLARE
-    v_cost_per_item integer;
-    v_total_cost integer;
-    v_current_balance integer;
+    v_cost_per_item INTEGER;
+    v_total_cost INTEGER;
+    v_current_balance INTEGER;
+    v_feature_name TEXT;
 BEGIN
-    -- Determine cost based on feature type
+    -- Determine the feature name based on feature type
     IF p_feature_type = 'job_search' THEN
-        v_cost_per_item := 1;
+        v_feature_name := 'search';
     ELSIF p_feature_type = 'auto_apply' THEN
-        v_cost_per_item := 5;
+        v_feature_name := 'application';
+    ELSE
+        RETURN jsonb_build_object('available', false, 'message', 'Invalid feature type');
+    END IF;
+
+    -- Get the cost for the specified feature
+    SELECT cost INTO v_cost_per_item
+    FROM credit_costs
+    WHERE feature_type = 'job' AND feature_name = v_feature_name;
+
+    -- If cost is not defined, return an error
+    IF v_cost_per_item IS NULL THEN
+        RETURN jsonb_build_object('available', false, 'message', 'Credit cost for ' || v_feature_name || ' not found');
+    END IF;
+
+    -- Calculate the total cost
+    v_total_cost := v_cost_per_item * p_quantity;
+
+    -- Get the user's current credit balance
+    SELECT balance INTO v_current_balance
+    FROM user_credits
+    WHERE user_id = p_user_id;
+
+    -- If user credits not found, they have 0 credits
+    v_current_balance := COALESCE(v_current_balance, 0);
+
+    -- Check if the user has enough credits
+    IF v_current_balance >= v_total_cost THEN
+        RETURN jsonb_build_object(
+            'available', true,
+            'required', v_total_cost,
+            'current_balance', v_current_balance
+        );
     ELSE
         RETURN jsonb_build_object(
             'available', false,
-            'error', 'invalid_feature_type',
-            'message', format('Invalid feature type: %s', p_feature_type)
+            'required', v_total_cost,
+            'current_balance', v_current_balance,
+            'shortfall', v_total_cost - v_current_balance
         );
     END IF;
-    
-    v_total_cost := v_cost_per_item * p_quantity;
-    
-    -- Get current balance
-    SELECT balance INTO v_current_balance
-    FROM user_credits 
-    WHERE user_id = p_user_id;
-    
-    IF v_current_balance IS NULL THEN
-        v_current_balance := 0;
-    END IF;
-    
-    RETURN jsonb_build_object(
-        'available', v_current_balance >= v_total_cost,
-        'current_balance', v_current_balance,
-        'required', v_total_cost,
-        'cost_per_item', v_cost_per_item,
-        'quantity', p_quantity,
-        'feature_type', p_feature_type
-    );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Grant execute permissions
-GRANT EXECUTE ON FUNCTION "public"."deduct_job_search_credits"(uuid, integer) TO authenticated;
-GRANT EXECUTE ON FUNCTION "public"."deduct_auto_apply_credits"(uuid, integer) TO authenticated;
-GRANT EXECUTE ON FUNCTION "public"."check_credits_available"(uuid, text, integer) TO authenticated;
-
--- Comments for documentation
-COMMENT ON FUNCTION "public"."deduct_job_search_credits"(uuid, integer) IS 'Deducts 1 credit per job searched. Returns success status and remaining balance.';
-COMMENT ON FUNCTION "public"."deduct_auto_apply_credits"(uuid, integer) IS 'Deducts 5 credits per auto apply. Returns success status and remaining balance.';
-COMMENT ON FUNCTION "public"."check_credits_available"(uuid, text, integer) IS 'Checks if user has enough credits before performing an action. Does not deduct credits.';
+$$ LANGUAGE plpgsql STABLE;
