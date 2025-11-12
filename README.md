@@ -1016,8 +1016,12 @@ SOFTWARE.
    rm -rf dist
    npm run build
    ```
+   - **Syntax Errors**: Errors like `Unexpected end of file before a closing "div" tag` indicate a syntax error in a component. Check the specified file for missing closing tags.
 
-3. **Supabase Connection Issues**:
+3.  **Development Server Crashes**:
+    - **Identifier has already been declared**: This error occurs when the same name is imported from multiple libraries in the same file (e.g., `import { Link } from 'lucide-react'` and `import { Link } from 'react-router-dom'`). Resolve this by removing or renaming one of the imports.
+
+4. **Supabase Connection Issues**:
    - Verify environment variables
    - Check Supabase project status
    - Ensure API keys are correct
