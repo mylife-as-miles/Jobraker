@@ -15,7 +15,7 @@ import { useAppearanceSettings } from "../../../hooks/useAppearanceSettings";
 import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
 import { validatePassword } from "../../../utils/password";
-import { CheckCircle2, XCircle, Linkedin, Github, Link } from "lucide-react";
+import { CheckCircle2, XCircle, Linkedin, Github } from "lucide-react";
 // Lazy-load ResumeChecker to prevent hook order issues
 const ResumeChecker = lazy(() => import("../../../client/components/ResumeChecker").then(module => ({ default: module.ResumeChecker })));
 // Lazy-load qrcode to avoid bundler resolution issues during build
