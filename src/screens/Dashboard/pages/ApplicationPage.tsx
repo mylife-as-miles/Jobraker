@@ -179,25 +179,25 @@ function ApplicationPage() {
         id: 'application-search',
         selector: '#application-search',
         title: 'Search Your Applications',
-        body: 'Quickly filter your applications by title, company, location or status keywords.'
+        body: 'Quickly filter your applications by title, company, location, or status keywords. Real-time search helps you find specific applications instantly.'
       },
       {
         id: 'application-view-toggle',
         selector: '#application-view-toggle',
         title: 'Multiple Visual Views',
-        body: 'Switch between Gantt, List, Kanban, Calendar and Table to analyze your pipeline from different angles.'
+        body: 'Switch between Gantt, List, Kanban, Calendar, and Table views to analyze your pipeline from different angles. Each view offers unique insights into your application status.'
       },
       {
         id: 'application-status-filters',
         selector: '#application-status-filters',
         title: 'Status Filters',
-        body: 'Focus on a specific stage like Interview or Offer to reduce noise and act faster.'
+        body: 'Focus on a specific stage like Interview, Offer, or Rejected to reduce noise and act faster. Filter by multiple statuses to see combined results.'
       },
       {
         id: 'application-gantt',
         selector: '#application-gantt',
         title: 'Timeline Insight',
-        body: 'The Gantt view shows lifecycle duration per application. Active stages extend to today for quick aging awareness.'
+        body: 'The Gantt view shows lifecycle duration per application with color-coded status bars. Active stages extend to today for quick aging awareness. Toggle to show future dates.'
       }
     ]
   });

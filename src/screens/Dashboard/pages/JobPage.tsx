@@ -621,25 +621,25 @@ export const JobPage = (): JSX.Element => {
         id: 'jobs-search',
         selector: '#jobs-search',
         title: 'Search Jobs',
-        body: 'Search across thousands of job postings by title, company, keywords, or skills.'
+        body: 'Search across thousands of job postings by title, company, keywords, or skills. Results are automatically saved to your job queue.'
       },
       {
         id: 'jobs-location',
         selector: '#jobs-location',
         title: 'Filter by Location',
-        body: 'Specify your preferred location or use "Remote" to find remote opportunities.'
+        body: 'Specify your preferred location or use "Remote" to find remote opportunities. Location filters help narrow down your search results.'
       },
       {
         id: 'jobs-card',
         selector: '[data-tour="jobs-card"]',
         title: 'Job Listings',
-        body: 'Browse AI-matched jobs. Click any card to see full details, company info, and apply directly.'
+        body: 'Browse AI-matched jobs with match scores. Click any card to see full details, company info, salary range, and apply directly. Use the resume checker dropdown to analyze job compatibility.'
       },
       {
         id: 'jobs-ai-match',
         selector: '#jobs-ai-match',
         title: 'AI Match Score',
-        body: 'Our AI analyzes each job against your profile and resume to show compatibility and fit.'
+        body: 'Our AI analyzes each job against your profile and resume to show compatibility and fit. View detailed breakdowns of match factors including skills, experience, and location preferences.'
       }
     ]
   });

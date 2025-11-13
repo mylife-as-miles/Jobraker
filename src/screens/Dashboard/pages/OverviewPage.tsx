@@ -380,25 +380,25 @@ export const OverviewPage = (): JSX.Element => {
         id: 'apps-chart',
         selector: '#overview-apps-chart',
         title: 'Application Velocity',
-        body: 'Track how many applications you submit over time and spot trends early.'
+        body: 'Track how many applications you submit over time with interactive charts. Switch between Today, 1 Week, and 1 Month views. Toggle stacked mode to compare statuses side-by-side.'
       },
       {
         id: 'status-toggle',
         selector: '#overview-status-filter-buttons',
         title: 'Focus by Status',
-        body: 'Filter the dataset to highlight specific pipeline stages like Interview or Offers.'
+        body: 'Filter the dataset to highlight specific pipeline stages like Applied, Interview, Offer, or Rejected. Select multiple statuses to see combined trends. Color-coded pills make it easy to identify each status.'
       },
       {
         id: 'calendar-pane',
         selector: '#overview-calendar',
         title: 'Calendar Insight',
-        body: 'Interviews and applied dates appear here so you can plan your week effectively.'
+        body: 'Interviews and applied dates appear here so you can plan your week effectively. Click any date to see detailed application information. Switch between month and week views for different perspectives.'
       },
       {
         id: 'notifications-panel',
         selector: '#overview-notifications',
         title: 'Recent Notifications',
-        body: 'Stay on top of interview scheduling, offers, and important system updates.'
+        body: 'Stay on top of interview scheduling, offers, and important system updates. Notifications are color-coded by type and show real-time updates from your job search activities.'
       }
     ]
   });
