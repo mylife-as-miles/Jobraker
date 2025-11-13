@@ -75,8 +75,13 @@ export function createClient(): SupabaseClient {
     // Handle normal events
     if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_OUT') return;
     
+    // Public routes that should not trigger redirects
+    const publicRoutes = ['/', '/signin', '/signIn', '/signup', '/login', '/privacy'];
+    const isPublicRoute = publicRoutes.includes(window.location.pathname);
+    
     // If session is null unexpectedly, it might be due to an invalid refresh token
-    if (!session && event !== 'SIGNED_IN' && !handledInvalidToken) {
+    // Only redirect if we're NOT on a public route (i.e., we're on a protected route)
+    if (!session && event !== 'SIGNED_IN' && !handledInvalidToken && !isPublicRoute) {
       handledInvalidToken = true;
       console.warn('Session lost, clearing auth state');
       try {
@@ -116,8 +121,10 @@ export function createClient(): SupabaseClient {
           await client.auth.signOut();
           // Clear any stale tokens from localStorage
           localStorage.removeItem('supabase.auth.token');
-          // Redirect to login
-          if (window.location.pathname !== '/signin' && window.location.pathname !== '/signup') {
+          // Redirect to login only if we're on a protected route
+          const publicRoutes = ['/', '/signin', '/signIn', '/signup', '/login', '/privacy'];
+          const isPublicRoute = publicRoutes.includes(window.location.pathname);
+          if (!isPublicRoute && window.location.pathname !== '/signin' && window.location.pathname !== '/signup') {
             window.location.href = '/signin';
           }
         } catch (err) {
