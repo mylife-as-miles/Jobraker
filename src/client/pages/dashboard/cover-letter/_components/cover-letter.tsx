@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2, Check, Trash2, ArrowUp, ArrowDown, Printer, X, FileText, FileType, Lock } from "lucide-react";
 import { Button, Card } from "@reactive-resume/ui";
@@ -1014,8 +1015,8 @@ export const CoverLetter = () => {
         <div className="absolute top-0 right-0 w-40 h-40 bg-[#1dff00]/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
       </div>
 
-      {exportOpen && (
-        <div id="cover-actions" data-tour="cover-actions" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {exportOpen && createPortal(
+        <div id="cover-actions" data-tour="cover-actions" className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/85 backdrop-blur-xl" onClick={() => setExportOpen(false)} />
           <div role="dialog" aria-modal="true" className="relative z-10 w-full max-w-lg rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 shadow-[0_0_50px_rgba(29,255,0,0.2)] backdrop-blur-xl p-6 animate-in fade-in-0 zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-6">
@@ -1120,6 +1121,7 @@ export const CoverLetter = () => {
             )}
           </div>
         </div>
+        , document.body
       )}
 
       {/* Workspace */}

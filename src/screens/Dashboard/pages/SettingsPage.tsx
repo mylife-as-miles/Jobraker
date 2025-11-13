@@ -21,6 +21,7 @@ import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
 import { validatePassword } from "../../../utils/password";
 import { CheckCircle2, XCircle, Linkedin, Github } from "lucide-react";
+import { SignOutDialog } from "../../../client/components/SignOutDialog";
 // Lazy-load ResumeChecker to prevent hook order issues
 const ResumeChecker = lazy(() => import("@/client/components/ResumeChecker"));
 // Lazy-load qrcode to avoid bundler resolution issues during build
@@ -144,6 +145,9 @@ export const SettingsPage = (): JSX.Element => {
   const [accountDeletionEmail, setAccountDeletionEmail] = useState("");
   const [userEmail, setUserEmail] = useState<string>("");
   const [isDeleting, setIsDeleting] = useState(false);
+  // Sign out dialog state
+  const [signOutDialogOpen, setSignOutDialogOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   // Job sources domain state
   const [enabledDefaultDomains, setEnabledDefaultDomains] = useState<Set<string>>(new Set(['remote.co', 'remotive.com', 'remoteok.com', 'jobicy.com', 'levels.fyi']));
   const [userCustomDomains, setUserCustomDomains] = useState<string>("");
@@ -2944,10 +2948,7 @@ export const SettingsPage = (): JSX.Element => {
             
             <div className="pt-4 mt-4 border-t border-white/[0.06]">
               <button
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  window.location.href = '/login';
-                }}
+                onClick={() => setSignOutDialogOpen(true)}
                 className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all"
               >
                 <LogOut className="w-4 h-4" />
@@ -3484,6 +3485,25 @@ export const SettingsPage = (): JSX.Element => {
         </div>
       )}
     </Modal>
+    {/* Sign Out Dialog */}
+    <SignOutDialog
+      open={signOutDialogOpen}
+      onConfirm={async () => {
+        setIsSigningOut(true);
+        try {
+          await supabase.auth.signOut();
+          window.location.href = '/signin';
+        } catch (error) {
+          console.error('Sign out error:', error);
+          setIsSigningOut(false);
+        }
+      }}
+      onCancel={() => {
+        setSignOutDialogOpen(false);
+        setIsSigningOut(false);
+      }}
+      isLoading={isSigningOut}
+    />
     </>
   );
 
