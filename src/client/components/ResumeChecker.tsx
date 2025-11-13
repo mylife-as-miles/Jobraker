@@ -52,7 +52,7 @@ async function parseResumeBlob(blob: Blob, extension: string | null, basename: s
   throw new Error("Only PDF or text-based resumes are supported for AI analysis right now.");
 }
 
-export function ResumeChecker() {
+function ResumeChecker() {
   // All hooks called unconditionally at top level
   const { resumes, getSignedUrl } = useResumes();
   const { profile, experiences, education, skills } = useProfileSettings();
@@ -594,4 +594,6 @@ export function ResumeChecker() {
     </Card>
   );
 }
+
+export default ResumeChecker;
 
