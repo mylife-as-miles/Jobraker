@@ -87,7 +87,18 @@ export const SettingsPage = (): JSX.Element => {
     deleteApiKey,
   } = security as any;
   const securityLoading = (security as any).loading || false;
-  const [formData, setFormData] = useState({
+  type FormData = {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    location: string;
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+    avatar_url: string;
+  };
+  const [formData, setFormData] = useState<FormData>({
     firstName: "",
     lastName: "",
     email: "",
@@ -395,7 +406,7 @@ export const SettingsPage = (): JSX.Element => {
     (async () => {
       const { data } = await supabase.auth.getUser();
       const email = (data as any)?.user?.email ?? "";
-      setFormData((prev) => ({
+      setFormData((prev: FormData) => ({
         ...prev,
         email,
         firstName: profile?.first_name || "",
@@ -564,7 +575,7 @@ export const SettingsPage = (): JSX.Element => {
   );
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev: FormData) => ({ ...prev, [field]: value }));
   };
 
   // ... existing rendering logic below will conditionally use activeLoading & TabSkeleton
@@ -783,7 +794,7 @@ export const SettingsPage = (): JSX.Element => {
   const { error: upErr } = await (supabase as any).storage.from('avatars').upload(path, file, { upsert: false, contentType: file.type || undefined });
         if (upErr) throw upErr;
   // Store storage path; we'll resolve via signed URL when rendering
-  setFormData((p) => ({ ...p, avatar_url: path }));
+  setFormData((p: FormData) => ({ ...p, avatar_url: path }));
   await updateProfile({ avatar_url: path } as any);
         success('Avatar updated');
       } catch (e: any) {
@@ -794,7 +805,7 @@ export const SettingsPage = (): JSX.Element => {
   };
 
   const handleRemoveAvatar = async () => {
-    setFormData((p) => ({ ...p, avatar_url: "" }));
+    setFormData((p: FormData) => ({ ...p, avatar_url: "" }));
     await updateProfile({ avatar_url: null } as any);
   };
 
@@ -847,7 +858,7 @@ export const SettingsPage = (): JSX.Element => {
     }
     
     success('Password updated');
-    setFormData((p) => ({ ...p, currentPassword: '', newPassword: '', confirmPassword: '' }));
+    setFormData((p: FormData) => ({ ...p, currentPassword: '', newPassword: '', confirmPassword: '' }));
   };
 
   const getTierIcon = (tier: string) => {
@@ -2455,7 +2466,7 @@ export const SettingsPage = (): JSX.Element => {
             <Card className="bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all">
               <CardContent className="p-6">
                 <h3 className="text-lg font-semibold text-white/95 mb-4">Available Job Sources</h3>
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {defaultJobSourceDomains.map((source) => {
                     const IconComponent = source.icon;
                     const isEnabled = enabledDefaultDomains.has(source.domain);
@@ -2463,13 +2474,13 @@ export const SettingsPage = (): JSX.Element => {
                     return (
                       <div
                         key={source.id}
-                        className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
+                        className={`flex flex-col p-4 rounded-lg border transition-all ${
                           isEnabled 
                             ? 'bg-white/[0.05] border-white/[0.1] ring-1 ring-[#1dff00]/30' 
                             : 'bg-white/[0.02] border-white/[0.06]'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-between mb-3">
                           <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${
                             source.color === 'blue' ? 'from-blue-500/20 to-blue-500/10 border-blue-500/30' :
                             source.color === 'green' ? 'from-green-500/20 to-green-500/10 border-green-500/30' :
@@ -2485,24 +2496,24 @@ export const SettingsPage = (): JSX.Element => {
                               'text-indigo-400'
                             }`} />
                           </div>
-                          <div>
-                            <h4 className="text-white/95 font-semibold">{source.name}</h4>
-                            <p className="text-xs text-white/50 mt-0.5">{source.description}</p>
-                          </div>
+                          <button
+                            onClick={() => handleToggleDefaultDomain(source.domain)}
+                            disabled={loadingDomains}
+                            className={`w-12 h-6 rounded-full transition-colors ${
+                              isEnabled
+                                ? 'bg-[#1dff00]'
+                                : 'bg-white/10'
+                            }`}
+                          >
+                            <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                              isEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                            }`} />
+                          </button>
                         </div>
-                        <button
-                          onClick={() => handleToggleDefaultDomain(source.domain)}
-                          disabled={loadingDomains}
-                          className={`w-12 h-6 rounded-full transition-colors ${
-                            isEnabled
-                              ? 'bg-[#1dff00]'
-                              : 'bg-white/10'
-                          }`}
-                        >
-                          <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                            isEnabled ? 'translate-x-6' : 'translate-x-0.5'
-                          }`} />
-                        </button>
+                        <div>
+                          <h4 className="text-white/95 font-semibold mb-1">{source.name}</h4>
+                          <p className="text-xs text-white/50">{source.description}</p>
+                        </div>
                       </div>
                     );
                   })}
@@ -3668,7 +3679,7 @@ function DefaultsForm() {
                 type="checkbox"
                 className="h-4 w-4 accent-[hsl(var(--ring))]"
                 checked={enabledSources.includes(s.id)}
-                onChange={(e) => setEnabledSources((prev) => toggle(prev, s.id, e.target.checked))}
+                onChange={(e) => setEnabledSources((prev: string[]) => toggle(prev, s.id, e.target.checked))}
                 disabled={loading}
               />
               <span className="text-sm">{s.label}</span>
