@@ -5,7 +5,7 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles, Mail, Zap, Crown, Check, ArrowRight, FileText, Clock, Database, Cookie, MapPin, Activity, Share2, AlertTriangle, History, X, TrendingUp, BarChart3, PlayCircle, PauseCircle, MoreVertical, Edit2, ExternalLink } from "lucide-react";
+import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, Building, Users, Sparkles, Mail, Zap, Crown, Check, ArrowRight, FileText, Database, Cookie, MapPin, Activity, Share2, AlertTriangle, History, X } from "lucide-react";
 import remoteCoLogo from "../../../assets/job-sources/remote-co.svg";
 import remotiveLogo from "../../../assets/job-sources/remotive.svg";
 import remoteokLogo from "../../../assets/job-sources/remoteok.svg";
@@ -80,7 +80,7 @@ export const SettingsPage = (): JSX.Element => {
     revokeDevice,
     // Active sessions
     activeSessions,
-    listActiveSessions,
+    // listActiveSessions, // Unused
     revokeSession,
     revokeAllOtherSessions,
     // Audit log
@@ -131,7 +131,7 @@ export const SettingsPage = (): JSX.Element => {
   const [createdApiKey, setCreatedApiKey] = useState<string | null>(null);
   // IP Management state
   const [newAllowedIp, setNewAllowedIp] = useState("");
-  const [newBlockedIp, setNewBlockedIp] = useState("");
+  // const [newBlockedIp, setNewBlockedIp] = useState(""); // Unused
   // Backup codes state
   const [generatedBackupCodes, setGeneratedBackupCodes] = useState<string[] | null>(null);
   const [showBackupCodesModal, setShowBackupCodesModal] = useState(false);
@@ -325,9 +325,9 @@ export const SettingsPage = (): JSX.Element => {
   }, [formData.firstName, formData.lastName, formData.email]);
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [groupEnabledFirst, setGroupEnabledFirst] = useState(true);
-  const [draggingId, setDraggingId] = useState<number | null>(null);
-  const [dragOverId, setDragOverId] = useState<number | null>(null);
+  // const [groupEnabledFirst, setGroupEnabledFirst] = useState(true); // Unused
+  // const [draggingId, setDraggingId] = useState<number | null>(null); // Unused
+  // const [dragOverId, setDragOverId] = useState<number | null>(null); // Unused
   
   // Billing state
   const [currentCredits, setCurrentCredits] = useState(0);
@@ -336,9 +336,9 @@ export const SettingsPage = (): JSX.Element => {
   const [subscriptionPlans, setSubscriptionPlans] = useState<any[]>([]);
   
   // Small helper for URL validation (used for Custom JSON)
-  const isValidUrl = (value: string) => {
-    try { new URL(value); return true; } catch { return false; }
-  };
+  // const isValidUrl = (value: string) => {
+  //   try { new URL(value); return true; } catch { return false; }
+  // }; // Unused
 
   // Persist job sources locally so settings survive refreshes
   useEffect(() => {
@@ -375,23 +375,23 @@ export const SettingsPage = (): JSX.Element => {
     })();
   }, [supabase]);
 
-  const displayedSources = useMemo(() => {
-    if (!groupEnabledFirst) return jobSources;
-    const arr = [...jobSources];
-    arr.sort((a, b) => Number(b.enabled) - Number(a.enabled));
-    return arr;
-  }, [jobSources, groupEnabledFirst]);
+  // const displayedSources = useMemo(() => {
+  //   if (!groupEnabledFirst) return jobSources;
+  //   const arr = [...jobSources];
+  //   arr.sort((a, b) => Number(b.enabled) - Number(a.enabled));
+  //   return arr;
+  // }, [jobSources, groupEnabledFirst]); // Unused
 
-  const moveItem = (list: any[], fromId: number, toId: number) => {
-    if (fromId === toId) return list;
-    const srcIdx = list.findIndex((s) => s.id === fromId);
-    const dstIdx = list.findIndex((s) => s.id === toId);
-    if (srcIdx < 0 || dstIdx < 0) return list;
-    const copy = [...list];
-    const [item] = copy.splice(srcIdx, 1);
-    copy.splice(dstIdx, 0, item);
-    return copy;
-  };
+  // const moveItem = (list: any[], fromId: number, toId: number) => {
+  //   if (fromId === toId) return list;
+  //   const srcIdx = list.findIndex((s) => s.id === fromId);
+  //   const dstIdx = list.findIndex((s) => s.id === toId);
+  //   if (srcIdx < 0 || dstIdx < 0) return list;
+  //   const copy = [...list];
+  //   const [item] = copy.splice(srcIdx, 1);
+  //   copy.splice(dstIdx, 0, item);
+  //   return copy;
+  // }; // Unused
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -562,12 +562,12 @@ export const SettingsPage = (): JSX.Element => {
 
   const TabSkeleton = () => (
     <div className="space-y-6">
-      {Array.from({ length: 3 }).map((_, i) => (
+      {Array.from({ length: 3 }).map((_: unknown, i: number) => (
         <div key={i} className="bg-white/[0.02] border border-white/[0.06] p-6 rounded-xl">
           <div className="space-y-4">
             <Skeleton className="h-5 w-48 bg-white/[0.05]" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {Array.from({ length: 4 }).map((__, j) => (
+              {Array.from({ length: 4 }).map((__: unknown, j: number) => (
                 <div key={j} className="space-y-2">
                   <Skeleton className="h-3 w-24 bg-white/[0.05]" />
                   <Skeleton className="h-10 w-full bg-white/[0.05]" />
@@ -1937,7 +1937,7 @@ export const SettingsPage = (): JSX.Element => {
                               size="sm"
                               onClick={() => {
                                 const current = sec?.allowed_ips || [];
-                                const updated = current.filter((_, i) => i !== idx);
+                                const updated = current.filter((_: string, i: number) => i !== idx);
                                 if (!sec) createSecurity({ allowed_ips: updated });
                                 else updateSecurity({ allowed_ips: updated });
                               }}
@@ -3571,7 +3571,9 @@ export const SettingsPage = (): JSX.Element => {
   // remove stray return (modal is rendered above)
 };
 
-function DefaultsForm() {
+// Unused function - kept for potential future use
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/naming-convention
+function _DefaultsForm() {
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError } = useToast();
   const [loading, setLoading] = useState(true);
