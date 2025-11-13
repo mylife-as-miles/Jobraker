@@ -1,6 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/types.ts";
 
 const DEFAULT_MODEL = "gpt-4o-mini";
 
@@ -120,13 +119,10 @@ function toResult(raw: any): ResumeAnalysisResult {
   };
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response(null, { 
-      status: 204,
-      headers: corsHeaders 
-    });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
