@@ -75,20 +75,52 @@ Deno.serve({
     }
     const userId = user.id;
 
-    const allowedDomains = [
+    // Default domains (fallback if user settings not found)
+    const defaultDomains = [
       'remote.co',
       'remotive.com',
       'remoteok.com',
       'jobicy.com',
       'levels.fyi',
     ];
+    
     // Blocklist: exclude problematic domains from search
     const blocked = new Set([
       'techsolutions.com',
     ]);
 
-    // Start from user-configured domains if present; else use defaults
-    let domainList = allowedDomains
+    // Fetch user's job source settings from database
+    let domainList: string[] = defaultDomains;
+    try {
+      const { data: settings, error: settingsError } = await supabaseAuthed
+        .from('job_source_settings')
+        .select('enabled_default_sources, allowed_domains')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!settingsError && settings) {
+        // Prefer enabled_default_sources if available, otherwise use allowed_domains
+        if (Array.isArray(settings.enabled_default_sources) && settings.enabled_default_sources.length > 0) {
+          // Use enabled default sources + custom domains from allowed_domains
+          const enabledDefaults = settings.enabled_default_sources.map((d: string) => String(d).toLowerCase().trim());
+          const allDomains = Array.isArray(settings.allowed_domains) ? settings.allowed_domains : [];
+          const customDomains = allDomains
+            .map((d: string) => String(d).toLowerCase().trim())
+            .filter((d: string) => !defaultDomains.includes(d)); // Exclude defaults that might be in allowed_domains
+          domainList = [...enabledDefaults, ...customDomains];
+        } else if (Array.isArray(settings.allowed_domains) && settings.allowed_domains.length > 0) {
+          // Fallback to allowed_domains if enabled_default_sources not set
+          domainList = settings.allowed_domains.map((d: string) => String(d).toLowerCase().trim());
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load job source settings, using defaults:', err);
+      // Use default domains on error
+      domainList = defaultDomains;
+    }
+
+    // Normalize and filter domains
+    domainList = domainList
       .map((d) => String(d).toLowerCase().replace(/^www\./, ''))
       .filter((d) => {
         // Exclude any domain that matches or is a subdomain of a blocked entry
@@ -97,9 +129,10 @@ Deno.serve({
           if (d === bb || d.endsWith(`.${bb}`)) return false;
         }
         return true;
-      });
+      })
+      .filter((d, index, self) => self.indexOf(d) === index); // Remove duplicates
 
-    console.log('jobs-search.domains', { allowed_domains: domainList, user_id: userId });
+    console.log('jobs-search.domains', { allowed_domains: domainList, user_id: userId, source: 'database' });
 
     // Compose optimized query using Firecrawl operators
   const siteClause = domainList.map((d) => `site:${d}`).join(' OR ');

@@ -6,6 +6,11 @@ import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
 import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles, Mail, Zap, Crown, Check, ArrowRight, FileText, Clock, Database, Cookie, MapPin, Activity, Share2, AlertTriangle, History, X, TrendingUp, BarChart3, PlayCircle, PauseCircle, MoreVertical, Edit2, ExternalLink } from "lucide-react";
+import remoteCoLogo from "../../../assets/job-sources/remote-co.svg";
+import remotiveLogo from "../../../assets/job-sources/remotive.svg";
+import remoteokLogo from "../../../assets/job-sources/remoteok.svg";
+import jobicyLogo from "../../../assets/job-sources/jobicy.svg";
+import levelsFyiLogo from "../../../assets/job-sources/levels-fyi.svg";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
 import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
@@ -2406,11 +2411,11 @@ export const SettingsPage = (): JSX.Element => {
       case "job-sources":
         // Define the 5 default job source domains
         const defaultJobSourceDomains = [
-          { id: 'remote.co', domain: 'remote.co', name: 'Remote.co', description: 'Remote.co job board', icon: Globe, color: 'blue' },
-          { id: 'remotive.com', domain: 'remotive.com', name: 'Remotive', description: 'Remotive job board', icon: Search, color: 'green' },
-          { id: 'remoteok.com', domain: 'remoteok.com', name: 'RemoteOK', description: 'RemoteOK job board', icon: Globe, color: 'purple' },
-          { id: 'jobicy.com', domain: 'jobicy.com', name: 'Jobicy', description: 'Jobicy job board', icon: Briefcase, color: 'orange' },
-          { id: 'levels.fyi', domain: 'levels.fyi', name: 'Levels.fyi', description: 'Levels.fyi (salary/compensation data)', icon: BarChart3, color: 'indigo' },
+          { id: 'remote.co', domain: 'remote.co', name: 'Remote.co', description: 'Remote.co job board', logo: remoteCoLogo, color: 'blue' },
+          { id: 'remotive.com', domain: 'remotive.com', name: 'Remotive', description: 'Remotive job board', logo: remotiveLogo, color: 'green' },
+          { id: 'remoteok.com', domain: 'remoteok.com', name: 'RemoteOK', description: 'RemoteOK job board', logo: remoteokLogo, color: 'purple' },
+          { id: 'jobicy.com', domain: 'jobicy.com', name: 'Jobicy', description: 'Jobicy job board', logo: jobicyLogo, color: 'orange' },
+          { id: 'levels.fyi', domain: 'levels.fyi', name: 'Levels.fyi', description: 'Levels.fyi (salary/compensation data)', logo: levelsFyiLogo, color: 'indigo' },
         ];
 
         const handleToggleDefaultDomain = (domain: string) => {
@@ -2474,7 +2479,6 @@ export const SettingsPage = (): JSX.Element => {
                 <h3 className="text-lg font-semibold text-white/95 mb-4">Available Job Sources</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {defaultJobSourceDomains.map((source) => {
-                    const IconComponent = source.icon;
                     const isEnabled = enabledDefaultDomains.has(source.domain);
                     
                     return (
@@ -2487,20 +2491,32 @@ export const SettingsPage = (): JSX.Element => {
                         }`}
                       >
                         <div className="flex items-center justify-between mb-3">
-                          <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${
+                          <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${
                             source.color === 'blue' ? 'from-blue-500/20 to-blue-500/10 border-blue-500/30' :
                             source.color === 'green' ? 'from-green-500/20 to-green-500/10 border-green-500/30' :
                             source.color === 'purple' ? 'from-purple-500/20 to-purple-500/10 border-purple-500/30' :
                             source.color === 'orange' ? 'from-orange-500/20 to-orange-500/10 border-orange-500/30' :
                             'from-indigo-500/20 to-indigo-500/10 border-indigo-500/30'
-                          } border flex items-center justify-center`}>
-                            <IconComponent className={`w-5 h-5 ${
-                              source.color === 'blue' ? 'text-blue-400' :
-                              source.color === 'green' ? 'text-green-400' :
-                              source.color === 'purple' ? 'text-purple-400' :
-                              source.color === 'orange' ? 'text-orange-400' :
-                              'text-indigo-400'
-                            }`} />
+                          } border flex items-center justify-center overflow-hidden`}>
+                            <img 
+                              src={source.logo} 
+                              alt={source.name}
+                              className="w-10 h-10 object-contain"
+                              onError={(e) => {
+                                // Fallback to a simple icon if SVG fails to load
+                                const target = e.currentTarget as HTMLImageElement;
+                                target.style.display = 'none';
+                                const fallback = document.createElement('div');
+                                fallback.className = `w-8 h-8 rounded ${
+                                  source.color === 'blue' ? 'bg-blue-500/30' :
+                                  source.color === 'green' ? 'bg-green-500/30' :
+                                  source.color === 'purple' ? 'bg-purple-500/30' :
+                                  source.color === 'orange' ? 'bg-orange-500/30' :
+                                  'bg-indigo-500/30'
+                                }`;
+                                target.parentElement?.appendChild(fallback);
+                              }}
+                            />
                           </div>
                           <button
                             onClick={() => handleToggleDefaultDomain(source.domain)}

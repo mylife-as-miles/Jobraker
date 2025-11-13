@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <rect width="200" height="200" rx="20" fill="#2563EB"/>
+  <circle cx="100" cy="80" r="25" fill="white" opacity="0.9"/>
+  <path d="M70 120 L100 100 L130 120 L100 140 Z" fill="white" opacity="0.9"/>
+  <text x="100" y="170" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white" text-anchor="middle">Remote.co</text>
+</svg>
+
