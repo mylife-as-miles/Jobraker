@@ -10,6 +10,8 @@ import type { ResumeRecord } from "@/hooks/useResumes";
 import { useResumes } from "@/hooks/useResumes";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useResumeSelection } from '@/client/stores/resumeSelection';
+import { DeleteResumeDialog } from "@/client/components/DeleteResumeDialog";
+import { UndoToast } from "@/client/components/UndoToast";
 
 type Props = { resume: ResumeRecord };
 
@@ -128,6 +130,11 @@ export const SbResumeCard = ({ resume }: Props) => {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const { selected, toggle, selectOnly, lastSelected } = useResumeSelection();
   const isSelected = selected.includes(resume.id);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showUndoToast, setShowUndoToast] = useState(false);
+  const [deletedResumeId, setDeletedResumeId] = useState<string | null>(null);
+  const [deletedResumeName, setDeletedResumeName] = useState<string>("");
 
   // Shift + click range selection support (delegated in Grid container but basic here)
   const onSelectClick = useCallback((e: React.MouseEvent) => {
@@ -280,19 +287,7 @@ export const SbResumeCard = ({ resume }: Props) => {
         <button
           onClick={(e)=>{ 
             e.stopPropagation(); 
-            const id = resume.id;
-            const name = resume.name;
-            remove(resume);
-            toast({
-              title: 'Resume deleted',
-              description: name,
-              action: (
-                <button
-                  onClick={(ev)=>{ ev.stopPropagation(); undoRemove(id); }}
-                  className="px-2 py-1 text-[10px] rounded bg-[#1dff00]/20 border border-[#1dff00]/40 text-[#1dff00] hover:bg-[#1dff00]/30 transition"
-                >Undo</button>
-              )
-            });
+            setDeleteDialogOpen(true);
           }}
           className="p-1.5 rounded-md bg-black/60 border border-white/10 hover:border-red-500/70 hover:text-red-400 hover:bg-black/80 text-white transition flex items-center justify-center"
           title="Delete"
@@ -325,6 +320,49 @@ export const SbResumeCard = ({ resume }: Props) => {
           }}
         />
       </div>
+      <DeleteResumeDialog
+        open={deleteDialogOpen}
+        resumeName={resume.name}
+        onConfirm={async () => {
+          setIsDeleting(true);
+          try {
+            const id = resume.id;
+            const name = resume.name;
+            await remove(resume);
+            setDeletedResumeId(id);
+            setDeletedResumeName(name);
+            setShowUndoToast(true);
+            setDeleteDialogOpen(false);
+          } catch (error) {
+            toast({ title: 'Error', description: 'Failed to delete resume' });
+            setDeleteDialogOpen(false);
+          } finally {
+            setIsDeleting(false);
+          }
+        }}
+        onCancel={() => setDeleteDialogOpen(false)}
+        isLoading={isDeleting}
+      />
+      {showUndoToast && deletedResumeId && (
+        <UndoToast
+          id={deletedResumeId}
+          title="Resume deleted"
+          description={deletedResumeName}
+          onUndo={() => {
+            if (deletedResumeId) {
+              undoRemove(deletedResumeId);
+              setShowUndoToast(false);
+              setDeletedResumeId(null);
+              setDeletedResumeName("");
+            }
+          }}
+          onDismiss={() => {
+            setShowUndoToast(false);
+            setDeletedResumeId(null);
+            setDeletedResumeName("");
+          }}
+        />
+      )}
     </BaseCard>
   );
 };
