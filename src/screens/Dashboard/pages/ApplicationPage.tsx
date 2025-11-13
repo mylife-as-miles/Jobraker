@@ -707,10 +707,10 @@ function ApplicationPage() {
                   {(column) => (
                     <KanbanBoard id={column.id} key={column.id}>
                       <KanbanHeader>
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: column.color }} />
-                          <span className="text-white">{column.name}</span>
-                          <span className="inline-flex items-center gap-1 rounded-full border border-white/20 px-2 py-0.5 text-[10px] text-white/70">
+                        <div className="flex items-center gap-2.5">
+                          <div className="h-2.5 w-2.5 rounded-full shadow-sm" style={{ backgroundColor: column.color }} />
+                          <span className="text-sm font-semibold text-white/95 tracking-tight">{column.name}</span>
+                          <span className="inline-flex items-center justify-center min-w-[24px] h-5 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] font-medium text-white/80">
                             {kanbanData.filter((a) => a.status === (column.id as ApplicationStatus)).length}
                           </span>
                         </div>
@@ -718,20 +718,26 @@ function ApplicationPage() {
                       <KanbanCards id={column.id}>
                         {(a: any) => (
                           <KanbanCard key={a.id} id={a.id}>
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-xs flex-shrink-0">
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 bg-gradient-to-br from-[#1dff00]/90 to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-xs flex-shrink-0 shadow-sm">
                                 {a.logo || (a.company?.[0] ?? "")}
                               </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="text-white text-sm font-medium truncate">{a.job_title}</div>
-                                <div className="text-[#ffffff80] text-xs truncate">{a.company}</div>
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <div className="text-white/95 text-sm font-semibold leading-tight truncate">{a.job_title}</div>
+                                <div className="text-white/65 text-xs font-medium truncate">{a.company}</div>
+                                <div className="flex items-center gap-2 text-[11px] text-white/50 mt-2 pt-2 border-t border-white/5">
+                                  <span className="font-medium">{new Date(a.applied_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                  {a.location && (
+                                    <>
+                                      <span className="text-white/20">•</span>
+                                      <span className="truncate">{a.location}</span>
+                                    </>
+                                  )}
+                                </div>
                               </div>
-                              <MatchScoreBadge score={a.match_score ?? 0} />
-                            </div>
-                            <div className="mt-2 flex items-center gap-2 text-[11px] text-[#ffffff60]">
-                              <span>{new Date(a.applied_date).toLocaleDateString()}</span>
-                              <span>•</span>
-                              <span>{a.location}</span>
+                              <div className="flex-shrink-0 mt-0.5">
+                                <MatchScoreBadge score={a.match_score ?? 0} />
+                              </div>
                             </div>
                           </KanbanCard>
                         )}
