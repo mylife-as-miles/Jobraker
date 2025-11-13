@@ -18,7 +18,7 @@ import SimpleDropdown from "../../components/SimpleDropdown";
 import { useResumes } from "@/hooks/useResumes";
 import { useProfileSettings } from "@/hooks/useProfileSettings";
 import { parsePdfFile } from "../../utils/parsePdf";
-import { createClient } from "../../../lib/supabaseClient";
+import { createClient } from "../../lib/supabaseClient";
 import type { ResumeAnalysisResult } from "../../services/ai/analyzeResume";
 
 interface HistoryEntry {
