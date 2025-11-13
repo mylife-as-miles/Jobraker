@@ -19,6 +19,36 @@ export interface CalendarDayDetailProps {
 
 const ALL_STATUSES: ApplicationRecord['status'][] = ["Pending","Applied","Interview","Offer","Rejected","Withdrawn"];
 
+// Helper function to format date at midnight local time to avoid timezone shift
+// This ensures the selected calendar date is preserved regardless of timezone
+function formatDateForDatabase(date: Date): string {
+  // Get local date components (these are timezone-independent)
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const day = date.getDate();
+  
+  // Create a date at midnight in local timezone
+  const localMidnight = new Date(year, month, day, 0, 0, 0, 0);
+  
+  // getTimezoneOffset() returns offset in minutes from UTC
+  // Positive values are behind UTC (e.g., PST = +480 minutes = UTC-8)
+  // Negative values are ahead of UTC
+  // We need to invert the sign for ISO string format (UTC-8 = -08:00)
+  const offsetMinutes = localMidnight.getTimezoneOffset();
+  const offsetHours = Math.floor(Math.abs(offsetMinutes) / 60);
+  const offsetMins = Math.abs(offsetMinutes) % 60;
+  // Invert sign: positive offset means behind UTC, so we use negative in ISO string
+  const offsetSign = offsetMinutes > 0 ? '-' : '+';
+  
+  // Format as YYYY-MM-DDTHH:mm:ss+HH:mm
+  const yearStr = String(year);
+  const monthStr = String(month + 1).padStart(2, '0');
+  const dayStr = String(day).padStart(2, '0');
+  const offsetStr = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMins).padStart(2, '0')}`;
+  
+  return `${yearStr}-${monthStr}-${dayStr}T00:00:00${offsetStr}`;
+}
+
 export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, range, onClose, applications, onUpdateApplication, onCreateApplication }) => {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const [activeStatuses, setActiveStatuses] = useState<Record<string, boolean>>(() => Object.fromEntries(ALL_STATUSES.map(s => [s, true])));
@@ -196,7 +226,8 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
     if (!qaJob.trim() || !qaCompany.trim()) return;
     try {
       setQaSaving(true);
-      await onCreateApplication({ job_title: qaJob.trim(), company: qaCompany.trim(), status: qaStatus as any, applied_date: (date||range?.start|| new Date()).toISOString() });
+      const selectedDate = date || range?.start || new Date();
+      await onCreateApplication({ job_title: qaJob.trim(), company: qaCompany.trim(), status: qaStatus as any, applied_date: formatDateForDatabase(selectedDate) });
       setQaJob(''); setQaCompany('');
     } finally { setQaSaving(false); }
   };
