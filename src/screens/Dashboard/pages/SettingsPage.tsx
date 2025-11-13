@@ -484,31 +484,32 @@ export const SettingsPage = (): JSX.Element => {
         if (!uid) { setLoadingDomains(false); return; }
         const { data } = await (supabase as any)
           .from('job_source_settings')
-          .select('allowed_domains')
+          .select('enabled_default_sources, allowed_domains')
           .eq('id', uid)
           .maybeSingle();
-        if (data && Array.isArray(data.allowed_domains)) {
-          const savedDomains = data.allowed_domains.map((d: string) => d.toLowerCase().trim());
-          const defaultJobSourceDomains = [
-            { domain: 'remote.co' },
-            { domain: 'remotive.com' },
-            { domain: 'remoteok.com' },
-            { domain: 'jobicy.com' },
-            { domain: 'levels.fyi' },
-          ];
-          // Check which default domains are enabled
-          const enabledDefaults = new Set<string>();
-          defaultJobSourceDomains.forEach(source => {
-            if (savedDomains.includes(source.domain)) {
-              enabledDefaults.add(source.domain);
-            }
-          });
-          setEnabledDefaultDomains(enabledDefaults);
-          // Extract user custom domains (not in default list)
-          const customDomains = savedDomains.filter((d: string) => 
-            !defaultJobSourceDomains.some(s => s.domain === d)
-          );
-          setUserCustomDomains(customDomains.join(', '));
+        
+        if (data) {
+          // Load enabled default sources from dedicated column
+          if (Array.isArray(data.enabled_default_sources)) {
+            const enabledDefaults = new Set<string>(
+              data.enabled_default_sources.map((d: string) => d.toLowerCase().trim())
+            );
+            setEnabledDefaultDomains(enabledDefaults);
+          } else {
+            // Fallback: if column doesn't exist yet, use default values
+            setEnabledDefaultDomains(new Set(['remote.co', 'remotive.com', 'remoteok.com', 'jobicy.com', 'levels.fyi']));
+          }
+          
+          // Load user custom domains from allowed_domains (excluding default sources)
+          if (Array.isArray(data.allowed_domains)) {
+            const savedDomains = data.allowed_domains.map((d: string) => d.toLowerCase().trim());
+            const defaultJobSourceDomains = ['remote.co', 'remotive.com', 'remoteok.com', 'jobicy.com', 'levels.fyi'];
+            // Extract user custom domains (not in default list)
+            const customDomains = savedDomains.filter((d: string) => 
+              !defaultJobSourceDomains.includes(d)
+            );
+            setUserCustomDomains(customDomains.join(', '));
+          }
         }
       } catch (e: any) { console.warn(e); }
       setLoadingDomains(false);
@@ -2431,14 +2432,19 @@ export const SettingsPage = (): JSX.Element => {
             const uid = (auth as any)?.user?.id;
             if (!uid) { setSavingDomains(false); return; }
             
-            // Combine enabled default domains with user custom domains
+            // Prepare enabled default sources as array
             const enabledDefaults = Array.from(enabledDefaultDomains);
+            
+            // Prepare user custom domains
             const customDomains = userCustomDomains.split(',').map(s => s.trim()).filter(Boolean);
+            
+            // Combine for allowed_domains (for backward compatibility and job search logic)
             const allDomains = [...enabledDefaults, ...customDomains];
             
             const payload = {
               id: uid,
-              allowed_domains: allDomains,
+              enabled_default_sources: enabledDefaults, // Save to dedicated column
+              allowed_domains: allDomains, // Also save combined list for backward compatibility
               updated_at: new Date().toISOString(),
             };
             const { error } = await (supabase as any)
