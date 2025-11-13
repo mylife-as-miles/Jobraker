@@ -24,7 +24,6 @@ import {
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
-import TrueFocus from "../../components/animations/TrueFocus";
 import { animate, stagger } from 'animejs';
 import { useStaggerText, useParallaxScroll, useCounterAnimation } from "../../hooks/useAnimeAnimations";
 
@@ -841,33 +840,6 @@ export const LandingPage = () => {
             <p className="text-lg sm:text-xl text-[#888888] max-w-3xl mx-auto leading-relaxed">
               Explore our collection of cutting-edge animation effects and interactive components.
             </p>
-          </div>
-
-          {/* True Focus Demo */}
-          <div className="mb-16 sm:mb-20">
-            <div className="bg-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl p-8 sm:p-12 lg:p-16">
-              <div className="text-center mb-8">
-                <h3 className="text-2xl sm:text-3xl font-bold text-[#1dff00] mb-4">
-                  True Focus - Live Demo
-                </h3>
-                <p className="text-[#888888] text-sm sm:text-base">
-                  Watch as each word comes into focus with a dynamic border animation
-                </p>
-              </div>
-              <div className="flex justify-center items-center min-h-[200px] sm:min-h-[250px] lg:min-h-[300px] py-8">
-                <div className="w-full max-w-5xl px-4">
-                  <TrueFocus
-                    sentence="JobRaker Automates Your Career"
-                    manualMode={false}
-                    blurAmount={8}
-                    borderColor="#1dff00"
-                    glowColor="rgba(29, 255, 0, 0.6)"
-                    animationDuration={0.8}
-                    pauseBetweenAnimations={1.5}
-                  />
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="space-y-12">
