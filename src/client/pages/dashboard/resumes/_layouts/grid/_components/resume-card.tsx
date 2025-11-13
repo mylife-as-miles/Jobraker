@@ -14,6 +14,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
 import { useDialog } from "@/client/stores/dialog";
+import { useResumes, type ResumeRecord } from "@/hooks/useResumes";
+import { useToast } from "@/components/ui/toast";
 
 import { BaseCard } from "./base-card";
 
@@ -25,6 +27,8 @@ export const ResumeCard = ({ resume }: Props) => {
   const navigate = useNavigate();
   const { open } = useDialog<ResumeDto>("resume");
   const { open: lockOpen } = useDialog<ResumeDto>("lock");
+  const { remove, duplicate: duplicateResume, rename, undoRemove } = useResumes();
+  const { toast } = useToast();
 
   const template = resume.data.metadata.template;
   const lastUpdated = dayjs().to(resume.updatedAt ?? resume.createdAt ?? new Date());
@@ -37,16 +41,70 @@ export const ResumeCard = ({ resume }: Props) => {
     open("update", { id: "resume", item: resume });
   };
 
-  const onDuplicate = () => {
-    open("duplicate", { id: "resume", item: resume });
+  const onDuplicate = async () => {
+    // Convert ResumeDto to ResumeRecord format for duplication
+    const resumeRecord: ResumeRecord = {
+      id: resume.id,
+      user_id: null, // Will be set by the hook
+      name: resume.name,
+      template: resume.data?.metadata?.template || "pikachu",
+      status: resume.locked ? "Archived" : "Active",
+      applications: 0,
+      thumbnail: null,
+      is_favorite: false,
+      file_path: null,
+      file_ext: null,
+      size: null,
+      updated_at: resume.updatedAt || resume.createdAt || new Date().toISOString(),
+    };
+    await duplicateResume(resumeRecord);
   };
 
   const onLockChange = () => {
     lockOpen(resume.locked ? "update" : "create", { id: "lock", item: resume });
   };
 
-  const onDelete = () => {
-    open("delete", { id: "resume", item: resume });
+  const onDelete = async () => {
+    if (!confirm(t`Are you sure you want to delete "${resume.name}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    // Fetch the full resume record from database to get file_path and other fields
+    const { createClient } = await import("@/lib/supabaseClient");
+    const supabase = createClient();
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = (auth as any)?.user?.id;
+    
+    if (!uid) {
+      toast({ title: 'Error', description: 'Not authenticated' });
+      return;
+    }
+    
+    const { data: resumeRecord, error: fetchError } = await (supabase as any)
+      .from("resumes")
+      .select("*")
+      .eq("id", resume.id)
+      .eq("user_id", uid)
+      .single();
+    
+    if (fetchError || !resumeRecord) {
+      toast({ title: 'Error', description: 'Failed to fetch resume details' });
+      return;
+    }
+    
+    const id = resume.id;
+    const name = resume.name;
+    await remove(resumeRecord as ResumeRecord);
+    toast({
+      title: 'Resume deleted',
+      description: name,
+      action: (
+        <button
+          onClick={(ev) => { ev.stopPropagation(); undoRemove(id); }}
+          className="px-2 py-1 text-[10px] rounded bg-[#1dff00]/20 border border-[#1dff00]/40 text-[#1dff00] hover:bg-[#1dff00]/30 transition"
+        >Undo</button>
+      )
+    });
   };
 
   const onReparse = () => {
