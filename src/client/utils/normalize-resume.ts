@@ -13,7 +13,7 @@ export function buildDefaultResumeData() {
     basics: { name: "", email: "", phone: "", location: "", url: "", picture: { url: "", enabled: false } },
     sections,
     metadata: {
-      template: "Modern",
+      template: "pikachu",
       layout: [[Object.keys(defaultSections)]],
       page: { format: "A4", margin: 24 },
       theme: { primary: "#1dff00", text: "#ffffff", background: "#000000" },

@@ -88,8 +88,16 @@ export const ResumeCard = ({ resume }: Props) => {
           </div>
 
           <img
-            src={`/templates/jpg/${encodeURIComponent((template || 'Modern').trim() || 'Modern')}.jpg`}
-            onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/templates/jpg/Modern.jpg"; }}
+            src={`/templates/jpg/${encodeURIComponent((template || 'pikachu').trim() || 'pikachu')}.jpg`}
+            onError={(e) => {
+              const img = e.currentTarget as HTMLImageElement;
+              if (!img.dataset.fallbackUsed) {
+                img.dataset.fallbackUsed = 'true';
+                img.src = "/templates/jpg/pikachu.jpg";
+              } else {
+                img.style.display = 'none';
+              }
+            }}
             alt={template}
             className="rounded-xl opacity-90 contrast-110"
           />

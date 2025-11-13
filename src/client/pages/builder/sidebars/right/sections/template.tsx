@@ -21,35 +21,47 @@ export const TemplateSection = () => {
       </header>
 
       <main className="grid grid-cols-2 gap-8 @lg/right:grid-cols-3 @2xl/right:grid-cols-4">
-        {templatesList.map((template, index) => (
-          <AspectRatio key={template} ratio={1 / 1.4142}>
+        {templatesList.map((template, index) => {
+          const templateId = typeof template === 'string' ? template : (template.id || 'pikachu');
+          const templateName = typeof template === 'string' ? template : (template.name || 'Pikachu');
+          return (
+          <AspectRatio key={templateId} ratio={1 / 1.4142}>
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1, transition: { delay: index * 0.1 } }}
               whileTap={{ scale: 0.98, transition: { duration: 0.1 } }}
               className={cn(
                 "relative cursor-pointer rounded-sm ring-primary transition-all hover:ring-2",
-                currentTemplate === template && "ring-2",
+                currentTemplate === templateId && "ring-2",
               )}
               onClick={() => {
-                setValue("metadata.template", template);
+                setValue("metadata.template", templateId);
               }}
             >
               <img 
-                src={`/templates/jpg/${encodeURIComponent((template || 'Modern').trim() || 'Modern')}.jpg`} 
-                alt={template} 
+                src={`/templates/jpg/${encodeURIComponent((templateId || 'pikachu').trim() || 'pikachu')}.jpg`} 
+                alt={templateName} 
                 className="rounded-sm"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/templates/jpg/Modern.jpg"; }}
+                onError={(e) => {
+                  const img = e.currentTarget as HTMLImageElement;
+                  if (!img.dataset.fallbackUsed) {
+                    img.dataset.fallbackUsed = 'true';
+                    img.src = "/templates/jpg/pikachu.jpg";
+                  } else {
+                    img.style.display = 'none';
+                  }
+                }}
               />
 
               <div className="absolute inset-x-0 bottom-0 h-32 w-full bg-gradient-to-b from-transparent to-background/80">
                 <p className="absolute inset-x-0 bottom-2 text-center font-bold capitalize text-primary">
-                  {template}
+                  {templateName}
                 </p>
               </div>
             </motion.div>
           </AspectRatio>
-        ))}
+          );
+        })}
       </main>
     </section>
   );

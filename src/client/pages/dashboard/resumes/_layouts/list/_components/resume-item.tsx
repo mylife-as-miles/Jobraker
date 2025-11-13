@@ -20,8 +20,16 @@ export const ResumeListItem = ({ resume }: { resume: ResumeDto }) => {
         <p className="truncate text-xs opacity-70">{t`Last updated ${lastUpdated}`}</p>
       </div>
       <img
-        src={`/templates/jpg/${encodeURIComponent((resume?.data?.metadata?.template || 'Modern').trim() || 'Modern')}.jpg`}
-        onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/templates/jpg/Modern.jpg"; }}
+        src={`/templates/jpg/${encodeURIComponent((resume?.data?.metadata?.template || 'pikachu').trim() || 'pikachu')}.jpg`}
+        onError={(e) => {
+          const img = e.currentTarget as HTMLImageElement;
+          if (!img.dataset.fallbackUsed) {
+            img.dataset.fallbackUsed = 'true';
+            img.src = "/templates/jpg/pikachu.jpg";
+          } else {
+            img.style.display = 'none';
+          }
+        }}
         alt={resume.data.metadata.template}
         className="h-10 w-8 rounded-xl object-cover opacity-90 contrast-110"
       />

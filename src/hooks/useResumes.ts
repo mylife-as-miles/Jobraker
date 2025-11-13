@@ -506,7 +506,7 @@ export function useResumes() {
   }, [supabase, success, toastError, info]);
 
   const createEmpty = useCallback(
-    async ({ name = "Untitled Resume", template = "Modern" }: { name?: string; template?: string } = {}) => {
+    async ({ name = "Untitled Resume", template = "pikachu" }: { name?: string; template?: string } = {}) => {
       if (!userId) return null;
       try {
         const { data, error } = await (supabase as any)

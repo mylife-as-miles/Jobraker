@@ -120,7 +120,7 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord; active: boolean }> = ({ res
 export const SbResumeCard = ({ resume }: Props) => {
   const { view, download, duplicate, toggleFavorite, remove, rename, undoRemove } = useResumes() as any;
   const { toast } = useToast();
-  const template = resume.template || "Modern";
+  const template = resume.template || "pikachu";
   const lastUpdated = dayjs().to(new Date(resume.updated_at));
   const [inView, setInView] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -311,10 +311,18 @@ export const SbResumeCard = ({ resume }: Props) => {
         )}
         {/* Fallback image (shows underneath the canvas or if PDF not available) */}
         <img
-          src={`/templates/jpg/${encodeURIComponent((template || 'Modern').trim() || 'Modern')}.jpg`}
+          src={`/templates/jpg/${encodeURIComponent((template || 'pikachu').trim() || 'pikachu')}.jpg`}
           alt={template}
           className="absolute inset-0 w-full h-full object-cover rounded-sm opacity-0"
-          onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/templates/jpg/Modern.jpg"; }}
+          onError={(e) => {
+            const img = e.currentTarget as HTMLImageElement;
+            if (!img.dataset.fallbackUsed) {
+              img.dataset.fallbackUsed = 'true';
+              img.src = "/templates/jpg/pikachu.jpg";
+            } else {
+              img.style.display = 'none';
+            }
+          }}
         />
       </div>
     </BaseCard>
