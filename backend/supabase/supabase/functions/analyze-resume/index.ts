@@ -120,6 +120,10 @@ function toResult(raw: any): ResumeAnalysisResult {
 }
 
 Deno.serve(async (req) => {
+  // Get dynamic CORS headers based on request origin
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
