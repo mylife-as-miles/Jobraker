@@ -128,6 +128,11 @@ export const SettingsPage = (): JSX.Element => {
   const [accountDeletionEmail, setAccountDeletionEmail] = useState("");
   const [userEmail, setUserEmail] = useState<string>("");
   const [isDeleting, setIsDeleting] = useState(false);
+  // Job sources domain state
+  const [enabledDefaultDomains, setEnabledDefaultDomains] = useState<Set<string>>(new Set(['remote.co', 'remotive.com', 'remoteok.com', 'jobicy.com', 'levels.fyi']));
+  const [userCustomDomains, setUserCustomDomains] = useState<string>("");
+  const [loadingDomains, setLoadingDomains] = useState(true);
+  const [savingDomains, setSavingDomains] = useState(false);
   const passwordCheck = useMemo(() => validatePassword(formData.newPassword, formData.email), [formData.newPassword, formData.email]);
 
   // Get user email for account deletion confirmation
@@ -455,6 +460,49 @@ export const SettingsPage = (): JSX.Element => {
     // ensure settings exist lazily on first toggle
     void refreshSec();
   }, [refreshSec]);
+
+  // Load job source domain settings when job-sources tab is active
+  useEffect(() => {
+    if (activeTab !== 'job-sources') return;
+    
+    (async () => {
+      setLoadingDomains(true);
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        const uid = (auth as any)?.user?.id;
+        if (!uid) { setLoadingDomains(false); return; }
+        const { data } = await (supabase as any)
+          .from('job_source_settings')
+          .select('allowed_domains')
+          .eq('id', uid)
+          .maybeSingle();
+        if (data && Array.isArray(data.allowed_domains)) {
+          const savedDomains = data.allowed_domains.map((d: string) => d.toLowerCase().trim());
+          const defaultJobSourceDomains = [
+            { domain: 'remote.co' },
+            { domain: 'remotive.com' },
+            { domain: 'remoteok.com' },
+            { domain: 'jobicy.com' },
+            { domain: 'levels.fyi' },
+          ];
+          // Check which default domains are enabled
+          const enabledDefaults = new Set<string>();
+          defaultJobSourceDomains.forEach(source => {
+            if (savedDomains.includes(source.domain)) {
+              enabledDefaults.add(source.domain);
+            }
+          });
+          setEnabledDefaultDomains(enabledDefaults);
+          // Extract user custom domains (not in default list)
+          const customDomains = savedDomains.filter((d: string) => 
+            !defaultJobSourceDomains.some(s => s.domain === d)
+          );
+          setUserCustomDomains(customDomains.join(', '));
+        }
+      } catch (e: any) { console.warn(e); }
+      setLoadingDomains(false);
+    })();
+  }, [activeTab, supabase]);
 
   const tabs = [
     { id: "profile", label: "Profile", icon: <User className="w-4 h-4" /> },
@@ -2344,634 +2392,163 @@ export const SettingsPage = (): JSX.Element => {
         );
 
       case "job-sources":
-        // Define all available job sources with metadata
-        const availableJobSources = [
-          { 
-            id: 'remotive', 
-            name: 'Remotive', 
-            description: 'Remote job listings with search query support',
-            icon: Search,
-            category: 'Job Board',
-            supportsQuery: true,
-            defaultQuery: 'software engineer',
-            color: 'blue'
-          },
-          { 
-            id: 'remoteok', 
-            name: 'RemoteOK', 
-            description: 'Popular remote job board with curated listings',
-            icon: Globe,
-            category: 'Job Board',
-            supportsQuery: false,
-            color: 'green'
-          },
-          { 
-            id: 'arbeitnow', 
-            name: 'Arbeitnow', 
-            description: 'European job board with search capabilities',
-            icon: Briefcase,
-            category: 'Job Board',
-            supportsQuery: true,
-            defaultQuery: 'typescript',
-            color: 'purple'
-          },
-          { 
-            id: 'linkedin', 
-            name: 'LinkedIn', 
-            description: 'Professional networking platform job listings',
-            icon: Users,
-            category: 'Professional Network',
-            supportsQuery: true,
-            defaultQuery: 'full stack developer',
-            color: 'blue'
-          },
-          { 
-            id: 'indeed', 
-            name: 'Indeed', 
-            description: 'World\'s largest job search engine',
-            icon: Building,
-            category: 'Job Aggregator',
-            supportsQuery: true,
-            defaultQuery: 'react developer',
-            color: 'indigo'
-          },
-          { 
-            id: 'deepresearch', 
-            name: 'Deep Research', 
-            description: 'AI-powered deep job research with Firecrawl',
-            icon: Search,
-            category: 'AI Research',
-            supportsQuery: true,
-            defaultQuery: 'senior full-stack engineer',
-            color: 'purple',
-            advanced: true
-          },
-          { 
-            id: 'trulyremote', 
-            name: 'Truly Remote', 
-            description: 'Curated remote job opportunities',
-            icon: Globe,
-            category: 'Job Board',
-            supportsQuery: true,
-            defaultQuery: 'backend engineer',
-            color: 'teal'
-          },
-          { 
-            id: 'remoteco', 
-            name: 'Remote.co', 
-            description: 'Remote-first company job board',
-            icon: Coffee,
-            category: 'Job Board',
-            supportsQuery: false,
-            color: 'orange'
-          },
-          { 
-            id: 'jobspresso', 
-            name: 'Jobspresso', 
-            description: 'Premium remote and flexible jobs',
-            icon: Coffee,
-            category: 'Job Board',
-            supportsQuery: true,
-            defaultQuery: 'frontend developer',
-            color: 'pink'
-          },
-          { 
-            id: 'skipthedrive', 
-            name: 'Skip The Drive', 
-            description: 'Work-from-home job opportunities',
-            icon: Car,
-            category: 'Job Board',
-            supportsQuery: false,
-            color: 'yellow'
-          },
-          { 
-            id: 'feedcoyote', 
-            name: 'FeedCoyote', 
-            description: 'RSS-based job feed aggregator',
-            icon: Rss,
-            category: 'Feed Aggregator',
-            supportsQuery: false,
-            color: 'gray'
-          },
-          { 
-            id: 'json', 
-            name: 'Custom JSON Feed', 
-            description: 'Custom JSON feed URL for proprietary sources',
-            icon: Link,
-            category: 'Custom',
-            supportsQuery: false,
-            supportsUrl: true,
-            color: 'slate'
-          }
+        // Define the 5 default job source domains
+        const defaultJobSourceDomains = [
+          { id: 'remote.co', domain: 'remote.co', name: 'Remote.co', description: 'Remote.co job board', icon: Globe, color: 'blue' },
+          { id: 'remotive.com', domain: 'remotive.com', name: 'Remotive', description: 'Remotive job board', icon: Search, color: 'green' },
+          { id: 'remoteok.com', domain: 'remoteok.com', name: 'RemoteOK', description: 'RemoteOK job board', icon: Globe, color: 'purple' },
+          { id: 'jobicy.com', domain: 'jobicy.com', name: 'Jobicy', description: 'Jobicy job board', icon: Briefcase, color: 'orange' },
+          { id: 'levels.fyi', domain: 'levels.fyi', name: 'Levels.fyi', description: 'Levels.fyi (salary/compensation data)', icon: BarChart3, color: 'indigo' },
         ];
 
-        // Merge configured sources with available sources
-        const configuredSourceMap = new Map(jobSources.map(s => [s.type, s]));
-        const allSourcesWithConfig = availableJobSources.map(source => {
-          const config = configuredSourceMap.get(source.id);
-          return {
-            ...source,
-            enabled: config?.enabled ?? false,
-            query: config?.query ?? source.defaultQuery ?? '',
-            id: config?.id ?? Math.random()
-          };
-        });
+        const handleToggleDefaultDomain = (domain: string) => {
+          setEnabledDefaultDomains(prev => {
+            const next = new Set(prev);
+            if (next.has(domain)) {
+              next.delete(domain);
+            } else {
+              next.add(domain);
+            }
+            return next;
+          });
+        };
 
-        const enabledCount = allSourcesWithConfig.filter(s => s.enabled).length;
-        // Calculate total jobs from configured sources (simplified for now)
-        const totalJobs = jobSources.length * 10; // Placeholder - would need actual stats
+        const handleSaveDomains = async () => {
+          setSavingDomains(true);
+          try {
+            const { data: auth } = await supabase.auth.getUser();
+            const uid = (auth as any)?.user?.id;
+            if (!uid) { setSavingDomains(false); return; }
+            
+            // Combine enabled default domains with user custom domains
+            const enabledDefaults = Array.from(enabledDefaultDomains);
+            const customDomains = userCustomDomains.split(',').map(s => s.trim()).filter(Boolean);
+            const allDomains = [...enabledDefaults, ...customDomains];
+            
+            const payload = {
+              id: uid,
+              allowed_domains: allDomains,
+              updated_at: new Date().toISOString(),
+            };
+            const { error } = await (supabase as any)
+              .from('job_source_settings')
+              .upsert(payload, { onConflict: 'id' });
+            if (error) throw error;
+            success('Job source domains saved', 'Your allowed domains configuration has been updated successfully');
+          } catch (e: any) {
+            toastError('Save failed', e.message || 'Failed to save domain settings');
+          }
+          setSavingDomains(false);
+        };
 
         return (
           <div id="settings-tab-job-sources" data-tour="settings-tab-job-sources" className="space-y-6">
-            {/* Header with Stats */}
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-white/95 mb-2">Job Sources</h2>
-                <p className="text-sm text-white/50">
-                  Configure and manage job ingestion sources for automated job discovery
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
-                  onClick={() => setJobSources(jobSources.map(s => ({ ...s, enabled: false })))}
-                >
-                  Disable All
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 font-medium"
-                  onClick={() => {
-                    const maxId = jobSources.reduce((m, s) => Math.max(m, s.id || 0), 0);
-                    const newId = maxId + 1;
-                    setJobSources([...jobSources, { id: newId, type: "remotive", query: "software engineer", enabled: true }]);
-                  }}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Source
-                </Button>
-              </div>
-            </div>
-
-            {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card className="bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-white/50 uppercase tracking-wider mb-1">Total Sources</p>
-                      <p className="text-2xl font-bold text-white">{availableJobSources.length}</p>
-                    </div>
-                    <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                      <Database className="w-5 h-5 text-blue-400" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-white/50 uppercase tracking-wider mb-1">Enabled</p>
-                      <p className="text-2xl font-bold text-white">{enabledCount}</p>
-                    </div>
-                    <div className="w-10 h-10 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/20 flex items-center justify-center">
-                      <CheckCircle2 className="w-5 h-5 text-[#1dff00]" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-white/50 uppercase tracking-wider mb-1">Jobs Found</p>
-                      <p className="text-2xl font-bold text-white">{totalJobs.toLocaleString()}</p>
-                    </div>
-                    <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
-                      <BarChart3 className="w-5 h-5 text-purple-400" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-white/50 uppercase tracking-wider mb-1">Success Rate</p>
-                      <p className="text-2xl font-bold text-white">
-                        {enabledCount > 0 ? Math.round((enabledCount / availableJobSources.length) * 100) : 0}%
-                      </p>
-                    </div>
-                    <div className="w-10 h-10 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center">
-                      <TrendingUp className="w-5 h-5 text-green-400" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Quick Defaults */}
-            <Card className="bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all">
-              <CardContent className="p-4 space-y-4">
-                <h3 className="text-white/95 font-medium flex items-center gap-2">
-                  <SettingsIcon className="w-4 h-4" />
-                  Job Source Defaults
-                </h3>
-                <p className="text-sm text-white/50">These settings are used by live search and fallbacks.</p>
-                <DefaultsForm />
-              </CardContent>
-            </Card>
-
-            {/* Available Job Sources Grid */}
+            {/* Header */}
             <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white/95">Available Job Sources</h3>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
-                    onClick={() => {
-                      const newSources = availableJobSources.map(source => {
-                        const existing = jobSources.find(s => s.type === source.id);
-                        if (existing) {
-                          return { ...existing, enabled: true };
-                        }
-                        return {
-                          id: Math.max(...jobSources.map(s => s.id || 0), 0) + 1,
-                          type: source.id,
-                          query: source.defaultQuery || '',
-                          enabled: true
-                        };
-                      });
-                      setJobSources(newSources);
-                    }}
-                  >
-                    Enable All
-                  </Button>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {allSourcesWithConfig.map((source) => {
-                  const IconComponent = source.icon;
-                  const isConfigured = configuredSourceMap.has(source.id);
-                  
-                  return (
-                    <Card
-                      key={source.id}
-                      className={`bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all ${
-                        source.enabled ? 'ring-1 ring-[#1dff00]/30' : ''
-                      }`}
-                    >
-                      <CardContent className="p-5">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${
-                              source.color === 'blue' ? 'from-blue-500/20 to-blue-500/10 border-blue-500/30' :
-                              source.color === 'green' ? 'from-green-500/20 to-green-500/10 border-green-500/30' :
-                              source.color === 'purple' ? 'from-purple-500/20 to-purple-500/10 border-purple-500/30' :
-                              source.color === 'indigo' ? 'from-indigo-500/20 to-indigo-500/10 border-indigo-500/30' :
-                              'from-gray-500/20 to-gray-500/10 border-gray-500/30'
-                            } border flex items-center justify-center`}>
-                              <IconComponent className={`w-6 h-6 ${
-                                source.color === 'blue' ? 'text-blue-400' :
-                                source.color === 'green' ? 'text-green-400' :
-                                source.color === 'purple' ? 'text-purple-400' :
-                                source.color === 'indigo' ? 'text-indigo-400' :
-                                'text-gray-400'
-                              }`} />
-                            </div>
-                            <div>
-                              <h4 className="text-white/95 font-semibold">{source.name}</h4>
-                              <p className="text-xs text-white/50 mt-0.5">{source.category}</p>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => {
-                              if (isConfigured) {
-                                setJobSources(jobSources.map(s =>
-                                  s.type === source.id ? { ...s, enabled: !s.enabled } : s
-                                ));
-                              } else {
-                                const maxId = jobSources.reduce((m, s) => Math.max(m, s.id || 0), 0);
-                                setJobSources([...jobSources, {
-                                  id: maxId + 1,
-                                  type: source.id,
-                                  query: source.defaultQuery || '',
-                                  enabled: true
-                                }]);
-                              }
-                            }}
-                            className={`w-10 h-6 rounded-full transition-colors ${
-                              source.enabled
-                                ? 'bg-[#1dff00]'
-                                : 'bg-white/10'
-                            }`}
-                          >
-                            <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                              source.enabled ? 'translate-x-4' : 'translate-x-0.5'
-                            }`} />
-                          </button>
-                        </div>
-                        <p className="text-sm text-white/70 mb-4">{source.description}</p>
-                        <div className="flex items-center justify-between text-xs text-white/50">
-                          <div className="flex items-center gap-1">
-                            <Activity className="w-3 h-3" />
-                            <span>{source.supportsQuery ? 'Query-based' : 'Feed-based'}</span>
-                          </div>
-                          {source.advanced && (
-                            <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 text-xs">
-                              Advanced
-                            </span>
-                          )}
-                        </div>
-                        {source.enabled && source.supportsQuery && (
-                          <div className="mt-3">
-                            <Input
-                              value={source.query}
-                              onChange={(e) => {
-                                setJobSources(jobSources.map(s =>
-                                  s.type === source.id ? { ...s, query: e.target.value } : s
-                                ));
-                              }}
-                              placeholder={`Search query for ${source.name}`}
-                              className="bg-white/[0.05] border-white/[0.1] text-white placeholder-white/40 text-sm"
-                            />
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+              <h2 className="text-2xl font-bold text-white/95 mb-2">Job Sources</h2>
+              <p className="text-sm text-white/50">
+                Configure allowed domains for job search. Toggle default job boards and add custom domains.
+              </p>
             </div>
 
-            {/* Configured Sources List */}
-            {jobSources.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white/95">Configured Sources</h3>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
-                    onClick={() => setJobSources(jobSources.map(s => ({ ...s, enabled: false })))}
-                  >
-                    Disable All
-                  </Button>
-                </div>
+            {/* Available Job Sources */}
+            <Card className="bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold text-white/95 mb-4">Available Job Sources</h3>
                 <div className="space-y-3">
-                  {displayedSources.map((source) => {
-                    const sourceMeta = availableJobSources.find(s => s.id === source.type);
-                    const IconComponent = sourceMeta?.icon || Search;
+                  {defaultJobSourceDomains.map((source) => {
+                    const IconComponent = source.icon;
+                    const isEnabled = enabledDefaultDomains.has(source.domain);
                     
                     return (
-                <Card
-                  key={source.id}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('text/plain', String(source.id));
-                    setDraggingId(source.id);
-                  }}
-                  onDragOver={(e) => { e.preventDefault(); if (dragOverId !== source.id) setDragOverId(source.id); }}
-                  onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const fromId = Number(e.dataTransfer.getData('text/plain'));
-                    const toId = source.id;
-                    setJobSources((prev) => moveItem(prev, fromId, toId));
-                    setDraggingId(null); setDragOverId(null);
-                  }}
-                  className={`bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300 ${dragOverId === source.id ? 'ring-2 ring-primary/40' : ''} ${draggingId === source.id ? 'opacity-70' : ''}`}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/30 flex items-center justify-center">
-                          {source.type === 'remotive' && <Search className="w-5 h-5 text-primary" />}
-                          {source.type === 'remoteok' && <Globe className="w-5 h-5 text-primary" />}
-                          {source.type === 'arbeitnow' && <Briefcase className="w-5 h-5 text-primary" />}
-                          {source.type === 'linkedin' && <Users className="w-5 h-5 text-primary" />}
-                          {source.type === 'indeed' && <Building className="w-5 h-5 text-primary" />}
-                          {source.type === 'feedcoyote' && <Rss className="w-5 h-5 text-primary" />}
-                          {source.type === 'trulyremote' && <Globe className="w-5 h-5 text-primary" />}
-                          {source.type === 'remoteco' && <Coffee className="w-5 h-5 text-primary" />}
-                          {source.type === 'jobspresso' && <Coffee className="w-5 h-5 text-primary" />}
-                          {source.type === 'skipthedrive' && <Car className="w-5 h-5 text-primary" />}
-                          {source.type === 'json' && <Link className="w-5 h-5 text-primary" />}
-                          {source.type === 'deepresearch' && <Search className="w-5 h-5 text-primary" />}
+                      <div
+                        key={source.id}
+                        className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
+                          isEnabled 
+                            ? 'bg-white/[0.05] border-white/[0.1] ring-1 ring-[#1dff00]/30' 
+                            : 'bg-white/[0.02] border-white/[0.06]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${
+                            source.color === 'blue' ? 'from-blue-500/20 to-blue-500/10 border-blue-500/30' :
+                            source.color === 'green' ? 'from-green-500/20 to-green-500/10 border-green-500/30' :
+                            source.color === 'purple' ? 'from-purple-500/20 to-purple-500/10 border-purple-500/30' :
+                            source.color === 'orange' ? 'from-orange-500/20 to-orange-500/10 border-orange-500/30' :
+                            'from-indigo-500/20 to-indigo-500/10 border-indigo-500/30'
+                          } border flex items-center justify-center`}>
+                            <IconComponent className={`w-5 h-5 ${
+                              source.color === 'blue' ? 'text-blue-400' :
+                              source.color === 'green' ? 'text-green-400' :
+                              source.color === 'purple' ? 'text-purple-400' :
+                              source.color === 'orange' ? 'text-orange-400' :
+                              'text-indigo-400'
+                            }`} />
+                          </div>
+                          <div>
+                            <h4 className="text-white/95 font-semibold">{source.name}</h4>
+                            <p className="text-xs text-white/50 mt-0.5">{source.description}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="text-foreground font-medium capitalize">{source.type}</h3>
-                          <p className="text-muted-foreground text-sm">
-                            {source.type === 'remotive' && 'Remote job listings with search query support'}
-                            {source.type === 'remoteok' && 'Popular remote job board'}
-                            {source.type === 'arbeitnow' && 'European job board with search capabilities'}
-                            {source.type === 'linkedin' && 'Professional networking platform job listings'}
-                            {source.type === 'indeed' && 'World\'s largest job search engine'}
-                            {source.type === 'feedcoyote' && 'RSS-based job feed aggregator'}
-                            {source.type === 'trulyremote' && 'Curated remote job opportunities'}
-                            {source.type === 'remoteco' && 'Remote-first company job board'}
-                            {source.type === 'jobspresso' && 'Premium remote and flexible jobs'}
-                            {source.type === 'skipthedrive' && 'Work-from-home job opportunities'}
-                            {source.type === 'json' && 'Custom JSON feed URL'}
-                            {source.type === 'deepresearch' && 'AI-powered deep job research'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-3">
                         <button
-                          onClick={() => {
-                            setJobSources(jobSources.map(s =>
-                              s.id === source.id ? { ...s, enabled: !s.enabled } : s
-                            ));
-                          }}
-                          className="transition-colors duration-200"
+                          onClick={() => handleToggleDefaultDomain(source.domain)}
+                          disabled={loadingDomains}
+                          className={`w-12 h-6 rounded-full transition-colors ${
+                            isEnabled
+                              ? 'bg-[#1dff00]'
+                              : 'bg-white/10'
+                          }`}
                         >
-                          {source.enabled ? (
-                            <ToggleRight className="w-6 h-6 text-primary" />
-                          ) : (
-                            <ToggleLeft className="w-6 h-6 text-muted-foreground" />
-                          )}
+                          <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                            isEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                          }`} />
                         </button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            if (confirm('Remove this source?')) {
-                              setJobSources(jobSources.filter(s => s.id !== source.id));
-                            }
-                          }}
-                          className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
                       </div>
-                    </div>
-
-                    {/* Configuration Fields */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                        <GripVertical className="w-4 h-4" />
-                        <span>Drag to reorder</span>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">Source Type</label>
-                        <select
-                          value={source.type}
-                          onChange={(e) => {
-                            setJobSources(jobSources.map(s =>
-                              s.id === source.id ? { ...s, type: e.target.value } : s
-                            ));
-                          }}
-                          className="w-full px-3 py-2 bg-card/10 border border-border/20 rounded-lg text-foreground focus:border-primary focus:outline-none transition-colors"
-                        >
-                          <option value="remotive">Remotive</option>
-                          <option value="remoteok">RemoteOK</option>
-                          <option value="arbeitnow">Arbeit Now</option>
-                          <option value="linkedin">LinkedIn</option>
-                          <option value="indeed">Indeed</option>
-                          <option value="feedcoyote">FeedCoyote</option>
-                          <option value="trulyremote">Truly Remote</option>
-                          <option value="remoteco">Remote.co</option>
-                          <option value="jobspresso">Jobspresso</option>
-                          <option value="skipthedrive">Skip The Drive</option>
-                          <option value="json">Custom JSON</option>
-                          <option value="deepresearch">Deep Research</option>
-                        </select>
-                      </div>
-
-                      {(source.type === 'remotive' || source.type === 'arbeitnow' || source.type === 'linkedin' || source.type === 'indeed' || source.type === 'trulyremote' || source.type === 'jobspresso' || source.type === 'deepresearch') && (
-                        <div>
-                          <label className="block text-sm font-medium text-foreground mb-2">Search Query</label>
-                          <Input
-                            value={source.query}
-                            onChange={(e) => {
-                              setJobSources(jobSources.map(s =>
-                                s.id === source.id ? { ...s, query: e.target.value } : s
-                              ));
-                            }}
-                            placeholder="e.g., software engineer, react developer"
-                            className="bg-card/10 border-border/20 text-foreground placeholder:text-muted-foreground focus:border-primary"
-                          />
-                        </div>
-                      )}
-
-          {source.type === 'json' && (
-                        <div className="md:col-span-2">
-                          <label className="block text-sm font-medium text-foreground mb-2">JSON Feed URL</label>
-                          <Input
-                            value={source.query}
-                            onChange={(e) => {
-                              setJobSources(jobSources.map(s =>
-                                s.id === source.id ? { ...s, query: e.target.value } : s
-                              ));
-                            }}
-                            placeholder="https://your.api.example/jobs.json"
-            className={`bg-card/10 text-foreground placeholder:text-muted-foreground focus:border-primary border ${source.query && !isValidUrl(source.query) ? 'border-destructive focus:border-destructive' : 'border-border/20'}`}
-                          />
-                          {source.query && !isValidUrl(source.query) && (
-                            <p className="mt-1 text-xs text-destructive">Please enter a valid URL</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {source.type === 'deepresearch' && (
-                      <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                        <h4 className="text-foreground font-medium mb-3 flex items-center">
-                          <Search className="w-4 h-4 mr-2 text-primary" />
-                          Advanced AI Research Options
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-foreground mb-2">Work Type</label>
-                            <select className="w-full px-3 py-2 bg-card/10 border border-border/20 rounded-lg text-foreground focus:border-primary focus:outline-none">
-                              <option value="Remote">Remote</option>
-                              <option value="Hybrid">Hybrid</option>
-                              <option value="On-site">On-site</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-foreground mb-2">Location</label>
-                            <Input
-                              placeholder="e.g., United States, Europe"
-                              className="bg-card/10 border-border/20 text-foreground placeholder:text-muted-foreground focus:border-primary"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-foreground mb-2">Experience Level</label>
-                            <select className="w-full px-3 py-2 bg-card/10 border-border/20 rounded-lg text-foreground focus:border-primary focus:outline-none">
-                              <option value="entry">Entry Level</option>
-                              <option value="mid">Mid Level</option>
-                              <option value="senior">Senior Level</option>
-                              <option value="lead">Lead/Principal</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-foreground mb-2">Salary Range</label>
-                            <Input
-                              placeholder="e.g., 120k-200k"
-                              className="bg-card/10 border-border/20 text-foreground placeholder:text-muted-foreground focus:border-primary"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-foreground mb-2">Max Results</label>
-                            <Input
-                              type="number"
-                              placeholder="20"
-                              className="bg-card/10 border-border/20 text-foreground placeholder:text-muted-foreground focus:border-primary"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
                     );
                   })}
                 </div>
-              </div>
-            )}
+              </CardContent>
+            </Card>
 
-            {/* Save / Grouping */}
-            <div className="flex items-center justify-between">
-              <div className="text-xs text-muted-foreground flex items-center gap-2">
-                <button
-                  className={`px-2 py-1 rounded border ${groupEnabledFirst ? 'bg-primary/20 border-primary/40 text-foreground' : 'border-border/20 text-muted-foreground'}`}
-                  onClick={() => setGroupEnabledFirst((v) => !v)}
-                >
-                  {groupEnabledFirst ? 'Grouping: Enabled first' : 'Grouping: Off'}
-                </button>
-              </div>
-              <div>
-                <Button
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 transition-all duration-300"
-                  onClick={async () => {
-                    try {
-                      const { data: auth } = await supabase.auth.getUser();
-                      const uid = (auth as any)?.user?.id;
-                      if (!uid) { toastError('Not signed in', ''); return; }
-                      const payload = { id: uid, sources: jobSources } as any;
-                      const { error } = await (supabase as any)
-                        .from('job_source_settings')
-                        .upsert(payload, { onConflict: 'id' });
-                      if (error) throw error;
-                      try { localStorage.setItem('jobSources', JSON.stringify(jobSources)); } catch { /* ignore */ }
-                      success('Job sources saved', 'Your job source configuration has been updated successfully');
-                    } catch (e: any) {
-                      try { localStorage.setItem('jobSources', JSON.stringify(jobSources)); } catch { /* ignore */ }
-                      toastError('Saved locally (no backend table)', e?.message || '');
-                    }
-                  }}
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Configuration
-                </Button>
-              </div>
+            {/* User-Configurable Domains */}
+            <Card className="bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold text-white/95 mb-2">User-Configurable Domains</h3>
+                <p className="text-sm text-white/50 mb-4">
+                  Add custom domains to include in job search (comma-separated). These will be combined with enabled default sources above.
+                </p>
+                <Input
+                  value={userCustomDomains}
+                  onChange={(e) => setUserCustomDomains(e.target.value)}
+                  placeholder="careers.google.com, amazon.jobs"
+                  disabled={loadingDomains}
+                  className="bg-white/[0.05] border-white/[0.1] text-white placeholder-white/40"
+                />
+                <p className="text-xs text-white/40 mt-2">
+                  Format: comma-separated list (e.g., careers.google.com, amazon.jobs)
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Save Button */}
+            <div className="flex justify-end">
+              <Button
+                onClick={handleSaveDomains}
+                disabled={savingDomains || loadingDomains}
+                className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 font-medium"
+              >
+                {savingDomains ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Configuration
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         );
