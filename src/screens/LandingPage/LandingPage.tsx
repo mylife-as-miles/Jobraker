@@ -24,6 +24,7 @@ import {
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
+import TrueFocus from "../../components/animations/TrueFocus";
 
 // Lightweight in-view hook (no GSAP/parallax)
 function useInView<T extends HTMLElement = HTMLDivElement>(options?: IntersectionObserverInit) {
@@ -664,6 +665,188 @@ export const LandingPage = () => {
               ))}
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Animation Effects Showcase Section */}
+      <section className="py-16 sm:py-20 lg:py-24 bg-gradient-to-b from-[#0a0a0a] to-[#050505]" role="region" aria-labelledby="effects-heading">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12 sm:mb-16 lg:mb-20">
+            <h2 id="effects-heading" className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1dff00] mb-4 sm:mb-6">
+              Animation
+              <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">
+                {" "}Effects Library
+              </span>
+            </h2>
+            <p className="text-lg sm:text-xl text-[#888888] max-w-3xl mx-auto leading-relaxed">
+              Explore our collection of cutting-edge animation effects and interactive components.
+            </p>
+          </div>
+
+          {/* True Focus Demo */}
+          <div className="mb-16 sm:mb-20">
+            <div className="bg-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl p-8 sm:p-12 lg:p-16">
+              <div className="text-center mb-8">
+                <h3 className="text-2xl sm:text-3xl font-bold text-[#1dff00] mb-4">
+                  True Focus - Live Demo
+                </h3>
+                <p className="text-[#888888] text-sm sm:text-base">
+                  Watch as each word comes into focus with a dynamic border animation
+                </p>
+              </div>
+              <div className="flex justify-center items-center min-h-[200px] sm:min-h-[250px] lg:min-h-[300px] py-8">
+                <div className="w-full max-w-5xl px-4">
+                  <TrueFocus
+                    sentence="JobRaker Automates Your Career"
+                    manualMode={false}
+                    blurAmount={8}
+                    borderColor="#1dff00"
+                    glowColor="rgba(29, 255, 0, 0.6)"
+                    animationDuration={0.8}
+                    pauseBetweenAnimations={1.5}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-12">
+            {/* Text Effects */}
+            <div>
+              <h3 className="text-xl font-semibold text-[#1dff00] mb-6 flex items-center gap-2">
+                <Zap className="w-5 h-5" />
+                Text Effects
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+                {[
+                  "Split Text", "Blur Text", "Circular Text", "Text Type", "Shuffle",
+                  "Shiny Text", "Text Pressure", "Curved Loop", "Fuzzy Text", "Gradient Text",
+                  "Falling Text", "Text Cursor", "Decrypted Text", "True Focus", "Scroll Float",
+                  "Scroll Reveal", "ASCII Text", "Scrambled Text", "Rotating Text", "Glitch Text",
+                  "Scroll Velocity", "Variable Proximity", "Count Up"
+                ].map((effect, index) => (
+                  <motion.div
+                    key={effect}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.02 }}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    className="group relative"
+                  >
+                    <div className="bg-[#0a0a0a] border border-[#1dff00]/20 rounded-lg p-3 sm:p-4 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 transition-all duration-300 cursor-pointer">
+                      <span className="text-white/80 group-hover:text-[#1dff00] text-xs sm:text-sm font-medium transition-colors">
+                        {effect}
+                      </span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            {/* Animated Content */}
+            <div>
+              <h3 className="text-xl font-semibold text-[#1dff00] mb-6 flex items-center gap-2">
+                <Activity className="w-5 h-5" />
+                Animated Content
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+                {[
+                  "Fade Content", "Electric Border", "Pixel Transition", "Glare Hover", "Logo Loop",
+                  "Target Cursor", "Laser Flow", "Magnet Lines", "Ghost Cursor", "Gradual Blur",
+                  "Click Spark", "Magnet", "Sticker Peel", "Pixel Trail", "Cubes",
+                  "Metallic Paint", "Noise", "Shape Blur", "Crosshair", "Image Trail",
+                  "Ribbons", "Splash Cursor", "Meta Balls", "Blob Cursor", "Star Border"
+                ].map((effect, index) => (
+                  <motion.div
+                    key={effect}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.02 }}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    className="group relative"
+                  >
+                    <div className="bg-[#0a0a0a] border border-[#1dff00]/20 rounded-lg p-3 sm:p-4 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 transition-all duration-300 cursor-pointer">
+                      <span className="text-white/80 group-hover:text-[#1dff00] text-xs sm:text-sm font-medium transition-colors">
+                        {effect}
+                      </span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            {/* Animated List */}
+            <div>
+              <h3 className="text-xl font-semibold text-[#1dff00] mb-6 flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Animated List
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+                {[
+                  "Scroll Stack", "Bubble Menu", "Magic Bento", "Circular Gallery", "Card Nav",
+                  "Stack", "Fluid Glass", "Pill Nav", "Tilted Card", "Masonry",
+                  "Glass Surface", "Dome Gallery", "Chroma Grid", "Folder", "Staggered Menu",
+                  "Model Viewer", "Lanyard", "Profile Card", "Dock", "Gooey Nav",
+                  "Pixel Card", "Carousel", "Spotlight Card", "Flying Posters", "Card Swap",
+                  "Glass Icons", "Decay Card", "Flowing Menu", "Elastic Slider", "Counter",
+                  "Infinite Menu", "Stepper", "Bounce Cards"
+                ].map((effect, index) => (
+                  <motion.div
+                    key={effect}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.02 }}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    className="group relative"
+                  >
+                    <div className="bg-[#0a0a0a] border border-[#1dff00]/20 rounded-lg p-3 sm:p-4 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 transition-all duration-300 cursor-pointer">
+                      <span className="text-white/80 group-hover:text-[#1dff00] text-xs sm:text-sm font-medium transition-colors">
+                        {effect}
+                      </span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            {/* Background Effects */}
+            <div>
+              <h3 className="text-xl font-semibold text-[#1dff00] mb-6 flex items-center gap-2">
+                <Globe className="w-5 h-5" />
+                Background Effects
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+                {[
+                  "Liquid Ether", "Prism", "Dark Veil", "Silk", "Light Rays",
+                  "Pixel Blast", "Color Bends", "Aurora", "Plasma", "Particles",
+                  "Gradient Blinds", "Grid Scan", "Beams", "Lightning", "Prismatic Burst",
+                  "Galaxy", "Dither", "Faulty Terminal", "Ripple Grid", "Dot Grid",
+                  "Threads", "Hyperspeed", "Iridescence", "Waves", "Grid Distortion",
+                  "Ballpit", "Orb", "Letter Glitch", "Grid Motion", "Squares",
+                  "Liquid Chrome", "Balatro"
+                ].map((effect, index) => (
+                  <motion.div
+                    key={effect}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.02 }}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    className="group relative"
+                  >
+                    <div className="bg-[#0a0a0a] border border-[#1dff00]/20 rounded-lg p-3 sm:p-4 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 transition-all duration-300 cursor-pointer">
+                      <span className="text-white/80 group-hover:text-[#1dff00] text-xs sm:text-sm font-medium transition-colors">
+                        {effect}
+                      </span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
