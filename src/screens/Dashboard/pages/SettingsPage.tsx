@@ -5,7 +5,7 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles, Mail, Zap, Crown, Check, ArrowRight, FileText, Clock, Database, Cookie, MapPin, Activity, Share2, AlertTriangle, History, X } from "lucide-react";
+import { LogOut, User, Bell, Shield, Palette, Globe, CreditCard, Upload, Trash2, Save, RefreshCw, Eye, EyeOff, Download, Settings as SettingsIcon, Plus, Link, Search, Briefcase, ToggleLeft, ToggleRight, Building, Users, Coffee, Car, Rss, GripVertical, Sparkles, Mail, Zap, Crown, Check, ArrowRight, FileText, Clock, Database, Cookie, MapPin, Activity, Share2, AlertTriangle, History, X, TrendingUp, BarChart3, PlayCircle, PauseCircle, MoreVertical, Edit2, ExternalLink } from "lucide-react";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { useNotificationSettings } from "../../../hooks/useNotificationSettings";
 import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
@@ -201,26 +201,26 @@ export const SettingsPage = (): JSX.Element => {
           return;
         }
 
-        const { data, error } = await supabase.functions.invoke(
-          "composio-gmail-auth",
-          {
-            body: {
-              userId: user.id,
-              authConfigId: composioConfigId,
-              action: "status",
-            },
-          }
-        );
+          const { data, error } = await supabase.functions.invoke(
+            "composio-gmail-auth",
+            {
+              body: {
+                userId: user.id,
+                authConfigId: composioConfigId,
+                action: "status",
+              },
+            }
+          );
 
-        if (error) {
+          if (error) {
           // Check if it's the "Invalid action" error (means deployed version doesn't support status yet)
           if (error.message?.includes("Invalid action") || error.message?.includes("400")) {
             // Silently fail - the deployed function doesn't support status check yet
             // User will just see the "Connect" button instead of connection status
             return;
           }
-          throw error;
-        }
+            throw error;
+          }
 
         if (data?.isConnected !== undefined) {
           setIsGmailConnected(data.isConnected);
@@ -228,7 +228,7 @@ export const SettingsPage = (): JSX.Element => {
       } catch (error: any) {
         // Only log unexpected errors, not the expected "Invalid action" error
         if (!error.message?.includes("Invalid action") && !error.message?.includes("400")) {
-          console.error("Failed to check Gmail connection status:", error);
+        console.error("Failed to check Gmail connection status:", error);
         }
         // It's okay if this fails, the user will just see the "Connect" button
       }
@@ -672,8 +672,8 @@ export const SettingsPage = (): JSX.Element => {
           last_sign_in_at: (u as any)?.user?.last_sign_in_at,
         },
         profile: prof || null,
-        notification_settings: notifData || null,
-        privacy_settings: privacyData || null,
+  notification_settings: notifData || null,
+  privacy_settings: privacyData || null,
         appearance_settings: appearanceSettings || null,
         security_settings: securitySettings || null,
         resumes: resumes || [],
@@ -1324,7 +1324,7 @@ export const SettingsPage = (): JSX.Element => {
             {/* Sign-in Alerts */}
             <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
               <h3 className="text-base font-medium text-white/95 mb-4">Security Alerts</h3>
-              <div className="space-y-3">
+                <div className="space-y-3">
                 <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-white/90">Login Alerts</p>
@@ -1346,7 +1346,7 @@ export const SettingsPage = (): JSX.Element => {
                       }`}
                     />
                   </button>
-                </div>
+                    </div>
                 <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-white/90">Suspicious Login Alerts</p>
@@ -1401,13 +1401,13 @@ export const SettingsPage = (): JSX.Element => {
                   <h3 className="text-base font-medium text-white/95">Backup Codes</h3>
                   <p className="text-xs text-white/50 mt-1">One-time use codes for account recovery</p>
                 </div>
-                <Button
-                  variant="outline"
+                  <Button
+                    variant="outline"
                   size="sm"
                   className="border-white/[0.1] text-white/70 hover:bg-white/[0.05] hover:border-white/[0.2]"
-                  onClick={async () => {
-                    try {
-                      const codes = await generateBackupCodes(10);
+                    onClick={async () => {
+                      try {
+                        const codes = await generateBackupCodes(10);
                       if (codes && codes.length > 0) {
                         setGeneratedBackupCodes(codes);
                         setShowBackupCodesModal(true);
@@ -1422,23 +1422,23 @@ export const SettingsPage = (): JSX.Element => {
                         document.body.removeChild(a);
                         URL.revokeObjectURL(url);
                       }
-                    } catch (e: any) {
-                      toastError('Failed to generate codes', e.message);
-                    }
-                  }}
+                      } catch (e: any) {
+                        toastError('Failed to generate codes', e.message);
+                      }
+                    }}
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Generate New Codes
                 </Button>
-              </div>
+                </div>
               <div className="space-y-2">
                 {backupCodes && backupCodes.length > 0 ? (
                   <div className="border border-white/[0.06] rounded-lg overflow-hidden">
                     <div className="grid grid-cols-3 text-xs text-white/50 bg-white/[0.02] py-2 px-4 border-b border-white/[0.06]">
-                      <div>ID</div>
-                      <div>Status</div>
+                    <div>ID</div>
+                    <div>Status</div>
                       <div>Created</div>
-                    </div>
+                  </div>
                     <div className="divide-y divide-white/[0.06]">
                       {backupCodes.map((bc: any) => (
                         <div key={bc.id} className="grid grid-cols-3 items-center text-sm py-2 px-4 hover:bg-white/[0.02] transition-colors">
@@ -1454,17 +1454,17 @@ export const SettingsPage = (): JSX.Element => {
                           </div>
                           <div className="text-xs text-white/50">
                             {bc.created_at ? new Date(bc.created_at).toLocaleDateString() : 'N/A'}
-                          </div>
+                        </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                ) : (
+                    ) : (
                   <div className="text-sm text-white/50 py-8 text-center border border-white/[0.06] rounded-lg bg-white/[0.02]">
                     No backup codes generated yet. Click "Generate New Codes" to create your first set.
                   </div>
-                )}
-              </div>
+                    )}
+                  </div>
             </Card>
 
             {/* Trusted Devices */}
@@ -1775,7 +1775,7 @@ export const SettingsPage = (): JSX.Element => {
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
+                    <div>
                         <label className="block text-xs text-white/70 mb-2">Session Timeout (minutes)</label>
                         <Input
                           type="number"
@@ -1789,7 +1789,7 @@ export const SettingsPage = (): JSX.Element => {
                           className="bg-white/[0.05] border-white/[0.1] text-white"
                           min="0"
                         />
-                      </div>
+                    </div>
                       <div>
                         <label className="block text-xs text-white/70 mb-2">Max Concurrent Sessions</label>
                         <Input
@@ -1804,7 +1804,7 @@ export const SettingsPage = (): JSX.Element => {
                           className="bg-white/[0.05] border-white/[0.1] text-white"
                           min="1"
                         />
-                      </div>
+                </div>
                     </div>
                   </div>
                 </div>
@@ -2151,12 +2151,12 @@ export const SettingsPage = (): JSX.Element => {
                 <Database className="w-5 h-5 text-white/70" />
                 <h3 className="text-base font-medium text-white/95">Data Retention & Management</h3>
               </div>
-              <div className="space-y-4">
+                <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06]">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-white/90 mb-1">Data Retention Period</p>
                     <p className="text-xs text-white/50">Number of days to retain your data (0 = indefinite)</p>
-                  </div>
+                      </div>
                   <Input
                     type="number"
                     min="0"
@@ -2183,12 +2183,12 @@ export const SettingsPage = (): JSX.Element => {
                       </div>
                     </div>
                     <button
-                      onClick={async () => {
-                        try {
+                        onClick={async () => {
+                          try {
                           if (!privacy) await createPrivacy({ [row.key]: !((privacy as any)?.[row.key] ?? false) } as any);
-                          else await updatePrivacy({ [row.key]: !(privacy as any)[row.key] } as any);
-                        } catch (e: any) { toastError('Failed to update privacy', e.message); }
-                      }}
+                            else await updatePrivacy({ [row.key]: !(privacy as any)[row.key] } as any);
+                          } catch (e: any) { toastError('Failed to update privacy', e.message); }
+                        }}
                       disabled={privacyLoading}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
                         ((privacy as any)?.[row.key] ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
@@ -2328,71 +2328,185 @@ export const SettingsPage = (): JSX.Element => {
                 <AlertTriangle className="w-5 h-5 text-red-400" />
                 <h3 className="text-base font-medium text-red-400">Danger Zone</h3>
               </div>
-              <Button
-                variant="outline"
+                  <Button
+                    variant="outline"
                 onClick={() => {
                   setShowAccountDeletionModal(true);
                   setAccountDeletionEmail("");
                 }}
                 className="w-full border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-500"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
                 Delete Account Permanently
-              </Button>
+                  </Button>
             </Card>
           </div>
         );
 
       case "job-sources":
+        // Define all available job sources with metadata
+        const availableJobSources = [
+          { 
+            id: 'remotive', 
+            name: 'Remotive', 
+            description: 'Remote job listings with search query support',
+            icon: Search,
+            category: 'Job Board',
+            supportsQuery: true,
+            defaultQuery: 'software engineer',
+            color: 'blue'
+          },
+          { 
+            id: 'remoteok', 
+            name: 'RemoteOK', 
+            description: 'Popular remote job board with curated listings',
+            icon: Globe,
+            category: 'Job Board',
+            supportsQuery: false,
+            color: 'green'
+          },
+          { 
+            id: 'arbeitnow', 
+            name: 'Arbeitnow', 
+            description: 'European job board with search capabilities',
+            icon: Briefcase,
+            category: 'Job Board',
+            supportsQuery: true,
+            defaultQuery: 'typescript',
+            color: 'purple'
+          },
+          { 
+            id: 'linkedin', 
+            name: 'LinkedIn', 
+            description: 'Professional networking platform job listings',
+            icon: Users,
+            category: 'Professional Network',
+            supportsQuery: true,
+            defaultQuery: 'full stack developer',
+            color: 'blue'
+          },
+          { 
+            id: 'indeed', 
+            name: 'Indeed', 
+            description: 'World\'s largest job search engine',
+            icon: Building,
+            category: 'Job Aggregator',
+            supportsQuery: true,
+            defaultQuery: 'react developer',
+            color: 'indigo'
+          },
+          { 
+            id: 'deepresearch', 
+            name: 'Deep Research', 
+            description: 'AI-powered deep job research with Firecrawl',
+            icon: Search,
+            category: 'AI Research',
+            supportsQuery: true,
+            defaultQuery: 'senior full-stack engineer',
+            color: 'purple',
+            advanced: true
+          },
+          { 
+            id: 'trulyremote', 
+            name: 'Truly Remote', 
+            description: 'Curated remote job opportunities',
+            icon: Globe,
+            category: 'Job Board',
+            supportsQuery: true,
+            defaultQuery: 'backend engineer',
+            color: 'teal'
+          },
+          { 
+            id: 'remoteco', 
+            name: 'Remote.co', 
+            description: 'Remote-first company job board',
+            icon: Coffee,
+            category: 'Job Board',
+            supportsQuery: false,
+            color: 'orange'
+          },
+          { 
+            id: 'jobspresso', 
+            name: 'Jobspresso', 
+            description: 'Premium remote and flexible jobs',
+            icon: Coffee,
+            category: 'Job Board',
+            supportsQuery: true,
+            defaultQuery: 'frontend developer',
+            color: 'pink'
+          },
+          { 
+            id: 'skipthedrive', 
+            name: 'Skip The Drive', 
+            description: 'Work-from-home job opportunities',
+            icon: Car,
+            category: 'Job Board',
+            supportsQuery: false,
+            color: 'yellow'
+          },
+          { 
+            id: 'feedcoyote', 
+            name: 'FeedCoyote', 
+            description: 'RSS-based job feed aggregator',
+            icon: Rss,
+            category: 'Feed Aggregator',
+            supportsQuery: false,
+            color: 'gray'
+          },
+          { 
+            id: 'json', 
+            name: 'Custom JSON Feed', 
+            description: 'Custom JSON feed URL for proprietary sources',
+            icon: Link,
+            category: 'Custom',
+            supportsQuery: false,
+            supportsUrl: true,
+            color: 'slate'
+          }
+        ];
+
+        // Merge configured sources with available sources
+        const configuredSourceMap = new Map(jobSources.map(s => [s.type, s]));
+        const allSourcesWithConfig = availableJobSources.map(source => {
+          const config = configuredSourceMap.get(source.id);
+          return {
+            ...source,
+            enabled: config?.enabled ?? false,
+            query: config?.query ?? source.defaultQuery ?? '',
+            id: config?.id ?? Math.random()
+          };
+        });
+
+        const enabledCount = allSourcesWithConfig.filter(s => s.enabled).length;
+        // Calculate total jobs from configured sources (simplified for now)
+        const totalJobs = jobSources.length * 10; // Placeholder - would need actual stats
+
         return (
-          <div id="settings-tab-job-sources" data-tour="settings-tab-job-sources" className="space-y-8">
-            {/* Quick Defaults for source flags that integrate with process-and-match */}
-            <Card className="bg-card/10 border-border/20 hover:border-primary/50 transition-all duration-300">
-              <CardContent className="p-4 space-y-4">
-                <h3 className="text-foreground font-medium">Job Source Defaults</h3>
-                <p className="text-sm text-muted-foreground">These settings are used by live search and fallbacks.</p>
-                <DefaultsForm />
-              </CardContent>
-            </Card>
-            {/* Header */}
-            <div className="flex items-center justify-between">
+          <div id="settings-tab-job-sources" data-tour="settings-tab-job-sources" className="space-y-6">
+            {/* Header with Stats */}
+            <div className="flex items-start justify-between">
               <div>
-                <h2 className="text-xl font-bold text-foreground mb-2">Job Sources Configuration</h2>
-                <p className="text-muted-foreground text-sm">
+                <h2 className="text-2xl font-bold text-white/95 mb-2">Job Sources</h2>
+                <p className="text-sm text-white/50">
                   Configure and manage job ingestion sources for automated job discovery
-                </p>
-                <p className="text-xs text-muted-foreground/80 mt-1">
-                  {jobSources.filter(s => s.enabled).length} of {jobSources.length} sources enabled
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
-                  className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50"
-                  onClick={() => setJobSources(jobSources.map(s => ({ ...s, enabled: true })))}
-                >
-                  Enable All
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50"
+                  size="sm"
+                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
                   onClick={() => setJobSources(jobSources.map(s => ({ ...s, enabled: false })))}
                 >
                   Disable All
                 </Button>
                 <Button
-                  variant="outline"
-                  className="border-border/20 text-foreground hover:bg-card/20 hover:border-primary/50"
-                  onClick={() => setJobSources(defaultJobSources)}
-                >
-                  Reset
-                </Button>
-                <Button
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 transition-all duration-300"
+                  size="sm"
+                  className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 font-medium"
                   onClick={() => {
                     const maxId = jobSources.reduce((m, s) => Math.max(m, s.id || 0), 0);
                     const newId = maxId + 1;
-                    setJobSources([...jobSources, { id: newId, type: "linkedin", query: "", enabled: true }]);
+                    setJobSources([...jobSources, { id: newId, type: "remotive", query: "software engineer", enabled: true }]);
                   }}
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -2401,9 +2515,220 @@ export const SettingsPage = (): JSX.Element => {
               </div>
             </div>
 
-            {/* Job Sources List */}
-            <div className="space-y-4">
-              {displayedSources.map((source) => (
+            {/* Stats Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card className="bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-white/50 uppercase tracking-wider mb-1">Total Sources</p>
+                      <p className="text-2xl font-bold text-white">{availableJobSources.length}</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                      <Database className="w-5 h-5 text-blue-400" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-white/50 uppercase tracking-wider mb-1">Enabled</p>
+                      <p className="text-2xl font-bold text-white">{enabledCount}</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/20 flex items-center justify-center">
+                      <CheckCircle2 className="w-5 h-5 text-[#1dff00]" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-white/50 uppercase tracking-wider mb-1">Jobs Found</p>
+                      <p className="text-2xl font-bold text-white">{totalJobs.toLocaleString()}</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+                      <BarChart3 className="w-5 h-5 text-purple-400" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-white/50 uppercase tracking-wider mb-1">Success Rate</p>
+                      <p className="text-2xl font-bold text-white">
+                        {enabledCount > 0 ? Math.round((enabledCount / availableJobSources.length) * 100) : 0}%
+                      </p>
+                    </div>
+                    <div className="w-10 h-10 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center">
+                      <TrendingUp className="w-5 h-5 text-green-400" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Quick Defaults */}
+            <Card className="bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all">
+              <CardContent className="p-4 space-y-4">
+                <h3 className="text-white/95 font-medium flex items-center gap-2">
+                  <SettingsIcon className="w-4 h-4" />
+                  Job Source Defaults
+                </h3>
+                <p className="text-sm text-white/50">These settings are used by live search and fallbacks.</p>
+                <DefaultsForm />
+              </CardContent>
+            </Card>
+
+            {/* Available Job Sources Grid */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white/95">Available Job Sources</h3>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
+                    onClick={() => {
+                      const newSources = availableJobSources.map(source => {
+                        const existing = jobSources.find(s => s.type === source.id);
+                        if (existing) {
+                          return { ...existing, enabled: true };
+                        }
+                        return {
+                          id: Math.max(...jobSources.map(s => s.id || 0), 0) + 1,
+                          type: source.id,
+                          query: source.defaultQuery || '',
+                          enabled: true
+                        };
+                      });
+                      setJobSources(newSources);
+                    }}
+                  >
+                    Enable All
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {allSourcesWithConfig.map((source) => {
+                  const IconComponent = source.icon;
+                  const isConfigured = configuredSourceMap.has(source.id);
+                  
+                  return (
+                    <Card
+                      key={source.id}
+                      className={`bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all ${
+                        source.enabled ? 'ring-1 ring-[#1dff00]/30' : ''
+                      }`}
+                    >
+                      <CardContent className="p-5">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${
+                              source.color === 'blue' ? 'from-blue-500/20 to-blue-500/10 border-blue-500/30' :
+                              source.color === 'green' ? 'from-green-500/20 to-green-500/10 border-green-500/30' :
+                              source.color === 'purple' ? 'from-purple-500/20 to-purple-500/10 border-purple-500/30' :
+                              source.color === 'indigo' ? 'from-indigo-500/20 to-indigo-500/10 border-indigo-500/30' :
+                              'from-gray-500/20 to-gray-500/10 border-gray-500/30'
+                            } border flex items-center justify-center`}>
+                              <IconComponent className={`w-6 h-6 ${
+                                source.color === 'blue' ? 'text-blue-400' :
+                                source.color === 'green' ? 'text-green-400' :
+                                source.color === 'purple' ? 'text-purple-400' :
+                                source.color === 'indigo' ? 'text-indigo-400' :
+                                'text-gray-400'
+                              }`} />
+                            </div>
+                            <div>
+                              <h4 className="text-white/95 font-semibold">{source.name}</h4>
+                              <p className="text-xs text-white/50 mt-0.5">{source.category}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              if (isConfigured) {
+                                setJobSources(jobSources.map(s =>
+                                  s.type === source.id ? { ...s, enabled: !s.enabled } : s
+                                ));
+                              } else {
+                                const maxId = jobSources.reduce((m, s) => Math.max(m, s.id || 0), 0);
+                                setJobSources([...jobSources, {
+                                  id: maxId + 1,
+                                  type: source.id,
+                                  query: source.defaultQuery || '',
+                                  enabled: true
+                                }]);
+                              }
+                            }}
+                            className={`w-10 h-6 rounded-full transition-colors ${
+                              source.enabled
+                                ? 'bg-[#1dff00]'
+                                : 'bg-white/10'
+                            }`}
+                          >
+                            <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                              source.enabled ? 'translate-x-4' : 'translate-x-0.5'
+                            }`} />
+                          </button>
+                        </div>
+                        <p className="text-sm text-white/70 mb-4">{source.description}</p>
+                        <div className="flex items-center justify-between text-xs text-white/50">
+                          <div className="flex items-center gap-1">
+                            <Activity className="w-3 h-3" />
+                            <span>{source.supportsQuery ? 'Query-based' : 'Feed-based'}</span>
+                          </div>
+                          {source.advanced && (
+                            <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 text-xs">
+                              Advanced
+                            </span>
+                          )}
+                        </div>
+                        {source.enabled && source.supportsQuery && (
+                          <div className="mt-3">
+                            <Input
+                              value={source.query}
+                              onChange={(e) => {
+                                setJobSources(jobSources.map(s =>
+                                  s.type === source.id ? { ...s, query: e.target.value } : s
+                                ));
+                              }}
+                              placeholder={`Search query for ${source.name}`}
+                              className="bg-white/[0.05] border-white/[0.1] text-white placeholder-white/40 text-sm"
+                            />
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Configured Sources List */}
+            {jobSources.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white/95">Configured Sources</h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
+                    onClick={() => setJobSources(jobSources.map(s => ({ ...s, enabled: false })))}
+                  >
+                    Disable All
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {displayedSources.map((source) => {
+                    const sourceMeta = availableJobSources.find(s => s.id === source.type);
+                    const IconComponent = sourceMeta?.icon || Search;
+                    
+                    return (
                 <Card
                   key={source.id}
                   draggable
@@ -2606,10 +2931,11 @@ export const SettingsPage = (): JSX.Element => {
                     )}
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-
-            {/* Configuration Info removed as requested */}
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Save / Grouping */}
             <div className="flex items-center justify-between">
@@ -2662,7 +2988,7 @@ export const SettingsPage = (): JSX.Element => {
                 </CardContent>
               </Card>
             }>
-              <ResumeChecker />
+            <ResumeChecker />
             </Suspense>
           </div>
         );
