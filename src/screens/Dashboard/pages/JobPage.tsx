@@ -1282,9 +1282,7 @@ export const JobPage = (): JSX.Element => {
               events.autoApplyJobSuccess(job.id, job.status || 'unknown', 0);
               if (userId) {
                 const matchScore = typeof job.matchScore === 'number' ? Math.round(job.matchScore) : null;
-                const matchNote = matchScore != null
-                  ? `match:${matchScore}${job.matchSummary ? ` | ${job.matchSummary}` : ''}`
-                  : null;
+                const matchNote = job.matchSummary ? `Match summary: ${job.matchSummary}` : null;
                 applicationsToInsert.push({
                   user_id: userId,
                   job_title: job.title,
@@ -1294,6 +1292,7 @@ export const JobPage = (): JSX.Element => {
                   status: 'Applied',
                   salary: formatSalaryRange(job),
                   notes: matchNote,
+                  match_score: matchScore,
                   next_step: null,
                   interview_date: null,
                   logo: job.logoUrl ?? null,

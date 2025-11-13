@@ -193,6 +193,7 @@ export function useApplications() {
     status: (input.status ?? "Pending") as ApplicationStatus,
         salary: input.salary ?? null,
         notes: input.notes ?? null,
+        match_score: input.match_score ?? null,
         next_step: input.next_step ?? null,
         interview_date: input.interview_date ?? null,
         logo: input.logo ?? null,
