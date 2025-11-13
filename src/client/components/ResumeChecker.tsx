@@ -135,6 +135,60 @@ export function ResumeChecker() {
     }
   }, [resumes, selectedResume]);
 
+  // Load latest analysis from database when resume is selected
+  useEffect(() => {
+    if (!selectedResume || !supabase) return;
+
+    (async () => {
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        const uid = (auth as any)?.user?.id;
+        if (!uid) return;
+
+        const { data, error } = await (supabase as any)
+          .from('resume_analyses')
+          .select('*')
+          .eq('resume_id', selectedResume)
+          .eq('user_id', uid)
+          .order('analyzed_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+          console.warn('Failed to load resume analysis:', error);
+          return;
+        }
+
+        if (data) {
+          // Convert database format to ResumeAnalysisResult format
+          const result: ResumeAnalysisResult = {
+            overallScore: data.overall_score,
+            alignmentScore: data.alignment_score,
+            atsScore: data.ats_score,
+            readabilityScore: data.readability_score,
+            jobFitLikelihood: data.job_fit_likelihood,
+            grade: data.grade,
+            summary: data.summary,
+            strengths: Array.isArray(data.strengths) ? data.strengths : [],
+            gaps: Array.isArray(data.gaps) ? data.gaps : [],
+            recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
+            atsRiskNarrative: data.ats_risk_narrative || null,
+            metadata: data.metadata || null,
+          };
+
+          const analyzedAt = new Date(data.analyzed_at).getTime();
+
+          setHistory((prev) => ({
+            ...prev,
+            [selectedResume]: { result, analyzedAt },
+          }));
+        }
+      } catch (err) {
+        console.warn('Error loading resume analysis:', err);
+      }
+    })();
+  }, [selectedResume, supabase]);
+
   // Load resume preview
   useEffect(() => {
     // Cleanup previous request
@@ -249,10 +303,48 @@ export function ResumeChecker() {
 
       const result: ResumeAnalysisResult = await functionResponse.json();
 
+      // Update local state immediately for UI
+      const analyzedAt = Date.now();
       setHistory((prev) => ({
         ...prev,
-        [activeResume.id]: { result, analyzedAt: Date.now() },
+        [activeResume.id]: { result, analyzedAt },
       }));
+
+      // Save to database (non-blocking - analysis was successful even if DB save fails)
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        const uid = (auth as any)?.user?.id;
+        if (uid) {
+          const analysisData = {
+            resume_id: activeResume.id,
+            user_id: uid,
+            overall_score: result.overallScore,
+            alignment_score: result.alignmentScore,
+            ats_score: result.atsScore,
+            readability_score: result.readabilityScore,
+            job_fit_likelihood: result.jobFitLikelihood,
+            grade: result.grade,
+            summary: result.summary,
+            strengths: result.strengths || [],
+            gaps: result.gaps || [],
+            recommendations: result.recommendations || [],
+            ats_risk_narrative: result.atsRiskNarrative || null,
+            metadata: result.metadata || null,
+            analyzed_at: new Date(analyzedAt).toISOString(),
+          };
+
+          const { error: dbError } = await (supabase as any)
+            .from('resume_analyses')
+            .insert(analysisData);
+
+          if (dbError) {
+            console.warn('Failed to save analysis to database:', dbError);
+          }
+        }
+      } catch (dbErr) {
+        console.warn('Error saving analysis to database:', dbErr);
+        // Don't throw - analysis was successful, just DB save failed
+      }
     } catch (err: any) {
       setError(err?.message || "Resume analysis failed.");
     } finally {
