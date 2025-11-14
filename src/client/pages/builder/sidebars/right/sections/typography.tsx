@@ -58,6 +58,7 @@ export const TypographySection = () => {
   }, []);
 
   useEffect(() => {
+    if (!typography?.font?.family) return;
     const subsets = fonts.find((font) => font.family === typography.font.family)?.subsets ?? [];
     if (subsets.length > 0) {
       setSubsets(subsets.map((subset) => ({ value: subset, label: subset })));
@@ -67,7 +68,7 @@ export const TypographySection = () => {
     if (variants.length > 0) {
       setVariants(variants.map((variant) => ({ value: variant, label: variant })));
     }
-  }, [typography.font.family]);
+  }, [typography?.font?.family]);
 
   return (
     <section id="typography" className="grid gap-y-8">
@@ -87,10 +88,10 @@ export const TypographySection = () => {
                 key={font}
                 variant="outline"
                 style={{ fontFamily: font }}
-                disabled={typography.font.family === font}
+                disabled={typography?.font?.family === font}
                 className={cn(
                   "flex h-12 items-center justify-center overflow-hidden rounded border text-center text-xs ring-primary transition-colors hover:bg-secondary-accent focus:outline-none focus:ring-1 disabled:opacity-100 lg:text-sm",
-                  typography.font.family === font && "ring-1",
+                  typography?.font?.family === font && "ring-1",
                 )}
                 onClick={() => {
                   setValue("metadata.typography.font.family", font);
@@ -107,7 +108,7 @@ export const TypographySection = () => {
           <Label>{t`Font Family`}</Label>
           <Combobox
             options={families.sort((a, b) => a.label.localeCompare(b.label))}
-            value={typography.font.family}
+            value={typography?.font?.family || "Inter"}
             searchPlaceholder={t`Search for a font family`}
             onValueChange={(value) => {
               setValue("metadata.typography.font.family", value);
@@ -122,7 +123,7 @@ export const TypographySection = () => {
             <Label>{t`Font Subset`}</Label>
             <Combobox
               options={subsets}
-              value={typography.font.subset}
+              value={typography?.font?.subset || "latin"}
               searchPlaceholder={t`Search for a font subset`}
               onValueChange={(value) => {
                 setValue("metadata.typography.font.subset", value);
@@ -135,7 +136,7 @@ export const TypographySection = () => {
             <Combobox
               multiple
               options={variants}
-              value={typography.font.variants}
+              value={typography?.font?.variants || ["regular"]}
               searchPlaceholder={t`Search for a font variant`}
               onValueChange={(value) => {
                 setValue("metadata.typography.font.variants", value);
@@ -151,13 +152,13 @@ export const TypographySection = () => {
               min={6}
               max={18}
               step={0.05}
-              value={[typography.font.size]}
+              value={[typography?.font?.size || 14]}
               onValueChange={(value) => {
                 setValue("metadata.typography.font.size", value[0]);
               }}
             />
 
-            <span className="text-base font-bold">{typography.font.size}</span>
+            <span className="text-base font-bold">{typography?.font?.size || 14}</span>
           </div>
         </div>
 
@@ -168,13 +169,13 @@ export const TypographySection = () => {
               min={0}
               max={3}
               step={0.05}
-              value={[typography.lineHeight]}
+              value={[typography?.lineHeight || 1.4]}
               onValueChange={(value) => {
                 setValue("metadata.typography.lineHeight", value[0]);
               }}
             />
 
-            <span className="text-base font-bold">{typography.lineHeight}</span>
+            <span className="text-base font-bold">{typography?.lineHeight || 1.4}</span>
           </div>
         </div>
 
@@ -184,7 +185,7 @@ export const TypographySection = () => {
           <div className="flex items-center gap-x-4 py-1">
             <Switch
               id="metadata.typography.hideIcons"
-              checked={typography.hideIcons}
+              checked={typography?.hideIcons || false}
               onCheckedChange={(checked) => {
                 setValue("metadata.typography.hideIcons", checked);
               }}
@@ -195,7 +196,7 @@ export const TypographySection = () => {
           <div className="flex items-center gap-x-4 py-1">
             <Switch
               id="metadata.typography.underlineLinks"
-              checked={typography.underlineLinks}
+              checked={typography?.underlineLinks || false}
               onCheckedChange={(checked) => {
                 setValue("metadata.typography.underlineLinks", checked);
               }}

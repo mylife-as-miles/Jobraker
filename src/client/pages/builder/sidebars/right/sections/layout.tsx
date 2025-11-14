@@ -85,7 +85,7 @@ type SectionProps = {
 };
 
 const Section = ({ id, isDragging = false }: SectionProps) => {
-  const name = useResumeStore((state) => get(state.resume.data.sections, `${id}.name`, id));
+  const name = useResumeStore((state) => get(state.resume?.data?.sections, `${id}.name`, id));
 
   return (
     <div
