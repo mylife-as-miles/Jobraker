@@ -143,7 +143,7 @@ export const BuilderToolbar = () => {
         <Tooltip content={t`Toggle Page Break Line`}>
           <Toggle
             className="rounded-xl h-10 w-10 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 data-[state=on]:bg-gradient-to-br data-[state=on]:from-[#1dff00]/20 data-[state=on]:to-[#1dff00]/10 data-[state=on]:border data-[state=on]:border-[#1dff00]/40 data-[state=on]:text-[#1dff00] hover:border hover:border-[#1dff00]/30 hover:scale-110 transition-all duration-200 group"
-            pressed={pageOptions.breakLine}
+            pressed={pageOptions?.breakLine || false}
             onPressedChange={(pressed) => {
               setValue("metadata.page.options.breakLine", pressed);
             }}
@@ -155,7 +155,7 @@ export const BuilderToolbar = () => {
         <Tooltip content={t`Toggle Page Numbers`}>
           <Toggle
             className="rounded-xl h-10 w-10 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 data-[state=on]:bg-gradient-to-br data-[state=on]:from-[#1dff00]/20 data-[state=on]:to-[#1dff00]/10 data-[state=on]:border data-[state=on]:border-[#1dff00]/40 data-[state=on]:text-[#1dff00] hover:border hover:border-[#1dff00]/30 hover:scale-110 transition-all duration-200 group"
-            pressed={pageOptions.pageNumbers}
+            pressed={pageOptions?.pageNumbers || false}
             onPressedChange={(pressed) => {
               setValue("metadata.page.options.pageNumbers", pressed);
             }}

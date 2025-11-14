@@ -32,7 +32,7 @@ export const CssSection = () => {
         <div className="flex items-center gap-x-4">
           <Switch
             id="metadata.css.visible"
-            checked={css.visible}
+            checked={css?.visible || false}
             onCheckedChange={(checked: boolean) => {
               setValue("metadata.css.visible", checked);
             }}
@@ -43,7 +43,7 @@ export const CssSection = () => {
         <div className="rounded border p-4">
           <CodeEditor
             tabSize={4}
-            value={css.value}
+            value={css?.value || ""}
             className="language-css font-mono"
             highlight={(code: string) => code}
             onValueChange={(value: string) => {
