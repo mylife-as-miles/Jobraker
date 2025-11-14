@@ -9,7 +9,7 @@ import { SectionIcon } from "../shared/section-icon";
 
 export const TemplateSection = () => {
   const setValue = useResumeStore((state) => state.setValue);
-  const currentTemplate = useResumeStore((state) => state.resume.data.metadata.template);
+  const currentTemplate = useResumeStore((state) => state.resume?.data?.metadata?.template || "pikachu");
 
   return (
     <section id="template" className="grid gap-y-6">

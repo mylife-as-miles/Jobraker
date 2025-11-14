@@ -30,7 +30,7 @@ export const ResumeListItem = ({ resume }: { resume: ResumeDto }) => {
             img.style.display = 'none';
           }
         }}
-        alt={resume.data.metadata.template}
+        alt={resume?.data?.metadata?.template || "pikachu"}
         className="h-10 w-8 rounded-xl object-cover opacity-90 contrast-110"
       />
     </div>

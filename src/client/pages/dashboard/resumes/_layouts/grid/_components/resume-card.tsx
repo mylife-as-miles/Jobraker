@@ -38,7 +38,7 @@ export const ResumeCard = ({ resume }: Props) => {
   const [deletedResumeId, setDeletedResumeId] = React.useState<string | null>(null);
   const [deletedResumeName, setDeletedResumeName] = React.useState<string>("");
 
-  const template = resume.data.metadata.template;
+  const template = resume.data?.metadata?.template || "pikachu";
   const lastUpdated = dayjs().to(resume.updatedAt ?? resume.createdAt ?? new Date());
 
   const onOpen = () => {
