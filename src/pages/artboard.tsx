@@ -81,6 +81,10 @@ export const ArtboardPage = () => {
     }
   }, [metadata]);
 
+  const resume = useArtboardStore((state) => state.resume);
+
+  if (!resume) return null;
+
   return (
     <>
       <Helmet>
