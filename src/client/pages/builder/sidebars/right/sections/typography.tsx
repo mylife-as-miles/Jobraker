@@ -39,7 +39,7 @@ export const TypographySection = () => {
   const [variants, setVariants] = useState<ComboboxOption[]>([]);
 
   const setValue = useResumeStore((state) => state.setValue);
-  const typography = useResumeStore((state) => state.resume.data.metadata.typography);
+  const typography = useResumeStore((state) => state.resume?.data?.metadata?.typography);
 
   const loadFontSuggestions = useCallback(() => {
     for (const font of fontSuggestions) {

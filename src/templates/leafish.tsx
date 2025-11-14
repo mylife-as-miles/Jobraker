@@ -31,7 +31,7 @@ const Header = () => {
   const basics = useArtboardStore((state) => state.resume.basics);
   const section = useArtboardStore((state) => state.resume.sections.summary);
   const profiles = useArtboardStore((state) => state.resume.sections.profiles);
-  const primaryColor = useArtboardStore((state) => state.resume.metadata.theme.primary);
+  const primaryColor = useArtboardStore((state) => state.resume?.metadata?.theme?.primary || "#000000");
 
   return (
     <div>

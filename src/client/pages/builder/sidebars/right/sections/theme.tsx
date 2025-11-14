@@ -53,7 +53,7 @@ const hexToHsl = (hex: string): { h: number; s: number; l: number } | null => {
 
 export const ThemeSection = () => {
   const setValue = useResumeStore((state) => state.setValue);
-  const theme = useResumeStore((state) => state.resume.data.metadata.theme);
+  const theme = useResumeStore((state) => state.resume?.data?.metadata?.theme);
 
   useEffect(() => {
     if (theme.primary) {

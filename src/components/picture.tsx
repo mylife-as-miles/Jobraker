@@ -7,10 +7,10 @@ type PictureProps = {
 };
 
 export const Picture = ({ className }: PictureProps) => {
-  const picture = useArtboardStore((state) => state.resume.basics.picture);
-  const fontSize = useArtboardStore((state) => state.resume.metadata.typography.font.size);
+  const picture = useArtboardStore((state) => state.resume?.basics?.picture);
+  const fontSize = useArtboardStore((state) => state.resume?.metadata?.typography?.font?.size || 16);
 
-  if (!isUrl(picture.url) || picture.effects.hidden) return null;
+  if (!picture || !isUrl(picture?.url) || picture?.effects?.hidden) return null;
 
   return (
     <img

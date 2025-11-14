@@ -12,7 +12,7 @@ export const CssSection = () => {
   const { isDarkMode } = useTheme();
 
   const setValue = useResumeStore((state) => state.setValue);
-  const css = useResumeStore((state) => state.resume.data.metadata.css);
+  const css = useResumeStore((state) => state.resume?.data?.metadata?.css);
 
   return (
     <section id="css" className="grid gap-y-6">

@@ -104,7 +104,7 @@ const Section = ({ id, isDragging = false }: SectionProps) => {
 
 export const LayoutSection = () => {
   const setValue = useResumeStore((state) => state.setValue);
-  const layout = useResumeStore((state) => state.resume.data.metadata.layout);
+  const layout = useResumeStore((state) => state.resume?.data?.metadata?.layout);
 
   const [activeId, setActiveId] = useState<string | null>(null);
 

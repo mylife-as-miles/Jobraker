@@ -36,9 +36,9 @@ export const BuilderToolbar = () => {
   const undo = useTemporalResumeStore((state) => state.undo);
   const redo = useTemporalResumeStore((state) => state.redo);
 
-  const id = useResumeStore((state) => state.resume.id);
-  const isPublic = useResumeStore((state) => state.resume.visibility === "public");
-  const pageOptions = useResumeStore((state) => state.resume.data.metadata.page.options);
+  const id = useResumeStore((state) => state.resume?.id);
+  const isPublic = useResumeStore((state) => state.resume?.visibility === "public");
+  const pageOptions = useResumeStore((state) => state.resume?.data?.metadata?.page?.options);
 
   const { printResume, loading } = usePrintResume();
 

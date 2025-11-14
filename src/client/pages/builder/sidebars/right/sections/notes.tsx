@@ -7,7 +7,7 @@ import { SectionIcon } from "../shared/section-icon";
 
 export const NotesSection = () => {
   const setValue = useResumeStore((state) => state.setValue);
-  const notes = useResumeStore((state) => state.resume.data.metadata.notes);
+  const notes = useResumeStore((state) => state.resume?.data?.metadata?.notes);
 
   return (
     <section id="notes" className="grid gap-y-6">

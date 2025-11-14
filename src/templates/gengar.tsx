@@ -85,7 +85,7 @@ const Header = () => {
 
 const Summary = () => {
   const section = useArtboardStore((state) => state.resume.sections.summary);
-  const primaryColor = useArtboardStore((state) => state.resume.metadata.theme.primary);
+  const primaryColor = useArtboardStore((state) => state.resume?.metadata?.theme?.primary || "#000000");
 
   if (!section.visible || isEmptyString(section.content)) return null;
 
@@ -580,7 +580,7 @@ const mapSectionToComponent = (section: SectionKey) => {
 export const Gengar = ({ columns, isFirstPage = false }: TemplateProps) => {
   const [main, sidebar] = columns;
 
-  const primaryColor = useArtboardStore((state) => state.resume.metadata.theme.primary);
+  const primaryColor = useArtboardStore((state) => state.resume?.metadata?.theme?.primary || "#000000");
 
   return (
     <div className="grid min-h-[inherit] grid-cols-3">
