@@ -40,7 +40,7 @@ export const SectionBase = <T extends SectionItem>({ id, title, description }: P
 
   const setValue = useResumeStore((state) => state.setValue);
   const section = useResumeStore((state) =>
-    get(state.resume.data.sections, id),
+    get(state.resume?.data?.sections, id),
   ) as SectionWithItem<T>;
 
   const sensors = useSensors(
@@ -59,6 +59,7 @@ export const SectionBase = <T extends SectionItem>({ id, title, description }: P
     if (!over) return;
 
     if (active.id !== over.id) {
+      if (!section.items) return;
       const oldIndex = section.items.findIndex((item) => item.id === active.id);
       const newIndex = section.items.findIndex((item) => item.id === over.id);
 
@@ -130,9 +131,9 @@ export const SectionBase = <T extends SectionItem>({ id, title, description }: P
           modifiers={[restrictToParentElement]}
           onDragEnd={onDragEnd}
         >
-          <SortableContext items={section.items} strategy={verticalListSortingStrategy}>
+          <SortableContext items={section.items || []} strategy={verticalListSortingStrategy}>
             <AnimatePresence>
-              {section.items.map((item, index) => (
+              {(section.items || []).map((item, index) => (
                 <SectionListItem
                   key={item.id}
                   id={item.id}

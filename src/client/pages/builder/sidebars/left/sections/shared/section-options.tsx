@@ -43,7 +43,7 @@ export const SectionOptions = ({ id }: Props) => {
   const removeSection = useResumeStore((state) => state.removeSection);
 
   const originalName = get(defaultSections, `${id}.name`, "") as SectionWithItem;
-  const section = useResumeStore((state) => get(state.resume.data.sections, id)) as SectionWithItem;
+  const section = useResumeStore((state) => get(state.resume?.data?.sections, id)) as SectionWithItem;
 
   const hasItems = useMemo(() => "items" in section, [section]);
   const isCustomSection = useMemo(() => id.startsWith("custom"), [id]);
