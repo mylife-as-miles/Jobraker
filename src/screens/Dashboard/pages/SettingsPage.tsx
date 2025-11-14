@@ -3573,6 +3573,7 @@ export const SettingsPage = (): JSX.Element => {
 
 // Unused function - kept for potential future use
 // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/naming-convention
+// @ts-expect-error - Intentionally unused, kept for potential future use
 function _DefaultsForm() {
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError } = useToast();
