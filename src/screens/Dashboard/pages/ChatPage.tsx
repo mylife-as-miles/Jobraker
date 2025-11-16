@@ -30,8 +30,15 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
     }
   }, []);
 
+
   const append = useCallback((m: { role: 'user'; content: string }, chatOpts?: { model?: string; webSearch?: boolean; system?: string }) => {
     if (status === 'in_progress') return;
+
+
+
+  const append = useCallback((m: { role: 'user'; content: string }, chatOpts?: { model?: string; webSearch?: boolean; system?: string }) => {
+    if (status === 'in_progress') return;
+
 
     const userMessage: BasicMessage = { id: nanoid(), role: 'user', content: m.content, createdAt: Date.now(), parts: [{ type: 'text', text: m.content }] };
     const history = [...messages, userMessage];
@@ -111,6 +118,28 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
       });
 
       eventSourceRef.current.addEventListener('done', () => {
+
+        setMessages(prev => {
+          let finalAssistantMessage: BasicMessage | undefined;
+          const finalMessages = prev.map(msg => {
+            if (msg.id === assistantId) {
+              finalAssistantMessage = { ...msg, streaming: false };
+              return finalAssistantMessage;
+            }
+            return msg;
+          });
+          if (opts.onFinish && finalAssistantMessage) {
+            opts.onFinish(finalAssistantMessage);
+          }
+          return finalMessages;
+        });
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close();
+          eventSourceRef.current = null;
+        }
+        setStatus('idle');
+      });
+
         const finalMessages = messages.map(msg => msg.id === assistantId ? { ...msg, streaming: false } : msg);
         const finalAssistantMessage = finalMessages.find(m => m.id === assistantId);
         if (opts.onFinish && finalAssistantMessage) {
@@ -118,6 +147,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         }
         stop();
       });
+
 
     }).catch(err => {
       const errorText = `Fetch Error: ${err.message || 'Could not connect to the chat function.'}`;
@@ -241,9 +271,38 @@ export const ChatPage = () => {
   // Chat logic
   const chat = useChat({ api: '/api/ai-chat' });
   const { messages, status, append, regenerate, stop, setMessages, responseId, setResponseId } = chat;
+to
 
-  // Session persistence ------------------------------------------------------
+  // Session management with Supabase -----------------------------------------
+  const sessionsRef = useRef(sessions);
+  sessionsRef.current = sessions;
+
+  const loadSessions = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('chat_sessions')
+      .select('*')
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      toastError('Could not load chats', error.message);
+      return;
+    }
+    if (data && data.length > 0) {
+      setSessions(data as any);
+      setActiveSessionId(data[0].id);
+    } else {
+      // No sessions, create one
+      await createSession(true);
+    }
+  }, [supabase]);
+
+
+
   useEffect(() => {
+
+    loadSessions();
+  }, [loadSessions]);
+
     try {
       const raw = localStorage.getItem('chat_sessions_v2');
       if (raw) {
@@ -260,6 +319,7 @@ export const ChatPage = () => {
     } catch { createSession(false); }
   }, []);
 
+
   // When active session changes, load its messages into the chat hook
   useEffect(() => {
     if (!activeSessionId) return;
@@ -267,6 +327,61 @@ export const ChatPage = () => {
     if (active) {
       setMessages(active.messages || []);
       setResponseId(active.responseId || null);
+
+    }
+  }, [activeSessionId, sessions, setMessages, setResponseId]);
+
+  // Debounced save to DB
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    if (!activeSessionId || status === 'in_progress') return;
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      const currentMessages = messages;
+      const currentResponseId = responseId;
+      const active = sessionsRef.current.find(s => s.id === activeSessionId);
+
+      if (active) {
+        const hasChanged = JSON.stringify(active.messages) !== JSON.stringify(currentMessages) || active.responseId !== currentResponseId;
+        if (!hasChanged) return;
+
+        const { error } = await supabase
+          .from('chat_sessions')
+          .update({ messages: currentMessages as any, response_id: currentResponseId })
+          .eq('id', activeSessionId);
+
+        if (!error) {
+          // also update local state to get new updated_at
+          setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: currentMessages, responseId: currentResponseId, updatedAt: new Date().toISOString() } : s));
+        }
+      }
+    }, 1500);
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    }
+  }, [messages, responseId, activeSessionId, status, supabase]);
+
+  const createSession = async (activate = true) => {
+    const { data, error } = await supabase
+      .from('chat_sessions')
+      .insert({ title: 'New Chat' })
+      .select()
+      .single();
+
+    if (error) {
+      toastError('Could not create chat', error.message);
+      return null;
+    }
+    if (data) {
+      setSessions(prev => [data as any, ...prev].sort((a,b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
+      if (activate) setActiveSessionId(data.id);
+      return data.id;
+    }
+    return null;
+
     } else {
       // If active session is not found (e.g. deleted), switch to first available
       if (sessions.length > 0) setActiveSessionId(sessions[0].id);
@@ -293,18 +408,33 @@ export const ChatPage = () => {
     setSessions(prev => [{ id, title: 'New Chat', createdAt: Date.now(), updatedAt: Date.now(), messages: [], responseId: null }, ...prev]);
     if (activate) setActiveSessionId(id);
     return id;
+
   };
 
-  const deleteSession = (id: string) => {
+  const deleteSession = async (id: string) => {
+    // Optimistically remove from UI
+    const originalSessions = sessions;
     setSessions(prev => prev.filter(s => s.id !== id));
     if (activeSessionId === id) {
-      const remaining = sessions.filter(s => s.id !== id);
+      const remaining = originalSessions.filter(s => s.id !== id);
       setActiveSessionId(remaining[0]?.id || null);
+    }
+
+    const { error } = await supabase.from('chat_sessions').delete().eq('id', id);
+
+    if (error) {
+      toastError('Could not delete chat', error.message);
+      setSessions(originalSessions); // Revert on error
     }
   };
 
-  const renameSession = (id: string, title: string) => {
-    setSessions(prev => prev.map(s => s.id === id ? { ...s, title, updatedAt: Date.now() } : s));
+  const renameSession = async (id: string, title: string) => {
+    setSessions(prev => prev.map(s => s.id === id ? { ...s, title, updatedAt: new Date().toISOString() } : s));
+    const { error } = await supabase.from('chat_sessions').update({ title }).eq('id', id);
+    if (error) {
+      toastError('Could not rename chat', error.message);
+      loadSessions(); // Re-fetch to correct state
+    }
   };
 
   // Quick prompts - more professional and enterprise-focused
