@@ -18,6 +18,15 @@ export const JobrackerSignup = (): JSX.Element => {
   const { success, error: toastError } = useToast();
   const [isSignUp, setIsSignUp] = useState<boolean>(() => location.pathname !== ROUTES.SIGNIN);
   const [showPassword, setShowPassword] = useState(false);
+  const [lastUsedProvider, setLastUsedProvider] = useState<string | null>(null);
+
+  useEffect(() => {
+    const savedProvider = localStorage.getItem("lastUsedProvider");
+    if (savedProvider) {
+      setLastUsedProvider(savedProvider);
+    }
+  }, []);
+
   // Keep mode in sync when navigating between /signup and /signIn
   useEffect(() => {
     const shouldSignUp = location.pathname !== ROUTES.SIGNIN;
@@ -44,6 +53,8 @@ export const JobrackerSignup = (): JSX.Element => {
     async (provider: "google" | "linkedin_oidc") => {
       try {
         setSubmitting(true);
+        localStorage.setItem("lastUsedProvider", provider);
+        setLastUsedProvider(provider);
         const { error } = await supabase.auth.signInWithOAuth({
           provider,
           options: {
@@ -377,6 +388,11 @@ export const JobrackerSignup = (): JSX.Element => {
                             <span className="relative w-fit font-medium text-white/90 group-hover:text-white tracking-wide leading-normal ml-3">
                               Continue with Google
                             </span>
+                            {lastUsedProvider === "google" && (
+                              <span className="absolute right-4 text-xs text-white/50">
+                                Last used
+                              </span>
+                            )}
                           </Button>
                         </motion.div>
 
@@ -401,6 +417,11 @@ export const JobrackerSignup = (): JSX.Element => {
                             <span className="relative w-fit font-medium text-white/90 group-hover:text-white tracking-wide leading-normal ml-3">
                               Continue with LinkedIn
                             </span>
+                            {lastUsedProvider === "linkedin_oidc" && (
+                              <span className="absolute right-4 text-xs text-white/50">
+                                Last used
+                              </span>
+                            )}
                           </Button>
                         </motion.div>
                       </motion.div>
