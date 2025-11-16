@@ -30,8 +30,15 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
     }
   }, []);
 
+
   const append = useCallback((m: { role: 'user'; content: string }, chatOpts?: { model?: string; webSearch?: boolean; system?: string }) => {
     if (status === 'in_progress') return;
+
+
+
+  const append = useCallback((m: { role: 'user'; content: string }, chatOpts?: { model?: string; webSearch?: boolean; system?: string }) => {
+    if (status === 'in_progress') return;
+
 
     const userMessage: BasicMessage = { id: nanoid(), role: 'user', content: m.content, createdAt: Date.now(), parts: [{ type: 'text', text: m.content }] };
     const history = [...messages, userMessage];
@@ -111,6 +118,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
       });
 
       eventSourceRef.current.addEventListener('done', () => {
+
         setMessages(prev => {
           let finalAssistantMessage: BasicMessage | undefined;
           const finalMessages = prev.map(msg => {
@@ -131,6 +139,16 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         }
         setStatus('idle');
       });
+
+        const finalMessages = messages.map(msg => msg.id === assistantId ? { ...msg, streaming: false } : msg);
+        const finalAssistantMessage = finalMessages.find(m => m.id === assistantId);
+        if (opts.onFinish && finalAssistantMessage) {
+          opts.onFinish(finalAssistantMessage);
+        }
+        stop();
+      });
+
+
     }).catch(err => {
       const errorText = `Fetch Error: ${err.message || 'Could not connect to the chat function.'}`;
       setMessages(prev => prev.map(msg => msg.id === assistantId ? { ...msg, content: errorText, parts: [{ type: 'text', text: errorText }], streaming: false } : msg));
@@ -253,6 +271,7 @@ export const ChatPage = () => {
   // Chat logic
   const chat = useChat({ api: '/api/ai-chat' });
   const { messages, status, append, regenerate, stop, setMessages, responseId, setResponseId } = chat;
+to
 
   // Session management with Supabase -----------------------------------------
   const sessionsRef = useRef(sessions);
@@ -277,9 +296,29 @@ export const ChatPage = () => {
     }
   }, [supabase]);
 
+
+
   useEffect(() => {
+
     loadSessions();
   }, [loadSessions]);
+
+    try {
+      const raw = localStorage.getItem('chat_sessions_v2');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSessions(parsed);
+          setActiveSessionId(parsed[0].id);
+        } else {
+          createSession(false); // create initial if empty/invalid
+        }
+      } else {
+        createSession(false);
+      }
+    } catch { createSession(false); }
+  }, []);
+
 
   // When active session changes, load its messages into the chat hook
   useEffect(() => {
@@ -288,6 +327,7 @@ export const ChatPage = () => {
     if (active) {
       setMessages(active.messages || []);
       setResponseId(active.responseId || null);
+
     }
   }, [activeSessionId, sessions, setMessages, setResponseId]);
 
@@ -341,6 +381,34 @@ export const ChatPage = () => {
       return data.id;
     }
     return null;
+
+    } else {
+      // If active session is not found (e.g. deleted), switch to first available
+      if (sessions.length > 0) setActiveSessionId(sessions[0].id);
+      else createSession(false);
+    }
+  }, [activeSessionId, sessions, setMessages, setResponseId]);
+
+
+  // Sync chat hook state back to the active session
+  useEffect(() => {
+    if (!activeSessionId) return;
+    setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages, responseId, updatedAt: Date.now() } : s));
+  }, [messages, responseId, activeSessionId]);
+
+  // Persist sessions to localStorage
+  useEffect(() => {
+    if (sessions.length > 0) {
+      try { localStorage.setItem('chat_sessions_v2', JSON.stringify(sessions)); } catch {}
+    }
+  }, [sessions]);
+
+  const createSession = (activate = true) => {
+    const id = nanoid();
+    setSessions(prev => [{ id, title: 'New Chat', createdAt: Date.now(), updatedAt: Date.now(), messages: [], responseId: null }, ...prev]);
+    if (activate) setActiveSessionId(id);
+    return id;
+
   };
 
   const deleteSession = async (id: string) => {
