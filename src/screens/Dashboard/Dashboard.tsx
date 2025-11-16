@@ -334,7 +334,10 @@ export const Dashboard = (): JSX.Element => {
 
         {/* Premium Card - Responsive - Fixed to bottom */}
         <div className="flex-shrink-0 p-2 sm:p-3 lg:p-4 border-t border-[#1dff00]/20 bg-[#0a0a0a]">
-          <Card className="bg-gradient-to-br from-[#1dff00] to-[#0a8246] border-none hover:scale-105 transition-transform duration-300">
+          <Card
+            className="bg-gradient-to-br from-[#1dff00] to-[#0a8246] border-none hover:scale-105 transition-transform duration-300 cursor-pointer"
+            onClick={() => navigate('/dashboard/billing')}
+          >
             <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="text-center">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-black/20 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3 hover:scale-110 transition-transform duration-300">
