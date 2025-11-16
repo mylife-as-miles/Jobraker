@@ -8,70 +8,150 @@ import atomOneDarkStyle from 'react-syntax-highlighter/dist/styles/atom-one-dark
 import { createClient } from "../../../lib/supabaseClient";
 import { MessageSquare, Wand2, Target, FileText, Sparkles, Zap, Plus, Search, Trash2, Edit3 } from 'lucide-react';
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
-// Temporary lightweight chat hook placeholder (remove when real ai/react is available)
+// Real-deal streaming useChat hook
 type Persona = 'concise' | 'friendly' | 'analyst' | 'coach';
 interface BasicMessage { id: string; role: 'user' | 'assistant'; content: string; parts?: { type: 'text'; text: string }[]; streaming?: boolean; createdAt: number; meta?: { persona?: Persona; parent?: string } }
-interface UseChatReturn { messages: BasicMessage[]; status: 'idle' | 'in_progress'; append: (m: { role: 'user'; content: string }) => void; regenerate: () => void; stop: () => void }
-const useChat = (_opts: { api: string }): UseChatReturn => {
-  const [messages, setMessages] = useState<BasicMessage[]>([]);
+interface UseChatOptions { api: string; initialMessages?: BasicMessage[]; onFinish?: (msg: BasicMessage) => void; }
+interface UseChatReturn { messages: BasicMessage[]; status: 'idle' | 'in_progress'; append: (m: { role: 'user'; content: string }, opts?: { model?: string; webSearch?: boolean; system?: string }) => void; regenerate: () => void; stop: () => void; setMessages: (m: BasicMessage[]) => void; responseId: string | null; setResponseId: (id: string | null) => void }
+
+const useChat = (opts: UseChatOptions): UseChatReturn => {
+  const [messages, setMessages] = useState<BasicMessage[]>(opts.initialMessages || []);
   const [status, setStatus] = useState<'idle' | 'in_progress'>('idle');
-  const cancelRef = useRef<{ cancelled: boolean }>({ cancelled: false });
-  const lastUserContentRef = useRef<string>('');
+  const [responseId, setResponseId] = useState<string | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
 
-  // Persistence
-  useEffect(()=>{
-    try {
-      const raw = localStorage.getItem('chat_session_default');
-      if (raw) {
-        const parsed: BasicMessage[] = JSON.parse(raw);
-        setMessages(parsed);
-      }
-    } catch {}
+  const stop = useCallback(() => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+      setStatus('idle');
+      // Finalize any streaming messages
+      setMessages(prev => prev.map(m => m.streaming ? { ...m, streaming: false } : m));
+    }
   }, []);
-  useEffect(()=>{
-    try { localStorage.setItem('chat_session_default', JSON.stringify(messages)); } catch {}
-  }, [messages]);
 
-  const streamAssistant = (assistantId: string, tokens: string[], i: number) => {
-    setMessages(prev => prev.map(msg => msg.id === assistantId
-      ? { ...msg, parts: [{ type: 'text', text: tokens.slice(0, i + 1).join(' ') }], streaming: i + 1 < tokens.length }
-      : msg));
-    if (cancelRef.current.cancelled) {
-      setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, streaming: false } : m));
-      setStatus('idle');
-      return;
-    }
-    if (i + 1 < tokens.length) {
-      setTimeout(() => streamAssistant(assistantId, tokens, i + 1), 40 + Math.random()*60);
-    } else {
-      setStatus('idle');
-    }
-  };
-
-  const append = (m: { role: 'user'; content: string }) => {
-    const userId = Math.random().toString(36).slice(2);
-    lastUserContentRef.current = m.content;
-    setMessages(prev => [...prev, { id: userId, role: m.role, content: m.content, createdAt: Date.now(), parts: [{ type: 'text', text: m.content }] }]);
-    // Simulated streaming assistant reply
-    setStatus('in_progress');
-    const assistantId = Math.random().toString(36).slice(2);
-    const reply = `You said: "${m.content}". This is a simulated streaming response demonstrating incremental token updates.`;
-    const tokens = reply.split(/\s+/);
-    cancelRef.current.cancelled = false;
-    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: reply, createdAt: Date.now(), parts: [{ type: 'text', text: '' }], streaming: true, meta: { parent: userId } }]);
-    // start token streaming
-    setTimeout(() => streamAssistant(assistantId, tokens, 0), 120);
-  };
-  const regenerate = () => {
+  const append = useCallback((m: { role: 'user'; content: string }, chatOpts?: { model?: string; webSearch?: boolean; system?: string }) => {
     if (status === 'in_progress') return;
-    const lastUser = [...messages].reverse().find(m => m.role === 'user');
-    if (!lastUser) return;
-    append({ role: 'user', content: lastUser.content });
+
+    const userMessage: BasicMessage = { id: nanoid(), role: 'user', content: m.content, createdAt: Date.now(), parts: [{ type: 'text', text: m.content }] };
+    const history = [...messages, userMessage];
+    setMessages(history);
+    setStatus('in_progress');
+
+    const assistantId = nanoid();
+    const assistantMessage: BasicMessage = { id: assistantId, role: 'assistant', content: '', createdAt: Date.now(), parts: [{ type: 'text', text: '' }], streaming: true };
+    setMessages(prev => [...prev, assistantMessage]);
+
+    const supabase = createClient();
+    supabase.functions.invoke('ai-chat', {
+      body: {
+        model: chatOpts?.model || 'openai/gpt-4o-mini',
+        messages: responseId ? [userMessage] : history, // Full history on first turn, just new message after
+        webSearch: chatOpts?.webSearch,
+        system: chatOpts?.system,
+        previous_response_id: responseId,
+      }
+    }).then(async (resp) => {
+
+      if (resp.error) {
+        const errorText = `Error: ${resp.error.message || 'Function returned an error.'}`;
+        setMessages(prev => prev.map(msg => msg.id === assistantId ? { ...msg, content: errorText, parts: [{ type: 'text', text: errorText }], streaming: false } : msg));
+        setStatus('idle');
+        return;
+      }
+      // Supabase Functions does not support streaming responses directly in invoke,
+      // so we use a standard fetch with EventSource for the streaming endpoint.
+      // We must get the URL from the supabase client config.
+      const fnUrl = `${supabase.functionsUrl}/ai-chat`;
+
+      eventSourceRef.current = new EventSource(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+        body: JSON.stringify({
+          model: chatOpts?.model || 'openai/gpt-4o-mini',
+          messages: responseId ? [userMessage] : history,
+          webSearch: chatOpts?.webSearch,
+          system: chatOpts?.system,
+          previous_response_id: responseId,
+        })
+      } as any); // EventSource polyfills/types can be tricky
+
+      eventSourceRef.current.addEventListener('message', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.delta) {
+            setMessages(prev => prev.map(msg => msg.id === assistantId
+              ? { ...msg, content: msg.content + data.delta, parts: [{ type: 'text', text: msg.content + data.delta }] }
+              : msg
+            ));
+          }
+        } catch (error) {}
+      });
+
+      eventSourceRef.current.addEventListener('response_id', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.response_id) {
+            setResponseId(data.response_id);
+          }
+        } catch (error) {}
+      });
+
+      eventSourceRef.current.addEventListener('error', (e) => {
+        let errorText = 'An unknown streaming error occurred.';
+        try {
+          const data = JSON.parse(e.data);
+          if (data.error) errorText = `Error: ${data.error}`;
+        } catch (error) {}
+        setMessages(prev => prev.map(msg => msg.id === assistantId ? { ...msg, content: errorText, parts: [{ type: 'text', text: errorText }], streaming: false } : msg));
+        stop();
+      });
+
+      eventSourceRef.current.addEventListener('done', () => {
+        setMessages(prev => {
+          let finalAssistantMessage: BasicMessage | undefined;
+          const finalMessages = prev.map(msg => {
+            if (msg.id === assistantId) {
+              finalAssistantMessage = { ...msg, streaming: false };
+              return finalAssistantMessage;
+            }
+            return msg;
+          });
+          if (opts.onFinish && finalAssistantMessage) {
+            opts.onFinish(finalAssistantMessage);
+          }
+          return finalMessages;
+        });
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close();
+          eventSourceRef.current = null;
+        }
+        setStatus('idle');
+      });
+    }).catch(err => {
+      const errorText = `Fetch Error: ${err.message || 'Could not connect to the chat function.'}`;
+      setMessages(prev => prev.map(msg => msg.id === assistantId ? { ...msg, content: errorText, parts: [{ type: 'text', text: errorText }], streaming: false } : msg));
+      setStatus('idle');
+    });
+
+  }, [messages, status, responseId, stop, opts.onFinish]);
+
+  const regenerate = () => {
+    if (status === 'in_progress' || messages.length === 0) return;
+    const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
+    if (lastUserMessage) {
+      // Potentially remove the last assistant message before regenerating
+      const messagesWithoutLastAssistant = messages.filter(m => m.role !== 'assistant' || m.id !== messages[messages.length - 1].id);
+      setMessages(messagesWithoutLastAssistant);
+      // This is a simplified regenerate; a real one might need more context/state rewind
+      append(lastUserMessage);
+    }
   };
-  const stop = () => {
-    cancelRef.current.cancelled = true;
-  };
-  return { messages, status, append, regenerate, stop };
+
+  return { messages, status, append, regenerate, stop, setMessages, responseId, setResponseId };
 };
 import { GlobeIcon, MicIcon } from 'lucide-react';
 import {
@@ -109,7 +189,7 @@ export const ChatPage = () => {
   const [persona, setPersona] = useState<Persona>('concise');
   const [editing, setEditing] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [sessions, setSessions] = useState<{ id: string; title: string; createdAt: number; updatedAt: number; messages: BasicMessage[] }[]>([]);
+  const [sessions, setSessions] = useState<{ id: string; title: string; createdAt: number; updatedAt: number; messages: BasicMessage[]; responseId?: string | null }[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [renamingSession, setRenamingSession] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -171,59 +251,122 @@ export const ChatPage = () => {
   });
   
   // Chat logic
-  const chat = useChat({ api: '/api/chat' });
-  const { messages, status, append, regenerate, stop } = chat;
+  const chat = useChat({ api: '/api/ai-chat' });
+  const { messages, status, append, regenerate, stop, setMessages, responseId, setResponseId } = chat;
 
-  // Session persistence ------------------------------------------------------
+  // Session management with Supabase -----------------------------------------
+  const sessionsRef = useRef(sessions);
+  sessionsRef.current = sessions;
+
+  const loadSessions = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('chat_sessions')
+      .select('*')
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      toastError('Could not load chats', error.message);
+      return;
+    }
+    if (data && data.length > 0) {
+      setSessions(data as any);
+      setActiveSessionId(data[0].id);
+    } else {
+      // No sessions, create one
+      await createSession(true);
+    }
+  }, [supabase]);
+
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('chat_sessions_v1');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          setSessions(parsed);
-          if (parsed.length) setActiveSessionId(parsed[0].id);
-        }
-      } else {
-        // initialize with one session if none
-        const id = nanoid();
-        const initial = [{ id, title: 'New Chat', createdAt: Date.now(), updatedAt: Date.now(), messages: [] }];
-        setSessions(initial);
-        setActiveSessionId(id);
-      }
-    } catch {}
-  }, []);
+    loadSessions();
+  }, [loadSessions]);
 
-  // Sync active session messages with chat hook (simple mirror)
+  // When active session changes, load its messages into the chat hook
   useEffect(() => {
     if (!activeSessionId) return;
-    setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages } : s));
-  }, [messages, activeSessionId]);
+    const active = sessions.find(s => s.id === activeSessionId);
+    if (active) {
+      setMessages(active.messages || []);
+      setResponseId(active.responseId || null);
+    }
+  }, [activeSessionId, sessions, setMessages, setResponseId]);
 
+  // Debounced save to DB
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
-    try { localStorage.setItem('chat_sessions_v1', JSON.stringify(sessions)); } catch {}
-  }, [sessions]);
+    if (!activeSessionId || status === 'in_progress') return;
 
-  const createSession = () => {
-    const id = nanoid();
-    setSessions(prev => [{ id, title: 'New Chat', createdAt: Date.now(), updatedAt: Date.now(), messages: [] }, ...prev]);
-    setActiveSessionId(id);
-    // reset chat state (simple page-level reset)
-    window.location.hash = '#chat-' + id; // hint without full navigation
-    // Hard reset by reloading for simplicity to reuse hook state; optional improvement: refactor hook to accept external messages.
-    // For now mimic reset:
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      const currentMessages = messages;
+      const currentResponseId = responseId;
+      const active = sessionsRef.current.find(s => s.id === activeSessionId);
+
+      if (active) {
+        const hasChanged = JSON.stringify(active.messages) !== JSON.stringify(currentMessages) || active.responseId !== currentResponseId;
+        if (!hasChanged) return;
+
+        const { error } = await supabase
+          .from('chat_sessions')
+          .update({ messages: currentMessages as any, response_id: currentResponseId })
+          .eq('id', activeSessionId);
+
+        if (!error) {
+          // also update local state to get new updated_at
+          setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: currentMessages, responseId: currentResponseId, updatedAt: new Date().toISOString() } : s));
+        }
+      }
+    }, 1500);
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    }
+  }, [messages, responseId, activeSessionId, status, supabase]);
+
+  const createSession = async (activate = true) => {
+    const { data, error } = await supabase
+      .from('chat_sessions')
+      .insert({ title: 'New Chat' })
+      .select()
+      .single();
+
+    if (error) {
+      toastError('Could not create chat', error.message);
+      return null;
+    }
+    if (data) {
+      setSessions(prev => [data as any, ...prev].sort((a,b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
+      if (activate) setActiveSessionId(data.id);
+      return data.id;
+    }
+    return null;
   };
 
-  const deleteSession = (id: string) => {
+  const deleteSession = async (id: string) => {
+    // Optimistically remove from UI
+    const originalSessions = sessions;
     setSessions(prev => prev.filter(s => s.id !== id));
     if (activeSessionId === id) {
-      const remaining = sessions.filter(s => s.id !== id);
+      const remaining = originalSessions.filter(s => s.id !== id);
       setActiveSessionId(remaining[0]?.id || null);
+    }
+
+    const { error } = await supabase.from('chat_sessions').delete().eq('id', id);
+
+    if (error) {
+      toastError('Could not delete chat', error.message);
+      setSessions(originalSessions); // Revert on error
     }
   };
 
-  const renameSession = (id: string, title: string) => {
-    setSessions(prev => prev.map(s => s.id === id ? { ...s, title, updatedAt: Date.now() } : s));
+  const renameSession = async (id: string, title: string) => {
+    setSessions(prev => prev.map(s => s.id === id ? { ...s, title, updatedAt: new Date().toISOString() } : s));
+    const { error } = await supabase.from('chat_sessions').update({ title }).eq('id', id);
+    if (error) {
+      toastError('Could not rename chat', error.message);
+      loadSessions(); // Re-fetch to correct state
+    }
   };
 
   // Quick prompts - more professional and enterprise-focused
@@ -298,18 +441,32 @@ export const ChatPage = () => {
 
   const handleSubmit = (message: PromptInputMessage) => {
     const hasText = !!message.text?.trim();
-    const hasFiles = !!message.files?.length; // reserved for future
+    const hasFiles = !!message.files?.length;
     if (!hasText && !hasFiles) return;
-    const prefix = {
-      concise: '',
-      friendly: 'Please answer in a warm, encouraging tone. ',
-      analyst: 'Provide structured, analytical reasoning. ',
-      coach: 'Answer like a career coach with actionable steps. '
+
+    const systemInstruction = {
+      concise: 'You are a concise and direct assistant.',
+      friendly: 'You are a friendly and encouraging assistant.',
+      analyst: 'You are a professional analyst who provides structured, data-driven answers.',
+      coach: 'You are a career coach who gives actionable advice.'
     }[persona];
-    const finalText = prefix + (message.text || 'Sent with attachments');
-    append({ role: 'user', content: finalText });
-    // update session title on first message
-    setSessions(prev => prev.map(s => s.id === activeSessionId && s.messages.length === 0 ? { ...s, title: (message.text || 'New Chat').slice(0,48) } : s));
+
+    const currentMessages = sessions.find(s => s.id === activeSessionId)?.messages || [];
+
+    append(
+      { role: 'user', content: message.text || '' },
+      {
+        model: model === 'agent' ? 'openai/gpt-4o' : 'openai/gpt-4o-mini',
+        webSearch: useWebSearch,
+        system: currentMessages.length === 0 ? systemInstruction : undefined, // Only send system on first turn
+      }
+    );
+
+    // Update session title on first user message
+    if (currentMessages.filter(m=>m.role==='user').length === 0) {
+      setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, title: (message.text || 'New Chat').slice(0, 48) } : s));
+    }
+
     setText('');
     setEditing(false);
   };

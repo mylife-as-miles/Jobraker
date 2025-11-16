@@ -23,10 +23,10 @@ import { getCorsHeaders } from "../_shared/types.ts";
 
 interface UIMessagePart { text?: string }
 interface UIMessage { id?: string; role: string; content?: string; parts?: UIMessagePart[] }
-interface ChatBody { model?: string; messages: UIMessage[]; webSearch?: boolean; system?: string }
+interface ChatBody { model?: string; messages: UIMessage[]; webSearch?: boolean; system?: string; previous_response_id?: string }
 
 const FALLBACK_MODEL = 'openai/gpt-4o-mini';
-const OPENAI_BASE = 'https://api.openai.com/v1/chat/completions';
+const OPENAI_BASE = 'https://api.openai.com/v1/responses';
 const PERPLEXITY_BASE = 'https://api.perplexity.ai/chat/completions';
 const MAX_DURATION_MS = 30_000; // 30s
 
@@ -112,16 +112,25 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const payload: any = {
           model: providerModel,
           stream: true,
-          messages: providerMessages,
         };
 
-        // Provider-specific tuning (optional)
         if (isOpenAI) {
+          payload.store = true;
           payload.temperature = 0.7;
-          payload.max_tokens = 1024;
-        }
-        if (isPerplexity) {
-          // Perplexity expects a similar shape, optional search parameters could go here
+
+          if (body.previous_response_id) {
+            payload.previous_response_id = body.previous_response_id;
+            const lastMessage = body.messages.at(-1);
+            payload.input = lastMessage ? (lastMessage.parts?.map(p => p.text).filter(Boolean).join('\n') || lastMessage.content || '').trim() : '';
+          } else {
+            // First turn of a conversation
+            payload.input = toProviderMessages(body.messages); // just messages, no system prompt
+            if (body.system) {
+              payload.instructions = body.system;
+            }
+          }
+        } else { // isPerplexity
+          payload.messages = providerMessages; // this one includes the system prompt
           payload.temperature = 0.7;
         }
 
@@ -144,19 +153,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const decoder = new TextDecoder();
         const encoder = new TextEncoder();
         let buffer = '';
+        let responseId: string | null = null;
 
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
 
-          // The upstream is SSE style: lines beginning with data:
           const lines = buffer.split(/\n/);
           buffer = lines.pop() || '';
 
             for (const line of lines) {
               const trimmed = line.trim();
               if (!trimmed) continue;
+
+              if (trimmed.startsWith('event:')) continue; // Handled by data parsing below
+
               if (trimmed.startsWith('data:')) {
                 const data = trimmed.substring(5).trim();
                 if (data === '[DONE]') {
@@ -167,13 +179,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 }
                 try {
                   const parsed = JSON.parse(data);
-                  // OpenAI style delta path
-                  const delta = parsed.choices?.[0]?.delta?.content || parsed.choices?.[0]?.message?.content || '';
-                  if (delta) {
-                    controllerStream.enqueue(encoder.encode(sseEncode({ delta })));
+
+                  if (isOpenAI) {
+                    // Responses API stream parsing
+                    if (parsed.id && parsed.object === 'response' && !responseId) {
+                        responseId = parsed.id;
+                        controllerStream.enqueue(encoder.encode(sseEvent('response_id', { response_id: responseId })));
+                    }
+                    if (parsed.type === 'message_delta' && parsed.delta?.text) {
+                        controllerStream.enqueue(encoder.encode(sseEncode({ delta: parsed.delta.text })));
+                    }
+                  } else { // isPerplexity (or old OpenAI)
+                      const delta = parsed.choices?.[0]?.delta?.content || parsed.choices?.[0]?.message?.content || '';
+                      if (delta) {
+                        controllerStream.enqueue(encoder.encode(sseEncode({ delta })));
+                      }
                   }
                 } catch {
-                  // Perplexity may send JSON objects differently; attempt generic parse fallback already attempted.
+                  // JSON parse error is expected for some lines, ignore.
                 }
               }
             }
