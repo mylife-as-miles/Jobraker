@@ -30,6 +30,9 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
     }
   }, []);
 
+  const append = useCallback((m: { role: 'user'; content: string }, chatOpts?: { model?: string; webSearch?: boolean; system?: string }) => {
+    if (status === 'in_progress') return;
+
 
   const append = useCallback((m: { role: 'user'; content: string }, chatOpts?: { model?: string; webSearch?: boolean; system?: string }) => {
     if (status === 'in_progress') return;
@@ -95,6 +98,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
               : msg
             ));
           }
+        } catch (error) {}
         } catch {}
       });
 
@@ -104,6 +108,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           if (data.response_id) {
             setResponseId(data.response_id);
           }
+        } catch (error) {}
         } catch {}
       });
 
@@ -112,6 +117,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         try {
           const data = JSON.parse(e.data);
           if (data.error) errorText = `Error: ${data.error}`;
+        } catch (error) {}
         } catch {}
         setMessages(prev => prev.map(msg => msg.id === assistantId ? { ...msg, content: errorText, parts: [{ type: 'text', text: errorText }], streaming: false } : msg));
         stop();
@@ -295,6 +301,11 @@ to
       await createSession(true);
     }
   }, [supabase]);
+
+  useEffect(() => {
+    loadSessions();
+  }, [loadSessions]);
+
 
 
 
