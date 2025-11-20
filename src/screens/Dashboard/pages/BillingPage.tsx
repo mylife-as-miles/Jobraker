@@ -1,9 +1,11 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { usePaystackPayment } from 'react-paystack';
+
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabaseClient';
-import { 
-  Coins, Crown, Zap, ArrowRight, Calendar, History, TrendingUp, 
+import {
+  Coins, Crown, Zap, ArrowRight, Calendar, History, TrendingUp,
   Sparkles, Package, Check, Star, ArrowUpRight, Download,
   Shield, Infinity, Target
 } from 'lucide-react';
@@ -50,6 +52,27 @@ export const BillingPage = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'subscription' | 'packs' | 'history'>('subscription');
   const supabase = useMemo(() => createClient(), []);
+  const config = {
+    reference: (new Date()).getTime().toString(),
+    email: "norbertmbafrank@gmail.com",
+    amount: 20000, //Amount is in the country's lowest currency. E.g Kobo, so 20000 kobo = N200
+    publicKey: 'pk_test_c0198a35cd0526b34365d6241d8c218fa33db418',
+  };
+  const initializePayment = usePaystackPayment(config);
+
+
+  // you can call this function anything
+  const onSuccess = (reference: any) => {
+    // Implementation for whatever you want to do with reference and after success call.
+    console.log(reference);
+  };
+
+  // you can call this function anything
+  const onClose = () => {
+    // implementation for  whatever you want to do when the Paystack dialog closed.
+    console.log('closed')
+  }
+
 
   useEffect(() => {
     fetchBillingData();
@@ -239,11 +262,10 @@ export const BillingPage = () => {
                     <div className={`p-3 rounded-xl bg-gradient-to-br ${getTierGradient(subscriptionTier)}/10 border border-white/10`}>
                       {getTierIcon(subscriptionTier)}
                     </div>
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                      subscriptionTier === 'Pro' ? 'bg-blue-500/20 text-blue-300' :
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${subscriptionTier === 'Pro' ? 'bg-blue-500/20 text-blue-300' :
                       subscriptionTier === 'Ultimate' ? 'bg-purple-500/20 text-purple-300' :
-                      'bg-[#1dff00]/20 text-[#1dff00]'
-                    }`}>
+                        'bg-[#1dff00]/20 text-[#1dff00]'
+                      }`}>
                       {subscriptionTier.toUpperCase()}
                     </span>
                   </div>
@@ -301,11 +323,10 @@ export const BillingPage = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-3 font-medium transition-all duration-200 border-b-2 ${
-                activeTab === tab.id
-                  ? 'text-[#1dff00] border-[#1dff00]'
-                  : 'text-gray-400 border-transparent hover:text-white'
-              }`}
+              className={`flex items-center gap-2 px-4 py-3 font-medium transition-all duration-200 border-b-2 ${activeTab === tab.id
+                ? 'text-[#1dff00] border-[#1dff00]'
+                : 'text-gray-400 border-transparent hover:text-white'
+                }`}
             >
               {tab.icon}
               <span className="hidden sm:inline">{tab.label}</span>
@@ -327,7 +348,7 @@ export const BillingPage = () => {
                 {plans.map((plan, index) => {
                   const isCurrentPlan = plan.name === subscriptionTier;
                   const isPro = plan.name === 'Pro';
-                  
+
                   return (
                     <motion.div
                       key={plan.id}
@@ -343,12 +364,11 @@ export const BillingPage = () => {
                           </span>
                         </div>
                       )}
-                      
-                      <Card className={`group relative overflow-hidden bg-gradient-to-br ${getTierGradient(plan.name)} border transition-all hover:shadow-xl hover:shadow-[#1dff00]/10 hover:-translate-y-1 ${
-                        isCurrentPlan 
-                          ? 'border-[#1dff00] shadow-[0_0_30px_rgba(29,255,0,0.15)]'
-                          : 'border-white/10'
-                      }`}>
+
+                      <Card className={`group relative overflow-hidden bg-gradient-to-br ${getTierGradient(plan.name)} border transition-all hover:shadow-xl hover:shadow-[#1dff00]/10 hover:-translate-y-1 ${isCurrentPlan
+                        ? 'border-[#1dff00] shadow-[0_0_30px_rgba(29,255,0,0.15)]'
+                        : 'border-white/10'
+                        }`}>
                         {isCurrentPlan && (
                           <div className="absolute top-4 right-4 z-10">
                             <span className="px-2 py-1 text-xs font-medium bg-[#1dff00] text-black border border-[#1dff00] rounded-lg flex items-center gap-1">
@@ -395,9 +415,9 @@ export const BillingPage = () => {
                             {plan.features && Array.isArray(plan.features) && plan.features.slice(0, 3).map((feature: any, idx: number) => {
                               const featureName = typeof feature === 'string' ? feature : feature.name;
                               const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
-                              
+
                               if (!isIncluded) return null;
-                              
+
                               return (
                                 <div key={idx} className="flex items-start gap-2">
                                   <Check className="w-4 h-4 text-[#1dff00] mt-0.5 flex-shrink-0" />
@@ -412,17 +432,23 @@ export const BillingPage = () => {
 
                           {/* CTA */}
                           <Button
-                            className={`w-full h-11 font-semibold text-sm transition-all duration-300 ${
-                              isCurrentPlan
-                                ? 'bg-white/10 text-white cursor-default'
-                                : plan.name === 'Basics'
+                            onClick={() => {
+                              // add payment
+                              initializePayment({
+                                onSuccess: onSuccess,
+                                onClose: onClose
+                              });
+                            }}
+                            className={`w-full h-11 font-semibold text-sm transition-all duration-300 ${isCurrentPlan
+                              ? 'bg-white/10 text-white cursor-default'
+                              : plan.name === 'Basics'
                                 ? 'bg-gradient-to-r from-[#1dff00] via-[#0fc74f] to-[#0a8246] text-black hover:opacity-90 hover:scale-105 shadow-lg'
                                 : plan.name === 'Pro'
-                                ? 'bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
-                                : plan.name === 'Ultimate'
-                                ? 'bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
-                                : 'bg-gradient-to-r from-gray-600 to-gray-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
-                            }`}
+                                  ? 'bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
+                                  : plan.name === 'Ultimate'
+                                    ? 'bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
+                                    : 'bg-gradient-to-r from-gray-600 to-gray-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
+                              }`}
                             disabled={isCurrentPlan}
                           >
                             {isCurrentPlan ? 'Current Plan' : `Upgrade to ${plan.name}`}
@@ -468,11 +494,10 @@ export const BillingPage = () => {
                       </div>
                     )}
 
-                    <Card className={`relative overflow-hidden transition-all duration-300 hover:scale-105 ${
-                      pack.popular
-                        ? 'border-[#1dff00]/50 bg-gradient-to-br from-[#1dff00]/10 to-transparent shadow-[0_0_30px_rgba(29,255,0,0.1)]'
-                        : 'border-white/10 bg-gradient-to-br from-white/5 to-transparent'
-                    }`}>
+                    <Card className={`relative overflow-hidden transition-all duration-300 hover:scale-105 ${pack.popular
+                      ? 'border-[#1dff00]/50 bg-gradient-to-br from-[#1dff00]/10 to-transparent shadow-[0_0_30px_rgba(29,255,0,0.1)]'
+                      : 'border-white/10 bg-gradient-to-br from-white/5 to-transparent'
+                      }`}>
                       <CardContent className="p-6 space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="p-2 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/20">
@@ -504,11 +529,10 @@ export const BillingPage = () => {
                         </div>
 
                         <Button
-                          className={`w-full bg-gradient-to-r ${
-                            pack.popular
-                              ? 'from-[#1dff00] to-[#0a8246] text-black'
-                              : 'from-white/10 to-white/5 text-white'
-                          } hover:opacity-90 transition-all duration-300`}
+                          className={`w-full bg-gradient-to-r ${pack.popular
+                            ? 'from-[#1dff00] to-[#0a8246] text-black'
+                            : 'from-white/10 to-white/5 text-white'
+                            } hover:opacity-90 transition-all duration-300`}
                         >
                           Purchase
                           <ArrowRight className="ml-2 w-4 h-4" />
@@ -595,9 +619,8 @@ export const BillingPage = () => {
                               </div>
                             </div>
                             <div className="text-right flex-shrink-0">
-                              <p className={`text-lg font-semibold ${
-                                transaction.amount > 0 ? 'text-green-400' : 'text-red-400'
-                              }`}>
+                              <p className={`text-lg font-semibold ${transaction.amount > 0 ? 'text-green-400' : 'text-red-400'
+                                }`}>
                                 {transaction.amount > 0 ? '+' : ''}{transaction.amount}
                               </p>
                               <p className="text-xs text-gray-400">

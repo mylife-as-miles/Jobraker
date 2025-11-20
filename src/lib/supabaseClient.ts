@@ -55,6 +55,7 @@ export function createClient(): SupabaseClient {
   }
 
   const client = createBrowserClient(supabaseUrl, supabaseAnonKey);
+  console.log(import.meta.env, "OZOO")
 
   // Avoid noisy 403s: if there is no session, don’t call /auth/v1/user
   // Attach a lightweight auth state listener once to capture invalid refresh scenarios
@@ -69,7 +70,7 @@ export function createClient(): SupabaseClient {
         return;
       }
     });
-  } catch {}
+  } catch { }
 
   // Wrap refreshSession to detect invalid refresh token errors and force sign-out once.
   const originalRefresh = client.auth.refreshSession.bind(client.auth);
@@ -79,7 +80,7 @@ export function createClient(): SupabaseClient {
     } catch (e: any) {
       const msg = (e as AuthError)?.message || '';
       if (/invalid refresh token/i.test(msg) || /refresh token not found/i.test(msg)) {
-        try { await client.auth.signOut(); } catch {}
+        try { await client.auth.signOut(); } catch { }
         // Surface a normalized object so callers treat it as logged out instead of looping
         return { data: { session: null }, error: null };
       }

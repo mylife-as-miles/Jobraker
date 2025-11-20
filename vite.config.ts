@@ -10,8 +10,8 @@ export default defineConfig({
   base: "/",
   // For production builds (like Vercel), explicitly define the env vars
   define: {
-    'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL),
-    'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY),
+    // 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL),
+    // 'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY),
     appVersion: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,7) || process.env.npm_package_version || 'dev'),
   },
   // Vite automatically loads VITE_ prefixed variables from .env files for development
