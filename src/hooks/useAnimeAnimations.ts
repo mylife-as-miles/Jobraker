@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { animate, stagger } from 'animejs';
+import { animate, stagger } from "@/lib/anime";
 
 interface UseAnimeAnimationsOptions {
   targets?: string | HTMLElement | NodeList | Array<HTMLElement>;
@@ -36,20 +36,22 @@ export const useAnimeAnimations = (options: UseAnimeAnimationsOptions = {}) => {
       { threshold: 0.1 }
     );
 
-    const elements = typeof targets === 'string' 
-      ? document.querySelectorAll(targets)
-      : Array.isArray(targets)
-      ? targets
-      : [targets];
+    const elements: Element[] = typeof targets === "string"
+      ? Array.from(document.querySelectorAll(targets))
+      : !targets
+        ? []
+        : targets instanceof Element
+          ? [targets]
+          : targets instanceof NodeList
+            ? Array.from(targets as NodeListOf<Element>)
+            : Array.isArray(targets)
+              ? targets.filter((el): el is Element => el instanceof Element)
+              : [];
 
-    elements.forEach((el) => {
-      if (el instanceof Element) observer.observe(el);
-    });
+    elements.forEach((el) => observer.observe(el));
 
     return () => {
-      elements.forEach((el) => {
-        if (el instanceof Element) observer.unobserve(el);
-      });
+      elements.forEach((el) => observer.unobserve(el));
     };
   }, [targets, delay, duration, easing, once]);
 };
@@ -147,4 +149,3 @@ export const useCounterAnimation = (
 
   return countRef;
 };
-
