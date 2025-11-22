@@ -24,7 +24,7 @@ import {
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
-import { animate, stagger } from 'animejs';
+import { animate, stagger } from "@/lib/anime";
 import { useStaggerText, useParallaxScroll, useCounterAnimation } from "../../hooks/useAnimeAnimations";
 
 // Lightweight in-view hook (no GSAP/parallax)
