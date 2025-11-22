@@ -25,20 +25,16 @@ export const routes = createRoutesFromElements(
       <Route path="dashboard">
         <Route element={<AuthGuard />}>
           <Route element={<DashboardLayout />}>
-            <Route path="resumes" element={<ResumesPage />} />
+            <Route path="resumes" element={<ResumesPage />}>
+              <Route path="builder">
+                <Route element={<BuilderLayout />}>
+                  <Route path="new" loader={builderNewLoader} element={<BuilderPage />} />
+                  <Route path=":id" loader={builderLoader} element={<BuilderPage />} />
+                </Route>
+              </Route>
+            </Route>
             <Route path="settings" element={<SettingsPage />} />
             <Route path="cover-letter" element={<CoverLetterPage />} />
-
-            <Route index element={<Navigate replace to="/dashboard/resumes" />} />
-          </Route>
-        </Route>
-      </Route>
-
-      <Route path="builder">
-        <Route element={<AuthGuard />}>
-          <Route element={<BuilderLayout />}>
-            <Route path="new" loader={builderNewLoader} element={<BuilderPage />} />
-            <Route path=":id" loader={builderLoader} element={<BuilderPage />} />
 
             <Route index element={<Navigate replace to="/dashboard/resumes" />} />
           </Route>
