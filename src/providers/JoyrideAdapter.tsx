@@ -133,20 +133,84 @@ export const JoyrideAdapter: React.FC = () => {
         try { el = document.querySelector<HTMLElement>(m.selector.startsWith('[') ? m.selector : `[data-tour="${m.selector}"]`); } catch { el = null; }
       }
       // Smart placement if not provided: choose side with most available space
+      // Improved positioning with minimum spacing and better edge detection
       let placement = (m.placement as any) || 'auto';
       if (el && (!m.placement || m.placement === 'center')) {
         const r = el.getBoundingClientRect();
-        const vw = window.innerWidth; const vh = window.innerHeight;
-        const spaceTop = r.top; const spaceBottom = vh - r.bottom; const spaceLeft = r.left; const spaceRight = vw - r.right;
-        const verticalMax = Math.max(spaceTop, spaceBottom); const horizontalMax = Math.max(spaceLeft, spaceRight);
-        if (verticalMax >= horizontalMax) placement = spaceBottom >= spaceTop ? 'bottom' : 'top'; else placement = spaceRight >= spaceLeft ? 'right' : 'left';
+        const vw = window.innerWidth; 
+        const vh = window.innerHeight;
+        const minSpacing = 80; // Minimum spacing from viewport edges
+        const tooltipHeight = 200; // Estimated tooltip height
+        const tooltipWidth = 380; // Estimated tooltip width
+        
+        // Calculate available space with minimum spacing requirement
+        const spaceTop = Math.max(0, r.top - minSpacing);
+        const spaceBottom = Math.max(0, vh - r.bottom - minSpacing);
+        const spaceLeft = Math.max(0, r.left - minSpacing);
+        const spaceRight = Math.max(0, vw - r.right - minSpacing);
+        
+        // Check if element is near bottom of viewport (within 20% of bottom)
+        const isNearBottom = (vh - r.bottom) < (vh * 0.2);
+        const isNearTop = r.top < (vh * 0.2);
+        const isNearRight = (vw - r.right) < (vw * 0.2);
+        const isNearLeft = r.left < (vw * 0.2);
+        
+        // Prefer top placement if element is near bottom, but only if there's enough space
+        if (isNearBottom && spaceTop >= tooltipHeight) {
+          placement = 'top';
+        }
+        // Prefer bottom placement if element is near top, but only if there's enough space
+        else if (isNearTop && spaceBottom >= tooltipHeight) {
+          placement = 'bottom';
+        }
+        // Prefer left placement if element is near right edge
+        else if (isNearRight && spaceLeft >= tooltipWidth) {
+          placement = 'left';
+        }
+        // Prefer right placement if element is near left edge
+        else if (isNearLeft && spaceRight >= tooltipWidth) {
+          placement = 'right';
+        }
+        // Default smart placement based on available space
+        else {
+          const verticalMax = Math.max(spaceTop, spaceBottom);
+          const horizontalMax = Math.max(spaceLeft, spaceRight);
+          
+          if (verticalMax >= horizontalMax) {
+            placement = spaceBottom >= spaceTop ? 'bottom' : 'top';
+          } else {
+            placement = spaceRight >= spaceLeft ? 'right' : 'left';
+          }
+        }
       }
-      return { target: el || 'body', title: m.title, content: m.body, placement, disableBeacon: true, styles: { options: { zIndex: 10050 } } } as Step;
+      
+      // Add offset to prevent tooltips from appearing at screen edges
+      const offset = 16;
+      return { 
+        target: el || 'body', 
+        title: m.title, 
+        content: m.body, 
+        placement, 
+        disableBeacon: true,
+        offset: offset,
+        styles: { 
+          options: { 
+            zIndex: 10050,
+            arrowColor: '#132313',
+          },
+          tooltip: {
+            borderRadius: '16px',
+          },
+          tooltipContainer: {
+            textAlign: 'left',
+          },
+        } 
+      } as Step;
     }).filter(s => !!s.target);
     setSteps(built);
   }, [page, isRunning, activeId, internalSteps]);
 
-  // Ensure current target is visible when step changes
+  // Ensure current target is visible when step changes with better positioning
   React.useEffect(() => {
     if (!isRunning || activeIndex < 0) return;
     const step = internalSteps[activeIndex];
@@ -157,9 +221,20 @@ export const JoyrideAdapter: React.FC = () => {
     }
     if (el) {
       const rect = el.getBoundingClientRect();
-      const fullyVisible = rect.top >= 56 && rect.bottom <= window.innerHeight - 40;
+      const headerHeight = 80; // Account for header/navbar
+      const footerHeight = 100; // Account for footer/tooltip space
+      const fullyVisible = rect.top >= headerHeight && rect.bottom <= window.innerHeight - footerHeight;
       if (!fullyVisible) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Scroll to center the element with extra space for tooltip
+        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        // Small delay to ensure scroll completes before tooltip renders
+        setTimeout(() => {
+          // Re-check visibility after scroll
+          const newRect = el?.getBoundingClientRect();
+          if (newRect && (newRect.top < headerHeight || newRect.bottom > window.innerHeight - footerHeight)) {
+            el?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+          }
+        }, 300);
       }
     }
   }, [activeIndex, isRunning, internalSteps]);
@@ -190,7 +265,11 @@ export const JoyrideAdapter: React.FC = () => {
       style.textContent = `
   .react-joyride__overlay { backdrop-filter: blur(0.4px); }
     .react-joyride__spotlight { box-shadow: 0 0 0 2px #1dff00, 0 0 0 6px rgba(29,255,0,0.25), 0 0 0 10000px rgba(0,0,0,0.45) !important; border-radius: 12px !important; }
-        .react-joyride__tooltip { background: transparent !important; box-shadow: none !important; }
+        .react-joyride__tooltip { background: transparent !important; box-shadow: none !important; position: relative !important; }
+        .react-joyride__tooltip[data-placement="bottom"] { margin-top: 16px !important; }
+        .react-joyride__tooltip[data-placement="top"] { margin-bottom: 16px !important; }
+        .react-joyride__tooltip[data-placement="left"] { margin-right: 16px !important; }
+        .react-joyride__tooltip[data-placement="right"] { margin-left: 16px !important; }
         .react-joyride__beacon { box-shadow: 0 0 0 0 rgba(29,255,0,0.65); animation: joyPulse 2.4s ease-in-out infinite; }
         @keyframes joyPulse { 0%{ box-shadow:0 0 0 0 rgba(29,255,0,0.45);} 70%{ box-shadow:0 0 0 14px rgba(29,255,0,0);} 100%{ box-shadow:0 0 0 0 rgba(29,255,0,0);} }
       `;
@@ -211,6 +290,16 @@ export const JoyrideAdapter: React.FC = () => {
       scrollToFirstStep
       spotlightClicks
       tooltipComponent={(p: any) => <BrandedTooltip {...p} waiting={waiting} internalStep={internalStep} onCta={() => next()} />}
+      floaterProps={{
+        disableAnimation: false,
+        placement: 'auto',
+        styles: {
+          arrow: {
+            length: 8,
+            spread: 16,
+          },
+        },
+      }}
       styles={{
         options: {
           zIndex: 10040,

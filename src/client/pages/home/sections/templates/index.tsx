@@ -27,25 +27,37 @@ export const TemplatesSection = () => (
           }}
           className="flex items-center gap-x-6"
         >
-          {templatesList.map((template, index) => (
+          {templatesList.map((template, index) => {
+            const templateId = typeof template === 'string' ? template : (template.id || 'pikachu');
+            return (
             <motion.a
               key={index}
               target="_blank"
               rel="noreferrer"
-              href={`templates/pdf/${template}.pdf`}
+              href={`templates/pdf/${templateId}.pdf`}
               className="max-w-none flex-none"
               viewport={{ once: true }}
               initial={{ opacity: 0, x: -100 }}
               whileInView={{ opacity: 1, x: 0 }}
             >
               <img
-                alt={template}
+                alt={typeof template === 'string' ? template : template.name}
                 loading="lazy"
-                src={`/templates/jpg/${template}.jpg`}
+                src={`/templates/jpg/${encodeURIComponent((templateId || 'pikachu').trim() || 'pikachu')}.jpg`}
+                onError={(e) => {
+                  const img = e.currentTarget as HTMLImageElement;
+                  if (!img.dataset.fallbackUsed) {
+                    img.dataset.fallbackUsed = 'true';
+                    img.src = "/templates/jpg/pikachu.jpg";
+                  } else {
+                    img.style.display = 'none';
+                  }
+                }}
                 className="aspect-[1/1.4142] h-[400px] rounded object-cover lg:h-[600px]"
               />
             </motion.a>
-          ))}
+            );
+          })}
         </motion.div>
 
         <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-1/2 bg-gradient-to-r from-background to-transparent lg:block" />

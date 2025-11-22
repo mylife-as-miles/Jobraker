@@ -1,40 +1,36 @@
--- Create table for job source settings
+-- Canonical: id is the PK and also a FK to auth.users(id); no user_id column
 CREATE TABLE job_source_settings (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   cron_enabled BOOLEAN DEFAULT false,
   cron_expression TEXT DEFAULT '0 */6 * * *',
   firecrawl_api_key TEXT,
   notification_enabled BOOLEAN DEFAULT true,
   sources JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-  UNIQUE(user_id)
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Create index for better query performance
-CREATE INDEX idx_job_source_settings_user_id ON job_source_settings(user_id);
+-- No index on user_id (column removed); add indexes as needed on future fields
 
--- Enable RLS
 ALTER TABLE job_source_settings ENABLE ROW LEVEL SECURITY;
 
--- RLS policies
-CREATE POLICY "Users can view their own job source settings" 
+-- RLS policies (id-based)
+CREATE POLICY "Read own job sources" 
   ON job_source_settings FOR SELECT 
-  USING (auth.uid() = user_id);
+  USING (auth.uid() = id);
 
-CREATE POLICY "Users can insert their own job source settings" 
+CREATE POLICY "Insert own job sources" 
   ON job_source_settings FOR INSERT 
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (auth.uid() = id);
 
-CREATE POLICY "Users can update their own job source settings" 
+CREATE POLICY "Update own job sources" 
   ON job_source_settings FOR UPDATE 
-  USING (auth.uid() = user_id) 
-  WITH CHECK (auth.uid() = user_id);
+  USING (auth.uid() = id) 
+  WITH CHECK (auth.uid() = id);
 
-CREATE POLICY "Users can delete their own job source settings" 
+CREATE POLICY "Delete own job sources" 
   ON job_source_settings FOR DELETE 
-  USING (auth.uid() = user_id);
+  USING (auth.uid() = id);
 
 -- Create table for scraped jobs
 CREATE TABLE jobs (

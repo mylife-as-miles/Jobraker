@@ -53,10 +53,10 @@ const hexToHsl = (hex: string): { h: number; s: number; l: number } | null => {
 
 export const ThemeSection = () => {
   const setValue = useResumeStore((state) => state.setValue);
-  const theme = useResumeStore((state) => state.resume.data.metadata.theme);
+  const theme = useResumeStore((state) => state.resume?.data?.metadata?.theme);
 
   useEffect(() => {
-    if (theme.primary) {
+    if (theme?.primary) {
       const hsl = hexToHsl(theme.primary);
       if (hsl) {
         document.documentElement.style.setProperty("--color-brand-h", `${hsl.h}`);
@@ -64,7 +64,7 @@ export const ThemeSection = () => {
         document.documentElement.style.setProperty("--color-brand-l", `${hsl.l}%`);
       }
     }
-  }, [theme.primary]);
+  }, [theme?.primary]);
 
   return (
     <section id="theme" className="grid gap-y-6">
@@ -82,7 +82,7 @@ export const ThemeSection = () => {
               key={color}
               className={cn(
                 "flex size-6 cursor-pointer items-center justify-center rounded-full transition-shadow",
-                theme.primary === color
+                theme?.primary === color
                   ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
                   : "ring-0 hover:ring-2 hover:ring-muted-foreground/30",
               )}
@@ -102,12 +102,12 @@ export const ThemeSection = () => {
               <PopoverTrigger asChild>
                 <div
                   className="absolute inset-y-0 left-3 my-2.5 size-4 cursor-pointer rounded-full ring-primary ring-offset-2 ring-offset-background transition-shadow hover:ring-1"
-                  style={{ backgroundColor: theme.primary }}
+                  style={{ backgroundColor: theme?.primary || "#000000" }}
                 />
               </PopoverTrigger>
               <PopoverContent className="rounded-lg border-none bg-transparent p-0">
                 <HexColorPicker
-                  color={theme.primary}
+                  color={theme?.primary || "#000000"}
                   onChange={(color) => {
                     setValue("metadata.theme.primary", color);
                   }}
@@ -116,7 +116,7 @@ export const ThemeSection = () => {
             </Popover>
             <Input
               id="theme.primary"
-              value={theme.primary}
+              value={theme?.primary || "#000000"}
               className="pl-10"
               onChange={(event) => {
                 setValue("metadata.theme.primary", event.target.value);
@@ -132,12 +132,12 @@ export const ThemeSection = () => {
               <PopoverTrigger asChild>
                 <div
                   className="absolute inset-y-0 left-3 my-2.5 size-4 cursor-pointer rounded-full ring-primary ring-offset-2 ring-offset-background transition-shadow hover:ring-1"
-                  style={{ backgroundColor: theme.background }}
+                  style={{ backgroundColor: theme?.background || "#ffffff" }}
                 />
               </PopoverTrigger>
               <PopoverContent className="rounded-lg border-none bg-transparent p-0">
                 <HexColorPicker
-                  color={theme.background}
+                  color={theme?.background || "#ffffff"}
                   onChange={(color) => {
                     setValue("metadata.theme.background", color);
                   }}
@@ -146,7 +146,7 @@ export const ThemeSection = () => {
             </Popover>
             <Input
               id="theme.background"
-              value={theme.background}
+              value={theme?.background || "#ffffff"}
               className="pl-10"
               onChange={(event) => {
                 setValue("metadata.theme.background", event.target.value);
@@ -162,12 +162,12 @@ export const ThemeSection = () => {
               <PopoverTrigger asChild>
                 <div
                   className="absolute inset-y-0 left-3 my-2.5 size-4 cursor-pointer rounded-full ring-primary ring-offset-2 ring-offset-background transition-shadow hover:ring-1"
-                  style={{ backgroundColor: theme.text }}
+                  style={{ backgroundColor: theme?.text || "#000000" }}
                 />
               </PopoverTrigger>
               <PopoverContent className="rounded-lg border-none bg-transparent p-0">
                 <HexColorPicker
-                  color={theme.text}
+                  color={theme?.text || "#000000"}
                   onChange={(color) => {
                     setValue("metadata.theme.text", color);
                   }}
@@ -176,7 +176,7 @@ export const ThemeSection = () => {
             </Popover>
             <Input
               id="theme.text"
-              value={theme.text}
+              value={theme?.text || "#000000"}
               className="pl-10"
               onChange={(event) => {
                 setValue("metadata.theme.text", event.target.value);

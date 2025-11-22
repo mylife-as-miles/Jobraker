@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "../../lib/utils";
 
 interface ModalProps {
@@ -13,13 +14,20 @@ interface ModalProps {
 
 export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, footer, size = "md", side = "center" }) => {
   useEffect(() => {
+    if (!open) return;
+    
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
-    if (open) {
-      document.addEventListener("keydown", onKey);
-    }
-    return () => document.removeEventListener("keydown", onKey);
+    
+    // Prevent body scroll when modal is open
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -31,26 +39,25 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, fo
     xl: "max-w-4xl",
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] overflow-y-auto">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       {side === "center" ? (
-        <div className="relative z-10 m-auto w-full px-4">
-          <div className={cn(
-            "mx-auto w-full rounded-lg border border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] shadow-[0_0_30px_rgba(29,255,0,0.2)]",
-            sizes[size]
-          )}>
-            {title && (
-              <div className="px-5 py-4 border-b border-[#1dff00]/20">
-                <h3 className="text-white font-semibold">{title}</h3>
-              </div>
-            )}
-            <div className="px-5 py-4">{children}</div>
-            {footer && <div className="px-5 py-4 border-t border-[#1dff00]/20">{footer}</div>}
+        <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
+          <div className={cn("relative z-10 w-full max-h-[90vh] overflow-y-auto pointer-events-auto", sizes[size])}>
+            <div className="flex w-full flex-col rounded-lg border border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] shadow-[0_0_30px_rgba(29,255,0,0.2)]">
+              {title && (
+                <div className="border-b border-[#1dff00]/20 px-5 py-4">
+                  <h3 className="text-white font-semibold">{title}</h3>
+                </div>
+              )}
+              <div className="px-5 py-4">{children}</div>
+              {footer && <div className="border-t border-[#1dff00]/20 px-5 py-4">{footer}</div>}
+            </div>
           </div>
         </div>
       ) : (
-        <div className="relative z-10 ml-auto h-full w-full max-w-xl">
+        <div className="fixed inset-y-0 right-0 z-10 w-full max-w-xl">
           <div className="h-full w-full border-l border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] shadow-[0_0_30px_rgba(29,255,0,0.2)]">
             {title && (
               <div className="px-5 py-4 border-b border-[#1dff00]/20 sticky top-0 bg-transparent">
@@ -62,7 +69,8 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, fo
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 };
 

@@ -1,3 +1,4 @@
+import React from "react";
 import { t } from "@lingui/macro";
 import { CopySimple, Lock, PencilSimple, TrashSimple } from "@phosphor-icons/react";
 import type { ResumeDto } from "@reactive-resume/dto";
@@ -14,6 +15,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
 import { useDialog } from "@/client/stores/dialog";
+import { useResumes, type ResumeRecord } from "@/hooks/useResumes";
+import { useToast } from "@/components/ui/toast";
+import { DeleteResumeDialog } from "@/client/components/DeleteResumeDialog";
+import { UndoToast } from "@/client/components/UndoToast";
 
 import { BaseCard } from "./base-card";
 
@@ -25,8 +30,15 @@ export const ResumeCard = ({ resume }: Props) => {
   const navigate = useNavigate();
   const { open } = useDialog<ResumeDto>("resume");
   const { open: lockOpen } = useDialog<ResumeDto>("lock");
+  const { remove, duplicate: duplicateResume, rename, undoRemove } = useResumes();
+  const { toast } = useToast();
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [showUndoToast, setShowUndoToast] = React.useState(false);
+  const [deletedResumeId, setDeletedResumeId] = React.useState<string | null>(null);
+  const [deletedResumeName, setDeletedResumeName] = React.useState<string>("");
 
-  const template = resume.data.metadata.template;
+  const template = resume.data?.metadata?.template || "pikachu";
   const lastUpdated = dayjs().to(resume.updatedAt ?? resume.createdAt ?? new Date());
 
   const onOpen = () => {
@@ -37,8 +49,23 @@ export const ResumeCard = ({ resume }: Props) => {
     open("update", { id: "resume", item: resume });
   };
 
-  const onDuplicate = () => {
-    open("duplicate", { id: "resume", item: resume });
+  const onDuplicate = async () => {
+    // Convert ResumeDto to ResumeRecord format for duplication
+    const resumeRecord: ResumeRecord = {
+      id: resume.id,
+      user_id: null, // Will be set by the hook
+      name: resume.name,
+      template: resume.data?.metadata?.template || "pikachu",
+      status: resume.locked ? "Archived" : "Active",
+      applications: 0,
+      thumbnail: null,
+      is_favorite: false,
+      file_path: null,
+      file_ext: null,
+      size: null,
+      updated_at: resume.updatedAt || resume.createdAt || new Date().toISOString(),
+    };
+    await duplicateResume(resumeRecord);
   };
 
   const onLockChange = () => {
@@ -46,7 +73,65 @@ export const ResumeCard = ({ resume }: Props) => {
   };
 
   const onDelete = () => {
-    open("delete", { id: "resume", item: resume });
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true);
+    
+    try {
+      // Fetch the full resume record from database to get file_path and other fields
+      const { createClient } = await import("@/lib/supabaseClient");
+      const supabase = createClient();
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = (auth as any)?.user?.id;
+      
+      if (!uid) {
+        toast({ title: 'Error', description: 'Not authenticated' });
+        setIsDeleting(false);
+        setDeleteDialogOpen(false);
+        return;
+      }
+      
+      const { data: resumeRecord, error: fetchError } = await (supabase as any)
+        .from("resumes")
+        .select("*")
+        .eq("id", resume.id)
+        .eq("user_id", uid)
+        .single();
+      
+      if (fetchError || !resumeRecord) {
+        toast({ title: 'Error', description: 'Failed to fetch resume details' });
+        setIsDeleting(false);
+        setDeleteDialogOpen(false);
+        return;
+      }
+      
+      const id = resume.id;
+      const name = resume.name;
+      await remove(resumeRecord as ResumeRecord);
+      
+      // Show undo toast
+      setDeletedResumeId(id);
+      setDeletedResumeName(name);
+      setShowUndoToast(true);
+      setDeleteDialogOpen(false);
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete resume' });
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleUndo = () => {
+    if (deletedResumeId) {
+      undoRemove(deletedResumeId);
+      setShowUndoToast(false);
+      setDeletedResumeId(null);
+      setDeletedResumeName("");
+    }
   };
 
   const onReparse = () => {
@@ -88,7 +173,16 @@ export const ResumeCard = ({ resume }: Props) => {
           </div>
 
           <img
-            src={`/templates/jpg/${template}.jpg`}
+            src={`/templates/jpg/${encodeURIComponent((template || 'pikachu').trim() || 'pikachu')}.jpg`}
+            onError={(e) => {
+              const img = e.currentTarget as HTMLImageElement;
+              if (!img.dataset.fallbackUsed) {
+                img.dataset.fallbackUsed = 'true';
+                img.src = "/templates/jpg/pikachu.jpg";
+              } else {
+                img.style.display = 'none';
+              }
+            }}
             alt={template}
             className="rounded-xl opacity-90 contrast-110"
           />
@@ -127,5 +221,27 @@ export const ResumeCard = ({ resume }: Props) => {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    <>
+      <DeleteResumeDialog
+        open={deleteDialogOpen}
+        resumeName={resume.name}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteDialogOpen(false)}
+        isLoading={isDeleting}
+      />
+      {showUndoToast && deletedResumeId && (
+        <UndoToast
+          id={deletedResumeId}
+          title="Resume deleted"
+          description={deletedResumeName}
+          onUndo={handleUndo}
+          onDismiss={() => {
+            setShowUndoToast(false);
+            setDeletedResumeId(null);
+            setDeletedResumeName("");
+          }}
+        />
+      )}
+    </>
   );
 };

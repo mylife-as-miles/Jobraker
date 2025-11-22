@@ -6,10 +6,8 @@ import { CheckIcon, CopyIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes, ReactNode } from "react";
 import { createContext, useContext, useState } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import {
-  oneDark,
-  oneLight,
-} from "react-syntax-highlighter/dist/esm/styles/prism";
+import oneDarkStyle from "react-syntax-highlighter/dist/styles/atom-one-dark";
+import oneLightStyle from "react-syntax-highlighter/dist/styles/atom-one-light";
 
 type CodeBlockContextType = {
   code: string;
@@ -62,7 +60,7 @@ export const CodeBlock = ({
             minWidth: "2.5rem",
           }}
           showLineNumbers={showLineNumbers}
-          style={oneLight}
+          style={oneLightStyle}
         >
           {code}
         </SyntaxHighlighter>
@@ -85,7 +83,7 @@ export const CodeBlock = ({
             minWidth: "2.5rem",
           }}
           showLineNumbers={showLineNumbers}
-          style={oneDark}
+          style={oneDarkStyle}
         >
           {code}
         </SyntaxHighlighter>

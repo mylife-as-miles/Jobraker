@@ -27,7 +27,6 @@ export interface JobSourceSettings {
   id: string; // This is the user_id in the existing table
   cron_enabled?: boolean;
   cron_expression?: string;
-  firecrawl_api_key?: string;
   notification_enabled?: boolean;
   sources?: JobSource[];
   include_linkedin?: boolean;
@@ -64,7 +63,7 @@ export function useJobSources() {
         const { data: existingSettings, error: fetchError } = await supabase
           .from('job_source_settings')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('id', user.id)
           .single();
 
         if (fetchError && fetchError.code !== 'PGRST116') {
@@ -185,7 +184,7 @@ export function useJobSources() {
       const { error } = await supabase
         .from('job_source_settings')
         .update(updatedSettings)
-        .eq('user_id', user.id);
+        .eq('id', user.id);
 
       if (error) throw error;
       // Activity notification
@@ -224,7 +223,7 @@ export function useJobSources() {
       const { error } = await supabase
         .from('job_source_settings')
         .update(updatedSettings)
-        .eq('user_id', user.id);
+        .eq('id', user.id);
 
       if (error) throw error;
       const changed = Object.keys(updates).filter(k => k !== 'updated_at');
@@ -260,7 +259,7 @@ export function useJobSources() {
       const { error } = await supabase
         .from('job_source_settings')
         .update(updatedSettings)
-        .eq('user_id', user.id);
+        .eq('id', user.id);
 
       if (error) throw error;
       const removed = currentSources.find(s => s.id === sourceId);

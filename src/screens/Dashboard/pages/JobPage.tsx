@@ -1,2299 +1,3338 @@
-import { Briefcase, Building2, DollarSign, Share, Star, Users, CheckCircle2, FileText, UploadCloud, Pencil, Play, MapPin, Clock, MoreVertical, Filter, X, Loader2, Sparkles, Plus, ArrowRight } from "lucide-react";
-import { useRegisterCoachMarks } from "../../../providers/TourProvider";
-import { useProductTour } from "../../../providers/TourProvider";
-import { events as analyticsEvents } from "../../../lib/analytics";
+import { Briefcase, Search, MapPin, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Sparkles, Check, ShieldCheck, Clock3, FileText, AlertTriangle, UserCheck, UserX, FileCheck2, FileWarning, User, Trash2, Target, TrendingUp } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
+import Modal from "../../../components/ui/modal";
+import { useResumes } from "../../../hooks/useResumes";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
-import { Search } from "lucide-react";
 import { motion } from "framer-motion";
+import useMediaQuery from "../../../hooks/use-media-query";
 import { createClient } from "../../../lib/supabaseClient";
-import { applyToJobs } from "../../../services/applications/applyToJobs";
-import { getRun } from "../../../services/skyvern/getRun";
-import { JobListing } from "../../../../supabase/functions/_shared/types";
-import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
-import { SafeSelect } from "../../../components/ui/safe-select";
+import { useProfileSettings, type Profile } from "../../../hooks/useProfileSettings";
+import { events } from "../../../lib/analytics";
 import { useToast } from "../../../components/ui/toast";
-import { ensureApplyReadiness } from "../../../utils/applyPreflight";
-import { useResumes } from "@/hooks/useResumes";
-// import { createClient as createSbClient } from "@/lib/supabaseClient";
+import { SimpleDropdown } from "../../../components/SimpleDropdown";
+import { applyToJobs } from "../../../services/applications/applyToJobs";
+import { cn } from "../../../lib/utils";
+import { useRegisterCoachMarks } from "../../../providers/TourProvider";
+import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
+import { UpgradePrompt } from "../../../components/UpgradePrompt";
+import { AnimatedSVGBackground } from "../../../components/AnimatedSVGBackground";
 
-interface Job extends JobListing {
-  id: string;
+// The Job interface now represents a row from our personal 'jobs' table.
+interface Job {
+  id: string; // This will be the DB UUID
   title: string;
   company: string;
-  location: string;
-  type: "Full-time" | "Part-time" | "Contract" | "Remote" | "Hybrid" | "On-site" | "N/A";
-  salary: string;
-  postedDate: string;
-  rawPostedAt?: number | null;
-  description: string;
-  requirements: string[];
-  benefits: string[];
-  isBookmarked: boolean;
-  isApplied: boolean;
-  logo: string;
+  company_logo?: string | null;
+  description: string | null;
+  location: string | null;
+  remote_type: string | null;
+  employment_type?: string | null;
+  experience_level?: string | null;
+  apply_url: string | null;
+  posted_at: string | null;
+  expires_at: string | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_currency: string | null;
+  raw_data?: any;
   logoUrl?: string;
-  source?: string;
+  logo: string;
+  status?: string;
+  source_type?: string | null;
+  source_id?: string | null;
+  matchScore?: number;
+  matchBreakdown?: MatchScoreBreakdown[];
+  matchSummary?: string;
 }
 
-type FacetItem = { value: string; count: number };
+type MatchScoreBreakdown = {
+  label: string;
+  componentScore: number;
+  contribution: number;
+  weight: number;
+  detail: string;
+  matches?: string[];
+};
+
+type MatchContext = {
+  searchQuery: string;
+  selectedLocation: string;
+  profile?: Profile | null;
+};
+
+const tokenize = (input?: string | null): string[] => {
+  if (!input) return [];
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 1);
+};
+
+const uniqueTokens = (tokens: string[]): string[] => Array.from(new Set(tokens));
+
+const clamp = (value: number, min = 0, max = 100) => Math.min(max, Math.max(min, value));
+
+const buildTokenSet = (...segments: Array<string | undefined | null>): Set<string> => {
+  const tokens = segments.flatMap((segment) => uniqueTokens(tokenize(segment)));
+  return new Set(tokens);
+};
+
+const measureOverlap = (needles: Set<string>, haystack: Set<string>) => {
+  if (!needles.size) return { score: 0, matches: [] as string[] };
+  const matches: string[] = [];
+  needles.forEach((token) => {
+    if (haystack.has(token)) matches.push(token);
+  });
+  const score = clamp((matches.length / needles.size) * 100);
+  return { score, matches };
+};
+
+const evaluateLocationFit = (job: Job, context: MatchContext): { score: number; detail: string } => {
+  const preferredLocationRaw = context.selectedLocation?.trim();
+  const profileLocationRaw = context.profile?.location?.trim();
+  const preference = preferredLocationRaw || profileLocationRaw || "";
+  const preferenceTokens = buildTokenSet(preference);
+  const jobLocationPieces: string[] = [];
+  if (job.location) jobLocationPieces.push(job.location);
+  if (job.remote_type) jobLocationPieces.push(job.remote_type);
+  const rawData = job.raw_data as Record<string, any> | undefined;
+  if (rawData?.location) jobLocationPieces.push(String(rawData.location));
+  if (rawData?.scraped_data?.location) jobLocationPieces.push(String(rawData.scraped_data.location));
+  const jobLocationString = jobLocationPieces.join(" ").toLowerCase();
+  const wantsRemote = preference.toLowerCase().includes("remote");
+  const jobIsRemote = /remote|anywhere/i.test(jobLocationString) || /remote/i.test(job.remote_type || "");
+
+  if (!preferenceTokens.size) {
+    if (jobIsRemote) {
+      return { score: 85, detail: "Remote-friendly role suits broad location preferences." };
+    }
+    if (!jobLocationString) {
+      return { score: 60, detail: "Location unspecified; monitor posting for details." };
+    }
+    return { score: 65, detail: "No location preference set; defaulting to neutral fit." };
+  }
+
+  if (jobIsRemote && wantsRemote) {
+    return { score: 95, detail: "Remote flexibility aligns with your preference." };
+  }
+
+  const matchedTokens: string[] = [];
+  preferenceTokens.forEach((token) => {
+    if (token && jobLocationString.includes(token)) matchedTokens.push(token);
+  });
+
+  if (matchedTokens.length) {
+    return {
+      score: 100,
+      detail: `Job location highlights ${matchedTokens.join(", ")}, matching your preference.`,
+    };
+  }
+
+  if (jobIsRemote) {
+    return {
+      score: 80,
+      detail: "Role is remote-friendly, partially offsetting location mismatch.",
+    };
+  }
+
+  if (!jobLocationString) {
+    return {
+      score: 45,
+      detail: "Job location not specified; unable to confirm alignment.",
+    };
+  }
+
+  return {
+    score: 30,
+    detail: "Location does not mention your preferred region.",
+  };
+};
+
+const computeJobMatchInsights = (job: Job, context: MatchContext) => {
+  const breakdown: MatchScoreBreakdown[] = [];
+  const totalWeights = {
+    role: 0.35,
+    keywords: 0.3,
+    goals: 0.2,
+    location: 0.15,
+  } as const;
+
+  const profileTitleTokens = buildTokenSet(context.profile?.job_title, context.profile?.goals?.join(" ") || "");
+  const searchTokens = buildTokenSet(context.searchQuery);
+  const roleTargetTokens = new Set<string>([...profileTitleTokens, ...searchTokens]);
+  const jobTitleTokens = buildTokenSet(job.title);
+  const roleOverlap = measureOverlap(roleTargetTokens, jobTitleTokens);
+  const roleScore = roleTargetTokens.size ? roleOverlap.score : clamp(jobTitleTokens.size ? 55 : 40);
+  breakdown.push({
+    label: "Role focus",
+    componentScore: roleScore,
+    contribution: roleScore * totalWeights.role,
+    weight: totalWeights.role,
+    detail: roleTargetTokens.size
+      ? roleOverlap.matches.length
+        ? `Matches ${roleOverlap.matches.length}/${roleTargetTokens.size} target role keywords.`
+        : "Job title only loosely overlaps with your role focus."
+      : "No role keywords provided; using neutral baseline.",
+    matches: roleOverlap.matches,
+  });
+
+  const jobDescriptionText = [job.description, (job.raw_data as any)?.scraped_data?.description, toPlainText(job.description || "")]
+    .filter(Boolean)
+    .join(" ");
+  const jobTagTokens = buildTokenSet(
+    Array.isArray((job.raw_data as any)?.scraped_data?.tags)
+      ? ((job.raw_data as any)?.scraped_data?.tags as string[]).join(" ")
+      : undefined,
+    Array.isArray((job.raw_data as any)?.scraped_data?.skills)
+      ? ((job.raw_data as any)?.scraped_data?.skills as string[]).join(" ")
+      : undefined,
+  );
+  const jobTextTokens = new Set<string>([...buildTokenSet(jobDescriptionText), ...jobTagTokens, ...jobTitleTokens]);
+  const keywordOverlap = measureOverlap(searchTokens, jobTextTokens);
+  const keywordScore = searchTokens.size ? keywordOverlap.score : clamp(jobTextTokens.size ? 60 : 40);
+  breakdown.push({
+    label: "Keyword match",
+    componentScore: keywordScore,
+    contribution: keywordScore * totalWeights.keywords,
+    weight: totalWeights.keywords,
+    detail: searchTokens.size
+      ? (keywordOverlap.matches.length
+          ? `Job content covers ${keywordOverlap.matches.join(", ")}.`
+          : "Posting lacks your search keywords.")
+      : "No search keywords supplied; treated as neutral.",
+    matches: keywordOverlap.matches,
+  });
+
+  const goalTokens = buildTokenSet(context.profile?.goals?.join(" ") || "");
+  const goalOverlap = measureOverlap(goalTokens, jobTextTokens);
+  const goalScore = goalTokens.size ? goalOverlap.score : clamp(jobTextTokens.size ? 55 : 40);
+  breakdown.push({
+    label: "Profile goals",
+    componentScore: goalScore,
+    contribution: goalScore * totalWeights.goals,
+    weight: totalWeights.goals,
+    detail: goalTokens.size
+      ? (goalOverlap.matches.length
+          ? `Mentions your goals: ${goalOverlap.matches.join(", ")}.`
+          : "Job description does not reference your stated goals.")
+      : "Add goals to your profile for deeper matching.",
+    matches: goalOverlap.matches,
+  });
+
+  const locationFit = evaluateLocationFit(job, context);
+  breakdown.push({
+    label: "Location alignment",
+    componentScore: locationFit.score,
+    contribution: locationFit.score * totalWeights.location,
+    weight: totalWeights.location,
+    detail: locationFit.detail,
+  });
+
+  const totalScore = clamp(
+    Math.round(breakdown.reduce((acc, item) => acc + item.contribution, 0)),
+  );
+
+  const positiveHighlights = breakdown
+    .filter((item) => item.componentScore >= 70)
+    .map((item) => item.label.toLowerCase());
+  const opportunityAreas = breakdown
+    .filter((item) => item.componentScore < 50)
+    .map((item) => item.label.toLowerCase());
+
+  let summary = "";
+  if (positiveHighlights.length) {
+    summary = `Strong alignment on ${positiveHighlights.join(", ")}.`;
+  }
+  if (opportunityAreas.length) {
+    summary = summary
+      ? `${summary} Needs attention on ${opportunityAreas.join(", ")}.`
+      : `Needs attention on ${opportunityAreas.join(", ")}.`;
+  }
+  if (!summary) {
+    summary = "Limited signals detected — consider refining your search or profile.";
+  }
+
+  return {
+    score: totalScore,
+    breakdown,
+    summary,
+  };
+};
+
+const decorateJobWithMatchInsights = (job: Job, context: MatchContext): Job => {
+  try {
+    const insights = computeJobMatchInsights(job, context);
+    return {
+      ...job,
+      matchScore: insights.score,
+      matchBreakdown: insights.breakdown,
+      matchSummary: insights.summary,
+    };
+  } catch (err) {
+    console.error('match insight computation failed', err);
+    return job;
+  }
+};
+
+type CoverLetterDraftData = {
+  role?: string;
+  company?: string;
+  content?: string;
+  paragraphs?: string[];
+  salutation?: string;
+  closing?: string;
+  signatureName?: string;
+  senderName?: string;
+  senderEmail?: string;
+  senderPhone?: string;
+  senderAddress?: string;
+  recipient?: string;
+  recipientTitle?: string;
+  recipientAddress?: string;
+  date?: string;
+  subject?: string;
+};
+
+type CoverLetterLibraryEntry = {
+  id: string;
+  name: string;
+  updatedAt?: string;
+  data?: (CoverLetterDraftData & Record<string, unknown>);
+  draft?: boolean;
+};
+
+const COVER_LETTER_LIBRARY_KEY = "jr.coverLetters.library.v1";
+const COVER_LETTER_DEFAULT_KEY = "jr.coverLetters.defaultId";
+const COVER_LETTER_DRAFT_KEY = "jr.coverLetter.draft.v2";
 
 const supabase = createClient();
 
-// Minimal HTML sanitizer to render job descriptions safely
-const sanitizeHtml = (html: string) => {
-  if (!html) return "";
-  let out = String(html);
-  // strip script/style tags and contents
-  out = out.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
-  out = out.replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "");
-  // neutralize javascript: URLs
-  out = out.replace(/href\s*=\s*(["'])javascript:[^"']*\1/gi, 'href="#"');
-  out = out.replace(/src\s*=\s*(["'])javascript:[^"']*\1/gi, '');
-  // remove on* event handlers
-  out = out.replace(/ on[a-z]+\s*=\s*(["']).*?\1/gi, "");
-  return out;
+const pickString = (source: Record<string, unknown> | undefined, key: string): string | undefined => {
+  if (!source) return undefined;
+  const value = source[key];
+  return typeof value === "string" ? value : undefined;
 };
 
-// Lightweight bullet extractor from description as a fallback
-const extractSectionBullets = (htmlOrText: string, heads: string[]): string[] => {
-  if (!htmlOrText) return [];
-  const clean = String(htmlOrText).replace(/\r/g, "");
-  const lower = clean.toLowerCase();
-  for (const h of heads) {
-    const idx = lower.indexOf(h);
-    if (idx !== -1) {
-      const segment = clean.slice(idx, idx + 2000);
-      const liMatches = Array.from(segment.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)).map(m => m[1].replace(/<[^>]+>/g, '').trim());
-      if (liMatches.length) return liMatches.filter(Boolean).slice(0, 20);
-      const lines = segment.split(/\n+/).map(s => s.trim());
-      const bullets = lines.filter(s => /^[-*•]/.test(s)).map(s => s.replace(/^[-*•]\s*/, ''));
-      if (bullets.length) return bullets.slice(0, 20);
+const getJobApplyTarget = (job: Job): string | null => {
+  const raw = (job.raw_data && typeof job.raw_data === "object") ? (job.raw_data as Record<string, unknown>) : undefined;
+  const scraped = (raw && typeof raw.scraped_data === "object") ? (raw.scraped_data as Record<string, unknown>) : undefined;
+  const candidates = [
+    job.apply_url,
+    pickString(raw, "sourceUrl"),
+    pickString(raw, "applyUrl"),
+    pickString(raw, "jobPostingUrl"),
+    pickString(raw, "applicationLink"),
+    pickString(raw, "job_url"),
+    job.source_id,
+    pickString(scraped, "apply_url"),
+    pickString(scraped, "applyUrl"),
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string") {
+      const trimmed = candidate.trim();
+      if (trimmed) return trimmed;
     }
   }
-  return [];
+  return null;
 };
 
-// Try to derive a company domain from the name
-const companyToDomain = (companyName?: string, tld: string = (import.meta as any).env?.VITE_LOGO_TLD || 'com') => {
-  if (!companyName) return undefined;
-  const base = companyName
-    .toLowerCase()
-    .replace(/&/g, 'and')
-    .replace(/[^a-z0-9\s.-]/g, '')
-    .replace(/\s+/g, '')
-    .replace(/-+/g, '-');
-  if (!base) return undefined;
-  return `${base}.${tld}`;
-};
+const composeCoverLetterPayload = (entry?: CoverLetterLibraryEntry | null): string | undefined => {
+  if (!entry?.data) return undefined;
+  const data = entry.data as Record<string, unknown>;
+  const read = (key: string): string | undefined => {
+    const value = data[key];
+    return typeof value === "string" ? value : undefined;
+  };
 
-// Cache for failed logo URLs to avoid repeated 404s
-const logoFailureCache = new Set<string>();
+  const lines: string[] = [];
+  const pushLine = (value?: string) => {
+    if (!value) return;
+    const trimmed = value.trim();
+    if (trimmed.length > 0) lines.push(trimmed);
+  };
+  const pushSeparator = () => {
+    if (lines.length > 0 && lines[lines.length - 1] !== "") lines.push("");
+  };
 
-// Try to get a company logo URL via optional API template, Clearbit/Google favicon, or initials
-const getCompanyLogoUrl = (companyName?: string, sourceUrl?: string): string | undefined => {
-  const tld = (import.meta as any).env?.VITE_LOGO_TLD || 'com';
-  const tmpl = (import.meta as any).env?.VITE_LOGO_API_TEMPLATE as string | undefined;
-  const domainGuess = companyToDomain(companyName, tld);
-  if (tmpl && companyName) {
-    const withCompany = tmpl.replace('{company}', encodeURIComponent(companyName));
-    if (domainGuess) return withCompany.replace('{domain}', domainGuess);
-    return withCompany;
+  const senderKeys = ["senderName", "senderPhone", "senderEmail", "senderAddress"];
+  const senderLines: string[] = [];
+  senderKeys.forEach((key) => {
+    const val = read(key);
+    if (typeof val === "string") {
+      const trimmed = val.trim();
+      if (trimmed.length > 0) senderLines.push(trimmed);
+    }
+  });
+  if (senderLines.length) {
+    lines.push(...senderLines);
+    pushSeparator();
   }
-  try {
-    if (domainGuess) {
-      const logoUrl = `https://logo.clearbit.com/${domainGuess}`;
-      // Skip if we already know this URL fails
-      if (logoFailureCache.has(logoUrl)) {
-        return undefined;
+
+  const dateValue = read("date");
+  if (dateValue) {
+    const parsed = new Date(dateValue);
+    const formatted = Number.isNaN(parsed.valueOf()) ? dateValue : parsed.toLocaleDateString();
+    pushLine(formatted);
+    pushSeparator();
+  }
+
+  const recipientLines: string[] = [];
+  [read("recipient"), read("recipientTitle"), read("company") ?? entry.data?.company, read("recipientAddress")]
+    .forEach((val) => {
+      if (typeof val === "string") {
+        const trimmed = val.trim();
+        if (trimmed.length > 0) recipientLines.push(trimmed);
       }
-      return logoUrl;
+    });
+  if (recipientLines.length) {
+    lines.push(...recipientLines);
+    pushSeparator();
+  }
+
+  const subject = read("subject");
+  if (typeof subject === "string") {
+    const trimmedSubject = subject.trim();
+    if (trimmedSubject.length > 0) {
+      pushLine(`Subject: ${trimmedSubject}`);
+      pushSeparator();
     }
-  } catch {}
-  // As a last resort, attempt Google’s favicon service based on the source domain
-  try {
-    if (sourceUrl) {
-      const u = new URL(sourceUrl);
-      return `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(u.hostname)}`;
+  }
+
+  const salutation = read("salutation");
+  if (typeof salutation === "string") {
+    const trimmedSalutation = salutation.trim();
+    if (trimmedSalutation.length > 0) {
+      pushLine(trimmedSalutation);
+      pushSeparator();
     }
-  } catch {}
-  // Final fallback will be DiceBear initials handled by caller UI
-  return undefined;
+  }
+
+  const paragraphs = Array.isArray(data.paragraphs)
+    ? (data.paragraphs as unknown[])
+        .filter((p): p is string => typeof p === "string")
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0)
+    : [];
+  const body = read("content");
+  if (typeof body === "string") {
+    const trimmedBody = body.trim();
+    if (trimmedBody.length > 0) {
+      pushLine(trimmedBody);
+    }
+  } else if (paragraphs.length) {
+    pushLine(paragraphs.join("\n\n"));
+  }
+
+  const closing = read("closing");
+  if (typeof closing === "string") {
+    const trimmedClosing = closing.trim();
+    if (trimmedClosing.length > 0) {
+      pushSeparator();
+      pushLine(trimmedClosing);
+    }
+  }
+
+  const signature = read("signatureName") || read("senderName");
+  if (typeof signature === "string") {
+    const trimmedSignature = signature.trim();
+    if (trimmedSignature.length > 0) {
+      pushLine(trimmedSignature);
+    }
+  }
+
+  const finalText = lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return finalText || undefined;
 };
 
-// A simple debounce hook
-const useDebounce = (value: string, delay: number) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-    return () => {
-      clearTimeout(handler);
+const composeProfileSnapshot = (profile?: Profile | null): string | undefined => {
+  if (!profile) return undefined;
+  const lines: string[] = [];
+  const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim();
+  if (fullName) lines.push(`Name: ${fullName}`);
+  if (profile.job_title) lines.push(`Current Title: ${profile.job_title}`);
+  if (profile.experience_years != null) lines.push(`Experience: ${profile.experience_years} years`);
+  if (profile.location) lines.push(`Location: ${profile.location}`);
+  if (Array.isArray(profile.goals) && profile.goals.length) lines.push(`Goals: ${profile.goals.join(", ")}`);
+  return lines.length ? lines.join("\n") : undefined;
+};
+
+const formatSalaryRange = (job: Job): string | null => {
+  const { salary_min: min, salary_max: max, salary_currency: currency } = job;
+  if (!min && !max && !currency) return null;
+
+  const symbol = (() => {
+    if (!currency) return '$';
+    switch (currency.toUpperCase()) {
+      case 'USD':
+        return '$';
+      case 'GBP':
+        return '£';
+      case 'EUR':
+        return '€';
+      default:
+        return currency;
+    }
+  })();
+
+  const formatValue = (value: number | null | undefined) => {
+    if (value == null) return null;
+    if (value >= 1000) return `${Math.round(value / 1000)}k`;
+    if (value > 0 && value < 1000) return value.toString();
+    return null;
+  };
+
+  const minLabel = formatValue(min ?? null);
+  const maxLabel = formatValue(max ?? null);
+
+  if (minLabel && maxLabel) return `${symbol}${minLabel}-${maxLabel}`;
+  if (minLabel) return `${symbol}${minLabel}+`;
+  if (maxLabel) return `Up to ${symbol}${maxLabel}`;
+  return null;
+};
+
+const extractAutomationMetadata = (result: Awaited<ReturnType<typeof applyToJobs>> | null) => {
+  if (!result) {
+    return {
+      runId: null,
+      workflowId: null,
+      providerStatus: null,
+      recordingUrl: null,
+    } as const;
+  }
+  const skyvern = result.skyvern ?? null;
+  const runId = skyvern?.run?.id
+    ?? skyvern?.id
+    ?? skyvern?.run_id
+    ?? skyvern?.data?.id
+    ?? skyvern?.runId
+    ?? null;
+  const workflowId = result.submitted?.workflow_id
+    ?? skyvern?.run?.workflow_id
+    ?? skyvern?.workflow_id
+    ?? null;
+  const providerStatus = skyvern?.run?.status
+    ?? skyvern?.status
+    ?? skyvern?.state
+    ?? null;
+  const recordingUrl = skyvern?.run?.recording_url
+    ?? skyvern?.recording_url
+    ?? skyvern?.artifacts?.recording
+    ?? null;
+  return {
+    runId: runId ?? null,
+    workflowId: workflowId ?? null,
+    providerStatus: providerStatus ?? null,
+    recordingUrl: recordingUrl ?? null,
+  } as const;
+};
+
+const getCompanyLogoUrl = (companyName?: string, sourceUrl?: string): string | undefined => {
+    if (!companyName) return undefined;
+    try {
+        const domain = new URL(sourceUrl || `https://www.${companyName.toLowerCase().replace(/\s/g, '')}.com`).hostname;
+        return `https://logo.clearbit.com/${domain}`;
+    } catch {
+        return undefined;
+    }
+};
+
+// Helper to map a DB row from the `jobs` table to the frontend `Job` interface
+const mapDbJobToUiJob = (dbJob: any): Job => {
+    const raw = dbJob.raw_data || {};
+    const insights = raw?.match_insights;
+    return {
+      ...dbJob,
+      id: dbJob.id,
+      description: dbJob.description || raw?.fullJobDescription || '',
+      // Prioritize: 1) company_logo from DB, 2) raw data logo, 3) generate from Clearbit
+      logoUrl: dbJob.company_logo || raw?.companyLogoUrl || getCompanyLogoUrl(dbJob.company, dbJob.apply_url),
+      logo: dbJob.company?.[0]?.toUpperCase() || '?',
+      status: dbJob.status,
+      source_type: dbJob.source_type ?? null,
+      source_id: dbJob.source_id ?? null,
+      matchScore: typeof insights?.score === 'number' ? insights.score : undefined,
+      matchBreakdown: Array.isArray(insights?.breakdown) ? insights.breakdown : undefined,
+      matchSummary: typeof insights?.summary === 'string' ? insights.summary : undefined,
     };
-  }, [value, delay]);
-  return debouncedValue;
+  };
+
+const toPlainText = (html: string) => {
+  if (typeof window === 'undefined' || !html) {
+    return '';
+  }
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return div.textContent || div.innerText || '';
 };
 
 export const JobPage = (): JSX.Element => {
-  const [searchQuery, setSearchQuery] = useState("Software Engineer");
-  const [selectedLocation, setSelectedLocation] = useState("Remote");
-  const [selectedType, setSelectedType] = useState("All");
-  const [selectedJob, setSelectedJob] = useState<string | null>(null);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [lastLiveJobs, setLastLiveJobs] = useState<Job[] | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [resultNote, setResultNote] = useState<string | null>(null);
-  const [resultSource, setResultSource] = useState<"live" | "db" | null>(null);
+  const isMobile = useMediaQuery("(max-width: 1023px)");
+  const navigate = useNavigate();
+    const [searchQuery, setSearchQuery] = useState("");
+    const [selectedLocation, setSelectedLocation] = useState("Remote");
+    const [selectedJob, setSelectedJob] = useState<string | null>(null);
+    const [jobs, setJobs] = useState<Job[]>([]);
+    const [queueStatus, setQueueStatus] = useState<'idle' | 'loading' | 'populating' | 'ready' | 'empty'>('loading');
+    const [error, setError] = useState<{ message: string, link?: string } | null>(null);
+  // Incremental run state
+  const [incrementalMode, setIncrementalMode] = useState(false);
+  const [insertedThisRun, setInsertedThisRun] = useState(0);
+  const [currentSource, setCurrentSource] = useState<string | null>(null);
+  const [lastReason, setLastReason] = useState<string | null>(null);
+    const [debugMode, setDebugMode] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [logoError, setLogoError] = useState<Record<string, boolean>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState<'relevance' | 'posted_desc'>('relevance');
-  // Facet state
-  const [facets, setFacets] = useState<{ requirements: FacetItem[]; benefits: FacetItem[] }>({ requirements: [], benefits: [] });
-  const [selectedReq, setSelectedReq] = useState<Set<string>>(new Set());
-  const [selectedBen, setSelectedBen] = useState<Set<string>>(new Set());
-  const [facetLoading, setFacetLoading] = useState(false);
-  // Facet panel ref for header button scroll
-  const facetPanelRef = useRef<HTMLDivElement | null>(null);
-  const [facetPulse, setFacetPulse] = useState(false);
-  // Drawers
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  // Bookmark drawer/state removed
-  // Quick presets (lightweight helpers)
-  const [selectedPresets, setSelectedPresets] = useState<Set<string>>(() => {
-    try {
-      const raw = localStorage.getItem('job_quick_presets');
-      if (!raw) return new Set();
-      const arr = JSON.parse(raw);
-      return new Set(Array.isArray(arr) ? arr : []);
-    } catch { return new Set(); }
-  });
-  // Saved/bookmark feature removed (always false)
-  const savedOnly = false;
-  // Salary and time filters
-  const [minSalary, setMinSalary] = useState<string>("");
-  const [maxSalary, setMaxSalary] = useState<string>("");
-  const [postedSince, setPostedSince] = useState<string>(""); // days: 3,7,14,30
-  const { success, error: toastError, info } = useToast();
-  const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
-  // Resume data (moved up so dependent hooks below can safely reference)
-  const { resumes: resumeOptions, getSignedUrl } = useResumes();
-  // Auto-apply state & advanced animation overlay
-  const [autoApplying, setAutoApplying] = useState(false);
-  const [autoApplyStatuses, setAutoApplyStatuses] = useState<Record<string, { status: 'pending' | 'applying' | 'success' | 'error'; error?: string }>>({});
-  const [autoApplyQueue, setAutoApplyQueue] = useState<Job[]>([]);
-  const [autoApplyVisible, setAutoApplyVisible] = useState(false);
-  const [autoApplyCancelRequested, setAutoApplyCancelRequested] = useState(false);
-  const [pendingAutoApplyStart, setPendingAutoApplyStart] = useState(false);
-  const [readiness, setReadiness] = useState<{ profile: boolean; resume: boolean } | null>(null);
-  // Display density removed (simplified UI)
+  const [applyingAll, setApplyingAll] = useState(false);
+    const [applyProgress, setApplyProgress] = useState({ done: 0, total: 0, success: 0, fail: 0 });
+    const [sortBy, setSortBy] = useState<"recent" | "company" | "deadline">("recent");
+  const [clearingJobs, setClearingJobs] = useState(false);
+  // Resume attach dialog state
+  const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
+  const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
+  const [autoApplyStep, setAutoApplyStep] = useState<1 | 2>(1);
+  const [coverLetterLibrary, setCoverLetterLibrary] = useState<CoverLetterLibraryEntry[]>([]);
+  const [selectedCoverLetterId, setSelectedCoverLetterId] = useState<string | null>(null);
+  const [jobToAutoApply, setJobToAutoApply] = useState<Job | null>(null);
+  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
 
-  const debouncedSearchQuery = useDebounce(searchQuery, 500);
-  const debouncedSelectedLocation = useDebounce(selectedLocation, 500);
+  // Debug payload capture for in-app panel
+  const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);
+  const [dbgSearchRes, setDbgSearchRes] = useState<any>(null);
+  
 
-  // Coach marks for jobs page
-  const { updateMark } = useProductTour();
+  const { profile, loading: profileLoading } = useProfileSettings();
+  // Load user resumes for selection (used by the Auto Apply -> "Choose a resume" dialog)
+  const { resumes, loading: resumesLoading } = useResumes();
+  const { info } = useToast();
+
+  // Register walkthrough for Jobs page
   useRegisterCoachMarks({
     page: 'jobs',
     marks: [
       {
-        id: 'job-search-box',
-        selector: '#job-search-box',
+        id: 'jobs-search',
+        selector: '#jobs-search',
         title: 'Search Jobs',
-        body: 'Enter keywords to fetch and match roles using your profile context.'
+        body: 'Search across thousands of job postings by title, company, keywords, or skills. Results are automatically saved to your job queue.'
       },
       {
-        id: 'job-filters',
-        selector: '#job-filters',
-        title: 'Fine-Tune Results',
-        body: 'Filter by location, type, quick presets, salary and time windows to narrow down opportunities.'
+        id: 'jobs-location',
+        selector: '#jobs-location',
+        title: 'Filter by Location',
+        body: 'Specify your preferred location or use "Remote" to find remote opportunities. Location filters help narrow down your search results.'
       },
       {
-        id: 'job-facet-panel',
-        selector: '#job-facet-panel',
-        title: 'Facet Filters',
-        body: 'Refine by requirements & benefits. Click a chip to toggle it; Clear restores live results.'
+        id: 'jobs-card',
+        selector: '[data-tour="jobs-card"]',
+        title: 'Job Listings',
+        body: 'Browse AI-matched jobs with match scores. Click any card to see full details, company info, salary range, and apply directly. Use the resume checker dropdown to analyze job compatibility.'
       },
       {
-        id: 'job-auto-apply',
-        selector: '#job-auto-apply',
-        title: 'Accelerate Applications',
-        body: 'Checking readiness…',
-        condition: { type: 'click', autoNext: true }
-      },
-      {
-        id: 'job-tour-complete',
-        selector: '#job-search-box',
-        title: 'You\'re Ready',
-        body: 'Explore job details on the right, then switch to Applications to track progress. You can revisit this tour anytime from the tour menu.',
-        cta: { label: 'Go to Applications', event: 'jobs_complete_to_app', advanceOnClick: true },
-        next: undefined
+        id: 'jobs-ai-match',
+        selector: '#jobs-ai-match',
+        title: 'AI Match Score',
+        body: 'Our AI analyzes each job against your profile and resume to show compatibility and fit. View detailed breakdowns of match factors including skills, experience, and location preferences.'
       }
     ]
   });
 
-  // Dynamic readiness-driven copy update
-  useEffect(() => {
-    if (!updateMark) return;
-    const ready = readiness && readiness.profile && readiness.resume;
-    updateMark('jobs', 'job-auto-apply', {
-      body: ready
-        ? 'Great — your profile & resume are ready. Start Auto Apply to batch tailored applications.'
-        : 'Auto Apply batches roles with your chosen resume. Complete your profile & upload a resume to enable this.'
-    });
-  }, [readiness, updateMark]);
-
-  const performSearch = useCallback(async () => {
-    if (!debouncedSearchQuery) {
-      setJobs([]);
-      return;
+  // Toast dedupe/throttle: avoid spamming repeated toasts
+  const lastToastRef = useRef<{ msg: string; ts: number } | null>(null);
+  const safeInfo = useCallback((msg: string, desc?: string, cooldownMs: number = 20000) => {
+    const now = Date.now();
+    const last = lastToastRef.current;
+    if (last && last.msg === (desc ? `${msg}::${desc}` : msg) && now - last.ts < cooldownMs) {
+      return; // suppress duplicate within cooldown window
     }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Optionally provide Firecrawl key from local env for development
-      const headers: Record<string, string> = {};
-      const fcKey = (import.meta as any).env?.VITE_FIRECRAWL_API_KEY as string | undefined;
-      if (fcKey) headers['x-firecrawl-api-key'] = fcKey;
-
-      const { data, error } = await supabase.functions.invoke('process-and-match', {
-        body: {
-          searchQuery: debouncedSearchQuery,
-          location: debouncedSelectedLocation,
-          // pass work type when selected
-          type: selectedType === 'All' ? undefined : selectedType,
-        },
-        headers,
-      });
-
-      if (error) throw error;
-
-      let { matchedJobs, note } = data || { matchedJobs: [], note: null };
-      setResultNote(note ?? null);
-      setResultSource(note ? 'db' : 'live');
-
-      // If scraping returned nothing, fallback to DB-backed function
-      if (!Array.isArray(matchedJobs) || matchedJobs.length === 0) {
-        const fallback = await supabase.functions.invoke('get-jobs', {
-          body: {
-            q: debouncedSearchQuery,
-            location: debouncedSelectedLocation,
-            type: selectedType === 'All' ? '' : selectedType,
-            minSalary: minSalary ? Number(minSalary) : undefined,
-            maxSalary: maxSalary ? Number(maxSalary) : undefined,
-            posted: postedSince ? Number(postedSince) : undefined,
-          }
-        });
-        if (!fallback.error) {
-          const rows = fallback.data?.jobs || [];
-          matchedJobs = rows.map((r: any) => ({
-            jobTitle: r.job_title,
-            companyName: r.company_name,
-            location: r.location,
-            workType: r.work_type,
-            experienceLevel: r.experience_level,
-            requiredSkills: r.required_skills,
-            fullJobDescription: r.full_job_description,
-            sourceUrl: r.source_url,
-            salary_min: r.salary_min,
-            salary_max: r.salary_max,
-            salary_period: r.salary_period,
-            salary_currency: r.salary_currency,
-            requirements: r.requirements,
-            benefits: r.benefits,
-            _source: r.source || 'db',
-            _posted_at: r.posted_at,
-          }));
-          setResultSource('db');
-          setResultNote('fallback: provider_unavailable');
-        }
-      }
-
-      const newJobs = (matchedJobs as (JobListing & { _source?: string; salary_min?: number | null; salary_max?: number | null; salary_period?: string | null; salary_currency?: string | null; requirements?: string[]; benefits?: string[]; })[]).map((job) => ({
-        ...job,
-        id: job.sourceUrl || `${job.jobTitle}-${job.companyName}`,
-        title: job.jobTitle,
-        company: job.companyName,
-        type: (job as any).workType || "N/A",
-        salary: (typeof (job as any).salary_min === 'number' || typeof (job as any).salary_max === 'number')
-          ? `$${(job as any).salary_min ?? ''}${(job as any).salary_min && (job as any).salary_max ? ' - ' : ''}${(job as any).salary_max ?? ''}${(job as any).salary_period ? ` / ${(job as any).salary_period}` : ''}`
-          : ((job as any).salary_period && ((job as any).salary_min || (job as any).salary_max))
-            ? `$${(job as any).salary_min ?? (job as any).salary_max ?? ''} / ${(job as any).salary_period}`
-            : "N/A",
-        postedDate: (job as any)._posted_at ? new Date((job as any)._posted_at).toLocaleDateString() : "N/A",
-        rawPostedAt: (job as any)._posted_at ? new Date((job as any)._posted_at).getTime() : null,
-        description: job.fullJobDescription,
-        requirements: (job as any).requirements && (job as any).requirements.length
-          ? (job as any).requirements
-          : (job.requiredSkills && job.requiredSkills.length ? job.requiredSkills : extractSectionBullets(job.fullJobDescription, ['requirements', 'qualifications', "what you'll need", 'what you will need'])),
-        benefits: (job as any).benefits && (job as any).benefits.length
-          ? (job as any).benefits
-          : extractSectionBullets(job.fullJobDescription, ['benefits', 'perks', 'what we offer', 'what you get', 'compensation & benefits']),
-        isBookmarked: false,
-        isApplied: false,
-        logo: job.companyName?.[0]?.toUpperCase() || '?',
-        logoUrl: getCompanyLogoUrl(job.companyName, job.sourceUrl),
-        // marker for UI badge
-        source: (job as any)._source || (note ? 'db' : 'scraped'),
-      }));
-
-      setJobs(newJobs);
-      // remember last live results so clearing facets restores them
-      if (!note) setLastLiveJobs(newJobs);
-      setCurrentPage(1);
-      setSelectedJob(newJobs[0]?.id ?? null);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType]);
-
-  // Placeholder: fetch user profile preferences (skills, titles, preferred location) for first load
-  const [initializedFromProfile, setInitializedFromProfile] = useState(false);
-  useEffect(() => {
-    if (initializedFromProfile) return;
-    try {
-      // Attempt to hydrate from stored profile preferences (mock keys)
-      const raw = localStorage.getItem('jr.profile.prefs');
-      if (raw) {
-        const prefs = JSON.parse(raw);
-        if (prefs?.defaultRole && !searchQuery) setSearchQuery(prefs.defaultRole);
-        if (prefs?.defaultLocation && !selectedLocation) setSelectedLocation(prefs.defaultLocation);
-      }
-    } catch {}
-    setInitializedFromProfile(true);
-  }, [initializedFromProfile, searchQuery, selectedLocation]);
-
-  // Trigger initial search automatically when profile hydration done & no jobs yet
-  useEffect(() => {
-    if (initializedFromProfile && jobs.length === 0 && !loading) {
-      performSearch();
-    }
-  }, [initializedFromProfile, jobs.length, loading, performSearch]);
-
-  // Manual refresh from job sources (e.g., re-run scraping or DB query) ignoring current filter state except core query/location/type
-  const refreshFromSources = useCallback(() => {
-    performSearch();
-  }, [performSearch]);
-
-  // Bookmarks removed (loadBookmarks stub deleted)
-
-  // Helper: map DB rows to Job shape
-  const mapDbRowsToJobs = useCallback((rows: any[]): Job[] => {
-    return rows.map((r: any) => ({
-  // JobListing fields (to satisfy Job extends JobListing)
-  jobTitle: r.job_title,
-  companyName: r.company_name,
-  fullJobDescription: r.full_job_description || '',
-  sourceUrl: r.source_url,
-      id: r.source_url || `${r.job_title}-${r.company_name}`,
-      title: r.job_title,
-      company: r.company_name,
-      location: r.location,
-      type: r.work_type || 'N/A',
-      salary: typeof r.salary_min === 'number' || typeof r.salary_max === 'number'
-        ? `$${r.salary_min ?? ''}${r.salary_min && r.salary_max ? ' - ' : ''}${r.salary_max ?? ''}${r.salary_period ? ` / ${r.salary_period}` : ''}`
-        : 'N/A',
-      postedDate: r.posted_at ? new Date(r.posted_at).toLocaleDateString() : 'N/A',
-      rawPostedAt: r.posted_at ? new Date(r.posted_at).getTime() : null,
-      description: r.full_job_description || '',
-      requirements: Array.isArray(r.requirements) && r.requirements.length
-        ? r.requirements : extractSectionBullets(r.full_job_description || '', ['requirements', 'qualifications', "what you'll need", 'what you will need']),
-      benefits: Array.isArray(r.benefits) && r.benefits.length
-        ? r.benefits : extractSectionBullets(r.full_job_description || '', ['benefits', 'perks', 'what we offer', 'what you get', 'compensation & benefits']),
-      isBookmarked: false,
-      isApplied: false,
-      logo: (r.company_name?.[0] || '?').toUpperCase(),
-      logoUrl: getCompanyLogoUrl(r.company_name, r.source_url),
-      source: r.source || 'db',
-    }));
+    info(msg, desc);
+    lastToastRef.current = { msg: desc ? `${msg}::${desc}` : msg, ts: now };
+  }, [info]);
+  // Error dedupe to avoid flicker and repeated inline banners
+  const lastErrorRef = useRef<{ msg: string; ts: number } | null>(null);
+  const setErrorDedup = useCallback((payload: { message: string, link?: string } | null, cooldownMs: number = 15000) => {
+    if (!payload) { setError(null); return; }
+    const now = Date.now();
+    const last = lastErrorRef.current;
+    const key = payload.link ? `${payload.message}::${payload.link}` : payload.message;
+    if (last && last.msg === key && now - last.ts < cooldownMs) return;
+    setError(payload);
+    lastErrorRef.current = { msg: key, ts: now };
   }, []);
 
-  // Fetch facets for current query/location/type (no req/benefit filters)
-  const fetchFacets = useCallback(async () => {
-    if (!debouncedSearchQuery) {
-      setFacets({ requirements: [], benefits: [] });
-      return;
-    }
-    setFacetLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('get-jobs', {
-        body: {
-          q: debouncedSearchQuery,
-          location: debouncedSelectedLocation,
-          type: selectedType === 'All' ? '' : selectedType,
-          minSalary: minSalary ? Number(minSalary) : undefined,
-          maxSalary: maxSalary ? Number(maxSalary) : undefined,
-          posted: postedSince ? Number(postedSince) : undefined,
+  // Guard flags to prevent overlapping runs/requests
+  const matchInsightSignaturesRef = useRef<Map<string, string>>(new Map());
+  // Removed per-URL incremental loop; keep a simple flag if needed in future
+  // const startInFlightRef = useRef(false);
+
+    // Step-by-step loading banner
+    const LoadingBanner = ({ subtitle, steps, activeStep, onCancel, foundCount }: { subtitle?: string; steps: string[]; activeStep: number; onCancel?: () => void; foundCount?: number }) => (
+      <Card className="relative overflow-hidden bg-gradient-to-br from-[#0b0b0b] via-[#0f0f0f] to-[#0b0b0b] border border-[#1dff00]/30 p-4 sm:p-5 mb-4">
+        <motion.div
+          className="pointer-events-none absolute -inset-24 opacity-30"
+          style={{ background: 'radial-gradient(600px 200px at 20% -10%, rgba(29,255,0,0.25), rgba(29,255,0,0) 60%)' }}
+          initial={{ opacity: 0.15 }}
+          animate={{ opacity: [0.15, 0.3, 0.15] }}
+          transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <div className="flex items-center gap-3">
+          <div className="relative w-6 h-6">
+            <span className="absolute inset-0 rounded-full bg-[#1dff00] opacity-70" />
+            <motion.span
+              className="absolute inset-0 rounded-full bg-[#1dff00]"
+              initial={{ scale: 0.9, opacity: 0.75 }}
+              animate={{ scale: [0.9, 1.25, 0.9], opacity: [0.75, 0.15, 0.75] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-white font-medium flex items-center gap-2">
+              <span>Building your results…</span>
+              {typeof foundCount === 'number' && foundCount > 0 && (
+                <motion.span
+                  key={foundCount}
+                  initial={{ scale: 0.9, opacity: 0.6 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+                  className="text-[11px] px-2 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10"
+                >
+                  Found {foundCount}
+                </motion.span>
+              )}
+            </div>
+            <div className="text-xs text-[#ffffff90]">{subtitle || 'This may take a few minutes depending on sources.'}</div>
+          </div>
+          {onCancel && (
+            <Button variant="ghost" className="text-[#ffffffb3] hover:bg-[#ffffff12] border border-[#ffffff1e] h-8 px-3" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 relative">
+          {steps.map((label, idx) => {
+            const isActive = idx === activeStep;
+            const isCompleted = idx < activeStep;
+            return (
+              <motion.div
+                key={label}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className={`relative flex items-center gap-2 rounded-lg border p-2.5 transition-all duration-300 ${
+                  isActive
+                    ? 'border-[#1dff00] bg-[#1dff00]/10 shadow-[0_0_15px_rgba(29,255,0,0.2)]'
+                    : isCompleted
+                    ? 'border-[#1dff00]/50 bg-[#1dff00]/5'
+                    : 'border-[#ffffff18] bg-[#ffffff08]'
+                }`}
+              >
+                <div className="relative flex-shrink-0">
+                  {isCompleted ? (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                      className="w-4 h-4 rounded-full bg-[#1dff00] flex items-center justify-center"
+                    >
+                      <svg className="w-2.5 h-2.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </motion.div>
+                  ) : isActive ? (
+                    <motion.div
+                      className="w-4 h-4 rounded-full bg-[#1dff00]"
+                      animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border-2 border-[#ffffff40]" />
+                  )}
+                </div>
+                <div className={`text-[11px] sm:text-xs truncate font-medium ${isActive ? 'text-[#eaffea]' : isCompleted ? 'text-[#1dff00]/80' : 'text-[#ffffff90]'}`}>
+                  {label}
+                </div>
+                {isActive && (
+                  <motion.span
+                    layoutId="activeStepGlow"
+                    className="absolute inset-0 rounded-lg pointer-events-none"
+                    style={{ boxShadow: '0 0 20px rgba(29,255,0,0.25) inset' }}
+                  />
+                )}
+              </motion.div>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 space-y-1.5">
+          <div className="flex items-center justify-between text-[10px] text-[#ffffff70]">
+            <span>Progress</span>
+            <span>{Math.round(((activeStep) / (steps.length - 1)) * 100)}%</span>
+          </div>
+          <div className="h-2 bg-[#0f0f0f] rounded-full overflow-hidden border border-[#1dff00]/20 relative">
+            <motion.div
+              className="absolute inset-0 opacity-20"
+              style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(29,255,0,0.4) 50%, transparent 100%)' }}
+              animate={{ x: ['-100%', '200%'] }}
+              transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
+            />
+            <motion.div
+              className="h-full bg-gradient-to-r from-[#1dff00]/60 via-[#1dff00] to-[#1dff00]/60 relative"
+              initial={{ width: '0%' }}
+              animate={{ width: `${((activeStep) / (steps.length - 1)) * 100}%` }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+            >
+              <motion.div
+                className="absolute inset-0 opacity-50"
+                style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)' }}
+                animate={{ x: ['-100%', '200%'] }}
+                transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
+              />
+            </motion.div>
+          </div>
+        </div>
+      </Card>
+    );
+
+  const [stepIndex, setStepIndex] = useState(0);
+    const steps = useMemo(() => [
+      'Searching Web',
+      'Saving Results'
+    ], []);
+    const autoApplySteps = useMemo(() => ([
+      { id: 1 as const, label: 'Select resume', description: 'Choose the profile we attach to each submission.' },
+      { id: 2 as const, label: 'Review & launch', description: 'Confirm scope, safeguards, and telemetry before automation.' },
+    ]), []);
+    const selectedResume = useMemo(() => {
+      if (!Array.isArray(resumes)) return null;
+      return resumes.find((r: any) => r.id === selectedResumeId) ?? null;
+    }, [resumes, selectedResumeId]);
+    const selectedCoverLetter = useMemo(() => {
+      if (!Array.isArray(coverLetterLibrary) || !coverLetterLibrary.length) return null;
+      return coverLetterLibrary.find((entry) => entry.id === selectedCoverLetterId) ?? null;
+    }, [coverLetterLibrary, selectedCoverLetterId]);
+    const matchContext = useMemo<MatchContext>(() => ({
+      searchQuery,
+      selectedLocation,
+      profile,
+    }), [searchQuery, selectedLocation, profile]);
+    const decorateJobsRef = useRef<(list: Job[]) => Job[]>((list) => list);
+    const decorateJobs = useCallback((list: Job[]) => list.map((job) => decorateJobWithMatchInsights(job, matchContext)), [matchContext]);
+    useEffect(() => {
+      decorateJobsRef.current = decorateJobs;
+      setJobs((prev) => (prev.length ? decorateJobs(prev) : prev));
+    }, [decorateJobs]);
+
+    // Check admin status
+    useEffect(() => {
+      const checkAdmin = async () => {
+        try {
+          const { isCurrentUserAdmin } = await import('@/lib/adminUtils');
+          const admin = await isCurrentUserAdmin();
+          setIsAdmin(admin);
+        } catch (error) {
+          console.error('Error checking admin status:', error);
+          setIsAdmin(false);
         }
-      });
-      if (error) throw error;
-      const f = (data?.facets as any) || {};
-      setFacets({
-        requirements: Array.isArray(f?.requirements) ? f.requirements : [],
-        benefits: Array.isArray(f?.benefits) ? f.benefits : [],
-      });
-    } catch (_) {
-      setFacets({ requirements: [], benefits: [] });
-    } finally {
-      setFacetLoading(false);
-    }
-  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, minSalary, maxSalary, postedSince]);
+      };
+      checkAdmin();
+    }, []);
 
-  // Apply facet filters by switching to DB-backed results
-  const applyFacetFilters = useCallback(async (reqArr: string[], benArr: string[]) => {
-    // If no filters selected, restore live results if available
-    if (reqArr.length === 0 && benArr.length === 0) {
-      if (lastLiveJobs) {
-        setJobs(lastLiveJobs);
-        setResultSource('live');
-        setResultNote(null);
-      } else {
-        await performSearch();
-      }
-      // refresh facets in either case
-      fetchFacets();
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-    const { data, error } = await supabase.functions.invoke('get-jobs', {
-        body: {
-          q: debouncedSearchQuery,
-          location: debouncedSelectedLocation,
-          type: selectedType === 'All' ? '' : selectedType,
-          requirements: reqArr,
-          benefits: benArr,
-      minSalary: minSalary ? Number(minSalary) : undefined,
-      maxSalary: maxSalary ? Number(maxSalary) : undefined,
-      posted: postedSince ? Number(postedSince) : undefined,
-        }
-      });
-      if (error) throw error;
-      const rows = Array.isArray(data?.jobs) ? data.jobs : [];
-      const mapped = mapDbRowsToJobs(rows);
-      setJobs(mapped);
-      setCurrentPage(1);
-      setSelectedJob(mapped[0]?.id ?? null);
-      setResultSource('db');
-      setResultNote('filtered');
-      // update facets to reflect filtered set
-      const f = (data?.facets as any) || {};
-      setFacets({
-        requirements: Array.isArray(f?.requirements) ? f.requirements : [],
-        benefits: Array.isArray(f?.benefits) ? f.benefits : [],
-      });
-    } catch (e: any) {
-      setError(e.message || 'Failed to apply filters');
-    } finally {
-      setLoading(false);
-    }
-  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, lastLiveJobs, mapDbRowsToJobs, performSearch, fetchFacets, minSalary, maxSalary, postedSince]);
+    const profileSnapshot = useMemo(() => composeProfileSnapshot(profile), [profile]);
+    const profileReady = Boolean(profileSnapshot);
+    const resumeLibraryReady = useMemo(
+      () => Array.isArray(resumes) && resumes.some((rec: any) => Boolean(rec?.file_path)),
+      [resumes],
+    );
+    const getHost = (url?: string | null) => {
+      if (!url) return '';
+      try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; }
+    };
 
-  // Bookmarks hydration removed
 
-  // Toggle and fetch details for a saved job from job_listings
-  // toggleSavedDetails removed
-
-  // Convert a job_listings row to local Job shape for applying from Saved drawer
-  // listingRowToJob helper removed with bookmark feature
-
-  // toggleBookmark & removeBookmarkByUrl helpers removed
-
-  // Cover letter library selection (available before quickApply uses it)
-  type LibEntry = { id: string; name: string; updatedAt: string; data: any };
-  const [coverLibrary, setCoverLibrary] = useState<LibEntry[]>([]);
-  const [selectedCoverId, setSelectedCoverId] = useState<string | null>(null);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('jr.coverLetters.library.v1');
-      if (raw) {
-        const arr = JSON.parse(raw);
-        if (Array.isArray(arr)) setCoverLibrary(arr);
-      }
-      const defId = localStorage.getItem('jr.coverLetters.defaultId');
-      if (defId) setSelectedCoverId(defId);
-    } catch {}
-  }, []);
-
-  const quickApply = useCallback(async (job: Job): Promise<boolean> => {
-    // prevent parallel
-    if (applyingJobId) return false;
-    setApplyingJobId(job.id);
-    let successFlag = false;
-    try {
-      const { data: userData } = await (supabase as any).auth.getUser();
-      const uid = (userData as any)?.user?.id;
-      if (!uid) {
-        toastError('Login required', 'Sign in to apply');
-        setApplyingJobId(null);
-        return false;
-      }
-      // Preflight: capture readiness result
+    const loadCoverLetterLibrary = useCallback(() => {
+      if (typeof window === 'undefined') return;
       try {
-        const r: any = await ensureApplyReadiness();
-        if (r && typeof r === 'object' && 'profile' in r && 'resume' in r) setReadiness({ profile: !!r.profile, resume: !!r.resume });
-      } catch {}
-      const payload: any = { job_urls: job.sourceUrl ? [job.sourceUrl] : [] }; 
-      // If a resume has been selected and signed, include it
-      if (selectedResumeSignedUrl.current) {
-        payload.resume = selectedResumeSignedUrl.current;
-      }
-      // If a cover letter has been requested, hint it in additional info
-      if (selectedCoverAttachRef.current) {
-        const tmpl = selectedCoverTemplateRef.current || 'Standard';
-        let letterLabel: string | null = null;
-        try {
-          if (selectedCoverId) {
-            const entry = (coverLibrary || []).find((e) => e.id === selectedCoverId);
-            if (entry?.name) letterLabel = `saved:${entry.name}`;
-          } else {
-            letterLabel = 'draft';
+        const raw = window.localStorage.getItem(COVER_LETTER_LIBRARY_KEY);
+        let entries: CoverLetterLibraryEntry[] = [];
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            entries = parsed.filter((item): item is CoverLetterLibraryEntry => Boolean(item && typeof item.id === 'string'));
           }
-        } catch {}
-        payload.additional_information = [
-          payload.additional_information,
-          `Attach Cover Letter: yes (template: ${tmpl}${letterLabel ? `, letter: ${letterLabel}` : ''})`
-        ].filter(Boolean).join(' | ');
-        // Prefer selected saved letter; fallback to current draft
-        const materializeLetter = (parsed: any) => {
-          const paras: string[] = Array.isArray(parsed?.paragraphs) ? parsed.paragraphs.filter((p: any) => typeof p === 'string' && p.trim()) : [];
-          const body: string = (paras.length ? paras.join("\n\n") : (parsed?.content || '')).trim();
-          const sal: string = (parsed?.salutation || '').trim();
-          const close: string = (parsed?.closing || '').trim();
-          const sig: string = (parsed?.signatureName || parsed?.senderName || '').trim();
-          const headerParts: string[] = [];
-          if (parsed?.senderName) headerParts.push(parsed.senderName);
-          if (parsed?.senderPhone) headerParts.push(parsed.senderPhone);
-          if (parsed?.senderEmail) headerParts.push(parsed.senderEmail);
-          if (parsed?.senderAddress) headerParts.push(parsed.senderAddress);
-          const dateLine = parsed?.date ? new Date(parsed.date).toLocaleDateString() : '';
-          const recipientLine = [parsed?.recipient, parsed?.recipientTitle].filter(Boolean).join(', ').trim();
-          const companyLine = (parsed?.company || '').trim();
-          const recipientAddr = (parsed?.recipientAddress || '').trim();
-          const subjectLine = (parsed?.subject || '').trim();
-          const lines: string[] = [];
-          if (headerParts.length) { lines.push(...headerParts, ''); }
-          if (dateLine) { lines.push(dateLine, ''); }
-          if (recipientLine || companyLine || recipientAddr) {
-            if (recipientLine) lines.push(recipientLine);
-            if (companyLine) lines.push(companyLine);
-            if (recipientAddr) lines.push(recipientAddr);
-            lines.push('');
-          }
-          if (subjectLine) { lines.push(`Subject: ${subjectLine}`, ''); }
-          if (sal) { lines.push(sal, ''); }
-          if (body) { lines.push(body, ''); }
-          if (close) { lines.push(close); }
-          if (sig) { lines.push(sig); }
-          return lines.join("\n").trim();
-        };
-        try {
-          let parsed: any = null;
-          if (selectedCoverId) {
-            const libRaw = localStorage.getItem('jr.coverLetters.library.v1');
-            if (libRaw) {
-              const arr = JSON.parse(libRaw);
-              const entry = Array.isArray(arr) ? arr.find((e: any) => e?.id === selectedCoverId) : null;
-              if (entry && entry.data) parsed = entry.data;
+        }
+        if (!entries.length) {
+          const draftRaw =
+            window.localStorage.getItem(COVER_LETTER_DRAFT_KEY) ||
+            window.localStorage.getItem('jr.coverLetter.draft.v1');
+          if (draftRaw) {
+            try {
+              const parsedDraft = JSON.parse(draftRaw);
+              const draftName =
+                String(parsedDraft?.subject || parsedDraft?.role || 'Latest cover letter').trim() ||
+                'Latest cover letter';
+              const draftUpdatedAt = parsedDraft?.savedAt || new Date().toISOString();
+              entries = [
+                {
+                  id: '__draft__',
+                  name: draftName,
+                  updatedAt: draftUpdatedAt,
+                  data: {
+                    role: parsedDraft?.role,
+                    company: parsedDraft?.company,
+                  },
+                  draft: true,
+                },
+              ];
+            } catch {
+              // ignore malformed drafts
             }
           }
-          if (!parsed) {
-            const raw = localStorage.getItem('jr.coverLetter.draft.v2');
-            if (raw) parsed = JSON.parse(raw);
-          }
-          if (parsed) {
-            const full = materializeLetter(parsed);
-            if (full) payload.cover_letter = full;
-          }
-        } catch {}
-        if (selectedCoverTemplateRef.current) payload.cover_letter_template = selectedCoverTemplateRef.current;
-      }
-      try {
-        const res = await applyToJobs(payload);
-        const runId = (res as any)?.skyvern?.id || (res as any)?.skyvern?.run_id || null;
-        const appUrl = (res as any)?.skyvern?.app_url || null;
-        const workflowId = (res as any)?.submitted?.workflow_id || (res as any)?.skyvern?.workflow_id || null;
-
-        const notes = [
-          job.sourceUrl ? `Source: ${job.sourceUrl}` : null,
-          appUrl ? `Skyvern: ${appUrl}` : null,
-          runId ? `Run: ${runId}` : null,
-          workflowId ? `Workflow: ${workflowId}` : null,
-          selectedCoverAttachRef.current ? `Cover Letter: ${(selectedCoverTemplateRef.current || 'Standard')}${(selectedCoverId ? (()=>{const e=(coverLibrary||[]).find(x=>x.id===selectedCoverId);return e?` (saved: ${e.name})`:''})() : ' (draft)')}` : null,
-        ].filter(Boolean).join(' | ');
-
-        const { data: inserted, error } = await (supabase as any)
-          .from('applications')
-          .insert({
-            user_id: uid,
-            job_title: job.title,
-            company: job.company,
-            location: job.location,
-            applied_date: new Date().toISOString(),
-            status: 'Pending',
-            logo: job.logoUrl ?? null,
-            notes,
-            run_id: runId,
-            workflow_id: workflowId,
-            app_url: appUrl,
-            provider_status: 'queued',
-          })
-          .select('*')
-          .single();
-        if (error) throw error;
-        const applicationId = (inserted as any)?.id as string | undefined;
-  success('Application started', appUrl ? 'Skyvern workflow triggered' : `${job.title} @ ${job.company}`);
-  setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isApplied: true } : j)));
-  successFlag = true;
-
-        if (runId && applicationId) {
-          const stop = new Set(['succeeded','failed','error','cancelled','completed']);
-          let tries = 0;
-          const maxTries = 36; // ~3 minutes at 5s
-          const poll = async () => {
-            try {
-              const r = await getRun(runId);
-              const st = r?.run?.status?.toLowerCase?.() || '';
-              if (stop.has(st)) {
-                const finalStatus = st === 'succeeded' || st === 'completed' ? 'Applied' : 'Rejected';
-                const noteBits = [notes];
-                if (r?.run?.recording_url) noteBits.push(`Recording: ${r.run.recording_url}`);
-                if (r?.run?.failure_reason) noteBits.push(`Failure: ${r.run.failure_reason}`);
-                await (supabase as any)
-                  .from('applications')
-                  .update({
-                    status: finalStatus,
-                    notes: noteBits.filter(Boolean).join(' | '),
-                    provider_status: st,
-                    recording_url: r?.run?.recording_url ?? null,
-                    failure_reason: r?.run?.failure_reason ?? null,
-                  })
-                  .eq('id', applicationId);
-                return;
-              }
-            } catch {}
-            if (++tries < maxTries) setTimeout(poll, 5000);
-          };
-          setTimeout(poll, 5000);
         }
-      } catch (efErr: any) {
-        const { error } = await (supabase as any)
-          .from('applications')
-          .insert({
-            user_id: uid,
-            job_title: job.title,
-            company: job.company,
-            location: job.location,
-            applied_date: new Date().toISOString(),
-            status: 'Pending',
-            logo: job.logoUrl ?? null,
-            notes: job.sourceUrl ? `Apply trigger failed; saved locally. ${job.sourceUrl}` : 'Apply trigger failed; saved locally.',
+        setCoverLetterLibrary(entries);
+        setSelectedCoverLetterId((prev) => {
+          if (prev && entries.some((entry) => entry.id === prev)) return prev;
+          const defaultId = window.localStorage.getItem(COVER_LETTER_DEFAULT_KEY);
+          if (defaultId && entries.some((entry) => entry.id === defaultId)) return defaultId;
+          return entries.length ? entries[0].id : null;
+        });
+      } catch {
+        setCoverLetterLibrary([]);
+        setSelectedCoverLetterId(null);
+      }
+    }, []);
+
+
+    // Real step updates occur at key phases of the flow; no cycling needed now.
+
+    // Steps reflect phases; no cancel/try-different actions per request
+
+    const fetchJobQueue = useCallback(async (): Promise<Job[]> => {
+        setQueueStatus('loading');
+        setError(null);
+        try {
+          const { data, error: fetchError } = await supabase.functions.invoke('get-jobs');
+          if (fetchError) throw new Error(fetchError.message);
+
+          const jobList = (data.jobs || []).map(mapDbJobToUiJob);
+          const decorated = decorateJobsRef.current(jobList);
+          setJobs(decorated);
+
+          if (decorated.length > 0) {
+            setQueueStatus('ready');
+            setSelectedJob(decorated[0].id);
+          } else {
+            setQueueStatus('empty');
+          }
+          return decorated; // Return the list for chaining
+        } catch (e: any) {
+          setError({ message: e.message });
+          setQueueStatus('idle');
+          return []; // Return empty array on error
+        }
+    }, [supabase]);
+
+    const clearAllJobs = useCallback(async () => {
+      if (!window.confirm('Are you sure you want to delete ALL jobs? This action cannot be undone.')) {
+        return;
+      }
+      
+      setClearingJobs(true);
+      setError(null);
+      
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const userId = authData?.user?.id;
+
+        if (!userId) {
+          throw new Error('User not authenticated');
+        }
+
+        // Delete all jobs for the current user
+        const { error: deleteError } = await supabase
+          .from('jobs')
+          .delete()
+          .eq('user_id', userId);
+
+        if (deleteError) {
+          throw new Error(deleteError.message);
+        }
+
+        // Clear the UI state
+        setJobs([]);
+        setSelectedJob(null);
+        setQueueStatus('empty');
+        setCurrentPage(1);
+        
+        safeInfo('All jobs cleared', 'Successfully deleted all jobs from your list.');
+      } catch (e: any) {
+        setErrorDedup({ message: `Failed to clear jobs: ${e.message}` });
+      } finally {
+        setClearingJobs(false);
+      }
+    }, [supabase, safeInfo, setErrorDedup]);
+
+    const populateQueue = useCallback(async (query: string, _location?: string) => {
+      // Prevent re-entry if a run is active
+      if (incrementalMode) return;
+      if (!query || !query.trim()) {
+        setError({ message: 'Please enter a job title or keywords to search.' });
+        return;
+      }
+      setQueueStatus('populating');
+      setError(null);
+      setLastReason(null);
+      setStepIndex(0); // Step 0: Searching Web
+      setIncrementalMode(true);
+      setInsertedThisRun(0);
+
+      try {
+        // Determine max results per search based on subscription tier
+        // No monthly limits - users can search as many times as they want
+        let maxResultsPerSearch = 10; // Free tier
+        
+        if (subscriptionTier === 'Ultimate') {
+          maxResultsPerSearch = 100;
+        } else if (subscriptionTier === 'Pro') {
+          maxResultsPerSearch = 50;
+        } else if (subscriptionTier === 'Basics') {
+          maxResultsPerSearch = 20;
+        }
+
+        const { data: authData } = await supabase.auth.getUser();
+        const userId = authData?.user?.id;
+
+        if (userId) {
+          const { data: creditCheck, error: checkError } = await supabase.rpc('check_credits_available', {
+            p_user_id: userId,
+            p_feature_type: 'job_search',
+            p_quantity: maxResultsPerSearch
           });
-        if (error) throw error;
-        info('Saved application', 'Apply trigger failed; saved locally');
-        setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, isApplied: true } : j)));
-        successFlag = true;
-      }
-    } catch (e: any) {
-      const msg = e.message || 'Try again';
-      toastError('Apply failed', msg);
-      try {
-        window.dispatchEvent(new CustomEvent('toast', { detail: { title: 'Retry apply?', description: msg, action: { label: 'Retry', jobId: job.id } } }));
-      } catch {}
-    } finally {
-      try {
-        const r: any = await ensureApplyReadiness();
-        if (r && typeof r === 'object' && 'profile' in r && 'resume' in r) setReadiness({ profile: !!r.profile, resume: !!r.resume });
-      } catch {}
-      setApplyingJobId(null);
-    }
-    return successFlag;
-  }, [supabase, success, toastError, info, applyingJobId, selectedCoverId]);
 
-  // Start auto-apply flow (opens resume picker first)
-  const startAutoApplyFlow = useCallback(() => {
-    if (autoApplying) return;
-    const targets = jobs.filter(j => !j.isApplied);
-    if (!targets.length) { info('No pending jobs', 'All listed jobs already applied'); return; }
-    setPendingAutoApplyStart(true);
-    setAutoApplyQueue(targets);
-    // Preselect resume like single apply
-    const pick = (resumeOptions || []).slice().sort((a, b) => {
-      const favA = (a as any).is_favorite ? 1 : 0;
-      const favB = (b as any).is_favorite ? 1 : 0;
-      if (favA !== favB) return favB - favA;
-      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-    })[0];
-    setSelectedResumeId(pick?.id ?? null);
-    setResumePickerOpen(true);
-  }, [autoApplying, jobs, info, resumeOptions]);
+          if (checkError) {
+            setError({
+              message: 'Failed to verify credits. Please try again.',
+              link: '/dashboard/billing'
+            });
+            setQueueStatus('idle');
+            setIncrementalMode(false);
+            return;
+          }
 
-  // Run the auto-apply queue sequentially with animated status updates
-  const runAutoApplyQueue = useCallback(async () => {
-    if (!autoApplyQueue.length) return;
-    setAutoApplyCancelRequested(false);
-    // initialize statuses
-    const init: Record<string, {status:'pending'|'applying'|'success'|'error'; error?: string}> = {};
-    for (const j of autoApplyQueue) init[j.id] = { status: 'pending' };
-    setAutoApplyStatuses(init);
-    setAutoApplyVisible(true);
-    setAutoApplying(true);
-    // analytics: queue start
-    try { analyticsEvents.autoApplyStarted(autoApplyQueue.length, selectedResumeId || undefined); } catch {}
-    let successCount = 0;
-    let failCount = 0;
-    for (let i = 0; i < autoApplyQueue.length; i++) {
-      if (autoApplyCancelRequested) break;
-      const job = autoApplyQueue[i];
-      setAutoApplyStatuses(s => ({ ...s, [job.id]: { status: 'applying' } }));
-      const started = performance.now();
-      const ok = await quickApply(job);
-      const duration = Math.round(performance.now() - started);
-      setAutoApplyStatuses(s => ({ ...s, [job.id]: { status: ok ? 'success' : 'error' } }));
-      try {
-        if (ok) {
-          successCount += 1;
-          analyticsEvents.autoApplyJobSuccess(job.id, job.source || 'unknown', duration);
+          if (!creditCheck?.available) {
+            setError({
+              message: `Insufficient credits. Job search requires ${creditCheck?.required} credits but you only have ${creditCheck?.current_balance}.`,
+              link: '/dashboard/billing'
+            });
+            safeInfo('Not enough credits', `Upgrade or purchase credits to use job search.`);
+            setQueueStatus('idle');
+            setIncrementalMode(false);
+            return;
+          }
         } else {
-          failCount += 1;
-          analyticsEvents.autoApplyJobFailed(job.id, job.source || 'unknown', 'apply_failed');
+            setError({ message: 'User not authenticated. Please login again.' });
+            setQueueStatus('idle');
+            setIncrementalMode(false);
+            return;
         }
-      } catch {}
-      // small stagger for visual rhythm
-      await new Promise(r => setTimeout(r, 450));
-    }
-    setAutoApplying(false);
-    try { analyticsEvents.autoApplyFinished(successCount, failCount); } catch {}
-    // auto hide after delay unless there are errors
-    setTimeout(() => {
-      setAutoApplyVisible(false);
-      setAutoApplyStatuses({});
-      setAutoApplyQueue([]);
-    }, Object.values(autoApplyStatuses).some(v => v.status === 'error') ? 6000 : 2500);
-  }, [autoApplyQueue, quickApply, autoApplyCancelRequested, autoApplyStatuses]);
 
-  const AutoApplyControls = () => (
-    <div className="flex items-center gap-3">
-      <Button
-        variant='outline'
-        onClick={startAutoApplyFlow}
-        className={`border-[#1dff00]/40 text-[#1dff00] hover:bg-[#1dff00]/10 hover:border-[#1dff00] transition-all duration-300 relative overflow-hidden group ${autoApplying ? 'pointer-events-none opacity-70' : ''}`}
-        title='Choose a resume and auto apply to all pending jobs'
-      >
-        <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-r from-[#1dff0066] via-transparent to-[#1dff0066] animate-[pulse_3s_linear_infinite]" />
-        <Play className="w-4 h-4 mr-2" /> Auto Apply All
-      </Button>
-      {autoApplying && (
-        <div className="flex items-center gap-2 text-xs text-white/70">
-          <Loader2 className="w-4 h-4 animate-spin" /> Applying...
-        </div>
-      )}
-    </div>
-  );
+        // Use backend jobs-search to discover and save jobs directly
+        safeInfo("Searching the web for jobs…");
+        const attemptInvoke = async (): Promise<any> => {
+          const searchPayload = {
+            searchQuery: query,
+            location: 'Remote',  // Always search for remote jobs for broader results
+            limit: maxResultsPerSearch, // Use tier-based result limit per search
+          };
+          if (debugMode) console.log('[debug] jobs-search request', searchPayload);
+          setDbgSearchReq(searchPayload);
+          const { data, error: invokeErr } = await supabase.functions.invoke('jobs-search', {
+            body: searchPayload,
+          });
+          if (invokeErr) throw new Error(invokeErr.message);
+          if (debugMode) console.log('[debug] jobs-search response', data);
+          setDbgSearchRes(data);
+          return data;
+        };
 
-  // ==== Resume Picker (Modern UI) ====
-  const [resumePickerOpen, setResumePickerOpen] = useState(false);
-  const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
-  const selectedResumeSignedUrl = useRef<string | null>(null);
-  // Cover letter (cover page) attach options
-  const [attachCoverLetter, setAttachCoverLetter] = useState(false);
-  const [selectedCoverTemplate, setSelectedCoverTemplate] = useState<string | null>('Standard');
-  const selectedCoverAttachRef = useRef<boolean>(false);
-  const selectedCoverTemplateRef = useRef<string | null>(null);
-
-  // Single job open picker disabled (auto apply only)
-
-  const cancelResumePicker = useCallback(() => {
-    setResumePickerOpen(false);
-    setSelectedResumeId(null);
-    selectedResumeSignedUrl.current = null;
-  }, []);
-
-  const confirmResumePicker = useCallback(async () => {
-    try {
-      selectedResumeSignedUrl.current = null;
-      if (selectedResumeId) {
-        const chosen = (resumeOptions || []).find(r => r.id === selectedResumeId);
-        if (chosen?.file_path) {
-          const url = await getSignedUrl(chosen.file_path);
-          if (url) selectedResumeSignedUrl.current = url; else info?.('Using latest resume', 'Could not sign selected; falling back');
+        let searchData = await attemptInvoke();
+        if (searchData?.error === 'rate_limited') {
+          const retrySec = Math.max(10, Math.min(120, Number(searchData?.retryAfterSeconds || 55)));
+          setErrorDedup({ message: `Rate limited by Firecrawl. Retrying in ${retrySec}s…` });
+          await new Promise((r) => setTimeout(r, retrySec * 1000));
+          searchData = await attemptInvoke();
         }
+
+        if (searchData?.error) {
+          if (searchData.error === 'missing_api_key') {
+            setErrorDedup({ message: 'Firecrawl is not configured. Ask your admin to set FIRECRAWL_API_KEY in Supabase Function Secrets.' });
+          } else if (searchData.error === 'rate_limited') {
+            setErrorDedup({ message: 'Rate limited by Firecrawl. Please try again shortly.' });
+          } else {
+            const detail = searchData.detail || 'An unknown error occurred.';
+            setErrorDedup({ message: `Failed to search: ${detail}` });
+          }
+          setQueueStatus('ready');
+          setIncrementalMode(false);
+          return;
+        }
+
+        // Jobs are now saved directly by jobs-search function
+        // Try different possible response structures
+        const inserted = searchData?.jobsInserted 
+          || searchData?.inserted 
+          || searchData?.count 
+          || searchData?.jobs?.length 
+          || 0;
+
+        if (userId && inserted > 0) {
+            const { data: deductResult, error: deductError } = await supabase.rpc('deduct_job_search_credits', {
+              p_user_id: userId,
+              p_jobs_count: inserted
+            });
+
+            if (deductError) {
+              console.error('Failed to deduct job search credits:', deductError);
+              safeInfo('Credit deduction failed', 'There was an issue processing your credits.');
+            } else if (deductResult && !deductResult.success) {
+              console.warn('Credit deduction failed:', deductResult.message);
+              safeInfo('Credit deduction failed', deductResult.message);
+            } else if (deductResult?.success) {
+              safeInfo('Credits deducted', `Used ${deductResult.credits_deducted} credits. ${deductResult.remaining_balance} remaining.`);
+            }
+        }
+
+        setStepIndex(1); // Complete: Saving Results
+        setInsertedThisRun(inserted);
+        
+        // Refresh job list
+        await fetchJobQueue();
+        
+        setIncrementalMode(false);
+        safeInfo("Job search complete!", inserted > 0 ? `Found and saved ${inserted} jobs.` : "No jobs found for this search.");
+        setCurrentSource(null);
+
+      } catch (e: any) {
+        setError({ message: `Failed to search jobs: ${e.message}` });
+        setQueueStatus('idle');
+        setIncrementalMode(false);
       }
-      selectedCoverAttachRef.current = !!attachCoverLetter;
-      selectedCoverTemplateRef.current = selectedCoverTemplate;
-      setResumePickerOpen(false);
-      if (pendingAutoApplyStart) {
-        setPendingAutoApplyStart(false);
-        runAutoApplyQueue();
+  }, [supabase, debugMode, incrementalMode, fetchJobQueue, safeInfo, setErrorDedup, subscriptionTier, info]);
+
+    // Removed old process-and-match and polling logic - jobs are now saved directly
+
+    const cancelPopulation = useCallback(() => {
+      setIncrementalMode(false);
+      setQueueStatus('ready');
+      setCurrentSource(null);
+    }, []);
+
+    const openAutoApplyFlow = useCallback(() => {
+      setAutoApplyStep(1);
+      setResumeDialogOpen(true);
+      loadCoverLetterLibrary();
+      setSelectedResumeId((prev) => {
+        if (prev && resumes?.some((r: any) => r.id === prev)) return prev;
+        if (Array.isArray(resumes) && resumes.length > 0) {
+          const favorite = resumes.find((r: any) => r.is_favorite);
+          return favorite?.id ?? resumes[0].id ?? null;
+        }
+        return null;
+      });
+    }, [resumes, loadCoverLetterLibrary]);
+
+    useEffect(() => {
+      if (!resumeDialogOpen) return;
+      loadCoverLetterLibrary();
+    }, [resumeDialogOpen, loadCoverLetterLibrary]);
+
+    // Apply all jobs by delegating to automation workflow, then prune applied rows
+    const applyAllJobs = useCallback(async () => {
+      if (applyingAll) return;
+      const targetJobs = jobToAutoApply ? [jobToAutoApply] : jobs;
+      if (!targetJobs.length) return;
+
+      const jobsWithTargets = targetJobs
+        .map((job) => ({ job, target: getJobApplyTarget(job) }))
+        .filter((item): item is { job: Job; target: string } => Boolean(item.target));
+
+      if (!jobsWithTargets.length) {
+        safeInfo('No automation targets', 'This job is missing an apply link. Refresh your queue or open the job detail to locate one manually.');
+        return;
       }
-    } finally {
-      setTimeout(() => { selectedResumeSignedUrl.current = null; }, 0);
-      setTimeout(() => { selectedCoverAttachRef.current = false; selectedCoverTemplateRef.current = null; }, 0);
-    }
-  }, [attachCoverLetter, selectedCoverTemplate, getSignedUrl, info, pendingAutoApplyStart, resumeOptions, runAutoApplyQueue, selectedResumeId]);
 
-  const shareJob = useCallback(async (job: Job) => {
-    try {
-      const url = job.sourceUrl || window.location.href;
-      await navigator.clipboard.writeText(url);
-      info('Link copied');
-    } catch {
-      toastError('Copy failed');
-    }
-  }, [info, toastError]);
+      const skipped = jobs.length - jobsWithTargets.length;
+      if (skipped > 0) {
+        jobs
+          .filter((job) => !jobsWithTargets.some((entry) => entry.job.id === job.id))
+          .forEach((job) => {
+            events.autoApplyJobFailed(job.id, job.status || job.remote_type || 'unknown', 'missing_apply_url');
+          });
+      }
 
-  useEffect(() => {
-    performSearch();
-  }, [performSearch]);
+      setApplyingAll(true);
+      setApplyProgress({ done: 0, total: jobsWithTargets.length, success: 0, fail: 0 });
 
-  // Preflight once on initial page load (capture readiness)
+      try {
+        // Check if user has enough credits for auto apply (5 credits per job)
+        const { data: authData } = await supabase.auth.getUser();
+        const userId = authData?.user?.id;
+        const userEmail = authData?.user?.email;
+        
+        if (userId) {
+          const { data: creditCheck, error: checkError } = await supabase.rpc('check_credits_available', {
+            p_user_id: userId,
+            p_feature_type: 'auto_apply',
+            p_quantity: jobsWithTargets.length
+          });
+          
+          if (checkError) {
+            console.error('Failed to check credits:', checkError);
+            setError({ 
+              message: 'Failed to verify credits. Please try again.',
+              link: '/dashboard/billing'
+            });
+            setApplyingAll(false);
+            return;
+          }
+          
+          if (!creditCheck?.available) {
+            const required = creditCheck?.required || (jobsWithTargets.length * 5);
+            const available = creditCheck?.current_balance || 0;
+            setError({ 
+              message: `Insufficient credits. Auto apply requires ${required} credits (5 per job × ${jobsWithTargets.length} jobs) but you only have ${available}.`,
+              link: '/dashboard/billing'
+            });
+            safeInfo('Not enough credits', `Upgrade or purchase credits to use auto apply.`);
+            setApplyingAll(false);
+            return;
+          }
+        }
+
+        const coverLetterPayload = composeCoverLetterPayload(selectedCoverLetter);
+        events.autoApplyStarted(jobsWithTargets.length, selectedResumeId || undefined, selectedCoverLetterId || undefined);
+
+        const payloadJobs = jobsWithTargets.map(({ job, target }) => ({
+          sourceUrl: target,
+          url: job.apply_url ?? target,
+          source_url: job.source_id ?? target,
+        }));
+
+        const launchedAt = new Date();
+        let resumeSignedUrl: string | undefined;
+        if (selectedResume?.file_path) {
+          try {
+            const { data: signed, error: signErr } = await supabase.storage
+              .from('resumes')
+              .createSignedUrl(selectedResume.file_path, 60 * 60);
+            if (!signErr && signed?.signedUrl) {
+              resumeSignedUrl = signed.signedUrl;
+            } else if (signErr) {
+              console.error('auto-apply resume signing failed', signErr.message);
+            }
+          } catch (signErr) {
+            console.error('auto-apply resume signing threw', signErr);
+          }
+        }
+
+
+        const automationResult = await applyToJobs({
+          jobs: payloadJobs,
+          title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
+          cover_letter: coverLetterPayload,
+          ...(profileSnapshot ? { additional_information: profileSnapshot } : {}),
+          ...(resumeSignedUrl ? { resume: resumeSignedUrl } : {}),
+          ...(userEmail ? { email: userEmail } : {}),
+        });
+
+        const { runId, workflowId, providerStatus, recordingUrl } = extractAutomationMetadata(automationResult);
+        // userId already declared above, reuse it
+        const applicationsToInsert: any[] = [];
+        const appliedTimestamp = new Date().toISOString();
+
+        safeInfo(
+          'Automation launched',
+          `Dispatched ${jobsWithTargets.length} job${jobsWithTargets.length === 1 ? '' : 's'} to the automation runner${skipped > 0 ? `; skipped ${skipped}.` : '.'}`,
+        );
+
+        let success = 0;
+        let fail = 0;
+        let done = 0;
+        const appliedIds: string[] = [];
+
+        for (const { job, target } of jobsWithTargets) {
+          try {
+            const { error } = await supabase.from('jobs').delete().eq('id', job.id);
+            done += 1;
+            if (error) {
+              fail += 1;
+              setApplyProgress((prev) => ({ ...prev, done, fail }));
+              events.autoApplyJobFailed(job.id, job.status || 'unknown', 'delete_failed');
+            } else {
+              success += 1;
+              appliedIds.push(job.id);
+              setApplyProgress((prev) => ({ ...prev, done, success }));
+              events.autoApplyJobSuccess(job.id, job.status || 'unknown', 0);
+              if (userId) {
+                const matchScore = typeof job.matchScore === 'number' ? Math.round(job.matchScore) : null;
+                const matchNote = job.matchSummary ? `Match summary: ${job.matchSummary}` : null;
+                applicationsToInsert.push({
+                  user_id: userId,
+                  job_title: job.title,
+                  company: job.company,
+                  location: job.location ?? '',
+                  applied_date: appliedTimestamp,
+                  status: 'Applied',
+                  salary: formatSalaryRange(job),
+                  notes: matchNote,
+                  match_score: matchScore,
+                  next_step: null,
+                  interview_date: null,
+                  logo: job.logoUrl ?? null,
+                  run_id: runId,
+                  workflow_id: workflowId,
+                  app_url: job.apply_url ?? target ?? null,
+                  provider_status: providerStatus ?? 'Automation launched',
+                  recording_url: recordingUrl,
+                  failure_reason: null,
+                });
+              }
+            }
+          } catch (inner) {
+            done += 1;
+            fail += 1;
+            setApplyProgress((prev) => ({ ...prev, done, fail }));
+            events.autoApplyJobFailed(job.id, job.status || 'unknown', 'exception_delete');
+          }
+        }
+
+        if (applicationsToInsert.length) {
+          try {
+            await supabase.from('applications').insert(applicationsToInsert);
+          } catch (appErr) {
+            console.error('Failed to insert application records', appErr);
+          }
+        } else if (!userId) {
+          console.warn('Skipping application inserts because user id is unavailable');
+        }
+
+        // Deduct credits for auto apply (5 credits per job)
+        if (userId && success > 0) {
+          try {
+            const { data: deductResult, error: deductError } = await supabase.rpc('deduct_auto_apply_credits', {
+              p_user_id: userId,
+              p_jobs_count: success
+            });
+            
+            if (deductError) {
+              console.error('Failed to deduct auto apply credits:', deductError);
+              safeInfo('Credit deduction failed', 'There was an issue processing your credits.');
+            } else if (deductResult && !deductResult.success) {
+              console.warn('Credit deduction failed:', deductResult.message);
+              safeInfo('Credit deduction failed', deductResult.message);
+            } else if (deductResult?.success) {
+              safeInfo('Credits deducted', `Used ${deductResult.credits_deducted} credits. ${deductResult.remaining_balance} remaining.`);
+            }
+          } catch (creditErr) {
+            console.error('Error deducting auto apply credits:', creditErr);
+          }
+        }
+
+        events.autoApplyFinished(success, fail);
+
+        if (appliedIds.length) {
+          const appliedSet = new Set(appliedIds);
+          const remaining = jobs.filter((job) => !appliedSet.has(job.id));
+          setJobs(remaining);
+          if (remaining.length === 0) {
+            setQueueStatus('empty');
+            setSelectedJob(null);
+          } else {
+            setQueueStatus('ready');
+            if (selectedJob && !remaining.some((job) => job.id === selectedJob)) {
+              setSelectedJob(remaining[0].id);
+            }
+          }
+        }
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        setError({ message: `Failed to launch automation: ${message}` });
+        events.autoApplyFinished(0, jobsWithTargets.length);
+      } finally {
+        setApplyingAll(false);
+        setAutoApplyStep(1);
+      }
+  }, [applyingAll, jobs, profileSnapshot, selectedCoverLetter, selectedCoverLetterId, selectedJob, selectedResume, selectedResumeId, safeInfo, setError]);
+
+  // Fetch subscription tier
   useEffect(() => {
     (async () => {
       try {
-        const r: any = await ensureApplyReadiness();
-        if (r && typeof r === 'object' && 'profile' in r && 'resume' in r) setReadiness({ profile: !!r.profile, resume: !!r.resume });
-      } catch {}
-    })();
-  }, []);
-
-  // Whenever the main query inputs change, refresh facets and clear selected facet filters
-  useEffect(() => {
-    setSelectedReq(new Set());
-    setSelectedBen(new Set());
-    fetchFacets();
-  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, minSalary, maxSalary, postedSince, fetchFacets]);
-
-  // Persist quick presets
-  useEffect(() => {
-    try { localStorage.setItem('job_quick_presets', JSON.stringify(Array.from(selectedPresets))); } catch {}
-  }, [selectedPresets]);
-  // savedOnly persistence removed
-
-  // Toggle a preset and update corresponding filters conservatively
-  const togglePreset = (key: 'remote' | 'gt100k' | 'last7') => {
-    const next = new Set(selectedPresets);
-    const isOn = next.has(key);
-    if (isOn) {
-      next.delete(key);
-      // Revert only if unchanged since applying
-      if (key === 'remote' && selectedType === 'Remote') setSelectedType('All');
-      if (key === 'gt100k' && minSalary === '100000') setMinSalary('');
-      if (key === 'last7' && postedSince === '7') setPostedSince('');
-    } else {
-      next.add(key);
-      if (key === 'remote') setSelectedType('Remote');
-      if (key === 'gt100k') setMinSalary('100000');
-      if (key === 'last7') setPostedSince('7');
-    }
-    setSelectedPresets(next);
-  };
-
-  // URL sync: initial read on mount
-  useEffect(() => {
-    try {
-      const u = new URL(window.location.href);
-      const q = u.searchParams.get('q');
-      const loc = u.searchParams.get('location');
-      const type = u.searchParams.get('type');
-      const req = u.searchParams.getAll('req');
-      const ben = u.searchParams.getAll('benefit');
-      const min = u.searchParams.get('minSalary');
-      const max = u.searchParams.get('maxSalary');
-      const posted = u.searchParams.get('posted');
-  // saved removed
-      if (q) setSearchQuery(q);
-      if (loc) setSelectedLocation(loc);
-      if (type) setSelectedType(type);
-      if (req?.length) setSelectedReq(new Set(req.flatMap(s => s.split(',').map(x => x.trim()).filter(Boolean))));
-      if (ben?.length) setSelectedBen(new Set(ben.flatMap(s => s.split(',').map(x => x.trim()).filter(Boolean))));
-      if (min) setMinSalary(min);
-      if (max) setMaxSalary(max);
-      if (posted) setPostedSince(posted);
-  // ignore saved flag
-    } catch {}
-  }, []);
-
-  // URL sync: write when query/filters change
-  useEffect(() => {
-    try {
-      const u = new URL(window.location.href);
-      const sp = u.searchParams;
-      const setOrDel = (k: string, v?: string) => { if (v && v.trim()) sp.set(k, v); else sp.delete(k); };
-      setOrDel('q', debouncedSearchQuery);
-      setOrDel('location', debouncedSelectedLocation);
-      setOrDel('type', selectedType === 'All' ? '' : selectedType);
-      sp.delete('req');
-      sp.delete('benefit');
-      for (const r of Array.from(selectedReq)) sp.append('req', r);
-      for (const b of Array.from(selectedBen)) sp.append('benefit', b);
-      setOrDel('minSalary', minSalary);
-      setOrDel('maxSalary', maxSalary);
-      setOrDel('posted', postedSince);
-  // saved flag omitted from URL
-      const next = u.toString();
-      if (next !== window.location.href) window.history.replaceState({}, '', next);
-    } catch {}
-  }, [debouncedSearchQuery, debouncedSelectedLocation, selectedType, selectedReq, selectedBen, minSalary, maxSalary, postedSince, savedOnly]);
-
-  // Derived chip counts
-  const activeFacetCount = useMemo(() => selectedReq.size + selectedBen.size, [selectedReq, selectedBen]);
-  // Non-facet filters state helpers
-  const hasType = selectedType !== 'All';
-  const hasMin = !!minSalary;
-  const hasMax = !!maxSalary;
-  const hasPosted = !!postedSince;
-  // bookmarks fully removed
-
-  const toggleReq = (value: string) => {
-    const next = new Set(selectedReq);
-    if (next.has(value)) next.delete(value); else next.add(value);
-    setSelectedReq(next);
-    applyFacetFilters(Array.from(next), Array.from(selectedBen));
-  };
-  const toggleBen = (value: string) => {
-    const next = new Set(selectedBen);
-    if (next.has(value)) next.delete(value); else next.add(value);
-    setSelectedBen(next);
-    applyFacetFilters(Array.from(selectedReq), Array.from(next));
-  };
-  const clearFacetFilters = () => {
-    setSelectedReq(new Set());
-    setSelectedBen(new Set());
-    applyFacetFilters([], []);
-  };
-
-  // Reset only salary/time filters and refresh current results/facets
-  const resetSalaryTime = useCallback(() => {
-    setMinSalary("");
-    setMaxSalary("");
-    setPostedSince(""); // 'any'
-    // Refresh facets and re-apply current facet selections against DB
-    fetchFacets();
-    applyFacetFilters(Array.from(selectedReq), Array.from(selectedBen));
-  }, [fetchFacets, applyFacetFilters, selectedReq, selectedBen]);
-
-  // Clear all filter chips and salary/time in one action
-  const clearAllFilters = useCallback(() => {
-    setSelectedReq(new Set());
-    setSelectedBen(new Set());
-    setMinSalary("");
-    setMaxSalary("");
-    setPostedSince("");
-    // Will restore live results if available and refresh facets internally
-    applyFacetFilters([], []);
-  }, [applyFacetFilters]);
-
-  // Exclude already applied jobs from the visible list
-  const filteredJobs = jobs.filter(job => !job.isApplied && (selectedType === 'All' || job.type === selectedType));
-
-  const sortedJobs = (() => {
-    if (sortBy === 'posted_desc') {
-      return [...filteredJobs].sort((a, b) => {
-        const at = a.rawPostedAt ?? -Infinity;
-        const bt = b.rawPostedAt ?? -Infinity;
-        return bt - at;
-      });
-    }
-    // relevance: keep original order
-    return filteredJobs;
-  })();
-
-  const total = sortedJobs.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const start = (currentPage - 1) * pageSize;
-  const end = Math.min(total, start + pageSize);
-  const paginatedJobs = sortedJobs.slice(start, end);
-
-  useEffect(() => {
-    if (selectedJob && !paginatedJobs.some(j => j.id === selectedJob)) {
-      setSelectedJob(paginatedJobs[0]?.id ?? null);
-    }
-  }, [currentPage, pageSize, selectedJob, paginatedJobs]);
-
-  // Keyboard navigation: Up/Down select, PageUp/PageDown change page
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.target && (e.target as HTMLElement).tagName.match(/INPUT|TEXTAREA|SELECT/)) return;
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        if (!selectedJob && paginatedJobs.length) {
-          setSelectedJob(paginatedJobs[0].id);
-          return;
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData?.user?.id;
+        if (!userId) return;
+        
+        // Try to get from active subscription first
+        const { data: subscription } = await supabase
+          .from('user_subscriptions')
+          .select('subscription_plans(name)')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (subscription && (subscription as any).subscription_plans?.name) {
+          setSubscriptionTier((subscription as any).subscription_plans.name);
+        } else {
+          // Fallback to profile subscription_tier
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('subscription_tier')
+            .eq('id', userId)
+            .single();
+          
+          if (profileData?.subscription_tier) {
+            setSubscriptionTier(profileData.subscription_tier);
+          }
         }
-        const idx = paginatedJobs.findIndex(j => j.id === selectedJob);
-        if (idx >= 0 && idx < paginatedJobs.length - 1) setSelectedJob(paginatedJobs[idx + 1].id);
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        const idx = paginatedJobs.findIndex(j => j.id === selectedJob);
-        if (idx > 0) setSelectedJob(paginatedJobs[idx - 1].id);
-      } else if (e.key === 'PageDown') {
-        e.preventDefault();
-        setCurrentPage(p => Math.min(totalPages, p + 1));
-      } else if (e.key === 'PageUp') {
-        e.preventDefault();
-        setCurrentPage(p => Math.max(1, p - 1));
+      } catch (error) {
+        console.error('Error fetching subscription tier:', error);
       }
+    })();
+  }, [supabase]);
+
+    // Unified effect for initial load and real-time updates
+  useEffect(() => {
+        if (profileLoading) {
+            setQueueStatus('loading');
+            return;
+        }
+
+        // Define the initial loading sequence - only fetch existing jobs, don't auto-populate
+        const initialLoad = async () => {
+            await fetchJobQueue();
+            // Auto-population removed - users must explicitly click "Find Job"
+        };
+
+        initialLoad();
+
+        // Set up the real-time subscription
+        const channel = supabase
+            .channel('jobs-queue-changes')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jobs' }, () => {
+              // During an active search/extraction run, avoid thrashing the UI
+              if (incrementalMode) return;
+              fetchJobQueue();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+  }, [profileLoading, fetchJobQueue, supabase, incrementalMode]);
+
+    // Effect to pre-fill search query from profile
+    useEffect(() => {
+        if (profile && !searchQuery) {
+            setSearchQuery(profile.job_title || '');
+            setSelectedLocation(profile.location || 'Remote');
+        }
+    }, [profile, searchQuery]);
+
+    const visibleJobs = useMemo(() => jobs, [jobs]);
+
+    const sortedJobs = useMemo(() => {
+      const arr = [...visibleJobs];
+      if (sortBy === 'company') {
+        return arr.sort((a, b) => (a.company || '').localeCompare(b.company || ''));
+      }
+      if (sortBy === 'deadline') {
+        const toTs = (v?: string | null) => {
+          if (!v) return Number.POSITIVE_INFINITY;
+          const t = Date.parse(v);
+          return Number.isNaN(t) ? Number.POSITIVE_INFINITY : t;
+        };
+        return arr.sort((a, b) => toTs(a.expires_at) - toTs(b.expires_at));
+      }
+      return arr.sort((a, b) => new Date(b.posted_at || 0).getTime() - new Date(a.posted_at || 0).getTime());
+    }, [visibleJobs, sortBy]);
+
+    const total = sortedJobs.length;
+  const visibleJobCount = total;
+  const canAdvanceFromStepOne = !resumesLoading && (!Array.isArray(resumes) || resumes.length === 0 || Boolean(selectedResumeId));
+  const autoApplyTargetCount = jobToAutoApply ? 1 : visibleJobCount;
+  const canLaunchAutoApply = autoApplyTargetCount > 0 && (!Array.isArray(resumes) || resumes.length === 0 || Boolean(selectedResumeId));
+  const autoApplyPrimaryDisabled = autoApplyStep === 1 ? !canAdvanceFromStepOne : !canLaunchAutoApply;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const clampedPage = Math.min(Math.max(1, currentPage), totalPages);
+    const startIdx = (clampedPage - 1) * pageSize;
+    const endIdx = Math.min(startIdx + pageSize, total);
+    const paginatedJobs = sortedJobs.slice(startIdx, endIdx);
+
+    useEffect(() => {
+      if (!jobs.length) return;
+      const persist = async () => {
+        const currentIds = new Set(jobs.map((job) => job.id));
+        matchInsightSignaturesRef.current.forEach((_, key) => {
+          if (!currentIds.has(key)) matchInsightSignaturesRef.current.delete(key);
+        });
+        const updates = jobs
+          .map((job) => {
+            if (typeof job.matchScore !== 'number') return null;
+            const signature = `${Math.round(job.matchScore)}|${job.matchSummary ?? ''}|${JSON.stringify(job.matchBreakdown ?? null)}|${matchContext.searchQuery || ''}|${matchContext.selectedLocation || ''}`;
+            if (matchInsightSignaturesRef.current.get(job.id) === signature) {
+              return null;
+            }
+            const rawData = (job as any)?.raw_data && typeof (job as any).raw_data === 'object'
+              ? { ...(job as any).raw_data }
+              : {} as Record<string, any>;
+            const existing = rawData?.match_insights;
+            const nextInsights = {
+              score: job.matchScore,
+              summary: job.matchSummary ?? null,
+              breakdown: job.matchBreakdown ?? null,
+              search_query: matchContext.searchQuery || null,
+              location_preference: matchContext.selectedLocation || null,
+              computed_at: new Date().toISOString(),
+            };
+            const unchanged = existing
+              && existing.score === nextInsights.score
+              && existing.summary === nextInsights.summary
+              && JSON.stringify(existing.breakdown ?? null) === JSON.stringify(nextInsights.breakdown ?? null)
+              && (existing.search_query || null) === nextInsights.search_query
+              && (existing.location_preference || null) === nextInsights.location_preference;
+            if (unchanged) {
+              matchInsightSignaturesRef.current.set(job.id, signature);
+              return null;
+            }
+            rawData.match_insights = nextInsights;
+            return { id: job.id, raw_data: rawData, signature };
+          })
+          .filter(Boolean) as Array<{ id: string; raw_data: Record<string, any>; signature: string }>;
+        if (!updates.length) return;
+        try {
+          await Promise.all(updates.map(({ id, raw_data }) => supabase.from('jobs').update({ raw_data }).eq('id', id)));
+          updates.forEach(({ id, signature }) => {
+            matchInsightSignaturesRef.current.set(id, signature);
+          });
+        } catch (err) {
+          console.error('persist match insights failed', err);
+        }
+      };
+      persist();
+    }, [jobs, supabase, matchContext.searchQuery, matchContext.selectedLocation]);
+
+    useEffect(() => {
+      if (currentPage !== clampedPage) setCurrentPage(clampedPage);
+    }, [clampedPage, currentPage]);
+
+    useEffect(() => {
+      if (selectedJob && !paginatedJobs.some(j => j.id === selectedJob)) {
+        setSelectedJob(paginatedJobs[0]?.id ?? null);
+      }
+    }, [clampedPage, pageSize, selectedJob, paginatedJobs]);
+
+    useEffect(() => {
+      setCurrentPage(1);
+    }, [searchQuery, sortBy]);
+
+    useEffect(() => {
+      if (!resumeDialogOpen) return;
+      if (!Array.isArray(resumes) || resumes.length === 0) return;
+      setSelectedResumeId(prev => {
+        if (prev && resumes.some((r: any) => r.id === prev)) return prev;
+        const favorite = resumes.find((r: any) => r.is_favorite);
+        return favorite?.id ?? resumes[0].id ?? null;
+      });
+    }, [resumeDialogOpen, resumes]);
+
+    // Small helper for relative timestamps
+    const formatRelative = (iso?: string | null) => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      const now = new Date();
+      const diff = Math.max(0, now.getTime() - d.getTime());
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      const days = Math.floor(hrs / 24);
+      return `${days}d ago`;
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [paginatedJobs, selectedJob, totalPages]);
 
-  // Compute simple match score vs. selected facet filters for a job
-  const getMatchScore = useCallback((job: Job) => {
-    const totalFilters = selectedReq.size + selectedBen.size;
-    if (totalFilters === 0) return { matched: 0, total: 0, pct: 0 };
-    const reqSet = new Set(job.requirements.map((r) => r.toLowerCase()));
-    const benSet = new Set(job.benefits.map((b) => b.toLowerCase()));
-    let matched = 0;
-    for (const r of selectedReq) if (reqSet.has(r.toLowerCase())) matched++;
-    for (const b of selectedBen) if (benSet.has(b.toLowerCase())) matched++;
-    const pct = Math.round((matched / totalFilters) * 100);
-    return { matched, total: totalFilters, pct };
-  }, [selectedReq, selectedBen]);
+    // Deadline formatting helper
+    const formatDeadlineMeta = (value?: string): { label: string; level: 'overdue' | 'soon' | 'future' } | null => {
+      if (!value) return null;
+      const ts = Date.parse(value);
+      if (Number.isNaN(ts)) return { label: value, level: 'future' };
+      const d = new Date(ts);
+      const now = new Date();
+      const ms = d.getTime() - now.getTime();
+      const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
+      if (days < 0) return { label: `Closed ${Math.abs(days)}d ago`, level: 'overdue' };
+      if (days === 0) return { label: 'Closes today', level: 'soon' };
+      if (days === 1) return { label: 'Closes tomorrow', level: 'soon' };
+      const level: 'soon' | 'future' = days <= 7 ? 'soon' : 'future';
+      return { label: `Closes in ${days}d`, level };
+    };
 
-  return (
-    <div className="min-h-screen bg-black" role="main" aria-label="Job search">
-      <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Job Search</h1>
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-[#ffffff80] text-sm sm:text-base">Find your next opportunity</p>
-                {resultSource && (
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-wide border ${
-                      resultSource === 'live'
-                        ? 'border-[#1dff00]/40 text-[#1dff00] bg-[#1dff0033]'
-                        : 'border-amber-400/40 text-amber-300 bg-amber-500/10'
-                    }`}
-                    title={resultNote || undefined}
-                  >
-                    {resultSource === 'live' ? 'Live' : 'DB fallback'}
-                  </span>
-                )}
-                {readiness && (
-                  <>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-wide border ${readiness.profile ? 'border-emerald-400/40 text-emerald-300 bg-emerald-500/10' : 'border-red-400/40 text-red-300 bg-red-500/10'}`}
-                      title={readiness.profile ? 'Profile info available' : 'Missing profile info'}
-                    >
-                      Profile {readiness.profile ? '✓' : 'Missing'}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-wide border ${readiness.resume ? 'border-emerald-400/40 text-emerald-300 bg-emerald-500/10' : 'border-red-400/40 text-red-300 bg-red-500/10'}`}
-                      title={readiness.resume ? 'Resume available' : 'Missing resume'}
-                    >
-                      Resume {readiness.resume ? '✓' : 'Missing'}
-                    </span>
-                  </>
-                )}
+    return (
+      <div className="relative min-h-screen bg-black" role="main" aria-label="Job search">
+        {/* Animated SVG Background */}
+        <AnimatedSVGBackground />
+        
+        {/* Ambient Background Glow */}
+        <div className="fixed top-20 left-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10"></div>
+        <div className="fixed bottom-0 right-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10"></div>
+        
+        <div className="relative w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
+              <div className="space-y-1">
+                <h1 className="text-3xl sm:text-4xl font-bold text-white bg-gradient-to-r from-white to-white/70 bg-clip-text">Job Search</h1>
+                <p className="text-sm sm:text-base text-white/50">Discover opportunities matched to your profile and goals</p>
               </div>
-            </div>
-            <div className="flex gap-2 sm:gap-3">
-              {/* Mobile: open drawer */}
-              <Button
-                variant="outline"
-                onClick={() => setMobileFiltersOpen(true)}
-                className="sm:hidden border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 transition-all duration-300"
-                id="job-filters"
-                data-tour="job-filters"
-              >
-                <Filter className="w-4 h-4 mr-2" />
-                {activeFacetCount > 0 ? `Filters (${activeFacetCount})` : 'Filters'}
-              </Button>
-              {/* Desktop: scroll to facet panel */}
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  if (facetPanelRef.current) {
-                    facetPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    setFacetPulse(true);
-                    setTimeout(() => setFacetPulse(false), 1200);
-                  }
-                }}
-                className="hidden sm:inline-flex border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
-                id="job-filters-desktop"
-              >
-                <Filter className="w-4 h-4 mr-2" />
-                {activeFacetCount > 0 ? `Filters (${activeFacetCount})` : 'Filters'}
-              </Button>
-              {/* Auto Apply & Search Controls */}
-              <div className="flex items-center gap-3">
-                <div id="job-auto-apply" data-tour="job-auto-apply">
-                  <AutoApplyControls />
-                </div>
-                <Button
-                  variant="ghost"
-                  onClick={refreshFromSources}
-                  className="text-[#1dff00] hover:bg-[#1dff00]/10"
-                  title="Run a new job search from sources"
-                >
-                  Search Jobs
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Search and Filters */}
-        <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6 mb-6 sm:mb-8" role="region" aria-label="Search and filters">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {/* Search Input */}
-            <div id="job-search-box" data-tour="job-search-box" className="lg:col-span-2 relative">
-              <label htmlFor="job-search" className="sr-only">Search jobs</label>
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
-              <Input
-                id="job-search"
-                name="job-search"
-                placeholder="Search jobs, companies..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
-              />
-            </div>
-            
-            {/* Location Filter */}
-            <div className="relative">
-              <label htmlFor="job-location" className="sr-only">Location</label>
-              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
-              <Input
-                id="job-location"
-                name="job-location"
-                placeholder="Location..."
-                value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-                className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] transition-all duration-300"
-              />
-            </div>
-            
-            {/* Work Type Filter */}
-            <div className="flex gap-1">
-              {["All", "Remote", "Hybrid", "On-site"].map((type) => (
-                <Button
-                  key={type}
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedType(type)}
-                  className={`text-xs flex-1 transition-all duration-300 hover:scale-105 ${
-                    selectedType === type
-                      ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-                      : "text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]"
-                  }`}
-                >
-                  {type}
-                </Button>
-              ))}
-            </div>
-          </div>
-          {/* Quick Presets */}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs uppercase tracking-wide text-[#ffffff80] mr-1">Quick presets:</span>
-            <button
-              type="button"
-              onClick={() => togglePreset('remote')}
-              className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('remote') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}
-            >
-              Remote
-            </button>
-            <button
-              type="button"
-              onClick={() => togglePreset('gt100k')}
-              className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('gt100k') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}
-            >
-              {`>$100k`}
-            </button>
-            <button
-              type="button"
-              onClick={() => togglePreset('last7')}
-              className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('last7') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}
-            >
-              Last 7 days
-            </button>
-            {/* Saved only preset removed */}
-          </div>
-          {/* Salary & Time filters row */}
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div className="relative">
-              <label htmlFor="salary-min" className="sr-only">Minimum salary</label>
-              <Input
-                id="salary-min"
-                name="salary-min"
-              placeholder="Min salary (e.g. 120000)"
-              inputMode="numeric"
-              value={minSalary}
-              onChange={(e) => setMinSalary(e.target.value.replace(/[^0-9]/g, ''))}
-              className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
-              />
-            </div>
-            <div className="relative">
-              <label htmlFor="salary-max" className="sr-only">Maximum salary</label>
-              <Input
-                id="salary-max"
-                name="salary-max"
-              placeholder="Max salary (e.g. 200000)"
-              inputMode="numeric"
-              value={maxSalary}
-              onChange={(e) => setMaxSalary(e.target.value.replace(/[^0-9]/g, ''))}
-              className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]"
-              />
-            </div>
-            <div className="relative">
-              <label id="posted-since-label" className="sr-only">Posted since</label>
-              <SafeSelect fallbackValue="any" value={postedSince} onValueChange={(v) => setPostedSince(v === 'any' ? '' : v)}>
-                <SelectTrigger className="h-10" aria-labelledby="posted-since-label" aria-label="Posted since" name="posted-since">
-                <SelectValue placeholder="Posted since" />
-                </SelectTrigger>
-                <SelectContent>
-        <SelectItem value="any">Any time</SelectItem>
-                <SelectItem value="3">Last 3 days</SelectItem>
-                <SelectItem value="7">Last 7 days</SelectItem>
-                <SelectItem value="14">Last 14 days</SelectItem>
-                <SelectItem value="30">Last 30 days</SelectItem>
-                </SelectContent>
-              </SafeSelect>
-            </div>
-            <div className="flex gap-2 items-center">
-              <Button
-                variant="outline"
-                onClick={() => { fetchFacets(); applyFacetFilters(Array.from(selectedReq), Array.from(selectedBen)); }}
-                className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
-              >
-                Apply filters
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={resetSalaryTime}
-                className="text-[#1dff00] hover:bg-[#1dff00]/10"
-                title="Reset salary and posted time filters"
-              >
-                Reset salary/time
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={clearAllFilters}
-                className="text-[#1dff00] hover:bg-[#1dff00]/10"
-                title="Clear all facet chips and salary/time"
-              >
-                Clear all filters
-              </Button>
-            </div>
-          </div>
-        </Card>
-
-  {/* Active Filters (non-facet) */}
-  {(hasType || hasMin || hasMax || hasPosted) && (
-          <div className="mb-4 flex items-center gap-2 flex-wrap">
-            <span className="text-xs uppercase tracking-wide text-[#ffffff80] mr-1">Active:</span>
-            {hasType && (
-              <button onClick={() => setSelectedType('All')} className="px-2 py-1 rounded border border-white/20 bg-white/5 text-xs text-white/80 hover:border-[#1dff00]/40 group">
-                Type: <span className="ml-1 text-white">{selectedType}</span>
-                <span className="ml-2 text-white/60 group-hover:text-white">×</span>
-              </button>
-            )}
-            {hasMin && (
-              <button onClick={() => setMinSalary('')} className="px-2 py-1 rounded border border-white/20 bg-white/5 text-xs text-white/80 hover:border-[#1dff00]/40 group">
-                Min: <span className="ml-1 text-white">${minSalary}</span>
-                <span className="ml-2 text-white/60 group-hover:text-white">×</span>
-              </button>
-            )}
-            {hasMax && (
-              <button onClick={() => setMaxSalary('')} className="px-2 py-1 rounded border border-white/20 bg-white/5 text-xs text-white/80 hover:border-[#1dff00]/40 group">
-                Max: <span className="ml-1 text-white">${maxSalary}</span>
-                <span className="ml-2 text-white/60 group-hover:text-white">×</span>
-              </button>
-            )}
-            {hasPosted && (
-              <button onClick={() => setPostedSince('')} className="px-2 py-1 rounded border border-white/20 bg-white/5 text-xs text-white/80 hover:border-[#1dff00]/40 group">
-                Posted: <span className="ml-1 text-white">Last {postedSince} days</span>
-                <span className="ml-2 text-white/60 group-hover:text-white">×</span>
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Job List and Details */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8" aria-label="Results and details">
-          {/* Job List */}
-          <div className="space-y-4" role="region" aria-label="Filters and results list">
-            {/* Facet Panel */}
-            <Card id="job-facet-panel" data-tour="job-facet-panel" ref={facetPanelRef} className={`bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border backdrop-blur-[25px] p-4 ${facetPulse ? 'border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.3)]' : 'border-[#ffffff15]'}` }>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-white font-semibold text-sm">Facet Filters</h3>
-                <div className="flex items-center gap-2">
-                  {facetLoading && <span className="text-xs text-[#ffffff80]">Loading…</span>}
-                  {activeFacetCount > 0 && (
-                    <Button variant="ghost" size="sm" onClick={clearFacetFilters} className="text-[#1dff00] hover:bg-[#1dff00]/10">
-                      Clear
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-[#ffffff80] mb-2">Requirements</div>
-                  <div className="flex flex-wrap gap-2">
-                    {(facets.requirements || []).slice(0, 12).map((f) => {
-                      const active = selectedReq.has(f.value);
-                      return (
-                        <button
-                          key={`req-${f.value}`}
-                          onClick={() => { toggleReq(f.value); try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'facet_toggle', facet: 'requirement', value: f.value, active: !active } })); } catch {} }}
-                          className={`px-2 py-1 rounded border text-xs transition ${active ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}
-                          title={`${f.value} (${f.count})`}
-                        >
-                          {f.value}
-                          <span className="ml-1 text-[10px] opacity-70">{f.count}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-[#ffffff80] mb-2">Benefits</div>
-                  <div className="flex flex-wrap gap-2">
-                    {(facets.benefits || []).slice(0, 12).map((f) => {
-                      const active = selectedBen.has(f.value);
-                      return (
-                        <button
-                          key={`ben-${f.value}`}
-                          onClick={() => { toggleBen(f.value); try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'facet_toggle', facet: 'benefit', value: f.value, active: !active } })); } catch {} }}
-                          className={`px-2 py-1 rounded border text-xs transition ${active ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/10 hover:bg-[#1dff00]/10'}`}
-                          title={`${f.value} (${f.count})`}
-                        >
-                          {f.value}
-                          <span className="ml-1 text-[10px] opacity-70">{f.count}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </Card>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg sm:text-xl font-semibold text-white">
-                {loading ? "Searching..." : `${filteredJobs.length} Jobs Found`}
-              </h2>
-              <div className="flex items-center space-x-2 text-sm text-[#ffffff80]">
-                <span className="hidden sm:inline">Showing</span>
-                <span className="text-white">{start + 1}–{end}</span>
-                <span>of</span>
-                <span className="text-white">{total}</span>
-                <div className="hidden md:flex items-center gap-2 ml-3">
-                  <span>Rows:</span>
-                  <SafeSelect fallbackValue="10" value={String(pageSize)} onValueChange={(v) => { setPageSize(parseInt(v)); setCurrentPage(1); }}>
-                    <SelectTrigger className="w-[90px] h-8">
-            <SelectValue placeholder="Rows" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="20">20</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                    </SelectContent>
-                  </SafeSelect>
-                </div>
-                <div className="hidden md:flex items-center gap-2 ml-3">
-                  <span>Sort:</span>
-                  <SafeSelect fallbackValue="relevance" value={sortBy} onValueChange={(v) => { setSortBy(v as any); setCurrentPage(1); }}>
-                    <SelectTrigger className="w-[160px] h-8">
-            <SelectValue placeholder="Sort" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="relevance">Relevance</SelectItem>
-                      <SelectItem value="posted_desc">Date (Newest)</SelectItem>
-                    </SelectContent>
-                  </SafeSelect>
-                </div>
-                <div className="ml-2 hidden sm:flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={currentPage <= 1}
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    className="text-[#1dff00] hover:bg-[#1dff00]/10 disabled:opacity-50"
-                  >
-                    Prev
-                  </Button>
-                  <span className="text-[#ffffff80]">Page {currentPage} / {totalPages}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    className="text-[#1dff00] hover:bg-[#1dff00]/10 disabled:opacity-50"
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            </div>
-            {loading && (
-              <div className="space-y-4">
-                {Array.from({ length: pageSize }).map((_, i) => (
-                  <div key={i} className="animate-pulse">
-                    <Card className={`bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-4 sm:p-6`}>
-                      <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#ffffff1a] rounded-xl" />
-                        <div className="flex-1 space-y-2">
-                          <div className="h-4 bg-[#ffffff1a] rounded w-2/3" />
-                          <div className="h-3 bg-[#ffffff12] rounded w-1/2" />
-                          <div className="flex gap-2 mt-2">
-                            <div className="h-3 bg-[#ffffff12] rounded w-24" />
-                            <div className="h-3 bg-[#ffffff12] rounded w-20" />
-                            <div className="h-3 bg-[#ffffff12] rounded w-16" />
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  </div>
-                ))}
-              </div>
-            )}
-            {error && (
-              <Card className="border border-red-500/30 bg-red-500/10 text-red-200 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-semibold">We hit a snag</div>
-                    <div className="text-sm opacity-90">{error}</div>
-                  </div>
-                  <Button variant="outline" className="border-red-500/40 text-red-200 hover:bg-red-500/10" onClick={() => performSearch()}>Retry</Button>
-                </div>
-              </Card>
-            )}
-
-            {!loading && !error && filteredJobs.length === 0 && (
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-8 text-center">
-                <Briefcase className="w-14 h-14 text-[#ffffff40] mx-auto mb-4" />
-                <h3 className="text-xl font-medium text-white mb-2">No results</h3>
-                <p className="text-[#ffffff80] mb-4">Try broadening your search or clearing filters.</p>
-                <div className="flex items-center justify-center gap-2 flex-wrap">
-                  <Button variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={() => { setSearchQuery(''); setSelectedLocation(''); }}>
-                    Reset query
-                  </Button>
-                  <Button className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={clearAllFilters}>Clear all filters</Button>
-                  {/* Saved jobs button removed */}
-                </div>
-              </Card>
-            )}
-
-            {!loading && !error && paginatedJobs.map((job, index) => (
-              <motion.div
-                key={job.id}
-                onClick={() => setSelectedJob(job.id)}
-                className={`cursor-pointer transition-all duration-300 ${
-                  selectedJob === job.id
-                    ? "transform scale-[1.02]"
-                    : "hover:transform hover:scale-[1.01]"
-                }`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-                whileHover={{ x: 4 }}
-              >
-                <Card role="listitem" aria-label={`${job.title} at ${job.company}`} className={`bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border backdrop-blur-[25px] p-4 sm:p-6 transition-all duration-300 hover:shadow-lg ${
-                  selectedJob === job.id
-                    ? "border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.3)]"
-                    : "border-[#ffffff15] hover:border-[#1dff00]/50"
-                }`}>
-                  <div className="space-y-4">
-                    {/* Header */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-3 flex-1 min-w-0">
-                        {job.logoUrl && !logoError[job.id] ? (
-                          <img
-                            src={job.logoUrl}
-                            alt={job.company}
-                            className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain bg-white flex-shrink-0"
-                            onError={() => {
-                              setLogoError((m) => ({ ...m, [job.id]: true }));
-                              // Cache failed logo URL to avoid future 404s
-                              if (job.logoUrl) logoFailureCache.add(job.logoUrl);
-                            }}
-                          />
-                        ) : (
-                          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg flex-shrink-0">
-                            {job.logo}
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-white font-semibold text-sm sm:text-base lg:text-lg truncate">{job.title}</h3>
-                          <p className="text-[#ffffff80] text-xs sm:text-sm">{job.company}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2 flex-shrink-0">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={(e) => { e.stopPropagation(); shareJob(job); }}
-                          className="text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
+              <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative flex w-full sm:min-w-[280px] sm:w-auto flex-col gap-3 rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#1dff00]/10 to-[#1dff00]/5 px-4 py-3 shadow-[0_0_30px_rgba(29,255,0,0.15)] backdrop-blur-sm sm:flex-row sm:items-center sm:gap-4">
+                    {/* Subtle gradient overlay */}
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/5 via-transparent to-transparent pointer-events-none"></div>
                     
-                    {/* Details */}
-                    <div className="space-y-3">
-                      <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-[#ffffff80]">
-                        <div className="flex items-center space-x-1">
-                          <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span>{job.location}</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span>{job.postedDate}</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <Briefcase className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span>{job.type}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-1">
-                          <DollarSign className="w-4 h-4 text-[#1dff00]" />
-                          <span className="text-sm sm:text-base text-white font-semibold">{job.salary}</span>
-                        </div>
-                        {"source" in job && (job as any).source && (
-                          <span className="ml-2 px-2 py-0.5 rounded text-[10px] uppercase tracking-wide border border-[#ffffff33] text-[#ffffffb3] bg-[#ffffff14]">{(job as any).source}</span>
+                    <div className="relative z-10 space-y-1">
+                      <div className="text-[10px] uppercase tracking-[0.35em] text-[#1dff00]/80 font-semibold">Automation readiness</div>
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        {profileReady && resumeLibraryReady ? (
+                          <>
+                            <ShieldCheck className="h-4 w-4 text-[#1dff00]" />
+                            <span className="text-white">Ready to launch</span>
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle className="h-4 w-4 text-[#ffb347]" />
+                            <span className="text-white/90">Action required</span>
+                          </>
                         )}
                       </div>
-                      
-                        <div className="flex items-center space-x-2">
-                        <span className="px-2 py-1 bg-[#ffffff1a] text-white text-xs rounded border border-[#ffffff33]">{job.type}</span>
-                        {/* Applied badge removed (applied jobs hidden) */}
-                        {/* Match indicator */}
-                        {activeFacetCount > 0 && (() => { const ms = getMatchScore(job); return (
-                          <span className="inline-flex items-center gap-2 px-2 py-1 rounded border border-[#ffffff2a] text-xs text-[#ffffffb3] bg-[#ffffff10]" title={`Matches ${ms.matched}/${ms.total} selected filters`}>
-                            <span className="inline-block w-20 h-1.5 bg-white/10 rounded overflow-hidden">
-                              <span className="block h-full bg-[#1dff00]" style={{ width: `${ms.pct}%` }} />
-                            </span>
-                            <span>{ms.pct}% match</span>
-                          </span>
-                        ); })()}
-                          {job.sourceUrl && (
-                            <a
-                              href={job.sourceUrl}
-                              target="_blank"
-                              rel="noopener noreferrer nofollow"
-                              className="px-2 py-1 text-xs rounded border border-[#ffffff33] text-[#ffffffb3] bg-[#ffffff14] hover:bg-[#1dff00]/10 hover:border-[#1dff00]/40 transition"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              View posting
-                            </a>
+                    </div>
+                    <div className="relative z-10 flex flex-wrap items-center gap-2">
+                      {profileLoading ? (
+                        <span className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-white/70">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Syncing…
+                        </span>
+                      ) : (
+                        <Link
+                          to="/dashboard/profile"
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all hover:scale-105",
+                            profileReady
+                              ? "border-[#1dff00]/60 bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_10px_rgba(29,255,0,0.15)] hover:shadow-[0_0_15px_rgba(29,255,0,0.25)]"
+                              : "border-[#ffb347]/50 bg-gradient-to-br from-[#ffb347]/15 to-[#ffb347]/5 text-[#ffb347] shadow-[0_0_10px_rgba(255,179,71,0.15)] hover:shadow-[0_0_15px_rgba(255,179,71,0.25)]",
                           )}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Job Details */}
-          <div className="lg:sticky lg:top-6 lg:h-fit">
-            {selectedJob ? (
-              <>
-                {(() => {
-                  const job = jobs.find(j => j.id === selectedJob);
-                  if (!job) return null;
-                  
-                  return (
-                    <motion.div
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.5 }}
-                    >
-                      {/* Job Header */}
-                      <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 mb-6 hover:shadow-lg transition-all duration-300">
-                        <div className="flex items-start justify-between mb-6">
-                          <div className="flex items-center space-x-4 flex-1 min-w-0">
-                            {job.logoUrl && !logoError[job.id] ? (
-                              <img
-                                src={job.logoUrl}
-                                alt={job.company}
-                                className="w-16 h-16 rounded-xl object-contain bg-white flex-shrink-0"
-                                onError={() => {
-                                  setLogoError((m) => ({ ...m, [job.id]: true }));
-                                  // Cache failed logo URL to avoid future 404s
-                                  if (job.logoUrl) logoFailureCache.add(job.logoUrl);
-                                }}
-                              />
-                            ) : (
-                              <div className="w-16 h-16 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-xl flex-shrink-0">
-                                {job.logo}
-                              </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">{job.title}</h1>
-                              <p className="text-lg text-[#ffffff80] mb-2">{job.company}</p>
-                              <div className="flex flex-wrap items-center gap-3 text-sm text-[#ffffff60]">
-                                <div className="flex items-center space-x-1">
-                                  <MapPin className="w-4 h-4" />
-                                  <span>{job.location}</span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <Clock className="w-4 h-4" />
-                                  <span>Posted {job.postedDate}</span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <Briefcase className="w-4 h-4" />
-                                  <span>{job.type}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center space-x-2 flex-shrink-0">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => shareJob(job)}
-                              className="text-[#ffffff80] hover:text-white hover:scale-110 transition-all duration-300"
-                              aria-label="Copy job link"
-                            >
-                              <Share className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                          <div className="flex items-center space-x-4">
-                            <div className="flex items-center space-x-1">
-                              <DollarSign className="w-5 h-5 text-[#1dff00]" />
-                              <span className="text-xl font-bold text-white">{job.salary}</span>
-                            </div>
-                            {activeFacetCount > 0 && (() => { const ms = getMatchScore(job); return (
-                              <span className="hidden sm:inline-flex items-center gap-2 px-2 py-1 rounded border border-[#ffffff2a] text-xs text-[#ffffffb3] bg-[#ffffff10]" title={`Matches ${ms.matched}/${ms.total} selected filters`}>
-                                <span className="inline-block w-24 h-1.5 bg-white/10 rounded overflow-hidden">
-                                  <span className="block h-full bg-[#1dff00]" style={{ width: `${ms.pct}%` }} />
-                                </span>
-                                <span>{ms.pct}% match</span>
-                              </span>
-                            ); })()}
-                          </div>
-                          
-                          {/* Per-job apply removed - auto apply only */}
-                        </div>
-                      </Card>
-
-                      {/* Job Content */}
-                      <div className="space-y-6">
-                        {/* Description */}
-                        <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg transition-all duration-300">
-                          <h3 className="text-lg font-bold text-white mb-3 flex items-center">
-                            <Building2 className="w-5 h-5 mr-2 text-white" />
-                            Job Description
-                          </h3>
-                          <div className="prose prose-invert max-w-none text-[#ffffffcc] leading-relaxed">
-                            <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.description) }} />
-                          </div>
-                        </Card>
-                        
-                        {/* Requirements */}
-                        <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg transition-all duration-300">
-                          <h3 className="text-lg font-bold text-white mb-3 flex items-center">
-                            <Star className="w-5 h-5 mr-2 text-white" />
-                            Requirements
-                          </h3>
-                          <ul className="space-y-2">
-                            {job.requirements.map((req, index) => (
-                              <motion.li 
-                                key={index} 
-                                className="flex items-center space-x-2 text-[#ffffff80]"
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: index * 0.1 }}
-                              >
-                                <div className="w-1.5 h-1.5 bg-[#1dff00] rounded-full flex-shrink-0"></div>
-                                <span>{req}</span>
-                              </motion.li>
-                            ))}
-                          </ul>
-                        </Card>
-                        
-                        {/* Benefits */}
-                        <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg transition-all duration-300">
-                          <h3 className="text-lg font-bold text-white mb-3 flex items-center">
-                            <Users className="w-5 h-5 mr-2 text-white" />
-                            Benefits
-                          </h3>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {job.benefits.map((benefit, index) => (
-                              <motion.div 
-                                key={index} 
-                                className="flex items-center space-x-2 text-[#ffffff80]"
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: index * 0.1 }}
-                              >
-                                <div className="w-1.5 h-1.5 bg-[#1dff00] rounded-full flex-shrink-0"></div>
-                                <span>{benefit}</span>
-                              </motion.div>
-                            ))}
-                          </div>
-                        </Card>
-                        {/* External Link */}
-                        {job.sourceUrl && (
-                          <div className="flex justify-end">
-                            <a
-                              href={job.sourceUrl}
-                              target="_blank"
-                              rel="noopener noreferrer nofollow"
-                              className="inline-flex items-center px-4 py-2 rounded-md border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff0033] hover:bg-[#1dff004d] transition"
-                            >
-                              Open original job posting
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })()}
-              </>
-            ) : (
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-8 text-center">
-                <Briefcase className="w-16 h-16 text-[#ffffff40] mx-auto mb-4" />
-                <h3 className="text-xl font-medium text-white mb-2">Select a job</h3>
-                <p className="text-[#ffffff60]">Choose a job from the list to view details</p>
-              </Card>
-            )}
-          </div>
-        </div>
-
-  {/* Mobile Pagination & Controls */}
-        <div className="mt-6 flex sm:hidden items-center justify-center gap-3">
-          <Button
-            variant="outline"
-            className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
-            disabled={currentPage <= 1}
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-          >
-            Prev
-          </Button>
-          <span className="text-[#ffffff80]">{currentPage} / {totalPages}</span>
-          <Button
-            className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-            disabled={currentPage >= totalPages}
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-          >
-            Next
-          </Button>
-        </div>
-        {/* Resume Picker Modal Mount */}
-        <ResumePickerModal
-          open={resumePickerOpen}
-          resumes={resumeOptions as any}
-          selectedId={selectedResumeId}
-          onSelect={(id) => setSelectedResumeId(id)}
-          onCancel={cancelResumePicker}
-          onConfirm={confirmResumePicker}
-          attachCoverLetter={attachCoverLetter}
-          onToggleCoverLetter={(v) => setAttachCoverLetter(v)}
-          selectedCoverTemplate={selectedCoverTemplate}
-          onSelectCoverTemplate={(tmpl) => setSelectedCoverTemplate(tmpl)}
-          coverLibrary={coverLibrary as any}
-          selectedCoverId={selectedCoverId}
-          onSelectCoverId={(id) => setSelectedCoverId(id)}
-        />
-
-        {/* Auto Apply Overlay */}
-        {autoApplyVisible && (
-          <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 pointer-events-none">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 40 }}
-              className="relative w-full max-w-3xl pointer-events-auto rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#0d0d0d] via-[#060606] to-[#030303] shadow-[0_0_0_1px_rgba(29,255,0,0.15)] overflow-hidden"
-            >
-              <div className="px-6 py-4 flex items-center justify-between border-b border-[#1dff00]/20">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-xl bg-[#1dff00]/15 flex items-center justify-center shadow-inner shadow-[#1dff00]/40">
-                    <Play className="w-4 h-4 text-[#1dff00]" />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-semibold leading-tight">Auto Applying {autoApplyQueue.length} Jobs</h3>
-                    <p className="text-xs text-white/50">Sit tight – we’ll run through each posting with your chosen resume.</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {autoApplying && (
-                    <button onClick={() => setAutoApplyCancelRequested(true)} className="text-xs px-3 py-1.5 rounded-md border border-white/15 text-white/70 hover:text-white hover:border-[#ff5252]/50 hover:bg-[#ff5252]/10 transition">Cancel Remaining</button>
-                  )}
-                  <button onClick={() => { if (!autoApplying) { setAutoApplyVisible(false); } }} className="text-white/60 hover:text-white">
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-              {/* Progress Bar */}
-              {(() => {
-                const total = autoApplyQueue.length || 1;
-                const done = Object.values(autoApplyStatuses).filter(s => s.status === 'success' || s.status === 'error').length;
-                const pct = Math.min(100, Math.round((done / total) * 100));
-                return (
-                  <div className="px-6 pt-4">
-                    <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-[#1dff00] via-[#00ffa3] to-[#1dff00] animate-[progress_6s_linear_infinite]" style={{ width: `${pct}%` }} />
-                    </div>
-                    <div className="mt-2 flex items-center justify-between text-[10px] uppercase tracking-wide text-white/50">
-                      <span>{pct}% Complete</span>
-                      <span>{done} / {total} processed</span>
-                    </div>
-                  </div>
-                );
-              })()}
-              {/* Job Status List */}
-              <div className="max-h-[50vh] overflow-auto p-4 sm:p-6 grid grid-cols-1 gap-3">
-                {autoApplyQueue.map((job, idx) => {
-                  const st = autoApplyStatuses[job.id]?.status || 'pending';
-                  return (
-                    <motion.div
-                      key={job.id}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.06 }}
-                      className={`relative rounded-xl border p-4 flex items-start gap-4 bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-sm overflow-hidden ${st === 'success' ? 'border-emerald-500/40' : st === 'error' ? 'border-red-500/40' : st === 'applying' ? 'border-[#1dff00]/60' : 'border-white/10'}`}
-                    >
-                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center text-xs font-semibold ${st === 'success' ? 'bg-emerald-500/15 text-emerald-300' : st === 'error' ? 'bg-red-500/15 text-red-300' : 'bg-[#1dff00]/10 text-[#1dff00]' }`}>
-                        {idx + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-white font-medium truncate">{job.title}</span>
-                          <span className="text-white/40 text-xs truncate">@ {job.company}</span>
-                        </div>
-                        <div className="flex items-center gap-3 text-[11px] text-white/50">
-                          <span>{job.location}</span>
-                          <span className="hidden sm:inline">•</span>
-                          <span className="truncate">{job.type}</span>
-                        </div>
-                        <div className="mt-2 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
-                          <div className={`h-full transition-all duration-500 ${st === 'success' ? 'bg-emerald-400' : st === 'error' ? 'bg-red-400' : st === 'applying' ? 'bg-[#1dff00] animate-pulse' : 'bg-white/20 w-2/12'}`} style={{ width: st === 'success' ? '100%' : st === 'error' ? '100%' : st === 'applying' ? '65%' : '15%' }} />
-                        </div>
-                      </div>
-                      <div className="w-8 flex items-center justify-center">
-                        {st === 'pending' && <div className="h-3 w-3 rounded-full bg-white/30" />}
-                        {st === 'applying' && <Loader2 className="w-4 h-4 animate-spin text-[#1dff00]" />}
-                        {st === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
-                        {st === 'error' && <X className="w-5 h-5 text-red-400" />}
-                      </div>
-                      {st === 'applying' && (
-                        <motion.div
-                          className="absolute inset-0 pointer-events-none"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 0.6 }}
-                          exit={{ opacity: 0 }}
-                          style={{ background: 'radial-gradient(circle at 20% 20%, rgba(29,255,0,0.12), transparent 60%)' }}
-                        />
+                          title={profileReady ? "Profile details detected" : "Complete your profile"}
+                        >
+                          {profileReady ? (
+                            <UserCheck className="h-3.5 w-3.5 text-[#1dff00]" />
+                          ) : (
+                            <UserX className="h-3.5 w-3.5 text-[#ffb347]" />
+                          )}
+                          <span className="font-medium">
+                            {profileReady ? 'Profile verified' : 'Complete profile'}
+                          </span>
+                        </Link>
                       )}
-                    </motion.div>
-                  );
-                })}
+                      {resumesLoading ? (
+                        <span className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-white/70">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <span className="hidden sm:inline">Loading resumes…</span>
+                          <span className="sm:hidden">Loading…</span>
+                        </span>
+                      ) : (
+                        <Link
+                          to="/dashboard/resumes"
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all hover:scale-105",
+                            resumeLibraryReady
+                              ? "border-[#1dff00]/60 bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_10px_rgba(29,255,0,0.15)] hover:shadow-[0_0_15px_rgba(29,255,0,0.25)]"
+                              : "border-[#ffb347]/50 bg-gradient-to-br from-[#ffb347]/15 to-[#ffb347]/5 text-[#ffb347] shadow-[0_0_10px_rgba(255,179,71,0.15)] hover:shadow-[0_0_15px_rgba(255,179,71,0.25)]",
+                          )}
+                          title={resumeLibraryReady ? (selectedResume?.name ? `Selected resume: ${selectedResume.name}` : 'Resume library ready') : 'Upload a resume to unlock automation'}
+                        >
+                          {resumeLibraryReady ? (
+                            <FileCheck2 className="h-3.5 w-3.5 text-[#1dff00]" />
+                          ) : (
+                            <FileWarning className="h-3.5 w-3.5 text-[#ffb347]" />
+                          )}
+                          <span className="max-w-[140px] truncate font-medium">
+                            {resumeLibraryReady
+                              ? selectedResume?.name
+                                ? `Resume: ${selectedResume.name}`
+                                : 'Resume library ready'
+                              : 'Upload resume'}
+                          </span>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                  {/* Target selector removed: fixed to 10 to minimize API usage and keep runs bounded */}
+                  <div className="w-full sm:w-auto flex flex-wrap items-center gap-2 sm:gap-3">
+                    {isAdmin && (
+                      <div className="flex items-center gap-2 text-xs text-[#ffffff70] select-none">
+                        <button
+                          type="button"
+                          onClick={() => setDebugMode(v => !v)}
+                          className="px-1 py-0.5 rounded hover:text-white focus:outline-none focus:ring-1 focus:ring-[#1dff00]/50"
+                          aria-pressed={debugMode}
+                          title="Toggle Diagnostics"
+                        >
+                          Diagnostics
+                        </button>
+                        <Switch checked={debugMode} onCheckedChange={setDebugMode} />
+                      </div>
+                    )}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setJobToAutoApply(null);
+                          openAutoApplyFlow();
+                        }}
+                        className={`relative overflow-hidden border border-[#1dff00]/40 text-white px-3 py-2 sm:px-4 sm:py-2 md:px-5 rounded-xl transition-all duration-300 text-xs sm:text-sm ${applyingAll ? 'bg-[#1dff00]/20 text-[#1dff00]' : 'bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 hover:from-[#1dff00]/20 hover:to-[#1dff00]/5'}`}
+                        title="Auto apply all visible jobs"
+                        disabled={applyingAll || queueStatus !== 'ready' || jobs.length === 0}
+                      >
+                        <span className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'radial-gradient(180px at 0% 0%, rgba(29,255,0,0.45), transparent 65%)' }} />
+                        <span className="relative inline-flex items-center gap-1.5 sm:gap-2 font-medium tracking-wide">
+                          {applyingAll ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <Briefcase className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                          <span className="hidden sm:inline">{applyingAll ? `Applying ${applyProgress.done}/${applyProgress.total}` : 'Auto Apply Suite'}</span>
+                          <span className="sm:hidden">{applyingAll ? `${applyProgress.done}/${applyProgress.total}` : 'Auto Apply'}</span>
+                        </span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => populateQueue(searchQuery, selectedLocation)}
+                        className={`group relative overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${
+                          queueStatus === 'populating' || queueStatus === 'loading'
+                            ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff00]/15'
+                            : 'border-white/20 text-white bg-white/5 hover:text-[#1dff00] hover:border-[#1dff00]/60 hover:bg-[#1dff00]/10 shadow-[0_12px_32px_rgba(8,122,52,0.35)]'
+                        }`}
+                        title="Find a fresh batch of jobs"
+                        disabled={queueStatus === 'populating' || queueStatus === 'loading'}
+                      >
+                        <span
+                          className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                          style={{ background: 'linear-gradient(120deg, transparent 0%, rgba(29,255,0,0.35) 45%, transparent 90%)' }}
+                        />
+                        <span className="relative inline-flex items-center gap-1.5 sm:gap-2">
+                          {queueStatus === 'populating'
+                            ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                            : <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#1dff00]" />}
+                          <span className="hidden sm:inline">{queueStatus === 'populating' ? 'Building results…' : 'Find Jobs Suite'}</span>
+                          <span className="sm:hidden">{queueStatus === 'populating' ? 'Building…' : 'Find Jobs'}</span>
+                        </span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={clearAllJobs}
+                        className={`group relative overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md ${
+                          clearingJobs
+                            ? 'border-red-500/60 text-red-400 bg-red-500/15 cursor-not-allowed opacity-60'
+                            : jobs.length === 0
+                            ? 'border-red-500/20 text-red-400/40 bg-red-500/5 cursor-not-allowed opacity-40'
+                            : 'border-red-500/40 text-red-400 bg-red-500/10 hover:text-red-300 hover:border-red-500/60 hover:bg-red-500/20'
+                        }`}
+                        title={jobs.length === 0 ? "No jobs to clear" : "Clear all jobs from your list"}
+                        disabled={clearingJobs || jobs.length === 0}
+                      >
+                        <span
+                          className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                          style={{ background: 'linear-gradient(120deg, transparent 0%, rgba(239,68,68,0.25) 45%, transparent 90%)' }}
+                        />
+                        <span className="relative inline-flex items-center gap-1.5 sm:gap-2">
+                          {clearingJobs
+                            ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                            : <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                          <span className="hidden sm:inline">{clearingJobs ? 'Clearing…' : 'Clear All Jobs'}</span>
+                          <span className="sm:hidden">{clearingJobs ? 'Clearing…' : 'Clear All'}</span>
+                        </span>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+            </div>
+          </div>
+
+          {queueStatus === 'populating' && (
+            <LoadingBanner
+              subtitle={`Streaming results… ${currentSource ? `Source: ${currentSource}` : ''}`}
+              steps={steps}
+              activeStep={stepIndex}
+              onCancel={cancelPopulation}
+              foundCount={insertedThisRun}
+            />
+          )}
+
+          <Card className="relative overflow-hidden bg-gradient-to-br from-[#0a0a0a]/95 to-[#0f0f0f]/95 border border-[#1dff00]/20 p-5 sm:p-6 mb-6 sm:mb-8 rounded-2xl shadow-[0_0_30px_rgba(29,255,0,0.1)] backdrop-blur-xl" id="jobs-search-filters" data-tour="jobs-search-filters">
+            {/* Subtle gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#1dff00]/5 via-transparent to-transparent pointer-events-none"></div>
+            
+            <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="lg:col-span-2 relative group">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#1dff00]/60 transition-colors group-focus-within:text-[#1dff00]" />
+                <Input
+                  id="jobs-search"
+                  data-tour="jobs-search"
+                  placeholder="Search jobs, companies, keywords..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); populateQueue(searchQuery, selectedLocation); } }}
+                  className="pl-12 pr-28 h-12 bg-gradient-to-br from-white/5 to-white/[0.02] border-[#1dff00]/20 text-white placeholder:text-white/40 focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all duration-200 rounded-xl"
+                />
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <span className="text-[10px] font-medium text-[#1dff00]/80 bg-gradient-to-br from-[#1dff00]/15 to-[#1dff00]/5 px-2.5 py-1 rounded-lg border border-[#1dff00]/30 whitespace-nowrap">
+                    {subscriptionTier === 'Ultimate' ? '100' : subscriptionTier === 'Pro' ? '50' : subscriptionTier === 'Basics' ? '20' : '10'} results
+                  </span>
+                </div>
               </div>
-              {!autoApplying && (
-                <div className="px-6 pb-5 flex items-center justify-end gap-3">
-                  <button onClick={() => { setAutoApplyVisible(false); }} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium hover:bg-[#1dff00]/90">Close</button>
+              <div className="relative group">
+                <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#1dff00]/60 transition-colors group-focus-within:text-[#1dff00]" />
+                <Input
+                  id="jobs-location"
+                  data-tour="jobs-location"
+                  placeholder="Location or 'Remote'..."
+                  value={selectedLocation}
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); populateQueue(searchQuery, selectedLocation); } }}
+                  className="pl-12 h-12 bg-gradient-to-br from-white/5 to-white/[0.02] border-[#1dff00]/20 text-white placeholder:text-white/40 focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all duration-200 rounded-xl"
+                />
+              </div>
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-3 sticky top-0 z-10 backdrop-blur-xl bg-gradient-to-br from-[#0a0a0a]/95 to-black/95 rounded-xl px-4 py-3 border border-[#1dff00]/10 lg:static lg:px-0 lg:py-0 lg:bg-transparent lg:border-0 lg:backdrop-blur-none">
+                <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                  <svg className="w-5 h-5 text-[#1dff00]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  {queueStatus === 'loading' && "Loading results..."}
+                  {queueStatus === 'populating' && "Building your results..."}
+                  {(queueStatus === 'ready' || queueStatus === 'empty') && (
+                    <>
+                      <span>{total} Jobs Found</span>
+                      {total > 0 && (
+                        <span className="ml-2 text-xs font-normal px-2 py-1 rounded-lg bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/30">
+                          AI Matched
+                        </span>
+                      )}
+                    </>
+                  )}
+                </h2>
+                {(queueStatus === 'ready' || queueStatus === 'empty') && (
+                  <div className="hidden sm:flex items-center gap-2">
+                    <span className="text-xs text-white/50 font-medium">Sort</span>
+                    <SimpleDropdown 
+                      value={sortBy} 
+                      onValueChange={(v) => setSortBy(v as any)}
+                      options={[
+                        { value: 'recent', label: 'Most recent' },
+                        { value: 'company', label: 'Company' },
+                        { value: 'deadline', label: 'Deadline' }
+                      ]}
+                      placeholder="Sort by"
+                      triggerClassName="h-8 w-[160px] text-sm bg-white/5 border-white/20 hover:bg-white/10"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {queueStatus === 'ready' && total > 0 && (
+                <div className="hidden lg:grid grid-cols-[auto,1fr,auto] items-center gap-3 px-3 py-2 text-xs uppercase tracking-wider text-[#1dff00]/60 font-semibold bg-gradient-to-br from-white/5 to-white/[0.02] border border-[#1dff00]/10 rounded-xl">
+                  <span className="pl-2">Role</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span>Company</span>
+                    <span>Details</span>
+                    <span>Posted</span>
+                  </div>
                 </div>
               )}
-            </motion.div>
-          </div>
-        )}
 
-        {/* Mobile Filters Drawer */}
-        {mobileFiltersOpen && (
-          <div className="fixed inset-0 z-50">
-            <div className="absolute inset-0 bg-black/60" onClick={() => setMobileFiltersOpen(false)} />
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', stiffness: 260, damping: 30 }}
-              className="absolute right-0 top-0 h-full w-full sm:w-[480px] bg-gradient-to-br from-[#0a0a0a] via-[#0b0b0b] to-[#050505] border-l border-white/10 shadow-2xl flex flex-col"
-              role="dialog"
-              aria-label="Mobile filters"
-            >
-              <div className="flex items-center justify-between p-4 border-b border-white/10">
-                <div className="text-white font-semibold">Filters</div>
-                <button className="text-white/70 hover:text-white" onClick={() => setMobileFiltersOpen(false)} aria-label="Close filters">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="p-4 space-y-4 overflow-auto">
-                {/* Work Type */}
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-[#ffffff80] mb-2">Work type</div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {["All", "Remote", "Hybrid", "On-site"].map((type) => (
-                      <button
-                        key={type}
-                        onClick={() => setSelectedType(type)}
-                        className={`px-2 py-1 rounded border text-xs transition ${
-                          selectedType === type ? 'border-[#1dff00] text-black bg-[#1dff00]' : 'border-white/20 text-white/80 hover:border-[#1dff00]/40'
-                        }`}
+              {queueStatus === 'loading' && (
+                <div className="space-y-4">
+                  <div className="grid gap-4">
+                    {Array.from({ length: pageSize }).map((_, i) => (
+                      <Card
+                        key={i}
+                        className="relative overflow-hidden border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-5 sm:p-6"
                       >
-                        {type}
-                      </button>
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex flex-1 items-start gap-4">
+                            <div className="h-16 w-16 shrink-0 rounded-xl border border-white/10 bg-white/5" />
+                            <div className="flex-1 space-y-3">
+                              <div className="h-4 w-3/5 rounded bg-white/10" />
+                              <div className="h-3 w-1/2 rounded bg-white/8" />
+                              <div className="flex flex-wrap items-center gap-2">
+                                {Array.from({ length: 3 }).map((__, chipIdx) => (
+                                  <span key={chipIdx} className="inline-flex h-5 w-16 rounded-full border border-white/10 bg-white/5" />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grid w-full max-w-[240px] grid-cols-2 gap-2 text-[10px] text-white/60 sm:w-auto">
+                            {Array.from({ length: 4 }).map((__, metricIdx) => (
+                              <div key={metricIdx} className="rounded-lg border border-white/10 bg-white/5 p-3">
+                                <div className="h-3 rounded bg-white/10" />
+                                <div className="mt-2 h-4 rounded bg-white/8" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </Card>
                     ))}
                   </div>
                 </div>
-                {/* Quick presets */}
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-[#ffffff80] mb-2">Quick presets</div>
-                  <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => togglePreset('remote')} className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('remote') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>Remote</button>
-                    <button type="button" onClick={() => togglePreset('gt100k')} className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('gt100k') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>{`>$100k`}</button>
-                    <button type="button" onClick={() => togglePreset('last7')} className={`px-2 py-1 rounded border text-xs transition ${selectedPresets.has('last7') ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>Last 7 days</button>
-                    {/* Saved only preset removed */}
-                  </div>
-                </div>
-                {/* Salary & posted */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Input placeholder="Min salary (e.g. 120000)" inputMode="numeric" value={minSalary} onChange={(e) => setMinSalary(e.target.value.replace(/[^0-9]/g, ''))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]" />
-                  <Input placeholder="Max salary (e.g. 200000)" inputMode="numeric" value={maxSalary} onChange={(e) => setMaxSalary(e.target.value.replace(/[^0-9]/g, ''))} className="bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00]" />
-                  <div className="sm:col-span-2">
-                    <SafeSelect fallbackValue="any" value={postedSince} onValueChange={(v) => setPostedSince(v === 'any' ? '' : v)}>
-                      <SelectTrigger className="h-10"><SelectValue placeholder="Posted since" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="any">Any time</SelectItem>
-                        <SelectItem value="3">Last 3 days</SelectItem>
-                        <SelectItem value="7">Last 7 days</SelectItem>
-                        <SelectItem value="14">Last 14 days</SelectItem>
-                        <SelectItem value="30">Last 30 days</SelectItem>
-                      </SelectContent>
-                    </SafeSelect>
-                  </div>
-                </div>
-                {/* Facets */}
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-[#ffffff80] mb-2">Requirements</div>
-                  <div className="flex flex-wrap gap-2">
-                    {(facets.requirements || []).map((f) => {
-                      const active = selectedReq.has(f.value);
-                      return (
-                        <button key={`mreq-${f.value}`} onClick={() => toggleReq(f.value)} className={`px-2 py-1 rounded border text-xs transition ${active ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>{f.value}<span className="ml-1 text-[10px] opacity-70">{f.count}</span></button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-[#ffffff80] mb-2">Benefits</div>
-                  <div className="flex flex-wrap gap-2">
-                    {(facets.benefits || []).map((f) => {
-                      const active = selectedBen.has(f.value);
-                      return (
-                        <button key={`mben-${f.value}`} onClick={() => toggleBen(f.value)} className={`px-2 py-1 rounded border text-xs transition ${active ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff0033]' : 'border-[#ffffff2a] text-[#ffffffb3] bg-[#ffffff10] hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10'}`}>{f.value}<span className="ml-1 text-[10px] opacity-70">{f.count}</span></button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 border-t border-white/10 flex items-center justify-between">
-                <Button variant="ghost" onClick={clearAllFilters} className="text-[#1dff00] hover:bg-[#1dff00]/10">Clear all</Button>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" onClick={() => { resetSalaryTime(); }} className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]">Reset salary/time</Button>
-                  <Button onClick={() => { fetchFacets(); applyFacetFilters(Array.from(selectedReq), Array.from(selectedBen)); setMobileFiltersOpen(false); }} className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90">Apply</Button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {/* Saved Jobs Drawer removed */}
-      </div>
-    </div>
-  );
-};
-
-// Resume Picker Modal
-function ResumePickerModal({
-  open,
-  resumes,
-  selectedId,
-  onSelect,
-  onCancel,
-  onConfirm,
-  attachCoverLetter = false,
-  onToggleCoverLetter,
-  selectedCoverTemplate = 'Standard',
-  onSelectCoverTemplate,
-  coverLibrary = [],
-  selectedCoverId = null,
-  onSelectCoverId,
-}: {
-  open: boolean;
-  resumes: Array<{ id: string; name: string; template: string | null; updated_at: string; is_favorite?: boolean }>;
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  onCancel: () => void;
-  onConfirm: () => void;
-  attachCoverLetter?: boolean;
-  onToggleCoverLetter?: (v: boolean) => void;
-  selectedCoverTemplate?: string | null;
-  onSelectCoverTemplate?: (tmpl: string) => void;
-  coverLibrary?: Array<{ id: string; name: string; updatedAt: string; data: any }>;
-  selectedCoverId?: string | null;
-  onSelectCoverId?: (id: string | null) => void;
-}) {
-  if (!open) return null;
-  let hasDraft = false;
-  try { hasDraft = !!localStorage.getItem('jr.coverLetter.draft.v2'); } catch {}
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative w-full max-w-3xl rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] via-[#0b0b0b] to-[#050505] shadow-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-[#1dff00]/20 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-[#1dff00]">
-            <UploadCloud className="w-4 h-4" />
-            <h3 className="font-semibold">Choose a resume to attach</h3>
-          </div>
-          <button onClick={onCancel} className="text-white/60 hover:text-white">✕</button>
-        </div>
-        <div className="p-5 max-h-[60vh] overflow-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {resumes.length === 0 && (
-            <div className="sm:col-span-2 relative overflow-hidden rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-[#0f0f0f] via-[#0a0a0a] to-black p-8">
-              <div className="pointer-events-none absolute inset-0 opacity-40 [mask-image:radial-gradient(circle_at_30%_20%,white,transparent_70%)]">
-                <div className="absolute -top-32 -left-32 h-64 w-64 rounded-full bg-[#1dff00]/20 blur-3xl" />
-                <div className="absolute -bottom-32 -right-32 h-64 w-64 rounded-full bg-[#1dff00]/10 blur-3xl" />
-              </div>
-              <div className="relative flex flex-col items-center text-center gap-6">
-                <div className="inline-flex items-center gap-2 rounded-full border border-[#1dff00]/30 bg-[#1dff00]/10 px-4 py-1 text-[11px] font-medium tracking-wide text-[#1dff00] shadow-[0_0_0_1px_rgba(29,255,0,0.25)]">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Boost Apply Success</span>
-                </div>
-                <div className="max-w-xl mx-auto flex flex-col gap-3">
-                  <h4 className="text-2xl font-semibold bg-gradient-to-r from-white via-white to-[#1dff00] bg-clip-text text-transparent leading-tight">
-                    Create a standout resume to power Auto Apply
-                  </h4>
-                  <p className="text-white/70 text-sm leading-relaxed">
-                    You haven’t added any resumes yet. Build a modern, ATS-optimized resume in minutes or import an existing one
-                    to start applying at scale.
-                  </p>
-                </div>
-                <div className="flex flex-col sm:flex-row items-center gap-4">
-                  <button
-                    onClick={() => { try { window.location.href = '/builder/new'; } catch { /* noop */ } }}
-                    className="group relative inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#1dff00] via-[#7dff5c] to-[#1dff00] px-6 py-3 font-medium text-black focus:outline-none focus:ring-2 focus:ring-[#1dff00]/40 shadow-[0_8px_24px_-4px_rgba(29,255,0,0.4)] hover:shadow-[0_4px_18px_-2px_rgba(29,255,0,0.55)] transition"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Build New Resume</span>
-                    <ArrowRight className="w-4 h-4 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition" />
-                  </button>
-                  <button
-                    onClick={() => { try { window.location.href = '/dashboard/resumes'; } catch { /* noop */ } }}
-                    className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-white/80 hover:text-white hover:border-[#1dff00]/40 hover:bg-[#1dff00]/10 focus:outline-none focus:ring-2 focus:ring-[#1dff00]/30 transition"
-                  >
-                    <UploadCloud className="w-4 h-4" />
-                    Import Existing
-                  </button>
-                </div>
-                <ul className="grid sm:grid-cols-3 gap-3 w-full max-w-3xl mt-2 text-left">
-                  {[
-                    ['Optimized Formatting','Designed to pass Applicant Tracking Systems'],
-                    ['Smart Sections','Drag & refine experience, projects, skills'],
-                    ['Instant Updates','Edit once & reuse across applications']
-                  ].map(([title,desc]) => (
-                    <li key={title} className="group relative rounded-lg border border-white/10 bg-white/[0.02] p-3 hover:border-[#1dff00]/30 transition">
-                      <div className="mb-1 flex items-center gap-2 text-[13px] font-medium text-white">
-                        <div className="h-1.5 w-1.5 rounded-full bg-[#1dff00] animate-pulse" /> {title}
-                      </div>
-                      <p className="text-[11px] leading-relaxed text-white/60">{desc}</p>
-                      <div className="pointer-events-none absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-[#1dff00]/5 via-transparent to-transparent transition" />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
-          {resumes.map((r) => {
-            const active = selectedId === r.id;
-            const template = r.template || 'Modern';
-            return (
-              <button
-                key={r.id}
-                onClick={() => onSelect(r.id)}
-                className={`relative rounded-lg border transition group overflow-hidden text-left ${active ? 'border-[#1dff00] ring-2 ring-[#1dff00]/40' : 'border-white/10 hover:border-[#1dff00]/40'}`}
-              >
-                <img src={`/templates/jpg/${template}.jpg`} alt={template} className="w-full h-36 object-cover opacity-90" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-white font-medium truncate flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-[#1dff00]" /> {r.name}
-                      </div>
-                      <div className="text-xs text-white/70">Updated {new Date(r.updated_at).toLocaleString()}</div>
-                    </div>
-                    {active && <CheckCircle2 className="w-5 h-5 text-[#1dff00]" />}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-          {/* Cover Letter Section */}
-          <div className="sm:col-span-2 mt-2">
-            <div className="rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/[0.02] to-transparent p-4 shadow-[0_0_0_1px_rgba(29,255,0,0.05)]">
-              <div className="flex flex-wrap items-center gap-3 justify-between">
-                <div className="flex min-w-0 items-center gap-2">
-                  <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#1dff00]/10 text-[#1dff00]">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-white font-semibold leading-tight">Attach Cover Letter</div>
-                    <div className="text-xs text-white/60">Optional cover page to elevate your application</div>
-                  </div>
-                  {hasDraft && (
-                    <span className="ml-2 shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
-                      Draft found
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <a
-                    href="/dashboard/cover-letter"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 rounded-md border border-white/15 px-2.5 py-1.5 text-xs text-white/80 hover:border-[#1dff00]/40 hover:text-white transition"
-                    title="Open the Cover Letter editor in a new tab"
-                  >
-                    <Pencil className="h-3.5 w-3.5" /> Edit
-                  </a>
-                  <button
-                    role="switch"
-                    aria-checked={attachCoverLetter}
-                    onClick={() => onToggleCoverLetter && onToggleCoverLetter(!attachCoverLetter)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#1dff00]/40 ${attachCoverLetter ? 'bg-[#1dff00]' : 'bg-white/20'}`}
-                    aria-label="Toggle attach cover letter"
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-black transition ${attachCoverLetter ? 'translate-x-5' : 'translate-x-1'}`}
+              )}
+              {queueStatus === 'populating' && (
+                <div className="space-y-5">
+                  <Card className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#041206] via-[#050a08] to-[#020403] p-6 sm:p-7">
+                    <motion.div
+                      className="pointer-events-none absolute inset-[-40%] bg-[radial-gradient(circle_at_top,rgba(29,255,0,0.28),rgba(29,255,0,0)_60%)] opacity-60"
+                      animate={{ rotate: [0, 360] }}
+                      transition={{ duration: 14, repeat: Infinity, ease: 'linear' }}
                     />
-                  </button>
-                </div>
-              </div>
+                    <div className="relative flex flex-col gap-5">
+                      <div className="flex items-center gap-3 text-xs uppercase tracking-[0.4em] text-[#1dff00]/70">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#1dff00]/40 bg-[#1dff00]/10">
+                          <span className="h-2 w-2 rounded-full bg-[#1dff00] animate-ping" />
+                        </span>
+                        Scanning networks for roles
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        {['Signals', 'Compliance', 'Enrichment'].map((label, idx) => (
+                          <div key={label} className="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+                            <div className="flex items-center justify-between text-xs text-white/60">
+                              <span>{label}</span>
+                              <span className="text-[9px] font-mono text-[#1dff00]/80">{String(idx + 1).padStart(2, '0')}</span>
+                            </div>
+                            <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
+                              <motion.div
+                                className="h-full bg-gradient-to-r from-[#0aff7b] via-[#1dff00] to-[#7bffb2]"
+                                animate={{ width: ['15%', '85%', '35%', '70%'] }}
+                                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: idx * 0.2 }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-xl border border-white/10 bg-[#0c0c0c] p-4">
+                          <div className="h-3 w-20 rounded bg-white/12" />
+                          <div className="mt-3 space-y-2">
+                            <div className="h-4 rounded bg-white/10" />
+                            <div className="h-4 w-5/6 rounded bg-white/8" />
+                            <div className="h-4 w-2/3 rounded bg-white/6" />
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-white/10 bg-[#0c0c0c] p-4">
+                          <div className="h-3 w-24 rounded bg-white/12" />
+                          <div className="mt-3 grid grid-cols-3 gap-3 text-[10px] text-white/50">
+                            {Array.from({ length: 3 }).map((_, metricIdx) => (
+                              <div key={metricIdx} className="space-y-2 rounded-lg border border-white/10 bg-white/5 p-3">
+                                <div className="h-3 rounded bg-[#ffffff1a]" />
+                                <div className="h-4 rounded bg-[#ffffff14]" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
 
-              {attachCoverLetter && (
-                <div className="mt-4 grid gap-3">
-                  {/* Templates */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    {['Standard','Modern','Elegant'].map((tmpl) => {
-                      const active = selectedCoverTemplate === tmpl;
-                      return (
-                        <button
-                          key={tmpl}
-                          onClick={() => onSelectCoverTemplate && onSelectCoverTemplate(tmpl)}
-                          className={`group inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition ${active ? 'border-[#1dff00] bg-[#1dff00]/10 text-[#1dff00]' : 'border-white/15 text-white/80 hover:border-[#1dff00]/40 hover:text-white'}`}
-                          title={`Use ${tmpl} template`}
-                        >
-                          <span className="inline-block h-1.5 w-1.5 rounded-full bg-current opacity-80" />
-                          {tmpl}
-                        </button>
-                      );
-                    })}
+                  <div className="grid gap-4">
+                    {Array.from({ length: pageSize }).map((_, i) => (
+                      <Card
+                        key={i}
+                        className="relative overflow-hidden border border-[#1dff00]/25 bg-gradient-to-br from-[#020202] via-[#050708] to-[#090b0c] p-5 sm:p-6"
+                      >
+                        <motion.div
+                          className="absolute inset-0 bg-[linear-gradient(120deg,rgba(29,255,0,0.12)_0%,rgba(29,255,0,0.02)_38%,rgba(29,255,0,0.15)_72%,rgba(29,255,0,0.02)_100%)]"
+                          animate={{ backgroundPosition: ['0% 0%', '120% 0%', '0% 0%'] }}
+                          transition={{ duration: 6.5, repeat: Infinity, ease: 'linear', delay: i * 0.05 }}
+                        />
+                        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex flex-1 items-start gap-4">
+                            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-[#1dff00]/25 bg-[#0a1a0f]">
+                              <motion.span
+                                className="absolute h-10 w-10 rounded-full bg-[#1dff00]/20"
+                                animate={{ scale: [0.85, 1.05, 0.85], opacity: [0.4, 0.15, 0.4] }}
+                                transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+                              />
+                              <span className="relative h-8 w-8 rounded-full border border-[#1dff00]/40" />
+                            </div>
+                            <div className="flex-1 space-y-3">
+                              <div className="h-4 w-3/5 rounded bg-[#ffffff24]" />
+                              <div className="h-3 w-1/2 rounded bg-[#ffffff1a]" />
+                              <div className="flex flex-wrap items-center gap-2">
+                                {Array.from({ length: 4 }).map((__, chipIdx) => (
+                                  <span key={chipIdx} className="inline-flex h-5 w-16 rounded-full border border-white/12 bg-[#ffffff14]" />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grid w-full max-w-[240px] grid-cols-2 gap-2 text-[10px] text-white/60 sm:w-auto">
+                            {Array.from({ length: 4 }).map((__, metricIdx) => (
+                              <div key={metricIdx} className="rounded-lg border border-white/10 bg-white/5 p-3">
+                                <div className="h-3 rounded bg-[#ffffff1a]" />
+                                <div className="mt-2 h-4 rounded bg-[#ffffff14]" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <Card className="border-red-500/30 bg-red-500/10 text-red-200 p-4 flex items-center justify-between">
+                  <span>{error.message}</span>
+                  {error.link && (
+                    <Link to={error.link} className="underline font-bold ml-4 whitespace-nowrap">
+                      Go to Settings
+                    </Link>
+                  )}
+                </Card>
+              )}
+              {applyingAll && (
+                <Card className="relative overflow-hidden border border-[#1dff00]/30 bg-gradient-to-br from-[#082514] via-[#04140b] to-[#010503] text-white p-4 sm:p-5">
+                  <div className="pointer-events-none absolute -inset-32 bg-[#1dff00]/10 blur-3xl opacity-40" />
+                  <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="w-5 h-5 animate-spin text-[#1dff00]" />
+                      <div>
+                        <div className="text-sm font-medium">Automation in progress</div>
+                        <div className="text-xs text-white/70">{applyProgress.total} roles • {applyProgress.success} successful / {applyProgress.fail} flagged</div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-white/50">
+                      {applyProgress.done}/{applyProgress.total} completed
+                    </div>
+                  </div>
+                  <div className="relative mt-4 h-2 rounded-full bg-white/12 overflow-hidden">
+                    <motion.div
+                      className="absolute inset-0 opacity-30"
+                      style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(29,255,0,0.6) 50%, transparent 100%)' }}
+                      animate={{ x: ['-100%', '200%'] }}
+                      transition={{ repeat: Infinity, duration: 1.4, ease: 'linear' }}
+                    />
+                    <motion.div
+                      className="relative h-full bg-gradient-to-r from-[#1dff00] via-[#52ff4b] to-[#1dff00]"
+                      initial={{ width: '0%' }}
+                      animate={{ width: `${Math.min(100, Math.round((applyProgress.done / Math.max(1, applyProgress.total)) * 100))}%` }}
+                      transition={{ type: 'spring', stiffness: 160, damping: 25 }}
+                    />
+                  </div>
+                </Card>
+              )}
+
+              {queueStatus === 'empty' && (
+                <div className="relative min-h-[600px] flex items-center justify-center py-12">
+                  {/* Ambient Background Effects */}
+                  <div className="absolute inset-0 overflow-hidden rounded-3xl">
+                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#1dff00]/5 rounded-full blur-3xl animate-pulse" />
+                    <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#0a8246]/5 rounded-full blur-3xl animate-pulse delay-1000" />
                   </div>
 
-                  {/* Saved letters and preview */}
-                  <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-                    <div className="mb-2 flex items-center justify-between">
-                      <div className="text-xs font-medium text-white/70">Choose from saved letters</div>
-                      {!selectedCoverId && (
-                        <span className="text-[10px] text-white/50">Using current draft</span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition ${!selectedCoverId ? 'border-[#1dff00] bg-[#1dff00]/10 text-[#1dff00]' : 'border-white/15 text-white/80 hover:border-[#1dff00]/40 hover:text-white'}`}
-                        onClick={() => onSelectCoverId && onSelectCoverId(null)}
-                        title="Use current draft"
+                  {/* Main Content */}
+                  <Card className="relative z-10 max-w-2xl mx-auto bg-gradient-to-br from-[#0a0a0a] via-[#0d0d0d] to-[#000000] border border-[#1dff00]/20 backdrop-blur-xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_0_1px_rgba(29,255,0,0.1)]">
+                    <div className="p-8 sm:p-12 text-center space-y-8">
+                      {/* Icon Container with Animation */}
+                      <motion.div
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                        className="relative mx-auto w-32 h-32"
                       >
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-current opacity-80" />
-                        Current Draft
-                      </button>
-                      {coverLibrary.map((e) => {
-                        const active = selectedCoverId === e.id;
-                        return (
-                          <button
-                            key={e.id}
-                            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition ${active ? 'border-[#1dff00] bg-[#1dff00]/10 text-[#1dff00]' : 'border-white/15 text-white/80 hover:border-[#1dff00]/40 hover:text-white'}`}
-                            onClick={() => onSelectCoverId && onSelectCoverId(e.id)}
-                            title={`Updated ${new Date(e.updatedAt).toLocaleString()}`}
-                          >
-                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-current opacity-80" />
-                            {e.name}
-                          </button>
-                        );
-                      })}
-                    </div>
+                        {/* Glowing Ring */}
+                        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#1dff00]/20 to-[#0a8246]/10 blur-xl animate-pulse" />
+                        
+                        {/* Icon Background */}
+                        <div className="relative w-full h-full rounded-full bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/5 border border-[#1dff00]/30 flex items-center justify-center shadow-[0_0_40px_rgba(29,255,0,0.15)]">
+                          <Briefcase className="w-16 h-16 text-[#1dff00] drop-shadow-[0_0_20px_rgba(29,255,0,0.6)]" strokeWidth={1.5} />
+                        </div>
 
-                    <div className="mt-3 max-h-48 overflow-auto rounded-lg border border-white/10 bg-white/[0.06] p-3 text-xs text-white/80 whitespace-pre-wrap">
-                      {(() => {
-                        try {
-                          let parsed: any = null;
-                          if (selectedCoverId) {
-                            const entry = coverLibrary.find((x) => x.id === selectedCoverId);
-                            if (entry) parsed = (entry as any).data;
-                          } else {
-                            const raw = localStorage.getItem('jr.coverLetter.draft.v2');
-                            if (raw) parsed = JSON.parse(raw);
-                          }
-                          if (!parsed) return <span className="opacity-60">No draft found</span>;
-                          const paras: string[] = Array.isArray(parsed?.paragraphs) ? parsed.paragraphs.filter((p: any) => typeof p === 'string' && p.trim()) : [];
-                          const body: string = (paras.length ? paras.join("\n\n") : (parsed?.content || '')).trim();
-                          const sal: string = (parsed?.salutation || '').trim();
-                          const close: string = (parsed?.closing || '').trim();
-                          const sig: string = (parsed?.signatureName || parsed?.senderName || '').trim();
-                          const headerParts: string[] = [];
-                          if (parsed?.senderName) headerParts.push(parsed.senderName);
-                          if (parsed?.senderPhone) headerParts.push(parsed.senderPhone);
-                          if (parsed?.senderEmail) headerParts.push(parsed.senderEmail);
-                          if (parsed?.senderAddress) headerParts.push(parsed.senderAddress);
-                          const dateLine = parsed?.date ? new Date(parsed.date).toLocaleDateString() : '';
-                          const recipientLine = [parsed?.recipient, parsed?.recipientTitle].filter(Boolean).join(', ').trim();
-                          const companyLine = (parsed?.company || '').trim();
-                          const recipientAddr = (parsed?.recipientAddress || '').trim();
-                          const subjectLine = (parsed?.subject || '').trim();
-                          const lines: string[] = [];
-                          if (headerParts.length) { lines.push(...headerParts, ''); }
-                          if (dateLine) { lines.push(dateLine, ''); }
-                          if (recipientLine || companyLine || recipientAddr) {
-                            if (recipientLine) lines.push(recipientLine);
-                            if (companyLine) lines.push(companyLine);
-                            if (recipientAddr) lines.push(recipientAddr);
-                            lines.push('');
-                          }
-                          if (subjectLine) { lines.push(`Subject: ${subjectLine}`, ''); }
-                          if (sal) { lines.push(sal, ''); }
-                          if (body) { lines.push(body, ''); }
-                          if (close) { lines.push(close); }
-                          if (sig) { lines.push(sig); }
-                          return lines.join("\n").trim();
-                        } catch {
-                          return <span className="opacity-60">Unable to preview letter</span>;
-                        }
-                      })()}
+                        {/* Floating Particles */}
+                        <div className="absolute -top-2 -right-2 w-3 h-3 rounded-full bg-[#1dff00] animate-ping opacity-40" />
+                        <div className="absolute -bottom-2 -left-2 w-2 h-2 rounded-full bg-[#0a8246] animate-ping opacity-40 delay-500" />
+                      </motion.div>
+
+                      {/* Text Content */}
+                      <div className="space-y-4">
+                        <motion.h2
+                          initial={{ y: 20, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.2, duration: 0.5 }}
+                          className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-white via-[#ffffff] to-[#ffffff99] bg-clip-text text-transparent"
+                        >
+                          No Jobs Yet
+                        </motion.h2>
+
+                        <motion.p
+                          initial={{ y: 20, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.3, duration: 0.5 }}
+                          className="text-base sm:text-lg text-[#ffffff99] max-w-md mx-auto leading-relaxed"
+                        >
+                          Your personalized job feed is empty. Start discovering opportunities tailored to your profile and career goals.
+                        </motion.p>
+
+                        {lastReason && (
+                          <motion.div
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.4, duration: 0.5 }}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#ff8b8b]/10 border border-[#ff8b8b]/20 text-[#ff8b8b] text-sm"
+                          >
+                            <AlertTriangle className="w-4 h-4" />
+                            <span>
+                              {lastReason === 'no_sources' && 'Try broadening your search criteria'}
+                              {lastReason === 'no_structured_results' && 'Unable to parse job sources'}
+                            </span>
+                          </motion.div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <motion.div
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.5, duration: 0.5 }}
+                        className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4"
+                      >
+                        <Button
+                          onClick={() => populateQueue(searchQuery || "software engineer", selectedLocation)}
+                          disabled={incrementalMode}
+                          className="group relative overflow-hidden px-8 py-6 rounded-xl bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black font-semibold text-base shadow-[0_0_0_1px_#1dff00,0_8px_32px_rgba(29,255,0,0.4)] hover:shadow-[0_0_0_1px_#1dff00,0_12px_48px_rgba(29,255,0,0.6)] transition-all duration-300 hover:scale-105 active:scale-95"
+                        >
+                          <span className="relative z-10 flex items-center gap-3">
+                            <Search className="w-5 h-5" />
+                            Find New Jobs
+                          </span>
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                        </Button>
+
+                        <Button
+                          onClick={() => navigate('/dashboard/profile')}
+                          variant="ghost"
+                          className="px-6 py-6 rounded-xl border border-[#ffffff20] text-white hover:bg-white/5 hover:border-[#1dff00]/40 transition-all duration-300"
+                        >
+                          <span className="flex items-center gap-2">
+                            <User className="w-4 h-4" />
+                            Update Profile
+                          </span>
+                        </Button>
+                      </motion.div>
+
+                      {/* Feature Highlights */}
+                      <motion.div
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.6, duration: 0.5 }}
+                        className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-8 border-t border-[#ffffff10]"
+                      >
+                        {[
+                          { icon: Sparkles, label: 'AI-Powered', desc: 'Smart matching' },
+                          { icon: Clock3, label: 'Real-time', desc: 'Latest openings' },
+                          { icon: ShieldCheck, label: 'Verified', desc: 'Quality jobs' }
+                        ].map((feature) => (
+                          <div
+                            key={feature.label}
+                            className="flex flex-col items-center gap-2 p-4 rounded-lg bg-[#ffffff05] border border-[#ffffff08] hover:border-[#1dff00]/20 transition-colors"
+                          >
+                            <feature.icon className="w-5 h-5 text-[#1dff00]" />
+                            <div className="text-center">
+                              <div className="text-sm font-medium text-white">{feature.label}</div>
+                              <div className="text-xs text-[#ffffff60]">{feature.desc}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </motion.div>
+                    </div>
+                  </Card>
+                </div>
+              )}
+
+              {queueStatus === 'ready' && paginatedJobs.map((job, index) => (
+                <motion.div
+                  key={job.id}
+                  role="button"
+                  aria-selected={selectedJob === job.id}
+                  tabIndex={0}
+                  data-tour={index === 0 ? "jobs-card" : undefined}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedJob(job.id); }
+                    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      const idx = paginatedJobs.findIndex(j => j.id === job.id);
+                      if (idx !== -1) {
+                        const nextIdx = e.key === 'ArrowDown' ? Math.min(paginatedJobs.length - 1, idx + 1) : Math.max(0, idx - 1);
+                        const nextId = paginatedJobs[nextIdx]?.id;
+                        if (nextId) setSelectedJob(nextId);
+                      }
+                    }
+                  }}
+                  onClick={() => setSelectedJob(job.id)}
+                  className={`cursor-pointer transition-all duration-300 ${selectedJob === job.id ? 'transform scale-[1.01]' : 'hover:transform hover:scale-[1.005]'} focus:outline-none focus:ring-2 focus:ring-[#1dff00]/40 rounded-xl`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: index * 0.04 }}
+                >
+                  <Card className={`relative overflow-hidden group bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border p-3 sm:p-4 md:p-5 lg:p-6 transition-all duration-300 ${selectedJob === job.id ? 'border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.25)]' : 'border-[#ffffff15] hover:border-[#1dff00]/40'}`}>
+                    <span className={`pointer-events-none absolute left-0 top-0 h-full w-[2px] sm:w-[3px] ${selectedJob === job.id ? 'bg-[#1dff00]' : 'bg-transparent group-hover:bg-[#1dff00]/70'} transition-colors`} />
+                    <div className="flex items-start justify-between gap-2 sm:gap-3 md:gap-4">
+                      <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-1 min-w-0">
+                        {job.logoUrl && !logoError[job.id]
+                          ? (
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 rounded-lg sm:rounded-xl bg-white flex-shrink-0">
+                              <img
+                                src={job.logoUrl}
+                                alt={job.company}
+                                className="w-full h-full rounded-lg sm:rounded-xl object-contain"
+                                onError={() => setLogoError(e => ({...e, [job.id]: true}))}
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg sm:rounded-xl flex items-center justify-center text-black font-bold text-base sm:text-lg lg:text-2xl flex-shrink-0">{job.logo}</div>
+                          )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start gap-1.5 sm:gap-2">
+                            <h3 className="text-white font-semibold truncate text-xs sm:text-sm md:text-base" title={job.title}>
+                              {job.title.length > 60 ? job.title.slice(0, 60) + '...' : job.title}
+                            </h3>
+                            {(() => {
+                              if (!job.posted_at) return null;
+                              const postedTs = Date.parse(job.posted_at);
+                              if (Number.isNaN(postedTs)) return null;
+                              const isNew = (Date.now() - postedTs) <= (48 * 60 * 60 * 1000);
+                              if (!isNew) return null;
+                              return (
+                                <span className="shrink-0 text-[9px] sm:text-[10px] px-1.5 py-0.5 sm:px-2 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10">New</span>
+                              );
+                            })()}
+                            {job.status && (
+                              <span className={`shrink-0 text-[9px] sm:text-[10px] px-1.5 py-0.5 sm:px-2 rounded-full border ${job.status === 'applied' ? 'border-[#14b8a6]/40 text-[#14b8a6] bg-[#14b8a6]/10' : 'border-[#ffffff24] text-[#ffffffb3] bg-[#ffffff0a]'}`}>{job.status}</span>
+                            )}
+                          </div>
+                          <div className="mt-1.5 sm:mt-2 space-y-1 sm:space-y-1.5">
+                            {/* Line 1: company + location + remote + salary + host (right) */}
+                            <div className="flex flex-wrap items-center gap-1">
+                              <span className="text-[#ffffffb3] text-[10px] sm:text-[11px] md:text-sm truncate" title={job.company || ''}>{job.company}</span>
+                              {job.location && (
+                                <span className="text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d] whitespace-nowrap" title={job.location}>
+                                  {job.location}
+                                </span>
+                              )}
+                              {job.remote_type && (
+                                <span className="text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10 whitespace-nowrap" title={job.remote_type}>
+                                  {job.remote_type}
+                                </span>
+                              )}
+                              {(() => {
+                                if (job.salary_min || job.salary_max || job.salary_currency) {
+                                  const currency = job.salary_currency || 'USD';
+                                  const currencySymbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency;
+                                  let salaryText = '';
+                                  if (job.salary_min && job.salary_max) {
+                                    const min = job.salary_min >= 1000 ? `${Math.round(job.salary_min / 1000)}k` : job.salary_min;
+                                    const max = job.salary_max >= 1000 ? `${Math.round(job.salary_max / 1000)}k` : job.salary_max;
+                                    salaryText = `${currencySymbol}${min}-${max}`;
+                                  } else if (job.salary_min) {
+                                    const min = job.salary_min >= 1000 ? `${Math.round(job.salary_min / 1000)}k` : job.salary_min;
+                                    salaryText = `${currencySymbol}${min}+`;
+                                  } else if (job.salary_max) {
+                                    const max = job.salary_max >= 1000 ? `${Math.round(job.salary_max / 1000)}k` : job.salary_max;
+                                    salaryText = `Up to ${currencySymbol}${max}`;
+                                  }
+                                  if (salaryText) {
+                                    return (
+                                      <span className="text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10 whitespace-nowrap" title={`Salary: ${salaryText}`}> 
+                                        💰 {salaryText}
+                                      </span>
+                                    );
+                                  }
+                                }
+                                const raw = (job as any)?.raw_data;
+                                const salary = (raw?.scraped_data?.salary || raw?.salaryRange || raw?.salary) as string | undefined;
+                                if (!salary) return null;
+                                const short = salary.length > 28 ? salary.slice(0, 25) + '…' : salary;
+                                return (
+                                  <span className="text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffc0] bg-[#ffffff0d] whitespace-nowrap" title={salary}>
+                                    {short}
+                                  </span>
+                                );
+                              })()}
+                              <span className="ml-auto inline-flex items-center gap-1 max-w-[140px] sm:max-w-[180px] overflow-hidden">
+                                {(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id) && (() => {
+                                  const href = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id || '';
+                                  const host = getHost(href);
+                                  const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
+                                  return (
+                                    <span className="inline-flex items-center gap-1 text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08] max-w-full overflow-hidden">
+                                      {host && <img src={ico} alt="" className="w-3 h-3 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
+                                      <span className="truncate">{host}</span>
+                                    </span>
+                                  );
+                                })()}
+                              </span>
+                            </div>
+
+                            {/* Line 2: Tags + Posted (right) */}
+                            <div className="flex flex-wrap items-center gap-1">
+                              {(() => {
+                                const tags: string[] | undefined = (job as any)?.tags || (job as any)?.raw_data?.scraped_data?.tags;
+                                if (!tags || !Array.isArray(tags) || tags.length === 0) return null;
+                                // Show up to 2 on mobile, up to 3 on sm+ screens
+                                const firstTwo = tags.slice(0, 2);
+                                const third = tags[2];
+                                return (
+                                  <>
+                                    {firstTwo.map((t, i) => (
+                                      <span key={`t-${i}`} className="text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08] whitespace-nowrap" title={t}>
+                                        {t}
+                                      </span>
+                                    ))}
+                                    {third && (
+                                      <span key="t-2" className="hidden sm:inline-block text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08] whitespace-nowrap" title={third}>
+                                        {third}
+                                      </span>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                              <span className="ml-auto text-[10px] text-[#ffffff80] whitespace-nowrap">
+                                {job.posted_at ? formatRelative(job.posted_at) : ''}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              ))}
+              {queueStatus === 'ready' && total > 0 && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 pt-3 sm:pt-4">
+                  <div className="text-[11px] sm:text-[12px] text-white/60">
+                    Showing <span className="text-white/80">{total === 0 ? 0 : startIdx + 1}</span>–<span className="text-white/80">{endIdx}</span> of <span className="text-white/80">{total}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 md:gap-4">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <span className="text-[10px] sm:text-[11px] text-white/50">Rows</span>
+                      <SimpleDropdown 
+                        value={String(pageSize)} 
+                        onValueChange={(v) => { const n = parseInt(v); if (!Number.isNaN(n)) { setPageSize(n); setCurrentPage(1); } }}
+                        options={[
+                          { value: '10', label: '10' },
+                          { value: '20', label: '20' },
+                          { value: '50', label: '50' }
+                        ]}
+                        triggerClassName="h-7 w-[80px] sm:h-8 sm:w-[90px] text-xs sm:text-sm"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label="First page"
+                        disabled={clampedPage === 1}
+                        onClick={() => setCurrentPage(1)}
+                        className={`h-7 w-7 sm:h-8 sm:w-8 grid place-items-center rounded-md border text-xs sm:text-sm ${clampedPage===1 ? 'border-white/10 text-white/30' : 'border-white/20 text-white/70 hover:text-white hover:border-white/40 hover:bg-white/10'}`}
+                      >
+                        <ChevronsLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Previous page"
+                        disabled={clampedPage === 1}
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        className={`h-7 w-7 sm:h-8 sm:w-8 grid place-items-center rounded-md border text-xs sm:text-sm ${clampedPage===1 ? 'border-white/10 text-white/30' : 'border-white/20 text-white/70 hover:text-white hover:border-white/40 hover:bg-white/10'}`}
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      </button>
+                      <div className="hidden md:flex items-center gap-1">
+                        {(() => {
+                          const pages: (number | '…')[] = [];
+                          const maxToShow = 5;
+                          let start = Math.max(1, clampedPage - 2);
+                          let end = Math.min(totalPages, start + maxToShow - 1);
+                          start = Math.max(1, end - maxToShow + 1);
+                          if (start > 1) pages.push(1, '…');
+                          for (let i = start; i <= end; i++) pages.push(i);
+                          if (end < totalPages) pages.push('…', totalPages);
+                          return pages.map((p, idx) => (
+                            typeof p === 'number' ? (
+                              <button
+                                key={idx}
+                                onClick={() => setCurrentPage(p)}
+                                className={`h-8 min-w-8 px-2 rounded-md border text-[12px] ${p===clampedPage ? 'border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/10' : 'border-white/20 text-white/70 hover:text-white hover:border-white/40 hover:bg-white/10'}`}
+                              >{p}</button>
+                            ) : (
+                              <span key={idx} className="px-2 text-white/40">…</span>
+                            )
+                          ));
+                        })()}
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Next page"
+                        disabled={clampedPage === totalPages}
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        className={`h-8 w-8 grid place-items-center rounded-md border ${clampedPage===totalPages ? 'border-white/10 text-white/30' : 'border-white/20 text-white/70 hover:text-white hover:border-white/40 hover:bg-white/10'}`}
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Last page"
+                        disabled={clampedPage === totalPages}
+                        onClick={() => setCurrentPage(totalPages)}
+                        className={`h-8 w-8 grid place-items-center rounded-md border ${clampedPage===totalPages ? 'border-white/10 text-white/30' : 'border-white/20 text-white/70 hover:text-white hover:border-white/40 hover:bg-white/10'}`}
+                      >
+                        <ChevronsRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="md:hidden text-[12px] text-white/60 text-right">
+                      Page {clampedPage} of {totalPages}
                     </div>
                   </div>
                 </div>
               )}
+
+              {debugMode && (
+                <Card className="bg-[#0b0b0b] border border-[#ffffff20] p-4">
+                  <div className="text-xs text-[#ffffff90] mb-2">Debug Panel - Simplified Flow</div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] text-[#d1d5db]">
+                    <div>
+                      <div className="text-[#9ca3af] mb-1">jobs-search request</div>
+                      <pre className="bg-[#111] p-2 rounded overflow-auto max-h-48">{JSON.stringify(dbgSearchReq, null, 2) || '—'}</pre>
+                    </div>
+                    <div>
+                      <div className="text-[#9ca3af] mb-1">jobs-search response</div>
+                      <pre className="bg-[#111] p-2 rounded overflow-auto max-h-48">{JSON.stringify(dbgSearchRes, null, 2) || '—'}</pre>
+                    </div>
+                  </div>
+                  <div className="mt-3 text-[10px] text-[#666] italic">
+                    Note: Jobs are now saved directly by jobs-search. No extraction phase needed.
+                  </div>
+                </Card>
+              )}
+            </div>
+
+            {/* Right Column: Job Details Panel */}
+            <div className="hidden lg:block">
+              {selectedJob && (() => {
+                  const job = jobs.find(j => j.id === selectedJob);
+                  if (!job) return null;
+          return (
+                      <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45 }}>
+                        <div className="space-y-4">
+                          {(() => {
+                            const primaryHref = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id;
+                            const siteHost = primaryHref ? getHost(primaryHref) : '';
+                            const ico = siteHost ? `https://icons.duckduckgo.com/ip3/${siteHost}.ico` : '';
+                            const employmentType = (job as any)?.employment_type ?? (job as any)?.raw_data?.scraped_data?.employment_type;
+                            const experienceLevel = (job as any)?.experience_level ?? (job as any)?.raw_data?.scraped_data?.experience_level;
+                            const deadline = job.expires_at || (job as any)?.raw_data?.deadline || (job as any)?.raw_data?.applicationDeadline;
+                            const deadlineMeta = deadline ? formatDeadlineMeta(deadline) : null;
+
+                            let salaryText: string | null = null;
+                            if (job.salary_min || job.salary_max || job.salary_currency) {
+                              const currency = job.salary_currency || 'USD';
+                              const currencySymbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency;
+                              if (job.salary_min && job.salary_max) salaryText = `${currencySymbol}${job.salary_min.toLocaleString()} - ${currencySymbol}${job.salary_max.toLocaleString()}`;
+                              else if (job.salary_min) salaryText = `${currencySymbol}${job.salary_min.toLocaleString()}+`;
+                              else if (job.salary_max) salaryText = `Up to ${currencySymbol}${job.salary_max.toLocaleString()}`;
+                            }
+                            if (!salaryText) {
+                              const raw = (job as any)?.raw_data;
+                              const salary = (raw?.scraped_data?.salary || raw?.salaryRange || raw?.salary) as string | undefined;
+                              if (salary) salaryText = salary;
+                            }
+
+                            const metaTiles = [
+                              job.location ? { label: 'Location', value: job.location } : null,
+                              job.remote_type ? { label: 'Remote', value: job.remote_type } : null,
+                              employmentType ? { label: 'Type', value: employmentType } : null,
+                              experienceLevel ? { label: 'Level', value: experienceLevel } : null,
+                              deadlineMeta ? { label: 'Deadline', value: deadlineMeta.label, tone: deadlineMeta.level } : null,
+                              salaryText ? { label: 'Compensation', value: salaryText } : null,
+                            ].filter(Boolean) as { label: string; value: string; tone?: 'urgent' | 'soon' | 'future' }[];
+
+                            return (
+                              <Card id="jobs-ai-match" data-tour="jobs-ai-match" className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] p-6">
+                                <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
+                                <div className="relative flex flex-col gap-6">
+                                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
+                                    <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
+                                      {/* Logo - comes first */}
+                                      {job.logoUrl && !logoError[job.id] ? (
+                                        <img
+                                          src={job.logoUrl}
+                                          alt={job.company}
+                                          className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-xl object-contain bg-white flex-shrink-0"
+                                          onError={() => setLogoError(e => ({ ...e, [job.id]: true }))}
+                                        />
+                                      ) : (
+                                        <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-xl sm:text-2xl md:text-3xl flex-shrink-0">
+                                          {job.logo}
+                                        </div>
+                                      )}
+                                      
+                                      {/* Content stack - Featured Job, Title, Badges */}
+                                      <div className="flex-1 min-w-0 space-y-2">
+                                        <div className="inline-flex items-center gap-2 flex-wrap text-[11px] uppercase tracking-[0.3em] text-[#1dff00]/80">
+                                          <Sparkles className="w-3 h-3" />
+                                          Featured Job
+                                        </div>
+                                        <h1 className="text-base sm:text-lg md:text-xl font-semibold text-white leading-tight line-clamp-3" title={job.title}>
+                                          {job.title.length > 30 ? job.title.slice(0, 30) + '...' : job.title}
+                                        </h1>
+                                        <div className="flex items-center gap-2 text-sm text-[#ffffffc0] overflow-x-auto scrollbar-hide">
+                                          <span className="font-medium text-white/90 whitespace-nowrap">{job.company}</span>
+                                          {siteHost && (
+                                            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full border border-white/10 bg-white/5 text-white/60 whitespace-nowrap flex-shrink-0" title={primaryHref || undefined}>
+                                              {ico && <img src={ico} alt="" className="w-3 h-3 rounded" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
+                                              {siteHost}
+                                            </span>
+                                          )}
+                                          {job.posted_at && (
+                                            <span className="text-[11px] px-2 py-1 rounded-full border border-white/10 text-white/50 bg-white/5 whitespace-nowrap flex-shrink-0">
+                                              Posted {formatRelative(job.posted_at)}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {primaryHref && (
+                                        <a
+                                          href={primaryHref}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-2 rounded-lg border border-[#1dff00]/50 bg-[#1dff00]/15 px-4 py-2 text-sm font-medium text-[#1dff00] transition hover:bg-[#1dff00]/25 hover:shadow-[0_10px_30px_rgba(29,255,0,0.2)]"
+                                        >
+                                          View Posting
+                                        </a>
+                                      )}
+                                      <Button
+                                        variant="ghost"
+                                        onClick={() => {
+                                          setJobToAutoApply(job);
+                                          openAutoApplyFlow();
+                                        }}
+                                        className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+                                      >
+                                        <Briefcase className="w-4 h-4" />
+                                        Auto Apply
+                                      </Button>
+                                    </div>
+                                  </div>
+
+                                  {metaTiles.length > 0 && (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      {metaTiles.map((tile) => (
+                                        <div
+                                          key={`${tile.label}-${tile.value}`}
+                                          className="rounded-xl border border-white/10 bg-white/5 px-3 py-3"
+                                        >
+                                          <div className="text-[11px] uppercase tracking-wide text-white/40">{tile.label}</div>
+                                          <div className={`text-sm font-medium ${tile.tone === 'urgent' ? 'text-[#ff8b8b]' : tile.tone === 'soon' ? 'text-[#ffd78b]' : tile.tone === 'future' ? 'text-[#8bffb1]' : 'text-white/85'}`}>{tile.value}</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </Card>
+                            );
+                          })()}
+
+                          <Card className="border border-white/12 bg-gradient-to-b from-[#0c0c0c] via-[#060606] to-[#020202] p-6">
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="inline-flex items-center gap-2 text-sm font-medium text-white/80">
+                                <FileText className="w-4 h-4 text-[#1dff00]" />
+                                Job Description
+                              </div>
+                              <span className="text-[11px] uppercase tracking-wide text-white/35">Full brief</span>
+                            </div>
+                            <div className="max-w-none text-[#ffffffcc] leading-relaxed whitespace-pre-wrap">
+                              {job.description || ''}
+                            </div>
+                          </Card>
+
+                          {/* AI Match Score Card - Gated for Pro/Ultimate */}
+                          {subscriptionTier === 'Free' ? (
+                            <UpgradePrompt
+                              title="AI Match Score Analysis"
+                              description="Get detailed compatibility insights powered by advanced AI to find your perfect job match."
+                              features={[
+                                {
+                                  icon: <Target className="h-5 w-5" />,
+                                  title: "Skills Compatibility",
+                                  description: "See how your skills align with job requirements"
+                                },
+                                {
+                                  icon: <TrendingUp className="h-5 w-5" />,
+                                  title: "Experience Match",
+                                  description: "Understand if your experience level fits"
+                                },
+                                {
+                                  icon: <Sparkles className="h-5 w-5" />,
+                                  title: "AI-Powered Insights",
+                                  description: "Get smart recommendations for improvement"
+                                }
+                              ]}
+                              requiredTier="Pro/Ultimate"
+                              icon={<Sparkles className="h-12 w-12 text-[#1dff00]" />}
+                              compact={true}
+                            />
+                          ) : (
+                            <MatchScorePieChart
+                              score={typeof job.matchScore === 'number' ? job.matchScore : 75}
+                              summary={job.matchSummary || "Match score analysis"}
+                              breakdown={job.matchBreakdown}
+                            />
+                          )}
+
+                          {(() => {
+                            const screenshot = (job as any)?.raw_data?.screenshot;
+                            if (!screenshot) return null;
+                            return (
+                              <Card className="relative overflow-hidden border border-white/12 bg-[#020202] p-0">
+                                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/5">
+                                  <div className="inline-flex items-center gap-2 text-sm font-medium text-white/75">
+                                    <Sparkles className="w-4 h-4 text-[#1dff00]" />
+                                    Screenshot
+                                  </div>
+                                  <span className="text-[11px] uppercase tracking-wide text-white/35">Visual preview</span>
+                                </div>
+                                <div className="relative bg-[#050505]">
+                                  <img
+                                    src={screenshot}
+                                    alt="Job page screenshot"
+                                    className="w-full h-auto"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.display = 'none';
+                                      const parent = target.parentElement;
+                                      if (parent) {
+                                        parent.innerHTML = '<div class="p-6 text-center text-[#ffffff60] text-sm">Screenshot unavailable</div>';
+                                      }
+                                    }}
+                                  />
+                                  <span className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50" />
+                                </div>
+                              </Card>
+                            );
+                          })()}
+
+                          {(() => {
+                            const sources = (job as any)?.raw_data?._sources;
+                            if (!sources || (Array.isArray(sources) && sources.length === 0)) return null;
+                            const items: any[] = Array.isArray(sources) ? sources : [sources];
+                            return (
+                              <Card className="border border-white/12 bg-gradient-to-br from-[#050505] via-[#040404] to-[#010101] p-6">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="inline-flex items-center gap-2 text-sm font-medium text-white/75">
+                                    <ShieldCheck className="w-4 h-4 text-[#1dff00]" />
+                                    Source Intelligence
+                                  </div>
+                                  <span className="text-[11px] uppercase tracking-wide text-white/35">Captured links</span>
+                                </div>
+                                <ul className="space-y-2">
+                                  {items.map((s, i) => {
+                                    const href = typeof s === 'string' ? s : (s?.url || s?.source || '');
+                                    if (!href) return null;
+                                    const host = getHost(href);
+                                    const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
+                                    return (
+                                      <li key={i} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                                        <div className="flex items-center gap-2">
+                                          {host && <img src={ico} alt="" className="w-4 h-4 rounded" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
+                                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#1dff00] hover:underline">
+                                            {host || href}
+                                          </a>
+                                        </div>
+                                        <span className="text-[11px] uppercase tracking-wide text-white/30">Open</span>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </Card>
+                            );
+                          })()}
+                        </div>
+                      </motion.div>
+                  );
+              })()}
+              {(queueStatus === 'loading' || queueStatus === 'populating') && !selectedJob && (
+                <div className="animate-pulse">
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-6 mb-6">
+                    <div className="flex items-start gap-4 mb-6">
+                      <div className="w-16 h-16 bg-[#ffffff1a] rounded-xl" />
+                      <div className="flex-1 min-w-0">
+                        <div className="h-5 bg-[#ffffff1a] rounded w-1/2 mb-2" />
+                        <div className="h-4 bg-[#ffffff12] rounded w-1/3 mb-3" />
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block h-4 w-20 rounded-full bg-[#ffffff12]" />
+                          <span className="inline-block h-4 w-16 rounded-full bg-[#ffffff12]" />
+                          <span className="inline-block h-4 w-24 rounded-full bg-[#ffffff12]" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-4 bg-[#ffffff12] rounded w-full" />
+                      <div className="h-4 bg-[#ffffff0f] rounded w-11/12" />
+                      <div className="h-4 bg-[#ffffff0a] rounded w-10/12" />
+                      <div className="h-4 bg-[#ffffff08] rounded w-9/12" />
+                    </div>
+                  </Card>
+                </div>
+              )}
+              {!selectedJob && queueStatus === 'ready' && (
+                   <Card className="bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-8 text-center">
+                      <Briefcase className="w-16 h-16 text-[#ffffff40] mx-auto mb-4" />
+                      <h3 className="text-xl font-medium text-white mb-2">Select a job</h3>
+                      <p className="text-[#ffffff60]">Choose a job from the list to view details</p>
+                  </Card>
+              )}
             </div>
           </div>
+          {/* Auto Apply orchestration dialog */}
+          <Modal
+            open={resumeDialogOpen}
+            onClose={() => { setResumeDialogOpen(false); setAutoApplyStep(1); }}
+            title=""
+            size="lg"
+            side="center"
+          >
+            <div className="relative overflow-hidden rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#040404] via-[#060606] to-[#0a0a0a] text-white">
+              <div
+                className="pointer-events-none absolute -top-32 right-0 h-72 w-72 rounded-full bg-[#1dff00]/20 blur-3xl opacity-40"
+              />
+              <div className="relative p-6 sm:p-8 space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+                  <div className="space-y-3 max-w-xl">
+                    <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#1dff00]/80">
+                      <Sparkles className="w-3 h-3" />
+                      Auto Apply
+                    </div>
+                    <h3 className="text-xl sm:text-2xl font-semibold">{jobToAutoApply ? 'Auto Apply to specific job' : 'Launch enterprise-grade automation'}</h3>
+                    <p className="text-sm text-white/60">
+                      {jobToAutoApply ?
+                        <>Applying to <strong>{jobToAutoApply.title}</strong></> :
+                        <>Deploy applications across <span className="text-[#1dff00] font-medium">{autoApplyTargetCount}</span> curated roles with governed pacing, telemetry, and resume intelligence.</>}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2 text-right min-w-[150px]">
+                    <div className="text-[11px] uppercase tracking-wide text-white/40">Jobs queued</div>
+                    <div className="text-2xl font-semibold text-[#1dff00]">{autoApplyTargetCount}</div>
+                    {selectedResume && (
+                      <div className="text-[11px] text-white/50 truncate max-w-[180px]">Resume • {selectedResume.name}</div>
+                    )}
+                    {selectedCoverLetter && (
+                      <div className="text-[11px] text-white/50 truncate max-w-[180px]">Cover letter • {selectedCoverLetter.name}</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {autoApplySteps.map((step) => {
+                    const status = step.id === autoApplyStep ? 'active' : step.id < autoApplyStep ? 'done' : 'pending';
+                    return (
+                      <div
+                        key={step.id}
+                        className={`flex-1 rounded-xl border p-3 sm:p-4 transition-all duration-300 ${
+                              status === 'active'
+                                ? 'border-[#1dff00]/60 bg-[#1dff00]/10 shadow-[0_0_18px_rgba(29,255,0,0.25)]'
+                                : status === 'done'
+                                ? 'border-[#1dff00]/30 bg-[#1dff00]/12 text-white/80'
+                                : 'border-white/12 bg-white/[0.02] text-white/60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          {status === 'done' ? (
+                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#1dff00] text-black">
+                              <Check className="w-3.5 h-3.5" />
+                            </span>
+                          ) : (
+                            <span
+                              className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-[11px] ${
+                                status === 'active'
+                                  ? 'border-[#1dff00]/70 text-[#1dff00]'
+                                  : 'border-white/25 text-white/35'
+                              }`}
+                            >
+                              0{step.id}
+                            </span>
+                          )}
+                          <span>{step.label}</span>
+                        </div>
+                        <p className="mt-2 text-xs leading-relaxed text-white/60">{step.description}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {autoApplyStep === 1 && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <p className="text-sm text-white/60">Select the resume we attach to each submission. Align the resume with this search persona for the strongest signal.</p>
+                      <a
+                        href="/dashboard/resumes"
+                        className="text-xs inline-flex items-center gap-1 text-[#1dff00] hover:text-[#a3ffb5]"
+                      >
+                        Manage resumes
+                      </a>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto pr-1 space-y-3">
+                      {resumesLoading ? (
+                        <div className="grid gap-3">
+                          {Array.from({ length: 3 }).map((_, i) => (
+                            <div key={i} className="rounded-xl border border-white/12 bg-white/[0.03] p-4 animate-pulse" />
+                          ))}
+                        </div>
+                      ) : (Array.isArray(resumes) && resumes.length > 0 ? (
+                        <div className="grid gap-3">
+                          {resumes.map((r: any) => {
+                            const selected = selectedResumeId === r.id;
+                            return (
+                              <button
+                                key={r.id}
+                                type="button"
+                                onClick={() => setSelectedResumeId(r.id)}
+                                className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
+                                  selected
+                                    ? 'border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]'
+                                    : 'border-white/12 bg-white/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8'
+                                }`}
+                              >
+                                <div className="min-w-0 space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="truncate text-sm font-medium text-white" title={r.name}>{r.name}</span>
+                                    {r.is_favorite && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10">Preferred</span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-white/60 truncate">
+                                    {(r.file_ext || 'pdf').toUpperCase()} • {r.size ? `${Math.round(r.size/1024)} KB` : 'Size unknown'} • Updated {new Date(r.updated_at).toLocaleDateString()}
+                                  </div>
+                                </div>
+                                <span
+                                  className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${
+                                    selected
+                                      ? 'border-[#1dff00]/70 bg-[#1dff00] text-black'
+                                      : 'border-white/20 text-white/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]'
+                                  }`}
+                                >
+                                  {selected ? <Check className="w-4 h-4" /> : <FileText className="w-3.5 h-3.5" />}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-center space-y-2">
+                          <p className="text-sm text-white/70">No resumes found.</p>
+                          <p className="text-xs text-white/50">Import a resume to personalise each application or proceed without an attachment.</p>
+                          <a
+                            href="/dashboard/resumes"
+                            className="inline-flex items-center gap-2 text-[13px] px-4 py-2 rounded-lg border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10 hover:bg-[#1dff00]/20 transition"
+                          >
+                            Manage resumes
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="pt-5 border-t border-white/12 space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <p className="text-sm text-white/60">Optionally attach a cover letter from your library. We’ll pair it with each submission when available.</p>
+                        <a
+                          href="/dashboard/cover-letter"
+                          className="text-xs inline-flex items-center gap-1 text-[#1dff00] hover:text-[#a3ffb5]"
+                        >
+                          Manage cover letters
+                        </a>
+                      </div>
+                      <div className="max-h-60 overflow-y-auto pr-1 space-y-3">
+                        {Array.isArray(coverLetterLibrary) && coverLetterLibrary.length > 0 ? (
+                          <div className="grid gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedCoverLetterId(null)}
+                              className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
+                                !selectedCoverLetterId
+                                  ? 'border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]'
+                                  : 'border-white/12 bg-white/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8'
+                              }`}
+                            >
+                              <div className="min-w-0 space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="truncate text-sm font-medium text-white">No cover letter</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/15 text-white/60">Optional</span>
+                                </div>
+                                <div className="text-[11px] text-white/50">Proceed without attaching a letter.</div>
+                              </div>
+                              <span
+                                className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${
+                                  !selectedCoverLetterId
+                                    ? 'border-[#1dff00]/70 bg-[#1dff00] text-black'
+                                    : 'border-white/20 text-white/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]'
+                                }`}
+                              >
+                                {!selectedCoverLetterId ? <Check className="w-4 h-4" /> : <FileText className="w-3.5 h-3.5" />}
+                              </span>
+                            </button>
+                            {coverLetterLibrary.map((entry) => {
+                              const selected = selectedCoverLetterId === entry.id;
+                              const persona = [entry.data?.role, entry.data?.company].filter(Boolean).join(' • ');
+                              let updatedLabel = '';
+                              if (entry.updatedAt) {
+                                try {
+                                  updatedLabel = new Date(entry.updatedAt).toLocaleDateString();
+                                } catch {
+                                  updatedLabel = entry.updatedAt;
+                                }
+                              }
+                              return (
+                                <button
+                                  key={entry.id}
+                                  type="button"
+                                  onClick={() => setSelectedCoverLetterId(entry.id)}
+                                  className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
+                                    selected
+                                      ? 'border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]'
+                                      : 'border-white/12 bg-white/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8'
+                                  }`}
+                                >
+                                  <div className="min-w-0 space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="truncate text-sm font-medium text-white" title={entry.name}>{entry.name}</span>
+                                      {entry.draft && (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/20 text-white/60">Draft</span>
+                                      )}
+                                    </div>
+                                    <div className="text-[11px] text-white/60 truncate">
+                                      {persona ? persona : entry.draft ? 'Autosaved draft from builder' : 'Reusable cover letter template'}
+                                    </div>
+                                    {updatedLabel && (
+                                      <div className="text-[10px] uppercase tracking-wide text-white/35">Updated {updatedLabel}</div>
+                                    )}
+                                  </div>
+                                  <span
+                                    className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${
+                                      selected
+                                        ? 'border-[#1dff00]/70 bg-[#1dff00] text-black'
+                                        : 'border-white/20 text-white/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]'
+                                    }`}
+                                  >
+                                    {selected ? <Check className="w-4 h-4" /> : <FileText className="w-3.5 h-3.5" />}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-center space-y-2">
+                            <p className="text-sm text-white/70">No cover letters found.</p>
+                            <p className="text-xs text-white/50">Build a cover letter in the workspace to reuse it here or continue without one.</p>
+                            <a
+                              href="/dashboard/cover-letter"
+                              className="inline-flex items-center gap-2 text-[13px] px-4 py-2 rounded-lg border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10 hover:bg-[#1dff00]/20 transition"
+                            >
+                              Manage cover letters
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {autoApplyStep === 2 && (
+                  <div className="grid gap-4">
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="rounded-xl border border-[#1dff00]/35 bg-[#1dff00]/12 p-4 sm:p-5">
+                        <div className="flex items-center gap-2 text-sm font-medium text-[#eaffea]">
+                          <ShieldCheck className="w-4 h-4" />
+                          Execution summary
+                        </div>
+                        <div className="mt-4 flex items-baseline gap-2">
+                          <span className="text-3xl font-semibold text-[#1dff00]">{autoApplyTargetCount}</span>
+                          <span className="text-sm text-white/75">jobs targeted</span>
+                        </div>
+                        <p className="mt-3 text-xs text-white/70">Applications are sequenced with rate-limit awareness, logging telemetry to Diagnostics as each job is processed.</p>
+                      </div>
+                      <div className="rounded-xl border border-white/12 bg-white/[0.03] p-4 sm:p-5 space-y-3">
+                        <div className="flex items-center gap-2 text-sm font-medium text-white/80">
+                          <FileText className="w-4 h-4 text-[#1dff00]" />
+                          Resume payload
+                        </div>
+                        {selectedResume ? (
+                          <div className="space-y-1 text-sm text-white/70">
+                            <div className="text-white font-medium">{selectedResume.name}</div>
+                            <div className="text-xs text-white/45 uppercase tracking-wide">
+                              {(selectedResume.file_ext || 'pdf').toUpperCase()} • Updated {new Date(selectedResume.updated_at).toLocaleDateString()}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-white/60">No resume selected. Applications will submit without an attachment.</p>
+                        )}
+                        <div className="text-xs text-white/40">Analytics events record resume identifiers for downstream auditing.</div>
+                        <div className="pt-4 border-t border-white/10 space-y-3">
+                          <div className="flex items-center gap-2 text-sm font-medium text-white/80">
+                            <FileText className="w-4 h-4 text-[#1dff00]" />
+                            Cover letter payload
+                          </div>
+                          {selectedCoverLetter ? (
+                            <div className="space-y-1 text-sm text-white/70">
+                              <div className="flex items-center gap-2">
+                                <span className="text-white font-medium">{selectedCoverLetter.name}</span>
+                                {selectedCoverLetter.draft && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/20 text-white/60">Draft</span>
+                                )}
+                              </div>
+                              <div className="text-xs text-white/45 uppercase tracking-wide">
+                                {[selectedCoverLetter.data?.role, selectedCoverLetter.data?.company].filter(Boolean).join(' • ') || 'Reusable letter asset'}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-white/60">No cover letter selected. Automation proceeds without an attachment here.</p>
+                          )}
+                          <div className="text-xs text-white/40">We log cover letter selection for observability but keep attachments optional.</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-white/12 bg-white/[0.02] p-4 sm:p-5">
+                      <div className="flex items-center gap-2 text-sm font-medium text-white/80">
+                        <Clock3 className="w-4 h-4 text-[#1dff00]" />
+                        Runbook
+                      </div>
+                      <ul className="mt-3 space-y-2 text-sm text-white/70">
+                        <li className="flex items-start gap-2">
+                          <span className="mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-[#1dff00]" />
+                          <span>Sequential automation with intelligent retries; cancel anytime from Diagnostics.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-[#1dff00]" />
+                          <span>Each job updates status to <span className="text-[#1dff00]">applied</span> and emits success or failure analytics.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-[#1dff00]" />
+                          <span>We honour custom apply URLs and respect rate limits to avoid vendor throttling.</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-white/12">
+                  <p className="text-xs text-white/50 flex items-center gap-2">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#1dff00]" />
+                    Automation respects existing filters and logs telemetry for audit trails.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      className="border border-transparent text-white/60 hover:text-white"
+                      onClick={() => { setResumeDialogOpen(false); setAutoApplyStep(1); }}
+                    >
+                      Close
+                    </Button>
+                    {autoApplyStep === 2 && (
+                      <Button
+                        variant="outline"
+                        className="border-white/20 text-white hover:border-white/40 hover:bg-white/10"
+                        onClick={() => setAutoApplyStep(1)}
+                      >
+                        Back
+                      </Button>
+                    )}
+                    <Button
+                      className={`border border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25 ${autoApplyPrimaryDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={autoApplyPrimaryDisabled}
+                      onClick={() => {
+                        if (autoApplyStep === 1) {
+                          if (canAdvanceFromStepOne) setAutoApplyStep(2);
+                        } else if (canLaunchAutoApply) {
+                          setResumeDialogOpen(false);
+                          applyAllJobs();
+                        }
+                      }}
+                    >
+                      {autoApplyStep === 1 ? 'Continue' : 'Launch automation'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Modal>
         </div>
-        <div className="px-5 py-4 border-t border-white/10 flex items-center justify-end gap-3">
-          <button onClick={onCancel} className="px-3 py-2 rounded-md text-white/80 hover:text-white">Cancel</button>
-          <button onClick={onConfirm} className="px-4 py-2 rounded-md bg-[#1dff00] text-black hover:bg-[#1dff00]/90">Attach & Apply</button>
-        </div>
+        {/* Mobile drawer */}
+        {isMobile && selectedJob && (() => {
+          const j = jobs.find(x => x.id === selectedJob);
+          if (!j) return null;
+          return (
+            <Modal
+              open={true}
+              onClose={() => setSelectedJob(null)}
+              title={j.title}
+              size="xl"
+              side="right"
+            >
+              <div className="-mx-1 space-y-3 pb-2">
+                {(() => {
+                  const primaryHref = j.apply_url || (j as any)?.raw_data?.sourceUrl || j.source_id;
+                  const siteHost = primaryHref ? getHost(primaryHref) : '';
+                  const ico = siteHost ? `https://icons.duckduckgo.com/ip3/${siteHost}.ico` : '';
+                  const employmentType = (j as any)?.employment_type ?? (j as any)?.raw_data?.scraped_data?.employment_type;
+                  const experienceLevel = (j as any)?.experience_level ?? (j as any)?.raw_data?.scraped_data?.experience_level;
+                  const deadline = j.expires_at || (j as any)?.raw_data?.deadline || (j as any)?.raw_data?.applicationDeadline;
+                  const deadlineMeta = deadline ? formatDeadlineMeta(deadline) : null;
+
+                  let salaryText: string | null = null;
+                  if (j.salary_min || j.salary_max || j.salary_currency) {
+                    const currency = j.salary_currency || 'USD';
+                    const currencySymbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency;
+                    if (j.salary_min && j.salary_max) salaryText = `${currencySymbol}${j.salary_min.toLocaleString()} - ${currencySymbol}${j.salary_max.toLocaleString()}`;
+                    else if (j.salary_min) salaryText = `${currencySymbol}${j.salary_min.toLocaleString()}+`;
+                    else if (j.salary_max) salaryText = `Up to ${currencySymbol}${j.salary_max.toLocaleString()}`;
+                  }
+                  if (!salaryText) {
+                    const raw = (j as any)?.raw_data;
+                    const salary = (raw?.scraped_data?.salary || raw?.salaryRange || raw?.salary) as string | undefined;
+                    if (salary) salaryText = salary;
+                  }
+
+                  const metaTiles = [
+                    j.location ? { label: 'Location', value: j.location } : null,
+                    j.remote_type ? { label: 'Remote', value: j.remote_type } : null,
+                    employmentType ? { label: 'Type', value: employmentType } : null,
+                    experienceLevel ? { label: 'Level', value: experienceLevel } : null,
+                    deadlineMeta ? { label: 'Deadline', value: deadlineMeta.label, tone: deadlineMeta.level } : null,
+                    salaryText ? { label: 'Comp', value: salaryText } : null,
+                  ].filter(Boolean) as { label: string; value: string; tone?: 'urgent' | 'soon' | 'future' }[];
+
+                  return (
+                    <Card className="relative overflow-hidden border border-[#1dff00]/25 bg-gradient-to-br from-[#020202] via-[#040404] to-[#0a0a0a] p-5">
+                      <span className="pointer-events-none absolute -top-20 -right-10 h-40 w-40 rounded-full bg-[#1dff00]/20 blur-3xl opacity-50" />
+                      <div className="relative space-y-4">
+                        <div className="flex items-start gap-3">
+                          {j.logoUrl && !logoError[j.id] ? (
+                            <img
+                              src={j.logoUrl}
+                              alt={j.company}
+                              className="w-12 h-12 rounded-xl object-contain bg-white"
+                              onError={() => setLogoError(e => ({ ...e, [j.id]: true }))}
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-lg">
+                              {j.logo}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-[#1dff00]/70">
+                              <Sparkles className="w-3 h-3" />
+                              Featured Job
+                            </div>
+                            <div className="text-lg font-semibold text-white leading-tight">{j.title}</div>
+                            <div className="flex flex-wrap items-center gap-2 text-[12px] text-white/70">
+                              <span className="font-medium text-white/90">{j.company}</span>
+                              {siteHost && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-white/50" title={primaryHref || undefined}>
+                                  {ico && <img src={ico} alt="" className="w-3 h-3 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
+                                  {siteHost}
+                                </span>
+                              )}
+                              {j.posted_at && (
+                                <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-white/40">
+                                  Posted {formatRelative(j.posted_at)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {metaTiles.length > 0 && (
+                          <div className="grid grid-cols-2 gap-2">
+                            {metaTiles.map((tile) => (
+                              <div key={`${tile.label}-${tile.value}`} className="rounded-lg border border-white/10 bg-white/5 px-2 py-2">
+                                <div className="text-[10px] uppercase tracking-wide text-white/40">{tile.label}</div>
+                                <div className={`text-xs font-medium ${tile.tone === 'urgent' ? 'text-[#ff8b8b]' : tile.tone === 'soon' ? 'text-[#ffd78b]' : tile.tone === 'future' ? 'text-[#8bffb1]' : 'text-white/85'}`}>{tile.value}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          {primaryHref && (
+                            <a
+                              href={primaryHref}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#1dff00]/50 bg-[#1dff00]/15 px-3 py-2 text-[13px] font-medium text-[#1dff00] transition hover:bg-[#1dff00]/25"
+                            >
+                              View Posting
+                            </a>
+                          )}
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              setJobToAutoApply(j);
+                              openAutoApplyFlow();
+                            }}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-[13px] font-medium text-white transition hover:bg-white/20"
+                          >
+                            <Briefcase className="w-4 h-4" />
+                            Auto Apply
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })()}
+
+                <Card className="border border-white/12 bg-gradient-to-b from-[#0c0c0c] via-[#050505] to-[#020202] p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="inline-flex items-center gap-2 text-sm font-medium text-white/80">
+                      <FileText className="w-4 h-4 text-[#1dff00]" />
+                      Job Description
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wide text-white/35">Full brief</span>
+                  </div>
+                  <div className="max-w-none text-[#ffffffcc] leading-relaxed text-[13px] whitespace-pre-wrap">
+                    {j.description || ''}
+                  </div>
+                </Card>
+
+                {/* AI Match Score Card - Mobile - Gated for Pro/Ultimate */}
+                {subscriptionTier === 'Free' ? (
+                  <UpgradePrompt
+                    title="AI Match Score Analysis"
+                    description="Get detailed compatibility insights powered by advanced AI to find your perfect job match."
+                    features={[
+                      {
+                        icon: <Target className="h-5 w-5" />,
+                        title: "Skills Compatibility",
+                        description: "See how your skills align with job requirements"
+                      },
+                      {
+                        icon: <TrendingUp className="h-5 w-5" />,
+                        title: "Experience Match",
+                        description: "Understand if your experience level fits"
+                      },
+                      {
+                        icon: <Sparkles className="h-5 w-5" />,
+                        title: "AI-Powered Insights",
+                        description: "Get smart recommendations for improvement"
+                      }
+                    ]}
+                    requiredTier="Pro/Ultimate"
+                    icon={<Sparkles className="h-12 w-12 text-[#1dff00]" />}
+                    compact={true}
+                  />
+                ) : (
+                  <MatchScorePieChart
+                    score={typeof j.matchScore === 'number' ? j.matchScore : 75}
+                    summary={j.matchSummary || "Match score analysis"}
+                    breakdown={j.matchBreakdown}
+                  />
+                )}
+
+                {(() => {
+                  const screenshot = (j as any)?.raw_data?.screenshot;
+                  if (!screenshot) return null;
+                  return (
+                    <Card className="border border-white/12 bg-[#020202] p-0 overflow-hidden">
+                      <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 bg-white/5">
+                        <div className="inline-flex items-center gap-2 text-xs font-medium text-white/70">
+                          <Sparkles className="w-3 h-3 text-[#1dff00]" />
+                          Screenshot
+                        </div>
+                        <span className="text-[10px] uppercase tracking-wide text-white/35">Preview</span>
+                      </div>
+                      <div className="relative bg-[#050505]">
+                        <img
+                          src={screenshot}
+                          alt="Job page screenshot"
+                          className="w-full h-auto"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const parent = target.parentElement;
+                            if (parent) parent.innerHTML = '<div class="p-4 text-center text-[#ffffff60] text-sm">Screenshot unavailable</div>';
+                          }}
+                        />
+                        <span className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50" />
+                      </div>
+                    </Card>
+                  );
+                })()}
+
+                {(() => {
+                  const sources = (j as any)?.raw_data?._sources;
+                  if (!sources || (Array.isArray(sources) && sources.length === 0)) return null;
+                  const items: any[] = Array.isArray(sources) ? sources : [sources];
+                  return (
+                    <Card className="border border-white/12 bg-gradient-to-br from-[#040404] via-[#030303] to-[#010101] p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="inline-flex items-center gap-2 text-xs font-medium text-white/70">
+                          <ShieldCheck className="w-3 h-3 text-[#1dff00]" />
+                          Source Intelligence
+                        </div>
+                        <span className="text-[10px] uppercase tracking-wide text-white/30">Captured links</span>
+                      </div>
+                      <ul className="space-y-2">
+                        {items.map((s, i) => {
+                          const href = typeof s === 'string' ? s : (s?.url || s?.source || '');
+                          if (!href) return null;
+                          const host = getHost(href);
+                          const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
+                          return (
+                            <li key={i} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                {host && <img src={ico} alt="" className="w-4 h-4 rounded" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
+                                <a href={href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#1dff00] hover:underline">
+                                  {host || href}
+                                </a>
+                              </div>
+                              <span className="text-[10px] uppercase tracking-wide text-white/30">Open</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </Card>
+                  );
+                })()}
+                <div className="px-1 pt-1">
+                  <Button
+                    variant="ghost"
+                    className="w-full rounded-lg border border-white/15 bg-white/5 text-white/70 hover:text-white hover:bg-white/10"
+                    onClick={() => setSelectedJob(null)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </Modal>
+          );
+        })()}
       </div>
-    </div>
-  );
-}
+    );
+  };

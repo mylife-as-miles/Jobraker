@@ -13,13 +13,16 @@ export interface Profile {
   updated_at: string;
   // Walkthrough completion flags (added via migration 20251001100000)
   walkthrough_overview?: boolean;
-  walkthrough_applications?: boolean;
+  walkthrough_application?: boolean; // singular version for ApplicationPage
+  walkthrough_applications?: boolean; // plural version (legacy)
   walkthrough_jobs?: boolean;
   walkthrough_resume?: boolean;
   walkthrough_analytics?: boolean;
   walkthrough_settings?: boolean;
   walkthrough_profile?: boolean;
   walkthrough_notifications?: boolean;
+  walkthrough_chat?: boolean;
+  walkthrough_cover_letter?: boolean;
 }
 
 // Lightweight collection record types (duplicated from useProfileCollections to avoid coupling)
@@ -115,8 +118,8 @@ export function useProfileSettings() {
     }
   }, [supabase, userId]);
 
-  useEffect(() => { if (userId) fetchProfile(); }, [userId, fetchProfile]);
-  useEffect(() => { if (userId) { fetchExperiences(); fetchEducation(); fetchSkills(); } }, [userId, fetchExperiences, fetchEducation, fetchSkills]);
+  useEffect(() => { if (userId) fetchProfile(); }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (userId) { fetchExperiences(); fetchEducation(); fetchSkills(); } }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Realtime for collections
   useEffect(() => {
@@ -130,7 +133,7 @@ export function useProfileSettings() {
       .on('postgres_changes', { event: '*', schema: 'public', table: cfg.table, filter: `user_id=eq.${userId}` }, () => cfg.handler())
       .subscribe());
     return () => { subs.forEach(ch => { try { (supabase as any).removeChannel(ch); } catch {} }); };
-  }, [supabase, userId, fetchExperiences, fetchEducation, fetchSkills]);
+  }, [supabase, userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // CRUD helpers
   const addExperience = useCallback(async (payload: Partial<ProfileExperienceRecord>) => {

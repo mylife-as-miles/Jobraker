@@ -17,15 +17,16 @@ import {
   Home,
   ChevronRight as BreadcrumbChevron,
   Briefcase,
-  Mail
+  Mail,
+  CreditCard
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { useProfileSettings } from "../../hooks/useProfileSettings";
-import { useProductTour } from "../../providers/TourProvider";
 import { Skeleton } from "../../components/ui/skeleton";
 import { createClient } from "../../lib/supabaseClient";
 import { useNotifications } from "../../hooks/useNotifications";
+import { CreditDisplay } from "../../components/CreditDisplay";
 
 // Import sub-page components
 import { OverviewPage } from "./pages/OverviewPage";
@@ -37,19 +38,23 @@ import { NotificationPage } from "./pages/NotificationPage";
 import ProfilePage from "./pages/ProfilePage";
 import { ChatPage } from "./pages/ChatPage";
 import { ResumePage } from "./pages/ResumePage";
+import { BillingPage } from "./pages/BillingPage";
+import ResumeBuilderRoute from "./pages/ResumeBuilderRoute";
 
 type DashboardPage = 
   | "overview" 
   | "analytics" 
   | "chat" 
-  | "resume" 
+  | "resume"
   | "jobs" 
   | "application" 
   | "settings"
   | "notifications"
   | "profile"
   | "cover-letter"
-  | "pricing";
+  | "resume"
+  | "pricing"
+  | "billing";
 
 interface PageLink {
   id: DashboardPage;
@@ -62,7 +67,32 @@ export const Dashboard = (): JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile } = useProfileSettings();
-  const { start: startTour } = useProductTour();
+  const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate('/signIn');
+      } else if (session.access_token) {
+        // Update session activity periodically
+        const { updateSessionActivity } = await import('../../utils/sessionManagement');
+        updateSessionActivity(session.access_token);
+      }
+    };
+    checkAuth();
+    
+    // Update session activity every 5 minutes
+    const interval = setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        const { updateSessionActivity } = await import('../../utils/sessionManagement');
+        updateSessionActivity(session.access_token);
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+    
+    return () => clearInterval(interval);
+  }, [navigate, supabase]);
 
   const pages: DashboardPage[] = [
     "overview",
@@ -72,6 +102,8 @@ export const Dashboard = (): JSX.Element => {
     "jobs",
     "application",
     "cover-letter",
+    "resume",
+    "billing",
     "settings",
     "notifications",
     "profile",
@@ -82,15 +114,13 @@ export const Dashboard = (): JSX.Element => {
 
   const currentPage = useMemo(() => {
     const segment = (location.pathname.split("/")[2] || "").toLowerCase();
-    const normalized = segment === "resumes" ? "resume" : (segment as DashboardPage);
-    return pages.includes(normalized) ? normalized : "overview";
+    return pages.includes(segment as DashboardPage) ? (segment as DashboardPage) : "overview";
   }, [location.pathname]);
   // const resumeSubRoute = useMemo(() => {
   //   const parts = location.pathname.split("/");
   //   return (parts[3] || "").toLowerCase();
   // }, [location.pathname]);
 
-  const supabase = useMemo(() => createClient(), []);
   const [email, setEmail] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const { items: recentNotifications } = useNotifications(20);
@@ -222,6 +252,8 @@ export const Dashboard = (): JSX.Element => {
         return <ResumePage />;
       case "cover-letter":
         return <CoverLetterPage />;
+      case "billing":
+        return <BillingPage />;
       case "settings":
         return <SettingsPage />;
       case "notifications":
@@ -245,8 +277,8 @@ export const Dashboard = (): JSX.Element => {
 
       {/* Sidebar - Responsive */}
       <div className={`
-        fixed lg:static inset-y-0 left-0 z-50 w-56 sm:w-64 lg:w-72 xl:w-80 bg-[#0a0a0a] border-r border-[#1dff00]/20 flex flex-col
-        transform transition-transform duration-300 ease-in-out lg:transform-none
+        fixed inset-y-0 left-0 z-50 w-56 sm:w-64 lg:w-72 xl:w-80 bg-[#0a0a0a] border-r border-[#1dff00]/20 flex flex-col
+        transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* Logo - Responsive */}
@@ -269,21 +301,13 @@ export const Dashboard = (): JSX.Element => {
               <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
           </div>
-          {/* Quick restart tour action (current page) */}
-          <div className="mt-3 flex gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => startTour(currentPage)}
-              className="text-[10px] px-2 py-1 rounded-md border border-[#1dff00]/30 text-[#1dff00]/80 hover:text-black hover:bg-[#1dff00] transition font-medium tracking-wide"
-            >Restart Tour</button>
-          </div>
         </div>
 
         {/* Navigation - Responsive */}
-        <nav className="flex-1 p-2 sm:p-3 lg:p-4 overflow-y-auto">
+        <nav className="flex-1 p-2 sm:p-3 lg:p-4 overflow-y-auto min-h-0">
           <div className="space-y-1 sm:space-y-2">
             {navigationItems.map((item) => {
-              const path = item.id === "resume" ? "/dashboard/resumes" : `/dashboard/${item.id}`;
+              const path = `/dashboard/${item.id}`;
               const isActive = currentPage === item.id;
               return (
                 <Button
@@ -308,9 +332,12 @@ export const Dashboard = (): JSX.Element => {
           </div>
         </nav>
 
-        {/* Premium Card - Responsive */}
-        <div className="p-2 sm:p-3 lg:p-4">
-          <Card className="bg-gradient-to-br from-[#1dff00] to-[#0a8246] border-none hover:scale-105 transition-transform duration-300">
+        {/* Premium Card - Responsive - Fixed to bottom */}
+        <div className="flex-shrink-0 p-2 sm:p-3 lg:p-4 border-t border-[#1dff00]/20 bg-[#0a0a0a]">
+          <Card
+            className="bg-gradient-to-br from-[#1dff00] to-[#0a8246] border-none hover:scale-105 transition-transform duration-300 cursor-pointer"
+            onClick={() => navigate('/dashboard/billing')}
+          >
             <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="text-center">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-black/20 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3 hover:scale-110 transition-transform duration-300">
@@ -321,7 +348,7 @@ export const Dashboard = (): JSX.Element => {
                 <Button 
                   size="sm" 
                   className="bg-black text-white hover:bg-black/90 hover:scale-105 transition-all duration-300 text-xs sm:text-sm w-full"
-                  onClick={() => { window.location.href = '/pricing'; }}
+                  onClick={() => { navigate('/dashboard/billing'); }}
                 >
                   <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                   Upgrade
@@ -333,7 +360,7 @@ export const Dashboard = (): JSX.Element => {
       </div>
 
       {/* Main Content - Responsive */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-72 xl:ml-80">
         {/* Header - Responsive */}
         <header className="sticky top-0 z-40 bg-[#0a0a0a]/95 backdrop-blur border-b border-[#1dff00]/20 p-2 sm:p-3 lg:p-4">
           <div className="flex items-center justify-between gap-2">
@@ -372,11 +399,14 @@ export const Dashboard = (): JSX.Element => {
             
             {/* Header Actions - Responsive */}
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0 whitespace-nowrap">
+              {/* Credit Display */}
+              {profile && <CreditDisplay />}
+              
               {/* Quick Actions */}
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 hidden sm:flex p-1 sm:p-2"
+                className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 flex p-1 sm:p-2"
                 onClick={() => navigate("/dashboard/settings")}
                 title="Settings"
                 aria-label="Open settings"
@@ -402,7 +432,7 @@ export const Dashboard = (): JSX.Element => {
               </Button>
               
               {/* Profile Button - Responsive */}
-              {profile === null ? (
+              {!profile ? (
                 <div className="hidden sm:flex items-center space-x-3">
                   <Skeleton className="w-8 h-8 lg:w-10 lg:h-10 rounded-full" />
                   <div className="hidden lg:flex flex-col space-y-1">
@@ -458,16 +488,18 @@ export const Dashboard = (): JSX.Element => {
 
         {/* Page Content - Responsive */}
         <div className="flex-1 overflow-auto">
-          <motion.div
-            key={currentPage}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="h-full"
-          >
-            {renderPageContent()}
-          </motion.div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentPage}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="h-full"
+            >
+              {renderPageContent()}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     </div>

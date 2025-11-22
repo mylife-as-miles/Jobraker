@@ -16,7 +16,7 @@ import { SectionIcon } from "../shared/section-icon";
 
 export const PageSection = () => {
   const setValue = useResumeStore((state) => state.setValue);
-  const page = useResumeStore((state) => state.resume.data.metadata.page);
+  const page = useResumeStore((state) => state.resume?.data?.metadata?.page);
 
   return (
     <section id="page" className="grid gap-y-6">
@@ -32,7 +32,7 @@ export const PageSection = () => {
           <Label>{t`Format`}</Label>
           <SafeSelect
             fallbackValue="a4"
-            value={page.format}
+            value={page?.format || "a4"}
             onValueChange={(value: string) => {
               setValue("metadata.page.format", value);
             }}
@@ -55,13 +55,13 @@ export const PageSection = () => {
               min={0}
               max={48}
               step={2}
-              value={[page.margin]}
+              value={[page?.margin || 24]}
               onValueChange={(value: number[]) => {
                 setValue("metadata.page.margin", value[0]);
               }}
             />
 
-            <span className="text-base font-bold">{page.margin}</span>
+            <span className="text-base font-bold">{page?.margin || 24}</span>
           </div>
         </div>
 
@@ -72,7 +72,7 @@ export const PageSection = () => {
             <div className="flex items-center gap-x-4">
               <Switch
                 id="metadata.page.options.breakLine"
-                checked={page.options.breakLine}
+                checked={page?.options?.breakLine || false}
                 onCheckedChange={(checked: boolean) => {
                   setValue("metadata.page.options.breakLine", checked);
                 }}
@@ -85,7 +85,7 @@ export const PageSection = () => {
             <div className="flex items-center gap-x-4">
               <Switch
                 id="metadata.page.options.pageNumbers"
-                checked={page.options.pageNumbers}
+                checked={page?.options?.pageNumbers || false}
                 onCheckedChange={(checked: boolean) => {
                   setValue("metadata.page.options.pageNumbers", checked);
                 }}

@@ -12,6 +12,7 @@ interface ImportMetaEnv {
   readonly VITE_ENABLE_ANALYTICS?: string
   readonly VITE_ENABLE_NOTIFICATIONS?: string
   readonly VITE_ENABLE_REAL_TIME?: string
+  readonly VITE_COMPOSIO_GMAIL_CONFIG_ID?: string
 }
 
 interface ImportMeta {

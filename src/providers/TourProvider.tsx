@@ -311,9 +311,29 @@ const pageLabels: Record<string, string> = {
 
 const FloatingTourMenu: React.FC<{ registry: React.MutableRefObject<Map<string, any[]>>; start: (p: string) => void; page: string | null; isRunning: boolean; profile: any; }> = ({ registry, start, page, isRunning, profile }) => {
   const [open, setOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const pages = Array.from(registry.current.keys()).filter(k => k !== '*');
   // Determine completion via profile walkthrough flags
   const completion = (p: string) => (profile as any)?.[`walkthrough_${p}`] === true;
+  
+  // Check admin status
+  useEffect(() => {
+    const checkAdmin = async () => {
+      try {
+        const { isCurrentUserAdmin } = await import('@/lib/adminUtils');
+        const admin = await isCurrentUserAdmin();
+        setIsAdmin(admin);
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+        setIsAdmin(false);
+      }
+    };
+    checkAdmin();
+  }, []);
+
+  // Don't render if not admin
+  if (!isAdmin) return null;
+
   return (
     <div className="fixed z-[12000] bottom-4 right-4 flex flex-col items-end gap-2">
       {open && (

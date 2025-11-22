@@ -85,7 +85,7 @@ type SectionProps = {
 };
 
 const Section = ({ id, isDragging = false }: SectionProps) => {
-  const name = useResumeStore((state) => get(state.resume.data.sections, `${id}.name`, id));
+  const name = useResumeStore((state) => get(state.resume?.data?.sections, `${id}.name`, id));
 
   return (
     <div
@@ -104,7 +104,7 @@ const Section = ({ id, isDragging = false }: SectionProps) => {
 
 export const LayoutSection = () => {
   const setValue = useResumeStore((state) => state.setValue);
-  const layout = useResumeStore((state) => state.resume.data.metadata.layout);
+  const layout = useResumeStore((state) => state.resume?.data?.metadata?.layout);
 
   const [activeId, setActiveId] = useState<string | null>(null);
 

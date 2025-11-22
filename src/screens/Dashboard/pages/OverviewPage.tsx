@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { MatchScoreAnalytics } from "../../../components/analytics/MatchScoreAnalytics";
 import { Switch } from "../../../components/ui/switch";
 import { Button } from "../../../components/ui/button";
@@ -12,17 +13,21 @@ import { useApplications, ApplicationStatus } from "../../../hooks/useApplicatio
 import { Skeleton } from "../../../components/ui/skeleton";
 import { SplitLineAreaChart } from "./SplitLineAreaChart";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
+import { useAnalyticsData } from "../../../hooks/useAnalyticsData";
+import { StreakCard } from "../../../components/StreakCard";
 // SplitLineAreaChart removed; chart moved to Application section
 
 // Using realtime notifications; no local interface needed here
 
 export const OverviewPage = (): JSX.Element => {
+  const navigate = useNavigate();
   const [selectedPeriod, setSelectedPeriod] = useState("1 Month");
   const [stacked, setStacked] = useState(false);
   const [stackedTouched, setStackedTouched] = useState(false);
   const [visibleSeries, setVisibleSeries] = useState<string[]>([]);
   const { items: notifItems, loading: notifLoading } = useNotifications(6);
   const { applications, loading: appsLoading, update, create, stats } = useApplications();
+  const matchAnalytics = useAnalyticsData("30d", { granularity: 'day' });
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus[] | null>(null); // null => all
   const mappedNotifs = useMemo(() => {
     return notifItems.map(n => {
@@ -105,7 +110,7 @@ export const OverviewPage = (): JSX.Element => {
 
   // Build real series based on selected period with status-specific keys
   const { seriesData, seriesMeta, appliedCount, interviewCount, totals } = useMemo(() => {
-    const period = selectedPeriod
+    const period = selectedPeriod;
 
     // Apply status filtering (search removed per request)
     let filtered = applications;
@@ -251,6 +256,122 @@ export const OverviewPage = (): JSX.Element => {
     });
   }, [applications]);
 
+  // Calculate streak data from applications
+  const streakData = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Calculate start of current week (Monday)
+    const currentDayOfWeek = today.getDay();
+    const daysFromMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - daysFromMonday);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    // Get activity for this week (Mon-Sun)
+    const weekActivity = [false, false, false, false, false, false, false];
+    let weekCount = 0;
+
+    applications.forEach(app => {
+      // Parse the date string and create a local date (not UTC)
+      const appDate = new Date(app.applied_date);
+      // Normalize to local midnight
+      const localDate = new Date(appDate.getFullYear(), appDate.getMonth(), appDate.getDate());
+      
+      // Check if in current week
+      const weekEnd = new Date(startOfWeek);
+      weekEnd.setDate(startOfWeek.getDate() + 7);
+      
+      if (localDate >= startOfWeek && localDate < weekEnd) {
+        const daysSinceMonday = Math.floor((localDate.getTime() - startOfWeek.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysSinceMonday >= 0 && daysSinceMonday < 7) {
+          if (!weekActivity[daysSinceMonday]) {
+            weekActivity[daysSinceMonday] = true;
+            weekCount++;
+          }
+        }
+      }
+    });
+
+    // Calculate current streak (consecutive days with activity, counting back from today or yesterday)
+    let currentStreak = 0;
+    const sortedDates = applications
+      .map(app => {
+        const d = new Date(app.applied_date);
+        // Normalize to local midnight
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      })
+      .sort((a, b) => b.getTime() - a.getTime());
+
+    if (sortedDates.length > 0) {
+      // Start from today
+      let checkDate = new Date(today);
+      
+      // Check if there's activity today, if not start from yesterday
+      const hasToday = sortedDates.some(d => d.getTime() === checkDate.getTime());
+      if (!hasToday) {
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
+
+      // Count consecutive days backwards
+      while (true) {
+        const hasActivity = sortedDates.some(d => d.getTime() === checkDate.getTime());
+
+        if (hasActivity) {
+          currentStreak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+    }
+
+    // Calculate longest streak
+    let longestStreak = 0;
+    let tempStreak = 0;
+    const uniqueDays = new Set(
+      applications.map(app => {
+        const d = new Date(app.applied_date);
+        // Normalize to local midnight
+        const localDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        return localDate.getTime();
+      })
+    );
+    const sortedUniqueDays = Array.from(uniqueDays)
+      .map(timestamp => new Date(timestamp))
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    for (let i = 0; i < sortedUniqueDays.length; i++) {
+      if (i === 0) {
+        tempStreak = 1;
+      } else {
+        const prevDay = sortedUniqueDays[i - 1];
+        const currDay = sortedUniqueDays[i];
+        const diffDays = Math.round((currDay.getTime() - prevDay.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays === 1) {
+          tempStreak++;
+        } else {
+          longestStreak = Math.max(longestStreak, tempStreak);
+          tempStreak = 1;
+        }
+      }
+    }
+    longestStreak = Math.max(longestStreak, tempStreak);
+
+    // Calculate completion rate (active days / total days since first application)
+    const completionRate = sortedUniqueDays.length > 0
+      ? (uniqueDays.size / sortedUniqueDays.length) * 100
+      : 0;
+
+    return {
+      currentStreak,
+      longestStreak,
+      weekProgress: weekCount,
+      completionRate,
+      activeDays: weekActivity,
+    };
+  }, [applications]);
+
   // Product tour coach marks for overview dashboard
   useRegisterCoachMarks({
     page: 'overview',
@@ -259,25 +380,25 @@ export const OverviewPage = (): JSX.Element => {
         id: 'apps-chart',
         selector: '#overview-apps-chart',
         title: 'Application Velocity',
-        body: 'Track how many applications you submit over time and spot trends early.'
+        body: 'Track how many applications you submit over time with interactive charts. Switch between Today, 1 Week, and 1 Month views. Toggle stacked mode to compare statuses side-by-side.'
       },
       {
         id: 'status-toggle',
         selector: '#overview-status-filter-buttons',
         title: 'Focus by Status',
-        body: 'Filter the dataset to highlight specific pipeline stages like Interview or Offers.'
+        body: 'Filter the dataset to highlight specific pipeline stages like Applied, Interview, Offer, or Rejected. Select multiple statuses to see combined trends. Color-coded pills make it easy to identify each status.'
       },
       {
         id: 'calendar-pane',
         selector: '#overview-calendar',
         title: 'Calendar Insight',
-        body: 'Interviews and applied dates appear here so you can plan your week effectively.'
+        body: 'Interviews and applied dates appear here so you can plan your week effectively. Click any date to see detailed application information. Switch between month and week views for different perspectives.'
       },
       {
         id: 'notifications-panel',
         selector: '#overview-notifications',
         title: 'Recent Notifications',
-        body: 'Stay on top of interview scheduling, offers, and important system updates.'
+        body: 'Stay on top of interview scheduling, offers, and important system updates. Notifications are color-coded by type and show real-time updates from your job search activities.'
       }
     ]
   });
@@ -286,9 +407,9 @@ export const OverviewPage = (): JSX.Element => {
     <div className="min-h-screen bg-black">
       <div className="w-full max-w-7xl mx-auto p-3 sm:p-4 lg:p-6 xl:p-8">
         {/* Responsive overview layout */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 items-start">
           {/* Left Column - Applications and Match Score */}
-          <div className="xl:col-span-2 space-y-4 sm:space-y-6 w-full">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6 w-full">
             {/* Applications Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -337,7 +458,7 @@ export const OverviewPage = (): JSX.Element => {
                   </div>
                 </div>
                 {/* Status Filter Pills */}
-                <div id="overview-status-filter-buttons" className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-4 sm:mb-6">
+                <div id="overview-status-filter-buttons" data-tour="overview-status-filter-buttons" className="flex flex-wrap items-center justify-start gap-1.5 sm:gap-2 mb-4 sm:mb-6">
                   {['All','Applied','Interview','Offer','Rejected'].map(s => {
                     const active = s === 'All' ? !statusFilter : statusFilter?.includes(s as ApplicationStatus);
                     const baseColors: Record<string,string> = {
@@ -362,7 +483,7 @@ export const OverviewPage = (): JSX.Element => {
                             return [...prev, s as ApplicationStatus];
                           });
                         }}
-                        className={`text-[10px] sm:text-xs px-2 py-1 rounded-md border transition-all duration-300 font-medium tracking-wide ${baseColors[s]} ${active ? 'ring-1 ring-white/40 scale-105' : 'opacity-70'} focus:outline-none focus:ring-2 focus:ring-[#1dff00]/50`}
+                        className={`w-full sm:w-auto text-[10px] sm:text-xs px-2 py-1 rounded-md border transition-all duration-300 font-medium tracking-wide ${baseColors[s]} ${active ? 'ring-1 ring-white/40 scale-105' : 'opacity-70'} focus:outline-none focus:ring-2 focus:ring-[#1dff00]/50`}
                         title={s === 'All' ? 'Show all statuses' : `${active ? 'Hide' : 'Show'} ${s} applications`}
                         aria-label={s === 'All' ? 'Filter: All statuses' : `Filter: ${s}`}
                         aria-pressed={active}
@@ -372,7 +493,7 @@ export const OverviewPage = (): JSX.Element => {
                 </div>
 
                 {/* Stats & Conversion Metrics */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-8 space-y-4 sm:space-y-0 mb-4 sm:mb-6">
+        <div className="flex flex-wrap items-center justify-start gap-4 sm:gap-8 mb-4 sm:mb-6">
                   <motion.div 
                     className="text-center sm:text-left"
                     whileHover={{ scale: 1.05 }}
@@ -408,7 +529,8 @@ export const OverviewPage = (): JSX.Element => {
                 </div>
 
                 {/* Applications Chart (real data, status series) */}
-                <div id="overview-apps-chart" className="mt-4 sm:mt-6 w-full max-h-96 overflow-hidden min-h-[16rem] relative" aria-live="polite">
+                  {/* Application trend chart */}
+                <div id="overview-apps-chart" data-tour="overview-apps-chart" className="mt-4 sm:mt-6 w-full max-h-96 overflow-hidden min-h-[16rem] relative" aria-live="polite">
                   <div className={`transition-opacity duration-500 ${appsLoading ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                     {!appsLoading && (
                       <SplitLineAreaChart
@@ -442,7 +564,7 @@ export const OverviewPage = (): JSX.Element => {
               whileHover={{ scale: 1.02 }}
               className="transition-transform duration-300"
             >
-              <Card id="overview-calendar" className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
+              <Card id="overview-calendar" data-tour="overview-calendar" className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
                 <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[10px] sm:text-xs text-[#888888]">
                   <div>
                     Current time: <span className="text-[#1dff00] font-medium">{timeLabel}</span>
@@ -459,21 +581,23 @@ export const OverviewPage = (): JSX.Element => {
                     </Button>
                   </div>
                 </div>
-                <KiboCalendar
-                  month={viewDate}
-                  selectedDate={selectedDate || undefined}
-                  onMonthChange={(d) => setViewDate(d)}
-                  onSelectDate={(d) => setSelectedDate(d)}
-                  events={calendarEvents}
-                  maxVisibleEventsPerDay={3}
-                  rangeSelectable
-                  onSelectRange={setSelectedRange}
-                  locale={Intl.DateTimeFormat().resolvedOptions().locale}
-                  viewMode={calendarViewMode}
-                  onViewModeChange={setCalendarViewMode}
-                  heatmap
-                  showLegend
-                />
+                <div className="overflow-x-auto">
+                  <KiboCalendar
+                    month={viewDate}
+                    selectedDate={selectedDate || undefined}
+                    onMonthChange={(d) => setViewDate(d)}
+                    onSelectDate={(d) => setSelectedDate(d)}
+                    events={calendarEvents}
+                    maxVisibleEventsPerDay={3}
+                    rangeSelectable
+                    onSelectRange={setSelectedRange}
+                    locale={Intl.DateTimeFormat().resolvedOptions().locale}
+                    viewMode={calendarViewMode}
+                    onViewModeChange={setCalendarViewMode}
+                    heatmap
+                    showLegend
+                  />
+                </div>
                 {selectedRange && (
                   <div className="mt-3 text-center text-[10px] sm:text-xs text-[#888] flex flex-col items-center gap-1">
                     <div>
@@ -510,11 +634,19 @@ export const OverviewPage = (): JSX.Element => {
 
           {/* Right Column - Notifications and Match Scores */}
           <div className="space-y-4 sm:space-y-6">
-            {/* Notifications */}
+            {/* Streak Card */}
+            <StreakCard
+              currentStreak={streakData.currentStreak}
+              weekProgress={streakData.weekProgress}
+              completionRate={streakData.completionRate}
+              activeDays={streakData.activeDays}
+            />
+
+            {/* Notifications Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
               whileHover={{ scale: 1.02 }}
               className="transition-transform duration-300"
             >
@@ -533,6 +665,7 @@ export const OverviewPage = (): JSX.Element => {
                   <Button 
                     variant="ghost" 
                     size="sm" 
+                    onClick={() => navigate('/dashboard/notifications')}
                     className="text-white/70 hover:text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-105 transition-all duration-300 text-xs sm:text-sm font-medium border border-transparent hover:border-[#1dff00]/40 px-3"
                   >
                     View all
@@ -602,11 +735,7 @@ export const OverviewPage = (): JSX.Element => {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Recent Match Scores</h2>
                 </div>
-                <MatchScoreAnalytics period="30d" data={{
-                  barData: [],
-                  metrics: { avgMatchScore: 0 },
-                  comparisons: { avgMatchDelta: 0 }
-                }} />
+                <MatchScoreAnalytics period="30d" data={matchAnalytics} />
               </Card>
             </motion.div>
           </div>

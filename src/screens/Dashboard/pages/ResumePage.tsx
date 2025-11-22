@@ -15,8 +15,8 @@ export const ResumePage = (): JSX.Element => {
   useRegisterCoachMarks({
     page: 'resume',
     marks: [
-      { id: 'resume-builder-header', selector: 'h1:text("Resume Builder")', title: 'Build & Refine', body: 'Edit your active resume here. Changes can sync with application context.' },
-      { id: 'resume-canvas', selector: '#resume-root, .resume-canvas', title: 'Live Preview', body: 'See changes instantly as you adjust sections, layout and styling.' }
+      { id: 'resume-builder-header', selector: '#resume-builder-header', title: 'Build & Refine', body: 'Edit your active resume here. Changes can sync with application context.' },
+      { id: 'resume-canvas', selector: '#resume-canvas', title: 'Live Preview', body: 'See changes instantly as you adjust sections, layout and styling.' }
     ]
   });
 

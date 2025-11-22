@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, CalendarDays, Briefcase, Clock, Building2, BellPlus } from 'lucide-react';
 import MatchScoreBadge from '../../jobs/MatchScoreBadge';
 import { ApplicationRecord } from '../../../hooks/useApplications';
+import Modal from '../modal';
+import { Button } from '../button';
 
 export interface CalendarDayDetailProps {
   date: Date | null;
@@ -17,6 +19,36 @@ export interface CalendarDayDetailProps {
 
 const ALL_STATUSES: ApplicationRecord['status'][] = ["Pending","Applied","Interview","Offer","Rejected","Withdrawn"];
 
+// Helper function to format date at midnight local time to avoid timezone shift
+// This ensures the selected calendar date is preserved regardless of timezone
+function formatDateForDatabase(date: Date): string {
+  // Get local date components (these are timezone-independent)
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const day = date.getDate();
+  
+  // Create a date at midnight in local timezone
+  const localMidnight = new Date(year, month, day, 0, 0, 0, 0);
+  
+  // getTimezoneOffset() returns offset in minutes from UTC
+  // Positive values are behind UTC (e.g., PST = +480 minutes = UTC-8)
+  // Negative values are ahead of UTC
+  // We need to invert the sign for ISO string format (UTC-8 = -08:00)
+  const offsetMinutes = localMidnight.getTimezoneOffset();
+  const offsetHours = Math.floor(Math.abs(offsetMinutes) / 60);
+  const offsetMins = Math.abs(offsetMinutes) % 60;
+  // Invert sign: positive offset means behind UTC, so we use negative in ISO string
+  const offsetSign = offsetMinutes > 0 ? '-' : '+';
+  
+  // Format as YYYY-MM-DDTHH:mm:ss+HH:mm
+  const yearStr = String(year);
+  const monthStr = String(month + 1).padStart(2, '0');
+  const dayStr = String(day).padStart(2, '0');
+  const offsetStr = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMins).padStart(2, '0')}`;
+  
+  return `${yearStr}-${monthStr}-${dayStr}T00:00:00${offsetStr}`;
+}
+
 export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, range, onClose, applications, onUpdateApplication, onCreateApplication }) => {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const [activeStatuses, setActiveStatuses] = useState<Record<string, boolean>>(() => Object.fromEntries(ALL_STATUSES.map(s => [s, true])));
@@ -26,6 +58,9 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
   const [qaCompany, setQaCompany] = useState('');
   const [qaStatus, setQaStatus] = useState<ApplicationRecord['status']>('Applied');
   const [qaSaving, setQaSaving] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [followUpText, setFollowUpText] = useState('');
+  const [followUpAppId, setFollowUpAppId] = useState<string | null>(null);
 
   const toggleStatus = (s: string) => {
     setActiveStatuses(prev => ({ ...prev, [s]: !prev[s] }));
@@ -191,12 +226,14 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
     if (!qaJob.trim() || !qaCompany.trim()) return;
     try {
       setQaSaving(true);
-      await onCreateApplication({ job_title: qaJob.trim(), company: qaCompany.trim(), status: qaStatus as any, applied_date: (date||range?.start|| new Date()).toISOString() });
+      const selectedDate = date || range?.start || new Date();
+      await onCreateApplication({ job_title: qaJob.trim(), company: qaCompany.trim(), status: qaStatus as any, applied_date: formatDateForDatabase(selectedDate) });
       setQaJob(''); setQaCompany('');
     } finally { setQaSaving(false); }
   };
 
   return (
+    <>
     <AnimatePresence>
       {active && (
         <motion.div
@@ -241,8 +278,8 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
                     </svg>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  <div className="flex flex-wrap gap-2 justify-end max-w-[320px]">
+                <div className="flex flex-col items-start sm:items-end gap-2">
+                  <div className="flex flex-wrap gap-2 justify-start sm:justify-end max-w-full sm:max-w-[320px]">
                     {ALL_STATUSES.map(s => {
                       const count = statusCounts[s] || 0;
                       const active = activeStatuses[s] !== false;
@@ -375,8 +412,9 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
                             title="Add follow-up reminder"
                             onClick={() => {
                               if (!onUpdateApplication) return;
-                              const followup = prompt('Enter follow-up note (saved to next_step)');
-                              if (followup) onUpdateApplication(a.id, { next_step: `Follow-up: ${followup}` });
+                              setFollowUpAppId(a.id);
+                              setFollowUpText(a.next_step?.replace(/^Follow-up: /, '') || '');
+                              setFollowUpOpen(true);
                             }}
                           ><BellPlus className="w-3 h-3" /></button>
                         </div>
@@ -414,6 +452,48 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
         </motion.div>
       )}
     </AnimatePresence>
+
+    {/* Follow-up Note Modal */}
+    <Modal open={followUpOpen} onClose={() => setFollowUpOpen(false)} title="Enter follow-up note (saved to next_step)" size="md" side="center">
+      <div className="space-y-4 p-1">
+        <textarea
+          value={followUpText}
+          onChange={(e) => setFollowUpText(e.target.value)}
+          placeholder="e.g., Email recruiter on Friday about take-home; prep system design"
+          className="w-full min-h-[140px] rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-white/40 p-3 outline-none focus:border-[#1dff00]/40 focus:ring-2 focus:ring-[#1dff00]/20"
+        />
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            className="border-white/20 hover:border-white/30 hover:bg-white/5 text-white/70 hover:text-white"
+            onClick={() => setFollowUpOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black font-semibold hover:shadow-[0_0_20px_rgba(29,255,0,0.3)]"
+            onClick={async () => {
+              if (!onUpdateApplication || !followUpAppId) {
+                setFollowUpOpen(false);
+                return;
+              }
+              try {
+                await onUpdateApplication(followUpAppId, { next_step: followUpText.trim() ? `Follow-up: ${followUpText.trim()}` : null });
+                setFollowUpOpen(false);
+                setFollowUpText('');
+                setFollowUpAppId(null);
+              } catch (error) {
+                console.error('Failed to save follow-up note:', error);
+                setFollowUpOpen(false);
+              }
+            }}
+          >
+            Save Note
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  </>
   );
 };
 

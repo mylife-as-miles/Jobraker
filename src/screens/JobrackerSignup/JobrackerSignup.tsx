@@ -4,7 +4,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
-import { Separator } from "../../components/ui/separator";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
 import { ROUTES } from "../../routes";
@@ -19,6 +18,15 @@ export const JobrackerSignup = (): JSX.Element => {
   const { success, error: toastError } = useToast();
   const [isSignUp, setIsSignUp] = useState<boolean>(() => location.pathname !== ROUTES.SIGNIN);
   const [showPassword, setShowPassword] = useState(false);
+  const [lastUsedProvider, setLastUsedProvider] = useState<string | null>(null);
+
+  useEffect(() => {
+    const savedProvider = localStorage.getItem("lastUsedProvider");
+    if (savedProvider) {
+      setLastUsedProvider(savedProvider);
+    }
+  }, []);
+
   // Keep mode in sync when navigating between /signup and /signIn
   useEffect(() => {
     const shouldSignUp = location.pathname !== ROUTES.SIGNIN;
@@ -45,6 +53,8 @@ export const JobrackerSignup = (): JSX.Element => {
     async (provider: "google" | "linkedin_oidc") => {
       try {
         setSubmitting(true);
+        localStorage.setItem("lastUsedProvider", provider);
+        setLastUsedProvider(provider);
         const { error } = await supabase.auth.signInWithOAuth({
           provider,
           options: {
@@ -100,12 +110,49 @@ export const JobrackerSignup = (): JSX.Element => {
   success("Sign up successful", "We sent a verification link to your email.");
   setShowVerifyModal(true);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data: signInData, error } = await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
         });
         if (error) throw error;
-  navigate(ROUTES.DASHBOARD);
+        
+        // Track session and enforce security settings
+        if (signInData.session && signInData.user) {
+          const { createActiveSession, enforceMaxSessions, logSecurityEvent, checkSecuritySettings } = await import('../../utils/sessionManagement');
+          
+          // Check security settings
+          const securityCheck = await checkSecuritySettings(signInData.user.id);
+          if (!securityCheck.allowed) {
+            await supabase.auth.signOut();
+            toastError('Login blocked', securityCheck.reason || 'Security policy violation');
+            return;
+          }
+          
+          // Create active session
+          const expiresAt = signInData.session.expires_at 
+            ? new Date(signInData.session.expires_at * 1000)
+            : undefined;
+          await createActiveSession(signInData.user.id, signInData.session.access_token, expiresAt);
+          
+          // Enforce max concurrent sessions
+          const { data: settings } = await supabase
+            .from('security_settings')
+            .select('max_concurrent_sessions')
+            .eq('id', signInData.user.id)
+            .maybeSingle();
+          const maxSessions = settings?.max_concurrent_sessions || 5;
+          await enforceMaxSessions(signInData.user.id, maxSessions);
+          
+          // Log login event
+          await logSecurityEvent(
+            signInData.user.id,
+            'login',
+            `User logged in from ${navigator.userAgent}`,
+            'low'
+          );
+        }
+        
+        navigate(ROUTES.DASHBOARD);
       }
     } catch (error: any) {
       console.error("Supabase auth error:", error);
@@ -187,201 +234,240 @@ export const JobrackerSignup = (): JSX.Element => {
     },
   };
 
-  const floatingVariants = {
-    animate: {
-      y: [-10, 10, -10],
-      transition: {
-        duration: 6,
-        repeat: Infinity,
-        ease: "easeInOut",
-      },
-    },
-  };
-
   return (
-    <div className="min-h-screen bg-black flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl">
-        {/* Animated background elements - responsive */}
+    <div className="min-h-screen bg-gradient-to-br from-black via-[#0a0a0a] to-[#0d160d] flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Enhanced background elements with mesh gradient */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Radial gradient mesh */}
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_20%_20%,rgba(29,255,0,0.08)_0%,transparent_50%)]" />
+        <div className="absolute bottom-0 right-0 w-full h-full bg-[radial-gradient(circle_at_80%_80%,rgba(10,130,70,0.06)_0%,transparent_50%)]" />
+        
+        {/* Animated orbs */}
         <motion.div
-          className="absolute top-4 sm:top-8 md:top-12 lg:top-16 left-2 sm:left-4 md:left-8 lg:left-12 xl:left-16 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-full blur-lg sm:blur-xl md:blur-2xl w-6 h-6 sm:w-8 sm:h-8 md:w-12 md:h-12 lg:w-16 lg:h-16"
-          variants={floatingVariants}
-          animate="animate"
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#1dff00]/5 rounded-full blur-3xl"
+          animate={{
+            x: [0, 50, 0],
+            y: [0, 30, 0],
+            scale: [1, 1.1, 1],
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
         />
         <motion.div
-          className="absolute bottom-4 sm:bottom-8 md:bottom-12 lg:bottom-16 right-2 sm:right-4 md:right-8 lg:right-12 xl:right-16 bg-gradient-to-r from-[#1dff00]/10 to-[#0a8246]/10 rounded-full blur-lg sm:blur-xl md:blur-2xl w-8 h-8 sm:w-10 sm:h-10 md:w-16 md:h-16 lg:w-20 lg:h-20"
-          variants={floatingVariants}
-          animate="animate"
-          transition={{ delay: 2 }}
+          className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#0a8246]/4 rounded-full blur-3xl"
+          animate={{
+            x: [0, -30, 0],
+            y: [0, 50, 0],
+            scale: [1, 1.15, 1],
+          }}
+          transition={{
+            duration: 25,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 2,
+          }}
         />
-        <motion.div
-          className="absolute top-1/2 left-1 sm:left-2 md:left-4 lg:left-6 xl:left-8 bg-gradient-to-r from-[#1dff00]/15 to-[#0a8246]/15 rounded-full blur-md sm:blur-lg md:blur-xl w-4 h-4 sm:w-6 sm:h-6 md:w-8 md:h-8 lg:w-12 lg:h-12"
-          variants={floatingVariants}
-          animate="animate"
-          transition={{ delay: 4 }}
-        />
+        
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(29,255,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(29,255,0,0.03)_1px,transparent_1px)] bg-[size:100px_100px] [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_80%)]" />
+      </div>
 
-        {/* Main Card - Fully responsive */}
+      <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl relative z-10">
         <motion.div
           className="w-full"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
         >
-          <Card className="w-full bg-[#ffffff0d] backdrop-blur-[18px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(18px)_brightness(100%)] border border-[#ffffff15] relative overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl">
-            {/* Animated border glow */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/20 via-transparent to-[#1dff00]/20 opacity-50 animate-pulse rounded-xl sm:rounded-2xl" />
+          {/* Main Card with glass morphism */}
+          <Card className="w-full bg-black/40 backdrop-blur-2xl border border-[#1dff00]/10 relative overflow-hidden rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_0_1px_rgba(29,255,0,0.1),inset_0_0_0_1px_rgba(255,255,255,0.05)]">
+            {/* Subtle animated border glow */}
+            <motion.div 
+              className="absolute inset-0 rounded-2xl"
+              style={{
+                background: 'linear-gradient(90deg, transparent, rgba(29,255,0,0.1), transparent)',
+              }}
+              animate={{
+                x: ['-100%', '100%'],
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                ease: "linear",
+              }}
+            />
             
-            <CardContent className="relative z-10 p-4 sm:p-6 lg:p-8">
+            {/* Top accent line */}
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#1dff00]/40 to-transparent" />
+            
+            <CardContent className="relative z-10 p-6 sm:p-8 lg:p-10">
               <motion.div
-                className="flex flex-col items-center justify-center relative space-y-4 sm:space-y-6"
+                className="flex flex-col items-center justify-center relative space-y-6 sm:space-y-8"
                 variants={itemVariants}
               >
-                {/* Logo and Title - Responsive sizing */}
+                {/* Logo and Title - Modern minimal approach */}
                 <motion.div
-                  className="flex flex-col items-center space-y-2 sm:space-y-3"
+                  className="flex flex-col items-center space-y-4"
                   variants={itemVariants}
                 >
+                  {/* Refined logo with subtle animation */}
                   <motion.div
-                    className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full flex items-center justify-center shadow-lg w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12"
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                    transition={{ type: "spring", stiffness: 300 }}
+                    className="relative group"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
                   >
-                    <Sparkles className="text-white w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
+                    <div className="absolute inset-0 bg-[#1dff00]/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-300" />
+                    <div className="relative bg-gradient-to-br from-[#1dff00]/90 via-[#1dff00] to-[#0a8246] rounded-2xl flex items-center justify-center shadow-lg w-14 h-14 sm:w-16 sm:h-16">
+                      <Sparkles className="text-black w-7 h-7 sm:w-8 sm:h-8" strokeWidth={2.5} />
+                    </div>
                   </motion.div>
                   
+                  {/* Dynamic title with smooth transitions */}
                   <AnimatePresence mode="wait">
-                    <motion.h2
+                    <motion.div
                       key={showForgotPassword ? "forgot" : isSignUp ? "signup" : "signin"}
-                      className="font-bold text-white text-center tracking-[0] leading-normal text-lg sm:text-xl lg:text-2xl"
+                      className="text-center space-y-2"
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
                       transition={{ duration: 0.3 }}
                     >
-                      {showForgotPassword
-                        ? "Reset Password"
-                        : isSignUp
-                        ? "Create Account"
-                        : "Welcome Back"}
-                    </motion.h2>
+                      <h2 className="font-bold bg-gradient-to-br from-white via-white to-[#1dff00]/80 bg-clip-text text-transparent text-2xl sm:text-3xl tracking-tight">
+                        {showForgotPassword
+                          ? "Reset Password"
+                          : isSignUp
+                          ? "Create Account"
+                          : "Welcome Back"}
+                      </h2>
+                      <p className="text-white/60 text-sm sm:text-base max-w-xs sm:max-w-sm leading-relaxed">
+                        {showForgotPassword
+                          ? "Enter your email to receive a reset link"
+                          : isSignUp
+                          ? "Start your journey to career success"
+                          : "Continue your journey"}
+                      </p>
+                    </motion.div>
                   </AnimatePresence>
-                  
-                  <motion.p
-                    className="text-[#ffffff80] text-center text-xs sm:text-sm lg:text-base max-w-xs sm:max-w-sm lg:max-w-md"
-                    variants={itemVariants}
-                  >
-                    {showForgotPassword
-                      ? "Enter your email to receive a reset link"
-                      : isSignUp
-                      ? "Join thousands tracking their career"
-                      : "Sign in to continue your journey"}
-                  </motion.p>
                 </motion.div>
 
                 <AnimatePresence mode="wait">
                   {!showForgotPassword && (
                     <motion.div
-                      className="flex flex-col items-center relative w-full space-y-3 sm:space-y-4"
-                      initial={{ opacity: 0, scale: 0.9 }}
+                      className="flex flex-col items-center relative w-full space-y-4"
+                      initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ duration: 0.3 }}
                     >
-                      {/* Social login buttons - Responsive */}
+                      {/* Modern social login buttons */}
                       <motion.div
-                        className="flex flex-col w-full space-y-2 sm:space-y-3"
+                        className="flex flex-col w-full space-y-3"
                         variants={itemVariants}
                       >
                         <motion.div 
                           className="w-full"
-                          whileHover={{ scale: 1.02 }} 
-                          whileTap={{ scale: 0.98 }}
+                          whileHover={{ scale: 1.01 }} 
+                          whileTap={{ scale: 0.99 }}
                         >
                           <Button
                             variant="ghost"
-                            className="flex w-full items-center justify-center relative bg-[#ffffff26] shadow-[0px_3px_14px_#0000001a] hover:bg-[#ffffff33] border border-[#ffffff15] backdrop-blur-sm transition-all duration-300 h-10 sm:h-12 lg:h-14 text-xs sm:text-sm lg:text-base rounded-lg sm:rounded-xl"
+                            className="flex w-full items-center justify-center relative bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-[#1dff00]/30 backdrop-blur-sm transition-all duration-300 h-12 sm:h-13 text-sm rounded-xl group"
                             type="button"
                             disabled={submitting}
                             onClick={() => handleOAuth("google")}
                           >
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#1dff00]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
                             <img
-                              className="relative w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6"
+                              className="relative w-5 h-5 sm:w-5 sm:h-5"
                               alt="Google"
                               src="/flat-color-icons-google.svg"
                             />
-                            <span className="relative w-fit font-medium text-white tracking-[-0.36px] leading-normal ml-2 sm:ml-3">
+                            <span className="relative w-fit font-medium text-white/90 group-hover:text-white tracking-wide leading-normal ml-3">
                               Continue with Google
                             </span>
+                            {lastUsedProvider === "google" && (
+                              <span className="absolute right-4 text-xs text-white/50">
+                                Last used
+                              </span>
+                            )}
                           </Button>
                         </motion.div>
 
                         <motion.div 
                           className="w-full"
-                          whileHover={{ scale: 1.02 }} 
-                          whileTap={{ scale: 0.98 }}
+                          whileHover={{ scale: 1.01 }} 
+                          whileTap={{ scale: 0.99 }}
                         >
                           <Button
                             variant="ghost"
-                            className="flex w-full items-center justify-center relative bg-[#ffffff26] shadow-[0px_3px_14px_#0000001a] hover:bg-[#ffffff33] border border-[#ffffff15] backdrop-blur-sm transition-all duration-300 h-10 sm:h-12 lg:h-14 text-xs sm:text-sm lg:text-base rounded-lg sm:rounded-xl"
+                            className="flex w-full items-center justify-center relative bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-[#1dff00]/30 backdrop-blur-sm transition-all duration-300 h-12 sm:h-13 text-sm rounded-xl group"
                             type="button"
                             disabled={submitting}
                             onClick={() => handleOAuth("linkedin_oidc")}
                           >
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#1dff00]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
                             <img
-                              className="relative w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6"
+                              className="relative w-5 h-5 sm:w-5 sm:h-5"
                               alt="LinkedIn"
                               src="/logos-linkedin-icon.svg"
                             />
-                            <span className="relative w-fit font-medium text-white tracking-[-0.36px] leading-normal ml-2 sm:ml-3">
+                            <span className="relative w-fit font-medium text-white/90 group-hover:text-white tracking-wide leading-normal ml-3">
                               Continue with LinkedIn
                             </span>
+                            {lastUsedProvider === "linkedin_oidc" && (
+                              <span className="absolute right-4 text-xs text-white/50">
+                                Last used
+                              </span>
+                            )}
                           </Button>
                         </motion.div>
                       </motion.div>
 
-                      {/* Divider - Responsive */}
+                      {/* Refined divider */}
                       <motion.div
-                        className="relative w-full flex items-center h-6 sm:h-8"
+                        className="relative w-full flex items-center py-2"
                         variants={itemVariants}
                       >
-                        <Separator className="flex-1 bg-[#ffffff20]" />
-                        <span className="font-medium text-[#ffffff80] px-3 sm:px-4 text-xs sm:text-sm">
+                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                        <span className="font-medium text-white/40 px-4 text-xs uppercase tracking-wider">
                           or
                         </span>
-                        <Separator className="flex-1 bg-[#ffffff20]" />
+                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                       </motion.div>
                     </motion.div>
                   )}
                 </AnimatePresence>
 
-                {/* Form - Responsive */}
+                {/* Form - Modern minimalist inputs */}
                 <motion.form
                   onSubmit={handleSubmit}
-                  className="flex flex-col items-center relative w-full space-y-3 sm:space-y-4"
+                  className="flex flex-col items-center relative w-full space-y-4"
                   variants={itemVariants}
                 >
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={showForgotPassword ? "forgot-form" : isSignUp ? "signup-form" : "signin-form"}
-                      className="w-full space-y-3 sm:space-y-4"
+                      className="w-full space-y-4"
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -20 }}
                       transition={{ duration: 0.3 }}
                     >
-                      {/* Email Field - Responsive (transparent variant, lg size) */}
+                      {/* Email Field - Minimal glass design */}
                       <motion.div
-                        className="w-full"
-                        // Subtle interactive feedback
-                        whileHover={{ scale: 1.005 }}
-                        transition={{ type: "spring", stiffness: 300 }}
+                        className="w-full group"
+                        whileHover={{ scale: 1.002 }}
+                        transition={{ type: "spring", stiffness: 400 }}
                       >
-                        <div className="flex w-full items-center relative bg-transparent border border-solid border-[#ffffff33] shadow-[0px_2px_14px_#0000000d] backdrop-blur-sm hover:border-[#ffffff4d] focus-within:border-[#1dff00] transition-all duration-300 h-12 sm:h-14 md:h-16 lg:h-16 px-4 sm:px-5 md:px-6 rounded-xl">
-                          <MailIcon className="text-white flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5" />
+                        <div className="flex w-full items-center relative bg-white/[0.02] border border-white/10 hover:border-[#1dff00]/30 focus-within:border-[#1dff00]/50 focus-within:bg-white/[0.04] backdrop-blur-sm transition-all duration-300 h-14 px-4 rounded-xl group">
+                          <MailIcon className="text-white/40 group-hover:text-white/60 group-focus-within:text-[#1dff00]/80 transition-colors flex-shrink-0 w-5 h-5" />
                           <Input
                             variant="transparent"
                             inputSize="lg"
-                            className="border-0 bg-transparent text-white tracking-wide placeholder:text-white/70 focus-visible:ring-0 p-0 h-auto ml-3 sm:ml-4"
+                            className="border-0 bg-transparent text-white placeholder:text-white/40 focus-visible:ring-0 p-0 h-auto ml-3"
                             type="email"
                             placeholder="Email address"
                             name="email"
@@ -394,23 +480,30 @@ export const JobrackerSignup = (): JSX.Element => {
                           />
                         </div>
                         {formData.email.length > 0 && !emailValid && (
-                          <div className="mt-2 text-[11px] sm:text-xs text-red-400">Enter a valid email address</div>
+                          <motion.div 
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-2 text-xs text-red-400/90 flex items-center gap-1.5"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            Enter a valid email address
+                          </motion.div>
                         )}
                       </motion.div>
 
-                      {/* Password Field - Responsive */}
+                      {/* Password Field - Minimal glass design */}
                       {!showForgotPassword && (
                         <motion.div
-                          className="w-full"
-                          whileHover={{ scale: 1.005 }}
-                          transition={{ type: "spring", stiffness: 300 }}
+                          className="w-full group"
+                          whileHover={{ scale: 1.002 }}
+                          transition={{ type: "spring", stiffness: 400 }}
                         >
-                          <div className="flex w-full items-center relative bg-transparent border border-solid border-[#ffffff33] shadow-[0px_2px_14px_#0000000d] backdrop-blur-sm hover:border-[#ffffff4d] focus-within:border-[#1dff00] transition-all duration-300 h-12 sm:h-14 md:h-16 lg:h-16 px-4 sm:px-5 md:px-6 rounded-xl">
-                            <LockKeyholeIcon className="text-white flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5" />
+                          <div className="flex w-full items-center relative bg-white/[0.02] border border-white/10 hover:border-[#1dff00]/30 focus-within:border-[#1dff00]/50 focus-within:bg-white/[0.04] backdrop-blur-sm transition-all duration-300 h-14 px-4 rounded-xl">
+                            <LockKeyholeIcon className="text-white/40 group-hover:text-white/60 group-focus-within:text-[#1dff00]/80 transition-colors flex-shrink-0 w-5 h-5" />
                             <Input
                               variant="transparent"
                               inputSize="lg"
-                              className="border-0 bg-transparent text-white tracking-wide placeholder:text-white/70 focus-visible:ring-0 p-0 h-auto flex-1 ml-3 sm:ml-4"
+                              className="border-0 bg-transparent text-white placeholder:text-white/40 focus-visible:ring-0 p-0 h-auto flex-1 ml-3"
                               type={showPassword ? "text" : "password"}
                               placeholder="Password"
                               value={formData.password}
@@ -427,40 +520,45 @@ export const JobrackerSignup = (): JSX.Element => {
                             <motion.button
                               type="button"
                               onClick={() => setShowPassword(!showPassword)}
-                              className="text-[#ffffff80] hover:text-white transition-colors duration-200 flex-shrink-0 ml-2"
+                              className="text-white/40 hover:text-white/80 transition-colors duration-200 flex-shrink-0 ml-2"
                               whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
+                              whileTap={{ scale: 0.95 }}
                               aria-label={showPassword ? "Hide password" : "Show password"}
-                              title={showPassword ? "Hide password" : "Show password"}
                             >
                               {showPassword ? (
-                                <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <EyeOff className="w-4.5 h-4.5" />
                               ) : (
-                                <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <Eye className="w-4.5 h-4.5" />
                               )}
                             </motion.button>
                           </div>
                           {capsLockOn && (
-                            <div className="mt-2 text-xs text-yellow-300/90">Warning: Caps Lock is on</div>
+                            <motion.div 
+                              initial={{ opacity: 0, y: -5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-2 text-xs text-yellow-400/90 flex items-center gap-1.5"
+                            >
+                              ⚠️ Caps Lock is on
+                            </motion.div>
                           )}
                         </motion.div>
                       )}
 
-                      {/* Confirm Password Field (Sign Up Only) - Responsive */}
+                      {/* Confirm Password Field (Sign Up Only) - Modern design */}
                       {isSignUp && !showForgotPassword && (
                         <motion.div
-                          className="w-full"
+                          className="w-full group"
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: "auto" }}
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ duration: 0.3 }}
                         >
-                          <div className="flex w-full items-center relative bg-transparent border border-solid border-[#ffffff33] shadow-[0px_2px_14px_#0000000d] backdrop-blur-sm hover:border-[#ffffff4d] focus-within:border-[#1dff00] transition-all duration-300 h-12 sm:h-14 md:h-16 lg:h-16 px-4 sm:px-5 md:px-6 rounded-xl">
-                            <LockKeyholeIcon className="text-white flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5" />
+                          <div className="flex w-full items-center relative bg-white/[0.02] border border-white/10 hover:border-[#1dff00]/30 focus-within:border-[#1dff00]/50 focus-within:bg-white/[0.04] backdrop-blur-sm transition-all duration-300 h-14 px-4 rounded-xl">
+                            <LockKeyholeIcon className="text-white/40 group-hover:text-white/60 group-focus-within:text-[#1dff00]/80 transition-colors flex-shrink-0 w-5 h-5" />
                             <Input
                               variant="transparent"
                               inputSize="lg"
-                              className="border-0 bg-transparent text-white tracking-wide placeholder:text-white/70 focus-visible:ring-0 p-0 h-auto ml-3 sm:ml-4"
+                              className="border-0 bg-transparent text-white placeholder:text-white/40 focus-visible:ring-0 p-0 h-auto ml-3"
                               type="password"
                               placeholder="Confirm Password"
                               name="confirmPassword"
@@ -471,51 +569,80 @@ export const JobrackerSignup = (): JSX.Element => {
                               aria-invalid={isSignUp && formData.confirmPassword.length > 0 ? formData.confirmPassword !== formData.password : false}
                             />
                           </div>
-                          {/* Password rules & strength */}
-                          <div className="mt-3 space-y-2 text-xs sm:text-sm" id="password-strength">
-                            {/* Strength meter bar */}
-                            <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
-                              <div
-                                className="h-full bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] transition-all duration-300"
-                                style={{ width: `${(passwordCheck.score / 5) * 100}%` }}
-                              />
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-white/80">Strength</span>
-                              <span className={`font-semibold ${passwordCheck.score >= 4 ? "text-[#1dff00]" : passwordCheck.score >= 3 ? "text-yellow-300" : "text-red-400"}`}>
-                                {passwordCheck.strength}
-                              </span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-white/80">
-                              {[
-                                { ok: passwordCheck.lengthOk, label: "8+ characters" },
-                                { ok: passwordCheck.hasUpper, label: "Uppercase letter" },
-                                { ok: passwordCheck.hasLower, label: "Lowercase letter" },
-                                { ok: passwordCheck.hasNumber, label: "Number" },
-                                { ok: passwordCheck.hasSymbol, label: "Symbol" },
-                                { ok: passwordCheck.noSpaces, label: "No spaces" },
-                              ].map((r, i) => (
-                                <div key={i} className="flex items-center gap-2">
-                                  {r.ok ? (
-                                    <CheckCircle2 className="w-4 h-4 text-[#1dff00]" />
-                                  ) : (
-                                    <XCircle className="w-4 h-4 text-red-400" />
-                                  )}
-                                  <span className={r.ok ? "text-white/90" : "text-white/60"}>{r.label}</span>
+                          {/* Enhanced password strength indicator */}
+                          {formData.password.length > 0 && (
+                            <motion.div 
+                              className="mt-4 space-y-3 p-4 rounded-xl bg-black/20 border border-white/5"
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              id="password-strength"
+                            >
+                              {/* Refined strength meter */}
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="text-white/60">Password Strength</span>
+                                  <span className={`font-semibold ${passwordCheck.score >= 4 ? "text-[#1dff00]" : passwordCheck.score >= 3 ? "text-yellow-400" : "text-red-400"}`}>
+                                    {passwordCheck.strength}
+                                  </span>
                                 </div>
-                              ))}
-                            </div>
-                            {!passwordCheck.notEmail && (
-                              <div className="flex items-center gap-2 text-red-400">
-                                <XCircle className="w-4 h-4" />
-                                <span>Don’t use your email in your password</span>
+                                <div className="h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
+                                  <motion.div
+                                    className={`h-full transition-all duration-500 ${
+                                      passwordCheck.score >= 4 
+                                        ? 'bg-gradient-to-r from-[#1dff00] to-[#0a8246]'
+                                        : passwordCheck.score >= 3
+                                        ? 'bg-yellow-400'
+                                        : 'bg-red-400'
+                                    }`}
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${(passwordCheck.score / 5) * 100}%` }}
+                                  />
+                                </div>
                               </div>
-                            )}
-                          </div>
+                              
+                              {/* Requirements checklist - Clean grid */}
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                {[
+                                  { ok: passwordCheck.lengthOk, label: "8+ characters" },
+                                  { ok: passwordCheck.hasUpper, label: "Uppercase" },
+                                  { ok: passwordCheck.hasLower, label: "Lowercase" },
+                                  { ok: passwordCheck.hasNumber, label: "Number" },
+                                  { ok: passwordCheck.hasSymbol, label: "Symbol" },
+                                  { ok: passwordCheck.noSpaces, label: "No spaces" },
+                                ].map((r, i) => (
+                                  <motion.div 
+                                    key={i} 
+                                    className="flex items-center gap-2"
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: i * 0.05 }}
+                                  >
+                                    {r.ok ? (
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-[#1dff00]" />
+                                    ) : (
+                                      <div className="w-3.5 h-3.5 rounded-full border border-white/20" />
+                                    )}
+                                    <span className={r.ok ? "text-white/80" : "text-white/40"}>{r.label}</span>
+                                  </motion.div>
+                                ))}
+                              </div>
+                              
+                              {!passwordCheck.notEmail && formData.email && (
+                                <motion.div 
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  className="flex items-center gap-2 text-xs text-red-400/90 pt-1"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" />
+                                  <span>Don't use your email in your password</span>
+                                </motion.div>
+                              )}
+                            </motion.div>
+                          )}
                         </motion.div>
                       )}
-
-                      {/* Forgot Password Link - Responsive */}
+                      
+                      {/* Forgot Password Link - Minimal design */}
                       {!isSignUp && !showForgotPassword && (
                         <motion.div
                           className="text-right w-full"
@@ -527,7 +654,7 @@ export const JobrackerSignup = (): JSX.Element => {
                             type="button"
                             variant="link"
                             onClick={() => setShowForgotPassword(true)}
-                            className="text-[#1dff00] p-0 h-auto font-medium hover:text-[#1dff00]/80 transition-colors duration-200 text-xs sm:text-sm"
+                            className="text-[#1dff00] p-0 h-auto font-medium hover:text-[#1dff00]/80 transition-colors duration-200 text-sm"
                           >
                             Forgot password?
                           </Button>
@@ -536,19 +663,19 @@ export const JobrackerSignup = (): JSX.Element => {
                     </motion.div>
                   </AnimatePresence>
 
-                  {/* Submit Button - Responsive */}
+                  {/* Submit Button - Refined design */}
                   <motion.div
                     className="w-full"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                   >
                     <Button
                       type="submit"
                       aria-busy={submitting}
-                      className="w-full flex items-center justify-center gap-2 relative shadow-[0px_3px_14px_#00000040] bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] font-bold text-white hover:shadow-[0px_4px_22px_#00000060] transition-all duration-300 h-10 sm:h-12 lg:h-14 text-xs sm:text-sm lg:text-base rounded-xl disabled:opacity-60"
+                      className="w-full flex items-center justify-center gap-2.5 relative h-14 text-base rounded-xl font-semibold bg-gradient-to-r from-[#1dff00] to-[#0a8246] hover:from-[#1dff00] hover:to-[#1dff00] text-black shadow-[0_0_20px_rgba(29,255,0,0.15)] hover:shadow-[0_0_30px_rgba(29,255,0,0.3)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={submitting || !emailValid || (isSignUp && !showForgotPassword && !passwordCheck.valid)}
                     >
-                      {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {submitting && <Loader2 className="h-5 w-5 animate-spin" />}
                       <span>
                         {showForgotPassword
                           ? "Send Reset Link"
@@ -556,14 +683,14 @@ export const JobrackerSignup = (): JSX.Element => {
                           ? "Create Account"
                           : "Sign In"}
                       </span>
-                      <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <ArrowRight className="w-4 h-4" />
                     </Button>
                   </motion.div>
                 </motion.form>
 
-                {/* Bottom Links - Responsive */}
+                {/* Bottom Links - Minimal design */}
                 <motion.div
-                  className="relative w-full text-center font-medium text-xs sm:text-sm"
+                  className="relative w-full text-center font-medium text-sm"
                   variants={itemVariants}
                 >
                   <AnimatePresence mode="wait">
@@ -578,7 +705,7 @@ export const JobrackerSignup = (): JSX.Element => {
                           type="button"
                           variant="link"
                           onClick={() => setShowForgotPassword(false)}
-                          className="text-[#ffffff80] p-0 h-auto font-medium hover:text-white transition-colors duration-200 text-xs sm:text-sm"
+                          className="text-white/60 p-0 h-auto font-medium hover:text-white/90 transition-colors duration-200"
                         >
                           ← Back to sign in
                         </Button>
@@ -589,20 +716,18 @@ export const JobrackerSignup = (): JSX.Element => {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="space-y-1 sm:space-y-2"
+                        className="flex items-center justify-center gap-2"
                       >
-                        <div>
-                          <span className="text-[#ffffffb2]">
-                            {isSignUp ? "Already have an account?" : "Don't have an account?"}
-                          </span>
-                        </div>
+                        <span className="text-white/60">
+                          {isSignUp ? "Already have an account?" : "Don't have an account?"}
+                        </span>
                         <Button
                           type="button"
                           variant="link"
                           onClick={() => setIsSignUp(!isSignUp)}
-                          className="text-[#1dff00] p-0 h-auto font-medium hover:text-[#1dff00]/80 transition-colors duration-200 text-xs sm:text-sm"
+                          className="text-[#1dff00] p-0 h-auto font-semibold hover:text-[#1dff00]/80 transition-colors duration-200"
                         >
-                          {isSignUp ? "Sign in here" : "Create account"}
+                          {isSignUp ? "Sign in" : "Create account"}
                         </Button>
                       </motion.div>
                     )}

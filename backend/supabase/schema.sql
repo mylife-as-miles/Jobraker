@@ -388,7 +388,7 @@ ALTER SEQUENCE "public"."security_trusted_devices_id_seq" OWNED BY "public"."sec
 
 
 
-CREATE TABLE IF NOT EXISTS "public"."user_jobs" (
+CREATE TABLE IF NOT EXISTS "public"."jobs" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "user_id" "uuid" NOT NULL,
     "source_type" "text" NOT NULL,
@@ -414,11 +414,11 @@ CREATE TABLE IF NOT EXISTS "public"."user_jobs" (
     "raw_data" "jsonb",
     "created_at" timestamp with time zone DEFAULT "timezone"('utc'::"text", "now"()) NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "timezone"('utc'::"text", "now"()) NOT NULL,
-    CONSTRAINT "user_jobs_rating_check" CHECK ((("rating" >= 1) AND ("rating" <= 5)))
+    CONSTRAINT "jobs_rating_check" CHECK ((("rating" >= 1) AND ("rating" <= 5)))
 );
 
 
-ALTER TABLE "public"."user_jobs" OWNER TO "postgres";
+ALTER TABLE "public"."jobs" OWNER TO "postgres";
 
 
 CREATE OR REPLACE VIEW "public"."user_job_stats" AS
@@ -431,7 +431,7 @@ CREATE OR REPLACE VIEW "public"."user_job_stats" AS
     "count"(*) FILTER (WHERE ("bookmarked" = true)) AS "bookmarked_jobs",
     "count"(*) FILTER (WHERE ("created_at" >= ("now"() - '7 days'::interval))) AS "jobs_this_week",
     "count"(*) FILTER (WHERE ("created_at" >= ("now"() - '30 days'::interval))) AS "jobs_this_month"
-   FROM "public"."user_jobs"
+   FROM "public"."jobs"
   GROUP BY "user_id";
 
 
@@ -541,8 +541,8 @@ ALTER TABLE ONLY "public"."security_trusted_devices"
 
 
 
-ALTER TABLE ONLY "public"."user_jobs"
-    ADD CONSTRAINT "user_jobs_pkey" PRIMARY KEY ("id");
+ALTER TABLE ONLY "public"."jobs"
+    ADD CONSTRAINT "jobs_pkey" PRIMARY KEY ("id");
 
 
 
@@ -582,31 +582,31 @@ CREATE INDEX "idx_notifications_user_unseen" ON "public"."notifications" USING "
 
 
 
-CREATE INDEX "idx_user_jobs_bookmarked" ON "public"."user_jobs" USING "btree" ("bookmarked");
+CREATE INDEX "idx_jobs_bookmarked" ON "public"."jobs" USING "btree" ("bookmarked");
 
 
 
-CREATE INDEX "idx_user_jobs_posted_at" ON "public"."user_jobs" USING "btree" ("posted_at");
+CREATE INDEX "idx_jobs_posted_at" ON "public"."jobs" USING "btree" ("posted_at");
 
 
 
-CREATE INDEX "idx_user_jobs_search_text" ON "public"."user_jobs" USING "gin" ("to_tsvector"('"english"'::"regconfig", (((("title" || ' '::"text") || "company") || ' '::"text") || COALESCE("description", ''::"text"))));
+CREATE INDEX "idx_jobs_search_text" ON "public"."jobs" USING "gin" ("to_tsvector"('"english"'::"regconfig", (((("title" || ' '::"text") || "company") || ' '::"text") || COALESCE("description", ''::"text"))));
 
 
 
-CREATE INDEX "idx_user_jobs_source_type" ON "public"."user_jobs" USING "btree" ("source_type");
+CREATE INDEX "idx_jobs_source_type" ON "public"."jobs" USING "btree" ("source_type");
 
 
 
-CREATE INDEX "idx_user_jobs_status" ON "public"."user_jobs" USING "btree" ("status");
+CREATE INDEX "idx_jobs_status" ON "public"."jobs" USING "btree" ("status");
 
 
 
-CREATE UNIQUE INDEX "idx_user_jobs_unique_per_user" ON "public"."user_jobs" USING "btree" ("user_id", "source_type", "source_id");
+CREATE UNIQUE INDEX "idx_jobs_unique_per_user" ON "public"."jobs" USING "btree" ("user_id", "source_type", "source_id");
 
 
 
-CREATE INDEX "idx_user_jobs_user_id" ON "public"."user_jobs" USING "btree" ("user_id");
+CREATE INDEX "idx_jobs_user_id" ON "public"."jobs" USING "btree" ("user_id");
 
 
 
@@ -662,7 +662,7 @@ CREATE OR REPLACE TRIGGER "update_job_source_settings_updated_at" BEFORE UPDATE 
 
 
 
-CREATE OR REPLACE TRIGGER "update_user_jobs_updated_at" BEFORE UPDATE ON "public"."user_jobs" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+CREATE OR REPLACE TRIGGER "update_jobs_updated_at" BEFORE UPDATE ON "public"."jobs" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
 
 
 
@@ -746,8 +746,8 @@ ALTER TABLE ONLY "public"."security_trusted_devices"
 
 
 
-ALTER TABLE ONLY "public"."user_jobs"
-    ADD CONSTRAINT "user_jobs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+ALTER TABLE ONLY "public"."jobs"
+    ADD CONSTRAINT "jobs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
 
 
@@ -979,19 +979,19 @@ CREATE POLICY "Update own security settings" ON "public"."security_settings" FOR
 
 
 
-CREATE POLICY "Users can delete their own jobs" ON "public"."user_jobs" FOR DELETE USING (("auth"."uid"() = "user_id"));
+CREATE POLICY "Users can delete their own jobs" ON "public"."jobs" FOR DELETE USING (("auth"."uid"() = "user_id"));
 
 
 
-CREATE POLICY "Users can insert their own jobs" ON "public"."user_jobs" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+CREATE POLICY "Users can insert their own jobs" ON "public"."jobs" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
 
 
 
-CREATE POLICY "Users can update their own jobs" ON "public"."user_jobs" FOR UPDATE USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
+CREATE POLICY "Users can update their own jobs" ON "public"."jobs" FOR UPDATE USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
 
 
 
-CREATE POLICY "Users can view their own jobs" ON "public"."user_jobs" FOR SELECT USING (("auth"."uid"() = "user_id"));
+CREATE POLICY "Users can view their own jobs" ON "public"."jobs" FOR SELECT USING (("auth"."uid"() = "user_id"));
 
 
 
@@ -1062,7 +1062,7 @@ ALTER TABLE "public"."security_settings" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."security_trusted_devices" ENABLE ROW LEVEL SECURITY;
 
 
-ALTER TABLE "public"."user_jobs" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."jobs" ENABLE ROW LEVEL SECURITY;
 
 
 GRANT USAGE ON SCHEMA "public" TO "postgres";
@@ -1198,9 +1198,9 @@ GRANT ALL ON SEQUENCE "public"."security_trusted_devices_id_seq" TO "service_rol
 
 
 
-GRANT ALL ON TABLE "public"."user_jobs" TO "anon";
-GRANT ALL ON TABLE "public"."user_jobs" TO "authenticated";
-GRANT ALL ON TABLE "public"."user_jobs" TO "service_role";
+GRANT ALL ON TABLE "public"."jobs" TO "anon";
+GRANT ALL ON TABLE "public"."jobs" TO "authenticated";
+GRANT ALL ON TABLE "public"."jobs" TO "service_role";
 
 
 

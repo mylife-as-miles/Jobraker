@@ -29,7 +29,7 @@ import { useArtboardStore } from "../store/artboard";
 import type { TemplateProps } from "../types/template";
 
 const Header = () => {
-  const basics = useArtboardStore((state) => state.resume.basics);
+  const basics = useArtboardStore((state) => state.resume?.basics);
 
   return (
     <div className="flex flex-col items-center space-y-2 text-center">
@@ -64,7 +64,7 @@ const Header = () => {
           </div>
         )}
         <Link url={basics.url} />
-  {basics.customFields.map((item: any) => (
+  {basics?.customFields?.map((item: any) => (
           <div key={item.id} className="flex items-center gap-x-1.5">
             <i className={cn(`ph ph-bold ph-${item.icon}`, "text-primary")} />
             {isUrl(item.value) ? (
@@ -82,7 +82,7 @@ const Header = () => {
 };
 
 const Summary = () => {
-  const section = useArtboardStore((state) => state.resume.sections.summary);
+  const section = useArtboardStore((state) => state.resume?.sections?.summary);
 
   if (!section.visible || isEmptyString(section.content)) return null;
 
@@ -181,7 +181,7 @@ const Section = <T,>({
   summaryKey,
   keywordsKey,
 }: SectionProps<T>) => {
-  if (!section.visible || section.items.length === 0) return null;
+  if (!section || !section.visible || !section.items || section.items.length === 0) return null;
 
   return (
     <section id={section.id} className="grid grid-cols-5 border-t pt-2.5">
@@ -229,7 +229,7 @@ const Section = <T,>({
 };
 
 const Profiles = () => {
-  const section = useArtboardStore((state) => state.resume.sections.profiles);
+  const section = useArtboardStore((state) => state.resume?.sections?.profiles);
 
   return (
     <Section<Profile> section={section}>
@@ -248,7 +248,7 @@ const Profiles = () => {
 };
 
 const Experience = () => {
-  const section = useArtboardStore((state) => state.resume.sections.experience);
+  const section = useArtboardStore((state) => state.resume?.sections?.experience);
 
   return (
   <Section<ExperienceItem> section={section} urlKey="url" summaryKey="summary">
@@ -275,7 +275,7 @@ const Experience = () => {
 };
 
 const Education = () => {
-  const section = useArtboardStore((state) => state.resume.sections.education);
+  const section = useArtboardStore((state) => state.resume?.sections?.education);
 
   return (
   <Section<EducationItem> section={section} urlKey="url" summaryKey="summary">
@@ -303,7 +303,7 @@ const Education = () => {
 };
 
 const Awards = () => {
-  const section = useArtboardStore((state) => state.resume.sections.awards);
+  const section = useArtboardStore((state) => state.resume?.sections?.awards);
 
   return (
     <Section<Award> section={section} urlKey="url" summaryKey="summary">
@@ -328,7 +328,7 @@ const Awards = () => {
 };
 
 const Certifications = () => {
-  const section = useArtboardStore((state) => state.resume.sections.certifications);
+  const section = useArtboardStore((state) => state.resume?.sections?.certifications);
 
   return (
     <Section<Certification> section={section} urlKey="url" summaryKey="summary">
@@ -349,7 +349,7 @@ const Certifications = () => {
 };
 
 const Skills = () => {
-  const section = useArtboardStore((state) => state.resume.sections.skills);
+  const section = useArtboardStore((state) => state.resume?.sections?.skills);
 
   return (
     <Section<Skill> section={section} levelKey="level" keywordsKey="keywords">
@@ -364,7 +364,7 @@ const Skills = () => {
 };
 
 const Interests = () => {
-  const section = useArtboardStore((state) => state.resume.sections.interests);
+  const section = useArtboardStore((state) => state.resume?.sections?.interests);
 
   return (
     <Section<Interest> section={section} keywordsKey="keywords" className="space-y-0.5">
@@ -374,7 +374,7 @@ const Interests = () => {
 };
 
 const Publications = () => {
-  const section = useArtboardStore((state) => state.resume.sections.publications);
+  const section = useArtboardStore((state) => state.resume?.sections?.publications);
 
   return (
     <Section<Publication> section={section} urlKey="url" summaryKey="summary">
@@ -400,7 +400,7 @@ const Publications = () => {
 };
 
 const Volunteer = () => {
-  const section = useArtboardStore((state) => state.resume.sections.volunteer);
+  const section = useArtboardStore((state) => state.resume?.sections?.volunteer);
 
   return (
   <Section<VolunteerItem> section={section} urlKey="url" summaryKey="summary">
@@ -427,7 +427,7 @@ const Volunteer = () => {
 };
 
 const Languages = () => {
-  const section = useArtboardStore((state) => state.resume.sections.languages);
+  const section = useArtboardStore((state) => state.resume?.sections?.languages);
 
   return (
     <Section<Language> section={section} levelKey="level">
@@ -442,7 +442,7 @@ const Languages = () => {
 };
 
 const Projects = () => {
-  const section = useArtboardStore((state) => state.resume.sections.projects);
+  const section = useArtboardStore((state) => state.resume?.sections?.projects);
 
   return (
     <Section<Project> section={section} urlKey="url" summaryKey="summary" keywordsKey="keywords">
@@ -468,7 +468,7 @@ const Projects = () => {
 };
 
 const References = () => {
-  const section = useArtboardStore((state) => state.resume.sections.references);
+  const section = useArtboardStore((state) => state.resume?.sections?.references);
 
   return (
     <Section<Reference> section={section} urlKey="url" summaryKey="summary">
@@ -488,7 +488,7 @@ const References = () => {
 };
 
 const Custom = ({ id }: { id: string }) => {
-  const section = useArtboardStore((state) => state.resume.sections.custom[id]);
+  const section = useArtboardStore((state) => state.resume?.sections?.custom?.[id]);
 
   return (
     <Section<CustomSection>
@@ -576,11 +576,11 @@ export const Bronzor = ({ columns, isFirstPage = false }: TemplateProps) => {
       {isFirstPage && <Header />}
 
       <div className="space-y-4">
-        {main.map((section) => (
+        {main?.map((section) => (
           <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
         ))}
 
-        {sidebar.map((section) => (
+        {sidebar?.map((section) => (
           <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
         ))}
       </div>

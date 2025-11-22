@@ -24,7 +24,7 @@ export const PublicResumePage = () => {
   const { printResume, loading } = usePrintResume();
 
   const { id, title, data: resume } = useLoaderData() as ResumeDto;
-  const format = resume.metadata.page.format as keyof typeof pageSizeMap;
+  const format = (resume?.metadata?.page?.format || "A4") as keyof typeof pageSizeMap;
 
   const updateResumeInFrame = useCallback(() => {
     const message = { type: "SET_RESUME", payload: resume };

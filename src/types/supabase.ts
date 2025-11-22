@@ -18,6 +18,7 @@ export interface Tables {
       created_at?: string;
       updated_at?: string;
       walkthrough_overview?: boolean | null;
+      walkthrough_application?: boolean | null;
       walkthrough_applications?: boolean | null;
       walkthrough_jobs?: boolean | null;
       walkthrough_resume?: boolean | null;
@@ -25,6 +26,8 @@ export interface Tables {
       walkthrough_settings?: boolean | null;
       walkthrough_profile?: boolean | null;
       walkthrough_notifications?: boolean | null;
+      walkthrough_chat?: boolean | null;
+      walkthrough_cover_letter?: boolean | null;
     };
   };
   resumes: {

@@ -12,7 +12,7 @@ export const SummarySection = () => {
   const setValue = useResumeStore((state) => state.setValue);
   const section = useResumeStore(
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    (state) => state.resume.data.sections.summary ?? defaultSections.summary,
+    (state) => state.resume?.data?.sections?.summary ?? defaultSections.summary,
   );
 
   return (

@@ -24,6 +24,8 @@ import {
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
+import { animate, stagger } from 'animejs';
+import { useStaggerText, useParallaxScroll, useCounterAnimation } from "../../hooks/useAnimeAnimations";
 
 // Lightweight in-view hook (no GSAP/parallax)
 function useInView<T extends HTMLElement = HTMLDivElement>(options?: IntersectionObserverInit) {
@@ -228,6 +230,164 @@ export const LandingPage = () => {
   const [testimonialsInViewRef, testimonialsInView] = useInView();
   const [pricingInViewRef, pricingInView] = useInView();
 
+  // Anime.js animations
+  useEffect(() => {
+    // Hero title animation on mount
+    animate('.hero__title h1', {
+      opacity: [0, 1],
+      translateY: [50, 0],
+      duration: 1200,
+      easing: 'easeOutExpo',
+      delay: 200,
+    });
+
+    animate('.hero__title span', {
+      opacity: [0, 1],
+      scale: [0.8, 1],
+      duration: 1000,
+      easing: 'easeOutBack',
+      delay: stagger(200),
+    });
+
+    // Hero subtitle animation
+    animate('.hero__subtitle', {
+      opacity: [0, 1],
+      translateY: [30, 0],
+      duration: 1000,
+      easing: 'easeOutExpo',
+      delay: 800,
+    });
+
+    // Hero CTA buttons animation
+    animate('.hero__cta button', {
+      opacity: [0, 1],
+      translateY: [30, 0],
+      duration: 800,
+      easing: 'easeOutExpo',
+      delay: stagger(150, { start: 1200 }),
+    });
+
+    // Dashboard animation
+    animate('.hero__dashboard', {
+      opacity: [0, 1],
+      scale: [0.9, 1],
+      duration: 1000,
+      easing: 'easeOutExpo',
+      delay: 1000,
+    });
+  }, []);
+
+  // Stagger animations for features when in view
+  useEffect(() => {
+    if (featuresInView) {
+      animate('.feature-card', {
+        opacity: [0, 1],
+        translateY: [50, 0],
+        scale: [0.9, 1],
+        duration: 800,
+        easing: 'easeOutExpo',
+        delay: stagger(100),
+      });
+    }
+  }, [featuresInView]);
+
+  // Stagger animations for testimonials when in view
+  useEffect(() => {
+    if (testimonialsInView) {
+      animate('.testimonial__card', {
+        opacity: [0, 1],
+        translateY: [50, 0],
+        rotateY: [-15, 0],
+        duration: 1000,
+        easing: 'easeOutExpo',
+        delay: stagger(150),
+      });
+    }
+  }, [testimonialsInView]);
+
+  // Stagger animations for pricing cards when in view
+  useEffect(() => {
+    if (pricingInView) {
+      animate('.pricing__card', {
+        opacity: [0, 1],
+        translateY: [50, 0],
+        scale: [0.9, 1],
+        duration: 800,
+        easing: 'easeOutBack',
+        delay: stagger(100),
+      });
+    }
+  }, [pricingInView]);
+
+  // Parallax scroll effect for background elements
+  useParallaxScroll('.parallax-bg', 0.3);
+
+  // Counter animations for dashboard stats
+  useEffect(() => {
+    const counters = document.querySelectorAll('.stat-counter, .dashboard-counter');
+    if (counters.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.target instanceof HTMLElement) {
+            const target = parseInt(entry.target.dataset.target || '0');
+            const obj = { value: 0 };
+            
+            animate(obj, {
+              value: target,
+              duration: 2000,
+              easing: 'easeOutExpo',
+              update: () => {
+                if (entry.target instanceof HTMLElement) {
+                  entry.target.textContent = Math.floor(obj.value).toString();
+                }
+              },
+            });
+            
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+
+    counters.forEach((counter) => observer.observe(counter));
+
+    return () => {
+      counters.forEach((counter) => observer.unobserve(counter));
+    };
+  }, []);
+
+  // Dashboard stat cards animation
+  useEffect(() => {
+    const stats = document.querySelectorAll('.dashboard-stat');
+    if (stats.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            animate('.dashboard-stat', {
+              opacity: [0, 1],
+              scale: [0.8, 1],
+              duration: 600,
+              easing: 'easeOutBack',
+              delay: stagger(100),
+            });
+            observer.disconnect();
+          }
+        });
+      },
+      { threshold: 0.3 }
+    );
+
+    const dashboard = document.querySelector('.hero__dashboard');
+    if (dashboard) observer.observe(dashboard);
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div ref={pageRef} className="min-h-screen bg-black overflow-hidden">
       {/* Navigation */}
@@ -385,15 +545,15 @@ export const LandingPage = () => {
           
           {/* Middle Parallax Layers */}
           <div 
-            className="absolute top-20 left-10 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-full blur-3xl"
+            className="parallax-bg absolute top-20 left-10 w-32 h-32 sm:w-48 sm:h-48 lg:w-64 lg:h-64 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-full blur-3xl"
             aria-hidden="true"
           />
           <div 
-            className="absolute top-40 right-20 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 bg-gradient-to-r from-[#1dff00]/10 to-[#0a8246]/10 rounded-full blur-3xl"
+            className="parallax-bg absolute top-40 right-20 w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 bg-gradient-to-r from-[#1dff00]/10 to-[#0a8246]/10 rounded-full blur-3xl"
             aria-hidden="true"
           />
           <div 
-            className="absolute bottom-20 left-1/3 w-40 h-40 sm:w-56 sm:h-56 lg:w-72 lg:h-72 bg-gradient-to-r from-[#1dff00]/15 to-[#0a8246]/15 rounded-full blur-3xl"
+            className="parallax-bg absolute bottom-20 left-1/3 w-40 h-40 sm:w-56 sm:h-56 lg:w-72 lg:h-72 bg-gradient-to-r from-[#1dff00]/15 to-[#0a8246]/15 rounded-full blur-3xl"
             aria-hidden="true"
           />
         </div>
@@ -477,20 +637,20 @@ export const LandingPage = () => {
                     {/* Mock dashboard content */}
                     <div className="flex items-center justify-between">
                       <div className="text-[#1dff00] font-semibold text-sm sm:text-base">Auto-Applications Today</div>
-                      <div className="text-[#1dff00] text-xl sm:text-2xl font-bold">47</div>
+                      <div className="text-[#1dff00] text-xl sm:text-2xl font-bold dashboard-counter" data-target="47">0</div>
                     </div>
                     
                     <div className="grid grid-cols-3 gap-3 sm:gap-4">
-                      <div className="bg-[#1dff00]/10 p-3 rounded-lg text-center border border-[#1dff00]/20">
-                        <div className="text-[#1dff00] text-lg sm:text-xl font-bold">12</div>
+                      <div className="bg-[#1dff00]/10 p-3 rounded-lg text-center border border-[#1dff00]/20 dashboard-stat">
+                        <div className="text-[#1dff00] text-lg sm:text-xl font-bold stat-counter" data-target="12">0</div>
                         <div className="text-[#888888] text-xs">Interviews</div>
                       </div>
-                      <div className="bg-[#1dff00]/10 p-3 rounded-lg text-center border border-[#1dff00]/20">
+                      <div className="bg-[#1dff00]/10 p-3 rounded-lg text-center border border-[#1dff00]/20 dashboard-stat">
                         <div className="text-[#1dff00] text-lg sm:text-xl font-bold">95%</div>
                         <div className="text-[#888888] text-xs">Success Rate</div>
                       </div>
-                      <div className="bg-[#1dff00]/10 p-3 rounded-lg text-center border border-[#1dff00]/20">
-                        <div className="text-[#1dff00] text-lg sm:text-xl font-bold">3</div>
+                      <div className="bg-[#1dff00]/10 p-3 rounded-lg text-center border border-[#1dff00]/20 dashboard-stat">
+                        <div className="text-[#1dff00] text-lg sm:text-xl font-bold stat-counter" data-target="3">0</div>
                         <div className="text-[#888888] text-xs">Offers</div>
                       </div>
                     </div>
@@ -553,7 +713,7 @@ export const LandingPage = () => {
           {featuresInView && (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
               {features.map((feature, index) => (
-                <Card key={index} className="feature__card bg-[#0a0a0a] border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 transition-all duration-300 hover:transform hover:scale-105 group cursor-pointer h-full focus-within:ring-2 focus-within:ring-[#1dff00] focus-within:ring-offset-2 focus-within:ring-offset-black">
+                <Card key={index} className="feature-card bg-[#0a0a0a] border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 transition-all duration-300 hover:transform hover:scale-105 group cursor-pointer h-full focus-within:ring-2 focus-within:ring-[#1dff00] focus-within:ring-offset-2 focus-within:ring-offset-black">
                   <CardContent className="p-6 sm:p-8 h-full flex flex-col">
                     <div className="mb-4 sm:mb-6">
                       <div className={`w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r ${feature.gradient} rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform border border-[#1dff00]/30`}>
@@ -707,12 +867,24 @@ export const LandingPage = () => {
                     
                     <div className="flex-grow">
                       <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8" role="list">
-                        {plan.features.map((feature, featureIndex) => (
-                          <li key={featureIndex} className="flex items-center text-sm sm:text-base">
-                            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#1dff00] mr-3 flex-shrink-0" />
-                            <span className="text-[#888888]">{feature}</span>
-                          </li>
-                        ))}
+                        {plan.features.map((feature: any, featureIndex: number) => {
+                          // Handle both old string format and new object format
+                          const featureName = typeof feature === 'string' ? feature : feature.name;
+                          const featureValue = typeof feature === 'object' ? feature.value : null;
+                          const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
+                          
+                          if (!isIncluded) return null;
+                          
+                          return (
+                            <li key={featureIndex} className="flex items-center text-sm sm:text-base">
+                              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#1dff00] mr-3 flex-shrink-0" />
+                              <span className="text-[#888888]">
+                                {featureName}
+                                {featureValue && <span className="text-[#888888]/70 ml-1">• {featureValue}</span>}
+                              </span>
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                     

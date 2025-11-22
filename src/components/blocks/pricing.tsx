@@ -1,23 +1,19 @@
 "use client";
 
-import { buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { Check, Star } from "lucide-react";
-import Link from "next/link";
 import { useState, useRef } from "react";
-import confetti from "canvas-confetti";
-import NumberFlow from "@number-flow/react";
 
 interface PricingPlan {
   name: string;
   price: string;
   yearlyPrice: string;
   period: string;
-  features: string[];
+  features: any[];
   description: string;
   buttonText: string;
   href: string;
@@ -36,36 +32,10 @@ export function Pricing({
   description = "Choose the plan that works for you\nAll plans include access to our platform, lead generation tools, and dedicated support.",
 }: PricingProps) {
   const [isMonthly, setIsMonthly] = useState(true);
-  const isDesktop = useMediaQuery("(min-width: 768px)");
   const switchRef = useRef<HTMLButtonElement>(null);
 
   const handleToggle = (checked: boolean) => {
     setIsMonthly(!checked);
-    if (checked && switchRef.current) {
-      const rect = switchRef.current.getBoundingClientRect();
-      const x = rect.left + rect.width / 2;
-      const y = rect.top + rect.height / 2;
-
-      confetti({
-        particleCount: 50,
-        spread: 60,
-        origin: {
-          x: x / window.innerWidth,
-          y: y / window.innerHeight,
-        },
-        colors: [
-          "hsl(var(--primary))",
-          "hsl(var(--accent))",
-          "hsl(var(--secondary))",
-          "hsl(var(--muted))",
-        ],
-        ticks: 200,
-        gravity: 1.2,
-        decay: 0.94,
-        startVelocity: 30,
-        shapes: ["circle"],
-      });
-    }
   };
 
   return (
@@ -100,16 +70,12 @@ export function Pricing({
           <motion.div
             key={index}
             initial={{ y: 50, opacity: 1 }}
-            whileInView={
-              isDesktop
-                ? {
-                    y: plan.isPopular ? -20 : 0,
-                    opacity: 1,
-                    x: index === 2 ? -30 : index === 0 ? 30 : 0,
-                    scale: index === 0 || index === 2 ? 0.94 : 1.0,
-                  }
-                : {}
-            }
+            whileInView={{
+              y: plan.isPopular ? -20 : 0,
+              opacity: 1,
+              x: index === 2 ? -30 : index === 0 ? 30 : 0,
+              scale: index === 0 || index === 2 ? 0.94 : 1.0,
+            }}
             viewport={{ once: true }}
             transition={{
               duration: 1.6,
@@ -145,24 +111,7 @@ export function Pricing({
               </p>
               <div className="mt-6 flex items-center justify-center gap-x-2">
                 <span className="text-5xl font-bold tracking-tight text-foreground">
-                  <NumberFlow
-                    value={
-                      isMonthly ? Number(plan.price) : Number(plan.yearlyPrice)
-                    }
-                    format={{
-                      style: "currency",
-                      currency: "USD",
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0,
-                    }}
-                    formatter={(value) => `$${value}`}
-                    transformTiming={{
-                      duration: 500,
-                      easing: "ease-out",
-                    }}
-                    willChange
-                    className="font-variant-numeric: tabular-nums"
-                  />
+                  ${isMonthly ? plan.price : plan.yearlyPrice}
                 </span>
                 {plan.period !== "Next 3 months" && (
                   <span className="text-sm font-semibold leading-6 tracking-wide text-muted-foreground">
@@ -176,22 +125,32 @@ export function Pricing({
               </p>
 
               <ul className="mt-5 gap-2 flex flex-col">
-                {plan.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
-                    <span className="text-left">{feature}</span>
-                  </li>
-                ))}
+                {plan.features.map((feature: any, idx: number) => {
+                  // Handle both old string format and new object format
+                  const featureName = typeof feature === 'string' ? feature : feature.name;
+                  const featureValue = typeof feature === 'object' ? feature.value : null;
+                  const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
+                  
+                  if (!isIncluded) return null;
+                  
+                  return (
+                    <li key={idx} className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                      <span className="text-left">
+                        {featureName}
+                        {featureValue && <span className="text-muted-foreground ml-1">• {featureValue}</span>}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
 
               <hr className="w-full my-4" />
 
-              <Link
-                href={plan.href}
+              <Button
+                onClick={() => window.location.href = plan.href}
+                variant="outline"
                 className={cn(
-                  buttonVariants({
-                    variant: "outline",
-                  }),
                   "group relative w-full gap-2 overflow-hidden text-lg font-semibold tracking-tighter",
                   "transform-gpu ring-offset-current transition-all duration-300 ease-out hover:ring-2 hover:ring-primary hover:ring-offset-1 hover:bg-primary hover:text-primary-foreground",
                   plan.isPopular
@@ -200,7 +159,7 @@ export function Pricing({
                 )}
               >
                 {plan.buttonText}
-              </Link>
+              </Button>
               <p className="mt-6 text-xs leading-5 text-muted-foreground">
                 {plan.description}
               </p>

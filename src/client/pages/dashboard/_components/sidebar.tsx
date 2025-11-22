@@ -4,10 +4,7 @@ import { Button, KeyboardShortcut, Separator } from "@reactive-resume/ui";
 import { cn } from "@reactive-resume/utils";
 import { motion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useRef } from "react";
-import slugify from "@sindresorhus/slugify";
-import { useCreateResume } from "@/client/services/resume";
-import { useResumes as useResumeOps } from "@/hooks/useResumes";
+import { useEffect } from "react";
 
 import { Copyright } from "@/client/components/copyright";
 import { Icon } from "@/client/components/icon";
@@ -72,33 +69,6 @@ type SidebarProps = {
 export const Sidebar = ({ setOpen }: SidebarProps) => {
   const { user } = useUser();
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { createResume } = useCreateResume();
-  const { importResume: importBinary } = useResumeOps();
-
-  const pickImport = () => fileInputRef.current?.click();
-  const onImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const lower = file.name.toLowerCase();
-      if (lower.endsWith('.json')) {
-        const text = await file.text();
-        const data = JSON.parse(text);
-        const title = (data?.title as string) || file.name.replace(/\.[^.]+$/, "");
-        const slug = slugify(title);
-        const res = await createResume({ title, slug, visibility: "private" as const });
-        await navigate(`/builder/${res.id}`);
-      } else {
-        await importBinary(file);
-      }
-      setOpen?.(false);
-    } catch {
-      // ignore
-    } finally {
-      e.target.value = "";
-    }
-  };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -124,12 +94,6 @@ export const Sidebar = ({ setOpen }: SidebarProps) => {
       icon: <Plus />,
     },
     {
-      path: "/dashboard/resumes", // keep user in resumes while we trigger file picker
-      name: t`Import Resume`,
-      shortcut: "⇧I",
-      icon: <Plus />,
-    },
-    {
       path: "/dashboard/resumes",
       name: t`Resumes`,
       shortcut: "⇧R",
@@ -146,9 +110,8 @@ export const Sidebar = ({ setOpen }: SidebarProps) => {
 
   return (
     <div className="flex h-full flex-col gap-y-4">
-  <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt,.json" hidden onChange={onImportFile} />
       <div className="ml-12 flex justify-center lg:ml-0">
-  <Button asChild size="lg" variant="ghost" className="size-10 p-0">
+        <Button asChild size="lg" variant="ghost" className="size-10 p-0">
           <Link to="/">
             <Icon size={24} className="mx-auto hidden lg:block" />
           </Link>
@@ -163,10 +126,6 @@ export const Sidebar = ({ setOpen }: SidebarProps) => {
             {...item}
             key={item.path}
             onClick={() => {
-              if (item.name === t`Import Resume`) {
-                pickImport();
-                return; // don't close yet; close after import completes
-              }
               setOpen?.(false);
             }}
           />

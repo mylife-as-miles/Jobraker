@@ -26,49 +26,54 @@ export const BuilderHeader = () => {
     <div
       style={{ left: `${leftPanelSize}%`, right: `${rightPanelSize}%` }}
       className={cn(
-        "fixed inset-x-0 top-0 z-[60] h-16 bg-secondary-accent/50 backdrop-blur-lg lg:z-20",
+        "fixed inset-x-0 top-0 z-[60] h-16 bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 backdrop-blur-xl border-b border-[#1dff00]/30 shadow-[0_0_40px_rgba(29,255,0,0.15)] lg:z-20",
         !isDragging && "transition-[left,right]",
       )}
     >
-      <div className="flex h-full items-center justify-between px-4">
+      <div className="flex h-full items-center justify-between px-4 gap-4">
         <Button
-          size="icon"
           variant="ghost"
-          className="flex lg:hidden"
+          className="flex lg:hidden h-10 w-10 p-0 rounded-xl border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:scale-110 transition-all duration-200"
           onClick={() => {
             onToggle("left");
           }}
         >
-          <SidebarSimple />
+          <SidebarSimple className="text-[#1dff00]" />
         </Button>
 
-        <div className="flex items-center justify-center gap-x-1 lg:mx-auto">
-          <Button asChild size="icon" variant="ghost">
+        <div className="flex items-center justify-center gap-x-3 lg:mx-auto">
+          <Button 
+            asChild 
+            variant="ghost"
+            className="h-10 w-10 p-0 rounded-xl border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:scale-110 transition-all duration-200 group"
+          >
             <Link to="/dashboard/resumes">
-              <HouseSimple />
+              <HouseSimple className="group-hover:scale-110 transition-transform" />
             </Link>
           </Button>
 
-          <span className="mr-2 text-xs opacity-40">{"/"}</span>
+          <div className="h-6 w-px bg-gradient-to-b from-transparent via-[#1dff00]/40 to-transparent shadow-[0_0_10px_rgba(29,255,0,0.3)]" />
 
-          <h1 className="font-medium">{title}</h1>
-
-          {locked && (
-            <Tooltip content={t`This resume is locked, please unlock to make further changes.`}>
-              <Lock width={14} height={14} className="ml-2 opacity-75" />
-            </Tooltip>
-          )}
+          <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-gradient-to-br from-[#1dff00]/10 to-[#1dff00]/5 border border-[#1dff00]/30">
+            <h1 className="font-bold text-white text-base tracking-tight">{title}</h1>
+            {locked && (
+              <Tooltip content={t`This resume is locked, please unlock to make further changes.`}>
+                <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-[#1dff00]/20 border border-[#1dff00]/40">
+                  <Lock width={14} height={14} className="text-[#1dff00]" />
+                </div>
+              </Tooltip>
+            )}
+          </div>
         </div>
 
         <Button
-          size="icon"
           variant="ghost"
-          className="flex lg:hidden"
+          className="flex lg:hidden h-10 w-10 p-0 rounded-xl border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:scale-110 transition-all duration-200"
           onClick={() => {
             onToggle("right");
           }}
         >
-          <SidebarSimple className="-scale-x-100" />
+          <SidebarSimple className="-scale-x-100 text-[#1dff00]" />
         </Button>
       </div>
     </div>

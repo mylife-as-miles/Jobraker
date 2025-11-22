@@ -10,6 +10,7 @@ import { devtools } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
 import { debouncedUpdateResume } from "../services/resume";
+import { buildDefaultResumeData } from "../utils/normalize-resume";
 
 type ResumeStore = {
   resume: ResumeDto;
@@ -27,6 +28,9 @@ export const useResumeStore = create<ResumeStore>()(
           if (path === "visibility") {
             state.resume.visibility = value as "public" | "private";
           } else {
+            if (!state.resume.data) {
+              state.resume.data = buildDefaultResumeData();
+            }
             state.resume.data = _set(state.resume.data, path, value);
           }
           void debouncedUpdateResume(JSON.parse(JSON.stringify(state.resume)));
@@ -40,8 +44,14 @@ export const useResumeStore = create<ResumeStore>()(
           items: [],
         };
         set((state) => {
+          if (!state.resume.data) {
+            state.resume.data = buildDefaultResumeData();
+          }
+          if (!state.resume.data.metadata?.layout) return;
           const lastPageIndex = state.resume.data.metadata.layout.length - 1;
-          state.resume.data.metadata.layout[lastPageIndex][0].push(`custom.${section.id}`);
+          if (lastPageIndex >= 0 && state.resume.data.metadata.layout[lastPageIndex]?.[0]) {
+            state.resume.data.metadata.layout[lastPageIndex][0].push(`custom.${section.id}`);
+          }
           state.resume.data = _set(state.resume.data, `sections.custom.${section.id}`, section);
           void debouncedUpdateResume(JSON.parse(JSON.stringify(state.resume)));
         });
@@ -50,9 +60,15 @@ export const useResumeStore = create<ResumeStore>()(
         if (sectionId.startsWith("custom.")) {
           const id = sectionId.split("custom.")[1];
           set((state) => {
+            if (!state.resume.data) {
+              state.resume.data = buildDefaultResumeData();
+            }
+            if (!state.resume.data.metadata?.layout) return;
             removeItemInLayout(sectionId, state.resume.data.metadata.layout);
             // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-            delete state.resume.data.sections.custom[id];
+            if (state.resume.data.sections?.custom) {
+              delete state.resume.data.sections.custom[id];
+            }
             void debouncedUpdateResume(JSON.parse(JSON.stringify(state.resume)));
           });
         }

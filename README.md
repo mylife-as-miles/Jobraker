@@ -7,7 +7,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 
-> **The world's first fully autonomous job application platform.** JobRaker leverages advanced AI to search, apply, and optimize your job hunt 24/7 while you focus on what matters most.
+> **The world's first fully autonomous job application platform.** JobRaker leverages advanced AI to search, apply, and optimize your job hunt 24/7 while you focus on what matters most
 
 ## 📋 Table of Contents
 
@@ -350,6 +350,31 @@ VITE_ENABLE_NOTIFICATIONS=true
 VITE_ENABLE_REAL_TIME=true
 ```
 
+### Gmail Integration
+
+This project uses a Gmail MCP server to connect to your Gmail account. To set it up:
+
+1.  **Initialize the submodule:**
+    ```bash
+    git submodule init
+    git submodule update
+    ```
+
+2.  **Install dependencies:**
+    ```bash
+    cd backend/gmail_mcp_server
+    npm install
+    ```
+
+3.  **Configure Google Cloud credentials:**
+    - Follow the instructions in the `backend/gmail_mcp_server/README.md` file to get your `gcp-oauth.keys.json` file.
+    - Place the `gcp-oauth.keys.json` file in the `backend/gmail_mcp_server` directory.
+
+4.  **Authorize the application:**
+    ```bash
+    npm run mcp:gmail -- auth
+    ```
+
 ### Backend Functions Configuration
 
 In addition to the frontend application, this project includes backend services using Supabase Edge Functions (e.g., for cron jobs that fetch job listings). These functions have their own environment variables.
@@ -474,7 +499,8 @@ npm run supabase:sync:push      # Sync schema then push migrations
 
 # DB helpers (advanced)
 npm run db:run-sql              # Run a SQL file against SUPABASE_DB_URL
-npm run db:create-job-listings  # Create job_listings table via migration SQL
+npm run db:create-job-listings  # Create job_listings ta
+ble via migration SQL
 npm run db:create-bookmarks     # Create bookmarks via idempotent SQL
 npm run db:create-core          # Create core tables (job listings + bookmarks)
 ```
@@ -990,8 +1016,12 @@ SOFTWARE.
    rm -rf dist
    npm run build
    ```
+   - **Syntax Errors**: Errors like `Unexpected end of file before a closing "div" tag` indicate a syntax error in a component. Check the specified file for missing closing tags.
 
-3. **Supabase Connection Issues**:
+3.  **Development Server Crashes**:
+    - **Identifier has already been declared**: This error occurs when the same name is imported from multiple libraries in the same file (e.g., `import { Link } from 'lucide-react'` and `import { Link } from 'react-router-dom'`). Resolve this by removing or renaming one of the imports.
+
+4. **Supabase Connection Issues**:
    - Verify environment variables
    - Check Supabase project status
    - Ensure API keys are correct

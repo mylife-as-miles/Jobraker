@@ -9,6 +9,7 @@ export interface Job {
   source_id: string;
   title: string;
   company: string;
+  company_logo?: string | null;
   description?: string;
   location?: string;
   remote_type?: string;
@@ -57,7 +58,7 @@ export function useJobs() {
         userId = user.id;
 
         const { data: jobsData, error: fetchError } = await supabase
-          .from('user_jobs')
+          .from('jobs')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
@@ -95,13 +96,13 @@ export function useJobs() {
       userId = user.id;
 
       subscription = supabase
-        .channel('user_jobs')
+        .channel('jobs')
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
-            table: 'user_jobs',
+            table: 'jobs',
             filter: `user_id=eq.${user.id}`
           },
           (payload) => {
@@ -154,7 +155,7 @@ export function useJobs() {
   const updateJobStatus = async (jobId: string, status: string) => {
     try {
       const { error } = await supabase
-        .from('user_jobs')
+        .from('jobs')
         .update({ status, updated_at: new Date().toISOString() })
         .eq('id', jobId);
 
@@ -169,7 +170,7 @@ export function useJobs() {
   const toggleBookmark = async (jobId: string, bookmarked: boolean) => {
     try {
       const { error } = await supabase
-        .from('user_jobs')
+        .from('jobs')
         .update({ bookmarked, updated_at: new Date().toISOString() })
         .eq('id', jobId);
 
@@ -184,7 +185,7 @@ export function useJobs() {
   const updateJobNotes = async (jobId: string, notes: string) => {
     try {
       const { error } = await supabase
-        .from('user_jobs')
+        .from('jobs')
         .update({ notes, updated_at: new Date().toISOString() })
         .eq('id', jobId);
 
@@ -199,7 +200,7 @@ export function useJobs() {
   const rateJob = async (jobId: string, rating: number) => {
     try {
       const { error } = await supabase
-        .from('user_jobs')
+        .from('jobs')
         .update({ rating, updated_at: new Date().toISOString() })
         .eq('id', jobId);
 

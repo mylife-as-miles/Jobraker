@@ -10,6 +10,8 @@ import type { ResumeRecord } from "@/hooks/useResumes";
 import { useResumes } from "@/hooks/useResumes";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useResumeSelection } from '@/client/stores/resumeSelection';
+import { DeleteResumeDialog } from "@/client/components/DeleteResumeDialog";
+import { UndoToast } from "@/client/components/UndoToast";
 
 type Props = { resume: ResumeRecord };
 
@@ -120,7 +122,7 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord; active: boolean }> = ({ res
 export const SbResumeCard = ({ resume }: Props) => {
   const { view, download, duplicate, toggleFavorite, remove, rename, undoRemove } = useResumes() as any;
   const { toast } = useToast();
-  const template = resume.template || "Modern";
+  const template = resume.template || "pikachu";
   const lastUpdated = dayjs().to(new Date(resume.updated_at));
   const [inView, setInView] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -128,6 +130,11 @@ export const SbResumeCard = ({ resume }: Props) => {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const { selected, toggle, selectOnly, lastSelected } = useResumeSelection();
   const isSelected = selected.includes(resume.id);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showUndoToast, setShowUndoToast] = useState(false);
+  const [deletedResumeId, setDeletedResumeId] = useState<string | null>(null);
+  const [deletedResumeName, setDeletedResumeName] = useState<string>("");
 
   // Shift + click range selection support (delegated in Grid container but basic here)
   const onSelectClick = useCallback((e: React.MouseEvent) => {
@@ -280,19 +287,7 @@ export const SbResumeCard = ({ resume }: Props) => {
         <button
           onClick={(e)=>{ 
             e.stopPropagation(); 
-            const id = resume.id;
-            const name = resume.name;
-            remove(resume);
-            toast({
-              title: 'Resume deleted',
-              description: name,
-              action: (
-                <button
-                  onClick={(ev)=>{ ev.stopPropagation(); undoRemove(id); }}
-                  className="px-2 py-1 text-[10px] rounded bg-[#1dff00]/20 border border-[#1dff00]/40 text-[#1dff00] hover:bg-[#1dff00]/30 transition"
-                >Undo</button>
-              )
-            });
+            setDeleteDialogOpen(true);
           }}
           className="p-1.5 rounded-md bg-black/60 border border-white/10 hover:border-red-500/70 hover:text-red-400 hover:bg-black/80 text-white transition flex items-center justify-center"
           title="Delete"
@@ -311,25 +306,63 @@ export const SbResumeCard = ({ resume }: Props) => {
         )}
         {/* Fallback image (shows underneath the canvas or if PDF not available) */}
         <img
-          src={`/templates/jpg/${template}.jpg`}
+          src={`/templates/jpg/${encodeURIComponent((template || 'pikachu').trim() || 'pikachu')}.jpg`}
           alt={template}
-          className={`rounded-sm opacity-90 contrast-110 ${resume.file_ext === 'pdf' ? 'invisible aria-hidden' : ''}`}
+          className="absolute inset-0 w-full h-full object-cover rounded-sm opacity-0"
           onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = "/templates/jpg/Modern.jpg";
+            const img = e.currentTarget as HTMLImageElement;
+            if (!img.dataset.fallbackUsed) {
+              img.dataset.fallbackUsed = 'true';
+              img.src = "/templates/jpg/pikachu.jpg";
+            } else {
+              img.style.display = 'none';
+            }
           }}
         />
-        {resume.is_favorite && (
-          <div className="absolute -left-2 top-6 rotate-[-90deg] origin-top-left z-20">
-            <span className="px-2 py-0.5 text-[10px] tracking-wide font-semibold rounded-t bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black shadow">FAVORITE</span>
-          </div>
-        )}
-        {resume.file_ext && (
-          <div className="absolute top-1.5 right-1.5 z-20 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur text-[9px] font-medium border border-[#1dff00]/40 text-[#1dff00] shadow-[0_0_4px_rgba(29,255,0,0.4)]">
-            {(resume.file_ext || '').toUpperCase()}
-          </div>
-        )}
       </div>
-
+      <DeleteResumeDialog
+        open={deleteDialogOpen}
+        resumeName={resume.name}
+        onConfirm={async () => {
+          setIsDeleting(true);
+          try {
+            const id = resume.id;
+            const name = resume.name;
+            await remove(resume);
+            setDeletedResumeId(id);
+            setDeletedResumeName(name);
+            setShowUndoToast(true);
+            setDeleteDialogOpen(false);
+          } catch (error) {
+            toast({ title: 'Error', description: 'Failed to delete resume' });
+            setDeleteDialogOpen(false);
+          } finally {
+            setIsDeleting(false);
+          }
+        }}
+        onCancel={() => setDeleteDialogOpen(false)}
+        isLoading={isDeleting}
+      />
+      {showUndoToast && deletedResumeId && (
+        <UndoToast
+          id={deletedResumeId}
+          title="Resume deleted"
+          description={deletedResumeName}
+          onUndo={() => {
+            if (deletedResumeId) {
+              undoRemove(deletedResumeId);
+              setShowUndoToast(false);
+              setDeletedResumeId(null);
+              setDeletedResumeName("");
+            }
+          }}
+          onDismiss={() => {
+            setShowUndoToast(false);
+            setDeletedResumeId(null);
+            setDeletedResumeName("");
+          }}
+        />
+      )}
     </BaseCard>
   );
 };

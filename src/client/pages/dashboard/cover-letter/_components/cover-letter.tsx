@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2, Check, Trash2, ArrowUp, ArrowDown, Printer, X, FileText, FileType } from "lucide-react";
+import { createPortal } from "react-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2, Check, Trash2, ArrowUp, ArrowDown, Printer, X, FileText, FileType, Lock } from "lucide-react";
 import { Button, Card } from "@reactive-resume/ui";
 import { createClient } from "@/lib/supabaseClient";
 import { useToast } from "@/components/ui/toast-provider";
@@ -9,12 +10,13 @@ import { useToast } from "@/components/ui/toast-provider";
 // It includes a header, the cover letter content, and a footer with controls.
 export const CoverLetter = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError } = useToast();
   const [fontSize, setFontSize] = useState(16);
   // Meta/context
-  const [role, setRole] = useState("Software Engineer");
-  const [company, setCompany] = useState("Acme Corp");
+  const [role, setRole] = useState("");
+  const [company, setCompany] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [tone, setTone] = useState<"professional" | "friendly" | "enthusiastic">("professional");
   const [lengthPref, setLengthPref] = useState<"short" | "medium" | "long">("medium");
@@ -26,7 +28,7 @@ export const CoverLetter = () => {
   const [senderAddress, setSenderAddress] = useState("");
 
   // Recipient block
-  const [recipient, setRecipient] = useState("Hiring Manager");
+  const [recipient, setRecipient] = useState("");
   const [recipientTitle, setRecipientTitle] = useState("");
   const [recipientAddress, setRecipientAddress] = useState("");
 
@@ -54,62 +56,179 @@ export const CoverLetter = () => {
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
   const [libName, setLibName] = useState("");
   const [currentLibId, setCurrentLibId] = useState<string | null>(null);
+  
+  // Subscription tier state
+  const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
 
-  // Load/save from localStorage (keeps it functional without backend migrations)
-  const STORAGE_KEY = "jr.coverLetter.draft.v2";
+  // Load from Supabase
   useEffect(() => {
-    try {
-      // Load library
-      const libRaw = localStorage.getItem(LIB_KEY);
-      if (libRaw) {
-        const arr = JSON.parse(libRaw);
-        if (Array.isArray(arr)) setLibrary(arr);
-      }
-      const defId = localStorage.getItem(LIB_DEFAULT_KEY);
-      if (defId) setCurrentLibId(defId);
+    (async () => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData?.user?.id;
+        if (!userId) return;
 
-      const rawV2 = localStorage.getItem(STORAGE_KEY);
-      const rawV1 = !rawV2 ? localStorage.getItem("jr.coverLetter.draft.v1") : null; // backwards compat
-      const raw = rawV2 || rawV1;
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setRole(parsed?.role ?? "Software Engineer");
-        setCompany(parsed?.company ?? "Acme Corp");
-        setJobDescription(parsed?.jobDescription ?? "");
-        setTone(parsed?.tone ?? "professional");
-        setLengthPref(parsed?.lengthPref ?? "medium");
+        // Check if loading a specific letter by ID from URL
+        const letterId = searchParams.get('id');
 
-        setSenderName(parsed?.senderName ?? "");
-        setSenderEmail(parsed?.senderEmail ?? "");
-        setSenderPhone(parsed?.senderPhone ?? "");
-        setSenderAddress(parsed?.senderAddress ?? "");
+        // Load library from Supabase
+        const { data: coverLetters, error: libError } = await (supabase as any)
+          .from('cover_letters')
+          .select('*')
+          .eq('user_id', userId)
+          .order('updated_at', { ascending: false });
 
-        setRecipient(parsed?.recipient ?? "Hiring Manager");
-        setRecipientTitle(parsed?.recipientTitle ?? "");
-        setRecipientAddress(parsed?.recipientAddress ?? "");
+        if (!libError && coverLetters) {
+          const entries: LibraryEntry[] = coverLetters.map((cl: any) => ({
+            id: cl.id,
+            name: cl.name || 'Untitled Cover Letter',
+            updatedAt: cl.updated_at,
+            data: {
+              role: cl.role,
+              company: cl.company,
+              jobDescription: cl.job_description,
+              tone: cl.tone,
+              lengthPref: cl.length_pref,
+              senderName: cl.sender_name,
+              senderEmail: cl.sender_email,
+              senderPhone: cl.sender_phone,
+              senderAddress: cl.sender_address,
+              recipient: cl.recipient,
+              recipientTitle: cl.recipient_title,
+              recipientAddress: cl.recipient_address,
+              date: cl.date,
+              subject: cl.subject,
+              salutation: cl.salutation,
+              paragraphs: Array.isArray(cl.paragraphs) ? cl.paragraphs : [],
+              closing: cl.closing,
+              signatureName: cl.signature_name,
+              content: cl.content,
+              fontSize: cl.font_size,
+              savedAt: cl.updated_at,
+            },
+          }));
+          setLibrary(entries);
 
-        setDate(parsed?.date ?? new Date().toISOString().slice(0, 10));
-        setSubject(parsed?.subject ?? "");
-        setSalutation(parsed?.salutation ?? `Dear ${parsed?.recipient ?? "Hiring Manager"},`);
-        setParagraphs(Array.isArray(parsed?.paragraphs) ? parsed.paragraphs : []);
-        setClosing(parsed?.closing ?? "Best regards,");
-        setSignatureName(parsed?.signatureName ?? parsed?.senderName ?? "");
+          // Load specific letter by ID if provided, otherwise find default or most recent
+          let targetLetter = null;
+          if (letterId) {
+            targetLetter = coverLetters.find((cl: any) => cl.id === letterId);
+          }
+          if (!targetLetter) {
+            targetLetter = coverLetters.find((cl: any) => cl.is_default) || coverLetters[0];
+          }
 
-        setContent(parsed?.content ?? "");
-        setFontSize(parsed?.fontSize ?? 16);
-        setSavedAt(parsed?.savedAt ?? null);
-
-        // If migrating from v1 with only content, populate paragraphs
-        if ((!parsed?.paragraphs || !parsed.paragraphs.length) && (parsed?.content || "").trim()) {
-          const parts = String(parsed.content)
-            .split(/\n\s*\n+/)
-            .map((p: string) => p.trim())
-            .filter(Boolean);
-          if (parts.length) setParagraphs(parts);
+          if (targetLetter) {
+            setCurrentLibId(targetLetter.id);
+            setLibName(targetLetter.name || 'Untitled Cover Letter');
+            
+            // Load letter data
+            setRole(targetLetter.role ?? "");
+            setCompany(targetLetter.company ?? "");
+            setJobDescription(targetLetter.job_description ?? "");
+            setTone((targetLetter.tone as any) ?? "professional");
+            setLengthPref((targetLetter.length_pref as any) ?? "medium");
+            setSenderName(targetLetter.sender_name ?? "");
+            setSenderEmail(targetLetter.sender_email ?? "");
+            setSenderPhone(targetLetter.sender_phone ?? "");
+            setSenderAddress(targetLetter.sender_address ?? "");
+            setRecipient(targetLetter.recipient ?? "");
+            setRecipientTitle(targetLetter.recipient_title ?? "");
+            setRecipientAddress(targetLetter.recipient_address ?? "");
+            setDate(targetLetter.date ?? new Date().toISOString().slice(0, 10));
+            setSubject(targetLetter.subject ?? "");
+            setSalutation(targetLetter.salutation ?? "Dear Hiring Manager,");
+            setParagraphs(Array.isArray(targetLetter.paragraphs) ? targetLetter.paragraphs : []);
+            setClosing(targetLetter.closing ?? "Best regards,");
+            setSignatureName(targetLetter.signature_name ?? "");
+            setContent(targetLetter.content ?? "");
+            setFontSize(targetLetter.font_size ?? 16);
+            setSavedAt(targetLetter.updated_at ?? null);
+          }
         }
+
+        // Fallback: try to migrate from localStorage if no Supabase data
+        if (!coverLetters || coverLetters.length === 0) {
+          const STORAGE_KEY = "jr.coverLetter.draft.v2";
+          const rawV2 = localStorage.getItem(STORAGE_KEY);
+          const rawV1 = !rawV2 ? localStorage.getItem("jr.coverLetter.draft.v1") : null;
+          const raw = rawV2 || rawV1;
+          if (raw) {
+            try {
+              const parsed = JSON.parse(raw);
+              setRole(parsed?.role ?? "");
+              setCompany(parsed?.company ?? "");
+              setJobDescription(parsed?.jobDescription ?? "");
+              setTone(parsed?.tone ?? "professional");
+              setLengthPref(parsed?.lengthPref ?? "medium");
+              setSenderName(parsed?.senderName ?? "");
+              setSenderEmail(parsed?.senderEmail ?? "");
+              setSenderPhone(parsed?.senderPhone ?? "");
+              setSenderAddress(parsed?.senderAddress ?? "");
+              setRecipient(parsed?.recipient ?? "");
+              setRecipientTitle(parsed?.recipientTitle ?? "");
+              setRecipientAddress(parsed?.recipientAddress ?? "");
+              setDate(parsed?.date ?? new Date().toISOString().slice(0, 10));
+              setSubject(parsed?.subject ?? "");
+              setSalutation(parsed?.salutation ?? "Dear Hiring Manager,");
+              setParagraphs(Array.isArray(parsed?.paragraphs) ? parsed.paragraphs : []);
+              setClosing(parsed?.closing ?? "Best regards,");
+              setSignatureName(parsed?.signatureName ?? "");
+              setContent(parsed?.content ?? "");
+              setFontSize(parsed?.fontSize ?? 16);
+              setSavedAt(parsed?.savedAt ?? null);
+            } catch {}
+          }
+        }
+      } catch (error) {
+        console.error('Error loading cover letters:', error);
       }
-    } catch {}
-  }, []);
+    })();
+  }, [supabase, searchParams]);
+
+  // Fetch subscription tier
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData?.user?.id;
+        if (!userId) {
+          return;
+        }
+        
+        // Try to fetch from user_subscriptions first
+        const { data: subscription } = await supabase
+          .from('user_subscriptions')
+          .select('subscription_plans(name)')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        const planName = (subscription as any)?.subscription_plans?.name;
+        if (planName && (planName === 'Free' || planName === 'Basics' || planName === 'Pro' || planName === 'Ultimate')) {
+          setSubscriptionTier(planName as 'Free' | 'Basics' | 'Pro' | 'Ultimate');
+        } else {
+          // Fallback to profiles table
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('subscription_tier')
+            .eq('id', userId)
+            .single();
+          
+          if (profileData?.subscription_tier && (profileData.subscription_tier === 'Free' || profileData.subscription_tier === 'Basics' || profileData.subscription_tier === 'Pro' || profileData.subscription_tier === 'Ultimate')) {
+            setSubscriptionTier(profileData.subscription_tier);
+          } else {
+            setSubscriptionTier('Free');
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching subscription tier:', error);
+        setSubscriptionTier('Free');
+      }
+    })();
+  }, [supabase]);
 
   // Auto-hydrate sender details from profile/auth on first load if missing
   useEffect(() => {
@@ -144,61 +263,97 @@ export const CoverLetter = () => {
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => {
+    const t = setTimeout(async () => {
       try {
-        const payload = {
-          role,
-          company,
-          jobDescription,
-          tone,
-          lengthPref,
-          senderName,
-          senderEmail,
-          senderPhone,
-          senderAddress,
-          recipient,
-          recipientTitle,
-          recipientAddress,
-          date,
-          subject,
-          salutation,
-          paragraphs,
-          closing,
-          signatureName,
-          content,
-          fontSize,
-          savedAt: new Date().toISOString(),
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-        setSavedAt(payload.savedAt);
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData?.user?.id;
+        if (!userId) return;
 
-        // If a library entry is active, keep it updated live
+        const savedAt = new Date().toISOString();
+        setSavedAt(savedAt);
+
+        // If a library entry is active, update it in Supabase
         if (currentLibId) {
-          const libRaw = localStorage.getItem(LIB_KEY);
-          let arr: LibraryEntry[] = [];
-          if (libRaw) {
-            try {
-              const parsed = JSON.parse(libRaw);
-              if (Array.isArray(parsed)) arr = parsed;
-            } catch {}
-          }
-          const idx = arr.findIndex((e) => e.id === currentLibId);
-          if (idx !== -1) {
-            arr[idx] = { id: currentLibId, name: arr[idx].name, updatedAt: payload.savedAt!, data: payload } as LibraryEntry;
-            localStorage.setItem(LIB_KEY, JSON.stringify(arr));
-            setLibrary(arr);
+          const { error } = await (supabase as any)
+            .from('cover_letters')
+            .update({
+              role: role || null,
+              company: company || null,
+              job_description: jobDescription || null,
+              tone: tone || 'professional',
+              length_pref: lengthPref || 'medium',
+              sender_name: senderName || null,
+              sender_email: senderEmail || null,
+              sender_phone: senderPhone || null,
+              sender_address: senderAddress || null,
+              recipient: recipient || null,
+              recipient_title: recipientTitle || null,
+              recipient_address: recipientAddress || null,
+              date: date || null,
+              subject: subject || null,
+              salutation: salutation || 'Dear Hiring Manager,',
+              paragraphs: paragraphs || [],
+              closing: closing || 'Best regards,',
+              signature_name: signatureName || null,
+              content: content || null,
+              font_size: fontSize || 16,
+              updated_at: savedAt,
+            })
+            .eq('id', currentLibId)
+            .eq('user_id', userId);
+
+          if (!error) {
+            // Update local library state
+            setLibrary((prev) => {
+              const idx = prev.findIndex((e) => e.id === currentLibId);
+              if (idx !== -1) {
+                const updated = [...prev];
+                updated[idx] = {
+                  ...updated[idx],
+                  updatedAt: savedAt,
+                  data: {
+                    role,
+                    company,
+                    jobDescription,
+                    tone,
+                    lengthPref,
+                    senderName,
+                    senderEmail,
+                    senderPhone,
+                    senderAddress,
+                    recipient,
+                    recipientTitle,
+                    recipientAddress,
+                    date,
+                    subject,
+                    salutation,
+                    paragraphs,
+                    closing,
+                    signatureName,
+                    content,
+                    fontSize,
+                    savedAt,
+                  },
+                };
+                return updated;
+              }
+              return prev;
+            });
           }
         }
-      } catch {}
+      } catch (error) {
+        console.error('Error auto-saving cover letter:', error);
+      }
     }, 400);
     return () => clearTimeout(t);
-  }, [role, company, jobDescription, tone, lengthPref, senderName, senderEmail, senderPhone, senderAddress, recipient, recipientTitle, recipientAddress, date, subject, salutation, paragraphs, closing, signatureName, content, fontSize]);
+  }, [role, company, jobDescription, tone, lengthPref, senderName, senderEmail, senderPhone, senderAddress, recipient, recipientTitle, recipientAddress, date, subject, salutation, paragraphs, closing, signatureName, content, fontSize, currentLibId, supabase]);
 
+  // No hardcoded content - starts empty on new letters, uses user data from profile
   const fallbackBody = useMemo(() => {
     if (content.trim().length) return content;
-    return `I’m excited to apply for the ${role} role at ${company}. I bring hands-on experience building production-grade systems, a bias for ownership, and a track record shipping polished user experiences.\n\nHighlights:\n• Led end-to-end delivery of complex features across frontend/backends.\n• Collaborated across design, product, and data to align on impact.\n• Elevated code quality with tests, performance tuning, and strong reviews.\n\nI’d love to discuss how I can contribute to ${company}.`;
-  }, [content, role, company]);
-
+    return "";
+  }, [content]);
+  
   const finalBody = useMemo(() => {
     if (paragraphs.length) return paragraphs.join("\n\n");
     return fallbackBody;
@@ -374,108 +529,174 @@ export const CoverLetter = () => {
       toastError('Copy failed', 'Clipboard not available');
     }
   };
-  const saveToLibrary = (name?: string) => {
+  const saveToLibrary = async (name?: string) => {
     try {
-      const payload = {
-        role,
-        company,
-        jobDescription,
-        tone,
-        lengthPref,
-        senderName,
-        senderEmail,
-        senderPhone,
-        senderAddress,
-        recipient,
-        recipientTitle,
-        recipientAddress,
-        date,
-        subject,
-        salutation,
-        paragraphs,
-        closing,
-        signatureName,
-        content,
-        fontSize,
-        savedAt: new Date().toISOString(),
-      };
-      const libRaw = localStorage.getItem(LIB_KEY);
-      let arr: LibraryEntry[] = [];
-      if (libRaw) {
-        try { const parsed = JSON.parse(libRaw); if (Array.isArray(parsed)) arr = parsed; } catch {}
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      if (!userId) {
+        toastError('Not signed in', 'Please sign in to save cover letters');
+        return;
       }
-      const id = currentLibId || crypto.randomUUID();
-      const entryName = (name || libName || `Letter ${arr.length + 1}`).trim();
-      const idx = arr.findIndex((e) => e.id === id);
-      const entry: LibraryEntry = { id, name: entryName || `Letter ${arr.length + 1}`, updatedAt: payload.savedAt, data: payload };
-      if (idx === -1) arr.push(entry); else arr[idx] = entry;
-      localStorage.setItem(LIB_KEY, JSON.stringify(arr));
-      setLibrary(arr);
-      setCurrentLibId(id);
-      localStorage.setItem(LIB_DEFAULT_KEY, id);
-      setLibName(entry.name);
-      success('Saved to Library', 'Cover letter saved for reuse');
-    } catch (e) {
+
+      const savedAt = new Date().toISOString();
+      const entryName = (name || libName || `Letter ${library.length + 1}`).trim() || `Letter ${library.length + 1}`;
+
+      if (currentLibId) {
+        // Update existing
+        const { error } = await (supabase as any)
+          .from('cover_letters')
+          .update({
+            name: entryName,
+            role: role || null,
+            company: company || null,
+            job_description: jobDescription || null,
+            tone: tone || 'professional',
+            length_pref: lengthPref || 'medium',
+            sender_name: senderName || null,
+            sender_email: senderEmail || null,
+            sender_phone: senderPhone || null,
+            sender_address: senderAddress || null,
+            recipient: recipient || null,
+            recipient_title: recipientTitle || null,
+            recipient_address: recipientAddress || null,
+            date: date || null,
+            subject: subject || null,
+            salutation: salutation || 'Dear Hiring Manager,',
+            paragraphs: paragraphs || [],
+            closing: closing || 'Best regards,',
+            signature_name: signatureName || null,
+            content: content || null,
+            font_size: fontSize || 16,
+            updated_at: savedAt,
+          })
+          .eq('id', currentLibId)
+          .eq('user_id', userId);
+
+        if (error) throw error;
+
+        setLibName(entryName);
+        setLibrary((prev) => {
+          const idx = prev.findIndex((e) => e.id === currentLibId);
+          if (idx !== -1) {
+            const updated = [...prev];
+            updated[idx] = {
+              id: currentLibId,
+              name: entryName,
+              updatedAt: savedAt,
+              data: {
+                role,
+                company,
+                jobDescription,
+                tone,
+                lengthPref,
+                senderName,
+                senderEmail,
+                senderPhone,
+                senderAddress,
+                recipient,
+                recipientTitle,
+                recipientAddress,
+                date,
+                subject,
+                salutation,
+                paragraphs,
+                closing,
+                signatureName,
+                content,
+                fontSize,
+                savedAt,
+              },
+            };
+            return updated;
+          }
+          return prev;
+        });
+        success('Saved to Library', 'Cover letter updated');
+      } else {
+        // Create new
+        const { data, error } = await (supabase as any)
+          .from('cover_letters')
+          .insert({
+            user_id: userId,
+            name: entryName,
+            role: role || null,
+            company: company || null,
+            job_description: jobDescription || null,
+            tone: tone || 'professional',
+            length_pref: lengthPref || 'medium',
+            sender_name: senderName || null,
+            sender_email: senderEmail || null,
+            sender_phone: senderPhone || null,
+            sender_address: senderAddress || null,
+            recipient: recipient || null,
+            recipient_title: recipientTitle || null,
+            recipient_address: recipientAddress || null,
+            date: date || null,
+            subject: subject || null,
+            salutation: salutation || 'Dear Hiring Manager,',
+            paragraphs: paragraphs || [],
+            closing: closing || 'Best regards,',
+            signature_name: signatureName || null,
+            content: content || null,
+            font_size: fontSize || 16,
+            is_default: library.length === 0, // First letter is default
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        const newId = data.id;
+        setCurrentLibId(newId);
+        setLibName(entryName);
+        setLibrary((prev) => [
+          ...prev,
+          {
+            id: newId,
+            name: entryName,
+            updatedAt: savedAt,
+            data: {
+              role,
+              company,
+              jobDescription,
+              tone,
+              lengthPref,
+              senderName,
+              senderEmail,
+              senderPhone,
+              senderAddress,
+              recipient,
+              recipientTitle,
+              recipientAddress,
+              date,
+              subject,
+              salutation,
+              paragraphs,
+              closing,
+              signatureName,
+              content,
+              fontSize,
+              savedAt,
+            },
+          },
+        ]);
+        success('Saved to Library', 'Cover letter saved for reuse');
+      }
+    } catch (e: any) {
       console.error('saveToLibrary error', e);
-      toastError('Save failed', 'Could not save letter');
+      toastError('Save failed', e?.message || 'Could not save letter');
     }
   };
-  const loadFromLibrary = (id: string) => {
-    try {
-      const entry = (library || []).find((e) => e.id === id);
-      if (!entry) return;
-      const parsed = entry.data || {};
-      setRole(parsed?.role ?? "");
-      setCompany(parsed?.company ?? "");
-      setJobDescription(parsed?.jobDescription ?? "");
-      setTone(parsed?.tone ?? "professional");
-      setLengthPref(parsed?.lengthPref ?? "medium");
-      setSenderName(parsed?.senderName ?? "");
-      setSenderEmail(parsed?.senderEmail ?? "");
-      setSenderPhone(parsed?.senderPhone ?? "");
-      setSenderAddress(parsed?.senderAddress ?? "");
-      setRecipient(parsed?.recipient ?? "Hiring Manager");
-      setRecipientTitle(parsed?.recipientTitle ?? "");
-      setRecipientAddress(parsed?.recipientAddress ?? "");
-      setDate(parsed?.date ?? new Date().toISOString().slice(0, 10));
-      setSubject(parsed?.subject ?? "");
-      setSalutation(parsed?.salutation ?? `Dear ${parsed?.recipient ?? "Hiring Manager"},`);
-      setParagraphs(Array.isArray(parsed?.paragraphs) ? parsed.paragraphs : []);
-      setClosing(parsed?.closing ?? "Best regards,");
-      setSignatureName(parsed?.signatureName ?? parsed?.senderName ?? "");
-      setContent(parsed?.content ?? "");
-      setFontSize(parsed?.fontSize ?? 16);
-      setSavedAt(parsed?.savedAt ?? null);
-      setCurrentLibId(id);
-      setLibName(entry.name);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-    } catch {}
-  };
-  const renameLibraryEntry = (id: string, name: string) => {
-    const arr = [...library];
-    const idx = arr.findIndex((e) => e.id === id);
-    if (idx === -1) return;
-    arr[idx] = { ...arr[idx], name: name.trim() || arr[idx].name };
-    localStorage.setItem(LIB_KEY, JSON.stringify(arr));
-    setLibrary(arr);
-    if (currentLibId === id) setLibName(arr[idx].name);
-  };
-  const deleteLibraryEntry = (id: string) => {
-    const arr = (library || []).filter((e) => e.id !== id);
-    localStorage.setItem(LIB_KEY, JSON.stringify(arr));
-    setLibrary(arr);
-    if (currentLibId === id) {
-      setCurrentLibId(null);
-      setLibName("");
-    }
-  };
-  const setDefaultLibraryEntry = (id: string) => {
-    localStorage.setItem(LIB_DEFAULT_KEY, id);
-    setCurrentLibId(id);
-    success('Default set', 'This letter will be selected by default');
-  };
+  
   const aiPolish = async () => {
     if (aiLoading) return;
+    
+    // Check subscription tier
+    if (subscriptionTier === 'Free') {
+      toastError('Upgrade Required', 'AI cover letter features require a Pro or Ultimate subscription');
+      return;
+    }
+    
     setAiLoading(true);
     try {
       const payload = {
@@ -540,6 +761,13 @@ export const CoverLetter = () => {
   // Full AI write: replaces salutation/body/closing/signature using formal cover letter rules.
   const aiWriteFull = async () => {
     if (aiLoading) return;
+    
+    // Check subscription tier
+    if (subscriptionTier === 'Free') {
+      toastError('Upgrade Required', 'AI cover letter features require a Pro or Ultimate subscription');
+      return;
+    }
+    
     setAiLoading(true);
     try {
       const payload = {
@@ -709,168 +937,429 @@ export const CoverLetter = () => {
   };
 
   return (
-    <div id="cover-page-root" className="flex min-h-[calc(100vh-4rem)] flex-col gap-4 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-      {/* Header */}
-  <div id="cover-header" data-tour="cover-header" className="flex items-center justify-between sticky top-0 z-10 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-xl border border-border px-3 sm:px-4 py-2 sm:py-3">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-9 w-9 p-0" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-4 h-4" />
+    <div id="cover-page-root" className="relative flex min-h-[calc(100vh-4rem)] flex-col gap-6 px-4 sm:px-6 lg:px-8 py-6">
+      {/* Ambient Background Glows */}
+      <div className="fixed top-20 right-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10" />
+      <div className="fixed bottom-20 left-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10" />
+      
+      {/* Enhanced Header */}
+      <div id="cover-header" data-tour="cover-header" className="relative flex items-center justify-between sticky top-0 z-10 bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 backdrop-blur-xl border border-[#1dff00]/30 rounded-2xl shadow-[0_0_40px_rgba(29,255,0,0.15)] px-4 sm:px-6 py-5 overflow-hidden group">
+        {/* Animated gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/0 via-[#1dff00]/5 to-[#1dff00]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+        
+        <div className="relative flex items-center gap-4">
+          <Button variant="ghost" size="sm" className="h-12 w-12 p-0 rounded-xl border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:text-[#1dff00] hover:scale-110 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)] transition-all duration-200 group/btn" onClick={() => navigate(-1)}>
+            <ArrowLeft className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
           </Button>
-          <h1 className="text-lg sm:text-xl md:text-2xl font-semibold tracking-tight">Cover Letter</h1>
-        </div>
-        <div className="flex items-center gap-2 overflow-x-auto">
-          <Button variant="outline" onClick={() => setInlineEdit((v)=>!v)} className={`rounded-xl whitespace-nowrap ${inlineEdit ? 'bg-primary/10 border-primary text-primary' : ''}`}> <Pencil className="w-4 h-4 mr-2"/> {inlineEdit ? 'Edit in Preview: On' : 'Edit in Preview'} </Button>
-          <Button variant="outline" disabled={aiLoading} onClick={aiPolish} className="rounded-xl whitespace-nowrap"> <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> {aiLoading ? 'Polishing…' : 'AI Polish'}</Button>
-          <Button variant="outline" disabled={aiLoading} onClick={aiWriteFull} className="rounded-xl whitespace-nowrap"> <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-pulse' : ''}`}/> {aiLoading ? 'Writing…' : 'AI Write (Full)'}</Button>
-          <Button variant="outline" onClick={() => setExportOpen(true)} className="rounded-xl whitespace-nowrap"> <Download className="w-4 h-4 mr-2"/> Export</Button>
-        </div>
-      </div>
-
-      {exportOpen && (
-        <div id="cover-actions" data-tour="cover-actions" className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={() => setExportOpen(false)} />
-          <div role="dialog" aria-modal="true" className="relative z-10 w-full max-w-md rounded-xl border border-border bg-popover shadow-lg p-4 sm:p-6 animate-in fade-in-0 zoom-in-95">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-semibold">Export Cover Letter</h2>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setExportOpen(false)}><X className="w-4 h-4"/></Button>
-            </div>
-            <p className="text-xs opacity-70 mb-4">Choose a format or action below. Use Print to save as PDF.</p>
-            <div className="grid gap-2">
-              <Button variant="outline" disabled={!!exportBusy} data-active={lastExport==='txt'} className="justify-start rounded-xl data-[active=true]:border-primary data-[active=true]:bg-primary/5" onClick={async () => { exportTxt(); setExportOpen(false); }}>
-                <FileText className="w-4 h-4 mr-2"/> Download .TXT {lastExport==='txt' && <span className="ml-auto text-[10px] uppercase tracking-wide text-primary">Last</span>}
-              </Button>
-              <Button variant="outline" disabled={!!exportBusy} data-active={lastExport==='pdf'} className="justify-start rounded-xl data-[active=true]:border-primary data-[active=true]:bg-primary/5" onClick={async () => { await exportPdf(); setExportOpen(false); }}>
-                <Printer className="w-4 h-4 mr-2"/> Export PDF {exportBusy==='pdf' && <span className="ml-auto text-[10px] animate-pulse">…</span>} {lastExport==='pdf' && exportBusy!=='pdf' && <span className="ml-auto text-[10px] uppercase tracking-wide text-primary">Last</span>}
-              </Button>
-              <Button variant="outline" disabled={!!exportBusy} data-active={lastExport==='docx'} className="justify-start rounded-xl data-[active=true]:border-primary data-[active=true]:bg-primary/5" onClick={async () => { await exportDocx(); setExportOpen(false); }}>
-                <FileType className="w-4 h-4 mr-2"/> Export DOCX {exportBusy==='docx' && <span className="ml-auto text-[10px] animate-pulse">…</span>} {lastExport==='docx' && exportBusy!=='docx' && <span className="ml-auto text-[10px] uppercase tracking-wide text-primary">Last</span>}
-              </Button>
-              <Button variant="outline" disabled={!!exportBusy} className="justify-start rounded-xl" onClick={() => { printLetter(); setExportOpen(false); }}>
-                <Printer className="w-4 h-4 mr-2"/> Print View
-              </Button>
-              <Button variant="outline" disabled={!!exportBusy} className="justify-start rounded-xl" onClick={() => { copyPlain(); setExportOpen(false); }}>
-                {copied ? <Check className="w-4 h-4 mr-2"/> : <Share2 className="w-4 h-4 mr-2 rotate-90"/>} Copy Plain Text
-              </Button>
-              <Button variant="outline" disabled={!!exportBusy} className="justify-start rounded-xl" onClick={() => { share(); setExportOpen(false); }}>
-                <Share2 className="w-4 h-4 mr-2"/> Share (system)
-              </Button>
-              <div className="pt-2 flex items-center justify-between text-[11px] opacity-60">
-                <span>Default highlights last used format.</span>
-                {exportBusy && <span className="text-primary">Exporting…</span>}
-              </div>
-            </div>
+          <div className="h-12 w-px bg-gradient-to-b from-transparent via-[#1dff00]/40 to-transparent shadow-[0_0_10px_rgba(29,255,0,0.3)]" />
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight bg-gradient-to-r from-white via-[#1dff00]/95 to-[#1dff00] bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(29,255,0,0.4)]">
+              Cover Letter Builder
+            </h1>
+            <p className="text-xs sm:text-sm text-gray-400 mt-1.5 flex items-center gap-2.5">
+              <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-[#1dff00]/20 border border-[#1dff00]/40">
+                <span className="inline-block w-2 h-2 bg-[#1dff00] rounded-full animate-pulse shadow-[0_0_8px_rgba(29,255,0,0.8)]" />
+              </span>
+              Create professional, tailored cover letters with AI assistance
+            </p>
           </div>
         </div>
+        <div className="relative flex items-center gap-2.5 overflow-x-auto">
+          <Button 
+            variant="outline" 
+            onClick={() => setInlineEdit((v)=>!v)} 
+            className={`rounded-xl whitespace-nowrap h-11 px-4 font-semibold transition-all duration-300 group/btn ${
+              inlineEdit 
+                ? 'bg-gradient-to-br from-[#1dff00]/25 to-[#1dff00]/15 border-2 border-[#1dff00] text-[#1dff00] shadow-[0_0_35px_rgba(29,255,0,0.35)] scale-105' 
+                : 'border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)]'
+            }`}
+          > 
+            <Pencil className="w-4 h-4 mr-2 group-hover/btn:rotate-12 transition-transform"/> 
+            {inlineEdit ? 'Live Edit: On' : 'Enable Live Edit'} 
+          </Button>
+          <Button 
+            variant="outline" 
+            disabled={aiLoading || subscriptionTier === 'Free'} 
+            onClick={aiPolish} 
+            className="rounded-xl whitespace-nowrap h-11 px-4 font-semibold border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_30px_rgba(29,255,0,0.25)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-300 group/btn"
+            title={subscriptionTier === 'Free' ? 'Pro/Ultimate subscription required' : 'Polish existing content with AI'}
+          > 
+            {subscriptionTier === 'Free' && <Lock className="w-3.5 h-3.5 mr-1.5 text-[#1dff00]/60" />}
+            <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin text-[#1dff00]' : 'group-hover/btn:rotate-12 transition-transform'}`}/> 
+            {aiLoading ? 'Polishing…' : 'AI Polish'}
+            {subscriptionTier === 'Free' && <span className="ml-1.5 text-[10px] opacity-60 uppercase tracking-wide font-bold">Pro</span>}
+          </Button>
+          <Button 
+            variant="outline" 
+            disabled={aiLoading || subscriptionTier === 'Free'} 
+            onClick={aiWriteFull} 
+            className="rounded-xl whitespace-nowrap h-11 px-4 font-semibold border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_30px_rgba(29,255,0,0.25)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-300 group/btn"
+            title={subscriptionTier === 'Free' ? 'Pro/Ultimate subscription required' : 'Generate complete cover letter with AI'}
+          > 
+            {subscriptionTier === 'Free' && <Lock className="w-3.5 h-3.5 mr-1.5 text-[#1dff00]/60" />}
+            <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin text-[#1dff00]' : 'group-hover/btn:rotate-12 transition-transform'}`}/> 
+            {aiLoading ? 'Writing…' : 'AI Generate'}
+            {subscriptionTier === 'Free' && <span className="ml-1.5 text-[10px] opacity-60 uppercase tracking-wide font-bold">Pro</span>}
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => setExportOpen(true)} 
+            className="rounded-xl whitespace-nowrap h-11 px-4 font-semibold border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_30px_rgba(29,255,0,0.25)] transition-all duration-300 group/btn"
+          > 
+            <Download className="w-4 h-4 mr-2 group-hover/btn:translate-y-0.5 transition-transform"/> 
+            Export
+          </Button>
+        </div>
+        
+        {/* Corner accent glow */}
+        <div className="absolute top-0 right-0 w-40 h-40 bg-[#1dff00]/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      </div>
+
+      {exportOpen && createPortal(
+        <div id="cover-actions" data-tour="cover-actions" className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-xl" onClick={() => setExportOpen(false)} />
+          <div role="dialog" aria-modal="true" className="relative z-10 w-full max-w-lg rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 shadow-[0_0_50px_rgba(29,255,0,0.2)] backdrop-blur-xl p-6 animate-in fade-in-0 zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-white via-white/95 to-[#1dff00] bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(29,255,0,0.3)]">Export Cover Letter</h2>
+                <p className="text-xs text-gray-400 mt-2 flex items-center gap-2">
+                  <span className="inline-block w-1.5 h-1.5 bg-[#1dff00] rounded-full" />
+                  Choose your preferred format below
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" className="h-10 w-10 p-0 rounded-xl hover:bg-[#1dff00]/10 hover:text-[#1dff00] hover:scale-110 transition-all" onClick={() => setExportOpen(false)}>
+                <X className="w-5 h-5"/>
+              </Button>
+            </div>
+            <div className="grid gap-3.5">
+              <Button 
+                variant="outline" 
+                disabled={!!exportBusy} 
+                data-active={lastExport==='txt'} 
+                className="justify-start rounded-xl h-14 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:shadow-[0_0_25px_rgba(29,255,0,0.15)] data-[active=true]:border-[#1dff00] data-[active=true]:bg-gradient-to-br data-[active=true]:from-[#1dff00]/15 data-[active=true]:to-[#1dff00]/5 data-[active=true]:shadow-[0_0_30px_rgba(29,255,0,0.2)] transition-all group" 
+                onClick={async () => { exportTxt(); setExportOpen(false); }}
+              >
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 mr-3 group-hover:bg-[#1dff00]/20 group-hover:border-[#1dff00]/50 group-hover:scale-110 transition-all">
+                  <FileText className="w-5 h-5 text-[#1dff00]"/> 
+                </div>
+                <div className="flex-1 text-left">
+                  <span className="font-semibold text-white">Download .TXT</span>
+                  <p className="text-xs text-gray-400 mt-0.5">Plain text format</p>
+                </div>
+                {lastExport==='txt' && <span className="ml-auto text-[10px] uppercase tracking-wider font-bold text-[#1dff00] px-3 py-1.5 bg-[#1dff00]/15 rounded-lg border border-[#1dff00]/30">Last</span>}
+              </Button>
+              <Button 
+                variant="outline" 
+                disabled={!!exportBusy} 
+                data-active={lastExport==='pdf'} 
+                className="justify-start rounded-xl h-14 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:shadow-[0_0_25px_rgba(29,255,0,0.15)] data-[active=true]:border-[#1dff00] data-[active=true]:bg-gradient-to-br data-[active=true]:from-[#1dff00]/15 data-[active=true]:to-[#1dff00]/5 data-[active=true]:shadow-[0_0_30px_rgba(29,255,0,0.2)] transition-all group" 
+                onClick={async () => { await exportPdf(); setExportOpen(false); }}
+              >
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 mr-3 group-hover:bg-[#1dff00]/20 group-hover:border-[#1dff00]/50 group-hover:scale-110 transition-all">
+                  <svg className="w-5 h-5 text-[#1dff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                </div>
+                <div className="flex-1 text-left">
+                  <span className="font-semibold text-white">Export PDF</span>
+                  <p className="text-xs text-gray-400 mt-0.5">Professional document format</p>
+                </div>
+                {exportBusy==='pdf' && <span className="ml-auto text-[10px] text-[#1dff00] animate-pulse flex items-center gap-1.5"><span className="inline-block w-1.5 h-1.5 bg-[#1dff00] rounded-full animate-pulse" />Processing…</span>}
+                {lastExport==='pdf' && exportBusy!=='pdf' && <span className="ml-auto text-[10px] uppercase tracking-wider font-bold text-[#1dff00] px-3 py-1.5 bg-[#1dff00]/15 rounded-lg border border-[#1dff00]/30">Last</span>}
+              </Button>
+              <Button 
+                variant="outline" 
+                disabled={!!exportBusy} 
+                data-active={lastExport==='docx'} 
+                className="justify-start rounded-xl h-14 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:shadow-[0_0_25px_rgba(29,255,0,0.15)] data-[active=true]:border-[#1dff00] data-[active=true]:bg-gradient-to-br data-[active=true]:from-[#1dff00]/15 data-[active=true]:to-[#1dff00]/5 data-[active=true]:shadow-[0_0_30px_rgba(29,255,0,0.2)] transition-all group" 
+                onClick={async () => { await exportDocx(); setExportOpen(false); }}
+              >
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 mr-3 group-hover:bg-[#1dff00]/20 group-hover:border-[#1dff00]/50 group-hover:scale-110 transition-all">
+                  <FileType className="w-5 h-5 text-[#1dff00]"/> 
+                </div>
+                <div className="flex-1 text-left">
+                  <span className="font-semibold text-white">Export DOCX</span>
+                  <p className="text-xs text-gray-400 mt-0.5">Microsoft Word format</p>
+                </div>
+                {exportBusy==='docx' && <span className="ml-auto text-[10px] text-[#1dff00] animate-pulse flex items-center gap-1.5"><span className="inline-block w-1.5 h-1.5 bg-[#1dff00] rounded-full animate-pulse" />Processing…</span>}
+                {lastExport==='docx' && exportBusy!=='docx' && <span className="ml-auto text-[10px] uppercase tracking-wider font-bold text-[#1dff00] px-3 py-1.5 bg-[#1dff00]/15 rounded-lg border border-[#1dff00]/30">Last</span>}
+              </Button>
+              <div className="h-px bg-gradient-to-r from-transparent via-[#1dff00]/30 to-transparent my-2" />
+              <Button 
+                variant="outline" 
+                disabled={!!exportBusy} 
+                className="justify-start rounded-xl h-12 border-white/20 hover:border-white/30 hover:bg-white/5 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-all group" 
+                onClick={() => { printLetter(); setExportOpen(false); }}
+              >
+                <Printer className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform"/> 
+                <span className="font-medium">Print Preview</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                disabled={!!exportBusy} 
+                className="justify-start rounded-xl h-12 border-white/20 hover:border-white/30 hover:bg-white/5 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-all group" 
+                onClick={() => { copyPlain(); setExportOpen(false); }}
+              >
+                {copied ? <Check className="w-5 h-5 mr-3 text-green-400 group-hover:scale-110 transition-transform"/> : <Share2 className="w-5 h-5 mr-3 rotate-90 group-hover:scale-110 transition-transform"/>} 
+                <span className="font-medium">{copied ? 'Copied!' : 'Copy Plain Text'}</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                disabled={!!exportBusy} 
+                className="justify-start rounded-xl h-12 border-white/20 hover:border-white/30 hover:bg-white/5 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-all group" 
+                onClick={() => { share(); setExportOpen(false); }}
+              >
+                <Share2 className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform"/> 
+                <span className="font-medium">Share (System)</span>
+              </Button>
+            </div>
+            {exportBusy && (
+              <div className="mt-4 pt-4 border-t border-[#1dff00]/20">
+                <p className="text-xs text-[#1dff00] text-center flex items-center justify-center gap-2">
+                  <span className="inline-block w-2 h-2 bg-[#1dff00] rounded-full animate-pulse" />
+                  Exporting your cover letter...
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+        , document.body
       )}
 
       {/* Workspace */}
-  <div id="cover-main-layout" className="grid gap-4 grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)]">
+      <div id="cover-main-layout" className="grid gap-6 grid-cols-1 xl:grid-cols-[460px_minmax(0,1fr)] max-w-[1800px] mx-auto w-full">
         {/* Left: Controls */}
-  <Card id="cover-meta-panel" data-tour="cover-meta-panel" className="p-4 rounded-xl">
-          <div className="grid gap-4">
+        <Card id="cover-meta-panel" data-tour="cover-meta-panel" className="p-6 rounded-2xl bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 border border-[#1dff00]/30 shadow-[0_0_40px_rgba(29,255,0,0.15)] backdrop-blur-xl hover:shadow-[0_0_50px_rgba(29,255,0,0.2)] transition-all">
+          <div className="grid gap-6">
             {/* Saved Letters (Library) */}
-            <div className="grid gap-2">
+            <div className="grid gap-3">
               <div className="flex items-center justify-between">
-                <label className="text-xs opacity-70 uppercase tracking-wide">Saved Letters</label>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => saveToLibrary()}>Save</Button>
-                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => { setCurrentLibId(null); setLibName(""); }}>New</Button>
+                <label className="text-sm font-semibold text-white flex items-center gap-2.5">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30">
+                    <svg className="w-4 h-4 text-[#1dff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                  </div>
+                  Save Cover Letter
+                </label>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="rounded-xl h-9 px-4 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 hover:scale-105 transition-all" 
+                  onClick={() => { setCurrentLibId(null); setLibName(""); }}
+                >
+                  New
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                <input 
+                  value={libName} 
+                  onChange={(e)=>setLibName(e.target.value)} 
+                  placeholder="Enter letter name" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => saveToLibrary()} 
+                    className="rounded-xl h-11 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:shadow-[0_0_25px_rgba(29,255,0,0.15)] hover:scale-105 transition-all"
+                  >
+                    {currentLibId ? 'Update' : 'Save'}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => saveToLibrary(libName)} 
+                    className="rounded-xl h-11 border-white/20 hover:border-white/30 hover:bg-white/5 hover:scale-105 transition-all"
+                  >
+                    Save As New
+                  </Button>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <input value={libName} onChange={(e)=>setLibName(e.target.value)} placeholder="Name" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-                <Button variant="outline" onClick={() => saveToLibrary(libName)} className="rounded-xl">Save As</Button>
-              </div>
-              {library.length > 0 ? (
-                <div className="grid gap-2 max-h-40 overflow-auto rounded-xl border border-border p-2">
-                  {library.map((e) => (
-                    <div key={e.id} className="flex items-center gap-2 text-sm">
-                      <button
-                        className={`px-2 py-1 rounded border ${currentLibId===e.id? 'border-primary text-primary' : 'border-border text-foreground/80 hover:border-primary/40'}`}
-                        onClick={() => loadFromLibrary(e.id)}
-                        title={new Date(e.updatedAt).toLocaleString()}
-                      >{e.name}</button>
-                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => {
-                        const name = prompt('Rename letter', e.name);
-                        if (name!=null) renameLibraryEntry(e.id, name);
-                      }}>Rename</Button>
-                      <Button variant="ghost" size="sm" className="h-8 px-2 text-red-500" onClick={() => deleteLibraryEntry(e.id)}>Delete</Button>
-                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => setDefaultLibraryEntry(e.id)}>Default</Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs opacity-60">No saved letters yet. Save your current draft to reuse it during applications.</p>
-              )}
+              <p className="text-xs text-gray-400 bg-gradient-to-br from-[#1dff00]/10 to-[#1dff00]/5 rounded-xl p-3.5 border border-[#1dff00]/20">
+                {library.length === 0 
+                  ? '💡 No saved letters yet. Name and save your letter to access it from the cover letters page.' 
+                  : `✓ ${library.length} letter${library.length === 1 ? '' : 's'} saved. View all from the cover letters page.`
+                }
+              </p>
             </div>
             {/* Sender */}
-            <div className="grid gap-2">
+            <div className="grid gap-3">
               <div className="flex items-center justify-between">
-                <label className="text-xs opacity-70 uppercase tracking-wide">Sender</label>
+                <label className="text-sm font-semibold text-white flex items-center gap-2.5">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30">
+                    <svg className="w-4 h-4 text-[#1dff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  Sender Information
+                </label>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="rounded-xl" onClick={loadProfile}>Use Profile</Button>
-                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => { setSenderName(""); setSenderEmail(""); setSenderPhone(""); setSenderAddress(""); }}>Clear</Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="rounded-xl h-9 px-3 text-xs border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 hover:scale-105 transition-all" 
+                    onClick={loadProfile}
+                  >
+                    Use Profile
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="rounded-xl h-9 px-3 text-xs border-white/20 hover:border-white/30 hover:bg-white/5 hover:scale-105 transition-all" 
+                    onClick={() => { setSenderName(""); setSenderEmail(""); setSenderPhone(""); setSenderAddress(""); }}
+                  >
+                    Clear
+                  </Button>
                 </div>
               </div>
-              <input value={senderName} onChange={(e)=>setSenderName(e.target.value)} placeholder="Your name" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+              <input 
+                value={senderName} 
+                onChange={(e)=>setSenderName(e.target.value)} 
+                placeholder="Your name" 
+                className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input value={senderEmail} onChange={(e)=>setSenderEmail(e.target.value)} placeholder="Email" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-                <input value={senderPhone} onChange={(e)=>setSenderPhone(e.target.value)} placeholder="Phone" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                <input 
+                  value={senderEmail} 
+                  onChange={(e)=>setSenderEmail(e.target.value)} 
+                  placeholder="Email" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
+                <input 
+                  value={senderPhone} 
+                  onChange={(e)=>setSenderPhone(e.target.value)} 
+                  placeholder="Phone" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
               </div>
-              <input value={senderAddress} onChange={(e)=>setSenderAddress(e.target.value)} placeholder="Address" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+              <input 
+                value={senderAddress} 
+                onChange={(e)=>setSenderAddress(e.target.value)} 
+                placeholder="Address" 
+                className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+              />
             </div>
 
             {/* Recipient */}
-            <div className="grid gap-2">
-              <label className="text-xs opacity-70 uppercase tracking-wide">Recipient</label>
+            <div className="grid gap-3">
+              <label className="text-sm font-semibold text-white flex items-center gap-2.5">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30">
+                  <svg className="w-4 h-4 text-[#1dff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                Recipient Information
+              </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input value={recipient} onChange={(e)=>setRecipient(e.target.value)} placeholder="Recipient name" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-                <input value={recipientTitle} onChange={(e)=>setRecipientTitle(e.target.value)} placeholder="Recipient title" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                <input 
+                  value={recipient} 
+                  onChange={(e)=>setRecipient(e.target.value)} 
+                  placeholder="Recipient name" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
+                <input 
+                  value={recipientTitle} 
+                  onChange={(e)=>setRecipientTitle(e.target.value)} 
+                  placeholder="Recipient title" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input value={company} onChange={(e)=>setCompany(e.target.value)} placeholder="Company" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-                <input value={recipientAddress} onChange={(e)=>setRecipientAddress(e.target.value)} placeholder="Company address" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                <input 
+                  value={company} 
+                  onChange={(e)=>setCompany(e.target.value)} 
+                  placeholder="Company" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
+                <input 
+                  value={recipientAddress} 
+                  onChange={(e)=>setRecipientAddress(e.target.value)} 
+                  placeholder="Company address" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
               </div>
             </div>
 
             {/* Header/meta */}
-            <div className="grid gap-2">
-              <label className="text-xs opacity-70 uppercase tracking-wide">Letter Details</label>
+            <div className="grid gap-3">
+              <label className="text-sm font-semibold text-white flex items-center gap-2.5">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30">
+                  <svg className="w-4 h-4 text-[#1dff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                Letter Details
+              </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input type="date" value={date} onChange={(e)=>setDate(e.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-                <input value={subject} onChange={(e)=>setSubject(e.target.value)} placeholder="Subject (optional)" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                <div className="relative">
+                  <input 
+                    type="date" 
+                    value={date} 
+                    onChange={(e)=>setDate(e.target.value)} 
+                    className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all h-12" 
+                  />
+                </div>
+                <input 
+                  value={subject} 
+                  onChange={(e)=>setSubject(e.target.value)} 
+                  placeholder="Subject (optional)" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
               </div>
-              <input value={salutation} onChange={(e)=>setSalutation(e.target.value)} placeholder="Salutation (e.g., Dear …,)" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+              <input 
+                value={salutation} 
+                onChange={(e)=>setSalutation(e.target.value)} 
+                placeholder="Salutation (e.g., Dear Hiring Manager,)" 
+                className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+              />
             </div>
 
             {/* Closing/signature */}
-            <div className="grid gap-2">
-              <label className="text-xs opacity-70 uppercase tracking-wide">Closing & Signature</label>
+            <div className="grid gap-3">
+              <label className="text-sm font-semibold text-white flex items-center gap-2.5">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30">
+                  <svg className="w-4 h-4 text-[#1dff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </div>
+                Closing & Signature
+              </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input value={closing} onChange={(e)=>setClosing(e.target.value)} placeholder="Closing (e.g., Best regards,)" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-                <input value={signatureName} onChange={(e)=>setSignatureName(e.target.value)} placeholder="Signature name" className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                <input 
+                  value={closing} 
+                  onChange={(e)=>setClosing(e.target.value)} 
+                  placeholder="Closing (e.g., Best regards,)" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
+                <input 
+                  value={signatureName} 
+                  onChange={(e)=>setSignatureName(e.target.value)} 
+                  placeholder="Signature name" 
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                />
               </div>
             </div>
 
             {/* AI Config */}
-            <div className="grid gap-2">
-              <label className="text-xs opacity-70 uppercase tracking-wide">AI Settings</label>
+            <div className="grid gap-4 p-5 rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-[#1dff00]/5 to-transparent">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[#1dff00] flex items-center gap-2">
+                <Wand2 className="w-4 h-4" />
+                AI Settings
+              </label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="text-[11px] opacity-60">Role</label>
-                  <input value={role} onChange={(e)=>setRole(e.target.value)} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                  <label className="text-[11px] text-gray-400 mb-1.5 block">Role</label>
+                  <input value={role} onChange={(e)=>setRole(e.target.value)} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-3 py-2.5 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all h-11" placeholder="e.g., Software Engineer" />
                 </div>
                 <div>
-                  <label className="text-[11px] opacity-60">Tone</label>
-                  <select value={tone} onChange={(e)=>setTone(e.target.value as any)} className="mt-1 w-full rounded-xl border border-border bg-background px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
+                  <label className="text-[11px] text-gray-400 mb-1.5 block">Tone</label>
+                  <select value={tone} onChange={(e)=>setTone(e.target.value as any)} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-3 py-2.5 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all h-11">
                     <option value="professional">Professional</option>
                     <option value="friendly">Friendly</option>
                     <option value="enthusiastic">Enthusiastic</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] opacity-60">Length</label>
-                  <select value={lengthPref} onChange={(e)=>setLengthPref(e.target.value as any)} className="mt-1 w-full rounded-xl border border-border bg-background px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
+                  <label className="text-[11px] text-gray-400 mb-1.5 block">Length</label>
+                  <select value={lengthPref} onChange={(e)=>setLengthPref(e.target.value as any)} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-3 py-2.5 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all h-11">
                     <option value="short">Short</option>
                     <option value="medium">Medium</option>
                     <option value="long">Long</option>
@@ -878,67 +1367,67 @@ export const CoverLetter = () => {
                 </div>
               </div>
               <div>
-                <label className="text-[11px] opacity-60">Job Description (optional)</label>
-                <textarea value={jobDescription} onChange={(e)=>setJobDescription(e.target.value)} rows={4} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" placeholder="Paste job description here to tailor the letter..." />
+                <label className="text-[11px] text-gray-400 mb-1.5 block">Job Description (optional)</label>
+                <textarea value={jobDescription} onChange={(e)=>setJobDescription(e.target.value)} rows={4} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all" placeholder="Paste job description here to tailor the letter..." />
               </div>
             </div>
 
             {/* Body controls */}
-            <div>
+            <div className="grid gap-3">
               <div className="flex items-center justify-between">
-                <label className="text-xs opacity-70">Body (raw)</label>
+                <label className="text-sm font-semibold text-white">Body (raw)</label>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="rounded-xl" onClick={splitContentIntoParagraphs}>Split into paragraphs</Button>
-                  <span className="text-[11px] opacity-60">{content.length} chars</span>
+                  <Button variant="outline" size="sm" className="rounded-xl h-9 px-3 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 hover:scale-105 transition-all" onClick={splitContentIntoParagraphs}>Split into paragraphs</Button>
+                  <span className="text-[11px] text-gray-400 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10">{content.length} chars</span>
                 </div>
               </div>
-              <textarea id="cover-letter-content" value={content} onChange={(e)=>setContent(e.target.value)} rows={8} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" placeholder="Write or paste your cover letter here..." />
+              <textarea id="cover-letter-content" value={content} onChange={(e)=>setContent(e.target.value)} rows={8} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all" placeholder="Write or paste your cover letter here..." />
             </div>
 
-            <div className="grid gap-2">
+            <div className="grid gap-3">
               <div className="flex items-center justify-between">
-                <label className="text-xs opacity-70">Paragraphs (advanced)</label>
-                <Button variant="outline" size="sm" className="rounded-xl" onClick={addParagraph}><Plus className="w-4 h-4 mr-1"/>Add paragraph</Button>
+                <label className="text-sm font-semibold text-white">Paragraphs (advanced)</label>
+                <Button variant="outline" size="sm" className="rounded-xl h-9 px-3 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 hover:scale-105 transition-all" onClick={addParagraph}><Plus className="w-4 h-4 mr-1.5"/>Add paragraph</Button>
               </div>
               <div className="grid gap-3">
                 {paragraphs.map((p, idx) => (
-                  <div key={idx} className="rounded-xl border border-border bg-background/50">
-                    <div className="flex items-center justify-between px-2 py-1 border-b border-border/70">
-                      <span className="text-[11px] opacity-60">Paragraph {idx + 1}</span>
+                  <div key={idx} className="rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] overflow-hidden hover:border-[#1dff00]/30 transition-all">
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-[#1dff00]/20 bg-black/20">
+                      <span className="text-[11px] font-medium text-gray-300">Paragraph {idx + 1}</span>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => moveParagraphUp(idx)} disabled={idx === 0}><ArrowUp className="w-4 h-4"/></Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => moveParagraphDown(idx)} disabled={idx === paragraphs.length - 1}><ArrowDown className="w-4 h-4"/></Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-400 hover:text-red-500" onClick={() => removeParagraph(idx)}><Trash2 className="w-4 h-4"/></Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-[#1dff00]/10 hover:text-[#1dff00] disabled:opacity-30 transition-all" onClick={() => moveParagraphUp(idx)} disabled={idx === 0}><ArrowUp className="w-4 h-4"/></Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-[#1dff00]/10 hover:text-[#1dff00] disabled:opacity-30 transition-all" onClick={() => moveParagraphDown(idx)} disabled={idx === paragraphs.length - 1}><ArrowDown className="w-4 h-4"/></Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-400 hover:bg-red-500/10 hover:text-red-500 transition-all" onClick={() => removeParagraph(idx)}><Trash2 className="w-4 h-4"/></Button>
                       </div>
                     </div>
-                    <textarea value={p} onChange={(e)=>updateParagraph(idx, e.target.value)} rows={4} className="w-full rounded-b-xl bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" placeholder="Write paragraph..." />
+                    <textarea value={p} onChange={(e)=>updateParagraph(idx, e.target.value)} rows={4} className="w-full bg-transparent px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#1dff00]/20" placeholder="Write paragraph..." />
                   </div>
                 ))}
                 {!paragraphs.length && (
-                  <p className="text-xs opacity-60">No paragraphs added yet. Use AI, paste into the raw body, or click "Add paragraph".</p>
+                  <p className="text-xs text-gray-400 text-center py-6 px-4 rounded-xl border border-dashed border-white/10 bg-white/[0.02]">No paragraphs added yet. Use AI, paste into the raw body, or click "Add paragraph".</p>
                 )}
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={zoomOut}>
+            <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl border border-white/10 bg-white/[0.02]">
+              <Button variant="outline" size="sm" className="h-10 w-10 p-0 rounded-xl hover:bg-white/5 hover:scale-110 transition-all" onClick={zoomOut}>
                 <Minus className="w-4 h-4" />
               </Button>
-              <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={zoomIn}>
+              <Button variant="outline" size="sm" className="h-10 w-10 p-0 rounded-xl hover:bg-white/5 hover:scale-110 transition-all" onClick={zoomIn}>
                 <Plus className="w-4 h-4" />
               </Button>
-              <span className="text-xs opacity-70">Font: {fontSize}px</span>
+              <span className="text-xs text-gray-400 px-3 py-1.5 rounded-lg bg-white/5">Font: {fontSize}px</span>
               <div className="ml-auto flex items-center gap-2">
-                <Button variant="outline" size="sm" className="rounded-xl" onClick={clearDraft}>Clear</Button>
-                {savedAt && <span className="text-[11px] opacity-60">Saved {new Date(savedAt).toLocaleTimeString()}</span>}
+                <Button variant="outline" size="sm" className="rounded-xl h-9 px-4 border-red-500/40 text-red-400 hover:bg-red-500/10 hover:border-red-500/60 transition-all" onClick={clearDraft}>Clear</Button>
+                {savedAt && <span className="text-[11px] text-gray-400 flex items-center gap-1.5"><span className="inline-block w-1.5 h-1.5 bg-[#1dff00] rounded-full" />Saved {new Date(savedAt).toLocaleTimeString()}</span>}
               </div>
             </div>
           </div>
         </Card>
 
         {/* Right: Preview */}
-        <Card className="p-3 sm:p-4 md:p-6 overflow-hidden rounded-xl">
-          <div ref={previewRef} className="mx-auto w-full max-w-[800px] rounded-xl border border-border bg-white text-black shadow-xl">
-            <div className="p-6 sm:p-8" style={{ fontSize: `${fontSize}px`, lineHeight: 1.6 }}>
+        <Card id="cover-editor" data-tour="cover-editor" className="p-4 sm:p-6 md:p-8 overflow-hidden rounded-2xl bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 border border-[#1dff00]/30 shadow-[0_0_40px_rgba(29,255,0,0.15)] backdrop-blur-xl">
+          <div ref={previewRef} className="mx-auto w-full max-w-[800px] rounded-xl border border-white/10 bg-white text-black shadow-[0_0_50px_rgba(0,0,0,0.3)] hover:shadow-[0_0_60px_rgba(0,0,0,0.4)] transition-all">
+            <div className="p-8 sm:p-10 md:p-12" style={{ fontSize: `${fontSize}px`, lineHeight: 1.6 }}>
               {/* Sender (right-aligned for professional layout) */}
               {(senderName || senderPhone || senderEmail || senderAddress) && (
                 <div className="mb-6 flex">
@@ -1099,3 +1588,4 @@ export const CoverLetter = () => {
     </div>
   );
 };
+
