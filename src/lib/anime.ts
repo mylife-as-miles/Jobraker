@@ -1,4 +1,4 @@
-import anime from "animejs/lib/anime.es.js";
+import anime from "animejs";
 import type { AnimeParams, StaggerOptions } from "animejs";
 
 export type AnimeTargets = AnimeParams["targets"];
