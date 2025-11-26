@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Camera, Video, Download, Square, RectangleHorizontal, RectangleVertical, AspectRatio, Sparkles, AlertTriangle } from "lucide-react";
+import { Camera, Video, Download, Square, RectangleHorizontal, RectangleVertical } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
@@ -101,7 +101,7 @@ export const InterviewStudioPage: React.FC = () => {
       case "16:9": return <RectangleHorizontal className="w-4 h-4 mr-2 text-gray-400" />;
       case "3:4": return <RectangleVertical className="w-4 h-4 mr-2 text-gray-400" />;
       case "1:1": return <Square className="w-4 h-4 mr-2 text-gray-400" />;
-      default: return <AspectRatio className="w-4 h-4 mr-2 text-gray-400" />;
+      default: return <RectangleHorizontal className="w-4 h-4 mr-2 text-gray-400" />;
     }
   };
 
