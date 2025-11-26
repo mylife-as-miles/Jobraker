@@ -18,7 +18,8 @@ import {
   ChevronRight as BreadcrumbChevron,
   Briefcase,
   Mail,
-  CreditCard
+  CreditCard,
+  Video
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
@@ -40,6 +41,7 @@ import { ChatPage } from "./pages/ChatPage";
 import { ResumePage } from "./pages/ResumePage";
 import { BillingPage } from "./pages/BillingPage";
 import ResumeBuilderRoute from "./pages/ResumeBuilderRoute";
+import InterviewStudioPage from "./pages/InterviewStudioPage";
 
 type DashboardPage = 
   | "overview" 
@@ -54,7 +56,8 @@ type DashboardPage =
   | "cover-letter"
   | "resume"
   | "pricing"
-  | "billing";
+  | "billing"
+  | "interview-studio";
 
 interface PageLink {
   id: DashboardPage;
@@ -108,6 +111,7 @@ export const Dashboard = (): JSX.Element => {
     "notifications",
     "profile",
     "pricing",
+    "interview-studio",
   ];
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -184,6 +188,12 @@ export const Dashboard = (): JSX.Element => {
       path: "Dashboard / Cover Letter"
     },
     {
+      id: "interview-studio",
+      label: "Interview Studio",
+      icon: <Video className="w-4 h-4 sm:w-5 sm:h-5" />,
+      path: "Dashboard / Interview Studio",
+    },
+    {
       id: "jobs",
       label: "Jobs",
       icon: <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" />,
@@ -254,6 +264,8 @@ export const Dashboard = (): JSX.Element => {
         return <CoverLetterPage />;
       case "billing":
         return <BillingPage />;
+      case "interview-studio":
+        return <InterviewStudioPage />;
       case "settings":
         return <SettingsPage />;
       case "notifications":
