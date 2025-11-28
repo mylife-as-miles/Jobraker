@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +27,7 @@ export const InterviewStudioPage: React.FC = () => {
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
   const [isInterviewModeOn, setIsInterviewModeOn] = useState(true);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
@@ -173,15 +173,16 @@ export const InterviewStudioPage: React.FC = () => {
         <div className="absolute inset-0 flex flex-col justify-between p-4">
           {/* Top Controls */}
           <div className="flex justify-between items-center">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20">
-                  <Settings className="w-6 h-6 text-white" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 bg-gray-900/80 backdrop-blur-sm border-green-900/50 text-white">
-                <div className="space-y-4">
-                  <h4 className="font-medium leading-none">Settings</h4>
+            <Button onClick={() => setIsSettingsOpen(!isSettingsOpen)} variant="ghost" size="icon" className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20">
+              <Settings className="w-6 h-6 text-white" />
+            </Button>
+
+            {isSettingsOpen && (
+              <Card className="absolute top-16 left-4 w-72 bg-gray-900/80 backdrop-blur-sm border-green-900/50 text-white">
+                <CardHeader>
+                  <CardTitle>Settings</CardTitle>
+                </CardHeader>
+                <CardContent>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Video Dimensions</label>
                     <Select onValueChange={setAspectRatio} defaultValue={aspectRatio} disabled={isRecording}>
@@ -197,9 +198,9 @@ export const InterviewStudioPage: React.FC = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+                </CardContent>
+              </Card>
+            )}
 
             <div className="flex items-center space-x-2 bg-white/10 p-2 rounded-full">
               <Switch id="interview-mode" checked={isInterviewModeOn} onCheckedChange={setIsInterviewModeOn} />
