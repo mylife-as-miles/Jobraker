@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Camera, Video, Download, Square, RectangleHorizontal, RectangleVertical, Mic, MicOff, Settings } from "lucide-react";
+import { Camera, Video, Download, Square, RectangleHorizontal, RectangleVertical } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabaseClient";
@@ -24,10 +23,6 @@ export const InterviewStudioPage: React.FC = () => {
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [prompt, setPrompt] = useState("");
   const [isFetchingPrompt, setIsFetchingPrompt] = useState(false);
-  const [isCameraOn, setIsCameraOn] = useState(true);
-  const [isMicOn, setIsMicOn] = useState(true);
-  const [isInterviewModeOn, setIsInterviewModeOn] = useState(true);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
@@ -50,29 +45,8 @@ export const InterviewStudioPage: React.FC = () => {
   };
 
   useEffect(() => {
-    let stream: MediaStream | null = null;
-
-    const setupCamera = async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (err) {
-        console.error("Camera access error:", err);
-      }
-    };
-
-    setupCamera();
-
-    return () => {
-      stream?.getTracks().forEach(track => track.stop());
-    };
-  }, []);
-
-  useEffect(() => {
     let promptInterval: NodeJS.Timeout | null = null;
-    if (isRecording && isInterviewModeOn) {
+    if (isRecording) {
       fetchPrompt();
       promptInterval = setInterval(fetchPrompt, 15000);
     }
@@ -80,11 +54,12 @@ export const InterviewStudioPage: React.FC = () => {
       if (promptInterval) clearInterval(promptInterval);
       setPrompt("");
     };
-  }, [isRecording, isInterviewModeOn]);
+  }, [isRecording]);
 
-  const handleStartRecording = () => {
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      videoRef.current!.srcObject = stream;
       mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: "video/webm" });
       mediaRecorderRef.current.ondataavailable = (e) => {
         if (e.data.size > 0) recordedChunksRef.current.push(e.data);
@@ -99,6 +74,8 @@ export const InterviewStudioPage: React.FC = () => {
       mediaRecorderRef.current.start();
       setIsRecording(true);
       setVideoUrl(null);
+    } catch (err) {
+      console.error("Camera access error:", err);
     }
   };
 
@@ -118,16 +95,6 @@ export const InterviewStudioPage: React.FC = () => {
     URL.revokeObjectURL(videoUrl);
   };
 
-  const toggleMic = () => {
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getAudioTracks().forEach(track => {
-        track.enabled = !isMicOn;
-      });
-      setIsMicOn(!isMicOn);
-    }
-  };
-
   const getAspectRatioIcon = (value: string) => {
     switch (value) {
       case "9:16": return <RectangleVertical className="w-4 h-4 mr-2 text-gray-400" />;
@@ -139,116 +106,83 @@ export const InterviewStudioPage: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full bg-black flex flex-col items-center justify-center p-4">
-      <motion.div
-        layout
-        className="relative w-full max-w-5xl bg-black border border-green-900/50 rounded-xl overflow-hidden shadow-2xl shadow-green-500/10"
-        style={{ aspectRatio: aspectRatio.replace(":", " / ") }}
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <AnimatePresence>
-          {!isRecording && videoUrl && (
-            <motion.video
-              key="playback"
-              src={videoUrl}
-              controls
-              className="w-full h-full object-contain"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            />
-          )}
-        </AnimatePresence>
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          playsInline
-          className="w-full h-full object-contain"
-        />
+    <div className="min-h-full bg-black text-white p-4 sm:p-6 lg:p-8">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-green-300 via-green-400 to-green-500 bg-clip-text text-transparent">Interview Studio</h1>
+            <p className="text-gray-400 mt-1">Record, refine, and ace your next interview.</p>
+          </div>
+          {isRecording && <Badge variant="destructive" className="mt-2 sm:mt-0 animate-pulse"><div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>Recording Live</Badge>}
+        </header>
 
-        {/* Controls Overlay */}
-        <div className="absolute inset-0 flex flex-col justify-between p-4">
-          {/* Top Controls */}
-          <div className="flex justify-between items-center">
-            <Button onClick={() => setIsSettingsOpen(!isSettingsOpen)} variant="ghost" size="icon" className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20">
-              <Settings className="w-6 h-6 text-white" />
-            </Button>
-
-            {isSettingsOpen && (
-              <Card className="absolute top-16 left-4 w-72 bg-gray-900/80 backdrop-blur-sm border-green-900/50 text-white">
-                <CardHeader>
-                  <CardTitle>Settings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Video Dimensions</label>
-                    <Select onValueChange={setAspectRatio} defaultValue={aspectRatio} disabled={isRecording}>
-                      <SelectTrigger className="w-full bg-gray-800 border-gray-700">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                        {aspectRatios.map((r) => (
-                          <SelectItem key={r.value} value={r.value}>
-                            <div className="flex items-center">{getAspectRatioIcon(r.value)} {r.label}</div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <div className="flex items-center space-x-2 bg-white/10 p-2 rounded-full">
-              <Switch id="interview-mode" checked={isInterviewModeOn} onCheckedChange={setIsInterviewModeOn} />
-              <label htmlFor="interview-mode" className="text-sm font-medium text-white">Interview Mode</label>
-            </div>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="xl:col-span-2 w-full">
+            <motion.div layout className="relative bg-black border border-green-900/50 rounded-xl overflow-hidden shadow-2xl shadow-green-500/10" style={{ aspectRatio: aspectRatio.replace(":", " / ") }}>
+              <AnimatePresence>
+                {!isRecording && videoUrl && (
+                  <motion.video key="playback" src={videoUrl} controls className="w-full h-full object-contain" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
+                )}
+              </AnimatePresence>
+              <video ref={videoRef} autoPlay muted playsInline className={`w-full h-full object-contain transition-opacity duration-300 ${isRecording ? "opacity-100" : "opacity-0"}`} />
+              <AnimatePresence>
+                {isRecording && (
+                  <motion.div
+                    key="prompt"
+                    className="absolute bottom-5 left-5 right-5 bg-black/70 backdrop-blur-sm text-white p-3 rounded-lg text-center border border-green-500/20"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                  >
+                    {isFetchingPrompt ? (
+                      <p className="text-sm sm:text-base font-medium text-gray-400 italic">Thinking of the next question...</p>
+                    ) : (
+                      <p className="text-sm sm:text-base font-medium">{prompt}</p>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           </div>
 
-          {/* AI Prompt */}
-          <AnimatePresence>
-            {isRecording && isInterviewModeOn && (
-              <motion.div
-                key="prompt"
-                className="self-center bg-black/70 backdrop-blur-sm text-white p-3 rounded-lg text-center border border-green-500/20"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-              >
-                {isFetchingPrompt ? (
-                  <p className="text-sm sm:text-base font-medium text-gray-400 italic">Thinking of the next question...</p>
-                ) : (
-                  <p className="text-sm sm:text-base font-medium">{prompt}</p>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <div className="w-full">
+            <Card className="bg-[#0a0a0a] border-green-900/50">
+              <CardHeader>
+                <CardTitle className="text-green-400">Recording Controls</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-2 block">Video Dimensions</label>
+                  <Select onValueChange={setAspectRatio} defaultValue={aspectRatio} disabled={isRecording}>
+                    <SelectTrigger className="w-full bg-gray-900 border-gray-700 hover:border-green-500 transition-colors">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-900 border-gray-700 text-white">
+                      {aspectRatios.map((r) => (
+                        <SelectItem key={r.value} value={r.value}>
+                          <div className="flex items-center">{getAspectRatioIcon(r.value)} {r.label}</div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-          {/* Bottom Controls */}
-          <div className="flex justify-center items-center space-x-4">
-            {videoUrl ? (
-              <Button onClick={handleDownload} variant="ghost" size="icon" className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20">
-                <Download className="w-6 h-6 text-white" />
-              </Button>
-            ) : (
-              <Button variant="ghost" size="icon" className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20">
-                <Camera className="w-6 h-6 text-white" />
-              </Button>
-            )}
-
-            <button
-              onClick={isRecording ? handleStopRecording : handleStartRecording}
-              className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center transition-all duration-300 ${isRecording ? 'bg-red-500 ring-4 ring-red-300' : 'bg-white ring-4 ring-white/50'}`}
-            >
-              {isRecording ? <div className="w-6 h-6 sm:w-8 sm:h-8 bg-white rounded-md"></div> : <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-500 rounded-full"></div>}
-            </button>
-
-            <Button onClick={toggleMic} variant="ghost" size="icon" className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20">
-              {isMicOn ? <Mic className="w-6 h-6 text-white" /> : <MicOff className="w-6 h-6 text-white" />}
-            </Button>
+                <div className="flex flex-col space-y-3">
+                  {isRecording ? (
+                    <Button onClick={handleStopRecording} variant="destructive" size="lg" className="hover:scale-105 transition-transform">
+                      <Video className="w-5 h-5 mr-2" /> Stop Recording
+                    </Button>
+                  ) : (
+                    <Button onClick={handleStartRecording} size="lg" className="bg-green-600 text-black hover:bg-green-500 hover:scale-105 transition-transform">
+                      <Camera className="w-5 h-5 mr-2" /> Start Recording
+                    </Button>
+                  )}
+                  <Button onClick={handleDownload} disabled={!videoUrl || isRecording} variant="outline" size="lg" className="border-green-700 hover:bg-green-900/50 hover:text-white hover:scale-105 transition-transform">
+                    <Download className="w-5 h-5 mr-2" /> Download WEBM
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </motion.div>
