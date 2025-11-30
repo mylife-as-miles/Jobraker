@@ -600,27 +600,27 @@ export const ChatPage = () => {
 
           <div className="mx-auto flex h-full w-full max-w-[1920px] gap-0">
             {/* Enhanced Sidebar */}
-            <aside className={`hidden md:flex flex-col border-r border-white/[0.06] bg-black/40 backdrop-blur-xl transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-80'} relative`}>
+            <aside className={`hidden md:flex flex-col border-r border-[#1dff00]/10 bg-gradient-to-b from-[#0a0a0a] to-black backdrop-blur-xl transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-80'} relative`}>
               {/* Sidebar Header */}
-              <div className="flex items-center justify-between px-4 py-4 border-b border-white/[0.06]">
+              <div className="flex items-center justify-between px-4 py-5 border-b border-[#1dff00]/10">
                 {!sidebarCollapsed && (
                   <>
-                    <h3 className="text-xs font-medium tracking-wider uppercase text-white/70">Conversations</h3>
+                    <h3 className="text-xs font-semibold tracking-widest uppercase text-white/50">Conversations</h3>
                     <button
                       onClick={createSession}
-                      className="flex items-center gap-1.5 text-[10px] px-2.5 py-1.5 rounded-lg bg-[#1dff00]/10 hover:bg-[#1dff00]/15 border border-[#1dff00]/20 text-[#1dff00] transition-all hover:scale-105 active:scale-95"
+                      className="flex items-center gap-2 text-[11px] px-3 py-1.5 rounded-lg bg-[#1dff00]/10 hover:bg-[#1dff00]/20 border border-[#1dff00]/20 hover:border-[#1dff00]/40 text-[#1dff00] transition-all hover:scale-105 active:scale-95 shadow-[0_0_10px_rgba(29,255,0,0.1)] hover:shadow-[0_0_15px_rgba(29,255,0,0.2)]"
                     >
-                      <Plus size={12} />
-                      <span>New</span>
+                      <Plus size={14} />
+                      <span className="font-medium">New Chat</span>
                     </button>
                   </>
                 )}
                 {sidebarCollapsed && (
                   <button
                     onClick={createSession}
-                    className="mx-auto p-2 rounded-lg bg-[#1dff00]/10 hover:bg-[#1dff00]/15 border border-[#1dff00]/20 text-[#1dff00] transition-all hover:scale-105"
+                    className="mx-auto p-2.5 rounded-xl bg-[#1dff00]/10 hover:bg-[#1dff00]/20 border border-[#1dff00]/20 text-[#1dff00] transition-all hover:scale-105 shadow-[0_0_10px_rgba(29,255,0,0.1)]"
                   >
-                    <Plus size={14} />
+                    <Plus size={16} />
                   </button>
                 )}
               </div>
@@ -730,9 +730,9 @@ export const ChatPage = () => {
               </button>
             </aside>
             {/* Main Column */}
-            <div className="flex flex-1 flex-col gap-3">
+            <div className="flex flex-1 flex-col gap-0 bg-black/50">
               {/* Minimalist Header */}
-              <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-white/[0.06] px-6 py-4 bg-black/20 backdrop-blur-sm">
+              <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-[#1dff00]/10 px-6 py-4 bg-gradient-to-r from-[#0a0a0a]/80 to-black/80 backdrop-blur-xl z-10">
                 <div className="flex flex-col">
                   <h1 className="text-base font-semibold tracking-tight text-white/95">AI Assistant</h1>
                   <p className="text-[11px] text-white/50 mt-0.5">Enterprise-grade career intelligence</p>
@@ -805,8 +805,8 @@ export const ChatPage = () => {
                     {messages.map((msg, idx) => {
                       const isUser = msg.role === 'user';
                       const bubble = isUser
-                        ? 'bg-gradient-to-br from-[#1dff00]/95 via-[#45d86e]/90 to-[#0a8246]/95 text-black font-medium'
-                        : 'bg-white/[0.02] text-white/90 border border-white/[0.06]';
+                        ? 'bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/20 shadow-[0_0_15px_rgba(29,255,0,0.05)] backdrop-blur-sm'
+                        : 'bg-[#111] text-gray-200 border border-white/10 shadow-lg';
                       const time = new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                       const textContent = msg.parts?.[0]?.text || msg.content;
                       const lastUserIdLocal = lastUserId;
@@ -867,7 +867,7 @@ export const ChatPage = () => {
                 </Conversation>
               </div>
               {/* Input Area - Refined & Professional */}
-              <div className="border-t border-white/[0.06] bg-black/20 backdrop-blur-sm">
+              <div className="border-t border-[#1dff00]/10 bg-black/80 backdrop-blur-xl p-6">
                 {messages.length > 0 && (
                   <div className="flex flex-wrap gap-2 px-6 pt-4 pb-2">
                     {quickPrompts.map(q => (
@@ -881,8 +881,8 @@ export const ChatPage = () => {
                     ))}
                   </div>
                 )}
-                <PromptInput onSubmit={handleSubmit} className="p-6" multiple globalDrop>
-                  <PromptInputBody className="relative rounded-xl border border-white/[0.08] bg-white/[0.02] focus-within:border-[#1dff00]/30 focus-within:bg-white/[0.03] transition-all">
+                <PromptInput onSubmit={handleSubmit} className="" multiple globalDrop>
+                  <PromptInputBody className="relative rounded-2xl border border-white/10 bg-[#0a0a0a] focus-within:border-[#1dff00]/50 focus-within:ring-1 focus-within:ring-[#1dff00]/20 focus-within:bg-black transition-all duration-300 shadow-inner">
                     <PromptInputAttachments>{file => <PromptInputAttachment data={file} />}</PromptInputAttachments>
                     <PromptInputTextarea
                       value={text}
