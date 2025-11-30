@@ -311,7 +311,8 @@ export const ChatPage = () => {
       setMessages(active.messages || []);
       setResponseId(active.responseId || null);
     }
-  }, [activeSessionId, sessions, setMessages, setResponseId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSessionId]);
 
   // Debounced save to DB
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
