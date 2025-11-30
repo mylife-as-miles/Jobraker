@@ -43,7 +43,8 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
     setMessages(prev => [...prev, assistantMessage]);
 
     const supabase = createClient();
-    const fnUrl = `${supabase.functionsUrl}/ai-chat`;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://127.0.0.1:54321';
+    const fnUrl = `${supabaseUrl}/functions/v1/ai-chat`;
 
     abortControllerRef.current = new AbortController();
 
@@ -168,7 +169,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
     if (lastUserMessage) {
       const messagesWithoutLastAssistant = messages.filter(m => m.role !== 'assistant' || m.id !== messages[messages.length - 1].id);
       setMessages(messagesWithoutLastAssistant);
-      append(lastUserMessage);
+      append({ role: 'user', content: lastUserMessage.content });
     }
   };
 
@@ -648,8 +649,8 @@ export const ChatPage = () => {
                         key={s.id}
                         onClick={() => setActiveSessionId(s.id)}
                         className={`group relative border-b border-white/[0.04] px-3 py-3 text-[11px] cursor-pointer transition-all ${s.id === activeSessionId
-                            ? 'bg-[#1dff00]/[0.08] border-l-2 border-l-[#1dff00]'
-                            : 'hover:bg-white/[0.03]'
+                          ? 'bg-[#1dff00]/[0.08] border-l-2 border-l-[#1dff00]'
+                          : 'hover:bg-white/[0.03]'
                           }`}
                       >
                         {renamingSession === s.id ? (
@@ -702,8 +703,8 @@ export const ChatPage = () => {
                       key={s.id}
                       onClick={() => setActiveSessionId(s.id)}
                       className={`w-full p-3 border-b border-white/[0.04] transition-all ${s.id === activeSessionId
-                          ? 'bg-[#1dff00]/[0.08] border-l-2 border-l-[#1dff00]'
-                          : 'hover:bg-white/[0.03]'
+                        ? 'bg-[#1dff00]/[0.08] border-l-2 border-l-[#1dff00]'
+                        : 'hover:bg-white/[0.03]'
                         }`}
                     >
                       <MessageSquare className="mx-auto text-white/60" size={16} />
