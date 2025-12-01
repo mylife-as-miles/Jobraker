@@ -59,7 +59,10 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         },
         body: JSON.stringify({
           model: chatOpts?.model || 'openai/gpt-4o-mini',
-          messages: responseId ? [userMessage] : history,
+          messages: history.filter(m => m.content.trim() !== '').map(m => ({
+            role: m.role,
+            content: m.content
+          })),
           webSearch: chatOpts?.webSearch,
           system: chatOpts?.system,
           previous_response_id: responseId,
@@ -77,6 +80,8 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
       const decoder = new TextDecoder();
       let buffer = '';
 
+      let currentEvent = 'message';
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -91,8 +96,6 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         } else {
           buffer = '';
         }
-
-        let currentEvent = 'message';
 
         for (const line of lines) {
           const trimmedLine = line.trim();
