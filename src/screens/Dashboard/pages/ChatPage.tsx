@@ -79,16 +79,18 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log('Stream done');
+          break;
+        }
 
-        buffer += decoder.decode(value, { stream: true });
+        const chunk = decoder.decode(value, { stream: true });
+        console.log('Received chunk:', chunk);
+        buffer += chunk;
         const lines = buffer.split('\n');
-        // Keep the last line in the buffer if it's incomplete (doesn't end with \n)
-        // However, split('\n') will give an empty string at the end if the last char is \n
-        // If the last char is NOT \n, the last element is the incomplete line.
-        // We should check if the buffer ended with \n
-        const endsWithNewLine = buffer.endsWith('\n');
 
+        // Keep the last line in the buffer if it's incomplete
+        const endsWithNewLine = buffer.endsWith('\n');
         if (!endsWithNewLine) {
           buffer = lines.pop() || '';
         } else {
@@ -100,6 +102,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
         for (const line of lines) {
           const trimmedLine = line.trim();
           if (!trimmedLine) continue;
+          console.log('Processing line:', trimmedLine);
 
           if (trimmedLine.startsWith('event:')) {
             currentEvent = trimmedLine.slice(6).trim();
