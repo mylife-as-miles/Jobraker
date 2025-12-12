@@ -372,7 +372,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               type="button"
               aria-label="Previous month"
               onClick={() => onMonthChange?.(addMonths(viewMonth, -1))}
-              className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-2 rounded transition"
+              className="bg-transparent text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-2 rounded transition"
             >
               ←
             </button>
@@ -388,7 +388,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
               type="button"
               aria-label="Next month"
               onClick={() => onMonthChange?.(addMonths(viewMonth, 1))}
-              className="text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-2 rounded transition"
+              className="bg-transparent text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-2 rounded transition"
             >
               →
             </button>
@@ -397,32 +397,32 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
             <button
               type="button"
               onClick={() => onMonthChange?.(startOfMonth(new Date()))}
-              className="text-white/90 hover:text-[#1dff00] text-xs px-2 py-1 rounded border border-white/10 hover:border-[#1dff00]/40 transition"
+              className="bg-transparent text-white/90 hover:text-[#1dff00] text-xs px-2 py-1 rounded border border-white/10 hover:border-[#1dff00]/40 transition"
             >
               Today
             </button>
             <button
               type="button"
               onClick={() => onViewModeChange?.(viewMode === 'month' ? 'week' : 'month')}
-              className="text-xs px-2 py-1 rounded border border-white/10 hover:border-[#1dff00]/40 text-white/80 hover:text-[#1dff00] transition"
+              className="bg-transparent text-xs px-2 py-1 rounded border border-white/10 hover:border-[#1dff00]/40 text-white/80 hover:text-[#1dff00] transition"
             >
               {viewMode === 'month' ? 'Week' : 'Month'}
             </button>
             <button
               type="button"
               onClick={() => onDensityModeChange?.(densityMode==='full'?'compact':'full')}
-              className="text-xs px-2 py-1 rounded border border-white/10 hover:border-[#1dff00]/40 text-white/70 hover:text-[#1dff00] transition"
+              className="bg-transparent text-xs px-2 py-1 rounded border border-white/10 hover:border-[#1dff00]/40 text-white/70 hover:text-[#1dff00] transition"
             >{densityMode==='full'?'Compact':'Full'}</button>
             <button
               type="button"
               onClick={() => onFocusContrastChange?.(!focusContrast)}
-              className={"text-xs px-2 py-1 rounded border transition "+(focusContrast?"bg-[#1dff00]/15 border-[#1dff00]/40 text-[#1dff00]":"border-white/10 text-white/60 hover:text-[#1dff00] hover:border-[#1dff00]/40")}
+              className={"text-xs px-2 py-1 rounded border transition "+(focusContrast?"bg-[#1dff00]/15 border-[#1dff00]/40 text-[#1dff00]":"bg-transparent border-white/10 text-white/60 hover:text-[#1dff00] hover:border-[#1dff00]/40")}
             >Contrast</button>
             {enableICSExport && (
               <button
                 type="button"
                 onClick={exportICS}
-                className="text-xs px-2 py-1 rounded border border-white/10 hover:border-[#1dff00]/40 text-white/60 hover:text-[#1dff00] transition"
+                className="bg-transparent text-xs px-2 py-1 rounded border border-white/10 hover:border-[#1dff00]/40 text-white/60 hover:text-[#1dff00] transition"
               >Export</button>
             )}
           </div>
@@ -480,11 +480,11 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                   }
                   onStatusFiltersChange(next);
                 }}
-                className={"px-2 py-0.5 rounded border text-xs transition "+(active?"bg-[#1dff00]/15 border-[#1dff00]/40 text-[#1dff00]":"border-white/10 text-white/40 hover:text-white/70 hover:border-white/30")}
+                className={"px-2 py-0.5 rounded border text-xs transition "+(active?"bg-[#1dff00]/15 border-[#1dff00]/40 text-[#1dff00]":"bg-transparent border-white/10 text-white/40 hover:text-white/70 hover:border-white/30")}
               >{s}</button>
             );
           })}
-          <button type="button" onClick={()=>onStatusFiltersChange([])} className="px-2 py-0.5 rounded border text-xs border-white/10 text-white/50 hover:text-[#1dff00] hover:border-[#1dff00]/40 transition">Reset</button>
+          <button type="button" onClick={()=>onStatusFiltersChange([])} className="bg-transparent px-2 py-0.5 rounded border text-xs border-white/10 text-white/50 hover:text-[#1dff00] hover:border-[#1dff00]/40 transition">Reset</button>
         </div>
       )}
 
