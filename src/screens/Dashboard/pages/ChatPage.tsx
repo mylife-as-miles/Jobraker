@@ -8,6 +8,7 @@ import atomOneDarkStyle from 'react-syntax-highlighter/dist/styles/atom-one-dark
 import { createClient } from "../../../lib/supabaseClient";
 import { MessageSquare, Wand2, Target, FileText, Sparkles, Zap, Plus, Search, Trash2, Edit3 } from 'lucide-react';
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
+import { useToast } from "../../../components/ui/toast-provider";
 // Real-deal streaming useChat hook
 type Persona = 'concise' | 'friendly' | 'analyst' | 'coach';
 interface BasicMessage { id: string; role: 'user' | 'assistant'; content: string; parts?: { type: 'text'; text: string }[]; streaming?: boolean; createdAt: number; meta?: { persona?: Persona; parent?: string } }
@@ -203,6 +204,7 @@ const models = [
 ];
 
 export const ChatPage = () => {
+  const { error: toastError } = useToast();
   // UI state
   const [text, setText] = useState('');
   const [model, setModel] = useState(models[0].id);
