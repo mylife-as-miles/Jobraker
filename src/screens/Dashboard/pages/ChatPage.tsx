@@ -597,23 +597,24 @@ export const ChatPage = () => {
       {/* Chat interface - only visible for Pro and Ultimate users */}
       {!loadingTier && (subscriptionTier === 'Pro' || subscriptionTier === 'Ultimate') && (
         <>
-          {/* Subtle ambient background */}
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(29,255,0,0.08),transparent_50%),radial-gradient(ellipse_at_bottom_right,rgba(10,130,70,0.06),transparent_50%)]" />
+          {/* Enhanced ambient background */}
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(29,255,0,0.05),transparent_70%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(29,255,0,0.08),transparent_50%),radial-gradient(ellipse_at_bottom_right,rgba(10,130,70,0.06),transparent_50%)] opacity-80" />
 
           <div className="mx-auto flex h-full w-full max-w-[1920px] gap-0">
             {/* Enhanced Sidebar */}
-            <aside className={`hidden md:flex flex-col border-r border-[#1dff00]/10 bg-gradient-to-b from-[#0a0a0a] to-black backdrop-blur-xl transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-80'} relative`}>
+            <aside className={`hidden md:flex flex-col border-r border-white/5 bg-black/90 backdrop-blur-3xl transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${sidebarCollapsed ? 'w-20' : 'w-80'} relative z-30 shadow-2xl`}>
               {/* Sidebar Header */}
-              <div className="flex items-center justify-between px-4 py-5 border-b border-[#1dff00]/10">
+              <div className="flex items-center justify-between px-5 py-6 border-b border-white/5">
                 {!sidebarCollapsed && (
                   <>
-                    <h3 className="text-xs font-semibold tracking-widest uppercase text-white/50">Conversations</h3>
+                    <h3 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/40">Conversations</h3>
                     <button
                       onClick={createSession}
-                      className="flex items-center gap-2 text-[11px] px-3 py-1.5 rounded-lg bg-[#1dff00]/10 hover:bg-[#1dff00]/20 border border-[#1dff00]/20 hover:border-[#1dff00]/40 text-[#1dff00] transition-all hover:scale-105 active:scale-95 shadow-[0_0_10px_rgba(29,255,0,0.1)] hover:shadow-[0_0_15px_rgba(29,255,0,0.2)]"
+                      className="flex items-center gap-2 text-[11px] px-3 py-1.5 rounded-lg bg-[#1dff00] hover:bg-[#33ff33] text-black font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(29,255,0,0.2)] hover:shadow-[0_0_20px_rgba(29,255,0,0.4)]"
                     >
-                      <Plus size={14} />
-                      <span className="font-medium">New Chat</span>
+                      <Plus size={14} strokeWidth={3} />
+                      <span>New Chat</span>
                     </button>
                   </>
                 )}
@@ -652,8 +653,8 @@ export const ChatPage = () => {
                         key={s.id}
                         onClick={() => setActiveSessionId(s.id)}
                         className={`group relative border-b border-white/[0.04] px-3 py-3 text-[11px] cursor-pointer transition-all ${s.id === activeSessionId
-                          ? 'bg-[#1dff00]/[0.08] border-l-2 border-l-[#1dff00]'
-                          : 'hover:bg-white/[0.03]'
+                          ? 'bg-gradient-to-r from-[#1dff00]/10 to-transparent border-l-[3px] border-l-[#1dff00]'
+                          : 'hover:bg-white/[0.03] border-l-[3px] border-l-transparent'
                           }`}
                       >
                         {renamingSession === s.id ? (
@@ -706,8 +707,8 @@ export const ChatPage = () => {
                       key={s.id}
                       onClick={() => setActiveSessionId(s.id)}
                       className={`w-full p-3 border-b border-white/[0.04] transition-all ${s.id === activeSessionId
-                        ? 'bg-[#1dff00]/[0.08] border-l-2 border-l-[#1dff00]'
-                        : 'hover:bg-white/[0.03]'
+                        ? 'bg-gradient-to-r from-[#1dff00]/10 to-transparent border-l-[3px] border-l-[#1dff00]'
+                        : 'hover:bg-white/[0.03] border-l-[3px] border-l-transparent'
                         }`}
                     >
                       <MessageSquare className="mx-auto text-white/60" size={16} />
@@ -732,12 +733,15 @@ export const ChatPage = () => {
               </button>
             </aside>
             {/* Main Column */}
-            <div className="flex flex-1 flex-col gap-0 bg-black/50">
+            <div className="flex flex-1 flex-col gap-0 bg-transparent relative">
               {/* Minimalist Header */}
-              <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-[#1dff00]/10 px-6 py-4 bg-gradient-to-r from-[#0a0a0a]/80 to-black/80 backdrop-blur-xl z-10">
+              <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-white/5 px-8 py-5 bg-black/40 backdrop-blur-xl z-20 sticky top-0">
                 <div className="flex flex-col">
-                  <h1 className="text-base font-semibold tracking-tight text-white/95">AI Assistant</h1>
-                  <p className="text-[11px] text-white/50 mt-0.5">Enterprise-grade career intelligence</p>
+                  <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                    AI Assistant
+                    <span className="px-1.5 py-0.5 rounded text-[9px] bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/20 font-mono">BETA</span>
+                  </h1>
+                  <p className="text-[11px] text-white/50 mt-0.5 font-medium">Enterprise-grade career intelligence</p>
                 </div>
                 <div className="flex items-center gap-3 text-[10px]">
                   {/* Status Indicator */}
@@ -795,7 +799,7 @@ export const ChatPage = () => {
                               <button
                                 key={q}
                                 onClick={() => { setText(q); setEditing(false); }}
-                                className="px-4 py-2 rounded-lg text-[11px] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-[#1dff00]/30 text-white/70 hover:text-white/90 transition-all"
+                                className="px-4 py-2 rounded-xl text-[11px] bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-[#1dff00]/40 text-white/70 hover:text-white transition-all hover:-translate-y-0.5"
                               >
                                 {q}
                               </button>
@@ -807,8 +811,8 @@ export const ChatPage = () => {
                     {messages.map((msg, idx) => {
                       const isUser = msg.role === 'user';
                       const bubble = isUser
-                        ? 'bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/20 shadow-[0_0_15px_rgba(29,255,0,0.05)] backdrop-blur-sm'
-                        : 'bg-[#111] text-gray-200 border border-white/10 shadow-lg';
+                        ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 text-[#b6ffb6] border border-[#1dff00]/20 shadow-[0_4px_20px_rgba(29,255,0,0.05)] backdrop-blur-md'
+                        : 'bg-gradient-to-br from-[#161616] to-[#0a0a0a] text-gray-100 border border-white/[0.06] shadow-md backdrop-blur-sm';
                       const time = new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                       const textContent = msg.parts?.[0]?.text || msg.content;
                       const lastUserIdLocal = lastUserId;
@@ -868,15 +872,15 @@ export const ChatPage = () => {
                   </ConversationContent>
                 </Conversation>
               </div>
-              {/* Input Area - Refined & Professional */}
-              <div className="border-t border-[#1dff00]/10 bg-black/80 backdrop-blur-xl p-6">
+              {/* Input Area - Floating & Modern */}
+              <div className="p-4 sm:p-6 bg-gradient-to-t from-black via-black/90 to-transparent z-20">
                 {messages.length > 0 && (
-                  <div className="flex flex-wrap gap-2 px-6 pt-4 pb-2">
+                  <div className="flex flex-wrap gap-2 px-2 pb-3 justify-center sm:justify-start">
                     {quickPrompts.map(q => (
                       <button
                         key={q}
                         onClick={() => { setText(q); setEditing(false); }}
-                        className="px-3 py-1.5 rounded-lg text-[10px] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-[#1dff00]/30 text-white/60 hover:text-white/90 transition-all"
+                        className="px-3 py-1.5 rounded-full text-[10px] bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-[#1dff00]/40 text-white/60 hover:text-white transition-all hover:-translate-y-0.5"
                       >
                         {q}
                       </button>
@@ -884,7 +888,7 @@ export const ChatPage = () => {
                   </div>
                 )}
                 <PromptInput onSubmit={handleSubmit} className="" multiple globalDrop>
-                  <PromptInputBody className="relative rounded-2xl border border-white/10 bg-[#0a0a0a] focus-within:border-[#1dff00]/50 focus-within:ring-1 focus-within:ring-[#1dff00]/20 focus-within:bg-black transition-all duration-300 shadow-inner">
+                  <PromptInputBody className="relative rounded-3xl border border-white/10 bg-[#0a0a0a]/80 backdrop-blur-xl focus-within:border-[#1dff00]/40 focus-within:ring-1 focus-within:ring-[#1dff00]/20 focus-within:bg-black transition-all duration-300 shadow-2xl hover:border-white/20">
                     <PromptInputAttachments>{file => <PromptInputAttachment data={file} />}</PromptInputAttachments>
                     <PromptInputTextarea
                       value={text}
@@ -938,7 +942,7 @@ export const ChatPage = () => {
                     <PromptInputSubmit
                       disabled={!text && status !== 'in_progress'}
                       status={status === 'in_progress' ? 'in_progress' : undefined as any}
-                      className="px-6 py-2.5 rounded-lg bg-[#1dff00] hover:bg-[#1dff00]/90 text-black font-medium text-[12px] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#1dff00] to-[#00cc00] hover:from-[#33ff33] hover:to-[#00ee00] text-black font-bold text-[12px] shadow-[0_0_15px_rgba(29,255,0,0.3)] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
                     />
                   </PromptInputToolbar>
                   <div className="pt-2 text-[9px] tracking-wide text-white/40 flex justify-between items-center">
