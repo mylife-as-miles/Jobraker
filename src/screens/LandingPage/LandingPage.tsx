@@ -1,18 +1,27 @@
-import React, { useEffect } from 'react';
-import { Hero } from './components/Hero';
-import { BentoGrid } from './components/BentoGrid';
-import { ScrollShowcase } from './components/ScrollShowcase';
-import { PricingSection } from './components/PricingSection';
-import { Button } from '../../components/ui/button';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bot, Check, ArrowRight } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Bot } from 'lucide-react';
+import { Button } from '../../components/ui/button';
+
+// New Components
+import { HeroParallax } from './components/HeroParallax';
+import { DashboardPreview } from './components/DashboardPreview';
+import { SocialProof } from './components/SocialProof';
+import { BentoGrid as BentoSection } from './components/BentoGrid'; // Reusing existing BentoGrid
+import { IntegrationsSection } from './components/IntegrationsSection';
+import { LargeTestimonial } from './components/LargeTestimonial';
+import { PricingSection } from './components/PricingSection';
+import { TestimonialGridSection } from './components/TestimonialGridSection';
+import { FAQSection } from './components/FAQSection';
+import { CTASection } from './components/CTASection';
+import { FooterSection } from './components/FooterSection';
+import { AnimatedSection } from './components/AnimatedSection';
 
 export const LandingPage = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-black text-white font-mono selection:bg-[#1dff00] selection:text-black">
+    <div className="min-h-screen bg-black text-white font-mono selection:bg-[#1dff00] selection:text-black overflow-x-hidden">
 
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-[#1dff00]/20">
@@ -44,21 +53,105 @@ export const LandingPage = () => {
         </div>
       </nav>
 
-      <main>
-        <Hero />
+      <div className="relative z-10">
+        <main className="mx-auto relative min-h-[60vh]">
+          {/* 1. Hero Parallax */}
+          <HeroParallax />
 
-        <BentoGrid />
+          {/* 2. Dashboard Preview Wrapper */}
+          <div className="relative z-30 pointer-events-none w-full px-4 sm:px-8 md:max-w-none -mt-20 sm:-mt-32 md:-mt-40">
+             {/* Note: Pointer events disabled on wrapper but we might want interactions inside.
+                 If Dashboard needs interaction, remove pointer-events-none */}
+            <DashboardPreview />
+          </div>
+        </main>
 
-        <ScrollShowcase />
+        {/* 3. Social Proof */}
+        <AnimatedSection
+          className="relative z-10 max-w-[1320px] mx-auto px-3 sm:px-6 lg:px-8 mt-20"
+          delay={0.1}
+        >
+          <SocialProof />
+        </AnimatedSection>
 
-        <PricingSection />
+        {/* 4. Features (Bento) */}
+        <AnimatedSection
+          id="features-section"
+          className="relative z-10 max-w-[1320px] mx-auto mt-12 sm:mt-16 md:mt-20"
+          delay={0.2}
+        >
+          <BentoSection />
+        </AnimatedSection>
 
-        {/* Footer */}
-        <footer className="py-12 border-t border-[#1dff00]/10 bg-black text-center text-gray-600 text-sm font-mono">
-          <p>© {new Date().getFullYear()} JobRaker AI. All systems operational.</p>
-        </footer>
+        {/* 5. Integrations */}
+        <AnimatedSection
+          id="integrations-section"
+          className="relative z-10 max-w-[1320px] mx-auto mt-8 sm:mt-12 md:mt-16"
+          delay={0.2}
+        >
+          <IntegrationsSection />
+        </AnimatedSection>
 
-      </main>
+        {/* 6. Large Testimonial */}
+        <AnimatedSection
+          className="relative z-10 max-w-[1320px] mx-auto mt-8 sm:mt-12 md:mt-16"
+          delay={0.2}
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.4 }}
+        >
+          <LargeTestimonial />
+        </AnimatedSection>
+
+        {/* 7. Pricing */}
+        <AnimatedSection
+          id="pricing-section"
+          className="relative z-10 max-w-[1320px] mx-auto mt-8 sm:mt-12 md:mt-16"
+          delay={0.2}
+        >
+          <PricingSection />
+        </AnimatedSection>
+
+        {/* 8. Testimonials Grid */}
+        <AnimatedSection
+          id="testimonials-section"
+          className="relative z-10 max-w-[1320px] mx-auto mt-8 sm:mt-12 md:mt-16"
+          delay={0.2}
+        >
+          <TestimonialGridSection />
+        </AnimatedSection>
+
+        {/* 9. FAQ */}
+        <AnimatedSection
+          id="faq-section"
+          className="relative z-10 max-w-[1320px] mx-auto mt-8 sm:mt-12 md:mt-16"
+          delay={0.2}
+        >
+          <FAQSection />
+        </AnimatedSection>
+
+        {/* 10. CTA */}
+        <AnimatedSection
+          className="relative z-10 max-w-[1320px] mx-auto mt-8 sm:mt-12 md:mt-16"
+          delay={0.2}
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.4 }}
+        >
+          <CTASection />
+        </AnimatedSection>
+
+        {/* 11. Footer */}
+        <AnimatedSection
+          className="relative z-10 max-w-[1320px] mx-auto mt-8 sm:mt-12 md:mt-16"
+          delay={0.2}
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.4 }}
+        >
+          <FooterSection />
+        </AnimatedSection>
+      </div>
     </div>
   );
 };
