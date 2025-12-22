@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Hero } from './components/Hero';
 import { BentoGrid } from './components/BentoGrid';
 import { ScrollShowcase } from './components/ScrollShowcase';
+import { PricingSection } from './components/PricingSection';
 import { Button } from '../../components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { Bot, Check, ArrowRight } from 'lucide-react';
@@ -50,7 +51,9 @@ export const LandingPage = () => {
 
         <ScrollShowcase />
 
-        {/* Pricing / Final CTA */}
+        <PricingSection />
+
+        {/* Final CTA */}
         <section className="py-24 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-t from-[#1dff00]/10 to-transparent pointer-events-none" />
           
