@@ -4,12 +4,33 @@ import { LiveDemo } from './LiveDemo';
 
 export const DashboardPreview = () => {
   return (
-    // Adjusted negative margin to fit better with the new taller/spaced HeroSection
-    <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 mt-[-80px] sm:mt-[-120px] md:mt-[-150px] lg:mt-[-200px] relative z-20">
+    <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 relative z-20 py-12 md:py-24">
+      {/* Section Header */}
+      <div className="text-center mb-16 max-w-3xl mx-auto">
+        <motion.h2
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="text-3xl md:text-5xl font-bold font-sans text-white mb-6 tracking-tight"
+        >
+          Everything in your control
+        </motion.h2>
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="text-gray-400 text-lg md:text-xl font-light max-w-2xl mx-auto leading-relaxed"
+        >
+          All features you need to manage your job application without the friction
+        </motion.p>
+      </div>
+
       <motion.div
-        initial={{ y: 100, opacity: 0, rotateX: 20 }}
+        initial={{ y: 60, opacity: 0, rotateX: 20 }}
         whileInView={{ y: 0, opacity: 1, rotateX: 0 }}
-        viewport={{ once: true }}
+        viewport={{ once: true, margin: "-100px" }}
         transition={{ duration: 0.8, ease: "easeOut" }}
         className="relative perspective-1000"
       >
