@@ -1,17 +1,22 @@
 import React, { useRef, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls, Sphere, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 
 const Globe = () => {
   const pointsRef = useRef<THREE.Points>(null);
   const wireframeRef = useRef<THREE.Mesh>(null);
+  const mapSphereRef = useRef<THREE.Mesh>(null);
 
-  // Generate points on a sphere surface - Increased density
+  // Load Earth texture
+  // Using a standard equirectangular projection map
+  const earthMap = useLoader(THREE.TextureLoader, '/assets/textures/earth_dark.jpg');
+
+  // Generate points on a sphere surface
   const particlesPosition = useMemo(() => {
-    const count = 6000; // Increased count
+    const count = 6000;
     const positions = new Float32Array(count * 3);
-    const radius = 2;
+    const radius = 2.05; // Slightly larger than the map sphere
 
     for (let i = 0; i < count; i++) {
       const theta = Math.random() * Math.PI * 2;
@@ -30,19 +35,39 @@ const Globe = () => {
 
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
+    const rotationSpeed = 0.002;
+
     if (pointsRef.current) {
-      pointsRef.current.rotation.y += 0.002; // Faster rotation
+      pointsRef.current.rotation.y += rotationSpeed;
       pointsRef.current.rotation.x = Math.sin(time * 0.1) * 0.05;
     }
     if (wireframeRef.current) {
-      wireframeRef.current.rotation.y += 0.002;
+      wireframeRef.current.rotation.y += rotationSpeed;
       wireframeRef.current.rotation.x = Math.sin(time * 0.1) * 0.05;
+    }
+    if (mapSphereRef.current) {
+      mapSphereRef.current.rotation.y += rotationSpeed;
+      mapSphereRef.current.rotation.x = Math.sin(time * 0.1) * 0.05;
     }
   });
 
   return (
     <group rotation={[0, 0, Math.PI / 6]}>
-      {/* 1. High Density Points */}
+      {/* 1. Earth Map Sphere (New Layer) */}
+      <mesh ref={mapSphereRef}>
+        <sphereGeometry args={[1.98, 64, 64]} />
+        <meshStandardMaterial
+            map={earthMap}
+            color="#1dff00"
+            transparent
+            opacity={0.4}
+            blending={THREE.AdditiveBlending}
+            side={THREE.DoubleSide}
+            depthWrite={false} // Prevents z-fighting with inner core
+        />
+      </mesh>
+
+      {/* 2. High Density Points (Existing) */}
       <points ref={pointsRef}>
         <bufferGeometry>
           <bufferAttribute
@@ -53,18 +78,18 @@ const Globe = () => {
           />
         </bufferGeometry>
         <pointsMaterial
-          size={0.02} // Slightly larger
+          size={0.02}
           color="#1dff00"
           transparent
-          opacity={0.8}
+          opacity={0.6}
           sizeAttenuation
           blending={THREE.AdditiveBlending}
         />
       </points>
 
-      {/* 2. Wireframe Sphere for structure */}
+      {/* 3. Wireframe Sphere for structure (Existing) */}
       <mesh ref={wireframeRef}>
-        <sphereGeometry args={[1.98, 48, 48]} />
+        <sphereGeometry args={[2.0, 48, 48]} />
         <meshBasicMaterial
           color="#1dff00"
           wireframe
@@ -73,12 +98,12 @@ const Globe = () => {
         />
       </mesh>
 
-      {/* 3. Inner Dark Core to block background stars */}
+      {/* 4. Inner Dark Core (Existing) */}
       <Sphere args={[1.95, 32, 32]}>
         <meshBasicMaterial color="#000000" />
       </Sphere>
 
-      {/* 4. Glowing Atmosphere */}
+      {/* 5. Glowing Atmosphere (Existing) */}
       <mesh>
         <sphereGeometry args={[2.2, 32, 32]} />
         <meshBasicMaterial
@@ -90,7 +115,7 @@ const Globe = () => {
         />
       </mesh>
 
-      {/* 5. Multiple Orbit Rings */}
+      {/* 6. Multiple Orbit Rings (Existing) */}
       <OrbitRing radius={2.5} speed={0.3} color="#1dff00" opacity={0.4} />
       <OrbitRing radius={3.0} speed={0.2} color="#1dff00" opacity={0.2} rotateX={Math.PI / 2.5} />
       <OrbitRing radius={2.8} speed={-0.2} color="#ffffff" opacity={0.15} rotateZ={Math.PI / 4} />
@@ -133,7 +158,9 @@ export const EarthOrb = () => {
 
         <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
 
-        <Globe />
+        <React.Suspense fallback={null}>
+            <Globe />
+        </React.Suspense>
 
         <OrbitControls
             enableZoom={false}
