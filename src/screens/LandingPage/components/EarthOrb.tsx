@@ -1,15 +1,11 @@
 import React, { useRef, useMemo } from 'react';
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sphere, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 
 const Globe = () => {
   const pointsRef = useRef<THREE.Points>(null);
   const wireframeRef = useRef<THREE.Mesh>(null);
-  const mapSphereRef = useRef<THREE.Mesh>(null);
-
-  // Load Earth texture
-  const earthMap = useLoader(THREE.TextureLoader, '/assets/textures/earth_dark.jpg');
 
   // Generate points on a sphere surface
   const particlesPosition = useMemo(() => {
@@ -44,31 +40,10 @@ const Globe = () => {
       wireframeRef.current.rotation.y += rotationSpeed;
       wireframeRef.current.rotation.x = Math.sin(time * 0.1) * 0.05;
     }
-    if (mapSphereRef.current) {
-      mapSphereRef.current.rotation.y += rotationSpeed;
-      mapSphereRef.current.rotation.x = Math.sin(time * 0.1) * 0.05;
-    }
   });
 
   return (
     <group rotation={[0, 0, Math.PI / 6]}>
-      {/* 1. Earth Map Sphere (Enhanced Visibility) */}
-      <mesh ref={mapSphereRef}>
-        {/* Slightly larger radius to sit above the inner black core (1.95) */}
-        <sphereGeometry args={[1.98, 64, 64]} />
-        <meshStandardMaterial
-            map={earthMap}
-            color="#1dff00"
-            emissive="#1dff00" // Make it self-illuminating
-            emissiveIntensity={0.5} // Control the glow intensity
-            emissiveMap={earthMap} // Use the map for emission too so only continents glow
-            transparent
-            opacity={0.8} // Increased opacity
-            blending={THREE.AdditiveBlending}
-            side={THREE.DoubleSide}
-            depthWrite={false}
-        />
-      </mesh>
 
       {/* 2. High Density Points */}
       <points ref={pointsRef}>
