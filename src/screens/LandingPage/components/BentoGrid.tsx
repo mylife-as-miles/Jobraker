@@ -1,40 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Bot, Send, FileText, BarChart3, Shield, Activity, Zap, Check, Cpu, Brain, Lock, ArrowRight } from 'lucide-react';
+import { Bot, FileText, BarChart3, Activity, ArrowRight, MessageSquare, Mic } from 'lucide-react';
 import { KanbanCard } from '../../../components/landing/visuals/KanbanCard';
-import { ActivityGraph } from '../../../components/landing/visuals/ActivityGraph';
 import { ScanningVisual } from '../../../components/landing/visuals/ScanningVisual';
-
-const features = [
-  {
-    title: "Autonomous Application System",
-    description: "Our AI agents navigate job boards, fill out forms, and submit applications while you sleep. Watch your 'Applied' column grow automatically.",
-    colSpan: "col-span-1 md:col-span-2 lg:col-span-2 row-span-2",
-    visual: <KanbanCard />,
-    className: "min-h-[400px]"
-  },
-  {
-    title: "Resume Intelligence",
-    description: "Dynamic tailoring for every single application to beat ATS.",
-    colSpan: "col-span-1 md:col-span-1 lg:col-span-1 row-span-1",
-    visual: <ScanningVisual />,
-    className: "min-h-[200px]"
-  },
-  {
-    title: "Analytics Core",
-    description: "Real-time funnel metrics.",
-    colSpan: "col-span-1 md:col-span-1 lg:col-span-1 row-span-1",
-    visual: <ActivityGraph />,
-    className: "min-h-[200px]"
-  },
-  {
-    title: "Smart Matching",
-    description: "We filter 50k+ jobs daily to find your perfect match.",
-    colSpan: "col-span-1 md:col-span-3 lg:col-span-3",
-    icon: <Bot className="w-6 h-6 text-[#1dff00]" />,
-    className: "md:flex-row flex-col items-center"
-  }
-];
+import { ChatVisual } from '../../../components/landing/visuals/ChatVisual';
+import { VoiceInteractionVisual } from '../../../components/landing/visuals/VoiceInteractionVisual';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -77,7 +47,7 @@ export const BentoGrid = () => {
             viewport={{ once: true }}
             className="inline-flex items-center px-3 py-1 rounded-full border border-white/10 bg-white/5 text-gray-300 text-xs font-mono tracking-widest uppercase mb-6 backdrop-blur-sm"
           >
-             <Cpu className="w-3 h-3 mr-2 text-[#1dff00]" />
+             <Bot className="w-3 h-3 mr-2 text-[#1dff00]" />
              Platform Capabilities
           </motion.div>
 
@@ -134,7 +104,7 @@ export const BentoGrid = () => {
             </div>
           </motion.div>
 
-          {/* Card 2: Scanning (Small) */}
+          {/* Card 2: Resume Intelligence (Small) */}
           <motion.div
              variants={itemVariants}
              className="col-span-1 md:col-span-1 row-span-1 relative group overflow-hidden rounded-3xl bg-[#0B0C0E] border border-white/10"
@@ -154,7 +124,7 @@ export const BentoGrid = () => {
              </div>
           </motion.div>
 
-          {/* Card 3: Analytics (Small) */}
+          {/* Card 3: Chat with AI (Small - was Analytics) */}
           <motion.div
              variants={itemVariants}
              className="col-span-1 md:col-span-1 row-span-1 relative group overflow-hidden rounded-3xl bg-[#0B0C0E] border border-white/10"
@@ -162,19 +132,19 @@ export const BentoGrid = () => {
              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
              <div className="p-6 h-full flex flex-col">
                <div className="flex justify-between items-start mb-4">
-                 <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
-                    <BarChart3 className="w-4 h-4 text-purple-400" />
+                 <div className="w-8 h-8 rounded-full bg-[#1dff00]/10 flex items-center justify-center border border-[#1dff00]/20">
+                    <MessageSquare className="w-4 h-4 text-[#1dff00]" />
                  </div>
                </div>
-               <h3 className="text-lg font-semibold text-white mb-1">Analytics Core</h3>
-               <p className="text-gray-400 text-sm mb-4">Real-time funnel metrics.</p>
-               <div className="flex-1 w-full bg-[#15171A] rounded-lg border border-white/5 overflow-hidden flex items-end">
-                 <ActivityGraph />
+               <h3 className="text-lg font-semibold text-white mb-1">AI Assistant</h3>
+               <p className="text-gray-400 text-sm mb-4">Chat with your agent. Gmail integrated.</p>
+               <div className="flex-1 w-full bg-[#15171A] rounded-lg border border-white/5 overflow-hidden flex flex-col">
+                 <ChatVisual />
                </div>
              </div>
           </motion.div>
 
-          {/* Card 4: Wide Feature (Wide) */}
+          {/* Card 4: Interview Coach (Wide - Updated Visual) */}
           <motion.div
              variants={itemVariants}
              className="col-span-1 md:col-span-3 relative group overflow-hidden rounded-3xl bg-[#0B0C0E] border border-white/10 p-8 flex flex-col md:flex-row items-center gap-8"
@@ -183,22 +153,21 @@ export const BentoGrid = () => {
 
              <div className="flex-1 relative z-10">
                <div className="inline-flex items-center px-3 py-1 rounded-full bg-[#1dff00]/10 text-[#1dff00] text-xs font-bold mb-4">
-                 NEW
+                 <Mic className="w-3 h-3 mr-2" />
+                 VOICE INTERACTIVE
                </div>
                <h3 className="text-2xl font-semibold text-white mb-3">Interview Coach AI</h3>
                <p className="text-gray-400 mb-6">
-                 Practice with a voice-interactive AI that simulates real interviews based on the specific job description you are applying for. Get real-time feedback on your answers.
+                 Practice with a voice-interactive AI that simulates real interviews based on the specific job description. Get real-time feedback on your answers.
                </p>
                <button className="text-white flex items-center text-sm font-semibold hover:text-[#1dff00] transition-colors">
                  Try it out <ArrowRight className="w-4 h-4 ml-2" />
                </button>
              </div>
 
+             {/* New Visual Component */}
              <div className="flex-1 w-full h-full min-h-[200px] bg-[#15171A] rounded-xl border border-white/5 flex items-center justify-center relative overflow-hidden">
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=2940&auto=format&fit=crop')] bg-cover bg-center opacity-20" />
-                <div className="w-16 h-16 rounded-full bg-[#1dff00]/20 flex items-center justify-center backdrop-blur-md border border-[#1dff00]/50 z-10 animate-pulse">
-                  <Bot className="w-8 h-8 text-[#1dff00]" />
-                </div>
+                <VoiceInteractionVisual />
              </div>
           </motion.div>
 

@@ -58,17 +58,18 @@ export const LandingPage = () => {
           {/* 1. Hero Section (New 3D Earth) */}
           <HeroSection />
 
-          {/* 2. Dashboard Preview Wrapper */}
-          <div className="relative z-30 pointer-events-none w-full px-4 sm:px-8 md:max-w-none -mt-10 sm:-mt-20 md:-mt-32">
-             {/* Note: Pointer events disabled on wrapper but we might want interactions inside.
-                 If Dashboard needs interaction, remove pointer-events-none */}
-            <DashboardPreview />
-          </div>
+          {/* 2. Dashboard Preview - Now a standalone section without negative margins */}
+          <AnimatedSection
+            className="relative z-20 w-full bg-black/50" // Added bg-black/50 for slight separation if needed, or remove
+            delay={0.1}
+          >
+             <DashboardPreview />
+          </AnimatedSection>
         </main>
 
         {/* 3. Social Proof */}
         <AnimatedSection
-          className="relative z-10 max-w-[1320px] mx-auto px-3 sm:px-6 lg:px-8 mt-20"
+          className="relative z-10 max-w-[1320px] mx-auto px-3 sm:px-6 lg:px-8 mt-10 md:mt-20"
           delay={0.1}
         >
           <SocialProof />
