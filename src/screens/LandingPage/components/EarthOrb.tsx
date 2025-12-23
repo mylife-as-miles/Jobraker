@@ -9,14 +9,13 @@ const Globe = () => {
   const mapSphereRef = useRef<THREE.Mesh>(null);
 
   // Load Earth texture
-  // Using a standard equirectangular projection map
   const earthMap = useLoader(THREE.TextureLoader, '/assets/textures/earth_dark.jpg');
 
   // Generate points on a sphere surface
   const particlesPosition = useMemo(() => {
     const count = 6000;
     const positions = new Float32Array(count * 3);
-    const radius = 2.05; // Slightly larger than the map sphere
+    const radius = 2.05;
 
     for (let i = 0; i < count; i++) {
       const theta = Math.random() * Math.PI * 2;
@@ -53,21 +52,25 @@ const Globe = () => {
 
   return (
     <group rotation={[0, 0, Math.PI / 6]}>
-      {/* 1. Earth Map Sphere (New Layer) */}
+      {/* 1. Earth Map Sphere (Enhanced Visibility) */}
       <mesh ref={mapSphereRef}>
+        {/* Slightly larger radius to sit above the inner black core (1.95) */}
         <sphereGeometry args={[1.98, 64, 64]} />
         <meshStandardMaterial
             map={earthMap}
             color="#1dff00"
+            emissive="#1dff00" // Make it self-illuminating
+            emissiveIntensity={0.5} // Control the glow intensity
+            emissiveMap={earthMap} // Use the map for emission too so only continents glow
             transparent
-            opacity={0.4}
+            opacity={0.8} // Increased opacity
             blending={THREE.AdditiveBlending}
             side={THREE.DoubleSide}
-            depthWrite={false} // Prevents z-fighting with inner core
+            depthWrite={false}
         />
       </mesh>
 
-      {/* 2. High Density Points (Existing) */}
+      {/* 2. High Density Points */}
       <points ref={pointsRef}>
         <bufferGeometry>
           <bufferAttribute
@@ -87,7 +90,7 @@ const Globe = () => {
         />
       </points>
 
-      {/* 3. Wireframe Sphere for structure (Existing) */}
+      {/* 3. Wireframe Sphere */}
       <mesh ref={wireframeRef}>
         <sphereGeometry args={[2.0, 48, 48]} />
         <meshBasicMaterial
@@ -98,12 +101,12 @@ const Globe = () => {
         />
       </mesh>
 
-      {/* 4. Inner Dark Core (Existing) */}
+      {/* 4. Inner Dark Core */}
       <Sphere args={[1.95, 32, 32]}>
         <meshBasicMaterial color="#000000" />
       </Sphere>
 
-      {/* 5. Glowing Atmosphere (Existing) */}
+      {/* 5. Glowing Atmosphere */}
       <mesh>
         <sphereGeometry args={[2.2, 32, 32]} />
         <meshBasicMaterial
@@ -115,7 +118,7 @@ const Globe = () => {
         />
       </mesh>
 
-      {/* 6. Multiple Orbit Rings (Existing) */}
+      {/* 6. Orbit Rings */}
       <OrbitRing radius={2.5} speed={0.3} color="#1dff00" opacity={0.4} />
       <OrbitRing radius={3.0} speed={0.2} color="#1dff00" opacity={0.2} rotateX={Math.PI / 2.5} />
       <OrbitRing radius={2.8} speed={-0.2} color="#ffffff" opacity={0.15} rotateZ={Math.PI / 4} />
@@ -148,7 +151,6 @@ const OrbitRing = ({ radius, speed, color, opacity, rotateX = 0, rotateY = 0, ro
 export const EarthOrb = () => {
   return (
     <div className="w-full h-[500px] md:h-[600px] lg:h-[700px] relative">
-      {/* Enhanced Gradient Overlay */}
       <div className="absolute inset-0 z-10 bg-radial-gradient from-transparent via-transparent to-black pointer-events-none" />
 
       <Canvas camera={{ position: [0, 0, 8.5], fov: 40 }} dpr={[1, 2]}>
