@@ -49,8 +49,8 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
-    "@react-three/drei": "^10.7.7",
-    "@react-three/fiber": "^8.18.0",
+    "@react-three/drei": "9.122.0",
+    "@react-three/fiber": "8.18.0",
     "@supabase/auth-ui-react": "^0.4.7",
     "@supabase/auth-ui-shared": "^0.1.8",
     "@supabase/ssr": "^0.6.1",
@@ -125,4 +125,3 @@
     "@/*": "./src/components/ui/$1"
   }
 }
-
