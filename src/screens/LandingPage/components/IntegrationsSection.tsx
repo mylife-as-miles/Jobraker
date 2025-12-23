@@ -20,18 +20,17 @@ export const IntegrationsSection = () => {
         <h2 className="text-3xl md:text-5xl font-bold font-mono text-white mb-6">
           CONNECTED <span className="text-[#1dff00]">ECOSYSTEM</span>
         </h2>
-        <p className="text-gray-400 max-w-2xl mx-auto font-mono mb-20">
+        <p className="text-gray-400 max-w-2xl mx-auto font-mono mb-12">
           JobRaker acts as the central hub, autonomously interacting with the platforms you use every day.
         </p>
 
         {/* Orbit Animation Container */}
-        <div className="relative w-full max-w-4xl mx-auto h-[500px] md:h-[600px] flex items-center justify-center">
+        <div className="relative w-full max-w-4xl mx-auto h-[350px] md:h-[500px] flex items-center justify-center">
 
             {/* Background Rings */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-[300px] h-[300px] rounded-full border border-white/5 animate-[spin_60s_linear_infinite]" />
-                <div className="w-[500px] h-[500px] rounded-full border border-white/5 absolute animate-[spin_80s_linear_infinite_reverse]" />
-                <div className="w-[700px] h-[700px] rounded-full border border-white/5 absolute opacity-50" />
+                <div className="w-[280px] h-[280px] md:w-[450px] md:h-[450px] rounded-full border border-white/5 animate-[spin_60s_linear_infinite]" />
+                <div className="w-[400px] h-[400px] md:w-[650px] md:h-[650px] rounded-full border border-white/5 absolute animate-[spin_80s_linear_infinite_reverse]" />
             </div>
 
             {/* Central Hub (JobRaker) */}
@@ -44,48 +43,12 @@ export const IntegrationsSection = () => {
                 <div className="absolute inset-0 bg-[#1dff00] rounded-full blur-xl opacity-20" />
             </motion.div>
 
-            {/* Orbiting Icons */}
-            {integrations.map((item, index) => {
-                // Calculate position on a circle
-                const radius = 220; // Radius of orbit
-                const radian = (item.angle * Math.PI) / 180;
-                // We'll use CSS transform for orbit animation to make it smoother and easier
-
-                return (
-                    <motion.div
-                        key={index}
-                        className="absolute top-1/2 left-1/2 w-16 h-16 -ml-8 -mt-8"
-                        style={{
-                           offsetPath: `path("M 0 -${radius} A ${radius} ${radius} 0 1 1 0 ${radius} A ${radius} ${radius} 0 1 1 0 -${radius}")`,
-                        }}
-                        animate={{
-                            rotate: [0, 360],
-                            // offsetDistance: ["0%", "100%"] - Framer Motion doesn't support offsetDistance directly well in all versions without custom handling
-                            // So we use a simpler rotation wrapper approach
-                        }}
-                        transition={{
-                            duration: 20 + index * 2,
-                            repeat: Infinity,
-                            ease: "linear"
-                        }}
-                    >
-                        {/*
-                          Since orbit logic with pure CSS/Framer combination can be complex for perfect circle placement,
-                          let's use a rotation container approach.
-                          1. Container rotates around center.
-                          2. Icon counter-rotates to stay upright.
-                        */}
-                    </motion.div>
-                );
-            })}
-
             {/* Alternative Orbit Implementation: Rotation Containers */}
              {integrations.map((item, index) => {
-                 const delay = index * (20 / integrations.length); // Distribute icons
                  return (
                     <div
                         key={index}
-                        className="absolute top-1/2 left-1/2 w-[450px] h-[450px] -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                        className="absolute top-1/2 left-1/2 w-[280px] h-[280px] md:w-[450px] md:h-[450px] -translate-x-1/2 -translate-y-1/2 pointer-events-none"
                         style={{ transform: `rotate(${item.angle}deg)` }} // Initial position
                     >
                         {/* Orbiting Wrapper */}
@@ -98,7 +61,7 @@ export const IntegrationsSection = () => {
                             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
                                 <motion.div
                                     whileHover={{ scale: 1.2, borderColor: "#1dff00" }}
-                                    className="w-16 h-16 bg-[#0a0a0a] border border-white/10 rounded-xl flex items-center justify-center relative z-10 shadow-lg group"
+                                    className="w-12 h-12 md:w-16 md:h-16 bg-[#0a0a0a] border border-white/10 rounded-xl flex items-center justify-center relative z-10 shadow-lg group"
                                 >
                                     <motion.div
                                        animate={{ rotate: -360 }} // Counter-rotate to keep icon upright
@@ -107,8 +70,6 @@ export const IntegrationsSection = () => {
                                     >
                                         {item.icon}
                                     </motion.div>
-
-                                    {/* Pulse line to center (visual only, hard to implement perfectly rotating line with CSS alone, skipping for clean look) */}
                                 </motion.div>
                             </div>
                         </motion.div>
@@ -117,10 +78,7 @@ export const IntegrationsSection = () => {
              })}
 
              {/* Connection Lines (Static for simplicity or complex SVG) */}
-             <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20">
-                <circle cx="50%" cy="50%" r="225" fill="none" stroke="#1dff00" strokeWidth="1" strokeDasharray="4 4" />
-                <circle cx="50%" cy="50%" r="150" fill="none" stroke="white" strokeWidth="1" strokeOpacity="0.1" />
-             </svg>
+             <div className="absolute top-1/2 left-1/2 w-[280px] h-[280px] md:w-[450px] md:h-[450px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-[#1dff00]/20 pointer-events-none" />
 
         </div>
       </div>

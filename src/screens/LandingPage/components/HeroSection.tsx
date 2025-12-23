@@ -24,14 +24,14 @@ export const HeroSection = () => {
             <span>AI Agent V2.0 Online</span>
           </div>
 
-          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold font-mono tracking-tight text-white leading-[0.9] lg:leading-[0.9]">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold font-mono tracking-tight text-white leading-[0.9] lg:leading-[0.9]">
             Your AI Job Hunter <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1dff00] via-[#80ff72] to-[#00b300]">
               Never Sleeps
             </span>
           </h1>
 
-          <p className="max-w-xl mx-auto lg:mx-0 text-base sm:text-lg md:text-xl text-neutral-400 font-mono leading-relaxed">
+          <p className="max-w-xl mx-auto lg:mx-0 text-sm sm:text-base md:text-lg text-neutral-400 font-mono leading-relaxed">
             JobRaker is the world's first autonomous AI agent that applies to jobs for you.
             It scans 50k+ boards, optimizes your resume, and submits applications 24/7.
           </p>
@@ -39,14 +39,14 @@ export const HeroSection = () => {
           <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
             <Button
               onClick={() => navigate('/signup')}
-              className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 h-14 px-8 text-lg font-bold rounded-none border border-[#1dff00] transition-all hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] w-full sm:w-auto"
+              className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 h-12 px-6 text-base font-bold rounded-none border border-[#1dff00] transition-all hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] w-full sm:w-auto"
             >
               DEPLOY AGENT
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
             <Button
               variant="outline"
-              className="border-[#1dff00] text-[#1dff00] bg-transparent hover:bg-[#1dff00]/10 h-14 px-8 text-lg font-mono rounded-none w-full sm:w-auto"
+              className="border-[#1dff00] text-[#1dff00] bg-transparent hover:bg-[#1dff00]/10 h-12 px-6 text-base font-mono rounded-none w-full sm:w-auto"
             >
               <Terminal className="w-5 h-5 mr-2" />
               VIEW LOGS
@@ -68,7 +68,7 @@ export const HeroSection = () => {
         </div>
 
         {/* Right Column: 3D Orb - Adjusted sizing and positioning */}
-        <div className="flex-1 w-full relative h-[450px] sm:h-[550px] lg:h-[700px] flex items-center justify-center perspective-1000 -mt-10 lg:mt-0">
+        <div className="flex-1 w-full relative h-[400px] sm:h-[500px] lg:h-[600px] flex items-center justify-center perspective-1000 -mt-10 lg:mt-0">
              {/* Glow effect behind orb */}
              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-[#1dff00] rounded-full blur-[150px] opacity-15 pointer-events-none" />
              <EarthOrb />

@@ -126,7 +126,7 @@ export const EarthOrb = () => {
       {/* Enhanced Gradient Overlay */}
       <div className="absolute inset-0 z-10 bg-radial-gradient from-transparent via-transparent to-black pointer-events-none" />
 
-      <Canvas camera={{ position: [0, 0, 6], fov: 40 }} dpr={[1, 2]}>
+      <Canvas camera={{ position: [0, 0, 8.5], fov: 40 }} dpr={[1, 2]}>
         <ambientLight intensity={0.2} />
         <pointLight position={[10, 10, 10]} intensity={1.5} color="#1dff00" />
         <pointLight position={[-10, -10, -10]} intensity={0.5} color="#004000" />
