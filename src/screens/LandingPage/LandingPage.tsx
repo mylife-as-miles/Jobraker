@@ -4,7 +4,7 @@ import { Bot } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 
 // New Components
-import { HeroParallax } from './components/HeroParallax';
+import { HeroSection } from './components/HeroSection';
 import { DashboardPreview } from './components/DashboardPreview';
 import { SocialProof } from './components/SocialProof';
 import { BentoGrid as BentoSection } from './components/BentoGrid'; // Reusing existing BentoGrid
@@ -55,11 +55,11 @@ export const LandingPage = () => {
 
       <div className="relative z-10">
         <main className="mx-auto relative min-h-[60vh]">
-          {/* 1. Hero Parallax */}
-          <HeroParallax />
+          {/* 1. Hero Section (New 3D Earth) */}
+          <HeroSection />
 
           {/* 2. Dashboard Preview Wrapper */}
-          <div className="relative z-30 pointer-events-none w-full px-4 sm:px-8 md:max-w-none -mt-20 sm:-mt-32 md:-mt-40">
+          <div className="relative z-30 pointer-events-none w-full px-4 sm:px-8 md:max-w-none -mt-10 sm:-mt-20 md:-mt-32">
              {/* Note: Pointer events disabled on wrapper but we might want interactions inside.
                  If Dashboard needs interaction, remove pointer-events-none */}
             <DashboardPreview />
