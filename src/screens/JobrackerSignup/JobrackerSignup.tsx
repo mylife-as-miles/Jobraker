@@ -2,7 +2,6 @@ import { LockKeyholeIcon, MailIcon, Eye, EyeOff, ArrowRight, Sparkles, CheckCirc
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
@@ -10,6 +9,7 @@ import { ROUTES } from "../../routes";
 import { validatePassword } from "../../utils/password";
 import { useToast } from "../../components/ui/toast-provider";
 import Modal from "../../components/ui/modal";
+import { EarthOrb } from "../LandingPage/components/EarthOrb";
 
 export const JobrackerSignup = (): JSX.Element => {
   const navigate = useNavigate();
@@ -64,12 +64,12 @@ export const JobrackerSignup = (): JSX.Element => {
         if (error) throw error;
       } catch (err: any) {
         console.error(`${provider} OAuth error:`, err);
-    toastError("Sign in failed", err?.message || `Failed to sign in with ${provider}`);
+        toastError("Sign in failed", err?.message || `Failed to sign in with ${provider}`);
       } finally {
         setSubmitting(false);
       }
     },
-  [supabase, toastError]
+    [supabase, toastError]
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -97,18 +97,18 @@ export const JobrackerSignup = (): JSX.Element => {
           return;
         }
 
-  const { error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
-  emailRedirectTo: `${window.location.origin}${ROUTES.SIGNIN}`,
+            emailRedirectTo: `${window.location.origin}${ROUTES.SIGNIN}`,
           },
         });
         if (error) throw error;
-    // Always require email verification; route to login
-  // Show centered success modal with actions
-  success("Sign up successful", "We sent a verification link to your email.");
-  setShowVerifyModal(true);
+        // Always require email verification; route to login
+        // Show centered success modal with actions
+        success("Sign up successful", "We sent a verification link to your email.");
+        setShowVerifyModal(true);
       } else {
         const { data: signInData, error } = await supabase.auth.signInWithPassword({
           email: formData.email,
@@ -212,19 +212,6 @@ export const JobrackerSignup = (): JSX.Element => {
     }
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0, scale: 0.9 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut",
-        staggerChildren: 0.1,
-      },
-    },
-  };
-
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
@@ -235,508 +222,253 @@ export const JobrackerSignup = (): JSX.Element => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-[#0a0a0a] to-[#0d160d] flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Enhanced background elements with mesh gradient */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Radial gradient mesh */}
-        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_20%_20%,rgba(29,255,0,0.08)_0%,transparent_50%)]" />
-        <div className="absolute bottom-0 right-0 w-full h-full bg-[radial-gradient(circle_at_80%_80%,rgba(10,130,70,0.06)_0%,transparent_50%)]" />
-        
-        {/* Animated orbs */}
-        <motion.div
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#1dff00]/5 rounded-full blur-3xl"
-          animate={{
-            x: [0, 50, 0],
-            y: [0, 30, 0],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-        <motion.div
-          className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#0a8246]/4 rounded-full blur-3xl"
-          animate={{
-            x: [0, -30, 0],
-            y: [0, 50, 0],
-            scale: [1, 1.15, 1],
-          }}
-          transition={{
-            duration: 25,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 2,
-          }}
-        />
-        
-        {/* Grid pattern overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(29,255,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(29,255,0,0.03)_1px,transparent_1px)] bg-[size:100px_100px] [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_80%)]" />
-      </div>
+    <div className="min-h-screen flex bg-black overflow-hidden relative">
 
-      <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl relative z-10">
-        <motion.div
-          className="w-full"
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-        >
-          {/* Main Card with glass morphism */}
-          <Card className="w-full bg-black/40 backdrop-blur-2xl border border-[#1dff00]/10 relative overflow-hidden rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_0_1px_rgba(29,255,0,0.1),inset_0_0_0_1px_rgba(255,255,255,0.05)]">
-            {/* Subtle animated border glow */}
+      {/* LEFT SIDE: Login Form */}
+      <div className="w-full lg:w-1/2 flex flex-col justify-center px-6 sm:px-12 lg:px-24 xl:px-32 relative z-20 bg-black/80 backdrop-blur-sm lg:backdrop-blur-none border-r border-white/5">
+        <div className="max-w-md w-full mx-auto space-y-8">
+            {/* Header / Logo */}
             <motion.div 
-              className="absolute inset-0 rounded-2xl"
-              style={{
-                background: 'linear-gradient(90deg, transparent, rgba(29,255,0,0.1), transparent)',
-              }}
-              animate={{
-                x: ['-100%', '100%'],
-              }}
-              transition={{
-                duration: 3,
-                repeat: Infinity,
-                ease: "linear",
-              }}
-            />
-            
-            {/* Top accent line */}
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#1dff00]/40 to-transparent" />
-            
-            <CardContent className="relative z-10 p-6 sm:p-8 lg:p-10">
-              <motion.div
-                className="flex flex-col items-center justify-center relative space-y-6 sm:space-y-8"
-                variants={itemVariants}
-              >
-                {/* Logo and Title - Modern minimal approach */}
-                <motion.div
-                  className="flex flex-col items-center space-y-4"
-                  variants={itemVariants}
-                >
-                  {/* Refined logo with subtle animation */}
-                  <motion.div
-                    className="relative group"
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  >
-                    <div className="absolute inset-0 bg-[#1dff00]/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-300" />
-                    <div className="relative bg-gradient-to-br from-[#1dff00]/90 via-[#1dff00] to-[#0a8246] rounded-2xl flex items-center justify-center shadow-lg w-14 h-14 sm:w-16 sm:h-16">
-                      <Sparkles className="text-black w-7 h-7 sm:w-8 sm:h-8" strokeWidth={2.5} />
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                className="space-y-2"
+            >
+                <div className="flex items-center gap-2 mb-8">
+                    <div className="relative flex items-center justify-center w-10 h-10 bg-[#1dff00] rounded-lg shadow-[0_0_15px_rgba(29,255,0,0.5)]">
+                        <Sparkles className="text-black w-5 h-5" strokeWidth={2.5} />
                     </div>
-                  </motion.div>
-                  
-                  {/* Dynamic title with smooth transitions */}
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={showForgotPassword ? "forgot" : isSignUp ? "signup" : "signin"}
-                      className="text-center space-y-2"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <h2 className="font-bold bg-gradient-to-br from-white via-white to-[#1dff00]/80 bg-clip-text text-transparent text-2xl sm:text-3xl tracking-tight">
-                        {showForgotPassword
-                          ? "Reset Password"
-                          : isSignUp
-                          ? "Create Account"
-                          : "Welcome Back"}
-                      </h2>
-                      <p className="text-white/60 text-sm sm:text-base max-w-xs sm:max-w-sm leading-relaxed">
-                        {showForgotPassword
-                          ? "Enter your email to receive a reset link"
-                          : isSignUp
-                          ? "Start your journey to career success"
-                          : "Continue your journey"}
-                      </p>
-                    </motion.div>
-                  </AnimatePresence>
-                </motion.div>
+                    <span className="text-xl font-bold tracking-tight text-white font-mono">JOBRAKER</span>
+                </div>
 
-                <AnimatePresence mode="wait">
-                  {!showForgotPassword && (
-                    <motion.div
-                      className="flex flex-col items-center relative w-full space-y-4"
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      {/* Modern social login buttons */}
-                      <motion.div
-                        className="flex flex-col w-full space-y-3"
-                        variants={itemVariants}
-                      >
-                        <motion.div 
-                          className="w-full"
-                          whileHover={{ scale: 1.01 }} 
-                          whileTap={{ scale: 0.99 }}
-                        >
-                          <Button
-                            variant="ghost"
-                            className="flex w-full items-center justify-center relative bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-[#1dff00]/30 backdrop-blur-sm transition-all duration-300 h-12 sm:h-13 text-sm rounded-xl group"
-                            type="button"
-                            disabled={submitting}
-                            onClick={() => handleOAuth("google")}
-                          >
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#1dff00]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
-                            <img
-                              className="relative w-5 h-5 sm:w-5 sm:h-5"
-                              alt="Google"
-                              src="/flat-color-icons-google.svg"
-                            />
-                            <span className="relative w-fit font-medium text-white/90 group-hover:text-white tracking-wide leading-normal ml-3">
-                              Continue with Google
-                            </span>
-                            {lastUsedProvider === "google" && (
-                              <span className="absolute right-4 text-xs text-white/50">
-                                Last used
-                              </span>
-                            )}
-                          </Button>
-                        </motion.div>
+                <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">
+                    {showForgotPassword ? "Reset Password" : isSignUp ? "Create Account" : "Welcome Back"}
+                </h1>
+                <p className="text-gray-400 text-lg">
+                    {showForgotPassword
+                      ? "Enter your email to receive a reset link"
+                      : isSignUp
+                      ? "Start your autonomous job hunt today."
+                      : "Login to manage your AI agent."}
+                </p>
+            </motion.div>
 
-                        <motion.div 
-                          className="w-full"
-                          whileHover={{ scale: 1.01 }} 
-                          whileTap={{ scale: 0.99 }}
-                        >
-                          <Button
-                            variant="ghost"
-                            className="flex w-full items-center justify-center relative bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-[#1dff00]/30 backdrop-blur-sm transition-all duration-300 h-12 sm:h-13 text-sm rounded-xl group"
-                            type="button"
-                            disabled={submitting}
-                            onClick={() => handleOAuth("linkedin_oidc")}
-                          >
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#1dff00]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
-                            <img
-                              className="relative w-5 h-5 sm:w-5 sm:h-5"
-                              alt="LinkedIn"
-                              src="/logos-linkedin-icon.svg"
-                            />
-                            <span className="relative w-fit font-medium text-white/90 group-hover:text-white tracking-wide leading-normal ml-3">
-                              Continue with LinkedIn
-                            </span>
-                            {lastUsedProvider === "linkedin_oidc" && (
-                              <span className="absolute right-4 text-xs text-white/50">
-                                Last used
-                              </span>
-                            )}
-                          </Button>
-                        </motion.div>
-                      </motion.div>
-
-                      {/* Refined divider */}
-                      <motion.div
-                        className="relative w-full flex items-center py-2"
-                        variants={itemVariants}
-                      >
-                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                        <span className="font-medium text-white/40 px-4 text-xs uppercase tracking-wider">
-                          or
-                        </span>
-                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                      </motion.div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Form - Modern minimalist inputs */}
-                <motion.form
-                  onSubmit={handleSubmit}
-                  className="flex flex-col items-center relative w-full space-y-4"
-                  variants={itemVariants}
+            {/* Social Login Buttons */}
+            {!showForgotPassword && (
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1, duration: 0.5 }}
+                    className="grid grid-cols-2 gap-4"
                 >
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={showForgotPassword ? "forgot-form" : isSignUp ? "signup-form" : "signin-form"}
-                      className="w-full space-y-4"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      {/* Email Field - Minimal glass design */}
-                      <motion.div
-                        className="w-full group"
-                        whileHover={{ scale: 1.002 }}
-                        transition={{ type: "spring", stiffness: 400 }}
+                     <Button
+                        variant="ghost"
+                        className="flex items-center justify-center h-12 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all duration-300 group"
+                        type="button"
+                        disabled={submitting}
+                        onClick={() => handleOAuth("google")}
                       >
-                        <div className="flex w-full items-center relative bg-white/[0.02] border border-white/10 hover:border-[#1dff00]/30 focus-within:border-[#1dff00]/50 focus-within:bg-white/[0.04] backdrop-blur-sm transition-all duration-300 h-14 px-4 rounded-xl group">
-                          <MailIcon className="text-white/40 group-hover:text-white/60 group-focus-within:text-[#1dff00]/80 transition-colors flex-shrink-0 w-5 h-5" />
-                          <Input
-                            variant="transparent"
-                            inputSize="lg"
-                            className="border-0 bg-transparent text-white placeholder:text-white/40 focus-visible:ring-0 p-0 h-auto ml-3"
+                        <img className="w-5 h-5 mr-3" alt="Google" src="/flat-color-icons-google.svg" />
+                        <span className="text-white/80 group-hover:text-white font-medium">Google</span>
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        className="flex items-center justify-center h-12 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all duration-300 group"
+                        type="button"
+                        disabled={submitting}
+                        onClick={() => handleOAuth("linkedin_oidc")}
+                      >
+                         <img className="w-5 h-5 mr-3" alt="LinkedIn" src="/logos-linkedin-icon.svg" />
+                         <span className="text-white/80 group-hover:text-white font-medium">LinkedIn</span>
+                      </Button>
+                </motion.div>
+            )}
+
+             {/* Divider */}
+             {!showForgotPassword && (
+                 <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="relative flex items-center"
+                 >
+                    <div className="flex-grow border-t border-white/10"></div>
+                    <span className="flex-shrink-0 mx-4 text-gray-500 text-sm">OR</span>
+                    <div className="flex-grow border-t border-white/10"></div>
+                 </motion.div>
+             )}
+
+            {/* Form */}
+            <motion.form
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                onSubmit={handleSubmit}
+                className="space-y-4"
+            >
+                {/* Email */}
+                <div className="space-y-1">
+                    <div className="relative group">
+                        <MailIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-5 h-5" />
+                        <Input
+                            className="pl-12 h-14 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-xl placeholder:text-gray-500"
+                            placeholder="name@example.com"
                             type="email"
-                            placeholder="Email address"
-                            name="email"
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             required
-                            autoComplete="email"
-                            inputMode="email"
-                            aria-invalid={!emailValid && formData.email.length > 0}
-                          />
+                        />
+                    </div>
+                     {formData.email.length > 0 && !emailValid && (
+                        <p className="text-xs text-red-400 pl-1">Please enter a valid email address</p>
+                    )}
+                </div>
+
+                {/* Password */}
+                {!showForgotPassword && (
+                    <div className="space-y-1">
+                        <div className="relative group">
+                            <LockKeyholeIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-5 h-5" />
+                            <Input
+                                className="pl-12 pr-12 h-14 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-xl placeholder:text-gray-500"
+                                placeholder="Password"
+                                type={showPassword ? "text" : "password"}
+                                value={formData.password}
+                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="bg-transparent absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                            >
+                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
                         </div>
-                        {formData.email.length > 0 && !emailValid && (
-                          <motion.div 
-                            initial={{ opacity: 0, y: -5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="mt-2 text-xs text-red-400/90 flex items-center gap-1.5"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                            Enter a valid email address
-                          </motion.div>
+                    </div>
+                )}
+
+                {/* Confirm Password (Sign Up) */}
+                {isSignUp && !showForgotPassword && (
+                     <div className="space-y-1">
+                        <div className="relative group">
+                            <LockKeyholeIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-5 h-5" />
+                            <Input
+                                className="pl-12 h-14 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-xl placeholder:text-gray-500"
+                                placeholder="Confirm Password"
+                                type="password"
+                                value={formData.confirmPassword}
+                                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                                required
+                            />
+                        </div>
+                         {/* Minimal Password Strength Indicator for Sign Up */}
+                         {formData.password.length > 0 && (
+                            <div className="pt-2 flex items-center gap-2 text-xs">
+                                <div className={`flex-1 h-1 rounded-full ${passwordCheck.score >= 1 ? "bg-red-500" : "bg-white/10"}`} />
+                                <div className={`flex-1 h-1 rounded-full ${passwordCheck.score >= 3 ? "bg-yellow-500" : "bg-white/10"}`} />
+                                <div className={`flex-1 h-1 rounded-full ${passwordCheck.score >= 4 ? "bg-[#1dff00]" : "bg-white/10"}`} />
+                                <span className="text-gray-400 ml-2">{passwordCheck.strength}</span>
+                            </div>
                         )}
-                      </motion.div>
+                    </div>
+                )}
 
-                      {/* Password Field - Minimal glass design */}
-                      {!showForgotPassword && (
-                        <motion.div
-                          className="w-full group"
-                          whileHover={{ scale: 1.002 }}
-                          transition={{ type: "spring", stiffness: 400 }}
-                        >
-                          <div className="flex w-full items-center relative bg-white/[0.02] border border-white/10 hover:border-[#1dff00]/30 focus-within:border-[#1dff00]/50 focus-within:bg-white/[0.04] backdrop-blur-sm transition-all duration-300 h-14 px-4 rounded-xl">
-                            <LockKeyholeIcon className="text-white/40 group-hover:text-white/60 group-focus-within:text-[#1dff00]/80 transition-colors flex-shrink-0 w-5 h-5" />
-                            <Input
-                              variant="transparent"
-                              inputSize="lg"
-                              className="border-0 bg-transparent text-white placeholder:text-white/40 focus-visible:ring-0 p-0 h-auto flex-1 ml-3"
-                              type={showPassword ? "text" : "password"}
-                              placeholder="Password"
-                              value={formData.password}
-                              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                              required
-                              autoComplete={isSignUp ? "new-password" : "current-password"}
-                              aria-invalid={isSignUp && !showForgotPassword ? !passwordCheck.valid && formData.password.length > 0 ? true : false : false}
-                              aria-describedby={isSignUp ? "password-strength" : undefined}
-                              onKeyUp={(e) => {
-                                const caps = (e as any).getModifierState?.("CapsLock");
-                                if (typeof caps === "boolean") setCapsLockOn(caps);
-                              }}
-                            />
-                            <motion.button
-                              type="button"
-                              onClick={() => setShowPassword(!showPassword)}
-                              className="text-white/40 hover:text-white/80 transition-colors duration-200 flex-shrink-0 ml-2"
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.95 }}
-                              aria-label={showPassword ? "Hide password" : "Show password"}
-                            >
-                              {showPassword ? (
-                                <EyeOff className="w-4.5 h-4.5" />
-                              ) : (
-                                <Eye className="w-4.5 h-4.5" />
-                              )}
-                            </motion.button>
-                          </div>
-                          {capsLockOn && (
-                            <motion.div 
-                              initial={{ opacity: 0, y: -5 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="mt-2 text-xs text-yellow-400/90 flex items-center gap-1.5"
-                            >
-                              ⚠️ Caps Lock is on
-                            </motion.div>
-                          )}
-                        </motion.div>
-                      )}
-
-                      {/* Confirm Password Field (Sign Up Only) - Modern design */}
-                      {isSignUp && !showForgotPassword && (
-                        <motion.div
-                          className="w-full group"
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.3 }}
-                        >
-                          <div className="flex w-full items-center relative bg-white/[0.02] border border-white/10 hover:border-[#1dff00]/30 focus-within:border-[#1dff00]/50 focus-within:bg-white/[0.04] backdrop-blur-sm transition-all duration-300 h-14 px-4 rounded-xl">
-                            <LockKeyholeIcon className="text-white/40 group-hover:text-white/60 group-focus-within:text-[#1dff00]/80 transition-colors flex-shrink-0 w-5 h-5" />
-                            <Input
-                              variant="transparent"
-                              inputSize="lg"
-                              className="border-0 bg-transparent text-white placeholder:text-white/40 focus-visible:ring-0 p-0 h-auto ml-3"
-                              type="password"
-                              placeholder="Confirm Password"
-                              name="confirmPassword"
-                              value={formData.confirmPassword}
-                              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                              required
-                              autoComplete="new-password"
-                              aria-invalid={isSignUp && formData.confirmPassword.length > 0 ? formData.confirmPassword !== formData.password : false}
-                            />
-                          </div>
-                          {/* Enhanced password strength indicator */}
-                          {formData.password.length > 0 && (
-                            <motion.div 
-                              className="mt-4 space-y-3 p-4 rounded-xl bg-black/20 border border-white/5"
-                              initial={{ opacity: 0, y: -10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              id="password-strength"
-                            >
-                              {/* Refined strength meter */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between text-xs">
-                                  <span className="text-white/60">Password Strength</span>
-                                  <span className={`font-semibold ${passwordCheck.score >= 4 ? "text-[#1dff00]" : passwordCheck.score >= 3 ? "text-yellow-400" : "text-red-400"}`}>
-                                    {passwordCheck.strength}
-                                  </span>
-                                </div>
-                                <div className="h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
-                                  <motion.div
-                                    className={`h-full transition-all duration-500 ${
-                                      passwordCheck.score >= 4 
-                                        ? 'bg-gradient-to-r from-[#1dff00] to-[#0a8246]'
-                                        : passwordCheck.score >= 3
-                                        ? 'bg-yellow-400'
-                                        : 'bg-red-400'
-                                    }`}
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${(passwordCheck.score / 5) * 100}%` }}
-                                  />
-                                </div>
-                              </div>
-                              
-                              {/* Requirements checklist - Clean grid */}
-                              <div className="grid grid-cols-2 gap-2 text-xs">
-                                {[
-                                  { ok: passwordCheck.lengthOk, label: "8+ characters" },
-                                  { ok: passwordCheck.hasUpper, label: "Uppercase" },
-                                  { ok: passwordCheck.hasLower, label: "Lowercase" },
-                                  { ok: passwordCheck.hasNumber, label: "Number" },
-                                  { ok: passwordCheck.hasSymbol, label: "Symbol" },
-                                  { ok: passwordCheck.noSpaces, label: "No spaces" },
-                                ].map((r, i) => (
-                                  <motion.div 
-                                    key={i} 
-                                    className="flex items-center gap-2"
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: i * 0.05 }}
-                                  >
-                                    {r.ok ? (
-                                      <CheckCircle2 className="w-3.5 h-3.5 text-[#1dff00]" />
-                                    ) : (
-                                      <div className="w-3.5 h-3.5 rounded-full border border-white/20" />
-                                    )}
-                                    <span className={r.ok ? "text-white/80" : "text-white/40"}>{r.label}</span>
-                                  </motion.div>
-                                ))}
-                              </div>
-                              
-                              {!passwordCheck.notEmail && formData.email && (
-                                <motion.div 
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  className="flex items-center gap-2 text-xs text-red-400/90 pt-1"
-                                >
-                                  <XCircle className="w-3.5 h-3.5" />
-                                  <span>Don't use your email in your password</span>
-                                </motion.div>
-                              )}
-                            </motion.div>
-                          )}
-                        </motion.div>
-                      )}
-                      
-                      {/* Forgot Password Link - Minimal design */}
-                      {!isSignUp && !showForgotPassword && (
-                        <motion.div
-                          className="text-right w-full"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 0.2 }}
-                        >
-                          <Button
+                {!isSignUp && !showForgotPassword && (
+                    <div className="flex justify-end">
+                        <Button
                             type="button"
                             variant="link"
                             onClick={() => setShowForgotPassword(true)}
-                            className="text-[#1dff00] p-0 h-auto font-medium hover:text-[#1dff00]/80 transition-colors duration-200 text-sm"
-                          >
+                            className="text-gray-400 hover:text-[#1dff00] text-sm p-0"
+                        >
                             Forgot password?
-                          </Button>
-                        </motion.div>
-                      )}
-                    </motion.div>
-                  </AnimatePresence>
+                        </Button>
+                    </div>
+                )}
 
-                  {/* Submit Button - Refined design */}
-                  <motion.div
-                    className="w-full"
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                  >
-                    <Button
-                      type="submit"
-                      aria-busy={submitting}
-                      className="w-full flex items-center justify-center gap-2.5 relative h-14 text-base rounded-xl font-semibold bg-gradient-to-r from-[#1dff00] to-[#0a8246] hover:from-[#1dff00] hover:to-[#1dff00] text-black shadow-[0_0_20px_rgba(29,255,0,0.15)] hover:shadow-[0_0_30px_rgba(29,255,0,0.3)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={submitting || !emailValid || (isSignUp && !showForgotPassword && !passwordCheck.valid)}
-                    >
-                      {submitting && <Loader2 className="h-5 w-5 animate-spin" />}
-                      <span>
-                        {showForgotPassword
-                          ? "Send Reset Link"
-                          : isSignUp
-                          ? "Create Account"
-                          : "Sign In"}
-                      </span>
-                      <ArrowRight className="w-4 h-4" />
-                    </Button>
-                  </motion.div>
-                </motion.form>
-
-                {/* Bottom Links - Minimal design */}
-                <motion.div
-                  className="relative w-full text-center font-medium text-sm"
-                  variants={itemVariants}
+                <Button
+                    type="submit"
+                    disabled={submitting || (isSignUp && !showForgotPassword && !passwordCheck.valid)}
+                    className="w-full h-14 bg-[#1dff00] hover:bg-[#1dff00]/90 text-black font-bold rounded-xl text-lg transition-all shadow-[0_0_20px_rgba(29,255,0,0.2)] hover:shadow-[0_0_30px_rgba(29,255,0,0.4)]"
                 >
-                  <AnimatePresence mode="wait">
-                    {showForgotPassword ? (
-                      <motion.div
-                        key="back-to-signin"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                      >
-                        <Button
-                          type="button"
-                          variant="link"
-                          onClick={() => setShowForgotPassword(false)}
-                          className="text-white/60 p-0 h-auto font-medium hover:text-white/90 transition-colors duration-200"
-                        >
-                          ← Back to sign in
-                        </Button>
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="auth-toggle"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="flex items-center justify-center gap-2"
-                      >
-                        <span className="text-white/60">
-                          {isSignUp ? "Already have an account?" : "Don't have an account?"}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="link"
-                          onClick={() => setIsSignUp(!isSignUp)}
-                          className="text-[#1dff00] p-0 h-auto font-semibold hover:text-[#1dff00]/80 transition-colors duration-200"
-                        >
-                          {isSignUp ? "Sign in" : "Create account"}
-                        </Button>
-                      </motion.div>
+                    {submitting ? <Loader2 className="animate-spin w-5 h-5" /> : (
+                        <div className="flex items-center justify-center gap-2">
+                            <span>{showForgotPassword ? "Send Reset Link" : isSignUp ? "Create Account" : "Sign In"}</span>
+                            <ArrowRight className="w-5 h-5" />
+                        </div>
                     )}
-                  </AnimatePresence>
-                </motion.div>
+                </Button>
+            </motion.form>
+
+            {/* Footer Links */}
+            <motion.div
+                 initial={{ opacity: 0 }}
+                 animate={{ opacity: 1 }}
+                 transition={{ delay: 0.4 }}
+                 className="text-center"
+            >
+                {showForgotPassword ? (
+                     <Button
+                        type="button"
+                        variant="link"
+                        onClick={() => setShowForgotPassword(false)}
+                        className="text-gray-400 hover:text-white"
+                     >
+                        ← Back to sign in
+                     </Button>
+                ) : (
+                    <p className="text-gray-400">
+                        {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+                        <button
+                            onClick={() => setIsSignUp(!isSignUp)}
+                            className="bg-transparent text-[#1dff00] hover:underline font-medium"
+                        >
+                            {isSignUp ? "Sign In" : "Sign Up"}
+                        </button>
+                    </p>
+                )}
+            </motion.div>
+        </div>
+
+        {/* Footer Copyright */}
+         <div className="absolute bottom-6 left-0 right-0 text-center text-gray-600 text-xs">
+            © 2024 JobRaker AI. All rights reserved.
+         </div>
+      </div>
+
+      {/* RIGHT SIDE: Immersive Visual */}
+      <div className="hidden lg:block lg:w-1/2 relative bg-[#050505] overflow-hidden">
+          {/* Background Grid */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(29,255,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(29,255,0,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_80%)]" />
+
+          {/* 3D Earth Orb - Reusing the component */}
+          <div className="absolute inset-0 flex items-center justify-center scale-110 translate-x-12 pointer-events-none">
+              <EarthOrb />
+          </div>
+
+          {/* Overlay Text */}
+          <div className="absolute bottom-12 left-12 right-12 z-10">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6, duration: 0.8 }}
+                className="bg-black/40 backdrop-blur-md border border-white/10 p-6 rounded-2xl"
+              >
+                  <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-full bg-[#1dff00]/10 flex items-center justify-center border border-[#1dff00]/20 flex-shrink-0">
+                          <CheckCircle2 className="w-5 h-5 text-[#1dff00]" />
+                      </div>
+                      <div>
+                          <h3 className="text-white font-bold text-lg mb-1">Autonomous Applications</h3>
+                          <p className="text-gray-400 text-sm leading-relaxed">
+                              "JobRaker has completely transformed my job search. The AI agent applies to jobs while I sleep, ensuring I never miss an opportunity."
+                          </p>
+                      </div>
+                  </div>
               </motion.div>
-            </CardContent>
-          </Card>
-        </motion.div>
+          </div>
       </div>
 
       {/* Signup Verify Modal */}
