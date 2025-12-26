@@ -9,7 +9,7 @@ import { ROUTES } from "../../routes";
 import { validatePassword } from "../../utils/password";
 import { useToast } from "../../components/ui/toast-provider";
 import Modal from "../../components/ui/modal";
-import { EarthOrb } from "../LandingPage/components/EarthOrb";
+import { SelfSolvingCube } from "./components/SelfSolvingCube";
 
 export const JobrackerSignup = (): JSX.Element => {
   const navigate = useNavigate();
@@ -443,9 +443,9 @@ export const JobrackerSignup = (): JSX.Element => {
           {/* Background Grid */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(29,255,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(29,255,0,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_80%)]" />
 
-          {/* 3D Earth Orb - Reusing the component */}
+          {/* 3D Self-Solving Cube */}
           <div className="absolute inset-0 flex items-center justify-center scale-110 translate-x-12 pointer-events-none">
-              <EarthOrb />
+              <SelfSolvingCube />
           </div>
 
           {/* Overlay Text */}
