@@ -1,65 +1,126 @@
-import React, { useRef, useEffect, useMemo, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Edges, OrbitControls } from '@react-three/drei';
+import React, { useRef, useMemo, useState } from 'react';
+import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { Edges, OrbitControls, Sparkles, useTexture, Float } from '@react-three/drei';
 import * as THREE from 'three';
 
 // --- Constants ---
 const CUBE_SIZE = 1;
-const SPACING = 0.05;
+const SPACING = 0.08; // Slightly larger spacing for "floating" tech look
 const TOTAL_SIZE = CUBE_SIZE + SPACING;
-const ANIMATION_SPEED = 0.1; // Radians per frame approx
-const WAIT_TIME = 20; // Frames to wait between moves
+const WAIT_TIME = 60; // Slower, more deliberate moves
 
 // --- Types ---
 type Vector3 = [number, number, number];
 
-// --- Helper: Round position to nearest grid point to avoid drift ---
+// --- Helper: Round position to nearest grid point ---
 const snapToGrid = (val: number) => {
   const S = TOTAL_SIZE;
-  // We expect values like -S, 0, S.
-  // Divide by S, round, multiply by S.
   return Math.round(val / S) * S;
 };
 
-const Cubie = ({ position, color = "#0a0a0a", edgeColor = "#1dff00" }: { position: Vector3; color?: string; edgeColor?: string }) => {
+const InnerCore = () => {
+    return (
+        <mesh>
+            <sphereGeometry args={[0.8, 32, 32]} />
+            <meshBasicMaterial color="#1dff00" toneMapped={false} />
+            <pointLight distance={5} intensity={5} color="#1dff00" decay={2} />
+        </mesh>
+    )
+}
+
+const Cubie = React.forwardRef(({ position, isCenter, logoMap }: { position: Vector3; isCenter: boolean; logoMap?: THREE.Texture }, ref: React.ForwardedRef<THREE.Mesh>) => {
+  // Random "tech" detailing for non-center cubes
+  const detail = useMemo(() => Math.random(), []);
+
   return (
-    <mesh position={position}>
+    <mesh position={position} ref={ref}>
       <boxGeometry args={[CUBE_SIZE, CUBE_SIZE, CUBE_SIZE]} />
-      <meshStandardMaterial color={color} roughness={0.1} metalness={0.8} />
-      <Edges color={edgeColor} threshold={15} lineWidth={2} />
+      {/* Glassy Cyber Material */}
+      <meshPhysicalMaterial
+        color={isCenter ? "#000000" : "#050505"}
+        roughness={0.1}
+        metalness={0.9}
+        transmission={0.2} // Slight transparency
+        clearcoat={1}
+        clearcoatRoughness={0.1}
+      />
+
+      {/* Neon Edges - pulsating logic could go here, but static is cleaner for performance */}
+      <Edges
+        color="#1dff00"
+        threshold={15}
+        scale={0.98} // Slightly inside
+        linewidth={2}
+      />
+
+      {/* Internal "Circuitry" Glow for Center Cubies */}
+      {isCenter && (
+          <mesh scale={[0.85, 0.85, 0.85]}>
+              <boxGeometry />
+              <meshBasicMaterial color="#1dff00" wireframe opacity={0.3} transparent />
+          </mesh>
+      )}
+
+      {/* Logo Texture on center face if provided */}
+      {isCenter && logoMap && (
+          <>
+             {/* We place planes on the 6 faces for the logo */}
+             {[
+                 [0, 0, 0.51, 0, 0, 0], // Front
+                 [0, 0, -0.51, 0, Math.PI, 0], // Back
+                 [0.51, 0, 0, 0, Math.PI/2, 0], // Right
+                 [-0.51, 0, 0, 0, -Math.PI/2, 0], // Left
+                 [0, 0.51, 0, -Math.PI/2, 0, 0], // Top
+                 [0, -0.51, 0, Math.PI/2, 0, 0], // Bottom
+             ].map((transforms, i) => (
+                 <mesh key={i} position={[transforms[0], transforms[1], transforms[2]] as Vector3} rotation={[transforms[3], transforms[4], transforms[5]] as Vector3}>
+                     <planeGeometry args={[0.6, 0.6]} />
+                     <meshBasicMaterial map={logoMap} transparent opacity={0.9} toneMapped={false} />
+                 </mesh>
+             ))}
+          </>
+      )}
     </mesh>
   );
-};
+});
 
 const RubiksLogic = () => {
-  // We need refs for all 27 cubies to manipulate them
-  // We'll store them in a flat array, but we need to track their logical positions
   const cubieRefs = useRef<(THREE.Mesh | null)[]>([]);
-
-  // The pivot group is used to rotate a slice
   const pivotRef = useRef<THREE.Group>(null);
 
-  // State machine
+  // Load Logo
+  const logoTexture = useLoader(THREE.TextureLoader, '/favicon.png'); // Using favicon as it's usually square and clean
+
+  // State
   const [isAnimating, setIsAnimating] = useState(false);
   const animationState = useRef({
     axis: 'x' as 'x' | 'y' | 'z',
-    slice: 0 as -1 | 0 | 1,
     targetRotation: 0,
     currentRotation: 0,
-    cubieIndices: [] as number[], // Indices of cubies in the current slice
-    direction: 1 // 1 or -1
+    cubieIndices: [] as number[],
+    direction: 1
   });
-
-  // Timer for pauses
   const timer = useRef(0);
 
-  // Initialize: We just need 27 items. Their initial positions are set in render.
+  // Initialize Cubies
   const cubies = useMemo(() => {
     const arr = [];
     for (let x = -1; x <= 1; x++) {
       for (let y = -1; y <= 1; y++) {
         for (let z = -1; z <= 1; z++) {
-          arr.push({ id: `${x}-${y}-${z}`, initialPos: [x * TOTAL_SIZE, y * TOTAL_SIZE, z * TOTAL_SIZE] as Vector3 });
+          // Identify if this is a "center" piece of a face or the core
+          // Actually, we want the logo on the "Face Centers" (e.g. 0,0,1)
+          // The absolute core (0,0,0) is hidden inside.
+          // Let's mark the Core (0,0,0) specifically.
+          const isCore = x===0 && y===0 && z===0;
+          const isFaceCenter = (Math.abs(x) + Math.abs(y) + Math.abs(z)) === 1; // Only one coord is non-zero
+
+          arr.push({
+              id: `${x}-${y}-${z}`,
+              initialPos: [x * TOTAL_SIZE, y * TOTAL_SIZE, z * TOTAL_SIZE] as Vector3,
+              isCore,
+              isFaceCenter
+          });
         }
       }
     }
@@ -70,14 +131,13 @@ const RubiksLogic = () => {
     if (!pivotRef.current) return;
 
     if (isAnimating) {
-      // PERFROM ROTATION
       const { axis, direction, targetRotation } = animationState.current;
-      const speed = 4 * delta; // Speed of rotation
+      // Ease in-out speed? constant for now
+      const speed = 2.5 * delta; // Slower, heavier movement
 
       let step = speed * direction;
       animationState.current.currentRotation += step;
 
-      // Check completion
       let finished = false;
       if ((direction > 0 && animationState.current.currentRotation >= targetRotation) ||
           (direction < 0 && animationState.current.currentRotation <= targetRotation)) {
@@ -85,144 +145,80 @@ const RubiksLogic = () => {
         finished = true;
       }
 
-      // Apply rotation to pivot
       pivotRef.current.rotation.set(0, 0, 0);
       pivotRef.current.rotation[axis] = animationState.current.currentRotation;
 
       if (finished) {
-        // FINALIZE MOVE
-
-        // 1. Detach cubies from pivot, reattach to world, keep transform
-        // We have to be careful. The pivot is rotated.
-        // The standard Three.js "attach" helps here but we are doing it manually to ensure grid alignment.
-
-        // Actually, simpler way:
-        // Update the matrices of the children, then move them back to root.
         pivotRef.current.updateMatrixWorld();
-
         const activeIndices = animationState.current.cubieIndices;
 
         activeIndices.forEach(idx => {
           const mesh = cubieRefs.current[idx];
           if (mesh) {
-            // Apply pivot's transform to the mesh
             mesh.applyMatrix4(pivotRef.current!.matrixWorld);
-            mesh.matrixWorldNeedsUpdate = true;
-
-            // Snap position to grid to prevent drift errors accumulating
             mesh.position.x = snapToGrid(mesh.position.x);
             mesh.position.y = snapToGrid(mesh.position.y);
             mesh.position.z = snapToGrid(mesh.position.z);
 
-            // Round rotation to nearest 90 degrees (PI/2)
             const euler = new THREE.Euler().setFromQuaternion(mesh.quaternion);
             mesh.rotation.x = Math.round(euler.x / (Math.PI/2)) * (Math.PI/2);
             mesh.rotation.y = Math.round(euler.y / (Math.PI/2)) * (Math.PI/2);
             mesh.rotation.z = Math.round(euler.z / (Math.PI/2)) * (Math.PI/2);
             mesh.updateMatrix();
-
-            // Re-parent to scene (root) logic is implicitly handled because we used applyMatrix4
-            // and we act as if they are in world space (visual root).
-            // But wait, they are physically children of Pivot in the scene graph if we added them?
-            // In R3F, if we didn't change the React tree, they are still children of the group below.
-            // We just "simulated" parenting by attaching?
-
-            // Correct approach for this React setup:
-            // We don't actually reparent in React. We just changed the mesh transforms.
-            // BUT, if we rotated the pivot, and the meshes are children of the pivot...
-            // Wait, the meshes are siblings of the pivot in the JSX below.
-            // So we need to:
-            // 1. Parent to pivot.
-            // 2. Rotate pivot.
-            // 3. Unparent (applying transform).
-            // 4. Reset pivot.
           }
         });
 
-        // Reset Pivot
         pivotRef.current.rotation.set(0,0,0);
 
-        // Unparenting logical step:
-        // We need to attach them back to the 'Scene' or parent group.
-        // Since we are using `applyMatrix4` on the meshes while the pivot was rotated,
-        // IF they were children of the pivot, this would double apply.
-        //
-        // Strategy:
-        // 1. Identify meshes.
-        // 2. Add them to Pivot object (scene.attach(pivot) -> pivot.attach(mesh)).
-        //    ThreeJS `object.attach(child)` keeps world transform.
-        // 3. Animate Pivot.
-        // 4. `scene.attach(mesh)` (or parent.attach(mesh)) to pull them out, keeping world transform.
-        // 5. Reset Pivot.
-
-        // Since we are in React, we need access to the parent group.
         const parent = pivotRef.current.parent;
         if (parent) {
              activeIndices.forEach(idx => {
                 const mesh = cubieRefs.current[idx];
-                if (mesh) parent.attach(mesh);
-             });
-
-             // Snap to grid now that they are back in world space
-             activeIndices.forEach(idx => {
-                 const mesh = cubieRefs.current[idx];
-                 if(mesh) {
-                     mesh.position.x = snapToGrid(mesh.position.x);
-                     mesh.position.y = snapToGrid(mesh.position.y);
-                     mesh.position.z = snapToGrid(mesh.position.z);
-                     mesh.updateMatrixWorld();
-                 }
+                if (mesh) {
+                    parent.attach(mesh);
+                    mesh.updateMatrixWorld();
+                }
              });
         }
 
         setIsAnimating(false);
         timer.current = 0;
       }
-
     } else {
-      // IDLE - WAIT THEN PICK NEW MOVE
       timer.current++;
       if (timer.current > WAIT_TIME) {
-        // Pick Move
         const axes: ('x'|'y'|'z')[] = ['x', 'y', 'z'];
         const axis = axes[Math.floor(Math.random() * axes.length)];
         const slices = [-1, 0, 1];
         const slice = slices[Math.floor(Math.random() * slices.length)] as -1|0|1;
         const dir = Math.random() > 0.5 ? 1 : -1;
 
-        // Find cubies in this slice
-        // We check current WORLD position
         const indices: number[] = [];
         const S = TOTAL_SIZE;
         const epsilon = 0.1;
 
         cubieRefs.current.forEach((mesh, i) => {
           if (!mesh) return;
-          // Check position on axis
           let pos = 0;
           if (axis === 'x') pos = mesh.position.x;
           if (axis === 'y') pos = mesh.position.y;
           if (axis === 'z') pos = mesh.position.z;
 
-          // Compare with slice * S
           if (Math.abs(pos - (slice * S)) < epsilon) {
             indices.push(i);
           }
         });
 
         if (indices.length > 0) {
-           // Setup Animation
            animationState.current = {
                axis,
-               slice,
+               slice, // not really used in animation loop but good for debug
                direction: dir,
                targetRotation: (Math.PI / 2) * dir,
                currentRotation: 0,
                cubieIndices: indices
            };
 
-           // Attach to pivot
-           // We use the ThreeJS attach method to preserve world transforms
            indices.forEach(idx => {
                const mesh = cubieRefs.current[idx];
                if (mesh && pivotRef.current) {
@@ -243,32 +239,59 @@ const RubiksLogic = () => {
             <Cubie
                 key={c.id}
                 position={c.initialPos}
+                isCenter={c.isFaceCenter || c.isCore} // We apply special look to centers
+                logoMap={c.isFaceCenter ? logoTexture : undefined}
                 ref={(el) => (cubieRefs.current[i] = el)}
             />
         ))}
+        {/* The Core is separate, stays at 0,0,0 world? No, the core cubie moves too.
+            But we want a stationary 'energy' source perhaps?
+            Or does the energy source move with the center cubie?
+            Let's put a glowing light in the absolute center of the group,
+            which might clip if the center cubie moves away (impossible in Rubiks logic, center is always center).
+        */}
+        <pointLight position={[0,0,0]} intensity={2} color="#1dff00" distance={3} />
     </group>
   );
 };
 
 export const SelfSolvingCube = () => {
   return (
-    <div className="w-full h-full">
-      <Canvas camera={{ position: [5, 5, 5], fov: 45 }}>
-        <ambientLight intensity={0.5} />
-        <pointLight position={[10, 10, 10]} intensity={1} color="#1dff00" />
-        <pointLight position={[-10, -10, -10]} intensity={0.5} color="white" />
+    <div className="w-full h-full relative">
+      <Canvas camera={{ position: [6, 4, 6], fov: 35 }} dpr={[1, 2]}>
+        <color attach="background" args={['#000000']} />
 
-        <RubiksLogic />
+        {/* Cinematic Lighting */}
+        <ambientLight intensity={0.2} />
+        <spotLight position={[10, 10, 10]} angle={0.5} penumbra={1} intensity={1} color="#1dff00" />
+        <spotLight position={[-10, -5, -10]} angle={0.5} penumbra={1} intensity={1} color="#0040ff" /> {/* Cyber blue fill */}
+
+        <Float speed={2} rotationIntensity={0.2} floatIntensity={0.2}>
+             <RubiksLogic />
+        </Float>
+
+        {/* Data Particles */}
+        <Sparkles
+            count={100}
+            scale={12}
+            size={2}
+            speed={0.4}
+            opacity={0.5}
+            color="#1dff00"
+        />
 
         <OrbitControls
             enableZoom={false}
             enablePan={false}
             autoRotate
-            autoRotateSpeed={1}
+            autoRotateSpeed={0.5}
             minPolarAngle={Math.PI / 4}
             maxPolarAngle={Math.PI * 0.75}
         />
       </Canvas>
+
+      {/* Vignette Overlay for depth */}
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_20%,black_100%)]" />
     </div>
   );
 };

@@ -222,10 +222,43 @@ export const JobrackerSignup = (): JSX.Element => {
   };
 
   return (
-    <div className="min-h-screen flex bg-black overflow-hidden relative">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-black overflow-hidden relative">
 
-      {/* LEFT SIDE: Login Form */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center px-6 sm:px-12 lg:px-24 xl:px-32 relative z-20 bg-black/80 backdrop-blur-sm lg:backdrop-blur-none border-r border-white/5">
+      {/* RIGHT SIDE (Visual) - Ordered First on Mobile */}
+      <div className="order-1 lg:order-2 w-full lg:w-1/2 h-[40vh] lg:h-screen relative bg-[#050505] overflow-hidden border-b lg:border-b-0 lg:border-l border-white/10">
+          {/* Background Grid */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(29,255,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(29,255,0,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_80%)]" />
+
+          {/* 3D Self-Solving Cube */}
+          <div className="absolute inset-0 flex items-center justify-center scale-90 lg:scale-110 lg:translate-x-12 cursor-move lg:pointer-events-auto touch-none">
+              <SelfSolvingCube />
+          </div>
+
+          {/* Overlay Text - Hidden on small mobile to save space, visible on tablet/desktop */}
+          <div className="absolute bottom-6 left-6 right-6 z-10 hidden sm:block lg:bottom-12 lg:left-12 lg:right-12">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6, duration: 0.8 }}
+                className="bg-black/40 backdrop-blur-md border border-white/10 p-4 lg:p-6 rounded-2xl"
+              >
+                  <div className="flex items-center lg:items-start gap-4">
+                      <div className="w-10 h-10 rounded-full bg-[#1dff00]/10 flex items-center justify-center border border-[#1dff00]/20 flex-shrink-0">
+                          <CheckCircle2 className="w-5 h-5 text-[#1dff00]" />
+                      </div>
+                      <div>
+                          <h3 className="text-white font-bold text-base lg:text-lg mb-1">Autonomous Applications</h3>
+                          <p className="text-gray-400 text-xs lg:text-sm leading-relaxed line-clamp-2 lg:line-clamp-none">
+                              "JobRaker has completely transformed my job search. The AI agent applies to jobs while I sleep."
+                          </p>
+                      </div>
+                  </div>
+              </motion.div>
+          </div>
+      </div>
+
+      {/* LEFT SIDE: Login Form - Ordered Second on Mobile */}
+      <div className="order-2 lg:order-1 w-full lg:w-1/2 flex flex-col justify-center px-6 py-12 lg:py-0 sm:px-12 lg:px-24 xl:px-32 relative z-20 bg-black border-t lg:border-t-0 border-white/5">
         <div className="max-w-md w-full mx-auto space-y-8">
             {/* Header / Logo */}
             <motion.div 
@@ -436,39 +469,6 @@ export const JobrackerSignup = (): JSX.Element => {
          <div className="absolute bottom-6 left-0 right-0 text-center text-gray-600 text-xs">
             © 2024 JobRaker AI. All rights reserved.
          </div>
-      </div>
-
-      {/* RIGHT SIDE: Immersive Visual */}
-      <div className="hidden lg:block lg:w-1/2 relative bg-[#050505] overflow-hidden">
-          {/* Background Grid */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(29,255,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(29,255,0,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_80%)]" />
-
-          {/* 3D Self-Solving Cube */}
-          <div className="absolute inset-0 flex items-center justify-center scale-110 translate-x-12 pointer-events-none">
-              <SelfSolvingCube />
-          </div>
-
-          {/* Overlay Text */}
-          <div className="absolute bottom-12 left-12 right-12 z-10">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6, duration: 0.8 }}
-                className="bg-black/40 backdrop-blur-md border border-white/10 p-6 rounded-2xl"
-              >
-                  <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-full bg-[#1dff00]/10 flex items-center justify-center border border-[#1dff00]/20 flex-shrink-0">
-                          <CheckCircle2 className="w-5 h-5 text-[#1dff00]" />
-                      </div>
-                      <div>
-                          <h3 className="text-white font-bold text-lg mb-1">Autonomous Applications</h3>
-                          <p className="text-gray-400 text-sm leading-relaxed">
-                              "JobRaker has completely transformed my job search. The AI agent applies to jobs while I sleep, ensuring I never miss an opportunity."
-                          </p>
-                      </div>
-                  </div>
-              </motion.div>
-          </div>
       </div>
 
       {/* Signup Verify Modal */}
