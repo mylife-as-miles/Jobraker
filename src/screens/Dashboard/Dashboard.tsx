@@ -38,7 +38,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { NotificationPage } from "./pages/NotificationPage";
 import ProfilePage from "./pages/ProfilePage";
 import { ChatPage } from "./pages/ChatPage";
-import { ResumePage } from "./pages/ResumePage";
+import { ResumeBuilderPage } from "@/client/pages/dashboard/resume/page";
 import { BillingPage } from "./pages/BillingPage";
 import ResumeBuilderRoute from "./pages/ResumeBuilderRoute";
 import InterviewStudioPage from "./pages/InterviewStudioPage";
@@ -71,8 +71,8 @@ const SidebarItem = ({ item, isActive, onClick }: { item: PageLink, isActive: bo
     variant="ghost"
     onClick={onClick}
     className={`w-full justify-start rounded-xl mb-1 transition-all duration-200 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${isActive
-        ? "text-white bg-[#1dff00]/10 border border-[#1dff00]/20"
-        : "text-gray-400 hover:text-white hover:bg-white/5"}`}
+      ? "text-white bg-[#1dff00]/10 border border-[#1dff00]/20"
+      : "text-gray-400 hover:text-white hover:bg-white/5"}`}
   >
     {isActive && (
       <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#1dff00] shadow-[0_0_10px_#1dff00]" />
@@ -277,7 +277,7 @@ export const Dashboard = (): JSX.Element => {
       case "chat":
         return <ChatPage />;
       case "resume":
-        return <ResumePage />;
+        return <ResumeBuilderPage />;
       case "cover-letter":
         return <CoverLetterPage />;
       case "billing":
