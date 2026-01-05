@@ -6,7 +6,7 @@ import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import atomOneDarkStyle from 'react-syntax-highlighter/dist/styles/atom-one-dark';
 import { createClient } from "../../../lib/supabaseClient";
-import { MessageSquare, Wand2, Target, FileText, Sparkles, Zap, Plus, Search, Trash2, Edit3 } from 'lucide-react';
+import { MessageSquare, Wand2, Target, FileText, Sparkles, Zap, Plus, Search, Trash2, Edit3, Bot, User } from 'lucide-react';
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useToast } from "../../../components/ui/toast-provider";
 // Real-deal streaming useChat hook
@@ -611,7 +611,7 @@ export const ChatPage = () => {
                     <h3 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/40">Conversations</h3>
                     <button
                       onClick={createSession}
-                      className="flex items-center gap-2 text-[11px] px-3 py-1.5 rounded-lg bg-[#1dff00] hover:bg-[#33ff33] text-black font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(29,255,0,0.2)] hover:shadow-[0_0_20px_rgba(29,255,0,0.4)]"
+                      className="flex items-center gap-2 text-[11px] px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#1dff00]/90 text-black font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(29,255,0,0.2)] hover:shadow-[0_0_25px_rgba(29,255,0,0.3)]"
                     >
                       <Plus size={14} strokeWidth={3} />
                       <span>New Chat</span>
@@ -652,9 +652,9 @@ export const ChatPage = () => {
                       <div
                         key={s.id}
                         onClick={() => setActiveSessionId(s.id)}
-                        className={`group relative border-b border-white/[0.04] px-3 py-3 text-[11px] cursor-pointer transition-all ${s.id === activeSessionId
-                          ? 'bg-gradient-to-r from-[#1dff00]/10 to-transparent border-l-[3px] border-l-[#1dff00]'
-                          : 'hover:bg-white/[0.03] border-l-[3px] border-l-transparent'
+                        className={`group relative border-b border-white/[0.04] px-3 py-3 text-[11px] cursor-pointer transition-all duration-200 ${s.id === activeSessionId
+                          ? 'bg-white/[0.06] border-l-2 border-l-[#1dff00]'
+                          : 'hover:bg-white/[0.03] border-l-2 border-l-transparent'
                           }`}
                       >
                         {renamingSession === s.id ? (
@@ -735,7 +735,7 @@ export const ChatPage = () => {
             {/* Main Column */}
             <div className="flex flex-1 flex-col gap-0 bg-transparent relative">
               {/* Minimalist Header */}
-              <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-white/5 px-8 py-5 bg-black/40 backdrop-blur-xl z-20 sticky top-0">
+              <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b border-white/[0.08] px-6 py-4 bg-black/40 backdrop-blur-xl z-10 sticky top-0">
                 <div className="flex flex-col">
                   <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
                     AI Assistant
@@ -811,8 +811,8 @@ export const ChatPage = () => {
                     {messages.map((msg, idx) => {
                       const isUser = msg.role === 'user';
                       const bubble = isUser
-                        ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 text-[#b6ffb6] border border-[#1dff00]/20 shadow-[0_4px_20px_rgba(29,255,0,0.05)] backdrop-blur-md'
-                        : 'bg-gradient-to-br from-[#161616] to-[#0a0a0a] text-gray-100 border border-white/[0.06] shadow-md backdrop-blur-sm';
+                        ? 'bg-[#1dff00]/10 text-white border border-[#1dff00]/20 shadow-[0_0_20px_rgba(29,255,0,0.05)] backdrop-blur-sm'
+                        : 'bg-[#1a1a1a] text-gray-200 border border-white/[0.06] shadow-xl';
                       const time = new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                       const textContent = msg.parts?.[0]?.text || msg.content;
                       const lastUserIdLocal = lastUserId;
@@ -825,25 +825,32 @@ export const ChatPage = () => {
                         <div key={msg.id} className="group relative flex flex-col gap-1.5 animate-[fadeIn_0.4s_ease]">
                           <div className={`flex items-start gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
                             {!isUser && showAvatar && (
-                              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#1dff00]/15 to-[#0a8246]/10 text-[10px] font-semibold text-[#1dff00] border border-[#1dff00]/20">
-                                AI
+                              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#1a1a1a] text-[#1dff00] border border-white/[0.08] shadow-lg">
+                                <Bot size={16} />
                               </div>
                             )}
-                            <div className={`relative max-w-[85%] md:max-w-2xl ${radius} px-4 py-3 text-[13px] leading-relaxed tracking-normal transition-all ${bubble}`}>
+                            <div className={`relative max-w-[85%] md:max-w-2xl ${radius} px-5 py-3.5 text-[13px] leading-relaxed tracking-normal transition-all shadow-md ${bubble}`}>
                               {msg.streaming ? (
-                                <div className="whitespace-pre-wrap break-words flex items-center gap-1.5">
+                                <div className="whitespace-pre-wrap break-words flex items-center gap-2">
                                   <span>{textContent}</span>
-                                  <span className="inline-flex items-center gap-0.5">
-                                    <span className="h-1 w-1 rounded-full bg-current animate-pulse opacity-60" />
-                                    <span className="h-1 w-1 rounded-full bg-current animate-pulse delay-150 opacity-40" />
-                                    <span className="h-1 w-1 rounded-full bg-current animate-pulse delay-300 opacity-20" />
+                                  <span className="inline-flex items-center gap-1 h-5">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-[#1dff00] animate-pulse" />
+                                    <span className="h-1.5 w-1.5 rounded-full bg-[#1dff00] animate-pulse delay-150" />
+                                    <span className="h-1.5 w-1.5 rounded-full bg-[#1dff00] animate-pulse delay-300" />
                                   </span>
                                 </div>
-                              ) : renderRichText(textContent)}
+                              ) : (
+                                textContent ? renderRichText(textContent) : (
+                                  <div className="flex items-center gap-2 text-white/40 italic">
+                                    <Sparkles size={14} className="animate-pulse" />
+                                    <span>Thinking...</span>
+                                  </div>
+                                )
+                              )}
                             </div>
                             {isUser && showAvatar && (
-                              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/[0.06] text-[10px] font-semibold text-white/90 border border-white/[0.08]">
-                                You
+                              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#1dff00] text-black border border-[#1dff00]/50 shadow-[0_0_15px_rgba(29,255,0,0.2)]">
+                                <User size={16} strokeWidth={2.5} />
                               </div>
                             )}
                           </div>
@@ -872,10 +879,11 @@ export const ChatPage = () => {
                   </ConversationContent>
                 </Conversation>
               </div>
-              {/* Input Area - Floating & Modern */}
-              <div className="p-4 sm:p-6 bg-gradient-to-t from-black via-black/90 to-transparent z-20">
+              {/* Input Area - Refined & Professional */}
+              <div className="border-t border-white/[0.08] bg-black/60 backdrop-blur-2xl p-6 relative z-20">
+                <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#1dff00]/20 to-transparent" />
                 {messages.length > 0 && (
-                  <div className="flex flex-wrap gap-2 px-2 pb-3 justify-center sm:justify-start">
+                  <div className="flex flex-wrap gap-2 px-6 pt-4 pb-2">
                     {quickPrompts.map(q => (
                       <button
                         key={q}
