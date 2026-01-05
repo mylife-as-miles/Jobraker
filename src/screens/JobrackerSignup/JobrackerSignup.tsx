@@ -313,7 +313,8 @@ export const JobrackerSignup = (): JSX.Element => {
                 <div className="relative group">
                   <MailIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-3.5 h-3.5" />
                   <Input
-                    className="pl-9 h-9 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-lg placeholder:text-gray-500 text-xs"
+                    inputSize="sm"
+                    className="pl-11 h-9 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-lg placeholder:text-gray-500 text-xs"
                     placeholder="name@example.com"
                     type="email"
                     value={formData.email}
@@ -332,7 +333,8 @@ export const JobrackerSignup = (): JSX.Element => {
                   <div className="relative group">
                     <LockKeyholeIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-3.5 h-3.5" />
                     <Input
-                      className="pl-9 pr-9 h-9 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-lg placeholder:text-gray-500 text-xs"
+                      inputSize="sm"
+                      className="pl-11 pr-9 h-9 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-lg placeholder:text-gray-500 text-xs"
                       placeholder="Password"
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
@@ -356,7 +358,8 @@ export const JobrackerSignup = (): JSX.Element => {
                   <div className="relative group">
                     <LockKeyholeIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-3.5 h-3.5" />
                     <Input
-                      className="pl-9 h-9 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-lg placeholder:text-gray-500 text-xs"
+                      inputSize="sm"
+                      className="pl-11 h-9 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-lg placeholder:text-gray-500 text-xs"
                       placeholder="Confirm Password"
                       type="password"
                       value={formData.confirmPassword}
