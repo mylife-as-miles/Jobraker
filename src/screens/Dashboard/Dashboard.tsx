@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
-import { 
-  Bell, 
-  Plus, 
+import {
+  Bell,
+  Plus,
   TrendingUp,
   Users,
   MessageSquare,
@@ -43,13 +43,13 @@ import { BillingPage } from "./pages/BillingPage";
 import ResumeBuilderRoute from "./pages/ResumeBuilderRoute";
 import InterviewStudioPage from "./pages/InterviewStudioPage";
 
-type DashboardPage = 
-  | "overview" 
-  | "analytics" 
-  | "chat" 
+type DashboardPage =
+  | "overview"
+  | "analytics"
+  | "chat"
   | "resume"
-  | "jobs" 
-  | "application" 
+  | "jobs"
+  | "application"
   | "settings"
   | "notifications"
   | "profile"
@@ -65,6 +65,24 @@ interface PageLink {
   icon: React.ReactNode;
   path: string;
 }
+
+const SidebarItem = ({ item, isActive, onClick }: { item: PageLink, isActive: boolean, onClick: () => void }) => (
+  <Button
+    variant="ghost"
+    onClick={onClick}
+    className={`w-full justify-start rounded-xl mb-1 transition-all duration-200 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${isActive
+        ? "text-white bg-[#1dff00]/10 border border-[#1dff00]/20"
+        : "text-gray-400 hover:text-white hover:bg-white/5"}`}
+  >
+    {isActive && (
+      <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#1dff00] shadow-[0_0_10px_#1dff00]" />
+    )}
+    <span className={`relative z-10 mr-3 transition-colors ${isActive ? "text-[#1dff00]" : "text-gray-500 group-hover:text-white"}`}>
+      {item.icon}
+    </span>
+    <span className="relative z-10">{item.label}</span>
+  </Button>
+);
 
 export const Dashboard = (): JSX.Element => {
   const location = useLocation();
@@ -84,7 +102,7 @@ export const Dashboard = (): JSX.Element => {
       }
     };
     checkAuth();
-    
+
     // Update session activity every 5 minutes
     const interval = setInterval(async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -93,7 +111,7 @@ export const Dashboard = (): JSX.Element => {
         updateSessionActivity(session.access_token);
       }
     }, 5 * 60 * 1000); // 5 minutes
-    
+
     return () => clearInterval(interval);
   }, [navigate, supabase]);
 
@@ -278,96 +296,127 @@ export const Dashboard = (): JSX.Element => {
   };
 
   return (
-     <div className="min-h-screen bg-black flex">
+    <div className="min-h-screen bg-black flex">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar - Responsive */}
+      {/* Sidebar - Modern & Advanced */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-56 sm:w-64 lg:w-72 xl:w-80 bg-[#0a0a0a] border-r border-[#1dff00]/20 flex flex-col
-        transform transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-50 w-64 lg:w-72 bg-black/95 backdrop-blur-xl border-r border-white/5 flex flex-col
+        transform transition-transform duration-300 ease-out shadow-2xl shadow-black
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        {/* Logo - Responsive */}
-    <div className="p-3 sm:p-4 lg:p-6 border-b border-[#1dff00]/20">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg flex items-center justify-center hover:scale-110 transition-transform duration-300">
-                <span className="text-black font-bold text-xs sm:text-sm lg:text-base">JR</span>
-              </div>
-      <span className="font-semibold text-sm sm:text-lg lg:text-xl bg-gradient-to-r from-[#1dff00] to-[#0a8246] bg-clip-text text-transparent">JobRaker</span>
+        {/* Logo Section */}
+        <div className="h-20 flex items-center px-6 border-b border-white/5 relative overflow-hidden">
+          <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[#1dff00]/50 to-transparent opacity-50" />
+
+          <div className="flex items-center gap-3 relative z-10 w-full">
+            <div className="w-9 h-9 bg-gradient-to-br from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(29,255,0,0.3)]">
+              <span className="text-black font-extrabold text-sm tracking-tighter">JR</span>
             </div>
+            <div className="flex flex-col">
+              <span className="font-bold text-lg leading-none tracking-tight text-white">JobRaker</span>
+              <span className="text-[10px] uppercase tracking-widest text-gray-500 font-medium mt-1">Enterprise AI</span>
+            </div>
+
             <Button
               variant="ghost"
-              size="sm"
-              className="lg:hidden text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2"
+              size="icon"
+              className="lg:hidden ml-auto text-gray-400 hover:text-white"
               onClick={() => setSidebarOpen(false)}
-              title="Close sidebar"
-              aria-label="Close sidebar"
             >
-              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+              <X className="w-5 h-5" />
             </Button>
           </div>
         </div>
 
-        {/* Navigation - Responsive */}
-        <nav className="flex-1 p-2 sm:p-3 lg:p-4 overflow-y-auto min-h-0">
-          <div className="space-y-1 sm:space-y-2">
-            {navigationItems.map((item) => {
-              const path = `/dashboard/${item.id}`;
-              const isActive = currentPage === item.id;
-              return (
-                <Button
-                  key={item.id}
-                  variant="ghost"
-                  onClick={() => {
-                    navigate(path);
-                    setSidebarOpen(false);
-                  }}
-                  title={item.label}
-                  aria-label={`Go to ${item.label}`}
-                  className={`w-full justify-start rounded-xl transition-colors duration-200 text-xs sm:text-sm lg:text-base px-3 py-2 sm:px-4 sm:py-3 h-auto ${
-                    isActive
-                      ? "text-white bg-[#1dff00]/10 border border-[#1dff00]/30 shadow-[0_0_20px_rgba(29,255,0,0.15)]"
-                      : "text-[#a3a3a3] hover:text-white hover:bg-white/10"}`}
-                >
-                  {item.icon}
-                  <span className="ml-2 sm:ml-3 lg:ml-4">{item.label}</span>
-                </Button>
-              );
-            })}
-          </div>
-        </nav>
+        {/* Navigation - Categorized */}
+        <div className="flex-1 overflow-y-auto py-6 px-4 space-y-8 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20">
 
-        {/* Premium Card - Responsive - Fixed to bottom */}
-        <div className="flex-shrink-0 p-2 sm:p-3 lg:p-4 border-t border-[#1dff00]/20 bg-[#0a0a0a]">
-          <Card
-            className="bg-gradient-to-br from-[#1dff00] to-[#0a8246] border-none hover:scale-105 transition-transform duration-300 cursor-pointer"
+          {/* Section 1: Main */}
+          <div className="space-y-1">
+            <h4 className="px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-gray-600 mb-2">Platform</h4>
+            {navigationItems.filter(i => ['overview', 'analytics'].includes(i.id)).map(item => (
+              <SidebarItem
+                key={item.id}
+                item={item}
+                isActive={currentPage === item.id}
+                onClick={() => { navigate(`/dashboard/${item.id}`); setSidebarOpen(false); }}
+              />
+            ))}
+          </div>
+
+          {/* Section 2: Tools */}
+          <div className="space-y-1">
+            <h4 className="px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-gray-600 mb-2">AI Studio</h4>
+            {navigationItems.filter(i => ['chat', 'interview-studio', 'resume', 'cover-letter'].includes(i.id)).map(item => (
+              <SidebarItem
+                key={item.id}
+                item={item}
+                isActive={currentPage === item.id}
+                onClick={() => { navigate(`/dashboard/${item.id}`); setSidebarOpen(false); }}
+              />
+            ))}
+          </div>
+
+          {/* Section 3: Career */}
+          <div className="space-y-1">
+            <h4 className="px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-gray-600 mb-2">Career</h4>
+            {navigationItems.filter(i => ['jobs', 'application'].includes(i.id)).map(item => (
+              <SidebarItem
+                key={item.id}
+                item={item}
+                isActive={currentPage === item.id}
+                onClick={() => { navigate(`/dashboard/${item.id}`); setSidebarOpen(false); }}
+              />
+            ))}
+          </div>
+
+          {/* Section 4: Settings (Misc) - only if there are items left not in other categories (like pricing/billing if they are in nav items) */}
+          {navigationItems.some(i => !['overview', 'analytics', 'chat', 'interview-studio', 'resume', 'cover-letter', 'jobs', 'application'].includes(i.id)) && (
+            <div className="space-y-1">
+              <h4 className="px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-gray-600 mb-2">Account</h4>
+              {navigationItems.filter(i => !['overview', 'analytics', 'chat', 'interview-studio', 'resume', 'cover-letter', 'jobs', 'application'].includes(i.id)).map(item => (
+                <SidebarItem
+                  key={item.id}
+                  item={item}
+                  isActive={currentPage === item.id}
+                  onClick={() => { navigate(`/dashboard/${item.id}`); setSidebarOpen(false); }}
+                />
+              ))}
+            </div>
+          )}
+
+        </div>
+
+        {/* Premium Upgrade - Sleek Banner */}
+        <div className="p-4 border-t border-white/5 bg-black/50">
+          <div
             onClick={() => navigate('/dashboard/billing')}
+            className="group relative overflow-hidden rounded-xl bg-gradient-to-b from-zinc-900 to-black border border-white/10 p-4 cursor-pointer hover:border-[#1dff00]/30 transition-all duration-300"
           >
-            <CardContent className="p-3 sm:p-4 lg:p-6">
-              <div className="text-center">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-black/20 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3 hover:scale-110 transition-transform duration-300">
-                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
-                </div>
-                <h3 className="text-black font-bold text-sm sm:text-base lg:text-lg mb-1 sm:mb-2">Go Premium</h3>
-                <p className="text-black/80 text-xs sm:text-sm mb-3 sm:mb-4">Get incredible benefits that put you ahead</p>
-                <Button 
-                  size="sm" 
-                  className="bg-black text-white hover:bg-black/90 hover:scale-105 transition-all duration-300 text-xs sm:text-sm w-full"
-                  onClick={() => { navigate('/dashboard/billing'); }}
-                >
-                  <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                  Upgrade
-                </Button>
+            <div className="absolute inset-0 bg-[#1dff00]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+            <div className="flex items-start justify-between relative z-10">
+              <div>
+                <h3 className="text-sm font-bold text-white group-hover:text-[#1dff00] transition-colors">Pro Plan</h3>
+                <p className="text-[10px] text-gray-400 mt-1">Unlock advanced AI models</p>
               </div>
-            </CardContent>
-          </Card>
+              <div className="w-8 h-8 rounded-lg bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00]">
+                <TrendingUp size={16} />
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-center gap-2 text-[10px] font-medium text-gray-400 group-hover:text-white transition-colors">
+              <span>Upgrade now</span>
+              <BreadcrumbChevron size={12} />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -389,7 +438,7 @@ export const Dashboard = (): JSX.Element => {
                   <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Button>
               )}
-              
+
               {/* Current page (xs) */}
               <span className="sm:hidden text-white font-medium text-sm truncate">
                 {getCurrentBreadcrumb().split(' / ').slice(-1)[0]}
@@ -401,23 +450,23 @@ export const Dashboard = (): JSX.Element => {
                 {getCurrentBreadcrumb().split(' / ').map((crumb, index, array) => (
                   <React.Fragment key={index}>
                     {index > 0 && <BreadcrumbChevron className="w-3 h-3 sm:w-4 sm:h-4 text-[#444444] flex-shrink-0" />}
-                    <span className={`${index === array.length - 1 ? "text-white font-medium" : "text-[#666666]"} truncate max-w-[14rem] md:max-w-[22rem]` }>
+                    <span className={`${index === array.length - 1 ? "text-white font-medium" : "text-[#666666]"} truncate max-w-[14rem] md:max-w-[22rem]`}>
                       {crumb}
                     </span>
                   </React.Fragment>
                 ))}
               </div>
             </div>
-            
+
             {/* Header Actions - Responsive */}
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0 whitespace-nowrap">
               {/* Credit Display */}
               {profile && <CreditDisplay />}
-              
+
               {/* Quick Actions */}
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 flex p-1 sm:p-2"
                 onClick={() => navigate("/dashboard/settings")}
                 title="Settings"
@@ -425,10 +474,10 @@ export const Dashboard = (): JSX.Element => {
               >
                 <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
-              
-              <Button 
-                variant="ghost" 
-                size="sm" 
+
+              <Button
+                variant="ghost"
+                size="sm"
                 className="text-[#888888] hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300 relative p-1 sm:p-2"
                 onClick={() => navigate("/dashboard/notifications")}
                 title={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
@@ -442,7 +491,7 @@ export const Dashboard = (): JSX.Element => {
                   </span>
                 )}
               </Button>
-              
+
               {/* Profile Button - Responsive */}
               {!profile ? (
                 <div className="hidden sm:flex items-center space-x-3">
@@ -475,7 +524,7 @@ export const Dashboard = (): JSX.Element => {
                   </div>
                 </Button>
               )}
-              
+
               {/* Mobile profile button */}
               <Button
                 variant="ghost"
