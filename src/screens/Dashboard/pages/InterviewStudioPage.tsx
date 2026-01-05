@@ -160,16 +160,16 @@ export const InterviewStudioPage: React.FC = () => {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="flex-1 overflow-y-auto overflow-x-hidden p-6 relative z-10"
+        className="flex-1 overflow-y-auto overflow-x-hidden p-4 relative z-10"
       >
         {/* Header */}
-        <header className="flex justify-between items-center mb-8 border-b border-white/5 pb-6">
+        <header className="flex justify-between items-center mb-4 border-b border-white/5 pb-4">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold font-mono tracking-tight flex items-center gap-3">
-              <span className="w-3 h-3 bg-[#1dff00] rounded-full shadow-[0_0_10px_#1dff00]" />
+            <h1 className="text-2xl font-bold font-mono tracking-tight flex items-center gap-2">
+              <span className="w-2.5 h-2.5 bg-[#1dff00] rounded-full shadow-[0_0_10px_#1dff00]" />
               Interview Studio
             </h1>
-            <p className="text-gray-400 text-sm pl-6">Refine your delivery with AI-powered analysis.</p>
+            <p className="text-gray-400 text-xs pl-5">Refine your delivery with AI-powered analysis.</p>
           </div>
 
           <div className="flex items-center gap-4">
@@ -177,39 +177,39 @@ export const InterviewStudioPage: React.FC = () => {
               <motion.div
                 animate={{ opacity: [1, 0.5, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
-                className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-500 font-mono text-xs uppercase"
+                className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-red-500 font-mono text-[10px] uppercase"
               >
-                <div className="w-2 h-2 bg-red-500 rounded-full" />
+                <div className="w-1.5 h-1.5 bg-red-500 rounded-full" />
                 REC 00:00:00
               </motion.div>
             ) : (
-              <div className="text-gray-500 font-mono text-xs uppercase">Ready to Record</div>
+              <div className="text-gray-500 font-mono text-[10px] uppercase">Ready to Record</div>
             )}
           </div>
         </header>
 
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 h-[calc(100%-100px)]">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 h-[calc(100%-80px)]">
 
           {/* LEFT COLUMN - Viewfinder */}
-          <div className="xl:col-span-8 flex flex-col gap-4">
+          <div className="xl:col-span-8 flex flex-col gap-3">
 
             {/* Main Viewport */}
-            <div className="relative flex-1 bg-black rounded-2xl border border-white/10 overflow-hidden shadow-2xl group">
+            <div className="relative flex-1 bg-black rounded-xl border border-white/10 overflow-hidden shadow-2xl group min-h-0">
 
               {/* Cornerstone Markers (Viewfinder Aesthetic) */}
-              <div className="absolute top-4 left-4 w-6 h-6 border-l-2 border-t-2 border-white/30 rounded-tl-lg" />
-              <div className="absolute top-4 right-4 w-6 h-6 border-r-2 border-t-2 border-white/30 rounded-tr-lg" />
-              <div className="absolute bottom-4 left-4 w-6 h-6 border-l-2 border-b-2 border-white/30 rounded-bl-lg" />
-              <div className="absolute bottom-4 right-4 w-6 h-6 border-r-2 border-b-2 border-white/30 rounded-br-lg" />
+              <div className="absolute top-3 left-3 w-4 h-4 border-l-2 border-t-2 border-white/30 rounded-tl-sm" />
+              <div className="absolute top-3 right-3 w-4 h-4 border-r-2 border-t-2 border-white/30 rounded-tr-sm" />
+              <div className="absolute bottom-3 left-3 w-4 h-4 border-l-2 border-b-2 border-white/30 rounded-bl-sm" />
+              <div className="absolute bottom-3 right-3 w-4 h-4 border-r-2 border-b-2 border-white/30 rounded-br-sm" />
 
               {/* Center Crosshair */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-                <div className="w-12 h-[1px] bg-white" />
-                <div className="h-12 w-[1px] bg-white -ml-[1px]" />
+                <div className="w-8 h-[1px] bg-white" />
+                <div className="h-8 w-[1px] bg-white -ml-[1px]" />
               </div>
 
               {/* Aspect Ratio Container */}
-              <div className="w-full h-full flex items-center justify-center p-8 bg-[#050505]">
+              <div className="w-full h-full flex items-center justify-center p-4 bg-[#050505]">
                 <motion.div
                   layout
                   className="relative bg-zinc-900 border border-white/5 rounded-lg overflow-hidden shadow-lg"
@@ -232,8 +232,8 @@ export const InterviewStudioPage: React.FC = () => {
                   {/* Camera Off State */}
                   {(!cameraEnabled && !videoUrl) && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600 bg-zinc-900 z-10">
-                      <Video className="w-12 h-12 mb-4 opacity-50" />
-                      <p>Camera Disabled</p>
+                      <Video className="w-8 h-8 mb-2 opacity-50" />
+                      <p className="text-xs">Camera Disabled</p>
                     </div>
                   )}
 
@@ -244,9 +244,9 @@ export const InterviewStudioPage: React.FC = () => {
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: 20, opacity: 0 }}
-                        className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black/80 to-transparent pt-12 text-center"
+                        className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/80 to-transparent pt-8 text-center"
                       >
-                        <h3 className="text-lg md:text-xl font-medium text-white drop-shadow-md">
+                        <h3 className="text-base md:text-lg font-medium text-white drop-shadow-md">
                           "{prompt}"
                         </h3>
                       </motion.div>
@@ -257,26 +257,26 @@ export const InterviewStudioPage: React.FC = () => {
             </div>
 
             {/* Quick Actions Bar */}
-            <div className="h-20 bg-zinc-900/50 backdrop-blur-md rounded-2xl border border-white/10 flex items-center justify-between px-6 sm:px-10">
+            <div className="h-16 bg-zinc-900/50 backdrop-blur-md rounded-xl border border-white/10 flex items-center justify-between px-4 sm:px-6 shrink-0">
 
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <AudioVisualizer isActive={isRecording && micEnabled} />
-                <div className="h-8 w-[1px] bg-white/10 mx-2" />
+                <div className="h-6 w-[1px] bg-white/10 mx-1" />
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setMicEnabled(!micEnabled)}
-                  className={`rounded-full ${!micEnabled ? 'text-red-500 bg-red-500/10' : 'text-gray-400 hover:text-white'}`}
+                  className={`h-8 w-8 rounded-full ${!micEnabled ? 'text-red-500 bg-red-500/10' : 'text-gray-400 hover:text-white'}`}
                 >
-                  {micEnabled ? <Mic size={20} /> : <MicOff size={20} />}
+                  {micEnabled ? <Mic size={16} /> : <MicOff size={16} />}
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setCameraEnabled(!cameraEnabled)}
-                  className={`rounded-full ${!cameraEnabled ? 'text-red-500 bg-red-500/10' : 'text-gray-400 hover:text-white'}`}
+                  className={`h-8 w-8 rounded-full ${!cameraEnabled ? 'text-red-500 bg-red-500/10' : 'text-gray-400 hover:text-white'}`}
                 >
-                  {cameraEnabled ? <Camera size={20} /> : <AlertCircle size={20} />}
+                  {cameraEnabled ? <Camera size={16} /> : <AlertCircle size={16} />}
                 </Button>
               </div>
 
@@ -289,83 +289,83 @@ export const InterviewStudioPage: React.FC = () => {
                 {isRecording ? (
                   <Button
                     onClick={handleStopRecording}
-                    className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-all hover:scale-105 active:scale-95 z-10"
+                    className="w-12 h-12 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-all hover:scale-105 active:scale-95 z-10"
                   >
-                    <Square fill="currentColor" size={24} />
+                    <Square fill="currentColor" size={20} />
                   </Button>
                 ) : (
                   <Button
                     onClick={handleStartRecording}
-                    className="w-16 h-16 rounded-full bg-[#1dff00] hover:bg-[#1dff00]/90 text-black flex items-center justify-center shadow-[0_0_20px_rgba(29,255,0,0.3)] hover:shadow-[0_0_30px_rgba(29,255,0,0.5)] transition-all hover:scale-105 active:scale-95 z-10"
+                    className="w-12 h-12 rounded-full bg-[#1dff00] hover:bg-[#1dff00]/90 text-black flex items-center justify-center shadow-[0_0_20px_rgba(29,255,0,0.3)] hover:shadow-[0_0_30px_rgba(29,255,0,0.5)] transition-all hover:scale-105 active:scale-95 z-10"
                   >
-                    <div className="w-5 h-5 bg-black rounded-full" />
+                    <div className="w-4 h-4 bg-black rounded-full" />
                   </Button>
                 )}
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
                   disabled={!videoUrl}
-                  className="text-gray-400 hover:text-white gap-2"
+                  className="text-gray-400 hover:text-white gap-1.5 h-8 text-xs"
                   onClick={() => setVideoUrl(null)}
                 >
-                  <RefreshCw size={16} /> Retake
+                  <RefreshCw size={14} /> Retake
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   disabled={!videoUrl}
                   onClick={handleDownload}
-                  className="border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-[#1dff00] gap-2 rounded-lg"
+                  className="border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-[#1dff00] gap-1.5 rounded-lg h-8 text-xs"
                 >
-                  <Download size={16} /> Save
+                  <Download size={14} /> Save
                 </Button>
               </div>
             </div>
           </div>
 
           {/* RIGHT COLUMN - Control Center */}
-          <div className="xl:col-span-4 flex flex-col gap-6">
-            <Card className="flex-1 bg-zinc-900/50 backdrop-blur border-white/5 overflow-hidden flex flex-col">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-                <div className="px-6 pt-6 pb-2">
-                  <TabsList className="grid w-full grid-cols-3 bg-white/5 h-12 p-1 rounded-xl">
-                    <TabsTrigger value="settings" className="data-[state=active]:bg-zinc-800 rounded-lg text-xs uppercase font-medium tracking-wide">Studio</TabsTrigger>
-                    <TabsTrigger value="script" className="data-[state=active]:bg-zinc-800 rounded-lg text-xs uppercase font-medium tracking-wide">Script</TabsTrigger>
-                    <TabsTrigger value="analysis" className="data-[state=active]:bg-zinc-800 rounded-lg text-xs uppercase font-medium tracking-wide">Metrics</TabsTrigger>
+          <div className="xl:col-span-4 flex flex-col gap-4 min-h-0">
+            <Card className="flex-1 bg-zinc-900/50 backdrop-blur border-white/5 overflow-hidden flex flex-col min-h-0">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+                <div className="px-4 pt-4 pb-1">
+                  <TabsList className="grid w-full grid-cols-3 bg-white/5 h-9 p-1 rounded-lg">
+                    <TabsTrigger value="settings" className="data-[state=active]:bg-zinc-800 rounded-md text-[10px] uppercase font-bold tracking-wider">Studio</TabsTrigger>
+                    <TabsTrigger value="script" className="data-[state=active]:bg-zinc-800 rounded-md text-[10px] uppercase font-bold tracking-wider">Script</TabsTrigger>
+                    <TabsTrigger value="analysis" className="data-[state=active]:bg-zinc-800 rounded-md text-[10px] uppercase font-bold tracking-wider">Metrics</TabsTrigger>
                   </TabsList>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 pt-4">
-                  <TabsContent value="settings" className="mt-0 space-y-6">
-                    <div className="space-y-4">
+                <div className="flex-1 overflow-y-auto p-4 pt-3">
+                  <TabsContent value="settings" className="mt-0 space-y-4">
+                    <div className="space-y-3">
                       <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 block">Frame Settings</label>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Frame Settings</label>
                         <Select onValueChange={setAspectRatio} defaultValue={aspectRatio} disabled={isRecording}>
-                          <SelectTrigger className="w-full h-12 bg-black/40 border-white/10 text-white rounded-xl focus:ring-[#1dff00]/50">
+                          <SelectTrigger className="w-full h-9 bg-black/40 border-white/10 text-white rounded-lg focus:ring-[#1dff00]/50 text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
                             {aspectRatios.map((r) => (
-                              <SelectItem key={r.value} value={r.value}>
-                                <div className="flex items-center text-sm">{getAspectRatioIcon(r.value)} {r.label}</div>
+                              <SelectItem key={r.value} value={r.value} className="text-xs">
+                                <div className="flex items-center">{getAspectRatioIcon(r.value)} {r.label}</div>
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
 
-                      <div className="p-4 rounded-xl bg-[#1dff00]/5 border border-[#1dff00]/10 space-y-3">
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 bg-[#1dff00]/10 rounded-lg text-[#1dff00]">
-                            <Activity size={18} />
+                      <div className="p-3 rounded-lg bg-[#1dff00]/5 border border-[#1dff00]/10 space-y-2">
+                        <div className="flex items-start gap-2.5">
+                          <div className="p-1.5 bg-[#1dff00]/10 rounded-md text-[#1dff00]">
+                            <Activity size={14} />
                           </div>
                           <div>
-                            <h4 className="text-sm font-semibold text-white">AI Coach Active</h4>
-                            <p className="text-xs text-gray-400 mt-1 leading-relaxed">
-                              JobRaker is listening to analyze your pacing, tone, and filler word usage in real-time.
+                            <h4 className="text-xs font-bold text-white">AI Coach Active</h4>
+                            <p className="text-[10px] text-gray-400 mt-0.5 leading-relaxed">
+                              JobRaker is listening to analyze your pacing, tone, and filler words.
                             </p>
                           </div>
                         </div>
@@ -374,29 +374,29 @@ export const InterviewStudioPage: React.FC = () => {
                   </TabsContent>
 
                   <TabsContent value="script" className="mt-0 h-full flex flex-col">
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Teleprompter Text</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Teleprompter Text</label>
                     <Textarea
                       value={scriptText}
                       onChange={(e) => setScriptText(e.target.value)}
-                      className="flex-1 min-h-[300px] bg-black/40 border-white/10 resize-none text-base leading-relaxed p-4 rounded-xl focus:border-[#1dff00]/50"
+                      className="flex-1 min-h-[200px] bg-black/40 border-white/10 resize-none text-sm leading-relaxed p-3 rounded-lg focus:border-[#1dff00]/50"
                       placeholder="Paste your pitch or interview answers here..."
                     />
                   </TabsContent>
 
-                  <TabsContent value="analysis" className="mt-0 space-y-6">
+                  <TabsContent value="analysis" className="mt-0 space-y-4">
                     {!videoUrl && !isRecording ? (
-                      <div className="h-full flex flex-col items-center justify-center text-center p-8 text-gray-500">
-                        <Activity size={48} className="mb-4 opacity-20" />
-                        <p className="text-sm">Start recording to see real-time analysis metrics.</p>
+                      <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-500">
+                        <Activity size={32} className="mb-3 opacity-20" />
+                        <p className="text-xs">Start recording for metrics.</p>
                       </div>
                     ) : (
-                      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
+                      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-xs">
                             <span className="text-gray-400">Confidence Score</span>
                             <span className="text-[#1dff00]">88%</span>
                           </div>
-                          <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: "88%" }}
@@ -405,21 +405,21 @@ export const InterviewStudioPage: React.FC = () => {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-center">
-                            <div className="text-2xl font-bold text-white mb-1">145</div>
-                            <div className="text-[10px] uppercase tracking-wide text-gray-500">Words / Min</div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="p-3 rounded-lg bg-white/5 border border-white/5 text-center">
+                            <div className="text-lg font-bold text-white mb-0.5">145</div>
+                            <div className="text-[9px] uppercase tracking-wide text-gray-500">Words / Min</div>
                           </div>
-                          <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-center">
-                            <div className="text-2xl font-bold text-white mb-1">Low</div>
-                            <div className="text-[10px] uppercase tracking-wide text-gray-500">Fillers Used</div>
+                          <div className="p-3 rounded-lg bg-white/5 border border-white/5 text-center">
+                            <div className="text-lg font-bold text-white mb-0.5">Low</div>
+                            <div className="text-[9px] uppercase tracking-wide text-gray-500">Fillers Used</div>
                           </div>
                         </div>
 
-                        <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                          <h4 className="text-sm font-semibold text-blue-400 mb-2">Feedback</h4>
-                          <p className="text-xs text-gray-300 leading-relaxed">
-                            Good eye contact! Try to vary your tone slightly more to emphasize key achievements.
+                        <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                          <h4 className="text-xs font-bold text-blue-400 mb-1.5">Feedback</h4>
+                          <p className="text-[10px] text-gray-300 leading-relaxed">
+                            Good eye contact! vary your tone slightly more.
                           </p>
                         </div>
                       </div>
