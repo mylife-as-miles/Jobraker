@@ -115,11 +115,11 @@ export const JobrackerSignup = (): JSX.Element => {
           password: formData.password,
         });
         if (error) throw error;
-        
+
         // Track session and enforce security settings
         if (signInData.session && signInData.user) {
           const { createActiveSession, enforceMaxSessions, logSecurityEvent, checkSecuritySettings } = await import('../../utils/sessionManagement');
-          
+
           // Check security settings
           const securityCheck = await checkSecuritySettings(signInData.user.id);
           if (!securityCheck.allowed) {
@@ -127,13 +127,13 @@ export const JobrackerSignup = (): JSX.Element => {
             toastError('Login blocked', securityCheck.reason || 'Security policy violation');
             return;
           }
-          
+
           // Create active session
-          const expiresAt = signInData.session.expires_at 
+          const expiresAt = signInData.session.expires_at
             ? new Date(signInData.session.expires_at * 1000)
             : undefined;
           await createActiveSession(signInData.user.id, signInData.session.access_token, expiresAt);
-          
+
           // Enforce max concurrent sessions
           const { data: settings } = await supabase
             .from('security_settings')
@@ -142,7 +142,7 @@ export const JobrackerSignup = (): JSX.Element => {
             .maybeSingle();
           const maxSessions = settings?.max_concurrent_sessions || 5;
           await enforceMaxSessions(signInData.user.id, maxSessions);
-          
+
           // Log login event
           await logSecurityEvent(
             signInData.user.id,
@@ -151,7 +151,7 @@ export const JobrackerSignup = (): JSX.Element => {
             'low'
           );
         }
-        
+
         navigate(ROUTES.DASHBOARD);
       }
     } catch (error: any) {
@@ -222,253 +222,254 @@ export const JobrackerSignup = (): JSX.Element => {
   };
 
   return (
-    <div className="min-h-screen flex bg-black overflow-hidden relative">
+    <div className="h-screen w-full flex bg-black overflow-hidden relative">
 
       {/* LEFT SIDE: Login Form */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center px-6 sm:px-12 lg:px-24 xl:px-32 relative z-20 bg-black/80 backdrop-blur-sm lg:backdrop-blur-none border-r border-white/5">
-        <div className="max-w-md w-full mx-auto space-y-8">
+      <div className="w-full lg:w-1/2 flex flex-col relative z-20 bg-black/80 backdrop-blur-sm lg:backdrop-blur-none border-r border-white/5 h-full">
+        <div className="flex-1 flex flex-col justify-center overflow-y-auto py-8 px-6 sm:px-8 lg:px-16 no-scrollbar">
+          <div className="max-w-[400px] w-full mx-auto space-y-6">
             {/* Header / Logo */}
-            <motion.div 
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="space-y-2"
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="space-y-1.5"
             >
-                <div className="flex items-center gap-2 mb-8">
-                    <div className="relative flex items-center justify-center w-10 h-10 bg-[#1dff00] rounded-lg shadow-[0_0_15px_rgba(29,255,0,0.5)]">
-                        <Sparkles className="text-black w-5 h-5" strokeWidth={2.5} />
-                    </div>
-                    <span className="text-xl font-bold tracking-tight text-white font-mono">JOBRAKER</span>
+              <div className="flex items-center gap-2 mb-6">
+                <div className="relative flex items-center justify-center w-8 h-8 bg-[#1dff00] rounded-lg shadow-[0_0_15px_rgba(29,255,0,0.5)]">
+                  <Sparkles className="text-black w-4 h-4" strokeWidth={2.5} />
                 </div>
+                <span className="text-lg font-bold tracking-tight text-white font-mono">JOBRAKER</span>
+              </div>
 
-                <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">
-                    {showForgotPassword ? "Reset Password" : isSignUp ? "Create Account" : "Welcome Back"}
-                </h1>
-                <p className="text-gray-400 text-lg">
-                    {showForgotPassword
-                      ? "Enter your email to receive a reset link"
-                      : isSignUp
-                      ? "Start your autonomous job hunt today."
-                      : "Login to manage your AI agent."}
-                </p>
+              <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
+                {showForgotPassword ? "Reset Password" : isSignUp ? "Create Account" : "Welcome Back"}
+              </h1>
+              <p className="text-gray-400 text-sm sm:text-base">
+                {showForgotPassword
+                  ? "Enter your email to receive a reset link"
+                  : isSignUp
+                    ? "Start your autonomous job hunt today."
+                    : "Login to manage your AI agent."}
+              </p>
             </motion.div>
 
             {/* Social Login Buttons */}
             {!showForgotPassword && (
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1, duration: 0.5 }}
-                    className="grid grid-cols-2 gap-4"
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1, duration: 0.5 }}
+                className="grid grid-cols-2 gap-3"
+              >
+                <Button
+                  variant="ghost"
+                  className="flex items-center justify-center h-11 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all duration-300 group text-sm"
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => handleOAuth("google")}
                 >
-                     <Button
-                        variant="ghost"
-                        className="flex items-center justify-center h-12 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all duration-300 group"
-                        type="button"
-                        disabled={submitting}
-                        onClick={() => handleOAuth("google")}
-                      >
-                        <img className="w-5 h-5 mr-3" alt="Google" src="/flat-color-icons-google.svg" />
-                        <span className="text-white/80 group-hover:text-white font-medium">Google</span>
-                      </Button>
+                  <img className="w-4 h-4 mr-2" alt="Google" src="/flat-color-icons-google.svg" />
+                  <span className="text-white/80 group-hover:text-white font-medium">Google</span>
+                </Button>
 
-                      <Button
-                        variant="ghost"
-                        className="flex items-center justify-center h-12 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all duration-300 group"
-                        type="button"
-                        disabled={submitting}
-                        onClick={() => handleOAuth("linkedin_oidc")}
-                      >
-                         <img className="w-5 h-5 mr-3" alt="LinkedIn" src="/logos-linkedin-icon.svg" />
-                         <span className="text-white/80 group-hover:text-white font-medium">LinkedIn</span>
-                      </Button>
-                </motion.div>
+                <Button
+                  variant="ghost"
+                  className="flex items-center justify-center h-11 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all duration-300 group text-sm"
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => handleOAuth("linkedin_oidc")}
+                >
+                  <img className="w-4 h-4 mr-2" alt="LinkedIn" src="/logos-linkedin-icon.svg" />
+                  <span className="text-white/80 group-hover:text-white font-medium">LinkedIn</span>
+                </Button>
+              </motion.div>
             )}
 
-             {/* Divider */}
-             {!showForgotPassword && (
-                 <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="relative flex items-center"
-                 >
-                    <div className="flex-grow border-t border-white/10"></div>
-                    <span className="flex-shrink-0 mx-4 text-gray-500 text-sm">OR</span>
-                    <div className="flex-grow border-t border-white/10"></div>
-                 </motion.div>
-             )}
+            {/* Divider */}
+            {!showForgotPassword && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="relative flex items-center py-2"
+              >
+                <div className="flex-grow border-t border-white/10"></div>
+                <span className="flex-shrink-0 mx-4 text-gray-500 text-xs uppercase tracking-wider">Or continue with</span>
+                <div className="flex-grow border-t border-white/10"></div>
+              </motion.div>
+            )}
 
             {/* Form */}
             <motion.form
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                onSubmit={handleSubmit}
-                className="space-y-4"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              onSubmit={handleSubmit}
+              className="space-y-4"
             >
-                {/* Email */}
-                <div className="space-y-1">
-                    <div className="relative group">
-                        <MailIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-5 h-5" />
-                        <Input
-                            className="pl-12 h-14 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-xl placeholder:text-gray-500"
-                            placeholder="name@example.com"
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            required
-                        />
-                    </div>
-                     {formData.email.length > 0 && !emailValid && (
-                        <p className="text-xs text-red-400 pl-1">Please enter a valid email address</p>
-                    )}
+              {/* Email */}
+              <div className="space-y-1">
+                <div className="relative group">
+                  <MailIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-4 h-4" />
+                  <Input
+                    className="pl-10 h-11 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-xl placeholder:text-gray-500 text-sm"
+                    placeholder="name@example.com"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                  />
                 </div>
-
-                {/* Password */}
-                {!showForgotPassword && (
-                    <div className="space-y-1">
-                        <div className="relative group">
-                            <LockKeyholeIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-5 h-5" />
-                            <Input
-                                className="pl-12 pr-12 h-14 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-xl placeholder:text-gray-500"
-                                placeholder="Password"
-                                type={showPassword ? "text" : "password"}
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                required
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="bg-transparent absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
-                            >
-                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                            </button>
-                        </div>
-                    </div>
+                {formData.email.length > 0 && !emailValid && (
+                  <p className="text-xs text-red-400 pl-1 mt-1">Please enter a valid email address</p>
                 )}
+              </div>
 
-                {/* Confirm Password (Sign Up) */}
-                {isSignUp && !showForgotPassword && (
-                     <div className="space-y-1">
-                        <div className="relative group">
-                            <LockKeyholeIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-5 h-5" />
-                            <Input
-                                className="pl-12 h-14 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-xl placeholder:text-gray-500"
-                                placeholder="Confirm Password"
-                                type="password"
-                                value={formData.confirmPassword}
-                                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                                required
-                            />
-                        </div>
-                         {/* Minimal Password Strength Indicator for Sign Up */}
-                         {formData.password.length > 0 && (
-                            <div className="pt-2 flex items-center gap-2 text-xs">
-                                <div className={`flex-1 h-1 rounded-full ${passwordCheck.score >= 1 ? "bg-red-500" : "bg-white/10"}`} />
-                                <div className={`flex-1 h-1 rounded-full ${passwordCheck.score >= 3 ? "bg-yellow-500" : "bg-white/10"}`} />
-                                <div className={`flex-1 h-1 rounded-full ${passwordCheck.score >= 4 ? "bg-[#1dff00]" : "bg-white/10"}`} />
-                                <span className="text-gray-400 ml-2">{passwordCheck.strength}</span>
-                            </div>
-                        )}
+              {/* Password */}
+              {!showForgotPassword && (
+                <div className="space-y-1">
+                  <div className="relative group">
+                    <LockKeyholeIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-4 h-4" />
+                    <Input
+                      className="pl-10 pr-10 h-11 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-xl placeholder:text-gray-500 text-sm"
+                      placeholder="Password"
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="bg-transparent absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Confirm Password (Sign Up) */}
+              {isSignUp && !showForgotPassword && (
+                <div className="space-y-1">
+                  <div className="relative group">
+                    <LockKeyholeIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-4 h-4" />
+                    <Input
+                      className="pl-10 h-11 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-xl placeholder:text-gray-500 text-sm"
+                      placeholder="Confirm Password"
+                      type="password"
+                      value={formData.confirmPassword}
+                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      required
+                    />
+                  </div>
+                  {/* Minimal Password Strength Indicator for Sign Up */}
+                  {formData.password.length > 0 && (
+                    <div className="pt-2 flex items-center gap-2 text-[10px]">
+                      <div className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 1 ? "bg-red-500" : "bg-white/10"}`} />
+                      <div className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 3 ? "bg-yellow-500" : "bg-white/10"}`} />
+                      <div className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 4 ? "bg-[#1dff00]" : "bg-white/10"}`} />
+                      <span className="text-gray-400 ml-2">{passwordCheck.strength}</span>
                     </div>
-                )}
+                  )}
+                </div>
+              )}
 
-                {!isSignUp && !showForgotPassword && (
-                    <div className="flex justify-end">
-                        <Button
-                            type="button"
-                            variant="link"
-                            onClick={() => setShowForgotPassword(true)}
-                            className="text-gray-400 hover:text-[#1dff00] text-sm p-0"
-                        >
-                            Forgot password?
-                        </Button>
-                    </div>
-                )}
+              {!isSignUp && !showForgotPassword && (
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="link"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-gray-400 hover:text-[#1dff00] text-xs p-0 h-auto"
+                  >
+                    Forgot password?
+                  </Button>
+                </div>
+              )}
 
-                <Button
-                    type="submit"
-                    disabled={submitting || (isSignUp && !showForgotPassword && !passwordCheck.valid)}
-                    className="w-full h-14 bg-[#1dff00] hover:bg-[#1dff00]/90 text-black font-bold rounded-xl text-lg transition-all shadow-[0_0_20px_rgba(29,255,0,0.2)] hover:shadow-[0_0_30px_rgba(29,255,0,0.4)]"
-                >
-                    {submitting ? <Loader2 className="animate-spin w-5 h-5" /> : (
-                        <div className="flex items-center justify-center gap-2">
-                            <span>{showForgotPassword ? "Send Reset Link" : isSignUp ? "Create Account" : "Sign In"}</span>
-                            <ArrowRight className="w-5 h-5" />
-                        </div>
-                    )}
-                </Button>
+              <Button
+                type="submit"
+                disabled={submitting || (isSignUp && !showForgotPassword && !passwordCheck.valid)}
+                className="w-full h-11 bg-[#1dff00] hover:bg-[#1dff00]/90 text-black font-semibold rounded-xl text-sm transition-all shadow-[0_0_20px_rgba(29,255,0,0.2)] hover:shadow-[0_0_30px_rgba(29,255,0,0.4)] mt-2"
+              >
+                {submitting ? <Loader2 className="animate-spin w-4 h-4" /> : (
+                  <div className="flex items-center justify-center gap-2">
+                    <span>{showForgotPassword ? "Send Reset Link" : isSignUp ? "Create Account" : "Sign In"}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </div>
+                )}
+              </Button>
             </motion.form>
 
             {/* Footer Links */}
             <motion.div
-                 initial={{ opacity: 0 }}
-                 animate={{ opacity: 1 }}
-                 transition={{ delay: 0.4 }}
-                 className="text-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="text-center pt-2"
             >
-                {showForgotPassword ? (
-                     <Button
-                        type="button"
-                        variant="link"
-                        onClick={() => setShowForgotPassword(false)}
-                        className="text-gray-400 hover:text-white"
-                     >
-                        ← Back to sign in
-                     </Button>
-                ) : (
-                    <p className="text-gray-400">
-                        {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-                        <button
-                            onClick={() => setIsSignUp(!isSignUp)}
-                            className="bg-transparent text-[#1dff00] hover:underline font-medium"
-                        >
-                            {isSignUp ? "Sign In" : "Sign Up"}
-                        </button>
-                    </p>
-                )}
+              {showForgotPassword ? (
+                <Button
+                  type="button"
+                  variant="link"
+                  onClick={() => setShowForgotPassword(false)}
+                  className="text-gray-400 hover:text-white text-sm"
+                >
+                  ← Back to sign in
+                </Button>
+              ) : (
+                <p className="text-gray-400 text-xs sm:text-sm">
+                  {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+                  <button
+                    onClick={() => setIsSignUp(!isSignUp)}
+                    className="bg-transparent text-[#1dff00] hover:underline font-medium"
+                  >
+                    {isSignUp ? "Sign In" : "Sign Up"}
+                  </button>
+                </p>
+              )}
             </motion.div>
-        </div>
+          </div>
 
-        {/* Footer Copyright */}
-         <div className="absolute bottom-6 left-0 right-0 text-center text-gray-600 text-xs">
+          <div className="mt-8 text-center text-gray-600 text-[10px]">
             © 2024 JobRaker AI. All rights reserved.
-         </div>
+          </div>
+        </div>
       </div>
 
       {/* RIGHT SIDE: Immersive Visual */}
-      <div className="hidden lg:block lg:w-1/2 relative bg-[#050505] overflow-hidden">
-          {/* Background Grid */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(29,255,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(29,255,0,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_80%)]" />
+      <div className="hidden lg:block lg:w-1/2 relative bg-[#050505] overflow-hidden h-full">
+        {/* Background Grid */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(29,255,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(29,255,0,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_80%)]" />
 
-          {/* 3D Self-Solving Cube */}
-          <div className="absolute inset-0 flex items-center justify-center scale-110 translate-x-12 pointer-events-none">
-              <SelfSolvingCube />
-          </div>
+        {/* 3D Self-Solving Cube */}
+        <div className="absolute inset-0 flex items-center justify-center scale-110 translate-x-12 pointer-events-none">
+          <SelfSolvingCube />
+        </div>
 
-          {/* Overlay Text */}
-          <div className="absolute bottom-12 left-12 right-12 z-10">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6, duration: 0.8 }}
-                className="bg-black/40 backdrop-blur-md border border-white/10 p-6 rounded-2xl"
-              >
-                  <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-full bg-[#1dff00]/10 flex items-center justify-center border border-[#1dff00]/20 flex-shrink-0">
-                          <CheckCircle2 className="w-5 h-5 text-[#1dff00]" />
-                      </div>
-                      <div>
-                          <h3 className="text-white font-bold text-lg mb-1">Autonomous Applications</h3>
-                          <p className="text-gray-400 text-sm leading-relaxed">
-                              "JobRaker has completely transformed my job search. The AI agent applies to jobs while I sleep, ensuring I never miss an opportunity."
-                          </p>
-                      </div>
-                  </div>
-              </motion.div>
-          </div>
+        {/* Overlay Text */}
+        <div className="absolute bottom-12 left-12 right-12 z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.8 }}
+            className="bg-black/40 backdrop-blur-md border border-white/10 p-6 rounded-2xl"
+          >
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-full bg-[#1dff00]/10 flex items-center justify-center border border-[#1dff00]/20 flex-shrink-0">
+                <CheckCircle2 className="w-5 h-5 text-[#1dff00]" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-lg mb-1">Autonomous Applications</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  "JobRaker has completely transformed my job search. The AI agent applies to jobs while I sleep, ensuring I never miss an opportunity."
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
       </div>
 
       {/* Signup Verify Modal */}
