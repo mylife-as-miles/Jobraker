@@ -5,6 +5,7 @@ import { useResumeStore } from "@/client/stores/resume";
 import { useArtboardStore } from "../../../store/artboard";
 import { queryClient } from "@/client/libs/query-client";
 import { findResumeById } from "@/client/services/resume";
+import { normalizeResume } from "@/client/utils/normalize-resume";
 import { ResumesPage } from "@/client/pages/dashboard/resumes/page";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +41,8 @@ export const ResumePage = (): JSX.Element => {
     ]
   });
 
+
+
   // Fetch Resume Data
   useEffect(() => {
     if (!id) return;
@@ -51,8 +54,13 @@ export const ResumePage = (): JSX.Element => {
           queryKey: ["resume", { id }],
           queryFn: () => findResumeById({ id }),
         });
+
         if (!active) return;
-        useResumeStore.setState({ resume: fetched });
+
+        // CRITICAL FIX: Normalize the data to ensure 'sections', 'basics', etc. exist
+        const { resume: normalized } = normalizeResume(fetched);
+
+        useResumeStore.setState({ resume: normalized });
       } catch (e) {
         console.error("Failed to load resume", e);
         if (active) navigate("/dashboard/resumes");
