@@ -610,7 +610,7 @@ export const ChatPage = () => {
                   <>
                     <h3 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/40">Conversations</h3>
                     <button
-                      onClick={createSession}
+                      onClick={() => createSession()}
                       className="flex items-center gap-2 text-[11px] px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#1dff00]/90 text-black font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(29,255,0,0.2)] hover:shadow-[0_0_25px_rgba(29,255,0,0.3)]"
                     >
                       <Plus size={14} strokeWidth={3} />
@@ -620,7 +620,7 @@ export const ChatPage = () => {
                 )}
                 {sidebarCollapsed && (
                   <button
-                    onClick={createSession}
+                    onClick={() => createSession()}
                     className="mx-auto p-2.5 rounded-xl bg-[#1dff00]/10 hover:bg-[#1dff00]/20 border border-[#1dff00]/20 text-[#1dff00] transition-all hover:scale-105 shadow-[0_0_10px_rgba(29,255,0,0.1)]"
                   >
                     <Plus size={16} />
