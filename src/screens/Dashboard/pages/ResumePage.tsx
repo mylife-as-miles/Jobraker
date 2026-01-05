@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { useResumeStore } from "@/client/stores/resume";
 import { useArtboardStore } from "../../../store/artboard";
@@ -12,11 +12,8 @@ import {
   ArrowLeft,
   Save,
   Eye,
-  Download,
-  CheckCircle2,
   Loader2,
-  MonitorPlay,
-  Share2
+  MonitorPlay
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
