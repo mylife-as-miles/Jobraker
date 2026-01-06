@@ -1,6 +1,7 @@
 import type { ResumeDto, UpdateResumeDto } from "@reactive-resume/dto";
 import { useMutation } from "@tanstack/react-query";
-import type { AxiosResponse } from "axios";
+import { createClient } from "@/lib/supabaseClient";
+
 // Tiny debounce helper to avoid extra dependency
 const debounce = <F extends (...args: any[]) => any>(fn: F, wait = 500) => {
   let t: any;
@@ -10,26 +11,44 @@ const debounce = <F extends (...args: any[]) => any>(fn: F, wait = 500) => {
   };
 };
 
-import { axios } from "@/client/libs/axios";
 import { queryClient } from "@/client/libs/query-client";
 
 export const updateResume = async (data: UpdateResumeDto) => {
-  const response = await axios.patch<ResumeDto, AxiosResponse<ResumeDto>, UpdateResumeDto>(
-    `/resume/${data.id}`,
-    data,
-  );
+  const supabase = createClient();
 
-  queryClient.setQueryData<ResumeDto>(["resume", { id: response.data.id }], response.data);
+  const payload: any = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (data.name) payload.name = data.name;
+  if (data.slug) payload.slug = data.slug;
+  if (data.data) payload.data = data.data;
+
+  const { data: updatedResume, error } = await supabase
+    .from("resumes")
+    .update(payload)
+    .eq("id", data.id)
+    .select("*")
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  const normalizedResponse = {
+    ...updatedResume,
+    data: updatedResume.data || data.data // Fallback to sent data if DB returns null, though select should return it
+  } as ResumeDto;
+
+  queryClient.setQueryData<ResumeDto>(["resume", { id: normalizedResponse.id }], normalizedResponse);
 
   queryClient.setQueryData<ResumeDto[]>(["resumes"], (cache) => {
-    if (!cache) return [response.data];
+    if (!cache) return [normalizedResponse];
     return cache.map((resume) => {
-      if (resume.id === response.data.id) return response.data;
+      if (resume.id === normalizedResponse.id) return normalizedResponse;
       return resume;
     });
   });
 
-  return response.data;
+  return normalizedResponse;
 };
 
 export const debouncedUpdateResume = debounce(updateResume, 500);

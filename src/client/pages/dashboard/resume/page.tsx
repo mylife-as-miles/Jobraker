@@ -5,10 +5,12 @@ import { useResumeStore } from "@/client/stores/resume";
 import { useArtboardStore } from "@/store/artboard";
 import { queryClient } from "@/client/libs/query-client";
 import { findResumeById } from "@/client/services/resume";
+import { updateResume } from "@/client/services/resume";
 import { normalizeResume } from "@/client/utils/normalize-resume";
 import { ResumesPage } from "../resumes/page";
 import { useResumes } from "@/hooks/useResumes";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 import {
     ArrowLeft,
     Save,
@@ -42,6 +44,7 @@ export const ResumeBuilderPage = (): JSX.Element => {
     const { id: paramId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
+    const { toast } = useToast();
 
     // Extract ID from URL since we are in a wildcard route /dashboard/*
     // Handles both:
@@ -178,9 +181,27 @@ export const ResumeBuilderPage = (): JSX.Element => {
     }, [resumeData]);
 
     const handleSave = async () => {
+        if (!resume || !resume.id) return;
         setIsSaving(true);
-        await new Promise(r => setTimeout(r, 800));
-        setIsSaving(false);
+        try {
+            await updateResume({
+                id: resume.id,
+                data: resume.data, // Assumes resume.data matches the JSON structure we want to save
+            });
+            toast({
+                title: "Resume Saved",
+                description: "Your changes have been saved successfully.",
+            });
+        } catch (error) {
+            console.error("Save error:", error);
+            toast({
+                variant: "destructive",
+                title: "Save Failed",
+                description: "Could not save your resume. Please try again.",
+            });
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleDownload = (format: 'pdf' | 'json') => {
