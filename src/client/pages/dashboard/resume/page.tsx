@@ -10,7 +10,7 @@ import { normalizeResume } from "@/client/utils/normalize-resume";
 import { ResumesPage } from "../resumes/page";
 import { useResumes } from "@/hooks/useResumes";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/client/hooks/use-toast";
 import {
     ArrowLeft,
     Save,
