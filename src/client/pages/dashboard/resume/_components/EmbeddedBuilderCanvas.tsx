@@ -98,7 +98,11 @@ export const EmbeddedBuilderCanvas = () => {
         }
     }, [metadata]);
 
-    if (!layout || !format || !TemplateComponent) {
+    // Get page dimensions with fallback (A4 default: 210mm x 297mm)
+    const pageSize = format && pageSizeMap ? pageSizeMap[format] : null;
+    const pageWidth = pageSize?.width ?? 210;
+
+    if (!layout || !format || !TemplateComponent || !pageSize) {
         return <div className="grid place-items-center h-full text-white/50">Loading Preview...</div>;
     }
 
@@ -123,7 +127,7 @@ export const EmbeddedBuilderCanvas = () => {
                     wrapperClass="!w-full !h-full"
                     contentClass="grid items-start justify-center space-x-12 pointer-events-none"
                     contentStyle={{
-                        width: `${layout.length * (pageSizeMap[format].width * MM_TO_PX + 42)}px`,
+                        width: `${layout.length * (pageWidth * MM_TO_PX + 42)}px`,
                         gridTemplateColumns: `repeat(${layout.length}, 1fr)`,
                     }}
                 >

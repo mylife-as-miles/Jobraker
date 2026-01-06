@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { useResumeStore } from "@/client/stores/resume";
@@ -72,7 +72,6 @@ export const ResumeBuilderPage = (): JSX.Element => {
 
     const [loading, setLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [zoom, setZoom] = useState(100);
     const [zenMode, setZenMode] = useState(false);
     const [atsScore, setAtsScore] = useState(0); // Mock score for animation
 
