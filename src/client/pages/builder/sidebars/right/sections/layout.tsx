@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { t } from "@lingui/macro";
-import { ArrowCounterClockwise, DotsSixVertical, Plus, TrashSimple } from "@phosphor-icons/react";
+import { RotateCcw, GripVertical, Plus, Trash2 } from "lucide-react";
 import { defaultMetadata } from "@reactive-resume/schema";
 import { Button, Portal, Tooltip } from "@reactive-resume/ui";
 import type { LayoutLocator, SortablePayload } from "@reactive-resume/utils";
@@ -95,7 +95,7 @@ const Section = ({ id, isDragging = false }: SectionProps) => {
       )}
     >
       <div className="flex items-center gap-x-2">
-        <DotsSixVertical size={12} weight="bold" />
+        <GripVertical size={12} />
         <p className="flex-1 truncate text-xs font-medium">{name}</p>
       </div>
     </div>
@@ -203,7 +203,7 @@ export const LayoutSection = () => {
 
         <Tooltip content={t`Reset Layout`}>
           <Button size="icon" variant="ghost" onClick={onResetLayout}>
-            <ArrowCounterClockwise />
+            <RotateCcw size={16} />
           </Button>
         </Tooltip>
       </header>
@@ -240,7 +240,7 @@ export const LayoutSection = () => {
                           onRemovePage(pageIndex);
                         }}
                       >
-                        <TrashSimple size={12} className="text-error" />
+                        <Trash2 size={12} className="text-error" />
                       </Button>
                     </Tooltip>
                   )}

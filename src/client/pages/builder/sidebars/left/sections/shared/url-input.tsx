@@ -1,5 +1,5 @@
 import { t } from "@lingui/macro";
-import { Tag } from "@phosphor-icons/react";
+import { Tag } from "lucide-react";
 import type { URL } from "@reactive-resume/schema";
 import { urlSchema } from "@reactive-resume/schema";
 import {
@@ -31,7 +31,6 @@ export const URLInput = forwardRef<HTMLInputElement, Props>(
             id={id}
             value={value.href}
             className="flex-1"
-            hasError={hasError}
             placeholder={placeholder}
             onChange={(event) => {
               onChange({ ...value, href: event.target.value });
@@ -42,7 +41,7 @@ export const URLInput = forwardRef<HTMLInputElement, Props>(
             <Tooltip content={t`Label`}>
               <PopoverTrigger asChild>
                 <Button size="icon" variant="ghost">
-                  <Tag />
+                  <Tag size={16} />
                 </Button>
               </PopoverTrigger>
             </Tooltip>

@@ -1,5 +1,5 @@
 import { t } from "@lingui/macro";
-import { CircleNotch, FileJs, FilePdf } from "@phosphor-icons/react";
+import { Loader2, FileJson, FileDown } from "lucide-react";
 import { buttonVariants, Card, CardContent, CardDescription, CardTitle } from "@reactive-resume/ui";
 import { cn } from "@reactive-resume/utils";
 import { saveAs } from "file-saver";
@@ -49,7 +49,7 @@ export const ExportSection = () => {
           )}
           onClick={onJsonExport}
         >
-          <FileJs size={22} />
+          <FileJson size={22} />
           <CardContent className="flex-1">
             <CardTitle className="text-sm">{t`JSON`}</CardTitle>
             <CardDescription className="font-normal">
@@ -66,7 +66,7 @@ export const ExportSection = () => {
           )}
           onClick={onPdfExport}
         >
-          {loading ? <CircleNotch size={22} className="animate-spin" /> : <FilePdf size={22} />}
+          {loading ? <Loader2 size={22} className="animate-spin" /> : <FileDown size={22} />}
 
           <CardContent className="flex-1">
             <CardTitle className="text-sm">{t`PDF`}</CardTitle>

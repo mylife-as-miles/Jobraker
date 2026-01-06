@@ -1,6 +1,5 @@
 import { plural, t } from "@lingui/macro";
-import { Plus, TrashSimple, PencilSimple, List } from "@phosphor-icons/react";
-import { RotateCcw, Trash2, Columns2, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, List, RotateCcw, Columns2, Eye, EyeOff, Eraser } from "lucide-react";
 import type { SectionKey, SectionWithItem } from "@reactive-resume/schema";
 import { defaultSections } from "@reactive-resume/schema";
 import {
@@ -33,7 +32,7 @@ export const SectionOptions = ({ id }: Props) => {
   const setValue = useResumeStore((state) => state.setValue);
   const removeSection = useResumeStore((state) => state.removeSection);
 
-  const originalName = get(defaultSections, `${id}.name`, "") as SectionWithItem;
+  const originalName = get(defaultSections, `${id}.name`, "") as string;
   const section = useResumeStore((state) => get(state.resume?.data?.sections, id)) as SectionWithItem;
 
   const hasItems = useMemo(() => section && "items" in section, [section]);
@@ -73,15 +72,15 @@ export const SectionOptions = ({ id }: Props) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <List weight="bold" />
+        <Button variant="ghost" className="p-2">
+          <List size={16} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="mr-4 w-48">
         {hasItems && (
           <>
             <DropdownMenuItem onClick={onCreate}>
-              <Plus />
+              <Plus size={14} />
               <span className="ml-2">{t`Add a new item`}</span>
             </DropdownMenuItem>
             <DropdownMenuCheckboxItem
@@ -96,12 +95,12 @@ export const SectionOptions = ({ id }: Props) => {
 
         <DropdownMenuGroup>
           <DropdownMenuItem onClick={toggleVisibility}>
-            {section.visible ? <Eye /> : <EyeSlash />}
+            {section.visible ? <Eye size={14} /> : <EyeOff size={14} />}
             <span className="ml-2">{section.visible ? t`Hide` : t`Show`}</span>
           </DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              <PencilSimple />
+              <Pencil size={14} />
               <span className="ml-2">{t`Rename`}</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
@@ -114,19 +113,18 @@ export const SectionOptions = ({ id }: Props) => {
                   }}
                 />
                 <Button
-                  size="icon"
-                  variant="link"
-                  className="absolute inset-y-0 right-0"
+                  variant="ghost"
+                  className="absolute inset-y-0 right-0 p-2"
                   onClick={onResetName}
                 >
-                  <ArrowCounterClockwise />
+                  <RotateCcw size={14} />
                 </Button>
               </div>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              <Columns />
+              <Columns2 size={14} />
               <span className="ml-2">{t`Columns`}</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
@@ -142,12 +140,12 @@ export const SectionOptions = ({ id }: Props) => {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem disabled={!hasItems} onClick={onResetItems}>
-          <Broom />
+          <Eraser size={14} />
           <span className="ml-2">{t`Reset`}</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="text-error" disabled={!isCustomSection} onClick={onRemove}>
-          <TrashSimple />
+          <Trash2 size={14} />
           <span className="ml-2">{t`Remove`}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>

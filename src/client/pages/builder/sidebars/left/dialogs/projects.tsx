@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { t } from "@lingui/macro";
-import { X } from "@phosphor-icons/react";
+import { X } from "lucide-react";
 import { defaultProject, projectSchema } from "@reactive-resume/schema";
 import {
   Badge,
@@ -189,9 +189,8 @@ export const ProjectsDialog = () => {
                         <X
                           className="cursor-pointer"
                           size={12}
-                          weight="bold"
                           onClick={() => {
-                            field.onChange(field.value.filter((v) => item !== v));
+                            field.onChange(field.value.filter((v: string) => item !== v));
                           }}
                         />
                       </Badge>

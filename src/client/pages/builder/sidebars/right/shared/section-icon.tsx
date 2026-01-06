@@ -1,20 +1,20 @@
-import type { IconProps } from "@phosphor-icons/react";
 import {
   Code,
-  DiamondsFour,
-  DownloadSimple,
+  LayoutGrid,
+  Download,
   Info,
-  Layout,
-  Note,
+  LayoutDashboard,
+  StickyNote,
   Palette,
-  ReadCvLogo,
-  ShareFat,
-  TextT,
-  Translate,
-  TrendUp,
-} from "@phosphor-icons/react";
+  FileText,
+  Share2,
+  Type,
+  Languages,
+  TrendingUp,
+} from "lucide-react";
 import type { ButtonProps } from "@reactive-resume/ui";
 import { Button, Tooltip } from "@reactive-resume/ui";
+import type { LucideProps } from "lucide-react";
 
 type MetadataKey =
   | "template"
@@ -30,49 +30,36 @@ type MetadataKey =
   | "notes"
   | "information";
 
-const getSectionIcon = (id: MetadataKey, props: IconProps = {}) => {
-  switch (id) {
-    // Left Sidebar
-    case "notes": {
-      return <Note size={18} {...props} />;
-    }
-    case "template": {
-      return <DiamondsFour size={18} {...props} />;
-    }
-    case "layout": {
-      return <Layout size={18} {...props} />;
-    }
-    case "typography": {
-      return <TextT size={18} {...props} />;
-    }
-    case "theme": {
-      return <Palette size={18} {...props} />;
-    }
-    case "css": {
-      return <Code size={18} {...props} />;
-    }
-    case "page": {
-      return <ReadCvLogo size={18} {...props} />;
-    }
-    case "locale": {
-      return <Translate size={18} {...props} />;
-    }
-    case "sharing": {
-      return <ShareFat size={18} {...props} />;
-    }
-    case "statistics": {
-      return <TrendUp size={18} {...props} />;
-    }
-    case "export": {
-      return <DownloadSimple size={18} {...props} />;
-    }
-    case "information": {
-      return <Info size={18} {...props} />;
-    }
+const getSectionIcon = (id: MetadataKey, iconSize: number = 18) => {
+  const props: LucideProps = { size: iconSize };
 
-    default: {
+  switch (id) {
+    case "notes":
+      return <StickyNote {...props} />;
+    case "template":
+      return <LayoutGrid {...props} />;
+    case "layout":
+      return <LayoutDashboard {...props} />;
+    case "typography":
+      return <Type {...props} />;
+    case "theme":
+      return <Palette {...props} />;
+    case "css":
+      return <Code {...props} />;
+    case "page":
+      return <FileText {...props} />;
+    case "locale":
+      return <Languages {...props} />;
+    case "sharing":
+      return <Share2 {...props} />;
+    case "statistics":
+      return <TrendingUp {...props} />;
+    case "export":
+      return <Download {...props} />;
+    case "information":
+      return <Info {...props} />;
+    default:
       return null;
-    }
   }
 };
 
@@ -84,9 +71,9 @@ type SectionIconProps = Omit<ButtonProps, "size"> & {
 };
 
 export const SectionIcon = ({ id, name, icon, size = 14, ...props }: SectionIconProps) => (
-  <Tooltip side="left" content={name}>
-    <Button size="icon" variant="ghost" className="size-8 rounded-full" {...props}>
-      {icon ?? getSectionIcon(id, { size })}
+  <Tooltip content={name}>
+    <Button variant="ghost" className="size-8 rounded-full p-0" {...props}>
+      {icon ?? getSectionIcon(id, size)}
     </Button>
   </Tooltip>
 );

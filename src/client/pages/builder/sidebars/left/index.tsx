@@ -1,5 +1,5 @@
 import { t } from "@lingui/macro";
-import { Plus } from "@phosphor-icons/react";
+import { Plus } from "lucide-react";
 import type {
   Award,
   Certification,

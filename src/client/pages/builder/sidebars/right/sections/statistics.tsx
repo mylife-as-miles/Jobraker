@@ -1,5 +1,5 @@
 import { t } from "@lingui/macro";
-import { Info } from "@phosphor-icons/react";
+import { Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@reactive-resume/ui";
 import { cn } from "@reactive-resume/utils";
 import { AnimatePresence, motion } from "framer-motion";

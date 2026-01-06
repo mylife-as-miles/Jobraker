@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { t } from "@lingui/macro";
-import { X } from "@phosphor-icons/react";
+import { X } from "lucide-react";
 import { defaultInterest, interestSchema } from "@reactive-resume/schema";
 import {
   Badge,
@@ -87,7 +87,7 @@ export const InterestsDialog = () => {
                         }}
                       >
                         <span className="mr-1">{item}</span>
-                        <X size={12} weight="bold" />
+                        <X size={12} />
                       </Badge>
                     </motion.div>
                   ))}

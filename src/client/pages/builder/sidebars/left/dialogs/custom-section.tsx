@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { t } from "@lingui/macro";
-import { X } from "@phosphor-icons/react";
+import { X } from "lucide-react";
 import type { CustomSection } from "@reactive-resume/schema";
 import { customSectionSchema, defaultCustomSection } from "@reactive-resume/schema";
 import {
@@ -183,7 +183,7 @@ export const CustomSectionDialog = () => {
                         }}
                       >
                         <span className="mr-1">{item}</span>
-                        <X size={12} weight="bold" />
+                        <X size={12} />
                       </Badge>
                     </motion.div>
                   ))}
