@@ -68,7 +68,7 @@ export const urlSchema = {
 export const defaultSections: Record<string, { name: string }> = {
 	profiles: { name: "Profiles" },
 	summary: { name: "Summary" },
-	work: { name: "Work Experience" },
+	experience: { name: "Experience" },
 	education: { name: "Education" },
 	skills: { name: "Skills" },
 	projects: { name: "Projects" },

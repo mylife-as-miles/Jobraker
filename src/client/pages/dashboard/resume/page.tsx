@@ -398,7 +398,11 @@ export const ResumeBuilderPage = (): JSX.Element => {
                                     className={cn("z-10 bg-[#0a0a0a]/95 border-r border-[#1dff00]/20 shadow-[inset_-10px_0_30px_rgba(29,255,0,0.05)]", !leftHandle.isDragging && "transition-[flex]")}
                                     onResize={leftSetSize}
                                 >
-                                    <LeftSidebar />
+                                    {resumeData ? <LeftSidebar /> : (
+                                        <div className="flex items-center justify-center h-full text-gray-500">
+                                            <Loader2 className="w-6 h-6 animate-spin" />
+                                        </div>
+                                    )}
                                 </Panel>
                                 <PanelResizeHandle
                                     isDragging={leftHandle.isDragging}
@@ -437,7 +441,11 @@ export const ResumeBuilderPage = (): JSX.Element => {
                                     className={cn("z-10 bg-[#0a0a0a]/95 border-l border-[#1dff00]/20 shadow-[inset_10px_0_30px_rgba(29,255,0,0.05)]", !rightHandle.isDragging && "transition-[flex]")}
                                     onResize={rightSetSize}
                                 >
-                                    <RightSidebar />
+                                    {resumeData ? <RightSidebar /> : (
+                                        <div className="flex items-center justify-center h-full text-gray-500">
+                                            <Loader2 className="w-6 h-6 animate-spin" />
+                                        </div>
+                                    )}
                                 </Panel>
                             </>
                         )}
@@ -464,7 +472,11 @@ export const ResumeBuilderPage = (): JSX.Element => {
                                 </SheetHeader>
                             </VisuallyHidden>
                             <SheetContent side="left" showClose={false} className="p-0 pt-12 sm:max-w-xl" onOpenAutoFocus={onOpenAutoFocus}>
-                                <LeftSidebar />
+                                {resumeData ? <LeftSidebar /> : (
+                                    <div className="flex items-center justify-center h-full text-gray-500">
+                                        <Loader2 className="w-6 h-6 animate-spin" />
+                                    </div>
+                                )}
                             </SheetContent>
                         </Sheet>
                         <Sheet open={sheet.right.open} onOpenChange={sheet.right.setOpen}>
@@ -475,7 +487,11 @@ export const ResumeBuilderPage = (): JSX.Element => {
                                 </SheetHeader>
                             </VisuallyHidden>
                             <SheetContent side="right" showClose={false} className="p-0 pt-12 sm:max-w-xl" onOpenAutoFocus={onOpenAutoFocus}>
-                                <RightSidebar />
+                                {resumeData ? <RightSidebar /> : (
+                                    <div className="flex items-center justify-center h-full text-gray-500">
+                                        <Loader2 className="w-6 h-6 animate-spin" />
+                                    </div>
+                                )}
                             </SheetContent>
                         </Sheet>
                     </div>

@@ -115,6 +115,9 @@ export const LayoutSection = () => {
     }),
   );
 
+  // Guard against undefined/invalid layout
+  if (!layout || !Array.isArray(layout)) return null;
+
   const onDragStart = ({ active }: DragStartEvent) => {
     setActiveId(active.id as string);
   };

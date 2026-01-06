@@ -45,8 +45,11 @@ export const SectionOptions = ({ id }: Props) => {
   const originalName = get(defaultSections, `${id}.name`, "") as SectionWithItem;
   const section = useResumeStore((state) => get(state.resume?.data?.sections, id)) as SectionWithItem;
 
-  const hasItems = useMemo(() => "items" in section, [section]);
+  const hasItems = useMemo(() => section && "items" in section, [section]);
   const isCustomSection = useMemo(() => id.startsWith("custom"), [id]);
+
+  // Guard against undefined section
+  if (!section) return null;
 
   const onCreate = () => {
     open("create", { id });
