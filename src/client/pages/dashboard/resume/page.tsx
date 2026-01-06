@@ -11,6 +11,7 @@ import { ResumesPage } from "../resumes/page";
 import { useResumes } from "@/hooks/useResumes";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/client/hooks/use-toast";
+import { EmbeddedBuilderCanvas } from "./_components/EmbeddedBuilderCanvas";
 import {
     ArrowLeft,
     Save,
@@ -89,7 +90,6 @@ export const ResumeBuilderPage = (): JSX.Element => {
     }, [resume]);
 
     const setArtboardResume = useArtboardStore((state) => state.setResume);
-    const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
     useRegisterCoachMarks({
         page: 'resume',
@@ -166,19 +166,6 @@ export const ResumeBuilderPage = (): JSX.Element => {
     useEffect(() => {
         if (resumeData) setArtboardResume(resumeData);
     }, [resumeData, setArtboardResume]);
-
-    useEffect(() => {
-        const syncIframe = () => {
-            if (!iframeRef.current?.contentWindow || !resumeData) return;
-            if (!resumeData.sections) return;
-            iframeRef.current.contentWindow.postMessage({ type: 'SET_RESUME', payload: { resume: resumeData } }, '*');
-        };
-        if (resumeData) {
-            syncIframe();
-            const t1 = setTimeout(syncIframe, 500);
-            return () => clearTimeout(t1);
-        }
-    }, [resumeData]);
 
     const handleSave = async () => {
         if (!resume || !resume.id) return;
@@ -281,11 +268,13 @@ export const ResumeBuilderPage = (): JSX.Element => {
                     {/* Right: Actions Toolbar */}
                     <div id="resume-header-actions" className="flex items-center gap-2">
                         <div className="hidden md:flex items-center bg-white/5 rounded-lg p-0.5 border border-white/10 mr-2">
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-white" onClick={() => setZoom(Math.max(50, zoom - 10))}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-white" onClick={() => window.dispatchEvent(new CustomEvent('ARTBOARD_CMD', { detail: { type: 'ZOOM_OUT' } }))}>
                                 <ZoomOut size={14} />
                             </Button>
-                            <span className="text-[10px] font-mono text-gray-400 w-8 text-center">{zoom}%</span>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-white" onClick={() => setZoom(Math.min(150, zoom + 10))}>
+                            <Button variant="ghost" size="sm" className="h-7 text-[10px] font-mono text-gray-400 hover:text-white px-2" onClick={() => window.dispatchEvent(new CustomEvent('ARTBOARD_CMD', { detail: { type: 'RESET_VIEW' } }))}>
+                                Reset
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-white" onClick={() => window.dispatchEvent(new CustomEvent('ARTBOARD_CMD', { detail: { type: 'ZOOM_IN' } }))}>
                                 <ZoomIn size={14} />
                             </Button>
                         </div>
@@ -354,15 +343,7 @@ export const ResumeBuilderPage = (): JSX.Element => {
                         >
                             {/* The "Device Frame" Effect */}
                             <div className={`w-full h-full overflow-hidden transition-all duration-500 ${zenMode ? '' : 'rounded-2xl border border-white/10 bg-[#0a0a0a] shadow-[0_0_50px_rgba(0,0,0,0.5)] ring-1 ring-white/5'}`}>
-                                <div className="w-full h-full" style={{ transform: zoom !== 100 ? `scale(${zoom / 100})` : 'none', transformOrigin: 'center top', transition: 'transform 0.2s ease-out' }}>
-                                    <iframe
-                                        ref={iframeRef}
-                                        title="Resume Builder Interface"
-                                        src="/artboard/builder"
-                                        className="w-full h-full border-0 block bg-[#1a1a1a]"
-                                        allow="clipboard-read; clipboard-write; fullscreen"
-                                    />
-                                </div>
+                                <EmbeddedBuilderCanvas />
                             </div>
                         </motion.div>
                     </AnimatePresence>

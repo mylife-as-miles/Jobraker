@@ -28,6 +28,7 @@ import { Skeleton } from "../../components/ui/skeleton";
 import { createClient } from "../../lib/supabaseClient";
 import { useNotifications } from "../../hooks/useNotifications";
 import { CreditDisplay } from "../../components/CreditDisplay";
+import useMediaQuery from "../../hooks/use-media-query";
 
 // Import sub-page components
 import { OverviewPage } from "./pages/OverviewPage";
@@ -66,21 +67,22 @@ interface PageLink {
   path: string;
 }
 
-const SidebarItem = ({ item, isActive, onClick }: { item: PageLink, isActive: boolean, onClick: () => void }) => (
+const SidebarItem = ({ item, isActive, isCollapsed, onClick }: { item: PageLink, isActive: boolean, isCollapsed?: boolean, onClick: () => void }) => (
   <Button
     variant="ghost"
     onClick={onClick}
+    title={isCollapsed ? item.label : undefined}
     className={`w-full justify-start rounded-xl mb-1 transition-all duration-200 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${isActive
       ? "text-white bg-[#1dff00]/10 border border-[#1dff00]/20"
-      : "text-gray-400 hover:text-white hover:bg-white/5"}`}
+      : "text-gray-400 hover:text-white hover:bg-white/5"} ${isCollapsed ? 'justify-center px-2' : ''}`}
   >
     {isActive && (
       <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#1dff00] shadow-[0_0_10px_#1dff00]" />
     )}
-    <span className={`relative z-10 mr-3 transition-colors ${isActive ? "text-[#1dff00]" : "text-gray-500 group-hover:text-white"}`}>
+    <span className={`relative z-10 transition-colors ${isActive ? "text-[#1dff00]" : "text-gray-500 group-hover:text-white"} ${isCollapsed ? 'mr-0' : 'mr-3'}`}>
       {item.icon}
     </span>
-    <span className="relative z-10">{item.label}</span>
+    {!isCollapsed && <span className="relative z-10">{item.label}</span>}
   </Button>
 );
 
@@ -133,15 +135,13 @@ export const Dashboard = (): JSX.Element => {
   ];
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   const currentPage = useMemo(() => {
     const segment = (location.pathname.split("/")[2] || "").toLowerCase();
     return pages.includes(segment as DashboardPage) ? (segment as DashboardPage) : "overview";
   }, [location.pathname]);
-  // const resumeSubRoute = useMemo(() => {
-  //   const parts = location.pathname.split("/");
-  //   return (parts[3] || "").toLowerCase();
-  // }, [location.pathname]);
 
   const [email, setEmail] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -184,73 +184,73 @@ export const Dashboard = (): JSX.Element => {
     {
       id: "overview",
       label: "Dashboard",
-      icon: <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />,
+      icon: <BarChart3 className="w-5 h-5" />,
       path: "Dashboard"
     },
     {
       id: "chat",
       label: "Chat",
-      icon: <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />,
+      icon: <MessageSquare className="w-5 h-5" />,
       path: "Dashboard / Chat"
     },
     {
       id: "resume",
       label: "Resume",
-      icon: <FileText className="w-4 h-4 sm:w-5 sm:h-5" />,
+      icon: <FileText className="w-5 h-5" />,
       path: "Dashboard / Resume"
     },
     {
       id: "cover-letter",
       label: "Cover Letter",
-      icon: <Mail className="w-4 h-4 sm:w-5 sm:h-5" />,
+      icon: <Mail className="w-5 h-5" />,
       path: "Dashboard / Cover Letter"
     },
     {
       id: "interview-studio",
       label: "Interview Studio",
-      icon: <Video className="w-4 h-4 sm:w-5 sm:h-5" />,
+      icon: <Video className="w-5 h-5" />,
       path: "Dashboard / Interview Studio",
     },
     {
       id: "jobs",
       label: "Jobs",
-      icon: <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" />,
+      icon: <Briefcase className="w-5 h-5" />,
       path: "Dashboard / Jobs"
     },
     {
       id: "application",
       label: "Application",
-      icon: <Users className="w-4 h-4 sm:w-5 sm:h-5" />,
+      icon: <Users className="w-5 h-5" />,
       path: "Dashboard / Application"
     },
     {
       id: "analytics",
       label: "Analytics",
-      icon: <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />,
+      icon: <TrendingUp className="w-5 h-5" />,
       path: "Dashboard / Analytics"
     },
     {
       id: "notifications",
       label: "Notifications",
-      icon: <Bell className="w-4 h-4 sm:w-5 sm:h-5" />,
+      icon: <Bell className="w-5 h-5" />,
       path: "Dashboard / Notifications"
     },
     {
       id: "profile",
       label: "Profile",
-      icon: <User className="w-4 h-4 sm:w-5 sm:h-5" />,
+      icon: <User className="w-5 h-5" />,
       path: "Dashboard / Profile"
     },
     {
       id: "settings",
       label: "Settings",
-      icon: <Settings className="w-4 h-4 sm:w-5 sm:h-5" />,
+      icon: <Settings className="w-5 h-5" />,
       path: "Dashboard / Settings"
     },
     {
       id: "pricing",
       label: "Pricing",
-      icon: <Plus className="w-4 h-4 sm:w-5 sm:h-5" />,
+      icon: <Plus className="w-5 h-5" />,
       path: "Dashboard / Pricing"
     }
   ];
@@ -306,23 +306,29 @@ export const Dashboard = (): JSX.Element => {
       )}
 
       {/* Sidebar - Modern & Advanced */}
-      <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 lg:w-72 bg-black/95 backdrop-blur-xl border-r border-white/5 flex flex-col
-        transform transition-transform duration-300 ease-out shadow-2xl shadow-black
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
+      <motion.div
+        initial={false}
+        animate={{ width: isCollapsed ? 80 : 288 }}
+        className={`
+        fixed inset-y-0 left-0 z-50 bg-black/95 backdrop-blur-xl border-r border-white/5 flex flex-col
+        shadow-2xl shadow-black overflow-hidden
+        ${sidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full lg:translate-x-0'}
+      `}
+      >
         {/* Logo Section */}
-        <div className="h-20 flex items-center px-6 border-b border-white/5 relative overflow-hidden">
+        <div className="h-20 flex items-center px-6 border-b border-white/5 relative shrink-0">
           <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[#1dff00]/50 to-transparent opacity-50" />
 
-          <div className="flex items-center gap-3 relative z-10 w-full">
-            <div className="w-9 h-9 bg-gradient-to-br from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(29,255,0,0.3)]">
+          <div className={`flex items-center gap-3 relative z-10 w-full ${isCollapsed ? 'justify-center' : ''}`}>
+            <div className="w-9 h-9 bg-gradient-to-br from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(29,255,0,0.3)] shrink-0">
               <span className="text-black font-extrabold text-sm tracking-tighter">JR</span>
             </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-lg leading-none tracking-tight text-white">JobRaker</span>
-              <span className="text-[10px] uppercase tracking-widest text-gray-500 font-medium mt-1">Enterprise AI</span>
-            </div>
+            {!isCollapsed && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col min-w-0">
+                <span className="font-bold text-lg leading-none tracking-tight text-white truncate">JobRaker</span>
+                <span className="text-[10px] uppercase tracking-widest text-gray-500 font-medium mt-1 truncate">Enterprise AI</span>
+              </motion.div>
+            )}
 
             <Button
               variant="ghost"
@@ -332,15 +338,25 @@ export const Dashboard = (): JSX.Element => {
             >
               <X className="w-5 h-5" />
             </Button>
+
+            {/* Desktop Collapse Toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hidden lg:flex ml-auto text-gray-600 hover:text-white absolute right-0"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+            >
+              {isCollapsed ? <Menu className="w-4 h-4" /> : <Menu className="w-4 h-4 rotate-90" />}
+            </Button>
           </div>
         </div>
 
         {/* Navigation - Categorized */}
-        <div className="flex-1 overflow-y-auto py-6 px-4 space-y-8 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20">
+        <div className="flex-1 overflow-y-auto py-6 px-3 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
 
           {/* Section 1: Main */}
           <div className="space-y-1">
-            <h4 className="px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-gray-600 mb-2">Platform</h4>
+            {!isCollapsed && <h4 className="px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-gray-600 mb-2 truncate">Platform</h4>}
             {navigationItems.filter(i => ['overview', 'analytics'].includes(i.id)).map(item => (
               <SidebarItem
                 key={item.id}
@@ -353,12 +369,13 @@ export const Dashboard = (): JSX.Element => {
 
           {/* Section 2: Tools */}
           <div className="space-y-1">
-            <h4 className="px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-gray-600 mb-2">AI Studio</h4>
+            {!isCollapsed && <h4 className="px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-gray-600 mb-2 truncate">AI Studio</h4>}
             {navigationItems.filter(i => ['chat', 'interview-studio', 'resume', 'cover-letter'].includes(i.id)).map(item => (
               <SidebarItem
                 key={item.id}
                 item={item}
                 isActive={currentPage === item.id}
+                isCollapsed={isCollapsed}
                 onClick={() => { navigate(`/dashboard/${item.id}`); setSidebarOpen(false); }}
               />
             ))}
@@ -366,21 +383,22 @@ export const Dashboard = (): JSX.Element => {
 
           {/* Section 3: Career */}
           <div className="space-y-1">
-            <h4 className="px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-gray-600 mb-2">Career</h4>
+            {!isCollapsed && <h4 className="px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-gray-600 mb-2 truncate">Career</h4>}
             {navigationItems.filter(i => ['jobs', 'application'].includes(i.id)).map(item => (
               <SidebarItem
                 key={item.id}
                 item={item}
                 isActive={currentPage === item.id}
+                isCollapsed={isCollapsed}
                 onClick={() => { navigate(`/dashboard/${item.id}`); setSidebarOpen(false); }}
               />
             ))}
           </div>
 
-          {/* Section 4: Settings (Misc) - only if there are items left not in other categories (like pricing/billing if they are in nav items) */}
+          {/* Section 4: Settings (Misc) */}
           {navigationItems.some(i => !['overview', 'analytics', 'chat', 'interview-studio', 'resume', 'cover-letter', 'jobs', 'application'].includes(i.id)) && (
             <div className="space-y-1">
-              <h4 className="px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-gray-600 mb-2">Account</h4>
+              {!isCollapsed && <h4 className="px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-gray-600 mb-2 truncate">Account</h4>}
               {navigationItems.filter(i => !['overview', 'analytics', 'chat', 'interview-studio', 'resume', 'cover-letter', 'jobs', 'application'].includes(i.id)).map(item => (
                 <SidebarItem
                   key={item.id}
@@ -395,33 +413,41 @@ export const Dashboard = (): JSX.Element => {
         </div>
 
         {/* Premium Upgrade - Sleek Banner */}
-        <div className="p-4 border-t border-white/5 bg-black/50">
+        <div className="p-4 border-t border-white/5 bg-black/50 shrink-0">
           <div
             onClick={() => navigate('/dashboard/billing')}
-            className="group relative overflow-hidden rounded-xl bg-gradient-to-b from-zinc-900 to-black border border-white/10 p-4 cursor-pointer hover:border-[#1dff00]/30 transition-all duration-300"
+            className={`group relative overflow-hidden rounded-xl bg-gradient-to-b from-zinc-900 to-black border border-white/10 cursor-pointer hover:border-[#1dff00]/30 transition-all duration-300 ${isCollapsed ? 'p-2 flex justify-center' : 'p-4'}`}
           >
             <div className="absolute inset-0 bg-[#1dff00]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-            <div className="flex items-start justify-between relative z-10">
-              <div>
-                <h3 className="text-sm font-bold text-white group-hover:text-[#1dff00] transition-colors">Pro Plan</h3>
-                <p className="text-[10px] text-gray-400 mt-1">Unlock advanced AI models</p>
-              </div>
+            <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} relative z-10`}>
+              {!isCollapsed && (
+                <div>
+                  <h3 className="text-sm font-bold text-white group-hover:text-[#1dff00] transition-colors">Pro Plan</h3>
+                  <p className="text-[10px] text-gray-400 mt-1">Unlock advanced AI</p>
+                </div>
+              )}
               <div className="w-8 h-8 rounded-lg bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00]">
                 <TrendingUp size={16} />
               </div>
             </div>
 
-            <div className="mt-3 flex items-center gap-2 text-[10px] font-medium text-gray-400 group-hover:text-white transition-colors">
-              <span>Upgrade now</span>
-              <BreadcrumbChevron size={12} />
-            </div>
+            {!isCollapsed && (
+              <div className="mt-3 flex items-center gap-2 text-[10px] font-medium text-gray-400 group-hover:text-white transition-colors">
+                <span>Upgrade now</span>
+                <BreadcrumbChevron size={12} />
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Main Content - Responsive */}
-      <div className="flex-1 flex flex-col min-w-0 lg:ml-72 xl:ml-80">
+      <motion.div
+        animate={{ marginLeft: isDesktop ? (isCollapsed ? 80 : 288) : 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="flex-1 flex flex-col min-w-0" // Removed lg:ml-72 xl:ml-80 handled by motion
+      >
         {/* Header - Responsive */}
         <header className="sticky top-0 z-40 bg-[#0a0a0a]/95 backdrop-blur border-b border-[#1dff00]/20 p-2 sm:p-3 lg:p-4">
           <div className="flex items-center justify-between gap-2">
@@ -562,7 +588,7 @@ export const Dashboard = (): JSX.Element => {
             </motion.div>
           </AnimatePresence>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
