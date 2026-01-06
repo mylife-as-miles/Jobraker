@@ -1,9 +1,9 @@
-import { LockKeyholeIcon, MailIcon, Eye, EyeOff, ArrowRight, Sparkles, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { LockKeyholeIcon, MailIcon, Eye, EyeOff, ArrowRight, Sparkles, CheckCircle2, Loader2 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { createClient } from "../../lib/supabaseClient";
 import { ROUTES } from "../../routes";
 import { validatePassword } from "../../utils/password";
@@ -18,7 +18,7 @@ export const JobrackerSignup = (): JSX.Element => {
   const { success, error: toastError } = useToast();
   const [isSignUp, setIsSignUp] = useState<boolean>(() => location.pathname !== ROUTES.SIGNIN);
   const [showPassword, setShowPassword] = useState(false);
-  const [lastUsedProvider, setLastUsedProvider] = useState<string | null>(null);
+  const [_lastUsedProvider, setLastUsedProvider] = useState<string | null>(null);
 
   useEffect(() => {
     const savedProvider = localStorage.getItem("lastUsedProvider");
@@ -42,7 +42,6 @@ export const JobrackerSignup = (): JSX.Element => {
     confirmPassword: "",
   });
   const [submitting, setSubmitting] = useState(false);
-  const [capsLockOn, setCapsLockOn] = useState(false);
   const passwordCheck = useMemo(() => validatePassword(formData.password, formData.email), [formData.password, formData.email]);
   const emailValid = useMemo(() => {
     const v = (formData.email || "").trim();
@@ -212,14 +211,7 @@ export const JobrackerSignup = (): JSX.Element => {
     }
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: "easeOut" },
-    },
-  };
+
 
   return (
     <div className="h-screen w-full flex bg-black overflow-hidden relative">

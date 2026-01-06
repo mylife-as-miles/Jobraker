@@ -1,7 +1,6 @@
 import { t, Trans } from "@lingui/macro";
 import { createId } from "@paralleldrive/cuid2";
-import { DotsSixVertical, Envelope, Plus, X } from "@phosphor-icons/react";
-import type { CustomField as ICustomField } from "@reactive-resume/schema";
+import { GripVertical, Mail, Plus, X } from "lucide-react";
 import {
   Button,
   Input,
@@ -15,13 +14,21 @@ import { AnimatePresence, Reorder, useDragControls } from "framer-motion";
 
 import { useResumeStore } from "@/client/stores/resume";
 
+// Define CustomField type locally since it may not be exported from schema
+type CustomField = {
+  id: string;
+  icon: string;
+  name: string;
+  value: string;
+};
+
 type CustomFieldProps = {
-  field: ICustomField;
-  onChange: (field: ICustomField) => void;
+  field: CustomField;
+  onChange: (field: CustomField) => void;
   onRemove: (id: string) => void;
 };
 
-export const CustomField = ({ field, onChange, onRemove }: CustomFieldProps) => {
+export const CustomFieldComponent = ({ field, onChange, onRemove }: CustomFieldProps) => {
   const controls = useDragControls();
 
   const handleChange = (key: "icon" | "name" | "value", value: string) => {
@@ -39,21 +46,20 @@ export const CustomField = ({ field, onChange, onRemove }: CustomFieldProps) => 
     >
       <div className="flex items-end justify-between">
         <Button
-          size="icon"
           variant="ghost"
-          className="shrink-0"
+          className="shrink-0 p-2"
           onPointerDown={(event) => {
             controls.start(event);
           }}
         >
-          <DotsSixVertical />
+          <GripVertical size={16} />
         </Button>
 
         <Popover>
           <Tooltip content={t`Icon`}>
             <PopoverTrigger asChild>
-              <Button size="icon" variant="ghost" className="shrink-0">
-                {field.icon ? <i className={cn(`ph ph-${field.icon}`)} /> : <Envelope />}
+              <Button variant="ghost" className="shrink-0 p-2">
+                {field.icon ? <i className={cn(`ph ph-${field.icon}`)} /> : <Mail size={16} />}
               </Button>
             </PopoverTrigger>
           </Tooltip>
@@ -102,14 +108,13 @@ export const CustomField = ({ field, onChange, onRemove }: CustomFieldProps) => 
         />
 
         <Button
-          size="icon"
           variant="ghost"
-          className="shrink-0"
+          className="shrink-0 p-2"
           onClick={() => {
             onRemove(field.id);
           }}
         >
-          <X />
+          <X size={16} />
         </Button>
       </div>
     </Reorder.Item>
@@ -122,7 +127,9 @@ type Props = {
 
 export const CustomFieldsSection = ({ className }: Props) => {
   const setValue = useResumeStore((state) => state.setValue);
-  const customFields = useResumeStore((state) => state.resume.data.basics.customFields);
+  const customFields = useResumeStore((state) => state.resume?.data?.basics?.customFields) as CustomField[] | undefined;
+
+  if (!customFields) return null;
 
   const onAddCustomField = () => {
     setValue("basics.customFields", [
@@ -131,22 +138,22 @@ export const CustomFieldsSection = ({ className }: Props) => {
     ]);
   };
 
-  const onChangeCustomField = (field: ICustomField) => {
-    const index = customFields.findIndex((item) => item.id === field.id);
+  const onChangeCustomField = (field: CustomField) => {
+    const index = customFields.findIndex((item: CustomField) => item.id === field.id);
     const newCustomFields = JSON.parse(JSON.stringify(customFields));
     newCustomFields[index] = field;
 
     setValue("basics.customFields", newCustomFields);
   };
 
-  const onReorderCustomFields = (values: ICustomField[]) => {
+  const onReorderCustomFields = (values: CustomField[]) => {
     setValue("basics.customFields", values);
   };
 
   const onRemoveCustomField = (id: string) => {
     setValue(
       "basics.customFields",
-      customFields.filter((field) => field.id !== id),
+      customFields.filter((field: CustomField) => field.id !== id),
     );
   };
 
@@ -159,8 +166,8 @@ export const CustomFieldsSection = ({ className }: Props) => {
           values={customFields}
           onReorder={onReorderCustomFields}
         >
-          {customFields.map((field) => (
-            <CustomField
+          {customFields.map((field: CustomField) => (
+            <CustomFieldComponent
               key={field.id}
               field={field}
               onChange={onChangeCustomField}
@@ -171,7 +178,7 @@ export const CustomFieldsSection = ({ className }: Props) => {
       </AnimatePresence>
 
       <Button variant="link" onClick={onAddCustomField}>
-        <Plus className="mr-2" />
+        <Plus className="mr-2" size={16} />
         <span>{t`Add a custom field`}</span>
       </Button>
     </div>

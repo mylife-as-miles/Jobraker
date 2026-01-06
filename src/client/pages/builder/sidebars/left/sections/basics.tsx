@@ -1,5 +1,5 @@
 import { t } from "@lingui/macro";
-import { basicsSchema } from "@reactive-resume/schema";
+
 import { Input, Label } from "@reactive-resume/ui";
 
 import { useResumeStore } from "@/client/stores/resume";
@@ -11,7 +11,9 @@ import { URLInput } from "./shared/url-input";
 
 export const BasicsSection = () => {
   const setValue = useResumeStore((state) => state.setValue);
-  const basics = useResumeStore((state) => state.resume.data.basics);
+  const basics = useResumeStore((state) => state.resume?.data?.basics);
+
+  if (!basics) return null;
 
   return (
     <section id="basics" className="grid gap-y-6">
@@ -32,7 +34,6 @@ export const BasicsSection = () => {
           <Input
             id="basics.name"
             value={basics.name}
-            hasError={!basicsSchema.pick({ name: true }).safeParse({ name: basics.name }).success}
             onChange={(event) => {
               setValue("basics.name", event.target.value);
             }}
@@ -56,9 +57,6 @@ export const BasicsSection = () => {
             id="basics.email"
             placeholder="john.doe@example.com"
             value={basics.email}
-            hasError={
-              !basicsSchema.pick({ email: true }).safeParse({ email: basics.email }).success
-            }
             onChange={(event) => {
               setValue("basics.email", event.target.value);
             }}

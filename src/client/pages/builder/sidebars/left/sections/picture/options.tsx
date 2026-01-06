@@ -37,12 +37,15 @@ type BorderRadius = keyof typeof stringToBorderRadiusMap;
 
 export const PictureOptions = () => {
   const setValue = useResumeStore((state) => state.setValue);
-  const picture = useResumeStore((state) => state.resume.data.basics.picture);
+  const picture = useResumeStore((state) => state.resume?.data?.basics?.picture);
 
   const aspectRatio = useMemo(() => {
+    if (!picture) return undefined;
     const ratio = picture.aspectRatio.toString() as keyof typeof ratioToStringMap;
     return ratioToStringMap[ratio];
-  }, [picture.aspectRatio]);
+  }, [picture]);
+
+  if (!picture) return null;
 
   const onAspectRatioChange = (value: string) => {
     if (!value) return;

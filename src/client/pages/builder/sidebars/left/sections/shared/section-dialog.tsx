@@ -50,7 +50,7 @@ export const SectionDialog = <T extends SectionItem>({
 
   const setValue = useResumeStore((state) => state.setValue);
   const section = useResumeStore((state) => {
-    return get(state.resume.data.sections, id);
+    return get(state.resume?.data?.sections, id);
   }) as SectionWithItem<T> | null;
 
   const isCreate = mode === "create";
@@ -70,7 +70,7 @@ export const SectionDialog = <T extends SectionItem>({
         values.keywords.push(pendingKeyword);
       }
 
-  setValue(`sections.${id}.items`, [...section.items, { ...values, id: createId() }]);
+      setValue(`sections.${id}.items`, [...section.items, { ...values, id: createId() }]);
     }
 
     if (isUpdate) {

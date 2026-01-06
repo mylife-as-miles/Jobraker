@@ -1,5 +1,5 @@
 import { t } from "@lingui/macro";
-import { Aperture, Trash, UploadSimple } from "@phosphor-icons/react";
+import { Trash2, Upload, Settings } from "lucide-react";
 import {
   Avatar,
   AvatarImage,
@@ -25,9 +25,11 @@ export const PictureSection = () => {
   const { uploadImage } = useUploadImage();
 
   const setValue = useResumeStore((state) => state.setValue);
-  const picture = useResumeStore((state) => state.resume.data.basics.picture);
+  const picture = useResumeStore((state) => state.resume?.data?.basics?.picture);
 
-  const isValidUrl = useMemo(() => z.string().url().safeParse(picture.url).success, [picture.url]);
+  const isValidUrl = useMemo(() => picture && z.string().url().safeParse(picture.url).success, [picture]);
+
+  if (!picture) return null;
 
   const onSelectImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
@@ -56,11 +58,11 @@ export const PictureSection = () => {
 
         {isValidUrl ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-background/30 opacity-0 transition-opacity group-hover:opacity-100">
-            <Trash size={16} weight="bold" />
+            <Trash2 size={16} />
           </div>
         ) : (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-background/30 opacity-0 transition-opacity group-hover:opacity-100">
-            <UploadSimple size={16} weight="bold" />
+            <Upload size={16} />
           </div>
         )}
       </div>
@@ -86,9 +88,9 @@ export const PictureSection = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className={cn(buttonVariants({ size: "icon", variant: "ghost" }))}
+                  className={cn(buttonVariants({ size: "sm", variant: "ghost" }), "p-2")}
                 >
-                  <Aperture />
+                  <Settings size={16} />
                 </motion.button>
               </PopoverTrigger>
               <PopoverContent className="w-[360px]">

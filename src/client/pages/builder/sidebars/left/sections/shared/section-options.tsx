@@ -1,15 +1,6 @@
 import { plural, t } from "@lingui/macro";
-import {
-  ArrowCounterClockwise,
-  Broom,
-  Columns,
-  Eye,
-  EyeSlash,
-  List,
-  PencilSimple,
-  Plus,
-  TrashSimple,
-} from "@phosphor-icons/react";
+import { Plus, TrashSimple, PencilSimple, List } from "@phosphor-icons/react";
+import { RotateCcw, Trash2, Columns2, Eye, EyeOff } from "lucide-react";
 import type { SectionKey, SectionWithItem } from "@reactive-resume/schema";
 import { defaultSections } from "@reactive-resume/schema";
 import {
