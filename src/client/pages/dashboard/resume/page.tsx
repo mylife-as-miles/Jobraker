@@ -7,6 +7,7 @@ import { queryClient } from "@/client/libs/query-client";
 import { findResumeById } from "@/client/services/resume";
 import { normalizeResume } from "@/client/utils/normalize-resume";
 import { ResumesPage } from "../resumes/page";
+import { useResumes } from "@/hooks/useResumes";
 import { Button } from "@/components/ui/button";
 import {
     ArrowLeft,
@@ -43,13 +44,24 @@ export const ResumeBuilderPage = (): JSX.Element => {
     const navigate = useNavigate();
 
     // Extract ID from URL since we are in a wildcard route /dashboard/*
-    // Expected default: /dashboard/resume/:id -> ['', 'dashboard', 'resume', '123']
+    // Handles both:
+    // /dashboard/resume/:id
+    // /dashboard/resume/resume-builder/:id (User requested)
     const id = useMemo(() => {
         if (paramId) return paramId;
         const parts = location.pathname.split('/');
+
         if (parts.includes('resume')) {
-            const index = parts.indexOf('resume');
-            if (parts[index + 1]) return parts[index + 1];
+            const resumeIndex = parts.indexOf('resume');
+            const nextSegment = parts[resumeIndex + 1];
+
+            // If the path contains 'resume-builder', the ID is the segment AFTER it
+            if (nextSegment === 'resume-builder') {
+                return parts[resumeIndex + 2];
+            }
+
+            // Otherwise, assumes /dashboard/resume/:id
+            return nextSegment;
         }
         return undefined;
     }, [paramId, location.pathname]);
@@ -59,6 +71,8 @@ export const ResumeBuilderPage = (): JSX.Element => {
     const [zoom, setZoom] = useState(100);
     const [zenMode, setZenMode] = useState(false);
     const [atsScore, setAtsScore] = useState(0); // Mock score for animation
+
+    const { createEmpty } = useResumes();
 
     // Selectors
     const resume = useResumeStore((state) => state.resume);
@@ -96,6 +110,27 @@ export const ResumeBuilderPage = (): JSX.Element => {
         if (!id) return;
 
         let active = true;
+
+        if (id === 'new') {
+            const createNew = async () => {
+                setLoading(true);
+                try {
+                    const newResume = await createEmpty({ name: 'Untitled Resume' });
+                    if (active && newResume) {
+                        // Redirect to the new resume builder URL
+                        navigate(`/dashboard/resume/resume-builder/${newResume.id}`, { replace: true });
+                    } else if (active) {
+                        setLoading(false);
+                    }
+                } catch (e) {
+                    console.error("Failed to create new resume", e);
+                    if (active) setLoading(false);
+                }
+            };
+            createNew();
+            return () => { active = false; };
+        }
+
         const fetchResume = async () => {
             try {
                 setLoading(true);
@@ -123,7 +158,7 @@ export const ResumeBuilderPage = (): JSX.Element => {
 
         fetchResume();
         return () => { active = false; };
-    }, [id, navigate]);
+    }, [id, navigate, createEmpty]);
 
     useEffect(() => {
         if (resumeData) setArtboardResume(resumeData);

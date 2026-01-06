@@ -3,6 +3,7 @@ import { Lock } from "@phosphor-icons/react";
 import { Eye, Download, Copy, Star, StarOff, Trash2, Pencil, CheckSquare2, Square } from "lucide-react";
 import dayjs from "dayjs";
 import { AnimatePresence, motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 import { BaseCard } from "./base-card";
 import { useToast } from "@/client/hooks/use-toast";
@@ -28,8 +29,8 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord; active: boolean }> = ({ res
 
   useEffect(() => {
     let cancelled = false;
-  if (!active) return; // Wait until card observed in viewport
-  if (resume.file_ext !== 'pdf' || !resume.file_path) { setLoading(false); return; }
+    if (!active) return; // Wait until card observed in viewport
+    if (resume.file_ext !== 'pdf' || !resume.file_path) { setLoading(false); return; }
     // Serve from cache if available
     if (pdfPreviewCache.has(resume.id)) {
       setDataUrl(pdfPreviewCache.get(resume.id)!);
@@ -38,8 +39,8 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord; active: boolean }> = ({ res
     }
     (async () => {
       try {
-  performance.mark(`resume:${resume.id}:preview:start`);
-  const url = await getSignedUrl(resume.file_path!);
+        performance.mark(`resume:${resume.id}:preview:start`);
+        const url = await getSignedUrl(resume.file_path!);
         if (!url) throw new Error('No signed URL');
         // Dynamic import to avoid bloating initial bundle
         const pdfjs = await import('pdfjs-dist');
@@ -52,7 +53,7 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord; active: boolean }> = ({ res
             pdfjs.GlobalWorkerOptions.workerSrc = (pdfjs as any).WorkerMessageHandler ? undefined : undefined;
             (pdfjs as any)._workerConfigured = true;
           }
-        } catch {}
+        } catch { }
         // @ts-ignore
         const doc = await pdfjs.getDocument({ url, verbosity: 0 }).promise;
         const page = await doc.getPage(1);
@@ -78,7 +79,7 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord; active: boolean }> = ({ res
           ctx.filter = 'blur(3px) saturate(1.2)';
           ctx.drawImage(off, 0, 0, viewport.width, viewport.height);
           ctx.filter = 'none';
-        } catch {}
+        } catch { }
         // High-quality render over it
         await page.render({ canvasContext: ctx, viewport }).promise;
         try {
@@ -87,7 +88,7 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord; active: boolean }> = ({ res
           if (!cancelled) setDataUrl(urlData);
           performance.mark(`resume:${resume.id}:preview:end`);
           performance.measure(`resume:${resume.id}:preview:duration`, `resume:${resume.id}:preview:start`, `resume:${resume.id}:preview:end`);
-        } catch {}
+        } catch { }
       } catch (e: any) {
         if (!cancelled) setError(e.message || 'Preview failed');
       } finally {
@@ -109,8 +110,8 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord; active: boolean }> = ({ res
       {dataUrl ? (
         <img
           src={dataUrl}
-            alt="PDF Preview"
-            className="absolute inset-0 w-full h-full object-cover rounded-sm will-change-transform opacity-0 animate-in fade-in zoom-in-50 duration-500"
+          alt="PDF Preview"
+          className="absolute inset-0 w-full h-full object-cover rounded-sm will-change-transform opacity-0 animate-in fade-in zoom-in-50 duration-500"
         />
       ) : (
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover rounded-sm opacity-0 animate-in fade-in duration-300" />
@@ -120,6 +121,7 @@ const PdfFirstPage: React.FC<{ resume: ResumeRecord; active: boolean }> = ({ res
 };
 
 export const SbResumeCard = ({ resume }: Props) => {
+  const navigate = useNavigate();
   const { view, download, duplicate, toggleFavorite, remove, rename, undoRemove } = useResumes() as any;
   const { toast } = useToast();
   const template = resume.template || "pikachu";
@@ -135,6 +137,10 @@ export const SbResumeCard = ({ resume }: Props) => {
   const [showUndoToast, setShowUndoToast] = useState(false);
   const [deletedResumeId, setDeletedResumeId] = useState<string | null>(null);
   const [deletedResumeName, setDeletedResumeName] = useState<string>("");
+
+  const onEdit = useCallback(() => {
+    navigate(`/dashboard/resume/resume-builder/${resume.id}`);
+  }, [navigate, resume.id]);
 
   // Shift + click range selection support (delegated in Grid container but basic here)
   const onSelectClick = useCallback((e: React.MouseEvent) => {
@@ -179,8 +185,8 @@ export const SbResumeCard = ({ resume }: Props) => {
   }, []);
 
   const onOpen = async () => {
-    // For now open the stored file (signed URL or local object URL if set)
-    await view(resume);
+    // Navigate to builder instead of viewing PDF
+    onEdit();
   };
 
   const commitRename = async () => {
@@ -197,8 +203,8 @@ export const SbResumeCard = ({ resume }: Props) => {
     <BaseCard
       ref={cardRef as any}
       className={`cursor-pointer space-y-0 group relative ${isSelected ? 'ring-2 ring-[#1dff00] ring-offset-2 ring-offset-black/40' : ''}`}
-      onDoubleClick={onOpen}
-  onKeyDown={onKeyDownCard}
+      onDoubleClick={onEdit}
+      onKeyDown={onKeyDownCard}
       aria-pressed={isSelected}
       aria-label={`Resume ${resume.name}${isSelected ? ' selected' : ''}`}
     >
@@ -254,39 +260,39 @@ export const SbResumeCard = ({ resume }: Props) => {
         <p className="line-clamp-1 text-[10px] opacity-70">{t`Last updated ${lastUpdated}`}</p>
       </div>
 
-  {/* Hover action toolbar (shift to below checkbox) */}
-  <div className="absolute top-12 left-2 z-20 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
+      {/* Hover action toolbar (shift to below checkbox) */}
+      <div className="absolute top-12 left-2 z-20 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
         <button
-          onClick={(e)=>{ e.stopPropagation(); onOpen(); }}
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
           className="p-1.5 rounded-md bg-black/60 border border-white/10 hover:border-[#1dff00]/60 hover:bg-black/80 text-white transition flex items-center justify-center"
-          title="Open"
+          title="Edit"
         >
           <Eye className="w-3.5 h-3.5" />
         </button>
         <button
-          onClick={(e)=>{ e.stopPropagation(); download(resume); }}
+          onClick={(e) => { e.stopPropagation(); download(resume); }}
           className="p-1.5 rounded-md bg-black/60 border border-white/10 hover:border-[#1dff00]/60 hover:bg-black/80 text-white transition flex items-center justify-center"
           title="Download"
         >
           <Download className="w-3.5 h-3.5" />
         </button>
         <button
-          onClick={(e)=>{ e.stopPropagation(); duplicate(resume); }}
+          onClick={(e) => { e.stopPropagation(); duplicate(resume); }}
           className="p-1.5 rounded-md bg-black/60 border border-white/10 hover:border-[#1dff00]/60 hover:bg-black/80 text-white transition flex items-center justify-center"
           title="Duplicate"
         >
           <Copy className="w-3.5 h-3.5" />
         </button>
         <button
-          onClick={(e)=>{ e.stopPropagation(); toggleFavorite(resume.id, !resume.is_favorite); }}
+          onClick={(e) => { e.stopPropagation(); toggleFavorite(resume.id, !resume.is_favorite); }}
           className={`p-1.5 rounded-md bg-black/60 border ${resume.is_favorite ? 'border-[#1dff00] text-[#1dff00]' : 'border-white/10 text-white'} hover:border-[#1dff00]/60 hover:text-[#1dff00] hover:bg-black/80 transition flex items-center justify-center`}
           title={resume.is_favorite ? 'Unfavorite' : 'Favorite'}
         >
           {resume.is_favorite ? <Star className="w-3.5 h-3.5" /> : <StarOff className="w-3.5 h-3.5" />}
         </button>
         <button
-          onClick={(e)=>{ 
-            e.stopPropagation(); 
+          onClick={(e) => {
+            e.stopPropagation();
             setDeleteDialogOpen(true);
           }}
           className="p-1.5 rounded-md bg-black/60 border border-white/10 hover:border-red-500/70 hover:text-red-400 hover:bg-black/80 text-white transition flex items-center justify-center"
