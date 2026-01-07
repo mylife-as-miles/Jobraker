@@ -77,7 +77,7 @@ export const OverviewPage = (): JSX.Element => {
 
   const timeLabel = useMemo(() =>
     now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-  [now]);
+    [now]);
 
   // Smart default for stacked: Today/1 Week -> stacked; 1 Month -> overlap (unless user toggled)
   useEffect(() => {
@@ -98,14 +98,14 @@ export const OverviewPage = (): JSX.Element => {
       if (Array.isArray(parsed.visible) && parsed.visible.every((v: any) => typeof v === 'string')) {
         setVisibleSeries(parsed.visible)
       }
-    } catch {}
+    } catch { }
   }, [])
 
   // Persist on change
   useEffect(() => {
     try {
       localStorage.setItem("overview_apps_chart_ui", JSON.stringify({ stacked, visible: visibleSeries }))
-    } catch {}
+    } catch { }
   }, [stacked, visibleSeries])
 
   // Build real series based on selected period with status-specific keys
@@ -179,7 +179,7 @@ export const OverviewPage = (): JSX.Element => {
     let applied = 0
     let interviews = 0
     let totalInWindow = 0
-  for (const app of filtered) {
+    for (const app of filtered) {
       const d = new Date(app.applied_date)
       if (period === "Today") {
         const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -224,7 +224,7 @@ export const OverviewPage = (): JSX.Element => {
       color: palette[s] || "#999999",
     }))
 
-  return { seriesData: data, seriesMeta: series, appliedCount: applied, interviewCount: interviews, totals: { totalInWindow } }
+    return { seriesData: data, seriesMeta: series, appliedCount: applied, interviewCount: interviews, totals: { totalInWindow } }
   }, [applications, now, selectedPeriod, statusFilter])
 
   // Calendar selection & view state
@@ -234,7 +234,7 @@ export const OverviewPage = (): JSX.Element => {
   const [showShortcuts, setShowShortcuts] = useState(false);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === '?' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setShowShortcuts(s=>!s); }
+      if (e.key === '?' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setShowShortcuts(s => !s); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -260,7 +260,7 @@ export const OverviewPage = (): JSX.Element => {
   const streakData = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     // Calculate start of current week (Monday)
     const currentDayOfWeek = today.getDay();
     const daysFromMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
@@ -277,11 +277,11 @@ export const OverviewPage = (): JSX.Element => {
       const appDate = new Date(app.applied_date);
       // Normalize to local midnight
       const localDate = new Date(appDate.getFullYear(), appDate.getMonth(), appDate.getDate());
-      
+
       // Check if in current week
       const weekEnd = new Date(startOfWeek);
       weekEnd.setDate(startOfWeek.getDate() + 7);
-      
+
       if (localDate >= startOfWeek && localDate < weekEnd) {
         const daysSinceMonday = Math.floor((localDate.getTime() - startOfWeek.getTime()) / (1000 * 60 * 60 * 24));
         if (daysSinceMonday >= 0 && daysSinceMonday < 7) {
@@ -306,7 +306,7 @@ export const OverviewPage = (): JSX.Element => {
     if (sortedDates.length > 0) {
       // Start from today
       let checkDate = new Date(today);
-      
+
       // Check if there's activity today, if not start from yesterday
       const hasToday = sortedDates.some(d => d.getTime() === checkDate.getTime());
       if (!hasToday) {
@@ -419,55 +419,60 @@ export const OverviewPage = (): JSX.Element => {
               className="transition-transform duration-300 w-full"
             >
               <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 backdrop-blur-[25px] p-4 sm:p-6 lg:p-8 rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-2">
-                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Applications</h2>
-                  <div className="text-left sm:text-right">
-                    <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#1dff00]">{appliedCount}/{interviewCount}</span>
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-6 gap-4">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Applications</h2>
+                    <span className="px-2 py-0.5 rounded-full bg-[#1dff00]/10 border border-[#1dff00]/20 text-xs font-medium text-[#1dff00]">
+                      {totals.totalInWindow} Total
+                    </span>
+                  </div>
+
+                  {/* Period Selector + Stacked Toggle */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="bg-white/5 p-1 rounded-lg flex items-center gap-1 border border-white/10">
+                      {["Today", "1 Week", "1 Month"].map((period) => (
+                        <button
+                          key={period}
+                          onClick={() => setSelectedPeriod(period)}
+                          title={`Show data for ${period}`}
+                          className={`text-xs px-3 py-1.5 rounded-md transition-all duration-300 font-medium ${selectedPeriod === period
+                              ? "bg-[#1dff00] text-black shadow-lg shadow-[#1dff00]/20"
+                              : "text-[#888] hover:text-white hover:bg-white/5"
+                            }`}
+                        >
+                          {period}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="h-6 w-px bg-white/10 mx-1 hidden sm:block" />
+
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10" title="Toggle stacked / overlapping series">
+                      <span className="text-xs font-medium text-[#888]">Stacked</span>
+                      <Switch
+                        checked={stacked}
+                        onCheckedChange={(v: boolean) => { setStackedTouched(true); setStacked(!!v); }}
+                        className="scale-75 origin-right"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {/* Period Selector + Stacked Toggle */}
-                <div className="flex flex-wrap items-center gap-2 mb-4 sm:mb-6">
-                  {["Today", "1 Week", "1 Month"].map((period) => (
-                    <Button
-                      key={period}
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedPeriod(period)}
-                      title={`Show data for ${period}`}
-                      aria-label={`Select period ${period}`}
-                      className={`text-xs sm:text-sm transition-all duration-300 hover:scale-105 ${
-                        selectedPeriod === period
-                          ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-                          : "text-white hover:text-[#1dff00] hover:bg-[#1dff00]/10"
-                      }`}
-                    >
-                      {period}
-                    </Button>
-                  ))}
-                  <div className="flex-1" />
-                  {/* Stacked toggle (repositioned after removal of search/export) */}
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-[#888]" title="Toggle stacked / overlapping series" aria-label="Stacked toggle">
-                    <span>Stacked</span>
-                    <Switch
-                      checked={stacked && visibleSeries.length > 1}
-                      onCheckedChange={(v: boolean) => { setStackedTouched(true); setStacked(!!v); }}
-                      disabled={visibleSeries.length <= 1}
-                      aria-label="Toggle stacked chart mode"
-                    />
-                  </div>
-                </div>
                 {/* Status Filter Pills */}
-                <div id="overview-status-filter-buttons" data-tour="overview-status-filter-buttons" className="flex flex-wrap items-center justify-start gap-1.5 sm:gap-2 mb-4 sm:mb-6">
-                  {['All','Applied','Interview','Offer','Rejected'].map(s => {
+                <div id="overview-status-filter-buttons" data-tour="overview-status-filter-buttons" className="flex flex-wrap items-center justify-start gap-2 mb-6">
+                  {['All', 'Applied', 'Interview', 'Offer', 'Rejected'].map(s => {
                     const active = s === 'All' ? !statusFilter : statusFilter?.includes(s as ApplicationStatus);
-                    const baseColors: Record<string,string> = {
-                      Applied: 'bg-[#1dff00]/15 text-[#1dff00] border-[#1dff00]/40 hover:bg-[#1dff00]/25',
-                      Interview: 'bg-[#00b2ff]/15 text-[#56c2ff] border-[#00b2ff]/40 hover:bg-[#00b2ff]/25',
-                      Offer: 'bg-[#ffd700]/15 text-[#ffd700] border-[#ffd700]/40 hover:bg-[#ffd700]/25',
-                      Rejected: 'bg-[#ff4d4d]/15 text-[#ff9e9e] border-[#ff4d4d]/40 hover:bg-[#ff4d4d]/25',
-                      All: 'bg-white/5 text-white border-white/20 hover:bg-white/10'
+                    const baseColors: Record<string, string> = {
+                      Applied: 'bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/30 hover:bg-[#1dff00]/20',
+                      Interview: 'bg-[#00b2ff]/10 text-[#56c2ff] border-[#00b2ff]/30 hover:bg-[#00b2ff]/20',
+                      Offer: 'bg-[#ffd700]/10 text-[#ffd700] border-[#ffd700]/30 hover:bg-[#ffd700]/20',
+                      Rejected: 'bg-[#ff4d4d]/10 text-[#ff9e9e] border-[#ff4d4d]/30 hover:bg-[#ff4d4d]/20',
+                      All: 'bg-white/5 text-white/80 border-white/10 hover:bg-white/10'
                     };
+                    const activeClass = active
+                      ? 'ring-1 ring-white/20 shadow-lg scale-105 contrast-125'
+                      : 'opacity-60 hover:opacity-100 grayscale-[0.3] hover:grayscale-0';
+
                     return (
                       <button
                         key={s}
@@ -483,66 +488,48 @@ export const OverviewPage = (): JSX.Element => {
                             return [...prev, s as ApplicationStatus];
                           });
                         }}
-                        className={`w-full sm:w-auto text-[10px] sm:text-xs px-2 py-1 rounded-md border transition-all duration-300 font-medium tracking-wide ${baseColors[s]} ${active ? 'ring-1 ring-white/40 scale-105' : 'opacity-70'} focus:outline-none focus:ring-2 focus:ring-[#1dff00]/50`}
-                        title={s === 'All' ? 'Show all statuses' : `${active ? 'Hide' : 'Show'} ${s} applications`}
-                        aria-label={s === 'All' ? 'Filter: All statuses' : `Filter: ${s}`}
-                        aria-pressed={active}
-                      >{s}</button>
+                        className={`text-xs px-3 py-1.5 rounded-md border transition-all duration-300 font-medium tracking-wide flex items-center gap-2 ${baseColors[s]} ${activeClass}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${s === 'All' ? 'bg-white' : 'bg-current'}`} />
+                        {s}
+                      </button>
                     );
                   })}
                 </div>
 
-                {/* Stats & Conversion Metrics */}
-        <div className="flex flex-wrap items-center justify-start gap-4 sm:gap-8 mb-4 sm:mb-6">
-                  <motion.div 
-                    className="text-center sm:text-left"
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-          <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1dff00] mb-1">{totals.totalInWindow}</div>
-                    <div className="text-xs sm:text-sm text-[#888888]">Applications</div>
+                {/* Stats & Conversion Metrics - Enhanced Visuals */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                  <motion.div whileHover={{ y: -2 }} className="p-4 rounded-xl bg-gradient-to-br from-white/5 to-transparent border border-white/5">
+                    <div className="text-2xl lg:text-3xl font-bold text-white mb-1">{totals.totalInWindow}</div>
+                    <div className="text-xs text-[#888] font-medium uppercase tracking-wider">Applications</div>
                   </motion.div>
-                  <motion.div 
-                    className="text-center sm:text-left"
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-          <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1dff00] mb-1">{interviewCount}</div>
-                    <div className="text-xs sm:text-sm text-[#888888]">Interviews</div>
+                  <motion.div whileHover={{ y: -2 }} className="p-4 rounded-xl bg-gradient-to-br from-[#00b2ff]/10 to-transparent border border-[#00b2ff]/10">
+                    <div className="text-2xl lg:text-3xl font-bold text-[#56c2ff] mb-1">{interviewCount}</div>
+                    <div className="text-xs text-[#56c2ff]/70 font-medium uppercase tracking-wider">Interviews</div>
                   </motion.div>
-                  <motion.div 
-                    className="text-center sm:text-left"
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#ffd700] mb-1">{Math.round(stats.offerRate * 100)}%</div>
-                    <div className="text-[10px] sm:text-xs text-[#888888]">Offer Rate</div>
+                  <motion.div whileHover={{ y: -2 }} className="p-4 rounded-xl bg-gradient-to-br from-[#ffd700]/10 to-transparent border border-[#ffd700]/10">
+                    <div className="text-2xl lg:text-3xl font-bold text-[#ffd700] mb-1">{Math.round(stats.offerRate * 100)}%</div>
+                    <div className="text-xs text-[#ffd700]/70 font-medium uppercase tracking-wider">Offer Rate</div>
                   </motion.div>
-                  <motion.div 
-                    className="text-center sm:text-left"
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#ff4d4d] mb-1">{Math.round(stats.rejectionRate * 100)}%</div>
-                    <div className="text-[10px] sm:text-xs text-[#888888]">Rejection Rate</div>
+                  <motion.div whileHover={{ y: -2 }} className="p-4 rounded-xl bg-gradient-to-br from-[#ff4d4d]/10 to-transparent border border-[#ff4d4d]/10">
+                    <div className="text-2xl lg:text-3xl font-bold text-[#ff4d4d] mb-1">{Math.round(stats.rejectionRate * 100)}%</div>
+                    <div className="text-xs text-[#ff4d4d]/70 font-medium uppercase tracking-wider">Rejection Rate</div>
                   </motion.div>
                 </div>
 
-                {/* Applications Chart (real data, status series) */}
-                  {/* Application trend chart */}
-                <div id="overview-apps-chart" data-tour="overview-apps-chart" className="mt-4 sm:mt-6 w-full max-h-96 overflow-hidden min-h-[16rem] relative" aria-live="polite">
-                  <div className={`transition-opacity duration-500 ${appsLoading ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                {/* Applications Chart */}
+                <div id="overview-apps-chart" data-tour="overview-apps-chart" className="w-full h-72 lg:h-80 relative" aria-live="polite">
+                  <div className={`w-full h-full transition-opacity duration-500 ${appsLoading ? 'opacity-0' : 'opacity-100'}`}>
                     {!appsLoading && (
                       <SplitLineAreaChart
                         data={seriesData}
                         xKey="label"
                         series={seriesMeta}
                         stacked={stacked}
-                        showLegend
                         onVisibleChange={setVisibleSeries}
                         defaultVisible={visibleSeries}
                         tickFormatter={(v) => String(v).slice(0, 3)}
-                        className="h-64 sm:h-72 lg:h-80 xl:h-96 w-full"
+                        className="h-full w-full"
                       />
                     )}
                   </div>
@@ -620,7 +607,7 @@ export const OverviewPage = (): JSX.Element => {
               </Card>
               {showShortcuts && (
                 <div className="mt-4 text-[10px] sm:text-xs text-[#888] border border-white/10 rounded-lg p-3 bg-black/40">
-                  <div className="flex justify-between mb-2"><span className="text-white/80 font-medium">Shortcuts</span><button onClick={()=>setShowShortcuts(false)} className="text-[#1dff00] hover:underline">Close</button></div>
+                  <div className="flex justify-between mb-2"><span className="text-white/80 font-medium">Shortcuts</span><button onClick={() => setShowShortcuts(false)} className="text-[#1dff00] hover:underline">Close</button></div>
                   <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
                     <li><kbd className="px-1 py-0.5 bg-white/10 rounded">Ctrl/⌘ + ?</kbd> Toggle help</li>
                     <li><kbd className="px-1 py-0.5 bg-white/10 rounded">Shift + ←/→/↑/↓</kbd> Expand range</li>
@@ -662,9 +649,9 @@ export const OverviewPage = (): JSX.Element => {
                     </h2>
                     <p className="mt-1 text-[11px] sm:text-xs text-white/40">Recent activity & status changes</p>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => navigate('/dashboard/notifications')}
                     className="text-white/70 hover:text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-105 transition-all duration-300 text-xs sm:text-sm font-medium border border-transparent hover:border-[#1dff00]/40 px-3"
                   >
