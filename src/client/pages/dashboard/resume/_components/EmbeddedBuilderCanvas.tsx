@@ -102,7 +102,7 @@ export const EmbeddedBuilderCanvas = () => {
     const pageSize = format && pageSizeMap ? pageSizeMap[format] : null;
     const pageWidth = pageSize?.width ?? 210;
 
-    if (!layout || !format || !TemplateComponent || !pageSize) {
+    if (!layout || !Array.isArray(layout) || !format || !TemplateComponent || !pageSize) {
         return <div className="grid place-items-center h-full text-white/50">Loading Preview...</div>;
     }
 
