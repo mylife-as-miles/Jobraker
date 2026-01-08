@@ -1,5 +1,9 @@
 // Simple client-side telemetry batching for custom 'analytics' CustomEvents.
-// Batches events and periodically logs or sends to an endpoint (placeholder implementation).
+// Batches events and periodically logs or sends to an endpoint.
+
+import { createClient } from '../../lib/supabaseClient';
+
+const supabase = createClient();
 
 interface TelemetryEventDetail {
   type: string;
@@ -27,15 +31,27 @@ function scheduleFlush() {
 export function flush() {
   if (!QUEUE.length) return;
   const batch = QUEUE.splice(0, QUEUE.length);
-  // Placeholder: send to console; in production replace with POST /telemetry
+  // Send to the telemetry endpoint
   try {
-    // Example payload shape
     const payload = batch.map(e => e.detail);
-    // Replace with: fetch('/api/telemetry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-    console.debug('[telemetry] flush', payload);
+
+    // We don't await this promise because flush is often called in fire-and-forget contexts
+    // like beforeunload, and we don't want to block UI for telemetry.
+    supabase.functions.invoke('telemetry', {
+      body: { events: payload }
+    }).then(({ error }) => {
+      if (error) {
+         console.warn('[telemetry] flush failed', error);
+         // Optionally requeue logic could go here, but usually telemetry is best-effort
+      } else {
+         console.debug('[telemetry] flush success', payload.length);
+      }
+    }).catch(e => {
+        console.warn('[telemetry] flush exception', e);
+    });
+
   } catch (e) {
-    // Requeue if desired
-    console.warn('[telemetry] flush failed', e);
+    console.warn('[telemetry] flush exception synchronous', e);
   }
 }
 
