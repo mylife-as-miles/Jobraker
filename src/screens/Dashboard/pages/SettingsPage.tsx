@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, lazy, Suspense } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Button } from "../../../components/ui/button";
@@ -21,10 +21,7 @@ import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
 import { validatePassword } from "../../../utils/password";
 import { CheckCircle2, XCircle, Linkedin, Github } from "lucide-react";
-// import { SignOutDialog } from "../../../client/components/SignOutDialog";
 const SignOutDialog = (_props: any) => null;
-// Lazy-load ResumeChecker to prevent hook order issues
-// const ResumeChecker = lazy(() => import("@/client/components/ResumeChecker"));
 const ResumeChecker = () => null;
 // Lazy-load qrcode to avoid bundler resolution issues during build
 let QRCodeLib: any | null = null;
@@ -2548,17 +2545,7 @@ export const SettingsPage = (): JSX.Element => {
       case "resume-checker":
         return (
           <div id="settings-tab-resume-checker" data-tour="settings-tab-resume-checker" className="space-y-8">
-            <Suspense fallback={
-              <Card className="bg-card/10 border-border/20">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-pulse text-white/50">Loading Resume Checker...</div>
-                  </div>
-                </CardContent>
-              </Card>
-            }>
-              <ResumeChecker />
-            </Suspense>
+            <ResumeChecker />
           </div>
         );
 
