@@ -12,10 +12,7 @@ import { PublicOnly } from "./components/PublicOnly";
 import { RequireAuth } from "./components/RequireAuth";
 import GmailCallbackPage from "./screens/AuthCallback/GmailCallbackPage";
 import { ToastProvider } from "./components/ui/toast-provider";
-import { ArtboardPage } from "./pages/artboard";
-import { BuilderLayout as ArtboardCanvasLayout } from "./pages/builder";
-import { PreviewLayout } from "./pages/preview";
-import { Providers } from "./providers"; // Artboard/local providers (Helmet + artboard state)
+
 import { TourProvider } from "./providers/TourProvider"; // Product tour context for dashboard pages
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ROUTES } from "./routes";
@@ -123,13 +120,7 @@ function AnimatedRoutes() {
         {/* Admin utility route - check user credits */}
         <Route path="/admin/check-credits-old" element={<RequireAuth><PageTransition><AdminCheckCredits /></PageTransition></RequireAuth>} />
 
-        {/* Artboard routes */}
-        <Route element={<RequireAuth><Providers /></RequireAuth>}>
-          <Route path={ROUTES.ARTBOARD} element={<PageTransition><ArtboardPage /></PageTransition>}>
-            <Route path="builder" element={<ArtboardCanvasLayout />} />
-            <Route path="preview" element={<PreviewLayout />} />
-          </Route>
-        </Route>
+
 
         {/* Catch all - redirect to landing page */}
         <Route path="*" element={<Navigate to={ROUTES.ROOT} replace />} />
