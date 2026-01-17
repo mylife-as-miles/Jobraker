@@ -18,7 +18,7 @@ import {
   ChevronRight as BreadcrumbChevron,
   Briefcase,
   Mail,
-  CreditCard,
+  // CreditCard,
   Video
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -32,16 +32,16 @@ import useMediaQuery from "../../hooks/use-media-query";
 
 // Import sub-page components
 import { OverviewPage } from "./pages/OverviewPage";
-import { CoverLetterPage } from "@/client/pages/dashboard/cover-letter/page";
+// import { CoverLetterPage } from "@/client/pages/dashboard/cover-letter/page";
 import { JobPage } from "./pages/JobPage";
 import { ApplicationPage } from "./pages/ApplicationPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { NotificationPage } from "./pages/NotificationPage";
 import ProfilePage from "./pages/ProfilePage";
 import { ChatPage } from "./pages/ChatPage";
-import { ResumeBuilderPage } from "@/client/pages/dashboard/resume/page";
+// import { ResumeBuilderPage } from "@/client/pages/dashboard/resume/page";
 import { BillingPage } from "./pages/BillingPage";
-import ResumeBuilderRoute from "./pages/ResumeBuilderRoute";
+// import ResumeBuilderRoute from "./pages/ResumeBuilderRoute";
 import InterviewStudioPage from "./pages/InterviewStudioPage";
 
 type DashboardPage =
@@ -277,9 +277,9 @@ export const Dashboard = (): JSX.Element => {
       case "chat":
         return <ChatPage />;
       case "resume":
-        return <ResumeBuilderPage />;
+        return <div>Resume Builder Unavailable</div>;
       case "cover-letter":
-        return <CoverLetterPage />;
+        return <div>Cover Letter Unavailable</div>;
       case "billing":
         return <BillingPage />;
       case "interview-studio":

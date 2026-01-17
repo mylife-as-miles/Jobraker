@@ -1,5 +1,5 @@
 import React, { StrictMode } from "react";
-import '@/client/analytics/telemetry';
+// import '@/client/analytics/telemetry';
 import { createRoot } from "react-dom/client";
 import "../tailwind.css";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -17,13 +17,13 @@ import { ArtboardPage } from "./pages/artboard";
 import { BuilderLayout as ArtboardCanvasLayout } from "./pages/builder";
 import { PreviewLayout } from "./pages/preview";
 import { Providers } from "./providers"; // Artboard/local providers (Helmet + artboard state)
-import { Providers as ClientProviders } from "@/client/providers"; // Client app providers (QueryClient, Theme, Locale, Dialog, Toast)
+// import { Providers as ClientProviders } from "@/client/providers"; // Client app providers (QueryClient, Theme, Locale, Dialog, Toast)
 import { TourProvider } from "./providers/TourProvider"; // Product tour context for dashboard pages
-import { ClientBuilderRoute } from "@/client/pages/builder/route-bridge";
-import { builderNewLoader } from "@/client/pages/builder/page";
+// import { ClientBuilderRoute } from "@/client/pages/builder/route-bridge";
+// import { builderNewLoader } from "@/client/pages/builder/page";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/client/libs/query-client";
-import { BuilderLayout } from "@/client/pages/builder/layout";
+// import { queryClient } from "@/client/libs/query-client";
+// import { BuilderLayout } from "@/client/pages/builder/layout";
 import { ROUTES } from "./routes";
 import { ToastEventBridge } from "./components/system/ToastEventBridge";
 import { AnimatePresence } from "framer-motion";
@@ -43,13 +43,13 @@ import {
 import AdminSubscriptions from "./pages/admin/pages/AdminSubscriptions";
 
 // Error boundary component
-class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
-  constructor(props: {children: React.ReactNode}) {
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(): {hasError: boolean} {
+  static getDerivedStateFromError(): { hasError: boolean } {
     return { hasError: true };
   }
 
@@ -73,25 +73,25 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
 
 function AnimatedRoutes() {
   const location = useLocation();
-  
+
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         {/* Default route shows landing page */}
         <Route path={ROUTES.ROOT} element={<PublicOnly><PageTransition><LandingPage /></PageTransition></PublicOnly>} />
-        
+
         {/* Step 1: Signup Page */}
         <Route path={ROUTES.SIGNUP} element={<PublicOnly><PageTransition><JobrackerSignup /></PageTransition></PublicOnly>} />
 
         {/* Sign In Page */}
         <Route path={ROUTES.SIGNIN} element={<PublicOnly><PageTransition><JobrackerSignup /></PageTransition></PublicOnly>} />
-        
+
         {/* Step 2: Onboarding Page (after signup) */}
         <Route path={ROUTES.ONBOARDING} element={<RequireAuth><PageTransition><Onboarding /></PageTransition></RequireAuth>} />
-        
+
         {/* Step 3: Dashboard Page (after onboarding completion) - Now serves as main container */}
-        <Route 
-          path={ROUTES.DASHBOARD_WILDCARD} 
+        <Route
+          path={ROUTES.DASHBOARD_WILDCARD}
           element={
             <RequireAuth>
               <ClientProviders>
@@ -103,9 +103,9 @@ function AnimatedRoutes() {
                 </TourProvider>
               </ClientProviders>
             </RequireAuth>
-          } 
+          }
         />
-        
+
         {/* Standalone Analytics Page (for backward compatibility) */}
         <Route path={ROUTES.ANALYTICS} element={<RequireAuth><PageTransition><Analytics /></PageTransition></RequireAuth>} />
 
@@ -114,7 +114,7 @@ function AnimatedRoutes() {
 
         {/* Auth callback route */}
         <Route path="/auth/callback/gmail" element={<PageTransition><GmailCallbackPage /></PageTransition>} />
-        
+
         {/* Admin Dashboard Routes */}
         <Route path="/admin" element={<RequireAuth><AdminLayout /></RequireAuth>}>
           <Route index element={<AdminOverview />} />
@@ -130,20 +130,20 @@ function AnimatedRoutes() {
 
         {/* Admin utility route - check user credits */}
         <Route path="/admin/check-credits-old" element={<RequireAuth><PageTransition><AdminCheckCredits /></PageTransition></RequireAuth>} />
-        
+
         {/* Artboard routes */}
-        <Route element={<RequireAuth><Providers/></RequireAuth>}>
-          <Route path={ROUTES.ARTBOARD} element={<PageTransition><ArtboardPage/></PageTransition>}>
-            <Route path="builder" element={<ArtboardCanvasLayout/>}/>
-            <Route path="preview" element={<PreviewLayout/>}/>
+        <Route element={<RequireAuth><Providers /></RequireAuth>}>
+          <Route path={ROUTES.ARTBOARD} element={<PageTransition><ArtboardPage /></PageTransition>}>
+            <Route path="builder" element={<ArtboardCanvasLayout />} />
+            <Route path="preview" element={<PreviewLayout />} />
           </Route>
         </Route>
 
         {/* Client builder route with layout (protected) */}
-        <Route element={<RequireAuth><Providers/></RequireAuth>}>
+        <Route element={<RequireAuth><Providers /></RequireAuth>}>
           <Route path="/builder" element={<QueryClientProvider client={queryClient}><PageTransition><BuilderLayout /></PageTransition></QueryClientProvider>}>
-            <Route path="new" element={<ClientBuilderRoute/>} loader={builderNewLoader as any} />
-            <Route path=":id" element={<ClientBuilderRoute/>} />
+            <Route path="new" element={<ClientBuilderRoute />} loader={builderNewLoader as any} />
+            <Route path=":id" element={<ClientBuilderRoute />} />
           </Route>
         </Route>
 

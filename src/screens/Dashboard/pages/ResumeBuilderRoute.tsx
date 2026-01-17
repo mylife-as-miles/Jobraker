@@ -1,12 +1,10 @@
 import React from "react";
-import { Providers as ClientProviders } from "@/client/providers";
-import { BuilderPage } from "@/client/pages/builder/page";
 
 const ResumeBuilderRoute: React.FC = () => {
   return (
-    <ClientProviders>
-      <BuilderPage />
-    </ClientProviders>
+    <div className="flex h-full items-center justify-center">
+      <h1 className="text-2xl text-white">Resume Builder is currently unavailable.</h1>
+    </div>
   );
 };
 
