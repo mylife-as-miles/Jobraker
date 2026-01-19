@@ -8,7 +8,7 @@ import {
   TrendingUp,
   Users,
   MessageSquare,
-  FileText,
+
   BarChart3,
   Settings,
   User,
@@ -17,8 +17,8 @@ import {
   Home,
   ChevronRight as BreadcrumbChevron,
   Briefcase,
-  Mail,
-  CreditCard,
+
+  // CreditCard,
   Video
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -32,30 +32,24 @@ import useMediaQuery from "../../hooks/use-media-query";
 
 // Import sub-page components
 import { OverviewPage } from "./pages/OverviewPage";
-import { CoverLetterPage } from "@/client/pages/dashboard/cover-letter/page";
 import { JobPage } from "./pages/JobPage";
 import { ApplicationPage } from "./pages/ApplicationPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { NotificationPage } from "./pages/NotificationPage";
 import ProfilePage from "./pages/ProfilePage";
 import { ChatPage } from "./pages/ChatPage";
-import { ResumeBuilderPage } from "@/client/pages/dashboard/resume/page";
 import { BillingPage } from "./pages/BillingPage";
-import ResumeBuilderRoute from "./pages/ResumeBuilderRoute";
 import InterviewStudioPage from "./pages/InterviewStudioPage";
 
 type DashboardPage =
   | "overview"
   | "analytics"
   | "chat"
-  | "resume"
   | "jobs"
   | "application"
   | "settings"
   | "notifications"
   | "profile"
-  | "cover-letter"
-  | "resume"
   | "pricing"
   | "billing"
   | "interview-studio";
@@ -121,11 +115,8 @@ export const Dashboard = (): JSX.Element => {
     "overview",
     "analytics",
     "chat",
-    "resume",
     "jobs",
     "application",
-    "cover-letter",
-    "resume",
     "billing",
     "settings",
     "notifications",
@@ -192,18 +183,6 @@ export const Dashboard = (): JSX.Element => {
       label: "Chat",
       icon: <MessageSquare className="w-5 h-5" />,
       path: "Dashboard / Chat"
-    },
-    {
-      id: "resume",
-      label: "Resume",
-      icon: <FileText className="w-5 h-5" />,
-      path: "Dashboard / Resume"
-    },
-    {
-      id: "cover-letter",
-      label: "Cover Letter",
-      icon: <Mail className="w-5 h-5" />,
-      path: "Dashboard / Cover Letter"
     },
     {
       id: "interview-studio",
@@ -276,10 +255,6 @@ export const Dashboard = (): JSX.Element => {
         return <ApplicationPage />;
       case "chat":
         return <ChatPage />;
-      case "resume":
-        return <ResumeBuilderPage />;
-      case "cover-letter":
-        return <CoverLetterPage />;
       case "billing":
         return <BillingPage />;
       case "interview-studio":
@@ -370,7 +345,7 @@ export const Dashboard = (): JSX.Element => {
           {/* Section 2: Tools */}
           <div className="space-y-1">
             {!isCollapsed && <h4 className="px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-gray-600 mb-2 truncate">AI Studio</h4>}
-            {navigationItems.filter(i => ['chat', 'interview-studio', 'resume', 'cover-letter'].includes(i.id)).map(item => (
+            {navigationItems.filter(i => ['chat', 'interview-studio'].includes(i.id)).map(item => (
               <SidebarItem
                 key={item.id}
                 item={item}
@@ -396,10 +371,10 @@ export const Dashboard = (): JSX.Element => {
           </div>
 
           {/* Section 4: Settings (Misc) */}
-          {navigationItems.some(i => !['overview', 'analytics', 'chat', 'interview-studio', 'resume', 'cover-letter', 'jobs', 'application'].includes(i.id)) && (
+          {navigationItems.some(i => !['overview', 'analytics', 'chat', 'interview-studio', 'jobs', 'application'].includes(i.id)) && (
             <div className="space-y-1">
               {!isCollapsed && <h4 className="px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-gray-600 mb-2 truncate">Account</h4>}
-              {navigationItems.filter(i => !['overview', 'analytics', 'chat', 'interview-studio', 'resume', 'cover-letter', 'jobs', 'application'].includes(i.id)).map(item => (
+              {navigationItems.filter(i => !['overview', 'analytics', 'chat', 'interview-studio', 'jobs', 'application'].includes(i.id)).map(item => (
                 <SidebarItem
                   key={item.id}
                   item={item}

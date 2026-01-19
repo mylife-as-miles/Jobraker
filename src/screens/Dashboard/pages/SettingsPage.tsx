@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, lazy, Suspense } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Button } from "../../../components/ui/button";
@@ -21,9 +21,8 @@ import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
 import { validatePassword } from "../../../utils/password";
 import { CheckCircle2, XCircle, Linkedin, Github } from "lucide-react";
-import { SignOutDialog } from "../../../client/components/SignOutDialog";
-// Lazy-load ResumeChecker to prevent hook order issues
-const ResumeChecker = lazy(() => import("@/client/components/ResumeChecker"));
+const SignOutDialog = (_props: any) => null;
+
 // Lazy-load qrcode to avoid bundler resolution issues during build
 let QRCodeLib: any | null = null;
 async function getQRCode() {
@@ -48,11 +47,11 @@ export const SettingsPage = (): JSX.Element => {
   const [jobSources, setJobSources] = useState(defaultJobSources);
   const { profile, updateProfile, createProfile, refresh: refreshProfile, loading: profileLoading } = useProfileSettings();
   const { settings: notif, updateSettings, createSettings, refresh: refreshNotif, loading: notifLoading } = useNotificationSettings() as any;
-  const { 
-    settings: privacy, 
-    createSettings: createPrivacy, 
-    updateSettings: updatePrivacy, 
-    refresh: refreshPrivacy, 
+  const {
+    settings: privacy,
+    createSettings: createPrivacy,
+    updateSettings: updatePrivacy,
+    refresh: refreshPrivacy,
     loading: privacyLoading,
     auditLogs: privacyAuditLogs,
     deletionRequests: privacyDeletionRequests,
@@ -226,26 +225,26 @@ export const SettingsPage = (): JSX.Element => {
           return;
         }
 
-          const { data, error } = await supabase.functions.invoke(
-            "composio-gmail-auth",
-            {
-              body: {
-                userId: user.id,
-                authConfigId: composioConfigId,
-                action: "status",
-              },
-            }
-          );
+        const { data, error } = await supabase.functions.invoke(
+          "composio-gmail-auth",
+          {
+            body: {
+              userId: user.id,
+              authConfigId: composioConfigId,
+              action: "status",
+            },
+          }
+        );
 
-          if (error) {
+        if (error) {
           // Check if it's the "Invalid action" error (means deployed version doesn't support status yet)
           if (error.message?.includes("Invalid action") || error.message?.includes("400")) {
             // Silently fail - the deployed function doesn't support status check yet
             // User will just see the "Connect" button instead of connection status
             return;
           }
-            throw error;
-          }
+          throw error;
+        }
 
         if (data?.isConnected !== undefined) {
           setIsGmailConnected(data.isConnected);
@@ -253,7 +252,7 @@ export const SettingsPage = (): JSX.Element => {
       } catch (error: any) {
         // Only log unexpected errors, not the expected "Invalid action" error
         if (!error.message?.includes("Invalid action") && !error.message?.includes("400")) {
-        console.error("Failed to check Gmail connection status:", error);
+          console.error("Failed to check Gmail connection status:", error);
         }
         // It's okay if this fails, the user will just see the "Connect" button
       }
@@ -328,13 +327,13 @@ export const SettingsPage = (): JSX.Element => {
   // const [groupEnabledFirst, setGroupEnabledFirst] = useState(true); // Unused
   // const [draggingId, setDraggingId] = useState<number | null>(null); // Unused
   // const [dragOverId, setDragOverId] = useState<number | null>(null); // Unused
-  
+
   // Billing state
   const [currentCredits, setCurrentCredits] = useState(0);
   const [billingSubscriptionTier, setBillingSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState<string | null>(null);
   const [subscriptionPlans, setSubscriptionPlans] = useState<any[]>([]);
-  
+
   // Small helper for URL validation (used for Custom JSON)
   // const isValidUrl = (value: string) => {
   //   try { new URL(value); return true; } catch { return false; }
@@ -484,7 +483,7 @@ export const SettingsPage = (): JSX.Element => {
   // Load job source domain settings when job-sources tab is active
   useEffect(() => {
     if (activeTab !== 'job-sources') return;
-    
+
     (async () => {
       setLoadingDomains(true);
       try {
@@ -496,7 +495,7 @@ export const SettingsPage = (): JSX.Element => {
           .select('enabled_default_sources, allowed_domains')
           .eq('id', uid)
           .maybeSingle();
-        
+
         if (data) {
           // Load enabled default sources from dedicated column
           if (Array.isArray(data.enabled_default_sources)) {
@@ -508,13 +507,13 @@ export const SettingsPage = (): JSX.Element => {
             // Fallback: if column doesn't exist yet, use default values
             setEnabledDefaultDomains(new Set(['remote.co', 'remotive.com', 'remoteok.com', 'jobicy.com', 'levels.fyi']));
           }
-          
+
           // Load user custom domains from allowed_domains (excluding default sources)
           if (Array.isArray(data.allowed_domains)) {
             const savedDomains = data.allowed_domains.map((d: string) => d.toLowerCase().trim());
             const defaultJobSourceDomains = ['remote.co', 'remotive.com', 'remoteok.com', 'jobicy.com', 'levels.fyi'];
             // Extract user custom domains (not in default list)
-            const customDomains = savedDomains.filter((d: string) => 
+            const customDomains = savedDomains.filter((d: string) =>
               !defaultJobSourceDomains.includes(d)
             );
             setUserCustomDomains(customDomains.join(', '));
@@ -531,7 +530,7 @@ export const SettingsPage = (): JSX.Element => {
     { id: "security", label: "Security", icon: <Shield className="w-4 h-4" /> },
     { id: "appearance", label: "Appearance", icon: <Palette className="w-4 h-4" /> },
     { id: "privacy", label: "Privacy", icon: <Globe className="w-4 h-4" /> },
-    { id: "resume-checker", label: "Resume Checker", icon: <Sparkles className="w-4 h-4" /> },
+
     { id: "job-sources", label: "Job Sources", icon: <SettingsIcon className="w-4 h-4" /> },
     { id: "integrations", label: "Integrations", icon: <Link className="w-4 h-4" /> },
     { id: "billing", label: "Billing", icon: <CreditCard className="w-4 h-4" /> }
@@ -665,7 +664,7 @@ export const SettingsPage = (): JSX.Element => {
   const handleResetForm = async () => {
     await refreshProfile();
     await refreshNotif();
-  await refreshPrivacy();
+    await refreshPrivacy();
     success("Form reset");
   };
 
@@ -674,7 +673,7 @@ export const SettingsPage = (): JSX.Element => {
       const { data: u } = await supabase.auth.getUser();
       const uid = (u as any)?.user?.id;
       if (!uid) return toastError('Not signed in', 'Please sign in again');
-      
+
       // Build promises (no .catch chaining on builders to avoid non-thenable issues)
       const profP = (supabase as any).from('profiles').select('*').eq('id', uid).maybeSingle();
       const notifP = (supabase as any).from('notification_settings').select('*').eq('id', uid).maybeSingle();
@@ -734,15 +733,15 @@ export const SettingsPage = (): JSX.Element => {
       const payload = {
         exported_at: new Date().toISOString(),
         export_version: '2.0',
-        user: { 
-          id: uid, 
+        user: {
+          id: uid,
           email: (u as any)?.user?.email,
           created_at: (u as any)?.user?.created_at,
           last_sign_in_at: (u as any)?.user?.last_sign_in_at,
         },
         profile: prof || null,
-  notification_settings: notifData || null,
-  privacy_settings: privacyData || null,
+        notification_settings: notifData || null,
+        privacy_settings: privacyData || null,
         appearance_settings: appearanceSettings || null,
         security_settings: securitySettings || null,
         resumes: resumes || [],
@@ -771,7 +770,7 @@ export const SettingsPage = (): JSX.Element => {
           skills_count: skills?.length || 0,
         },
       };
-      
+
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -799,13 +798,13 @@ export const SettingsPage = (): JSX.Element => {
         const { data: user } = await supabase.auth.getUser();
         const uid = (user as any)?.user?.id;
         if (!uid) return;
-  const ext = file.name.split('.').pop() || 'png';
-  const path = `${uid}/avatar_${Date.now()}.${ext}`;
-  const { error: upErr } = await (supabase as any).storage.from('avatars').upload(path, file, { upsert: false, contentType: file.type || undefined });
+        const ext = file.name.split('.').pop() || 'png';
+        const path = `${uid}/avatar_${Date.now()}.${ext}`;
+        const { error: upErr } = await (supabase as any).storage.from('avatars').upload(path, file, { upsert: false, contentType: file.type || undefined });
         if (upErr) throw upErr;
-  // Store storage path; we'll resolve via signed URL when rendering
-  setFormData((p: FormData) => ({ ...p, avatar_url: path }));
-  await updateProfile({ avatar_url: path } as any);
+        // Store storage path; we'll resolve via signed URL when rendering
+        setFormData((p: FormData) => ({ ...p, avatar_url: path }));
+        await updateProfile({ avatar_url: path } as any);
         success('Avatar updated');
       } catch (e: any) {
         toastError('Avatar upload failed', e.message);
@@ -833,10 +832,10 @@ export const SettingsPage = (): JSX.Element => {
       toastError('Authentication error', 'Please sign in again');
       return;
     }
-    
+
     const { error } = await supabase.auth.updateUser({ password: formData.newPassword });
     if (error) return toastError('Failed to update password', error.message);
-    
+
     // Log security event
     try {
       const { logSecurityEvent } = await import('../../../utils/sessionManagement');
@@ -846,14 +845,14 @@ export const SettingsPage = (): JSX.Element => {
         'User changed their password',
         'medium'
       );
-      
+
       // Send notification if enabled
       const { data: secSettings } = await supabase
         .from('security_settings')
         .select('password_change_alerts')
         .eq('id', user.id)
         .maybeSingle();
-      
+
       if (secSettings?.password_change_alerts !== false) {
         const { createNotification } = await import('../../../utils/notifications');
         createNotification({
@@ -866,7 +865,7 @@ export const SettingsPage = (): JSX.Element => {
     } catch (e) {
       console.warn('Failed to log password change event:', e);
     }
-    
+
     success('Password updated');
     setFormData((p: FormData) => ({ ...p, currentPassword: '', newPassword: '', confirmPassword: '' }));
   };
@@ -1025,16 +1024,14 @@ export const SettingsPage = (): JSX.Element => {
                     <button
                       onClick={() => handleNotificationChange(setting.key, !(notif as any)?.[setting.key])}
                       disabled={notifLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        (notif as any)?.[setting.key]
-                          ? "bg-[#1dff00]"
-                          : "bg-white/[0.1]"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${(notif as any)?.[setting.key]
+                        ? "bg-[#1dff00]"
+                        : "bg-white/[0.1]"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          (notif as any)?.[setting.key] ? "translate-x-6" : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${(notif as any)?.[setting.key] ? "translate-x-6" : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -1064,16 +1061,14 @@ export const SettingsPage = (): JSX.Element => {
                     <button
                       onClick={() => handleNotificationChange(setting.key, !((notif as any)?.[setting.key] ?? true))}
                       disabled={notifLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        ((notif as any)?.[setting.key] ?? true)
-                          ? "bg-[#1dff00]"
-                          : "bg-white/[0.1]"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${((notif as any)?.[setting.key] ?? true)
+                        ? "bg-[#1dff00]"
+                        : "bg-white/[0.1]"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          ((notif as any)?.[setting.key] ?? true) ? "translate-x-6" : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${((notif as any)?.[setting.key] ?? true) ? "translate-x-6" : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -1106,16 +1101,14 @@ export const SettingsPage = (): JSX.Element => {
                     <button
                       onClick={() => handleNotificationChange(setting.key, !((notif as any)?.[setting.key] ?? (setting.key === 'marketing_emails' ? false : true)))}
                       disabled={notifLoading || !(notif as any)?.email_notifications}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        ((notif as any)?.[setting.key] ?? (setting.key === 'marketing_emails' ? false : true))
-                          ? "bg-[#1dff00]"
-                          : "bg-white/[0.1]"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${((notif as any)?.[setting.key] ?? (setting.key === 'marketing_emails' ? false : true))
+                        ? "bg-[#1dff00]"
+                        : "bg-white/[0.1]"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          ((notif as any)?.[setting.key] ?? (setting.key === 'marketing_emails' ? false : true)) ? "translate-x-6" : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${((notif as any)?.[setting.key] ?? (setting.key === 'marketing_emails' ? false : true)) ? "translate-x-6" : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -1145,16 +1138,14 @@ export const SettingsPage = (): JSX.Element => {
                     <button
                       onClick={() => handleNotificationChange(setting.key, !((notif as any)?.[setting.key] ?? true))}
                       disabled={notifLoading || !(notif as any)?.push_notifications}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        ((notif as any)?.[setting.key] ?? true)
-                          ? "bg-[#1dff00]"
-                          : "bg-white/[0.1]"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${((notif as any)?.[setting.key] ?? true)
+                        ? "bg-[#1dff00]"
+                        : "bg-white/[0.1]"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          ((notif as any)?.[setting.key] ?? true) ? "translate-x-6" : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${((notif as any)?.[setting.key] ?? true) ? "translate-x-6" : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -1175,16 +1166,14 @@ export const SettingsPage = (): JSX.Element => {
                   <button
                     onClick={() => handleNotificationChange("quiet_hours_enabled", !((notif as any)?.quiet_hours_enabled ?? false))}
                     disabled={notifLoading}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                      ((notif as any)?.quiet_hours_enabled ?? false)
-                        ? "bg-[#1dff00]"
-                        : "bg-white/[0.1]"
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${((notif as any)?.quiet_hours_enabled ?? false)
+                      ? "bg-[#1dff00]"
+                      : "bg-white/[0.1]"
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        ((notif as any)?.quiet_hours_enabled ?? false) ? "translate-x-6" : "translate-x-1"
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${((notif as any)?.quiet_hours_enabled ?? false) ? "translate-x-6" : "translate-x-1"
+                        }`}
                     />
                   </button>
                 </div>
@@ -1353,14 +1342,12 @@ export const SettingsPage = (): JSX.Element => {
                         else updateSecurity({ require_2fa_for_login: !(sec.require_2fa_for_login ?? false) });
                       }}
                       disabled={securityLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                        (sec?.require_2fa_for_login ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${(sec?.require_2fa_for_login ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          (sec?.require_2fa_for_login ?? false) ? "translate-x-6" : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${(sec?.require_2fa_for_login ?? false) ? "translate-x-6" : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -1375,14 +1362,12 @@ export const SettingsPage = (): JSX.Element => {
                         else updateSecurity({ backup_codes_required: !(sec.backup_codes_required ?? true) });
                       }}
                       disabled={securityLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                        (sec?.backup_codes_required ?? true) ? "bg-[#1dff00]" : "bg-white/[0.1]"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${(sec?.backup_codes_required ?? true) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          (sec?.backup_codes_required ?? true) ? "translate-x-6" : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${(sec?.backup_codes_required ?? true) ? "translate-x-6" : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -1393,7 +1378,7 @@ export const SettingsPage = (): JSX.Element => {
             {/* Sign-in Alerts */}
             <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
               <h3 className="text-base font-medium text-white/95 mb-4">Security Alerts</h3>
-                <div className="space-y-3">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-white/90">Login Alerts</p>
@@ -1405,17 +1390,15 @@ export const SettingsPage = (): JSX.Element => {
                       else updateSecurity({ login_alerts_enabled: !(sec.login_alerts_enabled ?? true) });
                     }}
                     disabled={securityLoading}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                      (sec?.login_alerts_enabled ?? true) ? "bg-[#1dff00]" : "bg-white/[0.1]"
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${(sec?.login_alerts_enabled ?? true) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        (sec?.login_alerts_enabled ?? true) ? "translate-x-6" : "translate-x-1"
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${(sec?.login_alerts_enabled ?? true) ? "translate-x-6" : "translate-x-1"
+                        }`}
                     />
                   </button>
-                    </div>
+                </div>
                 <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-white/90">Suspicious Login Alerts</p>
@@ -1427,14 +1410,12 @@ export const SettingsPage = (): JSX.Element => {
                       else updateSecurity({ suspicious_login_alerts: !(sec.suspicious_login_alerts ?? true) });
                     }}
                     disabled={securityLoading}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                      (sec?.suspicious_login_alerts ?? true) ? "bg-[#1dff00]" : "bg-white/[0.1]"
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${(sec?.suspicious_login_alerts ?? true) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        (sec?.suspicious_login_alerts ?? true) ? "translate-x-6" : "translate-x-1"
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${(sec?.suspicious_login_alerts ?? true) ? "translate-x-6" : "translate-x-1"
+                        }`}
                     />
                   </button>
                 </div>
@@ -1449,14 +1430,12 @@ export const SettingsPage = (): JSX.Element => {
                       else updateSecurity({ password_change_alerts: !(sec.password_change_alerts ?? true) });
                     }}
                     disabled={securityLoading}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                      (sec?.password_change_alerts ?? true) ? "bg-[#1dff00]" : "bg-white/[0.1]"
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${(sec?.password_change_alerts ?? true) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        (sec?.password_change_alerts ?? true) ? "translate-x-6" : "translate-x-1"
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${(sec?.password_change_alerts ?? true) ? "translate-x-6" : "translate-x-1"
+                        }`}
                     />
                   </button>
                 </div>
@@ -1470,13 +1449,13 @@ export const SettingsPage = (): JSX.Element => {
                   <h3 className="text-base font-medium text-white/95">Backup Codes</h3>
                   <p className="text-xs text-white/50 mt-1">One-time use codes for account recovery</p>
                 </div>
-                  <Button
-                    variant="outline"
+                <Button
+                  variant="outline"
                   size="sm"
                   className="border-white/[0.1] text-white/70 hover:bg-white/[0.05] hover:border-white/[0.2]"
-                    onClick={async () => {
-                      try {
-                        const codes = await generateBackupCodes(10);
+                  onClick={async () => {
+                    try {
+                      const codes = await generateBackupCodes(10);
                       if (codes && codes.length > 0) {
                         setGeneratedBackupCodes(codes);
                         setShowBackupCodesModal(true);
@@ -1491,49 +1470,48 @@ export const SettingsPage = (): JSX.Element => {
                         document.body.removeChild(a);
                         URL.revokeObjectURL(url);
                       }
-                      } catch (e: any) {
-                        toastError('Failed to generate codes', e.message);
-                      }
-                    }}
+                    } catch (e: any) {
+                      toastError('Failed to generate codes', e.message);
+                    }
+                  }}
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Generate New Codes
                 </Button>
-                </div>
+              </div>
               <div className="space-y-2">
                 {backupCodes && backupCodes.length > 0 ? (
                   <div className="border border-white/[0.06] rounded-lg overflow-hidden">
                     <div className="grid grid-cols-3 text-xs text-white/50 bg-white/[0.02] py-2 px-4 border-b border-white/[0.06]">
-                    <div>ID</div>
-                    <div>Status</div>
+                      <div>ID</div>
+                      <div>Status</div>
                       <div>Created</div>
-                  </div>
+                    </div>
                     <div className="divide-y divide-white/[0.06]">
                       {backupCodes.map((bc: any) => (
                         <div key={bc.id} className="grid grid-cols-3 items-center text-sm py-2 px-4 hover:bg-white/[0.02] transition-colors">
                           <div className="text-white/90 font-mono text-xs">#{bc.id}</div>
                           <div>
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              bc.used 
-                                ? 'bg-red-500/20 text-red-400' 
-                                : 'bg-green-500/20 text-green-400'
-                            }`}>
+                            <span className={`text-xs px-2 py-1 rounded ${bc.used
+                              ? 'bg-red-500/20 text-red-400'
+                              : 'bg-green-500/20 text-green-400'
+                              }`}>
                               {bc.used ? 'Used' : 'Unused'}
                             </span>
                           </div>
                           <div className="text-xs text-white/50">
                             {bc.created_at ? new Date(bc.created_at).toLocaleDateString() : 'N/A'}
-                        </div>
+                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                    ) : (
+                ) : (
                   <div className="text-sm text-white/50 py-8 text-center border border-white/[0.06] rounded-lg bg-white/[0.02]">
                     No backup codes generated yet. Click "Generate New Codes" to create your first set.
                   </div>
-                    )}
-                  </div>
+                )}
+              </div>
             </Card>
 
             {/* Trusted Devices */}
@@ -1693,15 +1671,14 @@ export const SettingsPage = (): JSX.Element => {
                         <div className="flex items-center gap-2 mb-1">
                           <p className="text-sm font-medium text-white/90">{log.event_type}</p>
                           <span
-                            className={`text-xs px-2 py-0.5 rounded ${
-                              log.risk_level === 'critical'
-                                ? 'bg-red-500/20 text-red-400'
-                                : log.risk_level === 'high'
+                            className={`text-xs px-2 py-0.5 rounded ${log.risk_level === 'critical'
+                              ? 'bg-red-500/20 text-red-400'
+                              : log.risk_level === 'high'
                                 ? 'bg-orange-500/20 text-orange-400'
                                 : log.risk_level === 'medium'
-                                ? 'bg-yellow-500/20 text-yellow-400'
-                                : 'bg-green-500/20 text-green-400'
-                            }`}
+                                  ? 'bg-yellow-500/20 text-yellow-400'
+                                  : 'bg-green-500/20 text-green-400'
+                              }`}
                           >
                             {log.risk_level}
                           </span>
@@ -1832,19 +1809,17 @@ export const SettingsPage = (): JSX.Element => {
                           else updateSecurity({ auto_logout_inactive: !(sec.auto_logout_inactive ?? true) });
                         }}
                         disabled={securityLoading}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                          (sec?.auto_logout_inactive ?? true) ? "bg-[#1dff00]" : "bg-white/[0.1]"
-                        }`}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${(sec?.auto_logout_inactive ?? true) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                          }`}
                       >
                         <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            (sec?.auto_logout_inactive ?? true) ? "translate-x-6" : "translate-x-1"
-                          }`}
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${(sec?.auto_logout_inactive ?? true) ? "translate-x-6" : "translate-x-1"
+                            }`}
                         />
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                    <div>
+                      <div>
                         <label className="block text-xs text-white/70 mb-2">Session Timeout (minutes)</label>
                         <Input
                           type="number"
@@ -1858,7 +1833,7 @@ export const SettingsPage = (): JSX.Element => {
                           className="bg-white/[0.05] border-white/[0.1] text-white"
                           min="0"
                         />
-                    </div>
+                      </div>
                       <div>
                         <label className="block text-xs text-white/70 mb-2">Max Concurrent Sessions</label>
                         <Input
@@ -1873,7 +1848,7 @@ export const SettingsPage = (): JSX.Element => {
                           className="bg-white/[0.05] border-white/[0.1] text-white"
                           min="1"
                         />
-                </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1892,14 +1867,12 @@ export const SettingsPage = (): JSX.Element => {
                         else updateSecurity({ ip_whitelist_enabled: !(sec.ip_whitelist_enabled ?? false) });
                       }}
                       disabled={securityLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                        (sec?.ip_whitelist_enabled ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${(sec?.ip_whitelist_enabled ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          (sec?.ip_whitelist_enabled ?? false) ? "translate-x-6" : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${(sec?.ip_whitelist_enabled ?? false) ? "translate-x-6" : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -1967,14 +1940,12 @@ export const SettingsPage = (): JSX.Element => {
                           else updateSecurity({ api_keys_enabled: !(sec.api_keys_enabled ?? false) });
                         }}
                         disabled={securityLoading}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                          (sec?.api_keys_enabled ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
-                        }`}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${(sec?.api_keys_enabled ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                          }`}
                       >
                         <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            (sec?.api_keys_enabled ?? false) ? "translate-x-6" : "translate-x-1"
-                          }`}
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${(sec?.api_keys_enabled ?? false) ? "translate-x-6" : "translate-x-1"
+                            }`}
                         />
                       </button>
                     </div>
@@ -2002,16 +1973,14 @@ export const SettingsPage = (): JSX.Element => {
                         else await (appearance as any).updateSettings({ theme: value });
                       } catch (e: any) { toastError('Failed to set theme', e.message); }
                     }}
-                    className={`p-4 rounded-lg border transition-all ${
-                      (appearanceSettings?.theme || 'auto') === theme.toLowerCase()
-                        ? "border-[#1dff00]/40 bg-[#1dff00]/[0.08]"
-                        : "border-white/[0.08] hover:border-white/[0.12] hover:bg-white/[0.02]"
-                    }`}
+                    className={`p-4 rounded-lg border transition-all ${(appearanceSettings?.theme || 'auto') === theme.toLowerCase()
+                      ? "border-[#1dff00]/40 bg-[#1dff00]/[0.08]"
+                      : "border-white/[0.08] hover:border-white/[0.12] hover:bg-white/[0.02]"
+                      }`}
                   >
                     <div className="text-center">
-                      <div className={`w-10 h-10 rounded-lg mx-auto mb-3 border border-white/[0.1] ${
-                        theme === "Dark" ? "bg-zinc-900" : theme === "Light" ? "bg-zinc-100" : "bg-gradient-to-r from-zinc-900 to-zinc-100"
-                      }`}></div>
+                      <div className={`w-10 h-10 rounded-lg mx-auto mb-3 border border-white/[0.1] ${theme === "Dark" ? "bg-zinc-900" : theme === "Light" ? "bg-zinc-100" : "bg-gradient-to-r from-zinc-900 to-zinc-100"
+                        }`}></div>
                       <p className="text-white/90 text-sm font-medium">{theme}</p>
                     </div>
                   </button>
@@ -2032,11 +2001,10 @@ export const SettingsPage = (): JSX.Element => {
                         else await (appearance as any).updateSettings({ accent_color: color });
                       } catch (e: any) { toastError('Failed to set accent', e.message); }
                     }}
-                    className={`w-12 h-12 rounded-xl cursor-pointer border-2 transition-all hover:scale-110 ${
-                      (appearanceSettings?.accent_color || '#1dff00').toLowerCase() === color.toLowerCase()
-                        ? "border-white/50 ring-2 ring-white/20"
-                        : "border-transparent hover:border-white/20"
-                    }`}
+                    className={`w-12 h-12 rounded-xl cursor-pointer border-2 transition-all hover:scale-110 ${(appearanceSettings?.accent_color || '#1dff00').toLowerCase() === color.toLowerCase()
+                      ? "border-white/50 ring-2 ring-white/20"
+                      : "border-transparent hover:border-white/20"
+                      }`}
                     style={{ backgroundColor: color }}
                   ></button>
                 ))}
@@ -2058,16 +2026,14 @@ export const SettingsPage = (): JSX.Element => {
                       else await (appearance as any).updateSettings({ reduce_motion: !(appearanceSettings.reduce_motion ?? false) });
                     } catch (e: any) { toastError('Failed to update motion preference', e.message); }
                   }}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    (appearanceSettings?.reduce_motion ?? false)
-                      ? "bg-[#1dff00]"
-                      : "bg-white/[0.1]"
-                  }`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${(appearanceSettings?.reduce_motion ?? false)
+                    ? "bg-[#1dff00]"
+                    : "bg-white/[0.1]"
+                    }`}
                 >
                   <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      (appearanceSettings?.reduce_motion ?? false) ? "translate-x-6" : "translate-x-1"
-                    }`}
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${(appearanceSettings?.reduce_motion ?? false) ? "translate-x-6" : "translate-x-1"
+                      }`}
                   />
                 </button>
               </div>
@@ -2109,14 +2075,12 @@ export const SettingsPage = (): JSX.Element => {
                         } catch (e: any) { toastError('Failed to update privacy', e.message); }
                       }}
                       disabled={privacyLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                        ((privacy as any)?.[row.key] ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${((privacy as any)?.[row.key] ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          ((privacy as any)?.[row.key] ?? false) ? "translate-x-6" : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${((privacy as any)?.[row.key] ?? false) ? "translate-x-6" : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -2154,14 +2118,12 @@ export const SettingsPage = (): JSX.Element => {
                         } catch (e: any) { toastError('Failed to update privacy', e.message); }
                       }}
                       disabled={privacyLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                        ((privacy as any)?.[row.key] ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${((privacy as any)?.[row.key] ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          ((privacy as any)?.[row.key] ?? false) ? "translate-x-6" : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${((privacy as any)?.[row.key] ?? false) ? "translate-x-6" : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -2199,14 +2161,12 @@ export const SettingsPage = (): JSX.Element => {
                         } catch (e: any) { toastError('Failed to update privacy', e.message); }
                       }}
                       disabled={privacyLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                        ((privacy as any)?.[row.key] ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${((privacy as any)?.[row.key] ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          ((privacy as any)?.[row.key] ?? false) ? "translate-x-6" : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${((privacy as any)?.[row.key] ?? false) ? "translate-x-6" : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -2220,12 +2180,12 @@ export const SettingsPage = (): JSX.Element => {
                 <Database className="w-5 h-5 text-white/70" />
                 <h3 className="text-base font-medium text-white/95">Data Retention & Management</h3>
               </div>
-                <div className="space-y-4">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06]">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-white/90 mb-1">Data Retention Period</p>
                     <p className="text-xs text-white/50">Number of days to retain your data (0 = indefinite)</p>
-                      </div>
+                  </div>
                   <Input
                     type="number"
                     min="0"
@@ -2252,21 +2212,19 @@ export const SettingsPage = (): JSX.Element => {
                       </div>
                     </div>
                     <button
-                        onClick={async () => {
-                          try {
+                      onClick={async () => {
+                        try {
                           if (!privacy) await createPrivacy({ [row.key]: !((privacy as any)?.[row.key] ?? false) } as any);
-                            else await updatePrivacy({ [row.key]: !(privacy as any)[row.key] } as any);
-                          } catch (e: any) { toastError('Failed to update privacy', e.message); }
-                        }}
+                          else await updatePrivacy({ [row.key]: !(privacy as any)[row.key] } as any);
+                        } catch (e: any) { toastError('Failed to update privacy', e.message); }
+                      }}
                       disabled={privacyLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                        ((privacy as any)?.[row.key] ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${((privacy as any)?.[row.key] ?? false) ? "bg-[#1dff00]" : "bg-white/[0.1]"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          ((privacy as any)?.[row.key] ?? false) ? "translate-x-6" : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${((privacy as any)?.[row.key] ?? false) ? "translate-x-6" : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -2285,7 +2243,7 @@ export const SettingsPage = (): JSX.Element => {
                   <div className="flex-1">
                     <p className="text-sm font-medium text-white/90 mb-1">GDPR Consent</p>
                     <p className="text-xs text-white/50">
-                      {privacy?.gdpr_consent_given 
+                      {privacy?.gdpr_consent_given
                         ? `Given on ${privacy.gdpr_consent_date ? new Date(privacy.gdpr_consent_date).toLocaleDateString() : 'N/A'}`
                         : 'You have not given GDPR consent yet'}
                     </p>
@@ -2377,11 +2335,10 @@ export const SettingsPage = (): JSX.Element => {
                             </p>
                           )}
                         </div>
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          req.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                        <span className={`text-xs px-2 py-1 rounded ${req.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
                           req.status === 'processing' ? 'bg-blue-500/20 text-blue-400' :
-                          'bg-gray-500/20 text-gray-400'
-                        }`}>
+                            'bg-gray-500/20 text-gray-400'
+                          }`}>
                           {req.status}
                         </span>
                       </div>
@@ -2397,17 +2354,17 @@ export const SettingsPage = (): JSX.Element => {
                 <AlertTriangle className="w-5 h-5 text-red-400" />
                 <h3 className="text-base font-medium text-red-400">Danger Zone</h3>
               </div>
-                  <Button
-                    variant="outline"
+              <Button
+                variant="outline"
                 onClick={() => {
                   setShowAccountDeletionModal(true);
                   setAccountDeletionEmail("");
                 }}
                 className="w-full border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-500"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
                 Delete Account Permanently
-                  </Button>
+              </Button>
             </Card>
           </div>
         );
@@ -2440,16 +2397,16 @@ export const SettingsPage = (): JSX.Element => {
             const { data: auth } = await supabase.auth.getUser();
             const uid = (auth as any)?.user?.id;
             if (!uid) { setSavingDomains(false); return; }
-            
+
             // Prepare enabled default sources as array
             const enabledDefaults = Array.from(enabledDefaultDomains);
-            
+
             // Prepare user custom domains
             const customDomains = userCustomDomains.split(',').map(s => s.trim()).filter(Boolean);
-            
+
             // Combine for allowed_domains (for backward compatibility and job search logic)
             const allDomains = [...enabledDefaults, ...customDomains];
-            
+
             const payload = {
               id: uid,
               enabled_default_sources: enabledDefaults, // Save to dedicated column
@@ -2484,26 +2441,24 @@ export const SettingsPage = (): JSX.Element => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {defaultJobSourceDomains.map((source) => {
                     const isEnabled = enabledDefaultDomains.has(source.domain);
-                    
+
                     return (
                       <div
                         key={source.id}
-                        className={`flex flex-col p-4 rounded-lg border transition-all ${
-                          isEnabled 
-                            ? 'bg-white/[0.05] border-white/[0.1] ring-1 ring-[#1dff00]/30' 
-                            : 'bg-white/[0.02] border-white/[0.06]'
-                        }`}
+                        className={`flex flex-col p-4 rounded-lg border transition-all ${isEnabled
+                          ? 'bg-white/[0.05] border-white/[0.1] ring-1 ring-[#1dff00]/30'
+                          : 'bg-white/[0.02] border-white/[0.06]'
+                          }`}
                       >
                         <div className="flex items-center justify-between mb-3">
-                          <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${
-                            source.color === 'blue' ? 'from-blue-500/20 to-blue-500/10 border-blue-500/30' :
+                          <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${source.color === 'blue' ? 'from-blue-500/20 to-blue-500/10 border-blue-500/30' :
                             source.color === 'green' ? 'from-green-500/20 to-green-500/10 border-green-500/30' :
-                            source.color === 'purple' ? 'from-purple-500/20 to-purple-500/10 border-purple-500/30' :
-                            source.color === 'orange' ? 'from-orange-500/20 to-orange-500/10 border-orange-500/30' :
-                            'from-indigo-500/20 to-indigo-500/10 border-indigo-500/30'
-                          } border flex items-center justify-center overflow-hidden`}>
-                            <img 
-                              src={source.logo} 
+                              source.color === 'purple' ? 'from-purple-500/20 to-purple-500/10 border-purple-500/30' :
+                                source.color === 'orange' ? 'from-orange-500/20 to-orange-500/10 border-orange-500/30' :
+                                  'from-indigo-500/20 to-indigo-500/10 border-indigo-500/30'
+                            } border flex items-center justify-center overflow-hidden`}>
+                            <img
+                              src={source.logo}
                               alt={source.name}
                               className="w-10 h-10 object-contain"
                               onError={(e) => {
@@ -2511,13 +2466,12 @@ export const SettingsPage = (): JSX.Element => {
                                 const target = e.currentTarget as HTMLImageElement;
                                 target.style.display = 'none';
                                 const fallback = document.createElement('div');
-                                fallback.className = `w-8 h-8 rounded ${
-                                  source.color === 'blue' ? 'bg-blue-500/30' :
+                                fallback.className = `w-8 h-8 rounded ${source.color === 'blue' ? 'bg-blue-500/30' :
                                   source.color === 'green' ? 'bg-green-500/30' :
-                                  source.color === 'purple' ? 'bg-purple-500/30' :
-                                  source.color === 'orange' ? 'bg-orange-500/30' :
-                                  'bg-indigo-500/30'
-                                }`;
+                                    source.color === 'purple' ? 'bg-purple-500/30' :
+                                      source.color === 'orange' ? 'bg-orange-500/30' :
+                                        'bg-indigo-500/30'
+                                  }`;
                                 target.parentElement?.appendChild(fallback);
                               }}
                             />
@@ -2525,15 +2479,13 @@ export const SettingsPage = (): JSX.Element => {
                           <button
                             onClick={() => handleToggleDefaultDomain(source.domain)}
                             disabled={loadingDomains}
-                            className={`w-12 h-6 rounded-full transition-colors ${
-                              isEnabled
-                                ? 'bg-[#1dff00]'
-                                : 'bg-white/10'
-                            }`}
+                            className={`w-12 h-6 rounded-full transition-colors ${isEnabled
+                              ? 'bg-[#1dff00]'
+                              : 'bg-white/10'
+                              }`}
                           >
-                            <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                              isEnabled ? 'translate-x-6' : 'translate-x-0.5'
-                            }`} />
+                            <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                              }`} />
                           </button>
                         </div>
                         <div>
@@ -2590,22 +2542,7 @@ export const SettingsPage = (): JSX.Element => {
           </div>
         );
 
-      case "resume-checker":
-        return (
-          <div id="settings-tab-resume-checker" data-tour="settings-tab-resume-checker" className="space-y-8">
-            <Suspense fallback={
-              <Card className="bg-card/10 border-border/20">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-pulse text-white/50">Loading Resume Checker...</div>
-                  </div>
-                </CardContent>
-              </Card>
-            }>
-            <ResumeChecker />
-            </Suspense>
-          </div>
-        );
+
 
       case "integrations":
         return (
@@ -2623,11 +2560,10 @@ export const SettingsPage = (): JSX.Element => {
                 </div>
                 <Button
                   variant="outline"
-                  className={`border-white/[0.08] transition-all ${
-                    isGmailConnected
-                      ? "text-[#1dff00] border-[#1dff00]/30 bg-[#1dff00]/[0.05]"
-                      : "text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
-                  }`}
+                  className={`border-white/[0.08] transition-all ${isGmailConnected
+                    ? "text-[#1dff00] border-[#1dff00]/30 bg-[#1dff00]/[0.05]"
+                    : "text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
+                    }`}
                   onClick={handleConnectGmail}
                   disabled={isGmailConnected}
                 >
@@ -2708,11 +2644,10 @@ export const SettingsPage = (): JSX.Element => {
                   <div className={`p-3 rounded-xl bg-gradient-to-br ${getTierGradient(billingSubscriptionTier)}/10 border border-white/10`}>
                     {getTierIcon(billingSubscriptionTier)}
                   </div>
-                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                    billingSubscriptionTier === 'Pro' ? 'bg-blue-500/20 text-blue-300' :
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${billingSubscriptionTier === 'Pro' ? 'bg-blue-500/20 text-blue-300' :
                     billingSubscriptionTier === 'Ultimate' ? 'bg-purple-500/20 text-purple-300' :
-                    'bg-[#1dff00]/20 text-[#1dff00]'
-                  }`}>
+                      'bg-[#1dff00]/20 text-[#1dff00]'
+                    }`}>
                     {billingSubscriptionTier.toUpperCase()}
                   </span>
                 </div>
@@ -2765,15 +2700,14 @@ export const SettingsPage = (): JSX.Element => {
               <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
                 {subscriptionPlans.slice(0, 4).map((plan) => {
                   const isCurrentPlan = plan.name === billingSubscriptionTier;
-                  
+
                   return (
                     <div
                       key={plan.id}
-                      className={`group relative p-5 rounded-xl border transition-all hover:shadow-lg hover:shadow-[#1dff00]/5 hover:-translate-y-0.5 ${
-                        isCurrentPlan 
-                          ? 'border-[#1dff00]/40 bg-gradient-to-br from-[#1dff00]/[0.08] to-transparent shadow-[0_0_20px_rgba(29,255,0,0.1)]' 
-                          : 'border-white/[0.08] bg-gradient-to-br from-white/[0.02] to-transparent'
-                      }`}
+                      className={`group relative p-5 rounded-xl border transition-all hover:shadow-lg hover:shadow-[#1dff00]/5 hover:-translate-y-0.5 ${isCurrentPlan
+                        ? 'border-[#1dff00]/40 bg-gradient-to-br from-[#1dff00]/[0.08] to-transparent shadow-[0_0_20px_rgba(29,255,0,0.1)]'
+                        : 'border-white/[0.08] bg-gradient-to-br from-white/[0.02] to-transparent'
+                        }`}
                     >
                       {/* Header */}
                       <div className="flex items-start justify-between mb-4">
@@ -2817,9 +2751,9 @@ export const SettingsPage = (): JSX.Element => {
                         {plan.features && Array.isArray(plan.features) && plan.features.slice(0, 3).map((feature: any, idx: number) => {
                           const featureName = typeof feature === 'string' ? feature : feature.name;
                           const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
-                          
+
                           if (!isIncluded) return null;
-                          
+
                           return (
                             <div key={idx} className="flex items-start gap-2">
                               <Check className="w-3.5 h-3.5 text-[#1dff00] mt-0.5 flex-shrink-0" />
@@ -2835,13 +2769,12 @@ export const SettingsPage = (): JSX.Element => {
                       {/* CTA */}
                       {!isCurrentPlan && (
                         <Button
-                          className={`w-full h-9 font-medium text-xs transition-all ${
-                            plan.name === 'Pro'
-                              ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:opacity-90 hover:scale-105'
-                              : plan.name === 'Ultimate'
+                          className={`w-full h-9 font-medium text-xs transition-all ${plan.name === 'Pro'
+                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:opacity-90 hover:scale-105'
+                            : plan.name === 'Ultimate'
                               ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:opacity-90 hover:scale-105'
                               : 'bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black hover:opacity-90 hover:scale-105'
-                          }`}
+                            }`}
                           onClick={() => { window.location.href = '/dashboard/billing'; }}
                         >
                           Upgrade to {plan.name}
@@ -2891,591 +2824,273 @@ export const SettingsPage = (): JSX.Element => {
 
   return (
     <>
-    <div className="min-h-screen bg-black">
-      <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-6">
-        {/* Modern Header */}
-        <div className="mb-8 border-b border-white/[0.06] pb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-medium tracking-tight text-white/95 mb-1">Settings</h1>
-              <p className="text-sm text-white/50">Manage your account preferences and configurations</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                onClick={handleResetForm}
-                className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] hover:border-white/[0.12] transition-all"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Reset
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleExportData}
-                className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] hover:border-white/[0.12] transition-all"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export Data
-              </Button>
+      <div className="min-h-screen bg-black">
+        <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-6">
+          {/* Modern Header */}
+          <div className="mb-8 border-b border-white/[0.06] pb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-medium tracking-tight text-white/95 mb-1">Settings</h1>
+                <p className="text-sm text-white/50">Manage your account preferences and configurations</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={handleResetForm}
+                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] hover:border-white/[0.12] transition-all"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Reset
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleExportData}
+                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] hover:border-white/[0.12] transition-all"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export Data
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          {/* Minimal Sidebar Navigation */}
-          <div className="lg:col-span-1 space-y-1" id="settings-tablist" data-tour="settings-tabs">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'settings_tab_switch', tab: tab.id } })); } catch {}
-                }}
-                id={`settings-tab-btn-${tab.id}`}
-                data-tour={`settings-tab-btn-${tab.id}`}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all ${
-                  activeTab === tab.id
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+            {/* Minimal Sidebar Navigation */}
+            <div className="lg:col-span-1 space-y-1" id="settings-tablist" data-tour="settings-tabs">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'settings_tab_switch', tab: tab.id } })); } catch { }
+                  }}
+                  id={`settings-tab-btn-${tab.id}`}
+                  data-tour={`settings-tab-btn-${tab.id}`}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all ${activeTab === tab.id
                     ? "text-white/95 bg-white/[0.06] border border-white/[0.08]"
                     : "text-white/50 hover:text-white/80 hover:bg-white/[0.03]"
-                }`}
-              >
-                <span className={activeTab === tab.id ? "text-[#1dff00]" : "text-white/40"}>
-                  {tab.icon}
-                </span>
-                <span className="font-medium">{tab.label}</span>
-              </button>
-            ))}
-            
-            <div className="pt-4 mt-4 border-t border-white/[0.06]">
-              <button
-                onClick={() => setSignOutDialogOpen(true)}
-                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="font-medium">Sign Out</span>
-              </button>
-            </div>
-          </div>
+                    }`}
+                >
+                  <span className={activeTab === tab.id ? "text-[#1dff00]" : "text-white/40"}>
+                    {tab.icon}
+                  </span>
+                  <span className="font-medium">{tab.label}</span>
+                </button>
+              ))}
 
-          {/* Content Area */}
-          <div className="lg:col-span-4">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <div id="settings-profile-form" data-tour="settings-profile-form">
-                {activeLoading ? <TabSkeleton /> : renderTabContent()}
+              <div className="pt-4 mt-4 border-t border-white/[0.06]">
+                <button
+                  onClick={() => setSignOutDialogOpen(true)}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="font-medium">Sign Out</span>
+                </button>
               </div>
-            </motion.div>
+            </div>
+
+            {/* Content Area */}
+            <div className="lg:col-span-4">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div id="settings-profile-form" data-tour="settings-profile-form">
+                  {activeLoading ? <TabSkeleton /> : renderTabContent()}
+                </div>
+              </motion.div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-    {/* 2FA Setup Modal */}
-    <TwoFAModal />
-    {/* Backup Codes Display Modal */}
-    <Modal
-      open={showBackupCodesModal}
-      onClose={() => {
-        setShowBackupCodesModal(false);
-        setGeneratedBackupCodes(null);
-      }}
-      title="Your Backup Codes"
-      size="lg"
-      side="center"
-    >
-      {generatedBackupCodes && generatedBackupCodes.length > 0 ? (
-        <div className="space-y-4">
-          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-            <p className="text-sm text-yellow-400 font-medium mb-2">⚠️ Important: Save these codes now</p>
-            <p className="text-xs text-yellow-300/80">
-              These codes are shown only once. Store them in a safe place. Each code can only be used once.
-              A file has been automatically downloaded to your device.
-            </p>
-          </div>
-          <div className="bg-white/[0.05] border border-white/[0.1] rounded-lg p-4">
-            <div className="grid grid-cols-2 gap-3">
-              {generatedBackupCodes.map((code, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-2 bg-black/50 border border-white/[0.1] rounded font-mono text-sm text-white/90"
-                >
-                  <span>{code}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      navigator.clipboard.writeText(code);
-                      success(`Code ${index + 1} copied`);
-                    }}
-                    className="h-6 w-6 p-0 text-white/50 hover:text-white hover:bg-white/[0.1]"
+      {/* 2FA Setup Modal */}
+      <TwoFAModal />
+      {/* Backup Codes Display Modal */}
+      <Modal
+        open={showBackupCodesModal}
+        onClose={() => {
+          setShowBackupCodesModal(false);
+          setGeneratedBackupCodes(null);
+        }}
+        title="Your Backup Codes"
+        size="lg"
+        side="center"
+      >
+        {generatedBackupCodes && generatedBackupCodes.length > 0 ? (
+          <div className="space-y-4">
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+              <p className="text-sm text-yellow-400 font-medium mb-2">⚠️ Important: Save these codes now</p>
+              <p className="text-xs text-yellow-300/80">
+                These codes are shown only once. Store them in a safe place. Each code can only be used once.
+                A file has been automatically downloaded to your device.
+              </p>
+            </div>
+            <div className="bg-white/[0.05] border border-white/[0.1] rounded-lg p-4">
+              <div className="grid grid-cols-2 gap-3">
+                {generatedBackupCodes.map((code, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-2 bg-black/50 border border-white/[0.1] rounded font-mono text-sm text-white/90"
                   >
-                    <Download className="w-3 h-3" />
-                  </Button>
-                </div>
-              ))}
+                    <span>{code}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(code);
+                        success(`Code ${index + 1} copied`);
+                      }}
+                      className="h-6 w-6 p-0 text-white/50 hover:text-white hover:bg-white/[0.1]"
+                    >
+                      <Download className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  const allCodes = generatedBackupCodes.join('\n');
+                  navigator.clipboard.writeText(allCodes);
+                  success('All codes copied to clipboard');
+                }}
+                className="flex-1 bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+              >
+                Copy All Codes
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowBackupCodesModal(false);
+                  setGeneratedBackupCodes(null);
+                }}
+                className="border-white/[0.1] text-white/70 hover:bg-white/[0.05]"
+              >
+                I've Saved Them
+              </Button>
             </div>
           </div>
-          <div className="flex gap-3">
-            <Button
-              onClick={() => {
-                const allCodes = generatedBackupCodes.join('\n');
-                navigator.clipboard.writeText(allCodes);
-                success('All codes copied to clipboard');
-              }}
-              className="flex-1 bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-            >
-              Copy All Codes
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowBackupCodesModal(false);
-                setGeneratedBackupCodes(null);
-              }}
-              className="border-white/[0.1] text-white/70 hover:bg-white/[0.05]"
-            >
-              I've Saved Them
-            </Button>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-white/70">No codes to display</p>
           </div>
-        </div>
-      ) : (
-        <div className="text-center py-8">
-          <p className="text-white/70">No codes to display</p>
-        </div>
-      )}
-    </Modal>
-    {/* Data Deletion Request Modal */}
-    <Modal
-      open={showDeletionRequestModal}
-      onClose={() => {
-        setShowDeletionRequestModal(false);
-        setDeletionRequestType('partial_deletion');
-        setDeletionRequestReason("");
-        setSelectedDataTypes([]);
-      }}
-      title="Request Data Deletion"
-      size="lg"
-      side="center"
-    >
-      <div className="space-y-4">
-        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-          <p className="text-sm text-yellow-400 font-medium mb-2">⚠️ Important Information</p>
-          <p className="text-xs text-yellow-300/80">
-            Data deletion requests are processed within 30 days. Once deleted, data cannot be recovered.
-            You can cancel a pending request at any time before processing begins.
-          </p>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-white/90 mb-2">Deletion Type</label>
-          <div className="space-y-2">
-            {[
-              { value: 'partial_deletion', label: 'Partial Deletion', desc: 'Delete specific data types only' },
-              { value: 'anonymization', label: 'Anonymization', desc: 'Remove personally identifiable information' },
-              { value: 'full_deletion', label: 'Full Account Deletion', desc: 'Delete all data and close account' }
-            ].map((type) => (
-              <label key={type.value} className="flex items-start gap-3 p-3 bg-white/[0.05] border border-white/[0.1] rounded-lg cursor-pointer hover:bg-white/[0.08] transition-colors">
-                <input
-                  type="radio"
-                  name="deletionType"
-                  value={type.value}
-                  checked={deletionRequestType === type.value}
-                  onChange={(e) => setDeletionRequestType(e.target.value as any)}
-                  className="mt-1"
-                />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-white/90">{type.label}</p>
-                  <p className="text-xs text-white/50 mt-0.5">{type.desc}</p>
-                </div>
-              </label>
-            ))}
+        )}
+      </Modal>
+      {/* Data Deletion Request Modal */}
+      <Modal
+        open={showDeletionRequestModal}
+        onClose={() => {
+          setShowDeletionRequestModal(false);
+          setDeletionRequestType('partial_deletion');
+          setDeletionRequestReason("");
+          setSelectedDataTypes([]);
+        }}
+        title="Request Data Deletion"
+        size="lg"
+        side="center"
+      >
+        <div className="space-y-4">
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+            <p className="text-sm text-yellow-400 font-medium mb-2">⚠️ Important Information</p>
+            <p className="text-xs text-yellow-300/80">
+              Data deletion requests are processed within 30 days. Once deleted, data cannot be recovered.
+              You can cancel a pending request at any time before processing begins.
+            </p>
           </div>
-        </div>
-        {deletionRequestType === 'partial_deletion' && (
           <div>
-            <label className="block text-sm font-medium text-white/90 mb-2">Select Data Types to Delete</label>
+            <label className="block text-sm font-medium text-white/90 mb-2">Deletion Type</label>
             <div className="space-y-2">
-              {['profile', 'applications', 'resumes', 'notifications', 'jobs', 'bookmarks', 'cover_letters'].map((type) => (
-                <label key={type} className="flex items-center gap-3 p-2 bg-white/[0.05] border border-white/[0.1] rounded-lg cursor-pointer hover:bg-white/[0.08] transition-colors">
+              {[
+                { value: 'partial_deletion', label: 'Partial Deletion', desc: 'Delete specific data types only' },
+                { value: 'anonymization', label: 'Anonymization', desc: 'Remove personally identifiable information' },
+                { value: 'full_deletion', label: 'Full Account Deletion', desc: 'Delete all data and close account' }
+              ].map((type) => (
+                <label key={type.value} className="flex items-start gap-3 p-3 bg-white/[0.05] border border-white/[0.1] rounded-lg cursor-pointer hover:bg-white/[0.08] transition-colors">
                   <input
-                    type="checkbox"
-                    checked={selectedDataTypes.includes(type)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedDataTypes([...selectedDataTypes, type]);
-                      } else {
-                        setSelectedDataTypes(selectedDataTypes.filter(t => t !== type));
-                      }
-                    }}
+                    type="radio"
+                    name="deletionType"
+                    value={type.value}
+                    checked={deletionRequestType === type.value}
+                    onChange={(e) => setDeletionRequestType(e.target.value as any)}
+                    className="mt-1"
                   />
-                  <span className="text-sm text-white/90 capitalize">{type.replace(/_/g, ' ')}</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white/90">{type.label}</p>
+                    <p className="text-xs text-white/50 mt-0.5">{type.desc}</p>
+                  </div>
                 </label>
               ))}
             </div>
           </div>
-        )}
-        <div>
-          <label className="block text-sm font-medium text-white/90 mb-2">Reason (Optional)</label>
-          <textarea
-            value={deletionRequestReason}
-            onChange={(e) => setDeletionRequestReason(e.target.value)}
-            placeholder="Tell us why you're requesting data deletion..."
-            className="w-full p-3 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white placeholder-white/40 text-sm resize-none"
-            rows={3}
-          />
-        </div>
-        <div className="flex gap-3">
-          <Button
-            onClick={async () => {
-              try {
-                if (deletionRequestType === 'partial_deletion' && selectedDataTypes.length === 0) {
-                  toastError('Validation Error', 'Please select at least one data type for partial deletion');
-                  return;
-                }
-                await createDeletionRequest(
-                  deletionRequestType,
-                  deletionRequestType === 'partial_deletion' ? selectedDataTypes : undefined,
-                  deletionRequestReason || undefined
-                );
-                success('Deletion request submitted');
-                setShowDeletionRequestModal(false);
-                setDeletionRequestType('partial_deletion');
-                setDeletionRequestReason("");
-                setSelectedDataTypes([]);
-              } catch (e: any) {
-                toastError('Failed to submit request', e.message);
-              }
-            }}
-            className="flex-1 bg-red-500 text-white hover:bg-red-600"
-          >
-            Submit Request
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setShowDeletionRequestModal(false);
-              setDeletionRequestType('partial_deletion');
-              setDeletionRequestReason("");
-              setSelectedDataTypes([]);
-            }}
-            className="border-white/[0.1] text-white/70 hover:bg-white/[0.05]"
-          >
-            Cancel
-          </Button>
-        </div>
-      </div>
-    </Modal>
-    {/* Account Deletion Confirmation Modal */}
-    <Modal
-      open={showAccountDeletionModal}
-      onClose={() => {
-        if (!isDeleting) {
-          setShowAccountDeletionModal(false);
-          setAccountDeletionEmail("");
-        }
-      }}
-      title="Delete Account Permanently"
-      size="lg"
-      side="center"
-    >
-      <div className="space-y-4">
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-red-400 mb-2">⚠️ This action cannot be undone</p>
-              <p className="text-xs text-red-300/80 leading-relaxed">
-                Deleting your account will permanently remove all your data including:
-              </p>
-              <ul className="text-xs text-red-300/80 mt-2 space-y-1 list-disc list-inside">
-                <li>Your profile and personal information</li>
-                <li>All job applications and saved jobs</li>
-                <li>Resumes, cover letters, and documents</li>
-                <li>Notification and privacy settings</li>
-                <li>Security settings and backup codes</li>
-                <li>Credit balance and transaction history</li>
-                <li>All other account-related data</li>
-              </ul>
-              <p className="text-xs text-red-300/80 mt-3 font-medium">
-                This process is irreversible. Please ensure you have exported any data you wish to keep.
-              </p>
+          {deletionRequestType === 'partial_deletion' && (
+            <div>
+              <label className="block text-sm font-medium text-white/90 mb-2">Select Data Types to Delete</label>
+              <div className="space-y-2">
+                {['profile', 'applications', 'resumes', 'notifications', 'jobs', 'bookmarks', 'cover_letters'].map((type) => (
+                  <label key={type} className="flex items-center gap-3 p-2 bg-white/[0.05] border border-white/[0.1] rounded-lg cursor-pointer hover:bg-white/[0.08] transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={selectedDataTypes.includes(type)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedDataTypes([...selectedDataTypes, type]);
+                        } else {
+                          setSelectedDataTypes(selectedDataTypes.filter(t => t !== type));
+                        }
+                      }}
+                    />
+                    <span className="text-sm text-white/90 capitalize">{type.replace(/_/g, ' ')}</span>
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
-        </div>
-
-        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-          <p className="text-sm text-yellow-400 font-medium mb-2">🔒 Security Confirmation Required</p>
-          <p className="text-xs text-yellow-300/80">
-            To confirm account deletion, please type your email address below:
-          </p>
-          <p className="text-xs text-yellow-300/60 mt-1 font-mono">
-            {userEmail}
-          </p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-white/90 mb-2">
-            Type your email to confirm deletion
-          </label>
-          <Input
-            type="email"
-            value={accountDeletionEmail}
-            onChange={(e) => setAccountDeletionEmail(e.target.value)}
-            placeholder={userEmail || "your@email.com"}
-            disabled={isDeleting}
-            className="bg-white/[0.05] border-white/[0.1] text-white placeholder-white/40"
-            autoComplete="off"
-          />
-          {accountDeletionEmail && accountDeletionEmail.toLowerCase().trim() !== userEmail.toLowerCase().trim() && (
-            <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-              <X className="w-3 h-3" />
-              Email does not match
-            </p>
           )}
-        </div>
-
-        <div className="flex items-start gap-2 p-3 bg-white/[0.02] border border-white/[0.06] rounded-lg">
-          <input
-            type="checkbox"
-            id="confirm-deletion"
-            className="mt-1"
-            disabled={isDeleting}
-          />
-          <label htmlFor="confirm-deletion" className="text-xs text-white/70 cursor-pointer">
-            I understand that this action is permanent and cannot be undone. I have exported any data I wish to keep.
-          </label>
-        </div>
-
-        <div className="flex gap-3 pt-2">
-          <Button
-            onClick={async () => {
-              const emailInput = accountDeletionEmail.toLowerCase().trim();
-              const userEmailLower = userEmail.toLowerCase().trim();
-              
-              if (!emailInput) {
-                toastError('Validation Error', 'Please enter your email address');
-                return;
-              }
-
-              if (emailInput !== userEmailLower) {
-                toastError('Validation Error', 'Email address does not match');
-                return;
-              }
-
-              const checkbox = document.getElementById('confirm-deletion') as HTMLInputElement;
-              if (!checkbox?.checked) {
-                toastError('Validation Error', 'Please confirm that you understand this action is permanent');
-                return;
-              }
-
-              setIsDeleting(true);
-              try {
-                const { data } = await supabase.auth.getUser();
-                const uid = (data as any)?.user?.id;
-                
-                if (!uid) {
-                  throw new Error('User not found');
-                }
-
-                // Log the deletion request with security audit
-                await logPrivacyAction('account_deletion_confirmed', {
-                  email_confirmed: true,
-                  deletion_method: 'user_initiated'
-                });
-
-                // Create a deletion request record
-                try {
-                  await createDeletionRequest('full_deletion', undefined, 'User-initiated account deletion');
-                } catch (e) {
-                  console.warn('Failed to create deletion request record:', e);
-                }
-
-                // Delete all user data (RLS policies will ensure user can only delete their own data)
-                const deletePromises = [
-                  (supabase as any).from('profiles').delete().eq('id', uid),
-                  (supabase as any).from('notification_settings').delete().eq('id', uid),
-                  (supabase as any).from('security_settings').delete().eq('id', uid),
-                  (supabase as any).from('security_backup_codes').delete().eq('user_id', uid),
-                  (supabase as any).from('security_trusted_devices').delete().eq('user_id', uid),
-                  (supabase as any).from('security_active_sessions').delete().eq('user_id', uid),
-                  (supabase as any).from('security_api_keys').delete().eq('user_id', uid),
-                  (supabase as any).from('privacy_settings').delete().eq('id', uid),
-                  (supabase as any).from('privacy_audit_log').delete().eq('user_id', uid),
-                  (supabase as any).from('privacy_data_deletion_requests').delete().eq('user_id', uid),
-                  (supabase as any).from('applications').delete().eq('user_id', uid),
-                  (supabase as any).from('jobs').delete().eq('user_id', uid),
-                  (supabase as any).from('bookmarks').delete().eq('user_id', uid),
-                  (supabase as any).from('notifications').delete().eq('user_id', uid),
-                  (supabase as any).from('resumes').delete().eq('user_id', uid),
-                  (supabase as any).from('cover_letters').delete().eq('user_id', uid),
-                  (supabase as any).from('credit_transactions').delete().eq('user_id', uid),
-                  (supabase as any).from('user_credits').delete().eq('user_id', uid),
-                  (supabase as any).from('user_subscriptions').delete().eq('user_id', uid),
-                ];
-
-                await Promise.all(deletePromises);
-
-                // Sign out and redirect
-                await supabase.auth.signOut();
-                success('Account deleted successfully');
-                
-                // Small delay before redirect to show success message
-                setTimeout(() => {
-                  window.location.href = '/';
-                }, 1000);
-              } catch (e: any) {
-                setIsDeleting(false);
-                toastError('Deletion failed', e.message || 'An error occurred while deleting your account. Please try again or contact support.');
-              }
-            }}
-            disabled={isDeleting || accountDeletionEmail.toLowerCase().trim() !== userEmail.toLowerCase().trim()}
-            className="flex-1 bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isDeleting ? (
-              <>
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                Deleting Account...
-              </>
-            ) : (
-              <>
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete My Account
-              </>
-            )}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setShowAccountDeletionModal(false);
-              setAccountDeletionEmail("");
-            }}
-            disabled={isDeleting}
-            className="border-white/[0.1] text-white/70 hover:bg-white/[0.05] disabled:opacity-50"
-          >
-            Cancel
-          </Button>
-        </div>
-      </div>
-    </Modal>
-    {/* API Key Creation Modal */}
-    <Modal
-      open={apiKeyModalOpen}
-      onClose={() => {
-        setApiKeyModalOpen(false);
-        setCreatedApiKey(null);
-        setNewApiKeyName("");
-        setNewApiKeyExpiry(undefined);
-        setNewApiKeyIpRestrictions("");
-      }}
-      title={createdApiKey ? "API Key Created" : "Create New API Key"}
-      size="md"
-      side="center"
-    >
-      {createdApiKey ? (
-        <div className="space-y-4">
-          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-            <p className="text-sm text-yellow-400 font-medium mb-2">⚠️ Important: Save this key now</p>
-            <p className="text-xs text-yellow-300/80">You won't be able to see this key again. Copy it to a secure location.</p>
-          </div>
-          <div className="bg-white/[0.05] border border-white/[0.1] rounded-lg p-4">
-            <p className="text-xs text-white/50 mb-2">Your API Key:</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 bg-black/50 border border-white/[0.1] rounded px-3 py-2 text-sm text-white/90 font-mono break-all">
-                {createdApiKey}
-              </code>
-              <Button
-                size="sm"
-                onClick={() => {
-                  navigator.clipboard.writeText(createdApiKey);
-                  success('API key copied to clipboard');
-                }}
-                className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-              >
-                Copy
-              </Button>
-            </div>
-          </div>
-          <Button
-            onClick={() => {
-              setApiKeyModalOpen(false);
-              setCreatedApiKey(null);
-              setNewApiKeyName("");
-              setNewApiKeyExpiry(undefined);
-              setNewApiKeyIpRestrictions("");
-            }}
-            className="w-full bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-          >
-            Done
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-white/90 mb-2">Key Name</label>
-            <Input
-              type="text"
-              placeholder="e.g., Production API, Development"
-              value={newApiKeyName}
-              onChange={(e) => setNewApiKeyName(e.target.value)}
-              className="bg-white/[0.05] border-white/[0.1] text-white"
+            <label className="block text-sm font-medium text-white/90 mb-2">Reason (Optional)</label>
+            <textarea
+              value={deletionRequestReason}
+              onChange={(e) => setDeletionRequestReason(e.target.value)}
+              placeholder="Tell us why you're requesting data deletion..."
+              className="w-full p-3 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white placeholder-white/40 text-sm resize-none"
+              rows={3}
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-white/90 mb-2">Expires In (days, optional)</label>
-            <Input
-              type="number"
-              placeholder="Leave empty for no expiration"
-              value={newApiKeyExpiry || ""}
-              onChange={(e) => setNewApiKeyExpiry(e.target.value ? parseInt(e.target.value) : undefined)}
-              className="bg-white/[0.05] border-white/[0.1] text-white"
-              min="1"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-white/90 mb-2">IP Restrictions (comma-separated, optional)</label>
-            <Input
-              type="text"
-              placeholder="e.g., 192.168.1.1, 10.0.0.1"
-              value={newApiKeyIpRestrictions}
-              onChange={(e) => setNewApiKeyIpRestrictions(e.target.value)}
-              className="bg-white/[0.05] border-white/[0.1] text-white"
-            />
-            <p className="text-xs text-white/50 mt-1">Leave empty to allow from any IP</p>
           </div>
           <div className="flex gap-3">
             <Button
               onClick={async () => {
-                if (!newApiKeyName.trim()) {
-                  toastError('Validation Error', 'Key name is required');
-                  return;
-                }
                 try {
-                  const ipRestrictions = newApiKeyIpRestrictions
-                    .split(',')
-                    .map(ip => ip.trim())
-                    .filter(ip => ip.length > 0);
-                  const result = await createApiKey(newApiKeyName, newApiKeyExpiry, ipRestrictions.length > 0 ? ipRestrictions : undefined);
-                  if (result && result.key) {
-                    setCreatedApiKey(result.key);
+                  if (deletionRequestType === 'partial_deletion' && selectedDataTypes.length === 0) {
+                    toastError('Validation Error', 'Please select at least one data type for partial deletion');
+                    return;
                   }
+                  await createDeletionRequest(
+                    deletionRequestType,
+                    deletionRequestType === 'partial_deletion' ? selectedDataTypes : undefined,
+                    deletionRequestReason || undefined
+                  );
+                  success('Deletion request submitted');
+                  setShowDeletionRequestModal(false);
+                  setDeletionRequestType('partial_deletion');
+                  setDeletionRequestReason("");
+                  setSelectedDataTypes([]);
                 } catch (e: any) {
-                  toastError('Failed to create API key', e.message);
+                  toastError('Failed to submit request', e.message);
                 }
               }}
-              disabled={!newApiKeyName.trim()}
-              className="flex-1 bg-[#1dff00] text-black hover:bg-[#1dff00]/90 disabled:opacity-50"
+              className="flex-1 bg-red-500 text-white hover:bg-red-600"
             >
-              Create Key
+              Submit Request
             </Button>
             <Button
               variant="outline"
               onClick={() => {
-                setApiKeyModalOpen(false);
-                setNewApiKeyName("");
-                setNewApiKeyExpiry(undefined);
-                setNewApiKeyIpRestrictions("");
+                setShowDeletionRequestModal(false);
+                setDeletionRequestType('partial_deletion');
+                setDeletionRequestReason("");
+                setSelectedDataTypes([]);
               }}
               className="border-white/[0.1] text-white/70 hover:bg-white/[0.05]"
             >
@@ -3483,27 +3098,344 @@ export const SettingsPage = (): JSX.Element => {
             </Button>
           </div>
         </div>
-      )}
-    </Modal>
-    {/* Sign Out Dialog */}
-    <SignOutDialog
-      open={signOutDialogOpen}
-      onConfirm={async () => {
-        setIsSigningOut(true);
-        try {
-          await supabase.auth.signOut();
-          window.location.href = '/signin';
-        } catch (error) {
-          console.error('Sign out error:', error);
+      </Modal>
+      {/* Account Deletion Confirmation Modal */}
+      <Modal
+        open={showAccountDeletionModal}
+        onClose={() => {
+          if (!isDeleting) {
+            setShowAccountDeletionModal(false);
+            setAccountDeletionEmail("");
+          }
+        }}
+        title="Delete Account Permanently"
+        size="lg"
+        side="center"
+      >
+        <div className="space-y-4">
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-400 mb-2">⚠️ This action cannot be undone</p>
+                <p className="text-xs text-red-300/80 leading-relaxed">
+                  Deleting your account will permanently remove all your data including:
+                </p>
+                <ul className="text-xs text-red-300/80 mt-2 space-y-1 list-disc list-inside">
+                  <li>Your profile and personal information</li>
+                  <li>All job applications and saved jobs</li>
+                  <li>Resumes, cover letters, and documents</li>
+                  <li>Notification and privacy settings</li>
+                  <li>Security settings and backup codes</li>
+                  <li>Credit balance and transaction history</li>
+                  <li>All other account-related data</li>
+                </ul>
+                <p className="text-xs text-red-300/80 mt-3 font-medium">
+                  This process is irreversible. Please ensure you have exported any data you wish to keep.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+            <p className="text-sm text-yellow-400 font-medium mb-2">🔒 Security Confirmation Required</p>
+            <p className="text-xs text-yellow-300/80">
+              To confirm account deletion, please type your email address below:
+            </p>
+            <p className="text-xs text-yellow-300/60 mt-1 font-mono">
+              {userEmail}
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-white/90 mb-2">
+              Type your email to confirm deletion
+            </label>
+            <Input
+              type="email"
+              value={accountDeletionEmail}
+              onChange={(e) => setAccountDeletionEmail(e.target.value)}
+              placeholder={userEmail || "your@email.com"}
+              disabled={isDeleting}
+              className="bg-white/[0.05] border-white/[0.1] text-white placeholder-white/40"
+              autoComplete="off"
+            />
+            {accountDeletionEmail && accountDeletionEmail.toLowerCase().trim() !== userEmail.toLowerCase().trim() && (
+              <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                <X className="w-3 h-3" />
+                Email does not match
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-start gap-2 p-3 bg-white/[0.02] border border-white/[0.06] rounded-lg">
+            <input
+              type="checkbox"
+              id="confirm-deletion"
+              className="mt-1"
+              disabled={isDeleting}
+            />
+            <label htmlFor="confirm-deletion" className="text-xs text-white/70 cursor-pointer">
+              I understand that this action is permanent and cannot be undone. I have exported any data I wish to keep.
+            </label>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              onClick={async () => {
+                const emailInput = accountDeletionEmail.toLowerCase().trim();
+                const userEmailLower = userEmail.toLowerCase().trim();
+
+                if (!emailInput) {
+                  toastError('Validation Error', 'Please enter your email address');
+                  return;
+                }
+
+                if (emailInput !== userEmailLower) {
+                  toastError('Validation Error', 'Email address does not match');
+                  return;
+                }
+
+                const checkbox = document.getElementById('confirm-deletion') as HTMLInputElement;
+                if (!checkbox?.checked) {
+                  toastError('Validation Error', 'Please confirm that you understand this action is permanent');
+                  return;
+                }
+
+                setIsDeleting(true);
+                try {
+                  const { data } = await supabase.auth.getUser();
+                  const uid = (data as any)?.user?.id;
+
+                  if (!uid) {
+                    throw new Error('User not found');
+                  }
+
+                  // Log the deletion request with security audit
+                  await logPrivacyAction('account_deletion_confirmed', {
+                    email_confirmed: true,
+                    deletion_method: 'user_initiated'
+                  });
+
+                  // Create a deletion request record
+                  try {
+                    await createDeletionRequest('full_deletion', undefined, 'User-initiated account deletion');
+                  } catch (e) {
+                    console.warn('Failed to create deletion request record:', e);
+                  }
+
+                  // Delete all user data (RLS policies will ensure user can only delete their own data)
+                  const deletePromises = [
+                    (supabase as any).from('profiles').delete().eq('id', uid),
+                    (supabase as any).from('notification_settings').delete().eq('id', uid),
+                    (supabase as any).from('security_settings').delete().eq('id', uid),
+                    (supabase as any).from('security_backup_codes').delete().eq('user_id', uid),
+                    (supabase as any).from('security_trusted_devices').delete().eq('user_id', uid),
+                    (supabase as any).from('security_active_sessions').delete().eq('user_id', uid),
+                    (supabase as any).from('security_api_keys').delete().eq('user_id', uid),
+                    (supabase as any).from('privacy_settings').delete().eq('id', uid),
+                    (supabase as any).from('privacy_audit_log').delete().eq('user_id', uid),
+                    (supabase as any).from('privacy_data_deletion_requests').delete().eq('user_id', uid),
+                    (supabase as any).from('applications').delete().eq('user_id', uid),
+                    (supabase as any).from('jobs').delete().eq('user_id', uid),
+                    (supabase as any).from('bookmarks').delete().eq('user_id', uid),
+                    (supabase as any).from('notifications').delete().eq('user_id', uid),
+                    (supabase as any).from('resumes').delete().eq('user_id', uid),
+                    (supabase as any).from('cover_letters').delete().eq('user_id', uid),
+                    (supabase as any).from('credit_transactions').delete().eq('user_id', uid),
+                    (supabase as any).from('user_credits').delete().eq('user_id', uid),
+                    (supabase as any).from('user_subscriptions').delete().eq('user_id', uid),
+                  ];
+
+                  await Promise.all(deletePromises);
+
+                  // Sign out and redirect
+                  await supabase.auth.signOut();
+                  success('Account deleted successfully');
+
+                  // Small delay before redirect to show success message
+                  setTimeout(() => {
+                    window.location.href = '/';
+                  }, 1000);
+                } catch (e: any) {
+                  setIsDeleting(false);
+                  toastError('Deletion failed', e.message || 'An error occurred while deleting your account. Please try again or contact support.');
+                }
+              }}
+              disabled={isDeleting || accountDeletionEmail.toLowerCase().trim() !== userEmail.toLowerCase().trim()}
+              className="flex-1 bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isDeleting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting Account...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete My Account
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAccountDeletionModal(false);
+                setAccountDeletionEmail("");
+              }}
+              disabled={isDeleting}
+              className="border-white/[0.1] text-white/70 hover:bg-white/[0.05] disabled:opacity-50"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      {/* API Key Creation Modal */}
+      <Modal
+        open={apiKeyModalOpen}
+        onClose={() => {
+          setApiKeyModalOpen(false);
+          setCreatedApiKey(null);
+          setNewApiKeyName("");
+          setNewApiKeyExpiry(undefined);
+          setNewApiKeyIpRestrictions("");
+        }}
+        title={createdApiKey ? "API Key Created" : "Create New API Key"}
+        size="md"
+        side="center"
+      >
+        {createdApiKey ? (
+          <div className="space-y-4">
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+              <p className="text-sm text-yellow-400 font-medium mb-2">⚠️ Important: Save this key now</p>
+              <p className="text-xs text-yellow-300/80">You won't be able to see this key again. Copy it to a secure location.</p>
+            </div>
+            <div className="bg-white/[0.05] border border-white/[0.1] rounded-lg p-4">
+              <p className="text-xs text-white/50 mb-2">Your API Key:</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 bg-black/50 border border-white/[0.1] rounded px-3 py-2 text-sm text-white/90 font-mono break-all">
+                  {createdApiKey}
+                </code>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdApiKey);
+                    success('API key copied to clipboard');
+                  }}
+                  className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+                >
+                  Copy
+                </Button>
+              </div>
+            </div>
+            <Button
+              onClick={() => {
+                setApiKeyModalOpen(false);
+                setCreatedApiKey(null);
+                setNewApiKeyName("");
+                setNewApiKeyExpiry(undefined);
+                setNewApiKeyIpRestrictions("");
+              }}
+              className="w-full bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
+            >
+              Done
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-white/90 mb-2">Key Name</label>
+              <Input
+                type="text"
+                placeholder="e.g., Production API, Development"
+                value={newApiKeyName}
+                onChange={(e) => setNewApiKeyName(e.target.value)}
+                className="bg-white/[0.05] border-white/[0.1] text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-white/90 mb-2">Expires In (days, optional)</label>
+              <Input
+                type="number"
+                placeholder="Leave empty for no expiration"
+                value={newApiKeyExpiry || ""}
+                onChange={(e) => setNewApiKeyExpiry(e.target.value ? parseInt(e.target.value) : undefined)}
+                className="bg-white/[0.05] border-white/[0.1] text-white"
+                min="1"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-white/90 mb-2">IP Restrictions (comma-separated, optional)</label>
+              <Input
+                type="text"
+                placeholder="e.g., 192.168.1.1, 10.0.0.1"
+                value={newApiKeyIpRestrictions}
+                onChange={(e) => setNewApiKeyIpRestrictions(e.target.value)}
+                className="bg-white/[0.05] border-white/[0.1] text-white"
+              />
+              <p className="text-xs text-white/50 mt-1">Leave empty to allow from any IP</p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                onClick={async () => {
+                  if (!newApiKeyName.trim()) {
+                    toastError('Validation Error', 'Key name is required');
+                    return;
+                  }
+                  try {
+                    const ipRestrictions = newApiKeyIpRestrictions
+                      .split(',')
+                      .map(ip => ip.trim())
+                      .filter(ip => ip.length > 0);
+                    const result = await createApiKey(newApiKeyName, newApiKeyExpiry, ipRestrictions.length > 0 ? ipRestrictions : undefined);
+                    if (result && result.key) {
+                      setCreatedApiKey(result.key);
+                    }
+                  } catch (e: any) {
+                    toastError('Failed to create API key', e.message);
+                  }
+                }}
+                disabled={!newApiKeyName.trim()}
+                className="flex-1 bg-[#1dff00] text-black hover:bg-[#1dff00]/90 disabled:opacity-50"
+              >
+                Create Key
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setApiKeyModalOpen(false);
+                  setNewApiKeyName("");
+                  setNewApiKeyExpiry(undefined);
+                  setNewApiKeyIpRestrictions("");
+                }}
+                className="border-white/[0.1] text-white/70 hover:bg-white/[0.05]"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+      {/* Sign Out Dialog */}
+      <SignOutDialog
+        open={signOutDialogOpen}
+        onConfirm={async () => {
+          setIsSigningOut(true);
+          try {
+            await supabase.auth.signOut();
+            window.location.href = '/signin';
+          } catch (error) {
+            console.error('Sign out error:', error);
+            setIsSigningOut(false);
+          }
+        }}
+        onCancel={() => {
+          setSignOutDialogOpen(false);
           setIsSigningOut(false);
-        }
-      }}
-      onCancel={() => {
-        setSignOutDialogOpen(false);
-        setIsSigningOut(false);
-      }}
-      isLoading={isSigningOut}
-    />
+        }}
+        isLoading={isSigningOut}
+      />
     </>
   );
 
@@ -3521,9 +3453,9 @@ export const SettingsPage = (): JSX.Element => {
           <p className="text-muted-foreground text-sm">
             Scan the QR code in your authenticator app (e.g., Google Authenticator, Authy), then enter the 6-digit code below.
           </p>
-      {qrDataUrl ? (
+          {qrDataUrl ? (
             <div className="flex justify-center">
-        <img src={qrDataUrl} alt="TOTP QR" className="rounded border border-primary/30" />
+              <img src={qrDataUrl} alt="TOTP QR" className="rounded border border-primary/30" />
             </div>
           ) : (
             <div className="text-muted-foreground text-sm">Generating QR…</div>
@@ -3583,7 +3515,7 @@ function _DefaultsForm() {
   const [includeIndeed, setIncludeIndeed] = useState(true);
   const [includeSearch, setIncludeSearch] = useState(true);
   const [allowedDomains, setAllowedDomains] = useState<string>("");
-  const [enabledSources, setEnabledSources] = useState<string[]>(["deepresearch","remotive","remoteok","arbeitnow"]);
+  const [enabledSources, setEnabledSources] = useState<string[]>(["deepresearch", "remotive", "remoteok", "arbeitnow"]);
   const [cronEnabled, setCronEnabled] = useState<boolean>(false);
   // Test search helpers
   const [testQuery, setTestQuery] = useState<string>("software engineer");
