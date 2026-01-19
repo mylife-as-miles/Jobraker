@@ -1,5 +1,5 @@
 /* Import theme tokens and targeted input fixes */
-@import url('./src/client/styles/_colors.css');
+
 @import url('./src/client/styles/_theme.css');
 @import url('./src/styles/responsive-inputs.css');
 
@@ -38,24 +38,40 @@
     color: hsl(var(--foreground, var(--surface-foreground-fallback)) / 1);
     min-height: 100%;
   }
+
   html.dark {
     color-scheme: dark;
   }
+
   html:not(.dark) {
     color-scheme: light;
   }
-  html, body, #app, #root {
+
+  html,
+  body,
+  #app,
+  #root {
     min-height: 100%;
     background-color: hsl(var(--background, var(--surface-background-fallback)) / 1);
     color: hsl(var(--foreground, var(--surface-foreground-fallback)) / 1);
   }
+
   /* Normalize form controls to theme colors on mobile */
-  input, select, textarea, button {
+  input,
+  select,
+  textarea,
+  button {
     color: hsl(var(--foreground, var(--surface-foreground-fallback)) / 1);
     background-color: hsl(var(--background, var(--surface-background-fallback)) / 1);
     border-color: hsl(var(--border) / 1);
   }
-  input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) / 1); opacity: 1; }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: hsl(var(--muted-foreground) / 1);
+    opacity: 1;
+  }
+
   /* iOS autofill background/text fix */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
@@ -69,26 +85,28 @@
 }
 
 @layer components {
+
   /* Glassy card surface with subtle border and blur */
   .card-surface {
     @apply backdrop-blur-sm rounded-xl shadow-sm;
     background-color: hsla(0, 0%, 100%, 0.03);
     border: 1px solid hsla(0, 0%, 100%, 0.06);
   }
+
   .card-hover {
     @apply transition-all duration-300 hover:-translate-y-0.5;
     box-shadow: 0 0 12px hsla(var(--brand) / 0.18);
     border-color: hsl(var(--brand) / 0.4);
   }
+
   .brand-glow {
     box-shadow: 0 0 14px hsla(var(--brand) / 0.22), 0 0 32px hsla(var(--brand) / 0.10);
   }
+
   .glass-black {
-    background: linear-gradient(
-      180deg,
-      hsla(0, 0%, 100%, 0.04) 0%,
-      hsla(0, 0%, 100%, 0.02) 100%
-    );
+    background: linear-gradient(180deg,
+        hsla(0, 0%, 100%, 0.04) 0%,
+        hsla(0, 0%, 100%, 0.02) 100%);
     border: 1px solid hsl(var(--border));
     @apply rounded-xl backdrop-blur-sm;
   }
@@ -100,4 +118,3 @@
     border-color: hsl(var(--border) / 1);
   }
 }
-
