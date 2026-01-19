@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, FocusEvent } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Minus, Plus, Download, Wand2, Pencil, Share2, Check, Trash2, ArrowUp, ArrowDown, Printer, X, FileText, FileType, Lock } from "lucide-react";
@@ -56,7 +56,7 @@ export const CoverLetter = () => {
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
   const [libName, setLibName] = useState("");
   const [currentLibId, setCurrentLibId] = useState<string | null>(null);
-  
+
   // Subscription tier state
   const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
 
@@ -121,7 +121,7 @@ export const CoverLetter = () => {
           if (targetLetter) {
             setCurrentLibId(targetLetter.id);
             setLibName(targetLetter.name || 'Untitled Cover Letter');
-            
+
             // Load letter data
             setRole(targetLetter.role ?? "");
             setCompany(targetLetter.company ?? "");
@@ -177,7 +177,7 @@ export const CoverLetter = () => {
               setContent(parsed?.content ?? "");
               setFontSize(parsed?.fontSize ?? 16);
               setSavedAt(parsed?.savedAt ?? null);
-            } catch {}
+            } catch { }
           }
         }
       } catch (error) {
@@ -195,7 +195,7 @@ export const CoverLetter = () => {
         if (!userId) {
           return;
         }
-        
+
         // Try to fetch from user_subscriptions first
         const { data: subscription } = await supabase
           .from('user_subscriptions')
@@ -205,7 +205,7 @@ export const CoverLetter = () => {
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
-        
+
         const planName = (subscription as any)?.subscription_plans?.name;
         if (planName && (planName === 'Free' || planName === 'Basics' || planName === 'Pro' || planName === 'Ultimate')) {
           setSubscriptionTier(planName as 'Free' | 'Basics' | 'Pro' | 'Ultimate');
@@ -216,7 +216,7 @@ export const CoverLetter = () => {
             .select('subscription_tier')
             .eq('id', userId)
             .single();
-          
+
           if (profileData?.subscription_tier && (profileData.subscription_tier === 'Free' || profileData.subscription_tier === 'Basics' || profileData.subscription_tier === 'Pro' || profileData.subscription_tier === 'Ultimate')) {
             setSubscriptionTier(profileData.subscription_tier);
           } else {
@@ -257,7 +257,7 @@ export const CoverLetter = () => {
           if (!senderAddress && data.location) setSenderAddress(data.location);
           if (!role && data.job_title) setRole(data.job_title);
         }
-      } catch {}
+      } catch { }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -304,7 +304,7 @@ export const CoverLetter = () => {
 
           if (!error) {
             // Update local library state
-            setLibrary((prev) => {
+            setLibrary((prev: LibraryEntry[]) => {
               const idx = prev.findIndex((e) => e.id === currentLibId);
               if (idx !== -1) {
                 const updated = [...prev];
@@ -353,7 +353,7 @@ export const CoverLetter = () => {
     if (content.trim().length) return content;
     return "";
   }, [content]);
-  
+
   const finalBody = useMemo(() => {
     if (paragraphs.length) return paragraphs.join("\n\n");
     return fallbackBody;
@@ -395,13 +395,13 @@ export const CoverLetter = () => {
     return lines.join("\n");
   };
 
-  const zoomIn = () => setFontSize((size) => Math.min(28, size + 1));
-  const zoomOut = () => setFontSize((size) => Math.max(12, size - 1));
+  const zoomIn = () => setFontSize((size: number) => Math.min(28, size + 1));
+  const zoomOut = () => setFontSize((size: number) => Math.max(12, size - 1));
   const exportTxt = () => {
     try {
       const text = serializeLetter();
       if (!text.trim()) return;
-      const fileName = `Cover_Letter_${(company||'Company').replace(/[^a-z0-9]+/gi,'_')}_${(role||'Role').replace(/[^a-z0-9]+/gi,'_')}.txt`;
+      const fileName = `Cover_Letter_${(company || 'Company').replace(/[^a-z0-9]+/gi, '_')}_${(role || 'Role').replace(/[^a-z0-9]+/gi, '_')}.txt`;
       const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -416,7 +416,7 @@ export const CoverLetter = () => {
       success('Download started', 'TXT file is being saved');
       setLastExport('txt');
       localStorage.setItem(LAST_EXPORT_KEY, 'txt');
-    } catch (e) {
+    } catch (e: any) {
       console.error('TXT export failed', e);
       toastError('Export failed', 'Could not create TXT file');
     }
@@ -434,10 +434,10 @@ export const CoverLetter = () => {
       const marginY = 54;
       const lineHeight = 16;
       const maxWidth = doc.internal.pageSize.getWidth() - marginX * 2;
-      doc.setFont('helvetica','normal');
+      doc.setFont('helvetica', 'normal');
       doc.setFontSize(12);
       let y = marginY;
-      const lines = serialized.replace(/\r/g,'').split('\n');
+      const lines = serialized.replace(/\r/g, '').split('\n');
       lines.forEach((line) => {
         if (y > doc.internal.pageSize.getHeight() - marginY) {
           doc.addPage();
@@ -447,16 +447,16 @@ export const CoverLetter = () => {
         const wrapped = doc.splitTextToSize(line, maxWidth);
         wrapped.forEach((wLine: string) => {
           if (y > doc.internal.pageSize.getHeight() - marginY) { doc.addPage(); y = marginY; }
-            doc.text(wLine, marginX, y);
-            y += lineHeight;
+          doc.text(wLine, marginX, y);
+          y += lineHeight;
         });
       });
-      const fileName = `Cover_Letter_${(company||'Company').replace(/[^a-z0-9]+/gi,'_')}_${(role||'Role').replace(/[^a-z0-9]+/gi,'_')}.pdf`;
+      const fileName = `Cover_Letter_${(company || 'Company').replace(/[^a-z0-9]+/gi, '_')}_${(role || 'Role').replace(/[^a-z0-9]+/gi, '_')}.pdf`;
       doc.save(fileName);
       success('PDF exported', 'Your PDF is downloading');
       setLastExport('pdf');
       localStorage.setItem(LAST_EXPORT_KEY, 'pdf');
-    } catch (e:any) {
+    } catch (e: any) {
       console.error('PDF export failed', e);
       toastError('PDF failed', e?.message || 'Could not generate PDF');
     } finally {
@@ -475,7 +475,7 @@ export const CoverLetter = () => {
       const paragraphs = serialized.split(/\n\n+/).map((block: string) => new Paragraph({ children: block.split('\n').map(line => mod ? new mod.TextRun(line) : line) }));
       const doc = new Document({ sections: [{ properties: {}, children: paragraphs }] });
       const blob = await Packer.toBlob(doc);
-      const fileName = `Cover_Letter_${(company||'Company').replace(/[^a-z0-9]+/gi,'_')}_${(role||'Role').replace(/[^a-z0-9]+/gi,'_')}.docx`;
+      const fileName = `Cover_Letter_${(company || 'Company').replace(/[^a-z0-9]+/gi, '_')}_${(role || 'Role').replace(/[^a-z0-9]+/gi, '_')}.docx`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = fileName; document.body.appendChild(a); a.click();
@@ -483,7 +483,7 @@ export const CoverLetter = () => {
       success('DOCX exported', 'Your DOCX is downloading');
       setLastExport('docx');
       localStorage.setItem(LAST_EXPORT_KEY, 'docx');
-    } catch (e:any) {
+    } catch (e: any) {
       console.error('DOCX export failed', e);
       toastError('DOCX failed', e?.message || 'Could not generate DOCX');
     } finally {
@@ -510,10 +510,10 @@ export const CoverLetter = () => {
       </head><body><div class="doc">${html}</div></body></html>`);
       win.document.close();
       win.focus();
-      setTimeout(() => { try { win.print(); } catch {} }, 50);
-      setTimeout(() => { try { win.close(); } catch {} }, 500);
+      setTimeout(() => { try { win.print(); } catch { } }, 50);
+      setTimeout(() => { try { win.close(); } catch { } }, 500);
       success('Print ready', 'Use system dialog to save as PDF');
-    } catch (e) {
+    } catch (e: any) {
       console.error('Print failed', e);
       toastError('Print failed', 'Could not prepare print view');
     }
@@ -525,7 +525,7 @@ export const CoverLetter = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
       success('Copied', 'Letter copied to clipboard');
-    } catch (e) {
+    } catch (e: any) {
       toastError('Copy failed', 'Clipboard not available');
     }
   };
@@ -575,7 +575,7 @@ export const CoverLetter = () => {
         if (error) throw error;
 
         setLibName(entryName);
-        setLibrary((prev) => {
+        setLibrary((prev: LibraryEntry[]) => {
           const idx = prev.findIndex((e) => e.id === currentLibId);
           if (idx !== -1) {
             const updated = [...prev];
@@ -687,16 +687,16 @@ export const CoverLetter = () => {
       toastError('Save failed', e?.message || 'Could not save letter');
     }
   };
-  
+
   const aiPolish = async () => {
     if (aiLoading) return;
-    
+
     // Check subscription tier
     if (subscriptionTier === 'Free') {
       toastError('Upgrade Required', 'AI cover letter features require a Pro or Ultimate subscription');
       return;
     }
-    
+
     setAiLoading(true);
     try {
       const payload = {
@@ -761,13 +761,13 @@ export const CoverLetter = () => {
   // Full AI write: replaces salutation/body/closing/signature using formal cover letter rules.
   const aiWriteFull = async () => {
     if (aiLoading) return;
-    
+
     // Check subscription tier
     if (subscriptionTier === 'Free') {
       toastError('Upgrade Required', 'AI cover letter features require a Pro or Ultimate subscription');
       return;
     }
-    
+
     setAiLoading(true);
     try {
       const payload = {
@@ -840,13 +840,13 @@ export const CoverLetter = () => {
       }
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
       try {
         await navigator.clipboard.writeText(serializeLetter());
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
-      } catch {}
+      } catch { }
     }
   };
 
@@ -941,12 +941,12 @@ export const CoverLetter = () => {
       {/* Ambient Background Glows */}
       <div className="fixed top-20 right-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10" />
       <div className="fixed bottom-20 left-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10" />
-      
+
       {/* Enhanced Header */}
       <div id="cover-header" data-tour="cover-header" className="relative flex items-center justify-between sticky top-0 z-10 bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 backdrop-blur-xl border border-[#1dff00]/30 rounded-2xl shadow-[0_0_40px_rgba(29,255,0,0.15)] px-4 sm:px-6 py-5 overflow-hidden group">
         {/* Animated gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/0 via-[#1dff00]/5 to-[#1dff00]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-        
+
         <div className="relative flex items-center gap-4">
           <Button variant="ghost" size="sm" className="h-12 w-12 p-0 rounded-xl border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:text-[#1dff00] hover:scale-110 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)] transition-all duration-200 group/btn" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
@@ -965,52 +965,51 @@ export const CoverLetter = () => {
           </div>
         </div>
         <div className="relative flex items-center gap-2.5 overflow-x-auto">
-          <Button 
-            variant="outline" 
-            onClick={() => setInlineEdit((v)=>!v)} 
-            className={`rounded-xl whitespace-nowrap h-11 px-4 font-semibold transition-all duration-300 group/btn ${
-              inlineEdit 
-                ? 'bg-gradient-to-br from-[#1dff00]/25 to-[#1dff00]/15 border-2 border-[#1dff00] text-[#1dff00] shadow-[0_0_35px_rgba(29,255,0,0.35)] scale-105' 
+          <Button
+            variant="outline"
+            onClick={() => setInlineEdit((v) => !v)}
+            className={`rounded-xl whitespace-nowrap h-11 px-4 font-semibold transition-all duration-300 group/btn ${inlineEdit
+                ? 'bg-gradient-to-br from-[#1dff00]/25 to-[#1dff00]/15 border-2 border-[#1dff00] text-[#1dff00] shadow-[0_0_35px_rgba(29,255,0,0.35)] scale-105'
                 : 'border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)]'
-            }`}
-          > 
-            <Pencil className="w-4 h-4 mr-2 group-hover/btn:rotate-12 transition-transform"/> 
-            {inlineEdit ? 'Live Edit: On' : 'Enable Live Edit'} 
+              }`}
+          >
+            <Pencil className="w-4 h-4 mr-2 group-hover/btn:rotate-12 transition-transform" />
+            {inlineEdit ? 'Live Edit: On' : 'Enable Live Edit'}
           </Button>
-          <Button 
-            variant="outline" 
-            disabled={aiLoading || subscriptionTier === 'Free'} 
-            onClick={aiPolish} 
+          <Button
+            variant="outline"
+            disabled={aiLoading || subscriptionTier === 'Free'}
+            onClick={aiPolish}
             className="rounded-xl whitespace-nowrap h-11 px-4 font-semibold border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_30px_rgba(29,255,0,0.25)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-300 group/btn"
             title={subscriptionTier === 'Free' ? 'Pro/Ultimate subscription required' : 'Polish existing content with AI'}
-          > 
+          >
             {subscriptionTier === 'Free' && <Lock className="w-3.5 h-3.5 mr-1.5 text-[#1dff00]/60" />}
-            <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin text-[#1dff00]' : 'group-hover/btn:rotate-12 transition-transform'}`}/> 
+            <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin text-[#1dff00]' : 'group-hover/btn:rotate-12 transition-transform'}`} />
             {aiLoading ? 'Polishing…' : 'AI Polish'}
             {subscriptionTier === 'Free' && <span className="ml-1.5 text-[10px] opacity-60 uppercase tracking-wide font-bold">Pro</span>}
           </Button>
-          <Button 
-            variant="outline" 
-            disabled={aiLoading || subscriptionTier === 'Free'} 
-            onClick={aiWriteFull} 
+          <Button
+            variant="outline"
+            disabled={aiLoading || subscriptionTier === 'Free'}
+            onClick={aiWriteFull}
             className="rounded-xl whitespace-nowrap h-11 px-4 font-semibold border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_30px_rgba(29,255,0,0.25)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-300 group/btn"
             title={subscriptionTier === 'Free' ? 'Pro/Ultimate subscription required' : 'Generate complete cover letter with AI'}
-          > 
+          >
             {subscriptionTier === 'Free' && <Lock className="w-3.5 h-3.5 mr-1.5 text-[#1dff00]/60" />}
-            <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin text-[#1dff00]' : 'group-hover/btn:rotate-12 transition-transform'}`}/> 
+            <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin text-[#1dff00]' : 'group-hover/btn:rotate-12 transition-transform'}`} />
             {aiLoading ? 'Writing…' : 'AI Generate'}
             {subscriptionTier === 'Free' && <span className="ml-1.5 text-[10px] opacity-60 uppercase tracking-wide font-bold">Pro</span>}
           </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => setExportOpen(true)} 
+          <Button
+            variant="outline"
+            onClick={() => setExportOpen(true)}
             className="rounded-xl whitespace-nowrap h-11 px-4 font-semibold border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_30px_rgba(29,255,0,0.25)] transition-all duration-300 group/btn"
-          > 
-            <Download className="w-4 h-4 mr-2 group-hover/btn:translate-y-0.5 transition-transform"/> 
+          >
+            <Download className="w-4 h-4 mr-2 group-hover/btn:translate-y-0.5 transition-transform" />
             Export
           </Button>
         </div>
-        
+
         {/* Corner accent glow */}
         <div className="absolute top-0 right-0 w-40 h-40 bg-[#1dff00]/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
       </div>
@@ -1028,31 +1027,31 @@ export const CoverLetter = () => {
                 </p>
               </div>
               <Button variant="ghost" size="sm" className="h-10 w-10 p-0 rounded-xl hover:bg-[#1dff00]/10 hover:text-[#1dff00] hover:scale-110 transition-all" onClick={() => setExportOpen(false)}>
-                <X className="w-5 h-5"/>
+                <X className="w-5 h-5" />
               </Button>
             </div>
             <div className="grid gap-3.5">
-              <Button 
-                variant="outline" 
-                disabled={!!exportBusy} 
-                data-active={lastExport==='txt'} 
-                className="justify-start rounded-xl h-14 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:shadow-[0_0_25px_rgba(29,255,0,0.15)] data-[active=true]:border-[#1dff00] data-[active=true]:bg-gradient-to-br data-[active=true]:from-[#1dff00]/15 data-[active=true]:to-[#1dff00]/5 data-[active=true]:shadow-[0_0_30px_rgba(29,255,0,0.2)] transition-all group" 
+              <Button
+                variant="outline"
+                disabled={!!exportBusy}
+                data-active={lastExport === 'txt'}
+                className="justify-start rounded-xl h-14 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:shadow-[0_0_25px_rgba(29,255,0,0.15)] data-[active=true]:border-[#1dff00] data-[active=true]:bg-gradient-to-br data-[active=true]:from-[#1dff00]/15 data-[active=true]:to-[#1dff00]/5 data-[active=true]:shadow-[0_0_30px_rgba(29,255,0,0.2)] transition-all group"
                 onClick={async () => { exportTxt(); setExportOpen(false); }}
               >
                 <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 mr-3 group-hover:bg-[#1dff00]/20 group-hover:border-[#1dff00]/50 group-hover:scale-110 transition-all">
-                  <FileText className="w-5 h-5 text-[#1dff00]"/> 
+                  <FileText className="w-5 h-5 text-[#1dff00]" />
                 </div>
                 <div className="flex-1 text-left">
                   <span className="font-semibold text-white">Download .TXT</span>
                   <p className="text-xs text-gray-400 mt-0.5">Plain text format</p>
                 </div>
-                {lastExport==='txt' && <span className="ml-auto text-[10px] uppercase tracking-wider font-bold text-[#1dff00] px-3 py-1.5 bg-[#1dff00]/15 rounded-lg border border-[#1dff00]/30">Last</span>}
+                {lastExport === 'txt' && <span className="ml-auto text-[10px] uppercase tracking-wider font-bold text-[#1dff00] px-3 py-1.5 bg-[#1dff00]/15 rounded-lg border border-[#1dff00]/30">Last</span>}
               </Button>
-              <Button 
-                variant="outline" 
-                disabled={!!exportBusy} 
-                data-active={lastExport==='pdf'} 
-                className="justify-start rounded-xl h-14 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:shadow-[0_0_25px_rgba(29,255,0,0.15)] data-[active=true]:border-[#1dff00] data-[active=true]:bg-gradient-to-br data-[active=true]:from-[#1dff00]/15 data-[active=true]:to-[#1dff00]/5 data-[active=true]:shadow-[0_0_30px_rgba(29,255,0,0.2)] transition-all group" 
+              <Button
+                variant="outline"
+                disabled={!!exportBusy}
+                data-active={lastExport === 'pdf'}
+                className="justify-start rounded-xl h-14 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:shadow-[0_0_25px_rgba(29,255,0,0.15)] data-[active=true]:border-[#1dff00] data-[active=true]:bg-gradient-to-br data-[active=true]:from-[#1dff00]/15 data-[active=true]:to-[#1dff00]/5 data-[active=true]:shadow-[0_0_30px_rgba(29,255,0,0.2)] transition-all group"
                 onClick={async () => { await exportPdf(); setExportOpen(false); }}
               >
                 <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 mr-3 group-hover:bg-[#1dff00]/20 group-hover:border-[#1dff00]/50 group-hover:scale-110 transition-all">
@@ -1062,52 +1061,52 @@ export const CoverLetter = () => {
                   <span className="font-semibold text-white">Export PDF</span>
                   <p className="text-xs text-gray-400 mt-0.5">Professional document format</p>
                 </div>
-                {exportBusy==='pdf' && <span className="ml-auto text-[10px] text-[#1dff00] animate-pulse flex items-center gap-1.5"><span className="inline-block w-1.5 h-1.5 bg-[#1dff00] rounded-full animate-pulse" />Processing…</span>}
-                {lastExport==='pdf' && exportBusy!=='pdf' && <span className="ml-auto text-[10px] uppercase tracking-wider font-bold text-[#1dff00] px-3 py-1.5 bg-[#1dff00]/15 rounded-lg border border-[#1dff00]/30">Last</span>}
+                {exportBusy === 'pdf' && <span className="ml-auto text-[10px] text-[#1dff00] animate-pulse flex items-center gap-1.5"><span className="inline-block w-1.5 h-1.5 bg-[#1dff00] rounded-full animate-pulse" />Processing…</span>}
+                {lastExport === 'pdf' && exportBusy !== 'pdf' && <span className="ml-auto text-[10px] uppercase tracking-wider font-bold text-[#1dff00] px-3 py-1.5 bg-[#1dff00]/15 rounded-lg border border-[#1dff00]/30">Last</span>}
               </Button>
-              <Button 
-                variant="outline" 
-                disabled={!!exportBusy} 
-                data-active={lastExport==='docx'} 
-                className="justify-start rounded-xl h-14 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:shadow-[0_0_25px_rgba(29,255,0,0.15)] data-[active=true]:border-[#1dff00] data-[active=true]:bg-gradient-to-br data-[active=true]:from-[#1dff00]/15 data-[active=true]:to-[#1dff00]/5 data-[active=true]:shadow-[0_0_30px_rgba(29,255,0,0.2)] transition-all group" 
+              <Button
+                variant="outline"
+                disabled={!!exportBusy}
+                data-active={lastExport === 'docx'}
+                className="justify-start rounded-xl h-14 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:shadow-[0_0_25px_rgba(29,255,0,0.15)] data-[active=true]:border-[#1dff00] data-[active=true]:bg-gradient-to-br data-[active=true]:from-[#1dff00]/15 data-[active=true]:to-[#1dff00]/5 data-[active=true]:shadow-[0_0_30px_rgba(29,255,0,0.2)] transition-all group"
                 onClick={async () => { await exportDocx(); setExportOpen(false); }}
               >
                 <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 mr-3 group-hover:bg-[#1dff00]/20 group-hover:border-[#1dff00]/50 group-hover:scale-110 transition-all">
-                  <FileType className="w-5 h-5 text-[#1dff00]"/> 
+                  <FileType className="w-5 h-5 text-[#1dff00]" />
                 </div>
                 <div className="flex-1 text-left">
                   <span className="font-semibold text-white">Export DOCX</span>
                   <p className="text-xs text-gray-400 mt-0.5">Microsoft Word format</p>
                 </div>
-                {exportBusy==='docx' && <span className="ml-auto text-[10px] text-[#1dff00] animate-pulse flex items-center gap-1.5"><span className="inline-block w-1.5 h-1.5 bg-[#1dff00] rounded-full animate-pulse" />Processing…</span>}
-                {lastExport==='docx' && exportBusy!=='docx' && <span className="ml-auto text-[10px] uppercase tracking-wider font-bold text-[#1dff00] px-3 py-1.5 bg-[#1dff00]/15 rounded-lg border border-[#1dff00]/30">Last</span>}
+                {exportBusy === 'docx' && <span className="ml-auto text-[10px] text-[#1dff00] animate-pulse flex items-center gap-1.5"><span className="inline-block w-1.5 h-1.5 bg-[#1dff00] rounded-full animate-pulse" />Processing…</span>}
+                {lastExport === 'docx' && exportBusy !== 'docx' && <span className="ml-auto text-[10px] uppercase tracking-wider font-bold text-[#1dff00] px-3 py-1.5 bg-[#1dff00]/15 rounded-lg border border-[#1dff00]/30">Last</span>}
               </Button>
               <div className="h-px bg-gradient-to-r from-transparent via-[#1dff00]/30 to-transparent my-2" />
-              <Button 
-                variant="outline" 
-                disabled={!!exportBusy} 
-                className="justify-start rounded-xl h-12 border-white/20 hover:border-white/30 hover:bg-white/5 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-all group" 
+              <Button
+                variant="outline"
+                disabled={!!exportBusy}
+                className="justify-start rounded-xl h-12 border-white/20 hover:border-white/30 hover:bg-white/5 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-all group"
                 onClick={() => { printLetter(); setExportOpen(false); }}
               >
-                <Printer className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform"/> 
+                <Printer className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" />
                 <span className="font-medium">Print Preview</span>
               </Button>
-              <Button 
-                variant="outline" 
-                disabled={!!exportBusy} 
-                className="justify-start rounded-xl h-12 border-white/20 hover:border-white/30 hover:bg-white/5 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-all group" 
+              <Button
+                variant="outline"
+                disabled={!!exportBusy}
+                className="justify-start rounded-xl h-12 border-white/20 hover:border-white/30 hover:bg-white/5 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-all group"
                 onClick={() => { copyPlain(); setExportOpen(false); }}
               >
-                {copied ? <Check className="w-5 h-5 mr-3 text-green-400 group-hover:scale-110 transition-transform"/> : <Share2 className="w-5 h-5 mr-3 rotate-90 group-hover:scale-110 transition-transform"/>} 
+                {copied ? <Check className="w-5 h-5 mr-3 text-green-400 group-hover:scale-110 transition-transform" /> : <Share2 className="w-5 h-5 mr-3 rotate-90 group-hover:scale-110 transition-transform" />}
                 <span className="font-medium">{copied ? 'Copied!' : 'Copy Plain Text'}</span>
               </Button>
-              <Button 
-                variant="outline" 
-                disabled={!!exportBusy} 
-                className="justify-start rounded-xl h-12 border-white/20 hover:border-white/30 hover:bg-white/5 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-all group" 
+              <Button
+                variant="outline"
+                disabled={!!exportBusy}
+                className="justify-start rounded-xl h-12 border-white/20 hover:border-white/30 hover:bg-white/5 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-all group"
                 onClick={() => { share(); setExportOpen(false); }}
               >
-                <Share2 className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform"/> 
+                <Share2 className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" />
                 <span className="font-medium">Share (System)</span>
               </Button>
             </div>
@@ -1140,33 +1139,33 @@ export const CoverLetter = () => {
                   </div>
                   Save Cover Letter
                 </label>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="rounded-xl h-9 px-4 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 hover:scale-105 transition-all" 
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl h-9 px-4 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 hover:scale-105 transition-all"
                   onClick={() => { setCurrentLibId(null); setLibName(""); }}
                 >
                   New
                 </Button>
               </div>
               <div className="grid grid-cols-1 gap-3">
-                <input 
-                  value={libName} 
-                  onChange={(e)=>setLibName(e.target.value)} 
-                  placeholder="Enter letter name" 
-                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                <input
+                  value={libName}
+                  onChange={(e) => setLibName(e.target.value)}
+                  placeholder="Enter letter name"
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12"
                 />
                 <div className="grid grid-cols-2 gap-3">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => saveToLibrary()} 
+                  <Button
+                    variant="outline"
+                    onClick={() => saveToLibrary()}
                     className="rounded-xl h-11 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:shadow-[0_0_25px_rgba(29,255,0,0.15)] hover:scale-105 transition-all"
                   >
                     {currentLibId ? 'Update' : 'Save'}
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => saveToLibrary(libName)} 
+                  <Button
+                    variant="outline"
+                    onClick={() => saveToLibrary(libName)}
                     className="rounded-xl h-11 border-white/20 hover:border-white/30 hover:bg-white/5 hover:scale-105 transition-all"
                   >
                     Save As New
@@ -1174,8 +1173,8 @@ export const CoverLetter = () => {
                 </div>
               </div>
               <p className="text-xs text-gray-400 bg-gradient-to-br from-[#1dff00]/10 to-[#1dff00]/5 rounded-xl p-3.5 border border-[#1dff00]/20">
-                {library.length === 0 
-                  ? '💡 No saved letters yet. Name and save your letter to access it from the cover letters page.' 
+                {library.length === 0
+                  ? '💡 No saved letters yet. Name and save your letter to access it from the cover letters page.'
                   : `✓ ${library.length} letter${library.length === 1 ? '' : 's'} saved. View all from the cover letters page.`
                 }
               </p>
@@ -1192,49 +1191,49 @@ export const CoverLetter = () => {
                   Sender Information
                 </label>
                 <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="rounded-xl h-9 px-3 text-xs border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 hover:scale-105 transition-all" 
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl h-9 px-3 text-xs border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 hover:scale-105 transition-all"
                     onClick={loadProfile}
                   >
                     Use Profile
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="rounded-xl h-9 px-3 text-xs border-white/20 hover:border-white/30 hover:bg-white/5 hover:scale-105 transition-all" 
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl h-9 px-3 text-xs border-white/20 hover:border-white/30 hover:bg-white/5 hover:scale-105 transition-all"
                     onClick={() => { setSenderName(""); setSenderEmail(""); setSenderPhone(""); setSenderAddress(""); }}
                   >
                     Clear
                   </Button>
                 </div>
               </div>
-              <input 
-                value={senderName} 
-                onChange={(e)=>setSenderName(e.target.value)} 
-                placeholder="Your name" 
-                className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+              <input
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                placeholder="Your name"
+                className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12"
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input 
-                  value={senderEmail} 
-                  onChange={(e)=>setSenderEmail(e.target.value)} 
-                  placeholder="Email" 
-                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                <input
+                  value={senderEmail}
+                  onChange={(e) => setSenderEmail(e.target.value)}
+                  placeholder="Email"
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12"
                 />
-                <input 
-                  value={senderPhone} 
-                  onChange={(e)=>setSenderPhone(e.target.value)} 
-                  placeholder="Phone" 
-                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                <input
+                  value={senderPhone}
+                  onChange={(e) => setSenderPhone(e.target.value)}
+                  placeholder="Phone"
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12"
                 />
               </div>
-              <input 
-                value={senderAddress} 
-                onChange={(e)=>setSenderAddress(e.target.value)} 
-                placeholder="Address" 
-                className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+              <input
+                value={senderAddress}
+                onChange={(e) => setSenderAddress(e.target.value)}
+                placeholder="Address"
+                className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12"
               />
             </div>
 
@@ -1249,31 +1248,31 @@ export const CoverLetter = () => {
                 Recipient Information
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input 
-                  value={recipient} 
-                  onChange={(e)=>setRecipient(e.target.value)} 
-                  placeholder="Recipient name" 
-                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                <input
+                  value={recipient}
+                  onChange={(e) => setRecipient(e.target.value)}
+                  placeholder="Recipient name"
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12"
                 />
-                <input 
-                  value={recipientTitle} 
-                  onChange={(e)=>setRecipientTitle(e.target.value)} 
-                  placeholder="Recipient title" 
-                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                <input
+                  value={recipientTitle}
+                  onChange={(e) => setRecipientTitle(e.target.value)}
+                  placeholder="Recipient title"
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12"
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input 
-                  value={company} 
-                  onChange={(e)=>setCompany(e.target.value)} 
-                  placeholder="Company" 
-                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                <input
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  placeholder="Company"
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12"
                 />
-                <input 
-                  value={recipientAddress} 
-                  onChange={(e)=>setRecipientAddress(e.target.value)} 
-                  placeholder="Company address" 
-                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                <input
+                  value={recipientAddress}
+                  onChange={(e) => setRecipientAddress(e.target.value)}
+                  placeholder="Company address"
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12"
                 />
               </div>
             </div>
@@ -1290,25 +1289,25 @@ export const CoverLetter = () => {
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="relative">
-                  <input 
-                    type="date" 
-                    value={date} 
-                    onChange={(e)=>setDate(e.target.value)} 
-                    className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all h-12" 
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all h-12"
                   />
                 </div>
-                <input 
-                  value={subject} 
-                  onChange={(e)=>setSubject(e.target.value)} 
-                  placeholder="Subject (optional)" 
-                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                <input
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="Subject (optional)"
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12"
                 />
               </div>
-              <input 
-                value={salutation} 
-                onChange={(e)=>setSalutation(e.target.value)} 
-                placeholder="Salutation (e.g., Dear Hiring Manager,)" 
-                className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+              <input
+                value={salutation}
+                onChange={(e) => setSalutation(e.target.value)}
+                placeholder="Salutation (e.g., Dear Hiring Manager,)"
+                className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12"
               />
             </div>
 
@@ -1323,17 +1322,17 @@ export const CoverLetter = () => {
                 Closing & Signature
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input 
-                  value={closing} 
-                  onChange={(e)=>setClosing(e.target.value)} 
-                  placeholder="Closing (e.g., Best regards,)" 
-                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                <input
+                  value={closing}
+                  onChange={(e) => setClosing(e.target.value)}
+                  placeholder="Closing (e.g., Best regards,)"
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12"
                 />
-                <input 
-                  value={signatureName} 
-                  onChange={(e)=>setSignatureName(e.target.value)} 
-                  placeholder="Signature name" 
-                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12" 
+                <input
+                  value={signatureName}
+                  onChange={(e) => setSignatureName(e.target.value)}
+                  placeholder="Signature name"
+                  className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all placeholder:text-gray-500 h-12"
                 />
               </div>
             </div>
@@ -1347,11 +1346,11 @@ export const CoverLetter = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="text-[11px] text-gray-400 mb-1.5 block">Role</label>
-                  <input value={role} onChange={(e)=>setRole(e.target.value)} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-3 py-2.5 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all h-11" placeholder="e.g., Software Engineer" />
+                  <input value={role} onChange={(e) => setRole(e.target.value)} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-3 py-2.5 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all h-11" placeholder="e.g., Software Engineer" />
                 </div>
                 <div>
                   <label className="text-[11px] text-gray-400 mb-1.5 block">Tone</label>
-                  <select value={tone} onChange={(e)=>setTone(e.target.value as any)} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-3 py-2.5 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all h-11">
+                  <select value={tone} onChange={(e) => setTone(e.target.value as any)} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-3 py-2.5 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all h-11">
                     <option value="professional">Professional</option>
                     <option value="friendly">Friendly</option>
                     <option value="enthusiastic">Enthusiastic</option>
@@ -1359,7 +1358,7 @@ export const CoverLetter = () => {
                 </div>
                 <div>
                   <label className="text-[11px] text-gray-400 mb-1.5 block">Length</label>
-                  <select value={lengthPref} onChange={(e)=>setLengthPref(e.target.value as any)} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-3 py-2.5 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all h-11">
+                  <select value={lengthPref} onChange={(e) => setLengthPref(e.target.value as any)} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-3 py-2.5 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all h-11">
                     <option value="short">Short</option>
                     <option value="medium">Medium</option>
                     <option value="long">Long</option>
@@ -1368,7 +1367,7 @@ export const CoverLetter = () => {
               </div>
               <div>
                 <label className="text-[11px] text-gray-400 mb-1.5 block">Job Description (optional)</label>
-                <textarea value={jobDescription} onChange={(e)=>setJobDescription(e.target.value)} rows={4} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all" placeholder="Paste job description here to tailor the letter..." />
+                <textarea value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} rows={4} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all" placeholder="Paste job description here to tailor the letter..." />
               </div>
             </div>
 
@@ -1381,13 +1380,13 @@ export const CoverLetter = () => {
                   <span className="text-[11px] text-gray-400 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10">{content.length} chars</span>
                 </div>
               </div>
-              <textarea id="cover-letter-content" value={content} onChange={(e)=>setContent(e.target.value)} rows={8} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all" placeholder="Write or paste your cover letter here..." />
+              <textarea id="cover-letter-content" value={content} onChange={(e) => setContent(e.target.value)} rows={8} className="w-full rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-3 text-sm outline-none focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all" placeholder="Write or paste your cover letter here..." />
             </div>
 
             <div className="grid gap-3">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-semibold text-white">Paragraphs (advanced)</label>
-                <Button variant="outline" size="sm" className="rounded-xl h-9 px-3 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 hover:scale-105 transition-all" onClick={addParagraph}><Plus className="w-4 h-4 mr-1.5"/>Add paragraph</Button>
+                <Button variant="outline" size="sm" className="rounded-xl h-9 px-3 border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 hover:scale-105 transition-all" onClick={addParagraph}><Plus className="w-4 h-4 mr-1.5" />Add paragraph</Button>
               </div>
               <div className="grid gap-3">
                 {paragraphs.map((p, idx) => (
@@ -1395,12 +1394,12 @@ export const CoverLetter = () => {
                     <div className="flex items-center justify-between px-3 py-2 border-b border-[#1dff00]/20 bg-black/20">
                       <span className="text-[11px] font-medium text-gray-300">Paragraph {idx + 1}</span>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-[#1dff00]/10 hover:text-[#1dff00] disabled:opacity-30 transition-all" onClick={() => moveParagraphUp(idx)} disabled={idx === 0}><ArrowUp className="w-4 h-4"/></Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-[#1dff00]/10 hover:text-[#1dff00] disabled:opacity-30 transition-all" onClick={() => moveParagraphDown(idx)} disabled={idx === paragraphs.length - 1}><ArrowDown className="w-4 h-4"/></Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-400 hover:bg-red-500/10 hover:text-red-500 transition-all" onClick={() => removeParagraph(idx)}><Trash2 className="w-4 h-4"/></Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-[#1dff00]/10 hover:text-[#1dff00] disabled:opacity-30 transition-all" onClick={() => moveParagraphUp(idx)} disabled={idx === 0}><ArrowUp className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-[#1dff00]/10 hover:text-[#1dff00] disabled:opacity-30 transition-all" onClick={() => moveParagraphDown(idx)} disabled={idx === paragraphs.length - 1}><ArrowDown className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-400 hover:bg-red-500/10 hover:text-red-500 transition-all" onClick={() => removeParagraph(idx)}><Trash2 className="w-4 h-4" /></Button>
                       </div>
                     </div>
-                    <textarea value={p} onChange={(e)=>updateParagraph(idx, e.target.value)} rows={4} className="w-full bg-transparent px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#1dff00]/20" placeholder="Write paragraph..." />
+                    <textarea value={p} onChange={(e) => updateParagraph(idx, e.target.value)} rows={4} className="w-full bg-transparent px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#1dff00]/20" placeholder="Write paragraph..." />
                   </div>
                 ))}
                 {!paragraphs.length && (
@@ -1437,7 +1436,7 @@ export const CoverLetter = () => {
                         className="font-bold focus:outline-none focus:ring-2 ring-primary/50"
                         contentEditable={inlineEdit}
                         suppressContentEditableWarning
-                        onBlur={(e) => setSenderName(e.currentTarget.innerText.trim())}
+                        onBlur={(e: FocusEvent<HTMLParagraphElement>) => setSenderName(e.currentTarget.innerText.trim())}
                       >{senderName}</p>
                     )}
                     {senderPhone && (
@@ -1445,7 +1444,7 @@ export const CoverLetter = () => {
                         className="focus:outline-none focus:ring-2 ring-primary/50"
                         contentEditable={inlineEdit}
                         suppressContentEditableWarning
-                        onBlur={(e) => setSenderPhone(e.currentTarget.innerText.trim())}
+                        onBlur={(e: FocusEvent<HTMLParagraphElement>) => setSenderPhone(e.currentTarget.innerText.trim())}
                       >{senderPhone}</p>
                     )}
                     {senderEmail && (
@@ -1453,7 +1452,7 @@ export const CoverLetter = () => {
                         className="focus:outline-none focus:ring-2 ring-primary/50"
                         contentEditable={inlineEdit}
                         suppressContentEditableWarning
-                        onBlur={(e) => setSenderEmail(e.currentTarget.innerText.trim())}
+                        onBlur={(e: FocusEvent<HTMLParagraphElement>) => setSenderEmail(e.currentTarget.innerText.trim())}
                       >{senderEmail}</p>
                     )}
                     {senderAddress && (
@@ -1461,7 +1460,7 @@ export const CoverLetter = () => {
                         className="focus:outline-none focus:ring-2 ring-primary/50"
                         contentEditable={inlineEdit}
                         suppressContentEditableWarning
-                        onBlur={(e) => setSenderAddress(e.currentTarget.innerText.trim())}
+                        onBlur={(e: FocusEvent<HTMLParagraphElement>) => setSenderAddress(e.currentTarget.innerText.trim())}
                       >{senderAddress}</p>
                     )}
                   </div>
@@ -1473,11 +1472,11 @@ export const CoverLetter = () => {
                   className="mb-4 focus:outline-none focus:ring-2 ring-primary/50 text-right"
                   contentEditable={inlineEdit}
                   suppressContentEditableWarning
-                  onBlur={(e) => {
+                  onBlur={(e: FocusEvent<HTMLParagraphElement>) => {
                     const raw = e.currentTarget.innerText.trim();
                     // try parse; if fails, keep raw string
                     const d = new Date(raw);
-                    if (!isNaN(d.getTime())) setDate(raw.length === 10 && /\d{4}-\d{2}-\d{2}/.test(date) ? raw : new Date(d).toISOString().slice(0,10));
+                    if (!isNaN(d.getTime())) setDate(raw.length === 10 && /\d{4}-\d{2}-\d{2}/.test(date) ? raw : new Date(d).toISOString().slice(0, 10));
                     else e.currentTarget.innerText = new Date(date).toLocaleDateString();
                   }}
                 >{new Date(date).toLocaleDateString()}</p>
@@ -1490,7 +1489,7 @@ export const CoverLetter = () => {
                       className="focus:outline-none focus:ring-2 ring-primary/50"
                       contentEditable={inlineEdit}
                       suppressContentEditableWarning
-                      onBlur={(e) => {
+                      onBlur={(e: FocusEvent<HTMLParagraphElement>) => {
                         const t = e.currentTarget.innerText.trim();
                         const [namePart, ...rest] = t.split(',');
                         setRecipient((namePart || '').trim());
@@ -1503,7 +1502,7 @@ export const CoverLetter = () => {
                       className="focus:outline-none focus:ring-2 ring-primary/50"
                       contentEditable={inlineEdit}
                       suppressContentEditableWarning
-                      onBlur={(e) => setCompany(e.currentTarget.innerText.trim())}
+                      onBlur={(e: FocusEvent<HTMLParagraphElement>) => setCompany(e.currentTarget.innerText.trim())}
                     >{company}</p>
                   )}
                   {recipientAddress && (
@@ -1511,7 +1510,7 @@ export const CoverLetter = () => {
                       className="focus:outline-none focus:ring-2 ring-primary/50"
                       contentEditable={inlineEdit}
                       suppressContentEditableWarning
-                      onBlur={(e) => setRecipientAddress(e.currentTarget.innerText.trim())}
+                      onBlur={(e: FocusEvent<HTMLParagraphElement>) => setRecipientAddress(e.currentTarget.innerText.trim())}
                     >{recipientAddress}</p>
                   )}
                 </div>
@@ -1522,7 +1521,7 @@ export const CoverLetter = () => {
                   className="font-semibold underline mb-4 focus:outline-none focus:ring-2 ring-primary/50"
                   contentEditable={inlineEdit}
                   suppressContentEditableWarning
-                  onBlur={(e) => {
+                  onBlur={(e: FocusEvent<HTMLParagraphElement>) => {
                     const t = e.currentTarget.innerText.replace(/^\s*Subject\s*:\s*/i, '').trim();
                     setSubject(t);
                     e.currentTarget.innerText = `Subject: ${t}`;
@@ -1535,7 +1534,7 @@ export const CoverLetter = () => {
                   className="mb-4 focus:outline-none focus:ring-2 ring-primary/50"
                   contentEditable={inlineEdit}
                   suppressContentEditableWarning
-                  onBlur={(e) => setSalutation(e.currentTarget.innerText.trim())}
+                  onBlur={(e: FocusEvent<HTMLParagraphElement>) => setSalutation(e.currentTarget.innerText.trim())}
                 >{salutation}</p>
               )}
               {/* Body */}
@@ -1546,7 +1545,7 @@ export const CoverLetter = () => {
                     className="whitespace-pre-wrap focus:outline-none focus:ring-2 ring-primary/50"
                     contentEditable={inlineEdit}
                     suppressContentEditableWarning
-                    onBlur={(e) => {
+                    onBlur={(e: FocusEvent<HTMLParagraphElement>) => {
                       const text = e.currentTarget.innerText.trim();
                       if (paragraphs.length) {
                         updateParagraph(i, text);
@@ -1568,7 +1567,7 @@ export const CoverLetter = () => {
                       className="mb-8 focus:outline-none focus:ring-2 ring-primary/50"
                       contentEditable={inlineEdit}
                       suppressContentEditableWarning
-                      onBlur={(e) => setClosing(e.currentTarget.innerText.trim())}
+                      onBlur={(e: FocusEvent<HTMLParagraphElement>) => setClosing(e.currentTarget.innerText.trim())}
                     >{closing}</p>
                   )}
                   {signatureName && (
@@ -1576,7 +1575,7 @@ export const CoverLetter = () => {
                       className="font-semibold focus:outline-none focus:ring-2 ring-primary/50"
                       contentEditable={inlineEdit}
                       suppressContentEditableWarning
-                      onBlur={(e) => setSignatureName(e.currentTarget.innerText.trim())}
+                      onBlur={(e: FocusEvent<HTMLParagraphElement>) => setSignatureName(e.currentTarget.innerText.trim())}
                     >{signatureName}</p>
                   )}
                 </div>
