@@ -1,6 +1,7 @@
+import React from "react";
 import { cn, pageSizeMap } from "@reactive-resume/utils";
 
-import { useArtboardStore } from "../store/artboard";
+import { useArtboardStore, type ArtboardStore } from "../store/artboard";
 
 type Props = {
   mode?: "preview" | "builder";
@@ -9,14 +10,14 @@ type Props = {
 };
 
 export const Page = ({ mode = "preview", pageNumber, children }: Props) => {
-  const page = useArtboardStore((state) => state.resume?.metadata?.page);
-  const fontFamily = useArtboardStore((state) => state.resume?.metadata?.typography?.font?.family || "Inter");
-  
+  const page = useArtboardStore((state: ArtboardStore) => state.resume?.metadata?.page);
+  const fontFamily = useArtboardStore((state: ArtboardStore) => state.resume?.metadata?.typography?.font?.family || "Inter");
+
   if (!page) {
     return <div data-page={pageNumber} className="relative bg-background text-foreground">Loading...</div>;
   }
-  
-  const { width, height } = pageSizeMap[page.format || "A4"];
+
+  const { width, height } = pageSizeMap[(page.format?.toLowerCase() as keyof typeof pageSizeMap) || "a4"];
 
   return (
     <div

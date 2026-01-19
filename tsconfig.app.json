@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "ES2020",
     "useDefineForClassFields": true,
@@ -77,7 +78,7 @@
     "src"
   ],
   "exclude": [
-  // Legacy client subtree merged into main app and not compiled
-  "src/resume-builder/**"
+    // Legacy client subtree merged into main app and not compiled
+    "src/resume-builder/**"
   ]
 }

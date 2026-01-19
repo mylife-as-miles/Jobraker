@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
+
 import {
   Bell,
   Plus,
