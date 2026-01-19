@@ -727,10 +727,10 @@ export const JobPage = (): JSX.Element => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
               className={`relative flex items-center gap-2 rounded-lg border p-2.5 transition-all duration-300 ${isActive
-                  ? 'border-[#1dff00] bg-[#1dff00]/10 shadow-[0_0_15px_rgba(29,255,0,0.2)]'
-                  : isCompleted
-                    ? 'border-[#1dff00]/50 bg-[#1dff00]/5'
-                    : 'border-[#ffffff18] bg-[#ffffff08]'
+                ? 'border-[#1dff00] bg-[#1dff00]/10 shadow-[0_0_15px_rgba(29,255,0,0.2)]'
+                : isCompleted
+                  ? 'border-[#1dff00]/50 bg-[#1dff00]/5'
+                  : 'border-[#ffffff18] bg-[#ffffff08]'
                 }`}
             >
               <div className="relative flex-shrink-0">
@@ -1722,8 +1722,8 @@ export const JobPage = (): JSX.Element => {
                     variant="ghost"
                     onClick={() => populateQueue(searchQuery, selectedLocation)}
                     className={`group relative flex-1 sm:flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${queueStatus === 'populating' || queueStatus === 'loading'
-                        ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff00]/15'
-                        : 'border-white/20 text-white bg-white/5 hover:text-[#1dff00] hover:border-[#1dff00]/60 hover:bg-[#1dff00]/10 shadow-[0_12px_32px_rgba(8,122,52,0.35)]'
+                      ? 'border-[#1dff00]/60 text-[#1dff00] bg-[#1dff00]/15'
+                      : 'border-white/20 text-white bg-white/5 hover:text-[#1dff00] hover:border-[#1dff00]/60 hover:bg-[#1dff00]/10 shadow-[0_12px_32px_rgba(8,122,52,0.35)]'
                       }`}
                     title="Find a fresh batch of jobs"
                     disabled={queueStatus === 'populating' || queueStatus === 'loading'}
@@ -1744,10 +1744,10 @@ export const JobPage = (): JSX.Element => {
                     variant="ghost"
                     onClick={clearAllJobs}
                     className={`group relative flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md ${clearingJobs
-                        ? 'border-red-500/60 text-red-400 bg-red-500/15 cursor-not-allowed opacity-60'
-                        : jobs.length === 0
-                          ? 'border-red-500/20 text-red-400/40 bg-red-500/5 cursor-not-allowed opacity-40'
-                          : 'border-red-500/40 text-red-400 bg-red-500/10 hover:text-red-300 hover:border-red-500/60 hover:bg-red-500/20'
+                      ? 'border-red-500/60 text-red-400 bg-red-500/15 cursor-not-allowed opacity-60'
+                      : jobs.length === 0
+                        ? 'border-red-500/20 text-red-400/40 bg-red-500/5 cursor-not-allowed opacity-40'
+                        : 'border-red-500/40 text-red-400 bg-red-500/10 hover:text-red-300 hover:border-red-500/60 hover:bg-red-500/20'
                       }`}
                     title={jobs.length === 0 ? "No jobs to clear" : "Clear all jobs from your list"}
                     disabled={clearingJobs || jobs.length === 0}
@@ -1780,7 +1780,7 @@ export const JobPage = (): JSX.Element => {
           />
         )}
 
-        <Card className="relative overflow-hidden bg-gradient-to-br from-[#0a0a0a]/95 to-[#0f0f0f]/95 border border-[#1dff00]/20 p-5 sm:p-6 mb-6 sm:mb-8 rounded-2xl shadow-[0_0_30px_rgba(29,255,0,0.1)] backdrop-blur-xl" id="jobs-search-filters" data-tour="jobs-search-filters">
+        <Card className="relative overflow-hidden bg-gradient-to-br from-[#0a0a0a]/95 to-[#0f0f0f]/95 border border-[#1dff00]/20 p-5 sm:p-6 mb-6 sm:mb-8 rounded-2xl shadow-[0_0_30px_rgba(29,255,0,0.1)] backdrop-blur-xl transition-colors duration-300 hover:border-[#1dff00]/30 hover:shadow-[0_0_40px_rgba(29,255,0,0.15)]" id="jobs-search-filters" data-tour="jobs-search-filters">
           {/* Subtle gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-[#1dff00]/5 via-transparent to-transparent pointer-events-none"></div>
 
@@ -1794,7 +1794,7 @@ export const JobPage = (): JSX.Element => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); populateQueue(searchQuery, selectedLocation); } }}
-                className="pl-12 pr-28 h-12 bg-gradient-to-br from-white/5 to-white/[0.02] border-[#1dff00]/20 text-white placeholder:text-white/40 focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all duration-200 rounded-xl"
+                className="pl-12 pr-28 h-12 bg-gradient-to-br from-white/5 to-white/[0.02] border-[#1dff00]/20 text-white placeholder:text-white/40 focus:border-[#1dff00]/60 focus:ring-2 focus:ring-[#1dff00]/30 transition-all duration-300 rounded-xl"
               />
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                 <span className="text-[10px] font-medium text-[#1dff00]/80 bg-gradient-to-br from-[#1dff00]/15 to-[#1dff00]/5 px-2.5 py-1 rounded-lg border border-[#1dff00]/30 whitespace-nowrap">
@@ -1811,7 +1811,7 @@ export const JobPage = (): JSX.Element => {
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); populateQueue(searchQuery, selectedLocation); } }}
-                className="pl-12 h-12 bg-gradient-to-br from-white/5 to-white/[0.02] border-[#1dff00]/20 text-white placeholder:text-white/40 focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all duration-200 rounded-xl"
+                className="pl-12 h-12 bg-gradient-to-br from-white/5 to-white/[0.02] border-[#1dff00]/20 text-white placeholder:text-white/40 focus:border-[#1dff00]/60 focus:ring-2 focus:ring-[#1dff00]/30 transition-all duration-300 rounded-xl"
               />
             </div>
           </div>
@@ -2192,142 +2192,178 @@ export const JobPage = (): JSX.Element => {
                   }
                 }}
                 onClick={() => setSelectedJob(job.id)}
-                className={`cursor-pointer transition-all duration-300 ${selectedJob === job.id ? 'transform scale-[1.01]' : 'hover:transform hover:scale-[1.005]'} focus:outline-none focus:ring-2 focus:ring-[#1dff00]/40 rounded-xl`}
+                className={`cursor-pointer group focus:outline-none rounded-2xl transition-all duration-300 ${selectedJob === job.id ? 'transform scale-[1.02]' : 'hover:scale-[1.01]'}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: index * 0.04 }}
               >
-                <Card className={`relative overflow-hidden group bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border p-3 sm:p-4 md:p-5 lg:p-6 transition-all duration-300 ${selectedJob === job.id ? 'border-[#1dff00] shadow-[0_0_20px_rgba(29,255,0,0.25)]' : 'border-[#ffffff15] hover:border-[#1dff00]/40'}`}>
-                  <span className={`pointer-events-none absolute left-0 top-0 h-full w-[2px] sm:w-[3px] ${selectedJob === job.id ? 'bg-[#1dff00]' : 'bg-transparent group-hover:bg-[#1dff00]/70'} transition-colors`} />
-                  <div className="flex items-start justify-between gap-2 sm:gap-3 md:gap-4">
-                    <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-1 min-w-0">
-                      {job.logoUrl && !logoError[job.id]
-                        ? (
-                          <div className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 rounded-lg sm:rounded-xl bg-white flex-shrink-0">
-                            <img
-                              src={job.logoUrl}
-                              alt={job.company}
-                              className="w-full h-full rounded-lg sm:rounded-xl object-contain"
-                              onError={() => setLogoError(e => ({ ...e, [job.id]: true }))}
-                            />
-                          </div>
-                        ) : (
-                          <div className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-lg sm:rounded-xl flex items-center justify-center text-black font-bold text-base sm:text-lg lg:text-2xl flex-shrink-0">{job.logo}</div>
-                        )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-1.5 sm:gap-2">
-                          <h3 className="text-white font-semibold truncate text-xs sm:text-sm md:text-base" title={job.title}>
-                            {job.title.length > 60 ? job.title.slice(0, 60) + '...' : job.title}
+                <div className={`relative overflow-hidden rounded-2xl border transition-all duration-300 p-5 sm:p-6 ${selectedJob === job.id
+                  ? 'bg-[#0a0a0a] border-[#1dff00] shadow-[0_0_30px_rgba(29,255,0,0.15)]'
+                  : 'bg-gradient-to-br from-[#0f0f0f] to-[#0a0a0a] border-white/5 hover:border-[#1dff00]/30 hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)]'
+                  }`}>
+                  {/* Selection Indicator Line */}
+                  <div className={`absolute left-0 top-0 bottom-0 w-1 transition-all duration-300 ${selectedJob === job.id ? 'bg-[#1dff00]' : 'bg-transparent group-hover:bg-[#1dff00]/50'
+                    }`} />
+
+                  {/* Glass highlight effect on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 pointer-events-none" />
+
+                  <div className="flex items-start gap-4 sm:gap-5">
+                    {/* Logo Section */}
+                    <div className="flex-shrink-0">
+                      {job.logoUrl && !logoError[job.id] ? (
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-white p-2 shadow-lg shadow-black/20 ring-1 ring-black/5">
+                          <img
+                            src={job.logoUrl}
+                            alt={job.company}
+                            className="w-full h-full object-contain"
+                            onError={() => setLogoError(e => ({ ...e, [job.id]: true }))}
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[#1dff00] to-[#0a8246] flex items-center justify-center text-black font-bold text-xl shadow-[0_0_15px_rgba(29,255,0,0.2)]">
+                          {job.logo}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Content Section */}
+                    <div className="flex-1 min-w-0 space-y-3">
+
+                      {/* Header: Title + Status Badges */}
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                        <div className="space-y-1">
+                          <h3 className={`font-bold text-lg sm:text-xl leading-tight transition-colors ${selectedJob === job.id ? 'text-[#1dff00]' : 'text-white group-hover:text-[#1dff00]'
+                            }`} title={job.title}>
+                            {job.title}
                           </h3>
+                          <div className="flex items-center gap-2 text-sm text-gray-400 font-medium">
+                            <span className="truncate max-w-[200px]">{job.company}</span>
+                            {job.posted_at && (
+                              <>
+                                <span className="w-1 h-1 rounded-full bg-gray-600" />
+                                <span className="text-gray-500 text-xs">{formatRelative(job.posted_at)}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Badges */}
+                        <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
                           {(() => {
                             if (!job.posted_at) return null;
                             const postedTs = Date.parse(job.posted_at);
                             if (Number.isNaN(postedTs)) return null;
                             const isNew = (Date.now() - postedTs) <= (48 * 60 * 60 * 1000);
-                            if (!isNew) return null;
-                            return (
-                              <span className="shrink-0 text-[9px] sm:text-[10px] px-1.5 py-0.5 sm:px-2 rounded-full border border-[#1dff00]/40 text-[#1dff00] bg-[#1dff00]/10">New</span>
-                            );
-                          })()}
-                          {job.status && (
-                            <span className={`shrink-0 text-[9px] sm:text-[10px] px-1.5 py-0.5 sm:px-2 rounded-full border ${job.status === 'applied' ? 'border-[#14b8a6]/40 text-[#14b8a6] bg-[#14b8a6]/10' : 'border-[#ffffff24] text-[#ffffffb3] bg-[#ffffff0a]'}`}>{job.status}</span>
-                          )}
-                        </div>
-                        <div className="mt-1.5 sm:mt-2 space-y-1 sm:space-y-1.5">
-                          {/* Line 1: company + location + remote + salary + host (right) */}
-                          <div className="flex flex-wrap items-center gap-1">
-                            <span className="text-[#ffffffb3] text-[10px] sm:text-[11px] md:text-sm truncate" title={job.company || ''}>{job.company}</span>
-                            {job.location && (
-                              <span className="text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffa6] bg-[#ffffff0d] whitespace-nowrap" title={job.location}>
-                                {job.location}
-                              </span>
-                            )}
-                            {job.remote_type && (
-                              <span className="text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10 whitespace-nowrap" title={job.remote_type}>
-                                {job.remote_type}
-                              </span>
-                            )}
-                            {(() => {
-                              if (job.salary_min || job.salary_max || job.salary_currency) {
-                                const currency = job.salary_currency || 'USD';
-                                const currencySymbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency;
-                                let salaryText = '';
-                                if (job.salary_min && job.salary_max) {
-                                  const min = job.salary_min >= 1000 ? `${Math.round(job.salary_min / 1000)}k` : job.salary_min;
-                                  const max = job.salary_max >= 1000 ? `${Math.round(job.salary_max / 1000)}k` : job.salary_max;
-                                  salaryText = `${currencySymbol}${min}-${max}`;
-                                } else if (job.salary_min) {
-                                  const min = job.salary_min >= 1000 ? `${Math.round(job.salary_min / 1000)}k` : job.salary_min;
-                                  salaryText = `${currencySymbol}${min}+`;
-                                } else if (job.salary_max) {
-                                  const max = job.salary_max >= 1000 ? `${Math.round(job.salary_max / 1000)}k` : job.salary_max;
-                                  salaryText = `Up to ${currencySymbol}${max}`;
-                                }
-                                if (salaryText) {
-                                  return (
-                                    <span className="text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#1dff00]/30 text-[#1dff00] bg-[#1dff00]/10 whitespace-nowrap" title={`Salary: ${salaryText}`}>
-                                      💰 {salaryText}
-                                    </span>
-                                  );
-                                }
-                              }
-                              const raw = (job as any)?.raw_data;
-                              const salary = (raw?.scraped_data?.salary || raw?.salaryRange || raw?.salary) as string | undefined;
-                              if (!salary) return null;
-                              const short = salary.length > 28 ? salary.slice(0, 25) + '…' : salary;
+                            if (isNew) {
                               return (
-                                <span className="text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#ffffff20] text-[#ffffffc0] bg-[#ffffff0d] whitespace-nowrap" title={salary}>
-                                  {short}
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/20 shadow-[0_0_10px_rgba(29,255,0,0.1)]">
+                                  New
                                 </span>
                               );
-                            })()}
-                            <span className="ml-auto inline-flex items-center gap-1 max-w-[140px] sm:max-w-[180px] overflow-hidden">
-                              {(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id) && (() => {
-                                const href = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id || '';
-                                const host = getHost(href);
-                                const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
-                                return (
-                                  <span className="inline-flex items-center gap-1 text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08] max-w-full overflow-hidden">
-                                    {host && <img src={ico} alt="" className="w-3 h-3 rounded-sm" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />}
-                                    <span className="truncate">{host}</span>
-                                  </span>
-                                );
-                              })()}
+                            }
+                            return null;
+                          })()}
+                          {job.matchScore && job.matchScore >= 80 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-gradient-to-r from-[#1dff00]/20 to-[#1dff00]/5 text-[#1dff00] border border-[#1dff00]/20">
+                              <Sparkles className="w-3 h-3" />
+                              {job.matchScore}% Match
                             </span>
-                          </div>
-
-                          {/* Line 2: Tags + Posted (right) */}
-                          <div className="flex flex-wrap items-center gap-1">
-                            {(() => {
-                              const tags: string[] | undefined = (job as any)?.tags || (job as any)?.raw_data?.scraped_data?.tags;
-                              if (!tags || !Array.isArray(tags) || tags.length === 0) return null;
-                              // Show up to 2 on mobile, up to 3 on sm+ screens
-                              const firstTwo = tags.slice(0, 2);
-                              const third = tags[2];
-                              return (
-                                <>
-                                  {firstTwo.map((t, i) => (
-                                    <span key={`t-${i}`} className="text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08] whitespace-nowrap" title={t}>
-                                      {t}
-                                    </span>
-                                  ))}
-                                  {third && (
-                                    <span key="t-2" className="hidden sm:inline-block text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border border-[#ffffff1e] text-[#ffffffa6] bg-[#ffffff08] whitespace-nowrap" title={third}>
-                                      {third}
-                                    </span>
-                                  )}
-                                </>
-                              );
-                            })()}
-                            <span className="ml-auto text-[10px] text-[#ffffff80] whitespace-nowrap">
-                              {job.posted_at ? formatRelative(job.posted_at) : ''}
+                          )}
+                          {job.status && (
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${job.status === 'applied'
+                              ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
+                              : 'bg-white/5 text-gray-400 border-white/10'
+                              }`}>
+                              {job.status}
                             </span>
-                          </div>
+                          )}
                         </div>
+                      </div>
+
+                      {/* Metadata Chips - Redesigned as clear pills */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Location */}
+                        {(job.location || job.remote_type) && (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white/5 border border-white/10 text-xs text-gray-300">
+                            <MapPin className="w-3.5 h-3.5 text-gray-500" />
+                            <span className="truncate max-w-[150px]">
+                              {[job.location, job.remote_type].filter(Boolean).join(" • ")}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Salary */}
+                        {(() => {
+                          if (job.salary_min || job.salary_max || job.salary_currency) {
+                            const currency = job.salary_currency || 'USD';
+                            const currencySymbol = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : currency;
+                            let salaryText = '';
+                            if (job.salary_min && job.salary_max) {
+                              const min = job.salary_min >= 1000 ? `${Math.round(job.salary_min / 1000)}k` : job.salary_min;
+                              const max = job.salary_max >= 1000 ? `${Math.round(job.salary_max / 1000)}k` : job.salary_max;
+                              salaryText = `${currencySymbol}${min}-${max}`;
+                            } else if (job.salary_min) {
+                              const min = job.salary_min >= 1000 ? `${Math.round(job.salary_min / 1000)}k` : job.salary_min;
+                              salaryText = `${currencySymbol}${min}+`;
+                            } else if (job.salary_max) {
+                              const max = job.salary_max >= 1000 ? `${Math.round(job.salary_max / 1000)}k` : job.salary_max;
+                              salaryText = `Up to ${currencySymbol}${max}`;
+                            }
+                            if (salaryText) {
+                              return (
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#1dff00]/5 border border-[#1dff00]/10 text-xs text-gray-200">
+                                  <span className="text-base leading-none">💰</span>
+                                  <span className="font-medium text-[#1dff00]">{salaryText}</span>
+                                </div>
+                              );
+                            }
+                          }
+                          // Fallback string salary
+                          const raw = (job as any)?.raw_data;
+                          const salary = (raw?.scraped_data?.salary || raw?.salaryRange || raw?.salary) as string | undefined;
+                          if (salary) {
+                            const short = salary.length > 28 ? salary.slice(0, 25) + '…' : salary;
+                            return (
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white/5 border border-white/10 text-xs text-gray-300">
+                                <span className="text-xs text-gray-500">$</span>
+                                <span>{short}</span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+
+                        {/* Source Host */}
+                        {(job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id) && (() => {
+                          const href = job.apply_url || (job as any)?.raw_data?.sourceUrl || job.source_id || '';
+                          const host = getHost(href);
+                          const ico = host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : '';
+                          if (!host) return null;
+                          return (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white/5 border border-white/10 text-xs text-gray-300 opacity-80 hover:opacity-100 transition-opacity">
+                              <img src={ico} alt="" className="w-3.5 h-3.5 rounded-sm opacity-70" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} />
+                              <span className="truncate max-w-[100px]">{host}</span>
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Line 3: Tags / Skills */}
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        {(() => {
+                          const tags: string[] | undefined = (job as any)?.tags || (job as any)?.raw_data?.scraped_data?.tags;
+                          if (!tags || !Array.isArray(tags) || tags.length === 0) return null;
+                          return tags.slice(0, 4).map((t, i) => (
+                            <span key={`t-${i}`} className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-white/[0.03] border border-white/[0.08] text-gray-400 hover:text-white transition-colors cursor-default">
+                              {t}
+                            </span>
+                          ));
+                        })()}
                       </div>
                     </div>
                   </div>
-                </Card>
+                </div>
               </motion.div>
             ))}
             {queueStatus === 'ready' && total > 0 && (
@@ -2761,10 +2797,10 @@ export const JobPage = (): JSX.Element => {
                     <div
                       key={step.id}
                       className={`flex-1 rounded-xl border p-3 sm:p-4 transition-all duration-300 ${status === 'active'
-                          ? 'border-[#1dff00]/60 bg-[#1dff00]/10 shadow-[0_0_18px_rgba(29,255,0,0.25)]'
-                          : status === 'done'
-                            ? 'border-[#1dff00]/30 bg-[#1dff00]/12 text-white/80'
-                            : 'border-white/12 bg-white/[0.02] text-white/60'
+                        ? 'border-[#1dff00]/60 bg-[#1dff00]/10 shadow-[0_0_18px_rgba(29,255,0,0.25)]'
+                        : status === 'done'
+                          ? 'border-[#1dff00]/30 bg-[#1dff00]/12 text-white/80'
+                          : 'border-white/12 bg-white/[0.02] text-white/60'
                         }`}
                     >
                       <div className="flex items-center gap-2 text-sm font-medium">
@@ -2775,8 +2811,8 @@ export const JobPage = (): JSX.Element => {
                         ) : (
                           <span
                             className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-[11px] ${status === 'active'
-                                ? 'border-[#1dff00]/70 text-[#1dff00]'
-                                : 'border-white/25 text-white/35'
+                              ? 'border-[#1dff00]/70 text-[#1dff00]'
+                              : 'border-white/25 text-white/35'
                               }`}
                           >
                             0{step.id}
@@ -2818,8 +2854,8 @@ export const JobPage = (): JSX.Element => {
                               type="button"
                               onClick={() => setSelectedResumeId(r.id)}
                               className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${selected
-                                  ? 'border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]'
-                                  : 'border-white/12 bg-white/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8'
+                                ? 'border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]'
+                                : 'border-white/12 bg-white/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8'
                                 }`}
                             >
                               <div className="min-w-0 space-y-1">
@@ -2835,8 +2871,8 @@ export const JobPage = (): JSX.Element => {
                               </div>
                               <span
                                 className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${selected
-                                    ? 'border-[#1dff00]/70 bg-[#1dff00] text-black'
-                                    : 'border-white/20 text-white/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]'
+                                  ? 'border-[#1dff00]/70 bg-[#1dff00] text-black'
+                                  : 'border-white/20 text-white/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]'
                                   }`}
                               >
                                 {selected ? <Check className="w-4 h-4" /> : <FileText className="w-3.5 h-3.5" />}
@@ -2875,8 +2911,8 @@ export const JobPage = (): JSX.Element => {
                             type="button"
                             onClick={() => setSelectedCoverLetterId(null)}
                             className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${!selectedCoverLetterId
-                                ? 'border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]'
-                                : 'border-white/12 bg-white/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8'
+                              ? 'border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]'
+                              : 'border-white/12 bg-white/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8'
                               }`}
                           >
                             <div className="min-w-0 space-y-1">
@@ -2888,8 +2924,8 @@ export const JobPage = (): JSX.Element => {
                             </div>
                             <span
                               className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${!selectedCoverLetterId
-                                  ? 'border-[#1dff00]/70 bg-[#1dff00] text-black'
-                                  : 'border-white/20 text-white/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]'
+                                ? 'border-[#1dff00]/70 bg-[#1dff00] text-black'
+                                : 'border-white/20 text-white/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]'
                                 }`}
                             >
                               {!selectedCoverLetterId ? <Check className="w-4 h-4" /> : <FileText className="w-3.5 h-3.5" />}
@@ -2912,8 +2948,8 @@ export const JobPage = (): JSX.Element => {
                                 type="button"
                                 onClick={() => setSelectedCoverLetterId(entry.id)}
                                 className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${selected
-                                    ? 'border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]'
-                                    : 'border-white/12 bg-white/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8'
+                                  ? 'border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]'
+                                  : 'border-white/12 bg-white/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8'
                                   }`}
                               >
                                 <div className="min-w-0 space-y-1">
@@ -2932,8 +2968,8 @@ export const JobPage = (): JSX.Element => {
                                 </div>
                                 <span
                                   className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${selected
-                                      ? 'border-[#1dff00]/70 bg-[#1dff00] text-black'
-                                      : 'border-white/20 text-white/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]'
+                                    ? 'border-[#1dff00]/70 bg-[#1dff00] text-black'
+                                    : 'border-white/20 text-white/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]'
                                     }`}
                                 >
                                   {selected ? <Check className="w-4 h-4" /> : <FileText className="w-3.5 h-3.5" />}
