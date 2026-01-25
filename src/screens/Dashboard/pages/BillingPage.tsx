@@ -116,14 +116,14 @@ export const BillingPage = () => {
   };
 
   const getTierIcon = (tier: string) => {
-    const iconColor = tier === 'Free' || tier === 'Basics' ? 'text-black' : 'text-white';
+    // All icons are now colored based on their tier, on a dark background
     switch (tier) {
       case 'Pro':
-        return <Zap className={`w-5 h-5 ${iconColor}`} />;
+        return <Zap className="w-5 h-5 text-blue-400" />;
       case 'Ultimate':
-        return <Crown className={`w-5 h-5 ${iconColor}`} />;
+        return <Crown className="w-5 h-5 text-purple-400" />;
       default:
-        return <Coins className={`w-5 h-5 ${iconColor}`} />;
+        return <Coins className="w-5 h-5 text-[#1dff00]" />;
     }
   };
 
@@ -138,34 +138,14 @@ export const BillingPage = () => {
     }
   };
 
-  const getTierTextColor = (tier: string) => {
-    // For bright green backgrounds (Free, Basics), use dark text
-    // For darker backgrounds (Pro, Ultimate), use white text
-    switch (tier) {
-      case 'Free':
-      case 'Basics':
-        return {
-          primary: 'text-black',
-          secondary: 'text-black/70',
-          tertiary: 'text-black/80',
-          muted: 'text-black/60'
-        };
-      case 'Pro':
-      case 'Ultimate':
-        return {
-          primary: 'text-white',
-          secondary: 'text-white/70',
-          tertiary: 'text-white/80',
-          muted: 'text-white/60'
-        };
-      default:
-        return {
-          primary: 'text-white',
-          secondary: 'text-white/70',
-          tertiary: 'text-white/80',
-          muted: 'text-white/60'
-        };
-    }
+  const getTierTextColor = (_tier: string) => {
+    // Unified dark theme text colors for all tiers
+    return {
+      primary: 'text-white',
+      secondary: 'text-white/70',
+      tertiary: 'text-white/80',
+      muted: 'text-white/50'
+    };
   };
 
   const getTransactionIcon = (type: string) => {
@@ -263,41 +243,32 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <Card className={`relative overflow-hidden border-white/10 ${
-                subscriptionTier === 'Free' || subscriptionTier === 'Basics'
-                  ? 'bg-gradient-to-br from-[#1dff00] via-[#0fc74f] to-[#0a8246]'
-                  : 'bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent'
-              }`}>
-                {subscriptionTier !== 'Free' && subscriptionTier !== 'Basics' && (
-                  <div className={`absolute inset-0 bg-gradient-to-br ${getTierGradient(subscriptionTier)}/5`} />
-                )}
+              <Card className="relative overflow-hidden border-white/10 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent">
+                <div className={`absolute inset-0 bg-gradient-to-br ${getTierGradient(subscriptionTier)}/5`} />
+
                 <CardContent className="relative p-6">
                   {(() => {
                     const textColors = getTierTextColor(subscriptionTier);
                     return (
                       <>
                         <div className="flex items-start justify-between mb-4">
-                          <div className={`p-3 rounded-xl ${
-                            subscriptionTier === 'Free' || subscriptionTier === 'Basics'
-                              ? 'bg-black/20'
-                              : `bg-gradient-to-br ${getTierGradient(subscriptionTier)}/10 border border-white/10`
-                          }`}>
+                          <div className={`p-3 rounded-xl bg-gradient-to-br ${getTierGradient(subscriptionTier)}/10 border border-white/10`}>
                             {getTierIcon(subscriptionTier)}
                           </div>
                           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
                             subscriptionTier === 'Pro' ? 'bg-blue-500/20 text-blue-300' :
                             subscriptionTier === 'Ultimate' ? 'bg-purple-500/20 text-purple-300' :
-                            'bg-black/20 text-black'
+                            'bg-[#1dff00]/20 text-[#1dff00]'
                           }`}>
                             {subscriptionTier.toUpperCase()}
                           </span>
                         </div>
                         <div className="space-y-1">
-                          <p className={`text-sm ${subscriptionTier === 'Free' || subscriptionTier === 'Basics' ? 'text-black/70' : 'text-gray-400'}`}>Active Plan</p>
+                          <p className="text-sm text-gray-400">Active Plan</p>
                           <p className={`text-4xl font-bold ${textColors.primary}`}>
                             {subscriptionTier}
                           </p>
-                          <p className={`text-sm ${subscriptionTier === 'Free' || subscriptionTier === 'Basics' ? 'text-black/70' : 'text-gray-400'}`}>
+                          <p className="text-sm text-gray-400">
                             {plans.find(p => p.name === subscriptionTier)?.credits_per_month.toLocaleString() || 0} credits/month
                           </p>
                         </div>
@@ -392,11 +363,14 @@ export const BillingPage = () => {
                         </div>
                       )}
                       
-                      <Card className={`group relative overflow-hidden bg-gradient-to-br ${getTierGradient(plan.name)} border transition-all hover:shadow-xl hover:shadow-[#1dff00]/10 hover:-translate-y-1 ${
+                      <Card className={`group relative overflow-hidden bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border transition-all hover:shadow-xl hover:shadow-[#1dff00]/10 hover:-translate-y-1 ${
                         isCurrentPlan 
                           ? 'border-[#1dff00] shadow-[0_0_30px_rgba(29,255,0,0.15)]'
                           : 'border-white/10'
                       }`}>
+                        {/* Gradient accent top border */}
+                        <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${getTierGradient(plan.name)} opacity-50`} />
+
                         {isCurrentPlan && (
                           <div className="absolute top-4 right-4 z-10">
                             <span className="px-2 py-1 text-xs font-medium bg-[#1dff00] text-black border border-[#1dff00] rounded-lg flex items-center gap-1">
@@ -414,11 +388,7 @@ export const BillingPage = () => {
                                 {/* Header */}
                                 <div className="flex items-start justify-between mb-4">
                                   <div className="flex items-center gap-3">
-                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                      plan.name === 'Free' || plan.name === 'Basics' 
-                                        ? 'bg-black/20' 
-                                        : 'bg-black/30'
-                                    }`}>
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-white/5 border border-white/10`}>
                                       {getTierIcon(plan.name)}
                                     </div>
                                     <div>
@@ -440,15 +410,10 @@ export const BillingPage = () => {
                                 </div>
 
                                 {/* Credits */}
-                                <div className={`flex items-center gap-2 p-3 rounded-lg mb-4 ${
-                                  plan.name === 'Free' || plan.name === 'Basics'
-                                    ? 'bg-black/20'
-                                    : 'bg-black/30'
-                                }`}>
+                                <div className="flex items-center gap-2 p-3 rounded-lg mb-4 bg-white/5 border border-white/5">
                                   <Zap className={`w-4 h-4 ${
-                                    plan.name === 'Free' || plan.name === 'Basics'
-                                      ? 'text-black'
-                                      : 'text-[#1dff00]'
+                                    plan.name === 'Pro' ? 'text-blue-400' :
+                                    plan.name === 'Ultimate' ? 'text-purple-400' : 'text-[#1dff00]'
                                   }`} />
                                   <span className={`text-sm font-medium ${textColors.primary}`}>{plan.credits_per_month} credits</span>
                                   <span className={`text-xs ${textColors.muted}`}>per cycle</span>
@@ -465,9 +430,9 @@ export const BillingPage = () => {
                                     return (
                                       <div key={idx} className="flex items-start gap-2">
                                         <Check className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
-                                          plan.name === 'Free' || plan.name === 'Basics'
-                                            ? 'text-black'
-                                            : 'text-[#1dff00]'
+                                          plan.name === 'Pro' ? 'text-blue-400' :
+                                          plan.name === 'Ultimate' ? 'text-purple-400' :
+                                          'text-[#1dff00]'
                                         }`} />
                                         <span className={`text-sm ${textColors.tertiary} line-clamp-1`}>{featureName}</span>
                                       </div>
