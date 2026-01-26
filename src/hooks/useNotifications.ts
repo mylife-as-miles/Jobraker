@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/toast';
 
-export type NotificationType = 'interview' | 'application' | 'system' | 'company';
+export type NotificationType = 'interview' | 'application' | 'system' | 'company' | 'job_search' | 'credit';
 
 export interface NotificationRow {
   id: string;

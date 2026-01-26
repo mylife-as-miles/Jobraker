@@ -4,7 +4,7 @@ import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { motion } from "framer-motion";
-import { Bell, Calendar, AlertCircle, Search, MoreVertical, Trash2, Archive, Star, Inbox } from "lucide-react";
+import { Bell, Calendar, AlertCircle, Search, MoreVertical, Trash2, Archive, Star, Inbox, Coins } from "lucide-react";
 import { useNotifications } from "../../../hooks/useNotifications";
 
 // Using realtime notifications; no local mock interface
@@ -79,6 +79,16 @@ export const NotificationPage = (): JSX.Element => {
           return {
             bgColor: "#4285f4",
             icon: <span className="text-white font-bold text-sm">{(company || "N").charAt(0).toUpperCase()}</span>,
+          };
+        case "job_search":
+          return {
+            bgColor: "#9333ea", // Purple
+            icon: <Search className="w-4 h-4 text-white" />,
+          };
+        case "credit":
+          return {
+            bgColor: "#eab308", // Yellow-500
+            icon: <Coins className="w-4 h-4 text-black" />,
           };
         default:
           return {
@@ -238,6 +248,8 @@ export const NotificationPage = (): JSX.Element => {
                   <option value="interview">Interview</option>
                   <option value="company">Company</option>
                   <option value="system">System</option>
+                  <option value="job_search">Job Search</option>
+                  <option value="credit">Credit</option>
                 </select>
                 <label className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-[#ffffff80] cursor-pointer select-none">
                   <input

@@ -424,6 +424,19 @@ Deno.serve(async (req) => {
         }
     }
 
+    // Insert notification for completed search
+    try {
+      await supabaseAdmin.from('notifications').insert({
+        user_id: userId,
+        type: 'job_search',
+        title: 'Job Search Complete',
+        message: `Found ${jobsToInsert.length} new jobs matching "${rawQuery}"`,
+        priority: 'medium'
+      });
+    } catch (notifError) {
+      console.error('[process-job-search] Failed to create notification', notifError);
+    }
+
     console.log('[process-job-search] Successfully processed batch');
     return new Response('Processed', { status: 200 });
 
