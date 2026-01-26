@@ -1425,7 +1425,7 @@ export const CoverLetter = () => {
 
         {/* Right: Preview */}
         <Card id="cover-editor" data-tour="cover-editor" className="p-4 sm:p-6 md:p-8 overflow-hidden rounded-2xl bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 border border-[#1dff00]/30 shadow-[0_0_40px_rgba(29,255,0,0.15)] backdrop-blur-xl">
-          <div ref={previewRef} className="mx-auto w-full max-w-[800px] rounded-xl border border-white/10 bg-white text-black shadow-[0_0_50px_rgba(0,0,0,0.3)] hover:shadow-[0_0_60px_rgba(0,0,0,0.4)] transition-all">
+          <div ref={previewRef} className="mx-auto w-full max-w-[800px] rounded-xl border border-white/10 bg-[#111] text-gray-200 shadow-[0_0_50px_rgba(0,0,0,0.3)] hover:shadow-[0_0_60px_rgba(0,0,0,0.4)] transition-all">
             <div className="p-8 sm:p-10 md:p-12" style={{ fontSize: `${fontSize}px`, lineHeight: 1.6 }}>
               {/* Sender (right-aligned for professional layout) */}
               {(senderName || senderPhone || senderEmail || senderAddress) && (

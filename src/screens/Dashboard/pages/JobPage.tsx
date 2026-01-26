@@ -2212,7 +2212,7 @@ export const JobPage = (): JSX.Element => {
                     {/* Logo Section */}
                     <div className="flex-shrink-0">
                       {job.logoUrl && !logoError[job.id] ? (
-                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-white p-2 shadow-lg shadow-black/20 ring-1 ring-black/5">
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-[#111] border border-white/10 p-2 shadow-lg shadow-black/20">
                           <img
                             src={job.logoUrl}
                             alt={job.company}
@@ -2524,7 +2524,7 @@ export const JobPage = (): JSX.Element => {
                                   <img
                                     src={job.logoUrl}
                                     alt={job.company}
-                                    className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-xl object-contain bg-white flex-shrink-0"
+                                    className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-xl object-contain bg-[#111] border border-white/10 flex-shrink-0"
                                     onError={() => setLogoError(e => ({ ...e, [job.id]: true }))}
                                   />
                                 ) : (

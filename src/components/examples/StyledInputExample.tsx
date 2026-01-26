@@ -83,8 +83,8 @@ export const StyledInputExample: React.FC = () => {
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
         {/* Example 1: Default variant (light theme) */}
-        <div className="bg-white p-6 rounded-lg">
-          <h2 className="text-xl font-bold text-[#212121] mb-6">Default Input Style</h2>
+        <div className="bg-zinc-900 border border-white/10 p-6 rounded-lg">
+          <h2 className="text-xl font-bold text-white mb-6">Default Input Style</h2>
           <InputGroup 
             fields={signupFields} 
             variant="default" 
@@ -115,8 +115,8 @@ export const StyledInputExample: React.FC = () => {
         </div>
 
         {/* Example 3: Individual styled inputs */}
-        <div className="bg-white p-6 rounded-lg">
-          <h2 className="text-xl font-bold text-[#212121] mb-6">Individual Inputs</h2>
+        <div className="bg-zinc-900 border border-white/10 p-6 rounded-lg">
+          <h2 className="text-xl font-bold text-white mb-6">Individual Inputs</h2>
           <div className="space-y-6">
             <StyledInput
               label="First Name"
