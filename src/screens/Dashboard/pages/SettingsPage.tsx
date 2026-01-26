@@ -21,7 +21,59 @@ import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
 import { validatePassword } from "../../../utils/password";
 import { CheckCircle2, XCircle, Linkedin, Github } from "lucide-react";
-const SignOutDialog = (_props: any) => null;
+
+const SignOutDialog = ({ open, onConfirm, onCancel, isLoading }: { open: boolean; onConfirm: () => void; onCancel: () => void; isLoading: boolean }) => {
+  return (
+    <Modal
+      open={open}
+      onClose={onCancel}
+      title="Sign Out"
+      size="md"
+      side="center"
+    >
+      <div className="space-y-4">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <LogOut className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-400 mb-2">Are you sure you want to sign out?</p>
+              <p className="text-xs text-red-300/80">
+                You will need to sign in again to access your account.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3">
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            disabled={isLoading}
+            className="border-white/[0.1] text-white/70 hover:bg-white/[0.05]"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="bg-red-600 text-white hover:bg-red-700"
+          >
+            {isLoading ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Signing Out...
+              </>
+            ) : (
+              <>
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
 
 // Lazy-load qrcode to avoid bundler resolution issues during build
 let QRCodeLib: any | null = null;
@@ -562,7 +614,7 @@ export const SettingsPage = (): JSX.Element => {
   const TabSkeleton = () => (
     <div className="space-y-6">
       {Array.from({ length: 3 }).map((_: unknown, i: number) => (
-        <div key={i} className="bg-white/[0.02] border border-white/[0.06] p-6 rounded-xl">
+        <div key={i} className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 p-6 rounded-xl">
           <div className="space-y-4">
             <Skeleton className="h-5 w-48 bg-white/[0.05]" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -898,10 +950,10 @@ export const SettingsPage = (): JSX.Element => {
         return (
           <div id="settings-tab-profile" data-tour="settings-tab-profile" className="space-y-6">
             {/* Avatar Section */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <h3 className="text-base font-medium text-white/95 mb-6">Profile Picture</h3>
               <div className="flex items-center gap-6">
-                <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-white/90 font-semibold text-xl">
+                <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white/[0.04] border border-white/10 flex items-center justify-center text-white/90 font-semibold text-xl">
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
@@ -912,7 +964,7 @@ export const SettingsPage = (): JSX.Element => {
                   <Button
                     variant="outline"
                     onClick={handleUploadAvatar}
-                    className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] hover:border-[#1dff00]/30 transition-all"
+                    className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/5 hover:border-[#1dff00]/30 transition-all"
                   >
                     <Upload className="w-4 h-4 mr-2" />
                     Upload
@@ -932,7 +984,7 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Personal Information */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <h3 className="text-base font-medium text-white/95 mb-6">Personal Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -940,7 +992,7 @@ export const SettingsPage = (): JSX.Element => {
                   <Input
                     value={formData.firstName}
                     onChange={(e) => handleInputChange("firstName", e.target.value)}
-                    className="bg-white/[0.02] border-white/[0.08] text-white/90 placeholder:text-white/30 focus:border-[#1dff00]/30 focus:bg-white/[0.04] transition-all"
+                    className="bg-white/[0.05] border-white/10 text-white/90 placeholder:text-white/30 focus:border-[#1dff00]/30 focus:bg-white/[0.04] transition-all"
                   />
                 </div>
                 <div>
@@ -948,7 +1000,7 @@ export const SettingsPage = (): JSX.Element => {
                   <Input
                     value={formData.lastName}
                     onChange={(e) => handleInputChange("lastName", e.target.value)}
-                    className="bg-white/[0.02] border-white/[0.08] text-white/90 placeholder:text-white/30 focus:border-[#1dff00]/30 focus:bg-white/[0.04] transition-all"
+                    className="bg-white/[0.05] border-white/10 text-white/90 placeholder:text-white/30 focus:border-[#1dff00]/30 focus:bg-white/[0.04] transition-all"
                   />
                 </div>
                 <div>
@@ -957,7 +1009,7 @@ export const SettingsPage = (): JSX.Element => {
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
-                    className="bg-white/[0.02] border-white/[0.08] text-white/90 placeholder:text-white/30 focus:border-[#1dff00]/30 focus:bg-white/[0.04] transition-all"
+                    className="bg-white/[0.05] border-white/10 text-white/90 placeholder:text-white/30 focus:border-[#1dff00]/30 focus:bg-white/[0.04] transition-all"
                   />
                 </div>
                 <div>
@@ -965,7 +1017,7 @@ export const SettingsPage = (): JSX.Element => {
                   <Input
                     value={formData.phone}
                     onChange={(e) => handleInputChange("phone", e.target.value)}
-                    className="bg-white/[0.02] border-white/[0.08] text-white/90 placeholder:text-white/30 focus:border-[#1dff00]/30 focus:bg-white/[0.04] transition-all"
+                    className="bg-white/[0.05] border-white/10 text-white/90 placeholder:text-white/30 focus:border-[#1dff00]/30 focus:bg-white/[0.04] transition-all"
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -973,13 +1025,13 @@ export const SettingsPage = (): JSX.Element => {
                   <Input
                     value={formData.location}
                     onChange={(e) => handleInputChange("location", e.target.value)}
-                    className="bg-white/[0.02] border-white/[0.08] text-white/90 placeholder:text-white/30 focus:border-[#1dff00]/30 focus:bg-white/[0.04] transition-all"
+                    className="bg-white/[0.05] border-white/10 text-white/90 placeholder:text-white/30 focus:border-[#1dff00]/30 focus:bg-white/[0.04] transition-all"
                     placeholder="City, Country"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 pt-6 mt-6 border-t border-white/[0.06]">
+              <div className="flex items-center gap-3 pt-6 mt-6 border-t border-white/10">
                 <Button
                   onClick={handleSaveProfile}
                   className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 font-medium transition-all"
@@ -990,7 +1042,7 @@ export const SettingsPage = (): JSX.Element => {
                 <Button
                   variant="outline"
                   onClick={handleResetForm}
-                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] transition-all"
+                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/5 transition-all"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Reset
@@ -1004,7 +1056,7 @@ export const SettingsPage = (): JSX.Element => {
         return (
           <div id="settings-tab-notifications" data-tour="settings-tab-notifications" className="space-y-6">
             {/* General Notification Settings */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <h3 className="text-base font-medium text-white/95 mb-6">General Settings</h3>
               <div className="space-y-3">
                 {[
@@ -1015,7 +1067,7 @@ export const SettingsPage = (): JSX.Element => {
                 ].map((setting) => (
                   <div
                     key={setting.key}
-                    className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] hover:bg-white/[0.03] transition-all"
+                    className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all"
                   >
                     <div className="flex-1">
                       <h4 className="text-sm font-medium text-white/90">{setting.label}</h4>
@@ -1040,7 +1092,7 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Type-Specific In-App Notifications */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <h3 className="text-base font-medium text-white/95 mb-4">In-App Notifications</h3>
               <p className="text-xs text-white/50 mb-6">Control which notification types appear in your dashboard</p>
               <div className="space-y-3">
@@ -1052,7 +1104,7 @@ export const SettingsPage = (): JSX.Element => {
                 ].map((setting) => (
                   <div
                     key={setting.key}
-                    className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] hover:bg-white/[0.03] transition-all"
+                    className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all"
                   >
                     <div className="flex-1">
                       <h4 className="text-sm font-medium text-white/90">{setting.label}</h4>
@@ -1077,7 +1129,7 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Email Notification Settings */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <h3 className="text-base font-medium text-white/95 mb-4">Email Notifications</h3>
               <p className="text-xs text-white/50 mb-6">Choose which updates you receive via email</p>
               <div className="space-y-3">
@@ -1092,7 +1144,7 @@ export const SettingsPage = (): JSX.Element => {
                 ].map((setting) => (
                   <div
                     key={setting.key}
-                    className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] hover:bg-white/[0.03] transition-all"
+                    className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all"
                   >
                     <div className="flex-1">
                       <h4 className="text-sm font-medium text-white/90">{setting.label}</h4>
@@ -1117,7 +1169,7 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Push Notification Settings */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <h3 className="text-base font-medium text-white/95 mb-4">Push Notifications</h3>
               <p className="text-xs text-white/50 mb-6">Control browser push notifications by type</p>
               <div className="space-y-3">
@@ -1129,7 +1181,7 @@ export const SettingsPage = (): JSX.Element => {
                 ].map((setting) => (
                   <div
                     key={setting.key}
-                    className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] hover:bg-white/[0.03] transition-all"
+                    className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all"
                   >
                     <div className="flex-1">
                       <h4 className="text-sm font-medium text-white/90">{setting.label}</h4>
@@ -1154,11 +1206,11 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Quiet Hours */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <h3 className="text-base font-medium text-white/95 mb-4">Quiet Hours</h3>
               <p className="text-xs text-white/50 mb-6">Suppress notifications during specified hours</p>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                <div className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10">
                   <div className="flex-1">
                     <h4 className="text-sm font-medium text-white/90">Enable Quiet Hours</h4>
                     <p className="text-xs text-white/50 mt-0.5">Pause notifications during your selected time</p>
@@ -1178,7 +1230,7 @@ export const SettingsPage = (): JSX.Element => {
                   </button>
                 </div>
                 {((notif as any)?.quiet_hours_enabled ?? false) && (
-                  <div className="grid grid-cols-2 gap-4 p-4 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                  <div className="grid grid-cols-2 gap-4 p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10">
                     <div>
                       <label className="block text-xs text-white/70 mb-2">Start Time</label>
                       <Input
@@ -1292,7 +1344,7 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* Two-Factor Authentication */}
-            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-base font-medium text-white/95">Two-Factor Authentication</h3>
@@ -1330,8 +1382,8 @@ export const SettingsPage = (): JSX.Element => {
                 </div>
               </div>
               {sec?.two_factor_enabled && (
-                <div className="space-y-3 pt-4 border-t border-white/[0.06]">
-                  <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                <div className="space-y-3 pt-4 border-t border-white/10">
+                  <div className="flex items-center justify-between p-3 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10">
                     <div className="flex-1">
                       <p className="text-sm font-medium text-white/90">Require 2FA for Login</p>
                       <p className="text-xs text-white/50 mt-0.5">Force 2FA verification on all login attempts</p>
@@ -1351,7 +1403,7 @@ export const SettingsPage = (): JSX.Element => {
                       />
                     </button>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                  <div className="flex items-center justify-between p-3 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10">
                     <div className="flex-1">
                       <p className="text-sm font-medium text-white/90">Require Backup Codes</p>
                       <p className="text-xs text-white/50 mt-0.5">Require backup codes to be generated before enabling 2FA</p>
@@ -1376,10 +1428,10 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* Sign-in Alerts */}
-            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <h3 className="text-base font-medium text-white/95 mb-4">Security Alerts</h3>
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                <div className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10 hover:border-white/20 transition-all">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-white/90">Login Alerts</p>
                     <p className="text-xs text-white/50 mt-0.5">Notify me when a new device signs in</p>
@@ -1399,7 +1451,7 @@ export const SettingsPage = (): JSX.Element => {
                     />
                   </button>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                <div className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10 hover:border-white/20 transition-all">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-white/90">Suspicious Login Alerts</p>
                     <p className="text-xs text-white/50 mt-0.5">Alert on unusual login patterns or locations</p>
@@ -1419,7 +1471,7 @@ export const SettingsPage = (): JSX.Element => {
                     />
                   </button>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                <div className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10 hover:border-white/20 transition-all">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-white/90">Password Change Alerts</p>
                     <p className="text-xs text-white/50 mt-0.5">Notify when your password is changed</p>
@@ -1443,7 +1495,7 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* Backup Codes */}
-            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-base font-medium text-white/95">Backup Codes</h3>
@@ -1481,15 +1533,15 @@ export const SettingsPage = (): JSX.Element => {
               </div>
               <div className="space-y-2">
                 {backupCodes && backupCodes.length > 0 ? (
-                  <div className="border border-white/[0.06] rounded-lg overflow-hidden">
-                    <div className="grid grid-cols-3 text-xs text-white/50 bg-white/[0.02] py-2 px-4 border-b border-white/[0.06]">
+                  <div className="border border-white/10 rounded-lg overflow-hidden">
+                    <div className="grid grid-cols-3 text-xs text-white/50 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent py-2 px-4 border-b border-white/10">
                       <div>ID</div>
                       <div>Status</div>
                       <div>Created</div>
                     </div>
                     <div className="divide-y divide-white/[0.06]">
                       {backupCodes.map((bc: any) => (
-                        <div key={bc.id} className="grid grid-cols-3 items-center text-sm py-2 px-4 hover:bg-white/[0.02] transition-colors">
+                        <div key={bc.id} className="grid grid-cols-3 items-center text-sm py-2 px-4 hover:bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent transition-colors">
                           <div className="text-white/90 font-mono text-xs">#{bc.id}</div>
                           <div>
                             <span className={`text-xs px-2 py-1 rounded ${bc.used
@@ -1507,7 +1559,7 @@ export const SettingsPage = (): JSX.Element => {
                     </div>
                   </div>
                 ) : (
-                  <div className="text-sm text-white/50 py-8 text-center border border-white/[0.06] rounded-lg bg-white/[0.02]">
+                  <div className="text-sm text-white/50 py-8 text-center border border-white/10 rounded-lg bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent">
                     No backup codes generated yet. Click "Generate New Codes" to create your first set.
                   </div>
                 )}
@@ -1570,7 +1622,7 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* Active Sessions */}
-            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-base font-medium text-white/95">Active Sessions</h3>
@@ -1599,7 +1651,7 @@ export const SettingsPage = (): JSX.Element => {
                   activeSessions.map((session: any) => (
                     <div
                       key={session.id}
-                      className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all"
+                      className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10 hover:border-white/20 transition-all"
                     >
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
@@ -1644,7 +1696,7 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* Security Audit Log */}
-            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-base font-medium text-white/95">Security Audit Log</h3>
@@ -1665,7 +1717,7 @@ export const SettingsPage = (): JSX.Element => {
                   auditLogs.map((log: any) => (
                     <div
                       key={log.id}
-                      className="flex items-start justify-between p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]"
+                      className="flex items-start justify-between p-3 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10"
                     >
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
@@ -1702,7 +1754,7 @@ export const SettingsPage = (): JSX.Element => {
 
             {/* API Keys */}
             {sec?.api_keys_enabled && (
-              <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-base font-medium text-white/95">API Keys</h3>
@@ -1729,7 +1781,7 @@ export const SettingsPage = (): JSX.Element => {
                     apiKeys.map((key: any) => (
                       <div
                         key={key.id}
-                        className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06]"
+                        className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10"
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
@@ -1791,14 +1843,14 @@ export const SettingsPage = (): JSX.Element => {
             )}
 
             {/* Advanced Security Settings */}
-            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <h3 className="text-base font-medium text-white/95 mb-4">Advanced Security</h3>
               <div className="space-y-4">
                 {/* Session Management */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-medium text-white/80">Session Management</h4>
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                    <div className="flex items-center justify-between p-3 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10">
                       <div className="flex-1">
                         <p className="text-sm font-medium text-white/90">Auto-logout Inactive Sessions</p>
                         <p className="text-xs text-white/50 mt-0.5">Automatically logout inactive sessions</p>
@@ -1854,9 +1906,9 @@ export const SettingsPage = (): JSX.Element => {
                 </div>
 
                 {/* IP Security */}
-                <div className="space-y-3 pt-4 border-t border-white/[0.06]">
+                <div className="space-y-3 pt-4 border-t border-white/10">
                   <h4 className="text-sm font-medium text-white/80">IP Security</h4>
-                  <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                  <div className="flex items-center justify-between p-3 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10">
                     <div className="flex-1">
                       <p className="text-sm font-medium text-white/90">IP Whitelist</p>
                       <p className="text-xs text-white/50 mt-0.5">Restrict access to specific IP addresses</p>
@@ -1877,7 +1929,7 @@ export const SettingsPage = (): JSX.Element => {
                     </button>
                   </div>
                   {(sec?.ip_whitelist_enabled ?? false) && (
-                    <div className="space-y-2 p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                    <div className="space-y-2 p-3 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10">
                       <div className="flex gap-2">
                         <Input
                           type="text"
@@ -1926,10 +1978,10 @@ export const SettingsPage = (): JSX.Element => {
                 </div>
 
                 {/* Additional Security */}
-                <div className="space-y-3 pt-4 border-t border-white/[0.06]">
+                <div className="space-y-3 pt-4 border-t border-white/10">
                   <h4 className="text-sm font-medium text-white/80">Additional Security</h4>
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                    <div className="flex items-center justify-between p-3 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10">
                       <div className="flex-1">
                         <p className="text-sm font-medium text-white/90">API Keys</p>
                         <p className="text-xs text-white/50 mt-0.5">Enable API key management for programmatic access</p>
@@ -1960,7 +2012,7 @@ export const SettingsPage = (): JSX.Element => {
         return (
           <div id="settings-tab-appearance" data-tour="settings-tab-appearance" className="space-y-6">
             {/* Theme Selection */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <h3 className="text-base font-medium text-white/95 mb-6">Theme</h3>
               <div className="grid grid-cols-3 gap-3">
                 {["Dark", "Light", "Auto"].map((theme) => (
@@ -1975,7 +2027,7 @@ export const SettingsPage = (): JSX.Element => {
                     }}
                     className={`p-4 rounded-lg border transition-all ${(appearanceSettings?.theme || 'auto') === theme.toLowerCase()
                       ? "border-[#1dff00]/40 bg-[#1dff00]/[0.08]"
-                      : "border-white/[0.08] hover:border-white/[0.12] hover:bg-white/[0.02]"
+                      : "border-white/[0.08] hover:border-white/[0.12] hover:bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent"
                       }`}
                   >
                     <div className="text-center">
@@ -1989,7 +2041,7 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Accent Color */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <h3 className="text-base font-medium text-white/95 mb-6">Accent Color</h3>
               <div className="grid grid-cols-6 gap-3">
                 {["#1dff00", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#10b981"].map((color) => (
@@ -2012,9 +2064,9 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Preferences */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <h3 className="text-base font-medium text-white/95 mb-6">Preferences</h3>
-              <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10">
                 <div>
                   <p className="text-sm font-medium text-white/90">Reduced Motion</p>
                   <p className="text-xs text-white/50 mt-0.5">Minimize animations and transitions</p>
@@ -2045,7 +2097,7 @@ export const SettingsPage = (): JSX.Element => {
         return (
           <div id="settings-tab-privacy" data-tour="settings-tab-privacy" className="space-y-6">
             {/* Profile Visibility */}
-            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <User className="w-5 h-5 text-white/70" />
                 <h3 className="text-base font-medium text-white/95">Profile Visibility</h3>
@@ -2059,7 +2111,7 @@ export const SettingsPage = (): JSX.Element => {
                   { key: 'allow_company_access', label: 'Company Access', desc: 'Allow companies to access your profile data', icon: Building },
                   { key: 'show_application_status', label: 'Show Application Status', desc: 'Display application status to companies', icon: Briefcase }
                 ].map((row: any) => (
-                  <div key={row.key} className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                  <div key={row.key} className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10 hover:border-white/20 transition-all">
                     <div className="flex items-center gap-3 flex-1">
                       <row.icon className="w-4 h-4 text-white/50" />
                       <div className="flex-1">
@@ -2089,7 +2141,7 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* Data Sharing & Analytics */}
-            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <Share2 className="w-5 h-5 text-white/70" />
                 <h3 className="text-base font-medium text-white/95">Data Sharing & Analytics</h3>
@@ -2102,7 +2154,7 @@ export const SettingsPage = (): JSX.Element => {
                   { key: 'allow_location_sharing', label: 'Location Sharing', desc: 'Share location data for job matching', icon: MapPin },
                   { key: 'allow_search_indexing', label: 'Search Engine Indexing', desc: 'Allow search engines to index your public profile', icon: Search }
                 ].map((row: any) => (
-                  <div key={row.key} className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                  <div key={row.key} className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10 hover:border-white/20 transition-all">
                     <div className="flex items-center gap-3 flex-1">
                       <row.icon className="w-4 h-4 text-white/50" />
                       <div className="flex-1">
@@ -2132,7 +2184,7 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* Cookie Preferences */}
-            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <Cookie className="w-5 h-5 text-white/70" />
                 <h3 className="text-base font-medium text-white/95">Cookie Preferences</h3>
@@ -2145,7 +2197,7 @@ export const SettingsPage = (): JSX.Element => {
                   { key: 'allow_advertising_cookies', label: 'Advertising Cookies', desc: 'Used for personalized ads and marketing', icon: Zap },
                   { key: 'personalized_ads', label: 'Personalized Ads', desc: 'Use your data to personalize advertisements', icon: Sparkles }
                 ].map((row: any) => (
-                  <div key={row.key} className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                  <div key={row.key} className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10 hover:border-white/20 transition-all">
                     <div className="flex items-center gap-3 flex-1">
                       <row.icon className="w-4 h-4 text-white/50" />
                       <div className="flex-1">
@@ -2175,13 +2227,13 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* Data Retention & Management */}
-            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <Database className="w-5 h-5 text-white/70" />
                 <h3 className="text-base font-medium text-white/95">Data Retention & Management</h3>
               </div>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                <div className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-white/90 mb-1">Data Retention Period</p>
                     <p className="text-xs text-white/50">Number of days to retain your data (0 = indefinite)</p>
@@ -2203,7 +2255,7 @@ export const SettingsPage = (): JSX.Element => {
                   { key: 'resume_default_public', label: 'Resumes Public by Default', desc: 'New resumes are public unless you change them', icon: FileText },
                   { key: 'allow_marketing_emails', label: 'Marketing Emails', desc: 'Receive marketing and promotional emails', icon: Mail }
                 ].map((row: any) => (
-                  <div key={row.key} className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.1] transition-all">
+                  <div key={row.key} className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10 hover:border-white/20 transition-all">
                     <div className="flex items-center gap-3 flex-1">
                       <row.icon className="w-4 h-4 text-white/50" />
                       <div className="flex-1">
@@ -2233,13 +2285,13 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* GDPR Compliance */}
-            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <Shield className="w-5 h-5 text-white/70" />
                 <h3 className="text-base font-medium text-white/95">GDPR & Data Rights</h3>
               </div>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                <div className="flex items-center justify-between p-4 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-white/90 mb-1">GDPR Consent</p>
                     <p className="text-xs text-white/50">
@@ -2285,7 +2337,7 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* Privacy Audit Log */}
-            <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <History className="w-5 h-5 text-white/70" />
                 <h3 className="text-base font-medium text-white/95">Privacy Activity Log</h3>
@@ -2293,7 +2345,7 @@ export const SettingsPage = (): JSX.Element => {
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {privacyAuditLogs && privacyAuditLogs.length > 0 ? (
                   privacyAuditLogs.slice(0, 10).map((log: any) => (
-                    <div key={log.id} className="flex items-start gap-3 p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                    <div key={log.id} className="flex items-start gap-3 p-3 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent rounded-lg border border-white/10">
                       <div className="flex-1">
                         <p className="text-xs font-medium text-white/90 capitalize">{log.action_type.replace(/_/g, ' ')}</p>
                         {log.setting_name && (
@@ -2317,7 +2369,7 @@ export const SettingsPage = (): JSX.Element => {
 
             {/* Data Deletion Requests */}
             {privacyDeletionRequests && privacyDeletionRequests.length > 0 && (
-              <Card className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+              <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <AlertTriangle className="w-5 h-5 text-yellow-400" />
                   <h3 className="text-base font-medium text-white/95">Active Deletion Requests</h3>
@@ -2349,7 +2401,7 @@ export const SettingsPage = (): JSX.Element => {
             )}
 
             {/* Account Deletion */}
-            <Card className="bg-white/[0.02] border border-red-500/30 rounded-xl p-6">
+            <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-red-500/30 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <AlertTriangle className="w-5 h-5 text-red-400" />
                 <h3 className="text-base font-medium text-red-400">Danger Zone</h3>
@@ -2435,7 +2487,7 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Available Job Sources */}
-            <Card className="bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all">
+            <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border-white/10 hover:border-white/20 transition-all">
               <CardContent className="p-6">
                 <h3 className="text-lg font-semibold text-white/95 mb-4">Available Job Sources</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -2447,7 +2499,7 @@ export const SettingsPage = (): JSX.Element => {
                         key={source.id}
                         className={`flex flex-col p-4 rounded-lg border transition-all ${isEnabled
                           ? 'bg-white/[0.05] border-white/[0.1] ring-1 ring-[#1dff00]/30'
-                          : 'bg-white/[0.02] border-white/[0.06]'
+                          : 'bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border-white/10'
                           }`}
                       >
                         <div className="flex items-center justify-between mb-3">
@@ -2500,7 +2552,7 @@ export const SettingsPage = (): JSX.Element => {
             </Card>
 
             {/* User-Configurable Domains */}
-            <Card className="bg-white/[0.02] border-white/[0.06] hover:border-white/[0.1] transition-all">
+            <Card className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border-white/10 hover:border-white/20 transition-all">
               <CardContent className="p-6">
                 <h3 className="text-lg font-semibold text-white/95 mb-2">User-Configurable Domains</h3>
                 <p className="text-sm text-white/50 mb-4">
@@ -2547,7 +2599,7 @@ export const SettingsPage = (): JSX.Element => {
       case "integrations":
         return (
           <div id="settings-tab-integrations" data-tour="settings-tab-integrations" className="space-y-6">
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.1] transition-all">
+            <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6 hover:border-white/20 transition-all">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500/10 to-red-500/5 border border-red-500/20 flex items-center justify-center">
@@ -2562,7 +2614,7 @@ export const SettingsPage = (): JSX.Element => {
                   variant="outline"
                   className={`border-white/[0.08] transition-all ${isGmailConnected
                     ? "text-[#1dff00] border-[#1dff00]/30 bg-[#1dff00]/[0.05]"
-                    : "text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
+                    : "text-white/70 hover:text-white/90 hover:bg-white/5"
                     }`}
                   onClick={handleConnectGmail}
                   disabled={isGmailConnected}
@@ -2572,7 +2624,7 @@ export const SettingsPage = (): JSX.Element => {
                 </Button>
               </div>
             </div>
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.1] transition-all">
+            <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6 hover:border-white/20 transition-all">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20 flex items-center justify-center">
@@ -2585,14 +2637,14 @@ export const SettingsPage = (): JSX.Element => {
                 </div>
                 <Button
                   variant="outline"
-                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
+                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/5"
                 >
                   <Link className="w-4 h-4 mr-2" />
                   Connect
                 </Button>
               </div>
             </div>
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.1] transition-all">
+            <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6 hover:border-white/20 transition-all">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-500/10 to-gray-500/5 border border-gray-500/20 flex items-center justify-center">
@@ -2605,7 +2657,7 @@ export const SettingsPage = (): JSX.Element => {
                 </div>
                 <Button
                   variant="outline"
-                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03]"
+                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/5"
                 >
                   <Link className="w-4 h-4 mr-2" />
                   Connect
@@ -2621,7 +2673,7 @@ export const SettingsPage = (): JSX.Element => {
             {/* Current Stats */}
             <div className="grid gap-4 md:grid-cols-3">
               {/* Credits Balance */}
-              <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.1] transition-all">
+              <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6 hover:border-white/20 transition-all">
                 <div className="flex items-start justify-between mb-4">
                   <div className="p-3 rounded-xl bg-[#1dff00]/10 border border-[#1dff00]/20">
                     <Sparkles className="w-5 h-5 text-[#1dff00]" />
@@ -2639,7 +2691,7 @@ export const SettingsPage = (): JSX.Element => {
               </div>
 
               {/* Active Plan */}
-              <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.1] transition-all">
+              <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6 hover:border-white/20 transition-all">
                 <div className="flex items-start justify-between mb-4">
                   <div className={`p-3 rounded-xl bg-gradient-to-br ${getTierGradient(billingSubscriptionTier)}/10 border border-white/10`}>
                     {getTierIcon(billingSubscriptionTier)}
@@ -2663,7 +2715,7 @@ export const SettingsPage = (): JSX.Element => {
               </div>
 
               {/* Next Refill */}
-              <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.1] transition-all">
+              <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6 hover:border-white/20 transition-all">
                 <div className="flex items-start justify-between mb-4">
                   <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
                     <CreditCard className="w-5 h-5 text-blue-400" />
@@ -2682,7 +2734,7 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Available Plans */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-base font-medium text-white/95">Subscription Plans</h3>
@@ -2787,12 +2839,12 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6">
+            <div className="bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-xl p-6">
               <h3 className="text-base font-medium text-white/95 mb-4">Quick Actions</h3>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Button
                   variant="outline"
-                  className="justify-start border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] h-auto py-3"
+                  className="justify-start border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/5 h-auto py-3"
                   onClick={() => { window.location.href = '/dashboard/billing'; }}
                 >
                   <CreditCard className="w-4 h-4 mr-3" />
@@ -2803,7 +2855,7 @@ export const SettingsPage = (): JSX.Element => {
                 </Button>
                 <Button
                   variant="outline"
-                  className="justify-start border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] h-auto py-3"
+                  className="justify-start border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/5 h-auto py-3"
                   onClick={() => { window.location.href = '/dashboard/billing'; }}
                 >
                   <Download className="w-4 h-4 mr-3" />
@@ -2827,7 +2879,7 @@ export const SettingsPage = (): JSX.Element => {
       <div className="min-h-screen bg-black">
         <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-6">
           {/* Modern Header */}
-          <div className="mb-8 border-b border-white/[0.06] pb-6">
+          <div className="mb-8 border-b border-white/10 pb-6">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-medium tracking-tight text-white/95 mb-1">Settings</h1>
@@ -2837,7 +2889,7 @@ export const SettingsPage = (): JSX.Element => {
                 <Button
                   variant="outline"
                   onClick={handleResetForm}
-                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] hover:border-white/[0.12] transition-all"
+                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/5 hover:border-white/[0.12] transition-all"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Reset
@@ -2845,7 +2897,7 @@ export const SettingsPage = (): JSX.Element => {
                 <Button
                   variant="outline"
                   onClick={handleExportData}
-                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.03] hover:border-white/[0.12] transition-all"
+                  className="border-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/5 hover:border-white/[0.12] transition-all"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Export Data
@@ -2867,8 +2919,8 @@ export const SettingsPage = (): JSX.Element => {
                   id={`settings-tab-btn-${tab.id}`}
                   data-tour={`settings-tab-btn-${tab.id}`}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all ${activeTab === tab.id
-                    ? "text-white/95 bg-white/[0.06] border border-white/[0.08]"
-                    : "text-white/50 hover:text-white/80 hover:bg-white/[0.03]"
+                    ? "text-white/95 bg-gradient-to-r from-white/[0.08] to-transparent border-l-2 border-[#1dff00]"
+                    : "text-white/50 hover:text-white/80 hover:bg-white/5 border-l-2 border-transparent"
                     }`}
                 >
                   <span className={activeTab === tab.id ? "text-[#1dff00]" : "text-white/40"}>
@@ -2878,10 +2930,10 @@ export const SettingsPage = (): JSX.Element => {
                 </button>
               ))}
 
-              <div className="pt-4 mt-4 border-t border-white/[0.06]">
+              <div className="pt-4 mt-4 border-t border-white/10">
                 <button
                   onClick={() => setSignOutDialogOpen(true)}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all border-l-2 border-transparent"
                 >
                   <LogOut className="w-4 h-4" />
                   <span className="font-medium">Sign Out</span>
@@ -3168,7 +3220,7 @@ export const SettingsPage = (): JSX.Element => {
             )}
           </div>
 
-          <div className="flex items-start gap-2 p-3 bg-white/[0.02] border border-white/[0.06] rounded-lg">
+          <div className="flex items-start gap-2 p-3 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border border-white/10 rounded-lg">
             <input
               type="checkbox"
               id="confirm-deletion"

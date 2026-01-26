@@ -41,6 +41,41 @@ const creditPacks: CreditPack[] = [
   { credits: 2500, price: 149, bonus: 500 },
 ];
 
+const defaultPlans: SubscriptionPlan[] = [
+  {
+    id: 'free',
+    name: 'Free',
+    price: 0,
+    credits_per_month: 10,
+    description: 'Perfect for trying out JobRaker',
+    features: ['10 AI Job Applications/mo', 'Basic Resume Parsing', 'Standard Support']
+  },
+  {
+    id: 'basics',
+    name: 'Basics',
+    price: 19,
+    credits_per_month: 100,
+    description: 'For active job seekers',
+    features: ['100 AI Job Applications/mo', 'Advanced Resume Optimization', 'Priority Queue']
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    price: 49,
+    credits_per_month: 500,
+    description: 'Power through your job search',
+    features: ['500 AI Job Applications/mo', 'Cover Letter Generation', 'LinkedIn Optimization', '24/7 Priority Support']
+  },
+  {
+    id: 'ultimate',
+    name: 'Ultimate',
+    price: 99,
+    credits_per_month: 2000,
+    description: 'Maximum automation & reach',
+    features: ['2000 AI Job Applications/mo', 'Personal Career Agent', 'Interview Prep AI', 'Dedicated Account Manager']
+  }
+];
+
 export const BillingPage = () => {
   const [currentCredits, setCurrentCredits] = useState(0);
   const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
@@ -59,7 +94,15 @@ export const BillingPage = () => {
     try {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData?.user?.id;
-      if (!userId) return;
+
+      // If no user (e.g. preview mode), populate with defaults
+      if (!userId) {
+        setPlans(defaultPlans);
+        setTransactions([
+          { id: '1', transaction_type: 'bonus', amount: 50, balance_after: 50, description: 'Welcome Bonus', created_at: new Date().toISOString() }
+        ]);
+        return;
+      }
 
       // Fetch current credits
       const { data: creditsData } = await supabase
@@ -93,8 +136,10 @@ export const BillingPage = () => {
         .eq('is_active', true)
         .order('price', { ascending: true });
 
-      if (plansData) {
+      if (plansData && plansData.length > 0) {
         setPlans(plansData);
+      } else {
+        setPlans(defaultPlans);
       }
 
       // Fetch recent transactions
@@ -110,13 +155,14 @@ export const BillingPage = () => {
       }
     } catch (error) {
       console.error('Error fetching billing data:', error);
+      // Fallback to defaults on error
+      setPlans(defaultPlans);
     } finally {
       setLoading(false);
     }
   };
 
   const getTierIcon = (tier: string) => {
-    // All icons are now colored based on their tier, on a dark background
     switch (tier) {
       case 'Pro':
         return <Zap className="w-5 h-5 text-blue-400" />;
@@ -139,7 +185,6 @@ export const BillingPage = () => {
   };
 
   const getTierTextColor = (_tier: string) => {
-    // Unified dark theme text colors for all tiers
     return {
       primary: 'text-white',
       secondary: 'text-white/70',
@@ -151,13 +196,13 @@ export const BillingPage = () => {
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'bonus':
-        return { icon: <Sparkles className="w-4 h-4" />, color: 'text-yellow-400 bg-yellow-400/10' };
+        return { icon: <Sparkles className="w-4 h-4" />, color: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20' };
       case 'refill':
-        return { icon: <TrendingUp className="w-4 h-4" />, color: 'text-green-400 bg-green-400/10' };
+        return { icon: <TrendingUp className="w-4 h-4" />, color: 'text-green-400 bg-green-400/10 border-green-400/20' };
       case 'spend':
-        return { icon: <ArrowUpRight className="w-4 h-4" />, color: 'text-red-400 bg-red-400/10' };
+        return { icon: <ArrowUpRight className="w-4 h-4" />, color: 'text-red-400 bg-red-400/10 border-red-400/20' };
       default:
-        return { icon: <Coins className="w-4 h-4" />, color: 'text-gray-400 bg-gray-400/10' };
+        return { icon: <Coins className="w-4 h-4" />, color: 'text-gray-400 bg-gray-400/10 border-gray-400/20' };
     }
   };
 
@@ -185,51 +230,58 @@ export const BillingPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black selection:bg-[#1dff00]/30">
       {/* Hero Section */}
       <div className="relative overflow-hidden border-b border-white/10 bg-gradient-to-br from-black via-[#0a0a0a] to-black">
-        {/* Animated background */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-[#1dff00]/10 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#1dff00]/5 rounded-full blur-[120px] mix-blend-screen animate-pulse" />
+          <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-[120px] mix-blend-screen animate-pulse" style={{ animationDelay: '2s' }} />
+          {/* Grid overlay */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#1dff0005_1px,transparent_1px),linear-gradient(to_bottom,#1dff0005_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-12"
           >
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4 bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent">
-              Billing & Credits
+            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold mb-6 tracking-tight">
+              <span className="bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent">
+                Billing &
+              </span>{' '}
+              <span className="text-[#1dff00] drop-shadow-[0_0_15px_rgba(29,255,0,0.3)]">
+                Credits
+              </span>
             </h1>
-            <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-              Manage your subscription, purchase credit packs, and track your usage
+            <p className="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
+              Supercharge your job search with AI credits. Choose a plan that fits your ambition or top up anytime.
             </p>
           </motion.div>
 
           {/* Stats Cards */}
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-3 mb-8">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
             {/* Current Balance */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="relative overflow-hidden border-white/10 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent">
-                <div className="absolute inset-0 bg-gradient-to-br from-[#1dff00]/5 to-transparent" />
+              <Card className="relative overflow-hidden border-white/10 bg-white/[0.03] backdrop-blur-xl group hover:border-[#1dff00]/30 transition-colors duration-300">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#1dff00]/5 to-transparent opacity-50" />
                 <CardContent className="relative p-6">
                   <div className="flex items-start justify-between mb-4">
-                    <div className="p-3 rounded-xl bg-[#1dff00]/10 border border-[#1dff00]/20">
+                    <div className="p-3 rounded-xl bg-[#1dff00]/10 border border-[#1dff00]/20 group-hover:bg-[#1dff00]/20 transition-colors">
                       <Coins className="w-6 h-6 text-[#1dff00]" />
                     </div>
-                    <span className="text-xs font-semibold text-[#1dff00] bg-[#1dff00]/10 px-2 py-1 rounded-full">
+                    <span className="text-[10px] tracking-wider font-bold text-[#1dff00] bg-[#1dff00]/10 px-2.5 py-1 rounded-full border border-[#1dff00]/20">
                       BALANCE
                     </span>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm text-gray-400">Current Credits</p>
-                    <p className="text-4xl font-bold text-white">
+                    <p className="text-sm text-gray-400 font-medium">Available Credits</p>
+                    <p className="text-4xl font-bold text-white tracking-tight">
                       {currentCredits.toLocaleString()}
                     </p>
                   </div>
@@ -243,38 +295,30 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <Card className="relative overflow-hidden border-white/10 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent">
-                <div className={`absolute inset-0 bg-gradient-to-br ${getTierGradient(subscriptionTier)}/5`} />
-
+              <Card className="relative overflow-hidden border-white/10 bg-white/[0.03] backdrop-blur-xl group hover:border-white/20 transition-colors duration-300">
+                <div className={`absolute inset-0 bg-gradient-to-br ${getTierGradient(subscriptionTier)} opacity-5`} />
                 <CardContent className="relative p-6">
-                  {(() => {
-                    const textColors = getTierTextColor(subscriptionTier);
-                    return (
-                      <>
-                        <div className="flex items-start justify-between mb-4">
-                          <div className={`p-3 rounded-xl bg-gradient-to-br ${getTierGradient(subscriptionTier)}/10 border border-white/10`}>
-                            {getTierIcon(subscriptionTier)}
-                          </div>
-                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                            subscriptionTier === 'Pro' ? 'bg-blue-500/20 text-blue-300' :
-                            subscriptionTier === 'Ultimate' ? 'bg-purple-500/20 text-purple-300' :
-                            'bg-[#1dff00]/20 text-[#1dff00]'
-                          }`}>
-                            {subscriptionTier.toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm text-gray-400">Active Plan</p>
-                          <p className={`text-4xl font-bold ${textColors.primary}`}>
-                            {subscriptionTier}
-                          </p>
-                          <p className="text-sm text-gray-400">
-                            {plans.find(p => p.name === subscriptionTier)?.credits_per_month.toLocaleString() || 0} credits/month
-                          </p>
-                        </div>
-                      </>
-                    );
-                  })()}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`p-3 rounded-xl bg-gradient-to-br ${getTierGradient(subscriptionTier)}/10 border border-white/10 group-hover:border-white/20 transition-colors`}>
+                      {getTierIcon(subscriptionTier)}
+                    </div>
+                    <span className={`text-[10px] tracking-wider font-bold px-2.5 py-1 rounded-full border ${
+                      subscriptionTier === 'Pro' ? 'bg-blue-500/10 text-blue-300 border-blue-500/20' :
+                      subscriptionTier === 'Ultimate' ? 'bg-purple-500/10 text-purple-300 border-purple-500/20' :
+                      'bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/20'
+                    }`}>
+                      ACTIVE PLAN
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-gray-400 font-medium">Current Tier</p>
+                    <p className="text-4xl font-bold text-white tracking-tight">
+                      {subscriptionTier}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {plans.find(p => p.name === subscriptionTier)?.credits_per_month.toLocaleString() || 0} credits/month
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
@@ -285,21 +329,24 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <Card className="relative overflow-hidden border-white/10 bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent" />
+              <Card className="relative overflow-hidden border-white/10 bg-white/[0.03] backdrop-blur-xl group hover:border-blue-400/30 transition-colors duration-300">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-50" />
                 <CardContent className="relative p-6">
                   <div className="flex items-start justify-between mb-4">
-                    <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                    <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 group-hover:bg-blue-500/20 transition-colors">
                       <Calendar className="w-6 h-6 text-blue-400" />
                     </div>
-                    <span className="text-xs font-semibold text-blue-400 bg-blue-400/10 px-2 py-1 rounded-full">
-                      REFILL
+                    <span className="text-[10px] tracking-wider font-bold text-blue-400 bg-blue-400/10 px-2.5 py-1 rounded-full border border-blue-400/20">
+                      RENEWAL
                     </span>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm text-gray-400">Next Credit Refill</p>
-                    <p className="text-lg font-semibold text-white">
+                    <p className="text-sm text-gray-400 font-medium">Next Refill</p>
+                    <p className="text-lg font-bold text-white tracking-tight pt-2">
                       {currentPeriodEnd ? new Date(currentPeriodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not scheduled'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Automatic renewal
                     </p>
                   </div>
                 </CardContent>
@@ -309,27 +356,39 @@ export const BillingPage = () => {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center gap-2 mb-8 border-b border-white/10">
-          {[
-            { id: 'subscription', label: 'Subscription Plans', icon: <Star className="w-4 h-4" /> },
-            { id: 'packs', label: 'Credit Packs', icon: <Package className="w-4 h-4" /> },
-            { id: 'history', label: 'Transaction History', icon: <History className="w-4 h-4" /> },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-3 font-medium transition-all duration-200 border-b-2 ${
-                activeTab === tab.id
-                  ? 'text-[#1dff00] border-[#1dff00]'
-                  : 'text-gray-400 border-transparent hover:text-white'
-              }`}
-            >
-              {tab.icon}
-              <span className="hidden sm:inline">{tab.label}</span>
-            </button>
-          ))}
+      {/* Main Content Area */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Custom Tab Navigation */}
+        <div className="flex justify-center mb-12">
+          <div className="flex items-center p-1 bg-white/5 rounded-full border border-white/10 backdrop-blur-md">
+            {[
+              { id: 'subscription', label: 'Plans', icon: <Star className="w-4 h-4" /> },
+              { id: 'packs', label: 'Credit Packs', icon: <Package className="w-4 h-4" /> },
+              { id: 'history', label: 'History', icon: <History className="w-4 h-4" /> },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`relative flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-full transition-all duration-300 ${
+                  activeTab === tab.id
+                    ? 'text-black shadow-lg'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                {activeTab === tab.id && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute inset-0 bg-[#1dff00] rounded-full"
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-2">
+                  {tab.icon}
+                  {tab.label}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
         <AnimatePresence mode="wait">
@@ -337,15 +396,16 @@ export const BillingPage = () => {
           {activeTab === 'subscription' && (
             <motion.div
               key="subscription"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="space-y-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
             >
-              <div className="grid gap-6 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid gap-8 lg:grid-cols-3 xl:grid-cols-4">
                 {plans.map((plan, index) => {
                   const isCurrentPlan = plan.name === subscriptionTier;
                   const isPro = plan.name === 'Pro';
+                  const isUltimate = plan.name === 'Ultimate';
                   
                   return (
                     <motion.div
@@ -353,117 +413,125 @@ export const BillingPage = () => {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className="relative"
+                      className="relative h-full"
                     >
-                      {isPro && (
-                        <div className="absolute -top-3 left-0 right-0 flex justify-center z-10">
-                          <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-                            BEST VALUE
+                      {(isPro || isUltimate) && (
+                        <div className="absolute -top-3 left-0 right-0 flex justify-center z-20">
+                          <span className={`text-[10px] font-bold px-3 py-1 rounded-full shadow-lg border ${
+                            isUltimate
+                              ? 'bg-purple-500 text-white border-purple-400'
+                              : 'bg-[#1dff00] text-black border-[#1dff00]'
+                          }`}>
+                            {isUltimate ? 'MAXIMUM POWER' : 'MOST POPULAR'}
                           </span>
                         </div>
                       )}
                       
-                      <Card className={`group relative overflow-hidden bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent border transition-all hover:shadow-xl hover:shadow-[#1dff00]/10 hover:-translate-y-1 ${
+                      <Card className={`group relative h-full flex flex-col overflow-hidden transition-all duration-300 ${
                         isCurrentPlan 
-                          ? 'border-[#1dff00] shadow-[0_0_30px_rgba(29,255,0,0.15)]'
-                          : 'border-white/10'
+                          ? 'border-[#1dff00]/50 bg-gradient-to-b from-[#1dff00]/10 to-transparent shadow-[0_0_40px_-10px_rgba(29,255,0,0.2)]'
+                          : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/20 hover:shadow-xl hover:shadow-[#1dff00]/5 hover:-translate-y-1'
                       }`}>
                         {/* Gradient accent top border */}
-                        <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${getTierGradient(plan.name)} opacity-50`} />
+                        <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${getTierGradient(plan.name)} opacity-70`} />
 
                         {isCurrentPlan && (
                           <div className="absolute top-4 right-4 z-10">
-                            <span className="px-2 py-1 text-xs font-medium bg-[#1dff00] text-black border border-[#1dff00] rounded-lg flex items-center gap-1">
+                            <span className="px-2.5 py-1 text-[10px] font-bold bg-[#1dff00] text-black border border-[#1dff00] rounded-full flex items-center gap-1 shadow-md">
                               <Check className="w-3 h-3" />
-                              ACTIVE
+                              CURRENT
                             </span>
                           </div>
                         )}
 
-                        <CardContent className="p-6">
+                        <CardContent className="p-6 flex flex-col h-full">
                           {(() => {
                             const textColors = getTierTextColor(plan.name);
                             return (
                               <>
                                 {/* Header */}
-                                <div className="flex items-start justify-between mb-4">
-                                  <div className="flex items-center gap-3">
-                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-white/5 border border-white/10`}>
-                                      {getTierIcon(plan.name)}
-                                    </div>
-                                    <div>
-                                      <h3 className={`text-xl font-bold ${textColors.primary}`}>{plan.name}</h3>
-                                      <p className={`text-xs ${textColors.secondary}`}>monthly</p>
-                                    </div>
+                                <div className="mb-6">
+                                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-gradient-to-br ${
+                                    plan.name === 'Pro' ? 'from-blue-500/20 to-transparent border-blue-500/20' :
+                                    plan.name === 'Ultimate' ? 'from-purple-500/20 to-transparent border-purple-500/20' :
+                                    'from-[#1dff00]/20 to-transparent border-[#1dff00]/20'
+                                  } border border-white/5`}>
+                                    {getTierIcon(plan.name)}
                                   </div>
+                                  <h3 className={`text-2xl font-bold ${textColors.primary} tracking-tight`}>{plan.name}</h3>
+                                  <p className={`text-sm ${textColors.secondary} mt-1 h-10`}>{plan.description}</p>
                                 </div>
 
                                 {/* Price */}
-                                <div className="mb-4">
+                                <div className="mb-6 pb-6 border-b border-white/10">
                                   <div className="flex items-baseline gap-1">
                                     <span className={`text-4xl font-bold ${textColors.primary}`}>${plan.price}</span>
                                     {plan.price > 0 && (
-                                      <span className={textColors.secondary}>/mo</span>
+                                      <span className={textColors.tertiary}>/mo</span>
                                     )}
                                   </div>
-                                  <p className={`text-sm ${textColors.tertiary} mt-2 line-clamp-2`}>{plan.description}</p>
                                 </div>
 
                                 {/* Credits */}
-                                <div className="flex items-center gap-2 p-3 rounded-lg mb-4 bg-white/5 border border-white/5">
-                                  <Zap className={`w-4 h-4 ${
-                                    plan.name === 'Pro' ? 'text-blue-400' :
-                                    plan.name === 'Ultimate' ? 'text-purple-400' : 'text-[#1dff00]'
-                                  }`} />
-                                  <span className={`text-sm font-medium ${textColors.primary}`}>{plan.credits_per_month} credits</span>
-                                  <span className={`text-xs ${textColors.muted}`}>per cycle</span>
+                                <div className="flex items-center gap-3 p-3 rounded-xl mb-6 bg-white/5 border border-white/5 group-hover:bg-white/10 transition-colors">
+                                  <div className="p-1.5 rounded-lg bg-black/40">
+                                    <Zap className={`w-4 h-4 ${
+                                      plan.name === 'Pro' ? 'text-blue-400' :
+                                      plan.name === 'Ultimate' ? 'text-purple-400' : 'text-[#1dff00]'
+                                    }`} />
+                                  </div>
+                                  <div>
+                                    <span className={`block text-sm font-bold ${textColors.primary}`}>{plan.credits_per_month} credits</span>
+                                    <span className={`block text-[10px] uppercase tracking-wider ${textColors.muted}`}>Monthly Refill</span>
+                                  </div>
                                 </div>
 
                                 {/* Features */}
-                                <div className="space-y-2 mb-4">
-                                  {plan.features && Array.isArray(plan.features) && plan.features.slice(0, 3).map((feature: any, idx: number) => {
+                                <div className="space-y-3 mb-8 flex-grow">
+                                  {plan.features && Array.isArray(plan.features) && plan.features.map((feature: any, idx: number) => {
                                     const featureName = typeof feature === 'string' ? feature : feature.name;
                                     const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
                                     
                                     if (!isIncluded) return null;
                                     
                                     return (
-                                      <div key={idx} className="flex items-start gap-2">
-                                        <Check className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
-                                          plan.name === 'Pro' ? 'text-blue-400' :
-                                          plan.name === 'Ultimate' ? 'text-purple-400' :
-                                          'text-[#1dff00]'
-                                        }`} />
-                                        <span className={`text-sm ${textColors.tertiary} line-clamp-1`}>{featureName}</span>
+                                      <div key={idx} className="flex items-start gap-3 group/item">
+                                        <div className={`mt-0.5 w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                          plan.name === 'Pro' ? 'bg-blue-500/20 text-blue-400' :
+                                          plan.name === 'Ultimate' ? 'bg-purple-500/20 text-purple-400' :
+                                          'bg-[#1dff00]/20 text-[#1dff00]'
+                                        }`}>
+                                          <Check className="w-2.5 h-2.5" />
+                                        </div>
+                                        <span className={`text-sm ${textColors.tertiary} group-hover/item:text-white transition-colors`}>{featureName}</span>
                                       </div>
                                     );
                                   })}
-                                  {(plan.features?.length || 0) > 3 && (
-                                    <p className={`text-xs ${textColors.muted} pl-6`}>+{plan.features.length - 3} more features</p>
-                                  )}
                                 </div>
                               </>
                             );
                           })()}
 
                           {/* CTA */}
-                          <Button
-                            className={`w-full h-11 font-semibold text-sm transition-all duration-300 ${
-                              isCurrentPlan
-                                ? 'bg-white/10 text-white cursor-default'
-                                : plan.name === 'Basics'
-                                ? 'bg-gradient-to-r from-[#1dff00] via-[#0fc74f] to-[#0a8246] text-black hover:opacity-90 hover:scale-105 shadow-lg'
-                                : plan.name === 'Pro'
-                                ? 'bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
-                                : plan.name === 'Ultimate'
-                                ? 'bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
-                                : 'bg-gradient-to-r from-gray-600 to-gray-700 text-white hover:opacity-90 hover:scale-105 shadow-lg'
-                            }`}
-                            disabled={isCurrentPlan}
-                          >
-                            {isCurrentPlan ? 'Current Plan' : `Upgrade to ${plan.name}`}
-                            {!isCurrentPlan && <ArrowRight className="ml-2 w-4 h-4" />}
-                          </Button>
+                          <div className="mt-auto">
+                            <Button
+                              className={`w-full h-12 font-bold text-sm tracking-wide transition-all duration-300 ${
+                                isCurrentPlan
+                                  ? 'bg-white/5 text-white/50 cursor-default border border-white/5'
+                                  : plan.name === 'Basics'
+                                  ? 'bg-[#1dff00] text-black hover:bg-[#1dff00] hover:brightness-110 hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] hover:scale-[1.02]'
+                                  : plan.name === 'Pro'
+                                  ? 'bg-blue-500 text-white hover:bg-blue-600 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-[1.02]'
+                                  : plan.name === 'Ultimate'
+                                  ? 'bg-purple-600 text-white hover:bg-purple-700 hover:shadow-[0_0_20px_rgba(147,51,234,0.4)] hover:scale-[1.02]'
+                                  : 'bg-white text-black hover:bg-gray-200'
+                              }`}
+                              disabled={isCurrentPlan}
+                            >
+                              {isCurrentPlan ? 'CURRENT PLAN' : `UPGRADE TO ${plan.name.toUpperCase()}`}
+                              {!isCurrentPlan && <ArrowRight className="ml-2 w-4 h-4" />}
+                            </Button>
+                          </div>
                         </CardContent>
                       </Card>
                     </motion.div>
@@ -477,14 +545,15 @@ export const BillingPage = () => {
           {activeTab === 'packs' && (
             <motion.div
               key="packs"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="space-y-6"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-12"
             >
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-white mb-2">One-Time Credit Packs</h2>
-                <p className="text-gray-300">Purchase additional credits anytime to boost your balance</p>
+              <div className="text-center">
+                <h2 className="text-3xl font-bold text-white mb-3">One-Time Credit Packs</h2>
+                <p className="text-gray-400">Need a boost? Add credits that never expire.</p>
               </div>
 
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -498,57 +567,54 @@ export const BillingPage = () => {
                   >
                     {pack.popular && (
                       <div className="absolute -top-3 left-0 right-0 flex justify-center z-10">
-                        <span className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                        <span className="bg-[#1dff00] text-black text-[10px] font-bold px-3 py-1 rounded-full shadow-lg shadow-[#1dff00]/20">
                           BEST VALUE
                         </span>
                       </div>
                     )}
 
-                    <Card className={`relative overflow-hidden transition-all duration-300 hover:scale-105 ${
+                    <Card className={`relative overflow-hidden transition-all duration-300 group hover:scale-105 ${
                       pack.popular
-                        ? 'border-[#1dff00]/50 bg-gradient-to-br from-[#1dff00]/10 to-transparent shadow-[0_0_30px_rgba(29,255,0,0.1)]'
-                        : 'border-white/10 bg-gradient-to-br from-white/5 to-transparent'
+                        ? 'border-[#1dff00]/30 bg-gradient-to-b from-[#1dff00]/5 to-transparent'
+                        : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04]'
                     }`}>
-                      <CardContent className="p-6 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="p-2 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/20">
-                            <Package className="w-5 h-5 text-[#1dff00]" />
-                          </div>
-                          {pack.bonus > 0 && (
-                            <span className="text-xs font-semibold text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded-full flex items-center gap-1">
-                              <Sparkles className="w-3 h-3" />
-                              +{pack.bonus} BONUS
-                            </span>
-                          )}
+                      <CardContent className="p-6 flex flex-col items-center text-center">
+                        <div className={`p-3 rounded-2xl mb-4 ${
+                          pack.popular ? 'bg-[#1dff00]/10 text-[#1dff00]' : 'bg-white/5 text-gray-400 group-hover:text-white group-hover:bg-white/10'
+                        } transition-colors`}>
+                          <Package className="w-8 h-8" />
                         </div>
 
-                        <div>
+                        {pack.bonus > 0 && (
+                          <span className="mb-2 text-[10px] font-bold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded-full flex items-center gap-1 border border-yellow-400/20">
+                            <Sparkles className="w-3 h-3" />
+                            +{pack.bonus} BONUS
+                          </span>
+                        )}
+
+                        <div className="mb-6">
                           <p className="text-4xl font-bold text-white mb-1">
                             {(pack.credits + pack.bonus).toLocaleString()}
                           </p>
-                          <p className="text-sm text-white/80">
-                            {pack.credits.toLocaleString()} credits
-                            {pack.bonus > 0 && ` + ${pack.bonus} bonus`}
-                          </p>
+                          <p className="text-xs text-gray-400 uppercase tracking-widest font-medium">Credits</p>
                         </div>
 
-                        <div className="pt-2">
+                        <div className="w-full pt-4 border-t border-white/5">
                           <p className="text-3xl font-bold text-white mb-1">${pack.price}</p>
-                          <p className="text-xs text-white/70">
+                          <p className="text-xs text-gray-500 mb-4">
                             ${(pack.price / (pack.credits + pack.bonus)).toFixed(3)} per credit
                           </p>
-                        </div>
 
-                        <Button
-                          className={`w-full bg-gradient-to-r ${
-                            pack.popular
-                              ? 'from-[#1dff00] to-[#0a8246] text-black'
-                              : 'from-white/10 to-white/5 text-white'
-                          } hover:opacity-90 transition-all duration-300`}
-                        >
-                          Purchase
-                          <ArrowRight className="ml-2 w-4 h-4" />
-                        </Button>
+                          <Button
+                            className={`w-full font-bold transition-all duration-300 ${
+                              pack.popular
+                                ? 'bg-[#1dff00] text-black hover:bg-[#1dff00] hover:brightness-110 shadow-[0_0_20px_rgba(29,255,0,0.3)]'
+                                : 'bg-white/10 text-white hover:bg-white/20'
+                            }`}
+                          >
+                            PURCHASE
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -556,20 +622,18 @@ export const BillingPage = () => {
               </div>
 
               {/* Benefits Section */}
-              <div className="grid gap-4 sm:grid-cols-3 mt-12 pt-8 border-t border-white/10">
+              <div className="grid gap-6 sm:grid-cols-3 max-w-4xl mx-auto pt-8 border-t border-white/10">
                 {[
-                  { icon: <Shield className="w-5 h-5" />, title: 'Secure Payment', desc: 'SSL encrypted checkout' },
-                  { icon: <Infinity className="w-5 h-5" />, title: 'Never Expire', desc: 'Credits last forever' },
-                  { icon: <Target className="w-5 h-5" />, title: 'Instant Delivery', desc: 'Credits added immediately' },
+                  { icon: <Shield className="w-6 h-6" />, title: 'Secure Payment', desc: 'Encrypted & safe checkout' },
+                  { icon: <Infinity className="w-6 h-6" />, title: 'Never Expire', desc: 'Credits last until you use them' },
+                  { icon: <Target className="w-6 h-6" />, title: 'Instant Delivery', desc: 'Start applying in seconds' },
                 ].map((benefit, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-4 rounded-xl bg-white/5 border border-white/10">
-                    <div className="p-2 rounded-lg bg-[#1dff00]/10 text-[#1dff00]">
+                  <div key={idx} className="flex flex-col items-center text-center p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
+                    <div className="p-3 rounded-full bg-[#1dff00]/10 text-[#1dff00] mb-3">
                       {benefit.icon}
                     </div>
-                    <div>
-                      <p className="font-semibold text-white text-sm mb-1">{benefit.title}</p>
-                      <p className="text-xs text-gray-300">{benefit.desc}</p>
-                    </div>
+                    <p className="font-bold text-white mb-1">{benefit.title}</p>
+                    <p className="text-sm text-gray-400">{benefit.desc}</p>
                   </div>
                 ))}
               </div>
@@ -580,37 +644,39 @@ export const BillingPage = () => {
           {activeTab === 'history' && (
             <motion.div
               key="history"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
             >
-              <Card className="border-white/10 bg-gradient-to-br from-white/5 to-transparent overflow-hidden">
-                <CardHeader className="border-b border-white/10">
+              <Card className="border-white/10 bg-white/[0.02] backdrop-blur-md overflow-hidden">
+                <CardHeader className="border-b border-white/10 bg-white/[0.02]">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-white flex items-center gap-2">
-                      <History className="w-5 h-5 text-[#1dff00]" />
-                      Transaction History
-                    </CardTitle>
-                    <Button variant="outline" size="sm" className="gap-2">
+                    <div>
+                      <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
+                        Transaction History
+                      </CardTitle>
+                      <CardDescription className="text-gray-400 mt-1">
+                        View all your credit transactions and usage history
+                      </CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" className="gap-2 border-white/10 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white">
                       <Download className="w-4 h-4" />
-                      Export
+                      Export CSV
                     </Button>
                   </div>
-                  <CardDescription className="text-gray-400">
-                    View all your credit transactions and usage history
-                  </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                   {transactions.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16">
-                      <div className="p-4 rounded-2xl bg-white/5 mb-4">
+                    <div className="flex flex-col items-center justify-center py-24 text-center">
+                      <div className="p-4 rounded-full bg-white/5 mb-4 border border-white/10">
                         <History className="w-8 h-8 text-gray-400" />
                       </div>
-                      <p className="text-gray-300 text-lg mb-2">No transactions yet</p>
-                      <p className="text-gray-400 text-sm">Your credit activity will appear here</p>
+                      <p className="text-white font-medium text-lg mb-1">No transactions yet</p>
+                      <p className="text-gray-500 text-sm max-w-xs">Your credit purchases and usage will appear here once you start using JobRaker.</p>
                     </div>
                   ) : (
-                    <div className="divide-y divide-white/10">
+                    <div className="divide-y divide-white/5">
                       {transactions.map((transaction, index) => {
                         const iconData = getTransactionIcon(transaction.transaction_type);
                         return (
@@ -619,24 +685,24 @@ export const BillingPage = () => {
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: index * 0.05 }}
-                            className="p-4 hover:bg-white/5 transition-colors duration-200 flex items-center justify-between gap-4"
+                            className="p-4 sm:p-6 hover:bg-white/[0.02] transition-colors duration-200 flex items-center justify-between gap-4 group"
                           >
                             <div className="flex items-center gap-4 flex-1 min-w-0">
-                              <div className={`p-2 rounded-lg ${iconData.color}`}>
+                              <div className={`p-2.5 rounded-xl border ${iconData.color} group-hover:scale-110 transition-transform`}>
                                 {iconData.icon}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-white font-medium truncate">{transaction.description}</p>
-                                <p className="text-sm text-gray-400">{formatDate(transaction.created_at)}</p>
+                                <p className="text-white font-medium truncate mb-0.5">{transaction.description}</p>
+                                <p className="text-xs text-gray-500 font-mono">{formatDate(transaction.created_at)}</p>
                               </div>
                             </div>
                             <div className="text-right flex-shrink-0">
-                              <p className={`text-lg font-semibold ${
-                                transaction.amount > 0 ? 'text-green-400' : 'text-red-400'
+                              <p className={`text-lg font-bold font-mono ${
+                                transaction.amount > 0 ? 'text-[#1dff00]' : 'text-white'
                               }`}>
                                 {transaction.amount > 0 ? '+' : ''}{transaction.amount}
                               </p>
-                              <p className="text-xs text-gray-400">
+                              <p className="text-xs text-gray-500">
                                 Balance: {transaction.balance_after}
                               </p>
                             </div>
