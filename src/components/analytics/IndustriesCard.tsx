@@ -1,15 +1,14 @@
 "use client"
 
-import { useEffect, useRef } from "react"
 import { Card } from "../ui/card"
-// removed unused Select imports
 import { motion } from "framer-motion"
 import { ArrowDownRight, ArrowUpRight } from "lucide-react"
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { useMemo } from "react"
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 
 export function IndustriesCard({ period, data }: { period: Period; data: any }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
   const chartData = data?.chartDataJobs || []
   const metrics = {
     applications: data?.metrics?.applications ?? 0,
@@ -32,110 +31,12 @@ export function IndustriesCard({ period, data }: { period: Period; data: any }) 
     )
   }
 
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    const rect = canvas.getBoundingClientRect()
-    canvas.width = rect.width * window.devicePixelRatio
-    canvas.height = rect.height * window.devicePixelRatio
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
-
-    ctx.clearRect(0, 0, rect.width, rect.height)
-
-    // Convert chart data to points for trend line
-    if (!chartData.length) return
-    const maxValue = Math.max(...chartData.map((d: any) => d.value))
-    const minValue = Math.min(...chartData.map((d: any) => d.value))
-    const valueRange = maxValue - minValue || 1
-
-    const points = chartData.map((data: any, index: number) => ({
-      x: (rect.width / (chartData.length - 1)) * index,
-      y: rect.height * 0.8 - ((data.value - minValue) / valueRange) * (rect.height * 0.6)
+  // Transform chart data for Recharts if needed, though it seems already in compatible format {name, value}
+  const rechartData = useMemo(() => {
+    return chartData.map((d: any) => ({
+      name: d.name,
+      value: d.value
     }))
-
-    // Draw background glow
-    ctx.strokeStyle = "rgba(29, 255, 0, 0.2)"
-    ctx.lineWidth = 6
-    ctx.lineCap = "round"
-    ctx.lineJoin = "round"
-    ctx.shadowColor = "#1dff00"
-    ctx.shadowBlur = 20
-
-    ctx.beginPath()
-    ctx.moveTo(points[0].x, points[0].y)
-    for (let i = 1; i < points.length; i++) {
-      const prevPoint = points[i - 1]
-      const currentPoint = points[i]
-      const cpx = prevPoint.x + (currentPoint.x - prevPoint.x) * 0.5
-      const cpy1 = prevPoint.y
-      const cpy2 = currentPoint.y
-      ctx.bezierCurveTo(cpx, cpy1, cpx, cpy2, currentPoint.x, currentPoint.y)
-    }
-    ctx.stroke()
-
-    // Draw main trend line
-    ctx.strokeStyle = "#1dff00"
-    ctx.lineWidth = 3
-    ctx.shadowBlur = 10
-
-    ctx.beginPath()
-    ctx.moveTo(points[0].x, points[0].y)
-    for (let i = 1; i < points.length; i++) {
-      const prevPoint = points[i - 1]
-      const currentPoint = points[i]
-      const cpx = prevPoint.x + (currentPoint.x - prevPoint.x) * 0.5
-      const cpy1 = prevPoint.y
-      const cpy2 = currentPoint.y
-      ctx.bezierCurveTo(cpx, cpy1, cpx, cpy2, currentPoint.x, currentPoint.y)
-    }
-    ctx.stroke()
-
-    // Draw area fill
-    ctx.shadowBlur = 0
-    const gradient = ctx.createLinearGradient(0, 0, 0, rect.height)
-    gradient.addColorStop(0, "rgba(29, 255, 0, 0.3)")
-    gradient.addColorStop(1, "rgba(29, 255, 0, 0.05)")
-    
-    ctx.beginPath()
-    ctx.moveTo(points[0].x, points[0].y)
-    for (let i = 1; i < points.length; i++) {
-      const prevPoint = points[i - 1]
-      const currentPoint = points[i]
-      const cpx = prevPoint.x + (currentPoint.x - prevPoint.x) * 0.5
-      const cpy1 = prevPoint.y
-      const cpy2 = currentPoint.y
-      ctx.bezierCurveTo(cpx, cpy1, cpx, cpy2, currentPoint.x, currentPoint.y)
-    }
-    ctx.lineTo(rect.width, rect.height)
-    ctx.lineTo(0, rect.height)
-    ctx.closePath()
-    ctx.fillStyle = gradient
-    ctx.fill()
-
-    // Draw data points with animation
-  points.forEach((point: { x: number; y: number }, index: number) => {
-      ctx.beginPath()
-      ctx.arc(point.x, point.y, index === points.length - 1 ? 5 : 3, 0, 2 * Math.PI)
-      ctx.fillStyle = index === points.length - 1 ? "#ffffff" : "#1dff00"
-      ctx.shadowColor = "#1dff00"
-      ctx.shadowBlur = index === points.length - 1 ? 12 : 8
-      ctx.fill()
-      ctx.shadowBlur = 0
-    })
-
-    // Draw date labels
-    ctx.fillStyle = "rgba(255, 255, 255, 0.6)"
-    ctx.font = "10px Inter, sans-serif"
-    ctx.textAlign = "center"
-
-  chartData.forEach((data: any, index: number) => {
-      const x = (rect.width / (chartData.length - 1)) * index
-      ctx.fillText(data.name, x, rect.height - 5)
-    })
   }, [chartData])
 
   return (
@@ -204,9 +105,37 @@ export function IndustriesCard({ period, data }: { period: Period; data: any }) 
             </motion.div>
           </div>
 
-          {/* Enhanced trend chart */}
-          <div className="flex-shrink-0 h-16 sm:h-20 lg:h-24 xl:h-28 relative">
-            <canvas ref={canvasRef} className="w-full h-full" />
+          {/* Enhanced trend chart with Recharts */}
+          <div className="flex-shrink-0 h-24 sm:h-28 lg:h-32 xl:h-36 relative">
+             <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={rechartData}>
+                  <defs>
+                    <linearGradient id="industryGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#1dff00" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#1dff00" stopOpacity={0.0}/>
+                    </linearGradient>
+                  </defs>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(10, 10, 10, 0.95)',
+                      border: '1px solid rgba(29, 255, 0, 0.3)',
+                      borderRadius: '12px',
+                      color: '#fff',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                    }}
+                    itemStyle={{ color: '#1dff00' }}
+                    labelStyle={{ color: '#fff', marginBottom: '0.25rem' }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="value" 
+                    stroke="#1dff00" 
+                    strokeWidth={3}
+                    fill="url(#industryGradient)" 
+                    animationDuration={1500}
+                  />
+                </AreaChart>
+             </ResponsiveContainer>
           </div>
         </div>
       </Card>
