@@ -5,9 +5,10 @@ import { createClient } from '@/lib/supabaseClient';
 import { 
   Coins, Crown, Zap, ArrowRight, Calendar, History, TrendingUp, 
   Sparkles, Package, Check, Star, ArrowUpRight, Download,
-  Shield, Infinity, Target
+  Shield, Infinity, Target, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '@/components/ui/toast';
 
 interface SubscriptionPlan {
   id: string;
@@ -84,7 +85,9 @@ export const BillingPage = () => {
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'subscription' | 'packs' | 'history'>('subscription');
+  const [processingPayment, setProcessingPayment] = useState(false);
   const supabase = useMemo(() => createClient(), []);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchBillingData();
@@ -159,6 +162,53 @@ export const BillingPage = () => {
       setPlans(defaultPlans);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePayment = async (type: 'subscription' | 'credit_pack', item: any) => {
+    try {
+      setProcessingPayment(true);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to make a purchase.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Prepare payload
+      const payload = {
+        planType: type,
+        amount: item.price,
+        metadata: type === 'credit_pack'
+          ? { credits: item.credits, bonus: item.bonus }
+          : { plan_id: item.id, credits_per_month: item.credits_per_month }
+      };
+
+      // Call Edge Function
+      const { data, error } = await supabase.functions.invoke('init-payment', {
+        body: payload
+      });
+
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No payment URL returned");
+      }
+
+    } catch (error: any) {
+      console.error('Payment initialization failed:', error);
+      toast({
+        title: "Payment Error",
+        description: error.message || "Failed to initialize payment. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setProcessingPayment(false);
     }
   };
 
@@ -526,10 +576,14 @@ export const BillingPage = () => {
                                   ? 'bg-purple-600 text-white hover:bg-purple-700 hover:shadow-[0_0_20px_rgba(147,51,234,0.4)] hover:scale-[1.02]'
                                   : 'bg-white text-black hover:bg-gray-200'
                               }`}
-                              disabled={isCurrentPlan}
+                              disabled={isCurrentPlan || processingPayment}
+                              onClick={() => !isCurrentPlan && handlePayment('subscription', plan)}
                             >
+                              {processingPayment && !isCurrentPlan ? (
+                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                              ) : null}
                               {isCurrentPlan ? 'CURRENT PLAN' : `UPGRADE TO ${plan.name.toUpperCase()}`}
-                              {!isCurrentPlan && <ArrowRight className="ml-2 w-4 h-4" />}
+                              {!isCurrentPlan && !processingPayment && <ArrowRight className="ml-2 w-4 h-4" />}
                             </Button>
                           </div>
                         </CardContent>
@@ -611,7 +665,12 @@ export const BillingPage = () => {
                                 ? 'bg-[#1dff00] text-black hover:bg-[#1dff00] hover:brightness-110 shadow-[0_0_20px_rgba(29,255,0,0.3)]'
                                 : 'bg-white/10 text-white hover:bg-white/20'
                             }`}
+                            disabled={processingPayment}
+                            onClick={() => handlePayment('credit_pack', pack)}
                           >
+                            {processingPayment ? (
+                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            ) : null}
                             PURCHASE
                           </Button>
                         </div>
