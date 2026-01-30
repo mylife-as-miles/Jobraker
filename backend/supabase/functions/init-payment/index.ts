@@ -86,21 +86,10 @@ serve(async (req) => {
       throw new Error(paystackData.message || "Failed to initialize payment");
     }
 
-    // 5. Save Order to Database
+    // 5. Save Order to Database (amount stored in cents/kobo)
     const { error: orderError } = await supabaseClient.from("orders").insert({
       user_id: user.id,
       plan_type: planType,
-      total_amount: amount, // Storing as main unit or cents? Schema says integer. Let's store as main unit or ensure consistency.
-      // User schema: "total_amount integer". Usually money is stored as cents/kobo.
-      // Let's store as cents/kobo to be safe and precise.
-      // WAIT: "amount" in request is likely e.g. 19 (dollars).
-      // Paystack takes 1900.
-      // I'll store 1900 in DB to match "integer" expectation for currency.
-      // Actually, let's just stick to "amount" from request if it's already an integer?
-      // No, frontend usually sends 19.
-      // I will store the *paystackAmount* (cents) in the DB to avoid float issues.
-      // Wait, schema comment says "Amount in cents/kobo".
-      // So I'll store paystackAmount.
       total_amount: paystackAmount,
       currency: currency,
       tx_id: paystackData.data.reference,
