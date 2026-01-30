@@ -89,25 +89,29 @@ serve(async (req) => {
 
     console.log(`[init-payment] Processing payment for plan: ${planType}, Amount: ${amount} USD`);
 
-    // 5. Process Payment in USD
+    // 5. Convert USD to NGN using real-time exchange rate
     // Amount from frontend is in USD (e.g., 14, 49, 199)
-    // Paystack expects amount in the smallest currency unit (cents for USD)
-    const paystackAmount = Math.round(amount * 100);
+    const exchangeRate = await getUsdToNgnRate();
+    const amountInNgn = amount * exchangeRate;
     
-    console.log(`[init-payment] Processing USD payment: $${amount} -> ${paystackAmount} cents`);
+    // Convert to kobo (smallest unit) - Paystack expects amount in kobo
+    const paystackAmount = Math.round(amountInNgn * 100);
+    
+    console.log(`[init-payment] Conversion: $${amount} USD * ${exchangeRate} = ₦${amountInNgn.toFixed(2)} NGN -> ${paystackAmount} kobo`);
 
     const paystackPayload = {
       email: user.email,
       amount: paystackAmount,
-      currency: "USD", 
+      // REMOVED currency field entirely to use account default (likely NGN)
       callback_url: `${req.headers.get("origin")}/dashboard/billing?payment=verify`,
       metadata: {
         ...metadata,
         user_id: user.id,
         plan_type: planType,
         original_amount_usd: amount,
+        exchange_rate: exchangeRate,
+        converted_amount_ngn: amountInNgn,
       },
-      channels: ['card'] // Explicitly enable card channel for international payments
     };
 
     console.log("[init-payment] Sending payload to Paystack:", JSON.stringify(paystackPayload));
@@ -129,17 +133,18 @@ serve(async (req) => {
       throw new Error(paystackData.message || "Failed to initialize payment");
     }
 
-    // 6. Save Order to Database
+    // 6. Save Order to Database (amount stored in kobo)
     const { error: orderError } = await supabaseClient.from("orders").insert({
       user_id: user.id,
       plan_type: planType,
       total_amount: paystackAmount,
-      currency: "USD",
+      currency: "NGN", // Storing as NGN in our DB since we converted
       tx_id: paystackData.data.reference,
       is_success: false,
       metadata: {
         ...metadata,
         original_amount_usd: amount,
+        exchange_rate: exchangeRate,
       },
     });
 
@@ -150,6 +155,11 @@ serve(async (req) => {
     // 7. Return Authorization URL
     return new Response(JSON.stringify({ 
       url: paystackData.data.authorization_url,
+      converted: {
+        from_usd: amount,
+        to_ngn: amountInNgn,
+        rate: exchangeRate,
+      }
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
