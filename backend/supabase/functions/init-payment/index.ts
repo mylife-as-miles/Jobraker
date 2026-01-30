@@ -90,10 +90,15 @@ serve(async (req) => {
     console.log(`[init-payment] Processing payment for plan: ${planType}, Amount: ${amount} USD`);
 
     // 5. Convert USD to NGN using real-time exchange rate
-    // Amount from frontend is in USD (e.g., 14, 49, 199)
     const exchangeRate = await getUsdToNgnRate();
-    const amountInNgn = amount * exchangeRate;
+    let amountInNgn = amount * exchangeRate;
     
+    // Safety check for NaN
+    if (isNaN(amountInNgn)) {
+        console.error("[init-payment] Conversion resulted in NaN. Using fallback conversion.");
+        amountInNgn = amount * 1600;
+    }
+
     // Convert to kobo (smallest unit) - Paystack expects amount in kobo
     const paystackAmount = Math.round(amountInNgn * 100);
     
@@ -101,8 +106,8 @@ serve(async (req) => {
 
     const paystackPayload = {
       email: user.email,
-      amount: paystackAmount,
-      // REMOVED currency field entirely to use account default (likely NGN)
+      amount: paystackAmount.toString(), // Paystack docs use string for amount
+      currency: "NGN", // Explicitly set to NGN as user requested conversion
       callback_url: `${req.headers.get("origin")}/dashboard/billing?payment=verify`,
       metadata: {
         ...metadata,
