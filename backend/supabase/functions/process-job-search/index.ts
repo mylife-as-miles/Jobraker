@@ -229,7 +229,8 @@ Deno.serve(async (req) => {
     const getCompanyLogoUrl = (companyName: string, url: string): string | null => {
         try {
           const hostname = new URL(url).hostname.replace('www.', '');
-          return `https://logo.clearbit.com/${encodeURIComponent(hostname)}`;
+          // Using Google Favicon service to pull from web search index rather than a specific logo DB
+          return `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`;
         } catch { return null; }
     };
 
