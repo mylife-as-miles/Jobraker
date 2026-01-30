@@ -100,14 +100,19 @@ serve(async (req) => {
     }
 
     // Convert to kobo (smallest unit) - Paystack expects amount in kobo
-    const paystackAmount = Math.round(amountInNgn * 100);
+    const paystackAmountNGN = Math.round(amountInNgn * 100);
     
-    console.log(`[init-payment] Conversion: $${amount} USD * ${exchangeRate} = ₦${amountInNgn.toFixed(2)} NGN -> ${paystackAmount} kobo`);
+    console.log(`[init-payment] Trying NGN Init: $${amount} USD * ${exchangeRate} = ₦${amountInNgn.toFixed(2)} NGN -> ${paystackAmountNGN} kobo`);
 
-    const paystackPayload = {
+    let paystackData;
+    let usedCurrency = "NGN";
+    let finalPaystackAmount = paystackAmountNGN;
+
+    // --- ATTEMPT 1: NGN ---
+    const payloadNGN = {
       email: user.email,
-      amount: paystackAmount.toString(), // Paystack docs use string for amount
-      currency: "NGN", // Explicitly set to NGN as user requested conversion
+      amount: paystackAmountNGN.toString(),
+      currency: "NGN",
       callback_url: `${req.headers.get("origin")}/dashboard/billing?payment=verify`,
       metadata: {
         ...metadata,
@@ -115,41 +120,68 @@ serve(async (req) => {
         plan_type: planType,
         original_amount_usd: amount,
         exchange_rate: exchangeRate,
-        converted_amount_ngn: amountInNgn,
       },
     };
 
-    console.log("[init-payment] Sending payload to Paystack:", JSON.stringify(paystackPayload));
-
-    const paystackRes = await fetch("https://api.paystack.co/transaction/initialize", {
+    const resNGN = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${paystackSecret}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(paystackPayload),
+      headers: { Authorization: `Bearer ${paystackSecret}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payloadNGN),
     });
+    
+    paystackData = await resNGN.json();
 
-    const paystackData = await paystackRes.json();
-    console.log("[init-payment] Paystack response:", JSON.stringify(paystackData));
+    // --- ATTEMPT 2: USD (Fallback if NGN is unsupported) ---
+    if (!paystackData.status && paystackData.code === "unsupported_currency") {
+        console.warn("[init-payment] NGN not supported. Falling back to USD.");
+        
+        const paystackAmountUSD = Math.round(amount * 100); // Cents
+        usedCurrency = "USD";
+        finalPaystackAmount = paystackAmountUSD;
+
+        const payloadUSD = {
+            email: user.email,
+            amount: paystackAmountUSD.toString(),
+            currency: "USD",
+            callback_url: `${req.headers.get("origin")}/dashboard/billing?payment=verify`,
+            metadata: {
+                ...metadata,
+                user_id: user.id,
+                plan_type: planType,
+                original_amount_usd: amount,
+                // Removed exchange rate metadata for USD
+            },
+            channels: ['card'] // Only card supports international USD usually
+        };
+
+        const resUSD = await fetch("https://api.paystack.co/transaction/initialize", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${paystackSecret}`, "Content-Type": "application/json" },
+            body: JSON.stringify(payloadUSD),
+        });
+
+        paystackData = await resUSD.json();
+    }
+
+    console.log("[init-payment] Paystack final response:", JSON.stringify(paystackData));
 
     if (!paystackData.status) {
       console.error("[init-payment] Paystack error:", paystackData);
       throw new Error(paystackData.message || "Failed to initialize payment");
     }
 
-    // 6. Save Order to Database (amount stored in kobo)
+    // 6. Save Order to Database
     const { error: orderError } = await supabaseClient.from("orders").insert({
       user_id: user.id,
       plan_type: planType,
-      total_amount: paystackAmount,
-      currency: "NGN", // Storing as NGN in our DB since we converted
+      total_amount: finalPaystackAmount,
+      currency: usedCurrency,
       tx_id: paystackData.data.reference,
       is_success: false,
       metadata: {
         ...metadata,
         original_amount_usd: amount,
-        exchange_rate: exchangeRate,
+        exchange_rate: usedCurrency === "NGN" ? exchangeRate : null,
       },
     });
 
