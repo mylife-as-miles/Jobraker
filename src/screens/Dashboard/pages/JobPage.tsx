@@ -4,6 +4,7 @@ import { Switch } from "../../../components/ui/switch";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
 import Modal from "../../../components/ui/modal";
+import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { useResumes } from "../../../hooks/useResumes";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
@@ -594,6 +595,7 @@ export const JobPage = (): JSX.Element => {
   const [applyProgress, setApplyProgress] = useState({ done: 0, total: 0, success: 0, fail: 0 });
   const [sortBy, setSortBy] = useState<"recent" | "company" | "deadline">("recent");
   const [clearingJobs, setClearingJobs] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   // Resume attach dialog state
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
@@ -938,11 +940,8 @@ export const JobPage = (): JSX.Element => {
     }
   }, [supabase]);
 
-  const clearAllJobs = useCallback(async () => {
-    if (!window.confirm('Are you sure you want to delete ALL jobs? This action cannot be undone.')) {
-      return;
-    }
-
+  const executeClearAllJobs = useCallback(async () => {
+    setConfirmDeleteOpen(false);
     setClearingJobs(true);
     setError(null);
 
@@ -1742,7 +1741,7 @@ export const JobPage = (): JSX.Element => {
                   </Button>
                   <Button
                     variant="ghost"
-                    onClick={clearAllJobs}
+                    onClick={() => setConfirmDeleteOpen(true)}
                     className={`group relative flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md ${clearingJobs
                       ? 'border-red-500/60 text-red-400 bg-red-500/15 cursor-not-allowed opacity-60'
                       : jobs.length === 0
@@ -3361,6 +3360,15 @@ export const JobPage = (): JSX.Element => {
           </Modal>
         );
       })()}
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onCancel={() => setConfirmDeleteOpen(false)}
+        onConfirm={executeClearAllJobs}
+        title="Delete All Jobs"
+        message="Are you sure you want to delete ALL jobs? This action cannot be undone."
+        confirmText="Delete All"
+        cancelText="Cancel"
+      />
     </div>
   );
 };
