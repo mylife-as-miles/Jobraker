@@ -4,6 +4,38 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 console.log("Hello from init-payment!");
 
+// Fetch real-time USD to NGN exchange rate
+async function getUsdToNgnRate(): Promise<number> {
+  try {
+    // Using exchangerate.host - free, no API key required
+    const response = await fetch("https://api.exchangerate.host/latest?base=USD&symbols=NGN");
+    const data = await response.json();
+    
+    if (data.success && data.rates?.NGN) {
+      console.log(`Exchange rate fetched: 1 USD = ${data.rates.NGN} NGN`);
+      return data.rates.NGN;
+    }
+    
+    // Fallback to alternative API if first fails
+    const fallbackResponse = await fetch("https://open.er-api.com/v6/latest/USD");
+    const fallbackData = await fallbackResponse.json();
+    
+    if (fallbackData.result === "success" && fallbackData.rates?.NGN) {
+      console.log(`Fallback exchange rate: 1 USD = ${fallbackData.rates.NGN} NGN`);
+      return fallbackData.rates.NGN;
+    }
+    
+    // If all APIs fail, use a reasonable fallback rate (updated periodically)
+    // As of 2024, ~1500 NGN per USD - this should be updated if APIs consistently fail
+    console.warn("Exchange rate APIs failed, using fallback rate");
+    return 1500;
+  } catch (error) {
+    console.error("Error fetching exchange rate:", error);
+    // Fallback rate if network error
+    return 1500;
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -55,10 +87,15 @@ serve(async (req) => {
       throw new Error("Payment configuration error");
     }
 
-    // Convert amount to smallest currency unit (e.g. cents/kobo) if not already?
-    // User instruction says: amount: amount * 100
-    // Assuming 'amount' passed from frontend is in main unit (e.g. Dollars/Naira)
-    const paystackAmount = Math.round(amount * 100);
+    // 5. Convert USD to NGN using real-time exchange rate
+    // Amount from frontend is in USD (e.g., 14, 49, 199)
+    const exchangeRate = await getUsdToNgnRate();
+    const amountInNgn = amount * exchangeRate;
+    
+    // Convert to kobo (smallest unit) - Paystack expects amount in kobo
+    const paystackAmount = Math.round(amountInNgn * 100);
+    
+    console.log(`Converting $${amount} USD -> ₦${amountInNgn.toFixed(2)} NGN (rate: ${exchangeRate}) -> ${paystackAmount} kobo`);
 
     const paystackRes = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
@@ -69,11 +106,15 @@ serve(async (req) => {
       body: JSON.stringify({
         email: user.email,
         amount: paystackAmount,
-        callback_url: `${req.headers.get("origin")}/dashboard/billing?payment=verify`, // Redirect back to dashboard
+        currency: "NGN", // Explicitly set to NGN since we converted
+        callback_url: `${req.headers.get("origin")}/dashboard/billing?payment=verify`,
         metadata: {
           ...metadata,
           user_id: user.id,
           plan_type: planType,
+          original_amount_usd: amount,
+          exchange_rate: exchangeRate,
+          converted_amount_ngn: amountInNgn,
         },
       }),
     });
@@ -85,14 +126,19 @@ serve(async (req) => {
       throw new Error(paystackData.message || "Failed to initialize payment");
     }
 
-    // 5. Save Order to Database (amount stored in cents/kobo)
+    // 6. Save Order to Database (amount stored in kobo)
     const { error: orderError } = await supabaseClient.from("orders").insert({
       user_id: user.id,
       plan_type: planType,
       total_amount: paystackAmount,
+      currency: "NGN",
       tx_id: paystackData.data.reference,
       is_success: false,
-      metadata: metadata,
+      metadata: {
+        ...metadata,
+        original_amount_usd: amount,
+        exchange_rate: exchangeRate,
+      },
     });
 
     if (orderError) {
@@ -100,8 +146,15 @@ serve(async (req) => {
       throw orderError;
     }
 
-    // 6. Return Authorization URL
-    return new Response(JSON.stringify({ url: paystackData.data.authorization_url }), {
+    // 7. Return Authorization URL
+    return new Response(JSON.stringify({ 
+      url: paystackData.data.authorization_url,
+      converted: {
+        from_usd: amount,
+        to_ngn: amountInNgn,
+        rate: exchangeRate,
+      }
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
