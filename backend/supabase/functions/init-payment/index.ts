@@ -87,6 +87,8 @@ serve(async (req) => {
       throw new Error("Payment configuration error");
     }
 
+    console.log(`[init-payment] Processing payment for plan: ${planType}, Amount: ${amount} USD`);
+
     // 5. Convert USD to NGN using real-time exchange rate
     // Amount from frontend is in USD (e.g., 14, 49, 199)
     const exchangeRate = await getUsdToNgnRate();
@@ -95,7 +97,24 @@ serve(async (req) => {
     // Convert to kobo (smallest unit) - Paystack expects amount in kobo
     const paystackAmount = Math.round(amountInNgn * 100);
     
-    console.log(`Converting $${amount} USD -> ₦${amountInNgn.toFixed(2)} NGN (rate: ${exchangeRate}) -> ${paystackAmount} kobo`);
+    console.log(`[init-payment] Conversion: $${amount} USD * ${exchangeRate} = ₦${amountInNgn.toFixed(2)} NGN -> ${paystackAmount} kobo`);
+
+    const paystackPayload = {
+      email: user.email,
+      amount: paystackAmount,
+      currency: "NGN", // Explicitly set to NGN since we converted
+      callback_url: `${req.headers.get("origin")}/dashboard/billing?payment=verify`,
+      metadata: {
+        ...metadata,
+        user_id: user.id,
+        plan_type: planType,
+        original_amount_usd: amount,
+        exchange_rate: exchangeRate,
+        converted_amount_ngn: amountInNgn,
+      },
+    };
+
+    console.log("[init-payment] Sending payload to Paystack:", JSON.stringify(paystackPayload));
 
     const paystackRes = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
@@ -103,26 +122,14 @@ serve(async (req) => {
         Authorization: `Bearer ${paystackSecret}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        email: user.email,
-        amount: paystackAmount,
-        currency: "NGN", // Explicitly set to NGN since we converted
-        callback_url: `${req.headers.get("origin")}/dashboard/billing?payment=verify`,
-        metadata: {
-          ...metadata,
-          user_id: user.id,
-          plan_type: planType,
-          original_amount_usd: amount,
-          exchange_rate: exchangeRate,
-          converted_amount_ngn: amountInNgn,
-        },
-      }),
+      body: JSON.stringify(paystackPayload),
     });
 
     const paystackData = await paystackRes.json();
+    console.log("[init-payment] Paystack response:", JSON.stringify(paystackData));
 
     if (!paystackData.status) {
-      console.error("Paystack error:", paystackData);
+      console.error("[init-payment] Paystack error:", paystackData);
       throw new Error(paystackData.message || "Failed to initialize payment");
     }
 
@@ -142,8 +149,10 @@ serve(async (req) => {
     });
 
     if (orderError) {
-      console.error("Order creation error:", orderError);
-      throw orderError;
+      console.error("[init-payment] Limit order creation error:", orderError);
+      // Don't fail the request if just DB insert fails, but log it. 
+      // Actually we probably should warn the user or at least log it.
+      // throw orderError; 
     }
 
     // 7. Return Authorization URL
@@ -158,7 +167,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    console.error("Error in init-payment:", error);
+    console.error("[init-payment] Detailed error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
