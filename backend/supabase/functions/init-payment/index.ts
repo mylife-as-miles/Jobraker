@@ -39,7 +39,7 @@ serve(async (req) => {
     }
 
     // 3. Parse Request Body
-    const { planType, amount, metadata, currency = "USD" } = await req.json();
+    const { planType, amount, metadata } = await req.json();
 
     if (!planType || !amount) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -69,7 +69,6 @@ serve(async (req) => {
       body: JSON.stringify({
         email: user.email,
         amount: paystackAmount,
-        currency: currency,
         callback_url: `${req.headers.get("origin")}/dashboard/billing?payment=verify`, // Redirect back to dashboard
         metadata: {
           ...metadata,
@@ -91,7 +90,6 @@ serve(async (req) => {
       user_id: user.id,
       plan_type: planType,
       total_amount: paystackAmount,
-      currency: currency,
       tx_id: paystackData.data.reference,
       is_success: false,
       metadata: metadata,
