@@ -26,13 +26,13 @@ async function getUsdToNgnRate(): Promise<number> {
     }
     
     // If all APIs fail, use a reasonable fallback rate (updated periodically)
-    // As of 2024, ~1500 NGN per USD - this should be updated if APIs consistently fail
+    // As of January 2026 - this should be updated if APIs consistently fail
     console.warn("Exchange rate APIs failed, using fallback rate");
-    return 1500;
+    return 1600;
   } catch (error) {
     console.error("Error fetching exchange rate:", error);
     // Fallback rate if network error
-    return 1500;
+    return 1600;
   }
 }
 
