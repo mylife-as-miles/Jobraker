@@ -89,29 +89,25 @@ serve(async (req) => {
 
     console.log(`[init-payment] Processing payment for plan: ${planType}, Amount: ${amount} USD`);
 
-    // 5. Convert USD to NGN using real-time exchange rate
+    // 5. Process Payment in USD
     // Amount from frontend is in USD (e.g., 14, 49, 199)
-    const exchangeRate = await getUsdToNgnRate();
-    const amountInNgn = amount * exchangeRate;
+    // Paystack expects amount in the smallest currency unit (cents for USD)
+    const paystackAmount = Math.round(amount * 100);
     
-    // Convert to kobo (smallest unit) - Paystack expects amount in kobo
-    const paystackAmount = Math.round(amountInNgn * 100);
-    
-    console.log(`[init-payment] Conversion: $${amount} USD * ${exchangeRate} = ₦${amountInNgn.toFixed(2)} NGN -> ${paystackAmount} kobo`);
+    console.log(`[init-payment] Processing USD payment: $${amount} -> ${paystackAmount} cents`);
 
     const paystackPayload = {
       email: user.email,
       amount: paystackAmount,
-      currency: "NGN", // Explicitly set to NGN since we converted
+      currency: "USD", 
       callback_url: `${req.headers.get("origin")}/dashboard/billing?payment=verify`,
       metadata: {
         ...metadata,
         user_id: user.id,
         plan_type: planType,
         original_amount_usd: amount,
-        exchange_rate: exchangeRate,
-        converted_amount_ngn: amountInNgn,
       },
+      channels: ['card'] // Explicitly enable card channel for international payments
     };
 
     console.log("[init-payment] Sending payload to Paystack:", JSON.stringify(paystackPayload));
@@ -133,36 +129,27 @@ serve(async (req) => {
       throw new Error(paystackData.message || "Failed to initialize payment");
     }
 
-    // 6. Save Order to Database (amount stored in kobo)
+    // 6. Save Order to Database
     const { error: orderError } = await supabaseClient.from("orders").insert({
       user_id: user.id,
       plan_type: planType,
       total_amount: paystackAmount,
-      currency: "NGN",
+      currency: "USD",
       tx_id: paystackData.data.reference,
       is_success: false,
       metadata: {
         ...metadata,
         original_amount_usd: amount,
-        exchange_rate: exchangeRate,
       },
     });
 
     if (orderError) {
-      console.error("[init-payment] Limit order creation error:", orderError);
-      // Don't fail the request if just DB insert fails, but log it. 
-      // Actually we probably should warn the user or at least log it.
-      // throw orderError; 
+      console.error("[init-payment] limit order creation error:", orderError);
     }
 
     // 7. Return Authorization URL
     return new Response(JSON.stringify({ 
       url: paystackData.data.authorization_url,
-      converted: {
-        from_usd: amount,
-        to_ngn: amountInNgn,
-        rate: exchangeRate,
-      }
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
