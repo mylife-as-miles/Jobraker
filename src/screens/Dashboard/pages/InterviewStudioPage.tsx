@@ -1,14 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Camera, Video, Download, Square, RectangleHorizontal, RectangleVertical,
-  Mic, MicOff, Settings, Play, RefreshCw, FileText, Activity, AlertCircle, StopCircle,
-  ChevronDown, Sparkles
+  Mic, MicOff, RefreshCw, Activity, AlertCircle, Sparkles
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -74,7 +73,7 @@ export const InterviewStudioPage: React.FC = () => {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [prompt, setPrompt] = useState("");
-  const [isFetchingPrompt, setIsFetchingPrompt] = useState(false);
+  // const [isFetchingPrompt, setIsFetchingPrompt] = useState(false); // Unused
   const [activeTab, setActiveTab] = useState("settings");
   const [scriptText, setScriptText] = useState("Hi, my name is [Name] and I'm a software engineer with a passion for building scalable web applications...");
 
@@ -288,7 +287,7 @@ export const InterviewStudioPage: React.FC = () => {
 
   // Fetch interview prompts
   const fetchPrompt = async () => {
-    setIsFetchingPrompt(true);
+    // setIsFetchingPrompt(true);
     try {
       setTimeout(() => {
         const prompts = [
@@ -302,12 +301,12 @@ export const InterviewStudioPage: React.FC = () => {
           "What are your long-term career goals?",
         ];
         setPrompt(prompts[Math.floor(Math.random() * prompts.length)]);
-        setIsFetchingPrompt(false);
+        // setIsFetchingPrompt(false);
       }, 1000);
     } catch (error) {
       console.error("Error fetching prompt:", error);
       setPrompt("Tell me about yourself.");
-      setIsFetchingPrompt(false);
+      // setIsFetchingPrompt(false);
     }
   };
 

@@ -1,4 +1,4 @@
-import * as React from "react";
+// import * as React from "react";
 
 export const QRCodeSVG = ({ value, size = 128 }: { value: string; size?: number }) => (
     <svg width={size} height={size}>

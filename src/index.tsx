@@ -14,7 +14,7 @@ import GmailCallbackPage from "./screens/AuthCallback/GmailCallbackPage";
 import { ToastProvider } from "./components/ui/toast-provider";
 
 import { TourProvider } from "./providers/TourProvider"; // Product tour context for dashboard pages
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ROUTES } from "./routes";
 import { ToastEventBridge } from "./components/system/ToastEventBridge";
 import { AnimatePresence } from "framer-motion";
@@ -130,14 +130,18 @@ function AnimatedRoutes() {
 }
 
 function App() {
+  const [queryClient] = React.useState(() => new QueryClient());
+
   return (
-    <BrowserRouter>
-      {/* Global providers */}
-      <ToastProvider>
-        <ToastEventBridge />
-        <AnimatedRoutes />
-      </ToastProvider>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        {/* Global providers */}
+        <ToastProvider>
+          <ToastEventBridge />
+          <AnimatedRoutes />
+        </ToastProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 

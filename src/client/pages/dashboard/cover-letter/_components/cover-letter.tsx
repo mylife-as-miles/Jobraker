@@ -51,8 +51,6 @@ export const CoverLetter = () => {
   const previewRef = useRef<HTMLDivElement | null>(null);
   // Local Library for multiple cover letters
   type LibraryEntry = { id: string; name: string; updatedAt: string; data: any };
-  const LIB_KEY = "jr.coverLetters.library.v1";
-  const LIB_DEFAULT_KEY = "jr.coverLetters.defaultId";
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
   const [libName, setLibName] = useState("");
   const [currentLibId, setCurrentLibId] = useState<string | null>(null);
@@ -969,8 +967,8 @@ export const CoverLetter = () => {
             variant="outline"
             onClick={() => setInlineEdit((v) => !v)}
             className={`rounded-xl whitespace-nowrap h-11 px-4 font-semibold transition-all duration-300 group/btn ${inlineEdit
-                ? 'bg-gradient-to-br from-[#1dff00]/25 to-[#1dff00]/15 border-2 border-[#1dff00] text-[#1dff00] shadow-[0_0_35px_rgba(29,255,0,0.35)] scale-105'
-                : 'border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)]'
+              ? 'bg-gradient-to-br from-[#1dff00]/25 to-[#1dff00]/15 border-2 border-[#1dff00] text-[#1dff00] shadow-[0_0_35px_rgba(29,255,0,0.35)] scale-105'
+              : 'border-[#1dff00]/30 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/10 hover:to-[#1dff00]/5 hover:scale-105 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)]'
               }`}
           >
             <Pencil className="w-4 h-4 mr-2 group-hover/btn:rotate-12 transition-transform" />
