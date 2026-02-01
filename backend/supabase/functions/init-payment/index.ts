@@ -112,7 +112,7 @@ serve(async (req) => {
     const payloadNGN = {
       email: user.email,
       amount: paystackAmountNGN.toString(),
-      currency: "NGN",
+      // currency: "NGN", // Removed as requested
       callback_url: `${req.headers.get("origin")}/dashboard/billing?payment=verify`,
       metadata: {
         ...metadata,
@@ -142,7 +142,7 @@ serve(async (req) => {
         const payloadUSD = {
             email: user.email,
             amount: paystackAmountUSD.toString(),
-            currency: "USD",
+            // currency: "USD", // Removed as requested
             callback_url: `${req.headers.get("origin")}/dashboard/billing?payment=verify`,
             metadata: {
                 ...metadata,
