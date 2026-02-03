@@ -111,8 +111,8 @@ serve(async (req) => {
     // --- ATTEMPT 1: NGN ---
     const payloadNGN = {
       email: user.email,
-      amount: paystackAmountNGN.toString(),
-      // currency: "NGN", // Removed as requested
+      amount: paystackAmountNGN, // Pass as number (integer)
+      currency: "NGN",
       callback_url: `${req.headers.get("origin")}/dashboard/billing?payment=verify`,
       metadata: {
         ...metadata,
@@ -120,9 +120,11 @@ serve(async (req) => {
         plan_type: planType,
         original_amount_usd: amount,
         exchange_rate: exchangeRate,
+        is_test: paystackSecret.startsWith("sk_test"), // Diagnostic tag
       },
     };
 
+    console.log(`[init-payment] Attempting NGN initialization...`);
     const resNGN = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
       headers: { Authorization: `Bearer ${paystackSecret}`, "Content-Type": "application/json" },
@@ -132,8 +134,9 @@ serve(async (req) => {
     paystackData = await resNGN.json();
 
     // --- ATTEMPT 2: USD (Fallback if NGN is unsupported) ---
-    if (!paystackData.status && paystackData.code === "unsupported_currency") {
-        console.warn("[init-payment] NGN not supported. Falling back to USD.");
+    if (!paystackData.status && (paystackData.code === "unsupported_currency" || paystackData.message?.toLowerCase().includes("currency"))) {
+        console.warn(`[init-payment] NGN Attempt Failed: ${paystackData.message || "Unknown Error"}. Trying USD Fallback...`);
+        console.log("[init-payment] Full NGN Error Response:", JSON.stringify(paystackData));
         
         const paystackAmountUSD = Math.round(amount * 100); // Cents
         usedCurrency = "USD";
@@ -141,15 +144,15 @@ serve(async (req) => {
 
         const payloadUSD = {
             email: user.email,
-            amount: paystackAmountUSD.toString(),
-            // currency: "USD", // Removed as requested
+            amount: paystackAmountUSD, // Pass as number (integer)
+            currency: "USD",
             callback_url: `${req.headers.get("origin")}/dashboard/billing?payment=verify`,
             metadata: {
                 ...metadata,
                 user_id: user.id,
                 plan_type: planType,
                 original_amount_usd: amount,
-                // Removed exchange rate metadata for USD
+                is_test: paystackSecret.startsWith("sk_test"),
             },
             channels: ['card'] // Only card supports international USD usually
         };
@@ -161,6 +164,11 @@ serve(async (req) => {
         });
 
         paystackData = await resUSD.json();
+        
+        if (!paystackData.status) {
+            console.error("[init-payment] USD Fallback also failed.");
+            console.log("[init-payment] Full USD Error Response:", JSON.stringify(paystackData));
+        }
     }
 
     console.log("[init-payment] Paystack final response:", JSON.stringify(paystackData));
