@@ -524,12 +524,6 @@ export const ChatPage = () => {
           {/* Internal Sidebar for Chat History */}
           <aside className={`w-72 bg-white dark:bg-[#121212] border-r border-slate-200 dark:border-[#222] flex flex-col h-full z-20 transition-all duration-300 ${sidebarCollapsed ? '-ml-72' : ''}`}>
             <div className="p-6">
-              <div className="flex items-center gap-2 mb-8">
-                <div className="w-8 h-8 bg-[#14C314] rounded-lg flex items-center justify-center">
-                  <Sparkles className="text-black w-5 h-5" />
-                </div>
-                <h1 className="font-bold text-xl tracking-tight">JOBRAKER</h1>
-              </div>
               <button
                 onClick={() => createSession()}
                 className="w-full bg-[#14C314] hover:bg-green-500 text-black font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#14C314]/20"
@@ -583,18 +577,7 @@ export const ChatPage = () => {
               </div>
             </div>
 
-            {/* User Profile Snippet (matches html design bottom of sidebar) */}
-            <div className="p-4 border-t border-slate-200 dark:border-[#222]">
-              <div className="flex items-center gap-3 p-2">
-                <div className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-[#14C314] font-bold">
-                  <User size={16} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate text-slate-900 dark:text-white">User</p>
-                  <p className="text-xs text-slate-500 truncate">{subscriptionTier}</p>
-                </div>
-              </div>
-            </div>
+            {/* User Profile Snippet Removed */}
           </aside>
 
           {/* Main Content Area */}
