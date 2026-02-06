@@ -1,12 +1,13 @@
-// @ts-nocheck
-// Enrich jobs after insert/update by inferring missing fields using OpenAI.
+// Enrich jobs after insert/update by inferring missing fields using Gemini.
 // Fills: employment_type, experience_level, tags, salary_min, salary_max, salary_currency, location, apply_link when possible.
 // POST body: { job_ids?: string[], sinceMinutes?: number, limit?: number }
 // - If job_ids provided, process those. Otherwise process jobs created within last sinceMinutes (default 60), up to limit (default 20).
 
-import OpenAI from "npm:openai";
+import { GoogleGenAI } from "npm:@google/genai";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getCorsHeaders } from "../_shared/types.ts";
+
+const GEMINI_MODEL = 'gemini-3-pro-preview';
 
 function trim(s: any): string { return (typeof s === 'string' ? s : '').trim(); }
 
@@ -62,9 +63,9 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ updated: 0, message: 'No jobs require enrichment' }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
-    const apiKey = Deno.env.get('OPENAI_API_KEY') || '';
-    if (!apiKey) return new Response(JSON.stringify({ error: 'OPENAI_API_KEY is not configured' }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
-    const openai = new OpenAI({ apiKey });
+    const apiKey = Deno.env.get('GEMINI_API_KEY') || '';
+    if (!apiKey) return new Response(JSON.stringify({ error: 'GEMINI_API_KEY is not configured' }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+    const ai = new GoogleGenAI({ apiKey });
 
     let updated = 0;
 
@@ -81,7 +82,7 @@ Deno.serve(async (req) => {
         || trim(job?.raw_data?.html)
         || trim(job?.raw_data?.scraped_data?.description || '');
 
-      const system = 'You are an assistant that infers missing structured fields from job postings. Be conservative and avoid over-claiming.';
+      const systemPrompt = 'You are an assistant that infers missing structured fields from job postings. Be conservative and avoid over-claiming.';
       const schemaHint = `Return strictly a JSON object with these fields: {
   employment_type: "Full-time"|"Part-time"|"Contract"|"Temporary"|"Internship"|"Freelance"|null,
   experience_level: "Junior"|"Mid"|"Senior"|"Lead"|"Manager"|null,
@@ -111,15 +112,18 @@ Rules:
 
       let patch: any = {};
       try {
-        const completion = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          temperature: 0.2,
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: schemaHint + "\n\n" + user },
-          ],
+        const response = await ai.models.generateContent({
+          model: GEMINI_MODEL,
+          config: {
+            thinkingConfig: { thinkingLevel: 'HIGH' },
+            tools: [{ urlContext: {} }, { googleSearch: {} }],
+            responseMimeType: 'application/json',
+            systemInstruction: systemPrompt,
+          },
+          contents: [{ role: 'user', parts: [{ text: schemaHint + "\n\n" + user }] }]
         });
-        const content = completion?.choices?.[0]?.message?.content?.trim() || '';
+        
+        const content = response.text()?.trim() || '';
         // Extract JSON block
         const jsonMatch = content.match(/\{[\s\S]*\}$/);
         const jsonText = jsonMatch ? jsonMatch[0] : content;
@@ -139,8 +143,8 @@ Rules:
 
         if (job.location == null && toString(enriched.location)) patch.location = toString(enriched.location);
         if (job.apply_url == null && toString(enriched.apply_link)) patch.apply_url = toString(enriched.apply_link);
-      } catch (e) {
-        try { console.error('enrich-jobs.openai_error', { id: job.id, message: String(e?.message || e) }); } catch {}
+      } catch (e: any) {
+        console.error('enrich-jobs.gemini_error', { id: job.id, message: String(e?.message || e) });
       }
 
       if (Object.keys(patch).length) {
@@ -151,9 +155,9 @@ Rules:
     }
 
     return new Response(JSON.stringify({ updated, processed: targets.length }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
-  } catch (e) {
-    const msg = (e && e.message) ? String(e.message) : 'Unknown error';
-    try { console.error('enrich-jobs error', msg); } catch {}
+  } catch (e: any) {
+    const msg = e?.message ? String(e.message) : 'Unknown error';
+    console.error('enrich-jobs error', msg);
     return new Response(JSON.stringify({ error: msg }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
   }
 });

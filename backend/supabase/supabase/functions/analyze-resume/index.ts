@@ -1,7 +1,8 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders } from "../_shared/types.ts";
 
-const DEFAULT_MODEL = "gpt-4o-mini";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createGeminiClient, GEMINI_MODEL, createGeminiConfig } from "../_shared/gemini.ts";
+import { corsHeaders } from "../_shared/types.ts";
 
 interface ResumeAnalysisRequest {
   resumeText: string;
@@ -96,7 +97,7 @@ function toResult(raw: any): ResumeAnalysisResult {
           action: String(item?.action || item?.recommendation || ""),
           impact: item?.impact ? String(item.impact) : null,
         }))
-        .filter((item) => item.focus.trim() || item.action.trim())
+        .filter((item: any) => item.focus.trim() || item.action.trim())
     : [];
 
   const grade = typeof raw.grade === "string" ? raw.grade.trim() : "N/A";
@@ -119,27 +120,12 @@ function toResult(raw: any): ResumeAnalysisResult {
   };
 }
 
-Deno.serve(async (req) => {
-  // Get dynamic CORS headers based on request origin
-  const origin = req.headers.get('origin');
-  const corsHeaders = getCorsHeaders(origin);
-
-  // Handle CORS preflight
+serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // Get OpenAI API key from Supabase secrets
-    const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiApiKey) {
-      return new Response(
-        JSON.stringify({ error: "OPENAI_API_KEY not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Get authenticated user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -152,7 +138,6 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Verify user token
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {
@@ -162,7 +147,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse request body
     const { resumeText, profileSummary, resumeId }: ResumeAnalysisRequest = await req.json();
 
     if (!resumeText || !profileSummary) {
@@ -172,49 +156,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Call OpenAI
-    const endpoint = "https://api.openai.com/v1/chat/completions";
-    const payload = {
-      model: DEFAULT_MODEL,
-      temperature: 0.35,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: "You are JobRaker's resume intelligence engine. Always reply with structured JSON matching the requested schema."
-        },
-        {
-          role: "user",
-          content: buildPromptBody(resumeText.slice(0, 15000), profileSummary)
-        }
-      ],
-    };
+    const ai = createGeminiClient();
+    const systemPrompt = "You are JobRaker's resume intelligence engine. Always reply with structured JSON matching the requested schema.";
+    const userPrompt = buildPromptBody(resumeText.slice(0, 15000), profileSummary);
 
-    const openaiRes = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${openaiApiKey}`,
-      },
-      body: JSON.stringify(payload),
+    const response = await ai.models.generateContent({
+        model: GEMINI_MODEL,
+        config: createGeminiConfig({ systemInstruction: systemPrompt }),
+        contents: [{ role: 'user', parts: [{ text: userPrompt }] }]
     });
 
-    if (!openaiRes.ok) {
-      let detail = openaiRes.statusText;
-      try {
-        const errJson = await openaiRes.json();
-        detail = errJson?.error?.message || JSON.stringify(errJson);
-      } catch {
-        detail = await openaiRes.text();
-      }
-      throw new Error(`OpenAI request failed: ${detail}`);
-    }
-
-    const json = await openaiRes.json();
-    const content = json?.choices?.[0]?.message?.content;
-    if (!content || typeof content !== "string") {
-      throw new Error("Invalid response from OpenAI");
-    }
+    const content = response.text();
+    if (!content) throw new Error("Invalid response from Gemini (empty)");
 
     let parsed;
     try {
@@ -246,7 +199,6 @@ Deno.serve(async (req) => {
         }).select().single();
       } catch (logError) {
         console.warn("Failed to log analysis to database:", logError);
-        // Don't fail the request if logging fails
       }
     }
 
@@ -262,4 +214,3 @@ Deno.serve(async (req) => {
     );
   }
 });
-

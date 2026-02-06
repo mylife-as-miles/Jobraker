@@ -1,5 +1,4 @@
-// @ts-nocheck
-// Generate a tailored cover letter using OpenAI based on the authenticated user's profile data
+// Generate a tailored cover letter using Gemini based on the authenticated user's profile data
 // and optional role/company/recipient/job description provided by the client.
 // POST body accepts:
 // {
@@ -12,19 +11,14 @@
 // }
 // Returns: { text: string }
 
-import OpenAI from "npm:openai";
+import { GoogleGenAI } from "npm:@google/genai";
 import { getCorsHeaders } from "../_shared/types.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+const GEMINI_MODEL = 'gemini-3-pro-preview';
+
 function trimText(s: any): string {
   return (typeof s === 'string' ? s : '').trim();
-}
-
-function pick<T extends Record<string, any>>(obj: T | null | undefined, keys: string[]) {
-  const out: Record<string, any> = {};
-  if (!obj) return out;
-  for (const k of keys) if (obj[k] != null) out[k] = obj[k];
-  return out;
 }
 
 Deno.serve(async (req) => {
@@ -43,12 +37,12 @@ Deno.serve(async (req) => {
     const company = trimText(body?.company);
     const recipient = trimText(body?.recipient);
     const job_description = trimText(body?.job_description);
-  const tone = trimText(body?.tone) || 'professional';
-  const length = trimText(body?.length) || 'medium';
-  const mode = String(body?.mode || '').toLowerCase() === 'full' ? 'full' : 'polish';
+    const tone = trimText(body?.tone) || 'professional';
+    const length = trimText(body?.length) || 'medium';
+    const mode = String(body?.mode || '').toLowerCase() === 'full' ? 'full' : 'polish';
 
-  // auth
-  const authHeader = req.headers.get('authorization') || '';
+    // auth
+    const authHeader = req.headers.get('authorization') || '';
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const anon = Deno.env.get('SUPABASE_ANON_KEY') || '';
     const sb = (supabaseUrl && anon)
@@ -62,7 +56,6 @@ Deno.serve(async (req) => {
     let education: any[] = [];
 
     if (sb) {
-      // profiles table: id, first_name, last_name, job_title, experience_years, location, goals, phone, avatar_url
       try {
         const { data: prof } = await sb
           .from('profiles')
@@ -77,7 +70,6 @@ Deno.serve(async (req) => {
         if (Array.isArray(data)) skills = data.map((s: any) => s?.name).filter(Boolean);
       } catch {}
 
-      // profile_experiences: title, company, description, start_date ...
       try {
         const { data } = await sb
           .from('profile_experiences')
@@ -87,7 +79,6 @@ Deno.serve(async (req) => {
         if (Array.isArray(data)) experiences = data;
       } catch {}
 
-      // profile_education: degree, school, location, gpa, start_date, end_date
       try {
         const { data } = await sb
           .from('profile_education')
@@ -125,9 +116,9 @@ Deno.serve(async (req) => {
 
     const jobCtx = [role && `Target Role: ${role}`, company && `Company: ${company}`, recipient && `Recipient: ${recipient}`].filter(Boolean).join('\n');
 
-  const system = `You are an expert career coach and writing assistant. Draft a tailored cover letter that is ${toneInstruction}, concise (${lengthInstruction}), uses active voice, avoids clichés, and provides specific, credible accomplishments. Do not include placeholders like [Your Name]; use the candidate name if provided. Keep formatting as plain text paragraphs, no markdown.`;
+    const systemPrompt = `You are an expert career coach and writing assistant. Draft a tailored cover letter that is ${toneInstruction}, concise (${lengthInstruction}), uses active voice, avoids clichés, and provides specific, credible accomplishments. Do not include placeholders like [Your Name]; use the candidate name if provided. Keep formatting as plain text paragraphs, no markdown.`;
 
-    const user = [
+    const userPrompt = [
       'Candidate:',
       name && `Name: ${name}`,
       title && `Current Title: ${title}`,
@@ -153,28 +144,34 @@ Deno.serve(async (req) => {
       `- Return plain text only, no markdown.`,
     ].filter(Boolean).join('\n');
 
-    const apiKey = Deno.env.get('OPENAI_API_KEY') || '';
+    const apiKey = Deno.env.get('GEMINI_API_KEY') || '';
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'OPENAI_API_KEY is not configured' }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'GEMINI_API_KEY is not configured' }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
-    const client = new OpenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey });
 
-    const completion = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
-      temperature: 0.7,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      config: {
+        thinkingConfig: {
+          thinkingLevel: 'HIGH',
+        },
+        tools: [
+          { urlContext: {} },
+          { googleSearch: {} }
+        ],
+        systemInstruction: systemPrompt,
+      },
+      contents: [{ role: 'user', parts: [{ text: userPrompt }] }]
     });
 
-    const text = completion?.choices?.[0]?.message?.content?.trim() || '';
+    const text = response.text()?.trim() || '';
 
     return new Response(JSON.stringify({ text }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
-  } catch (e) {
-    const msg = (e && e.message) ? String(e.message) : 'Unknown error';
-    try { console.error('generate-cover-letter error', msg); } catch {}
+  } catch (e: any) {
+    const msg = e?.message ? String(e.message) : 'Unknown error';
+    console.error('generate-cover-letter error', msg);
     return new Response(JSON.stringify({ error: msg }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } });
   }
 });
