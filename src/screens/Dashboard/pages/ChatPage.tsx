@@ -741,14 +741,6 @@ export const ChatPage = () => {
               </p>
             </div>
 
-            {/* Guided Tours FAB */}
-            <div className="fixed bottom-8 right-8 z-30">
-              <button className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-slate-900 dark:bg-[#121212] border border-slate-800 dark:border-[#222] shadow-xl hover:border-[#14C314]/50 transition-all group">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#14C314] group-hover:animate-ping"></div>
-                <span className="text-sm font-semibold text-slate-300">Guided Tours</span>
-              </button>
-            </div>
-
             {/* Background Glows */}
             <div className="fixed -bottom-48 -right-48 w-96 h-96 bg-[#14C314]/5 rounded-full blur-[120px] pointer-events-none"></div>
             <div className="fixed top-24 left-96 w-64 h-64 bg-[#14C314]/5 rounded-full blur-[100px] pointer-events-none"></div>
