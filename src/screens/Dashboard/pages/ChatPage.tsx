@@ -5,7 +5,7 @@ import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import atomOneDarkStyle from 'react-syntax-highlighter/dist/styles/atom-one-dark';
 import { createClient } from "../../../lib/supabaseClient";
 import {
-  MessageSquare, Wand2, Target, FileText, Sparkles, Zap, Plus, Search, Trash2, Bot, User,
+  MessageSquare, Wand2, Target, FileText, Sparkles, Zap, Plus, Search, Trash2, Bot,
   Bolt, BookOpen, Paperclip, ArrowUp
 } from 'lucide-react';
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
