@@ -123,11 +123,10 @@ export const Onboarding = (): JSX.Element => {
               key={goal}
               variant={formData.goals.includes(goal) ? "primary" : "outline"}
               onClick={() => toggleGoal(goal)}
-              className={`h-10 sm:h-12 text-xs sm:text-sm transition-all duration-200 ${
-                formData.goals.includes(goal)
-                  ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90'
-                  : 'border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]'
-              }`}
+              className={`h-10 sm:h-12 text-xs sm:text-sm transition-all duration-200 ${formData.goals.includes(goal)
+                ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90'
+                : 'border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]'
+                }`}
             >
               {goal}
             </Button>
@@ -218,18 +217,18 @@ export const Onboarding = (): JSX.Element => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
-      
+
       // Upload to storage (resumes bucket)
       const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
       const path = `${user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
       const bytes = await file.arrayBuffer();
       const blob = new Blob([bytes], { type: file.type || 'application/octet-stream' });
       setUploadProgress(25);
-      
+
       const { error: upErr } = await (supabase as any).storage.from('resumes').upload(path, blob, { upsert: false, contentType: file.type || undefined });
       if (upErr) throw upErr;
       setUploadProgress(40);
-      
+
       const insertPayload = {
         user_id: user.id,
         name: file.name.replace(/\.[^.]+$/, ''),
@@ -242,11 +241,11 @@ export const Onboarding = (): JSX.Element => {
         file_ext: ext,
         size: file.size,
       };
-      
+
       const { data: resumeRow, error: insErr } = await (supabase as any).from('resumes').insert(insertPayload).select('*').single();
       if (insErr) throw insErr;
       setUploadProgress(50);
-      
+
       // Parse PDF/text content
       setParsing(true);
       let rawText = '';
@@ -257,37 +256,25 @@ export const Onboarding = (): JSX.Element => {
         rawText = await file.text();
       }
       setUploadProgress(60);
-      
+
       // Try AI parsing first (if user has OpenAI key configured)
       let aiParsedData: ParsedProfileData | null = null;
+      // Try AI parsing (Server-side Gemini)
       try {
-        // Check if user has OpenAI API key in settings
-        const { data: settingsData } = await (supabase as any)
-          .from('settings')
-          .select('openai_api_key')
-          .eq('user_id', user.id)
-          .single();
-        
-        const apiKey = settingsData?.openai_api_key;
-        
-        if (apiKey && apiKey.trim()) {
-          setUploadProgress(65);
-          aiParsedData = await parseResumeWithAI({
-            resumeText: rawText,
-            apiKey: apiKey,
-            model: 'gpt-4o-mini'
-          });
-          setUploadProgress(80);
-        }
-      } catch (aiErr: any) {
+        setUploadProgress(65);
+        aiParsedData = await parseResumeWithAI({
+          resumeText: rawText
+        });
+        setUploadProgress(80);
+      } catch (aiErr) {
         console.warn('AI parsing failed, falling back to heuristic:', aiErr);
-        // Fall through to heuristic parsing
       }
-      
+
+
       // Fallback: use heuristic analysis
       const analyzed = analyzeResumeText(rawText || '');
       setUploadProgress(85);
-      
+
       // Insert parsed snapshot (lightweight)
       try {
         await (supabase as any).from('parsed_resumes').insert({
@@ -296,14 +283,14 @@ export const Onboarding = (): JSX.Element => {
           raw_text: rawText.slice(0, 500000),
           json: { sections: analyzed.sections, entities: analyzed.entities },
         });
-      } catch {}
-      
+      } catch { }
+
       // Prepare profile data - prioritize AI parsing if available
       let profileData: any = {};
-      
+
       if (aiParsedData) {
         console.log('✅ AI Parsed Data:', aiParsedData); // Debug log
-        
+
         // Use AI-parsed data
         profileData = {
           first_name: aiParsedData.firstName || null,
@@ -316,13 +303,13 @@ export const Onboarding = (): JSX.Element => {
           onboarding_complete: true,
           updated_at: new Date().toISOString(),
         };
-        
+
         console.log('💾 Saving profile:', profileData); // Debug log
-        
+
         // Save education to profile_education table
         if (aiParsedData.education && aiParsedData.education.length > 0) {
           console.log(`📚 Saving ${aiParsedData.education.length} education entries`);
-          
+
           const eduRows = aiParsedData.education
             .filter(e => e.school || e.degree)
             .map(e => ({
@@ -334,7 +321,7 @@ export const Onboarding = (): JSX.Element => {
               end_date: e.end && e.end !== 'Present' ? `${e.end}-01-01` : null,
               gpa: null,
             }));
-          
+
           if (eduRows.length > 0) {
             try {
               const { error: eduErr } = await (supabase as any).from('profile_education').insert(eduRows);
@@ -348,11 +335,11 @@ export const Onboarding = (): JSX.Element => {
             }
           }
         }
-        
+
         // Save work experience to profile_experiences table
         if (aiParsedData.experience && aiParsedData.experience.length > 0) {
           console.log(`💼 Saving ${aiParsedData.experience.length} work experience entries`);
-          
+
           const expRows = aiParsedData.experience
             .filter(e => e.company || e.title)
             .map(e => {
@@ -365,7 +352,7 @@ export const Onboarding = (): JSX.Element => {
                 if (/^\d{4}$/.test(dateStr)) return `${dateStr}-01-01`;
                 return dateStr;
               };
-              
+
               return {
                 user_id: user.id,
                 company: e.company || '',
@@ -377,7 +364,7 @@ export const Onboarding = (): JSX.Element => {
                 description: e.description || '',
               };
             });
-          
+
           if (expRows.length > 0) {
             try {
               const { error: expErr } = await (supabase as any).from('profile_experiences').insert(expRows);
@@ -391,18 +378,18 @@ export const Onboarding = (): JSX.Element => {
             }
           }
         }
-        
+
         // Save skills to profile_skills table
         if (aiParsedData.skills && aiParsedData.skills.length > 0) {
           console.log(`🔧 Saving ${aiParsedData.skills.length} skills`);
-          
+
           const skillRows = aiParsedData.skills.slice(0, 60).map(name => ({
             user_id: user.id,
             name: name.trim(),
             level: null,
             category: '',
           })).filter(r => r.name);
-          
+
           if (skillRows.length > 0) {
             try {
               const { error: skillErr } = await (supabase as any).from('profile_skills').insert(skillRows);
@@ -424,7 +411,7 @@ export const Onboarding = (): JSX.Element => {
           const lines = String(s.content || '').split(/\n+/).map((l: string) => l.trim()).filter(Boolean);
           return { school: lines[0] || '', degree: lines[1] || '', start: '', end: '' };
         }).slice(0, 5);
-        
+
         profileData = {
           first_name: null,
           last_name: null,
@@ -436,7 +423,7 @@ export const Onboarding = (): JSX.Element => {
           onboarding_complete: true,
           updated_at: new Date().toISOString(),
         };
-        
+
         // Save education heuristically
         if (eduParsed.length > 0) {
           const eduRows = eduParsed
@@ -450,7 +437,7 @@ export const Onboarding = (): JSX.Element => {
               end_date: e.end ? `${e.end}-01` : null,
               gpa: null,
             }));
-          
+
           if (eduRows.length > 0) {
             try {
               await (supabase as any).from('profile_education').insert(eduRows);
@@ -459,7 +446,7 @@ export const Onboarding = (): JSX.Element => {
             }
           }
         }
-        
+
         // Save skills heuristically
         if (profileData.skills && profileData.skills.length > 0) {
           const skillRows = profileData.skills.map((name: string) => ({
@@ -468,7 +455,7 @@ export const Onboarding = (): JSX.Element => {
             level: null,
             category: '',
           })).filter((r: any) => r.name);
-          
+
           if (skillRows.length > 0) {
             try {
               await (supabase as any).from('profile_skills').insert(skillRows);
@@ -478,32 +465,32 @@ export const Onboarding = (): JSX.Element => {
           }
         }
       }
-      
+
       // Save profile data
       const { error: profileErr } = await (supabase as any).from('profiles').upsert(
         { id: user.id, ...profileData },
         { onConflict: 'id' }
       );
-      
+
       if (profileErr) throw profileErr;
-      
+
       setUploadProgress(100);
       setParsed(true);
       setParsing(false);
-      
+
       // Track analytics
       try {
         const startedAt = (user as any).created_at ? new Date((user as any).created_at).getTime() : undefined;
         const elapsed = startedAt ? Date.now() - startedAt : undefined;
         events.profileCompleted(elapsed as any);
         (window as any).__profileCompletedTracked = true;
-      } catch {}
-      
+      } catch { }
+
       // Redirect to dashboard after brief delay
       setTimeout(() => {
         navigate("/dashboard/overview");
       }, 1500);
-      
+
     } catch (e: any) {
       setParseError(e.message || 'Failed to process resume');
     } finally {
@@ -624,7 +611,7 @@ export const Onboarding = (): JSX.Element => {
               </div>
               {/* Preview / Extraction Panel */}
               <div className="flex-1 rounded-xl border border-white/10 bg-white/[0.03] p-5 flex flex-col gap-4 min-h-[320px]">
-                {!parsed && !(uploading||parsing) && (
+                {!parsed && !(uploading || parsing) && (
                   <div className="text-white/50 text-sm leading-relaxed">
                     <p className="font-medium mb-2 text-white/70">Automatic Profile Setup</p>
                     <ul className="list-disc list-inside space-y-1 text-xs">
@@ -647,7 +634,7 @@ export const Onboarding = (): JSX.Element => {
                       <div className="h-3 w-4/6 bg-white/5 rounded" />
                     </div>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {Array.from({ length: 6 }).map((_,i)=>(<div key={i} className="h-5 w-14 bg-white/5 rounded-full" />))}
+                      {Array.from({ length: 6 }).map((_, i) => (<div key={i} className="h-5 w-14 bg-white/5 rounded-full" />))}
                     </div>
                   </div>
                 )}
@@ -709,16 +696,16 @@ export const Onboarding = (): JSX.Element => {
         const { error } = await supabase.from('profiles').upsert({
           id: user.id,
           first_name: formData.firstName || null,
-            last_name: formData.lastName || null,
-            job_title: formData.jobTitle || null,
-            experience_years: formData.experience ? Number(formData.experience) : null,
-            location: formData.location || null,
-            goals: formData.goals,
-            about: formData.about || null,
-            skills: formData.skills.length ? formData.skills : [],
-            education: formData.education && formData.education.length ? JSON.stringify(formData.education) : null,
-            onboarding_complete: true,
-            updated_at: new Date().toISOString(),
+          last_name: formData.lastName || null,
+          job_title: formData.jobTitle || null,
+          experience_years: formData.experience ? Number(formData.experience) : null,
+          location: formData.location || null,
+          goals: formData.goals,
+          about: formData.about || null,
+          skills: formData.skills.length ? formData.skills : [],
+          education: formData.education && formData.education.length ? JSON.stringify(formData.education) : null,
+          onboarding_complete: true,
+          updated_at: new Date().toISOString(),
         }, { onConflict: 'id' });
         if (error) throw error;
 
@@ -770,8 +757,8 @@ export const Onboarding = (): JSX.Element => {
           // Extend existing schema by merging counts if the tracker tolerates extra props
           events.profileCompleted(elapsed as any);
           (window as any).__profileCompletedTracked = true;
-        } catch {}
-  navigate("/dashboard/overview");
+        } catch { }
+        navigate("/dashboard/overview");
       } catch (err) {
         console.error('Failed to save onboarding:', err);
         alert('Failed to save onboarding info. Please try again.');
@@ -840,7 +827,7 @@ export const Onboarding = (): JSX.Element => {
           <Card className="w-full bg-[#ffffff0d] backdrop-blur-[18px] border border-[#ffffff15] relative overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl">
             {/* Animated border glow */}
             <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/20 via-transparent to-[#1dff00]/20 opacity-50 animate-pulse rounded-xl sm:rounded-2xl" />
-            
+
             <CardContent className="relative z-10 p-4 sm:p-6 lg:p-8 xl:p-10">
               {/* Header with logo */}
               <div className="flex items-center justify-center mb-6 sm:mb-8">
@@ -870,7 +857,7 @@ export const Onboarding = (): JSX.Element => {
                       {steps[currentStep].subtitle}
                     </p>
                   </div>
-                  
+
                   {/* Step component */}
                   <div className="w-full mb-6 sm:mb-8">
                     {steps[currentStep].component}
@@ -880,17 +867,17 @@ export const Onboarding = (): JSX.Element => {
 
               {/* Navigation buttons */}
               <div className="flex flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0 sm:space-x-4">
-                <Button 
-                  onClick={prevStep} 
-                  disabled={currentStep === 0} 
+                <Button
+                  onClick={prevStep}
+                  disabled={currentStep === 0}
                   variant="ghost"
                   className="w-full sm:w-auto text-white hover:bg-[#ffffff1a] disabled:opacity-50 disabled:cursor-not-allowed h-10 sm:h-12 text-sm sm:text-base order-2 sm:order-1"
                 >
                   <ChevronLeft className="mr-1 sm:mr-2 w-4 h-4 sm:w-5 sm:h-5" />
                   Back
                 </Button>
-                
-                <Button 
+
+                <Button
                   onClick={nextStep}
                   className="w-full sm:w-auto bg-gradient-to-r from-white to-[#f0f0f0] text-black hover:shadow-lg transition-all h-10 sm:h-12 text-sm sm:text-base font-medium order-1 sm:order-2"
                 >
@@ -914,9 +901,8 @@ export const Onboarding = (): JSX.Element => {
                 {steps.map((_, index) => (
                   <div
                     key={index}
-                    className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all duration-300 ${
-                      index <= currentStep ? "bg-[#1dff00]" : "bg-[#ffffff30]"
-                    }`}
+                    className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all duration-300 ${index <= currentStep ? "bg-[#1dff00]" : "bg-[#ffffff30]"
+                      }`}
                   />
                 ))}
               </div>
@@ -976,21 +962,21 @@ const SkillInput = ({ values, onChange }: { values: string[]; onChange: (v: stri
 interface EduItem { school?: string; degree?: string; start?: string; end?: string }
 const EducationEditor = ({ values, onChange }: { values: EduItem[]; onChange: (v: EduItem[]) => void }) => {
   const update = (idx: number, patch: Partial<EduItem>) => {
-    const next = values.map((v,i) => i===idx ? { ...v, ...patch } : v);
+    const next = values.map((v, i) => i === idx ? { ...v, ...patch } : v);
     onChange(next);
   };
-  const add = () => onChange([...(values||[]), { school: '', degree: '', start: '', end: '' }]);
-  const remove = (idx: number) => onChange(values.filter((_,i)=>i!==idx));
+  const add = () => onChange([...(values || []), { school: '', degree: '', start: '', end: '' }]);
+  const remove = (idx: number) => onChange(values.filter((_, i) => i !== idx));
   return (
     <div className="space-y-4">
-      {(values||[]).map((e,i)=>(
+      {(values || []).map((e, i) => (
         <div key={i} className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-start">
-          <input value={e.school||''} onChange={ev=>update(i,{school: ev.target.value})} placeholder="School" className="rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-xs sm:text-sm text-white placeholder:text-white/50 focus:border-[#1dff00] outline-none" />
-          <input value={e.degree||''} onChange={ev=>update(i,{degree: ev.target.value})} placeholder="Degree" className="rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-xs sm:text-sm text-white placeholder:text-white/50 focus:border-[#1dff00] outline-none" />
-          <input value={e.start||''} onChange={ev=>update(i,{start: ev.target.value})} placeholder="Start" className="rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-xs sm:text-sm text-white placeholder:text-white/50 focus:border-[#1dff00] outline-none" />
+          <input value={e.school || ''} onChange={ev => update(i, { school: ev.target.value })} placeholder="School" className="rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-xs sm:text-sm text-white placeholder:text-white/50 focus:border-[#1dff00] outline-none" />
+          <input value={e.degree || ''} onChange={ev => update(i, { degree: ev.target.value })} placeholder="Degree" className="rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-xs sm:text-sm text-white placeholder:text-white/50 focus:border-[#1dff00] outline-none" />
+          <input value={e.start || ''} onChange={ev => update(i, { start: ev.target.value })} placeholder="Start" className="rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-xs sm:text-sm text-white placeholder:text-white/50 focus:border-[#1dff00] outline-none" />
           <div className="flex gap-2">
-            <input value={e.end||''} onChange={ev=>update(i,{end: ev.target.value})} placeholder="End" className="flex-1 rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-xs sm:text-sm text-white placeholder:text-white/50 focus:border-[#1dff00] outline-none" />
-            <button onClick={()=>remove(i)} className="px-2 rounded-md bg-red-500/20 text-red-300 text-xs hover:bg-red-500/30">✕</button>
+            <input value={e.end || ''} onChange={ev => update(i, { end: ev.target.value })} placeholder="End" className="flex-1 rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-xs sm:text-sm text-white placeholder:text-white/50 focus:border-[#1dff00] outline-none" />
+            <button onClick={() => remove(i)} className="px-2 rounded-md bg-red-500/20 text-red-300 text-xs hover:bg-red-500/30">✕</button>
           </div>
         </div>
       ))}

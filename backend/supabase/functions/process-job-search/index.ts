@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { withRetry, resolveFirecrawlApiKey, firecrawlFetch } from '../_shared/firecrawl.ts';
-import { generateAiDescription } from '../_shared/openai.ts';
+import { generateGeminiDescription } from '../_shared/gemini.ts';
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -299,7 +299,7 @@ Deno.serve(async (req) => {
     const jobsToInsert = await Promise.all(filtered.map(async (item) => {
       let aiData;
       try {
-        aiData = await generateAiDescription(item.html, item.markdown, item.description, item.title || rawQuery);
+        aiData = await generateGeminiDescription(item.html, item.markdown, item.description, item.title || rawQuery);
       } catch (e) {
         console.error('AI enrichment failed', e);
         const fallbackDescription = item.markdown || (item.description ? stripHtmlTags(item.description) : '');

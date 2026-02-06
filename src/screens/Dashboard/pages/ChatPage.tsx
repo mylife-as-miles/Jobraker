@@ -77,7 +77,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           'Authorization': `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({
-          model: chatOpts?.model || 'openai/gpt-4o-mini',
+          model: chatOpts?.model || 'gemini-2.0-flash-exp',
           messages: history.filter(m => m.content.trim() !== '').map(m => ({
             role: m.role,
             content: m.content
