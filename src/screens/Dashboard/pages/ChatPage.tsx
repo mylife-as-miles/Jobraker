@@ -461,7 +461,7 @@ export const ChatPage = () => {
   }, [sessions, searchQuery]);
 
   return (
-    <div className="absolute inset-0 flex font-sans bg-white dark:bg-[#050505] overflow-hidden text-slate-900 dark:text-slate-100">
+    <div className="relative flex h-full w-full font-sans bg-white dark:bg-[#050505] overflow-hidden text-slate-900 dark:text-slate-100">
       <style>{customStyles}</style>
 
       {/* Loading state */}

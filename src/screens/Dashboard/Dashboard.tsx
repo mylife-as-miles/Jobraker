@@ -549,7 +549,10 @@ export const Dashboard = (): JSX.Element => {
         </header>
 
         {/* Page Content - Responsive */}
-        <div className="flex-1 overflow-auto min-h-0 relative">
+        <div className={`flex-1 flex flex-col min-h-0 relative ${['chat', 'interview-studio'].includes(currentPage)
+            ? 'overflow-hidden'
+            : 'overflow-auto'
+          }`}>
           <AnimatePresence mode="wait">
             <motion.div
               key={currentPage}
@@ -557,7 +560,7 @@ export const Dashboard = (): JSX.Element => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
-              className="h-full"
+              className="flex-1 flex flex-col h-full"
             >
               {renderPageContent()}
             </motion.div>
