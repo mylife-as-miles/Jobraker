@@ -208,7 +208,7 @@ export const ChatPage = () => {
   const [text, setText] = useState('');
   const [model] = useState(models[0].id);
   const [persona, setPersona] = useState<Persona>('concise');
-  const [sessions, setSessions] = useState<{ id: string; title: string; createdAt: number; updatedAt: number; messages: BasicMessage[]; responseId?: string | null }[]>([]);
+  const [sessions, setSessions] = useState<{ id: string; title: string; createdAt: number; updatedAt: number; updated_at?: string; messages: BasicMessage[]; responseId?: string | null }[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -325,7 +325,7 @@ export const ChatPage = () => {
 
         if (!error) {
           // also update local state to get new updated_at
-          setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: currentMessages, responseId: currentResponseId, updatedAt: Date.now() } : s));
+          setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, messages: currentMessages, responseId: currentResponseId, updated_at: new Date().toISOString() } : s));
         }
       }
     }, 1500);
@@ -522,7 +522,7 @@ export const ChatPage = () => {
       {!loadingTier && (subscriptionTier === 'Pro' || subscriptionTier === 'Ultimate') && (
         <>
           {/* Internal Sidebar for Chat History */}
-          <aside className={`w-72 bg-white dark:bg-[#121212] border-r border-slate-200 dark:border-[#222] flex flex-col h-full z-20 transition-all duration-300 ${sidebarCollapsed ? '-ml-72' : ''}`}>
+          <aside className={`w-72 bg-white dark:bg-black border-r border-slate-200 dark:border-[#222] flex flex-col h-full z-20 transition-all duration-300 ${sidebarCollapsed ? '-ml-72' : ''}`}>
             <div className="p-6">
               <button
                 onClick={() => createSession()}
@@ -563,7 +563,9 @@ export const ChatPage = () => {
                         <MessageSquare className={`w-5 h-5 ${s.id === activeSessionId ? 'text-[#14C314]' : 'text-slate-400 group-hover:text-[#14C314]'} transition-colors`} />
                         <div className="flex-1 overflow-hidden">
                           <p className="text-sm font-medium truncate text-slate-900 dark:text-slate-300">{s.title || "New Chat"}</p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">{new Date(s.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            {new Date(s.updated_at || s.updatedAt || Date.now()).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                          </p>
                         </div>
                         <div className="opacity-0 group-hover:opacity-100 flex items-center">
                           <button onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }} className="p-1 hover:text-red-400 text-slate-500 rounded"><Trash2 size={12} /></button>
