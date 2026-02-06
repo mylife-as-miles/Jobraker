@@ -549,7 +549,7 @@ export const Dashboard = (): JSX.Element => {
         </header>
 
         {/* Page Content - Responsive */}
-        <div className="flex-1 overflow-auto min-h-0">
+        <div className="flex-1 overflow-auto min-h-0 relative">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentPage}
