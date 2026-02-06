@@ -1,10 +1,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createGeminiClient } from "../_shared/gemini.ts";
+import { createGeminiClient, GEMINI_MODEL, createGeminiConfig } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-
-const DEFAULT_MODEL = "gemini-2.0-flash-exp";
 
 interface ResumeAnalysisRequest {
   resumeText: string;
@@ -123,16 +121,11 @@ function toResult(raw: any): ResumeAnalysisResult {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response(null, { 
-      status: 204,
-      headers: corsHeaders 
-    });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
-    // Get authenticated user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -145,7 +138,6 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Verify user token
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {
@@ -155,7 +147,6 @@ serve(async (req) => {
       );
     }
 
-    // Parse request body
     const { resumeText, profileSummary, resumeId }: ResumeAnalysisRequest = await req.json();
 
     if (!resumeText || !profileSummary) {
@@ -165,30 +156,18 @@ serve(async (req) => {
       );
     }
 
-    // Call Gemini
     const ai = createGeminiClient();
-
     const systemPrompt = "You are JobRaker's resume intelligence engine. Always reply with structured JSON matching the requested schema.";
     const userPrompt = buildPromptBody(resumeText.slice(0, 15000), profileSummary);
 
     const response = await ai.models.generateContent({
-        model: DEFAULT_MODEL,
-        config: {
-            responseMimeType: 'application/json',
-            systemInstruction: systemPrompt,
-        },
-        contents: [
-            {
-                role: 'user',
-                parts: [{ text: userPrompt }]
-            }
-        ]
+        model: GEMINI_MODEL,
+        config: createGeminiConfig({ systemInstruction: systemPrompt }),
+        contents: [{ role: 'user', parts: [{ text: userPrompt }] }]
     });
 
     const content = response.text();
-    if (!content) {
-      throw new Error("Invalid response from Gemini (empty)");
-    }
+    if (!content) throw new Error("Invalid response from Gemini (empty)");
 
     let parsed;
     try {
@@ -199,7 +178,6 @@ serve(async (req) => {
 
     const result = toResult(parsed);
 
-    // Optionally log the analysis to database
     if (resumeId && user.id) {
       try {
         await supabase.from("resume_analyses").insert({
@@ -220,7 +198,6 @@ serve(async (req) => {
         }).select().single();
       } catch (logError) {
         console.warn("Failed to log analysis to database:", logError);
-        // Don't fail the request if logging fails
       }
     }
 

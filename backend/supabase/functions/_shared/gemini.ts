@@ -14,6 +14,28 @@ export const createGeminiClient = () => {
     return new GoogleGenAI({ apiKey });
 }
 
+// Default model - Gemini 3 Pro Preview
+export const GEMINI_MODEL = 'gemini-3-pro-preview';
+
+// Standard tools configuration
+export const GEMINI_TOOLS = [
+    { urlContext: {} },
+    { googleSearch: {} }
+];
+
+// Standard config with thinking enabled
+export const createGeminiConfig = (options?: {
+    systemInstruction?: string;
+    responseMimeType?: string;
+}) => ({
+    thinkingConfig: {
+        thinkingLevel: 'HIGH',
+    },
+    tools: GEMINI_TOOLS,
+    responseMimeType: options?.responseMimeType || 'application/json',
+    ...(options?.systemInstruction ? { systemInstruction: options.systemInstruction } : {}),
+});
+
 export interface AiDescriptionResponse {
   description: string;
   tags?: string[];
@@ -50,22 +72,9 @@ export const generateGeminiDescription = async (
   `;
 
   try {
-     const model = 'gemini-2.0-flash-exp'; // Using a fast model, or the user suggested gemini-3-pro-preview? User said "gemini-3-pro-preview".
-     // User snippet uses 'gemini-3-pro-preview'. I will use that.
-     
      const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash-exp', // Revert to flash for description tasks? checking user request. User said "replace all... with gemini api" and then provided a snippet with 'gemini-3-pro-preview'. 
-        // I will use gemini-2.0-flash-exp for speed/cost on simple tasks unless 3-pro is needed. The provided snippet was generous. 
-        // Let's use gemini-2.0-flash-exp for these helper tasks to be safe on quota/speed, or per user instructions "gemini-3-pro-preview". 
-        // User provided specific code with model = 'gemini-3-pro-preview'. I should probably stick to that or 'gemini-2.0-flash' if it fails.
-        // Actually, user said "replace all ... with gemini api" and GAVE the code. I'll use their model key if possible, but 'gemini-3-pro-preview' might be very new/invite-only? 
-        // I will use 'gemini-2.0-flash-exp' as a safe default for backend tasks, and 'gemini-2.0-pro-exp' for complex ones?
-        // User's snippet explicitly used `gemini-3-pro-preview`. I will use `gemini-2.0-flash-exp` for the description generation as it's a "parsing" task.
-        
-        config: {
-            responseMimeType: 'application/json',
-            systemInstruction: systemPrompt,
-        },
+        model: GEMINI_MODEL,
+        config: createGeminiConfig({ systemInstruction: systemPrompt }),
         contents: [
             {
                 role: 'user',

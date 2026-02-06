@@ -77,7 +77,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           'Authorization': `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({
-          model: chatOpts?.model || 'gemini-2.0-flash-exp',
+          model: chatOpts?.model || 'gemini-3-pro-preview',
           messages: history.filter(m => m.content.trim() !== '').map(m => ({
             role: m.role,
             content: m.content

@@ -1,10 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createGeminiClient } from "../_shared/gemini.ts";
+import { createGeminiClient, GEMINI_MODEL, createGeminiConfig } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-
-const DEFAULT_MODEL = "gemini-2.0-flash-exp";
 
 interface ParseResumeRequest {
   resumeText: string;
@@ -92,14 +89,11 @@ serve(async (req) => {
     }
 
     const ai = createGeminiClient();
-    const prompt = buildPrompt(resumeText.slice(0, 30000)); // Limit context
+    const prompt = buildPrompt(resumeText.slice(0, 30000));
 
     const result = await ai.models.generateContent({
-        model: DEFAULT_MODEL,
-        config: {
-            responseMimeType: 'application/json',
-            systemInstruction: "You are a resume parser. Return only JSON.",
-        },
+        model: GEMINI_MODEL,
+        config: createGeminiConfig({ systemInstruction: "You are a resume parser. Return only JSON." }),
         contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
 
