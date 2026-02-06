@@ -673,7 +673,7 @@ export const ChatPage = () => {
             </div>
 
             {/* Input Area */}
-            <div className="p-6 md:p-10 w-full max-w-5xl mx-auto z-10">
+            <div className="p-4 md:p-6 pt-0 w-full max-w-5xl mx-auto z-10 shrink-0">
               <div className="relative glass-panel rounded-3xl border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden bg-[#0a0a0a]/80 backdrop-blur-xl">
                 <div className="flex flex-col">
                   {/* Toolbar */}
@@ -736,7 +736,7 @@ export const ChatPage = () => {
                   </div>
                 </div>
               </div>
-              <p className="text-center text-[10px] text-slate-500 mt-4 uppercase tracking-widest font-medium">
+              <p className="text-center text-[10px] text-slate-500 mt-3 uppercase tracking-widest font-medium">
                 JobRaker AI can make mistakes. Check important information.
               </p>
             </div>
