@@ -6,7 +6,7 @@ import atomOneDarkStyle from 'react-syntax-highlighter/dist/styles/atom-one-dark
 import { createClient } from "../../../lib/supabaseClient";
 import {
   MessageSquare, Wand2, Target, FileText, Sparkles, Zap, Plus, Search, Trash2, Bot,
-  Bolt, BookOpen, Paperclip, ArrowUp
+  Bolt, BookOpen, Paperclip, ArrowUp, PanelLeft
 } from 'lucide-react';
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useToast } from "../../../components/ui/toast-provider";
@@ -586,7 +586,7 @@ export const ChatPage = () => {
           <main className="flex-1 relative flex flex-col bg-white dark:bg-[#050505] overflow-hidden">
             <header className="h-16 flex items-center justify-between px-8 border-b border-slate-100 dark:border-[#222] shrink-0">
               <div className="flex items-center gap-3">
-                <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="md:hidden mr-2 text-slate-500"><Bolt size={20} /></button>
+                <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="mr-3 text-slate-500 hover:text-white transition-colors"><PanelLeft size={20} /></button>
                 <h2 className="font-semibold text-lg text-slate-900 dark:text-white">AI Assistant</h2>
                 <span className="bg-[#14C314]/10 text-[#14C314] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#14C314]/20">BETA</span>
               </div>
