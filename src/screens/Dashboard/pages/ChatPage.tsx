@@ -689,7 +689,7 @@ export const ChatPage = () => {
                           }`}
                       >
                         <Bolt size={14} />
-                        Concise
+                        Ask
                       </button>
                       <button
                         onClick={() => setPersona('analyst')}
@@ -699,7 +699,7 @@ export const ChatPage = () => {
                           }`}
                       >
                         <BookOpen size={14} />
-                        Detailed
+                        Agent
                       </button>
                     </div>
                     <div className="flex gap-2">
