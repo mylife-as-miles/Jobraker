@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useRegisterCoachMarks } from "@/providers/TourProvider";
+import { useGeminiLive } from "@/hooks/useGeminiLive"; // Import the hook
 
 const aspectRatios = [
   { label: "Portrait (9:16)", value: "9:16" },
@@ -105,9 +106,15 @@ export const InterviewStudioPage: React.FC = () => {
 
   // Media refs
   const videoRef = useRef<HTMLVideoElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordedChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Gemini Live Hook
+  const { isConnected, isAIActive, error: liveError, connect, disconnect } = useGeminiLive({
+    apiKey: import.meta.env.VITE_GEMINI_API_KEY || '',
+    onAIStateChange: (active) => {
+      // Optional: Update UI based on AI speaking state
+    }
+  });
 
   // Register coach marks for guided tours
   useRegisterCoachMarks({
@@ -322,10 +329,9 @@ export const InterviewStudioPage: React.FC = () => {
     };
   }, [isRecording]);
 
-  // Start recording
+  // Start Interview (Connect to Gemini Live)
   const handleStartRecording = async () => {
     try {
-      // Ensure stream is active
       if (!streamRef.current) {
         await initializeStream();
       }
@@ -335,75 +341,31 @@ export const InterviewStudioPage: React.FC = () => {
         return;
       }
 
-      // Reset metrics
-      setMetrics({
-        wordCount: 0,
-        fillerCount: 0,
-        fillerWords: {},
-        transcription: "",
-        confidenceScore: 100,
-        wordsPerMinute: 0,
-      });
-
       // Start timer
       setElapsedSeconds(0);
-      recordingStartTimeRef.current = Date.now();
       timerIntervalRef.current = setInterval(() => {
         setElapsedSeconds(prev => prev + 1);
       }, 1000);
 
-      // Start speech recognition
-      const recognition = initSpeechRecognition();
-      if (recognition) {
-        recognitionRef.current = recognition;
-        recognition.start();
-      }
-
-      // Start media recorder
-      mediaRecorderRef.current = new MediaRecorder(streamRef.current, { mimeType: "video/webm" });
-      mediaRecorderRef.current.ondataavailable = (e) => {
-        if (e.data.size > 0) recordedChunksRef.current.push(e.data);
-      };
-      mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
-        setVideoUrl(URL.createObjectURL(blob));
-        recordedChunksRef.current = [];
-      };
-      mediaRecorderRef.current.start();
-
+      // Connect to Gemini Live
+      await connect();
       setIsRecording(true);
-      setVideoUrl(null);
-      setActiveTab("analysis"); // Switch to metrics tab
+      setActiveTab("analysis");
     } catch (err) {
-      console.error("Recording error:", err);
-      setPermissionError('Failed to start recording');
+      console.error("Connection error:", err);
+      setPermissionError('Failed to start interview');
     }
   };
 
-  // Stop recording
+  // Stop Interview
   const handleStopRecording = () => {
-    // Stop timer
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
 
-    // Stop speech recognition
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-    }
-
-    // Stop media recorder
-    if (mediaRecorderRef.current?.state === "recording") {
-      mediaRecorderRef.current.stop();
-    }
-
+    disconnect();
     setIsRecording(false);
-
-    // Calculate final confidence score
-    const finalScore = Math.max(0, 100 - (metrics.fillerCount * 3));
-    setMetrics(prev => ({ ...prev, confidenceScore: finalScore }));
   };
 
   // Toggle mic during preview (not recording)
@@ -502,10 +464,10 @@ export const InterviewStudioPage: React.FC = () => {
               <motion.div
                 animate={{ opacity: [1, 0.5, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
-                className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-red-500 font-mono text-[10px] uppercase"
+                className={`flex items-center gap-2 px-3 py-1 rounded-full border font-mono text-[10px] uppercase ${isAIActive ? 'bg-[#1dff00]/10 border-[#1dff00]/30 text-[#1dff00]' : 'bg-red-500/10 border-red-500/30 text-red-500'}`}
               >
-                <div className="w-1.5 h-1.5 bg-red-500 rounded-full" />
-                REC {formatTime(elapsedSeconds)}
+                <div className={`w-1.5 h-1.5 rounded-full ${isAIActive ? 'bg-[#1dff00]' : 'bg-red-500'}`} />
+                {isAIActive ? 'AI SPEAKING' : `LIVE ${formatTime(elapsedSeconds)}`}
               </motion.div>
             ) : (
               <div className="text-gray-500 font-mono text-[10px] uppercase">Ready to Record</div>
