@@ -3,6 +3,8 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { nanoid } from 'nanoid';
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import atomOneDarkStyle from 'react-syntax-highlighter/dist/styles/atom-one-dark';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { createClient } from "../../../lib/supabaseClient";
 import {
   MessageSquare, Wand2, Target, FileText, Sparkles, Zap, Plus, Search, Trash2, Bot,
@@ -371,52 +373,7 @@ export const ChatPage = () => {
     }
   };
 
-  const parseMarkdown = (raw: string) => {
-    const blocks: { type: 'code' | 'text'; content: string; lang?: string }[] = [];
-    const fence = /```(\w+)?\n([\s\S]*?)```/g;
-    let last = 0;
-    let m: RegExpExecArray | null;
-    while ((m = fence.exec(raw)) !== null) {
-      if (m.index > last) blocks.push({ type: 'text', content: raw.slice(last, m.index) });
-      blocks.push({ type: 'code', content: m[2].trimEnd(), lang: m[1] });
-      last = fence.lastIndex;
-    }
-    if (last < raw.length) blocks.push({ type: 'text', content: raw.slice(last) });
-    return blocks;
-  };
 
-  const renderRichText = (raw: string) => {
-    return parseMarkdown(raw).map((b, i) => {
-      if (b.type === 'code') {
-        return (
-          <div key={i} className="mt-3 mb-2 rounded-xl border border-white/[0.08] bg-black/60 text-[12px] overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-2 bg-white/[0.03] border-b border-white/[0.06]">
-              <span className="text-[10px] font-medium text-white/50 uppercase tracking-wider">{b.lang || 'code'}</span>
-              <button
-                onClick={() => navigator.clipboard.writeText(b.content)}
-                className="px-2.5 py-1 rounded-md bg-white/[0.05] hover:bg-white/[0.1] text-[10px] text-white/60 hover:text-white/90 transition-all border border-white/[0.06] hover:border-white/[0.12]"
-              >
-                Copy
-              </button>
-            </div>
-            <div className="max-h-[480px] overflow-auto">
-              <SyntaxHighlighter
-                language={b.lang || 'text'}
-                style={atomOneDarkStyle as any}
-                customStyle={{ margin: 0, background: 'transparent', fontSize: '12px', padding: '16px' }}
-                showLineNumbers={b.content.split('\n').length > 4}
-                wrapLongLines
-              >{b.content}</SyntaxHighlighter>
-            </div>
-          </div>
-        );
-      }
-      const segs = b.content.split(/(`[^`]+`)/g).map((seg, j) => seg.startsWith('`') && seg.endsWith('`') ? (
-        <code key={j} className="px-2 py-0.5 rounded-md bg-[#1dff00]/10 text-[#1dff00] text-[12px] font-mono border border-[#1dff00]/20">{seg.slice(1, -1)}</code>
-      ) : <span key={j}>{seg}</span>);
-      return <div key={i} className="whitespace-pre-wrap break-words">{segs}</div>;
-    });
-  };
 
   const handleSubmit = (message: { text: string; files?: any[] }) => {
     const hasText = !!message.text?.trim();
@@ -659,10 +616,84 @@ export const ChatPage = () => {
                         : 'glass-panel text-slate-200 rounded-tl-sm border-white/10'
                         }`}>
                         {m.role === 'user' ? (
-                          <p className="text-sm">{m.content}</p>
+                          <div className="text-sm prose prose-invert break-words whitespace-pre-wrap">{m.content}</div>
                         ) : (
-                          <div className="text-sm prose prose-invert max-w-none">
-                            {renderRichText(m.content)}
+                          <div className="text-sm prose prose-invert max-w-none overflow-hidden">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                table: ({ node, ...props }) => (
+                                  <div className="my-6 overflow-hidden rounded-xl border border-white/10">
+                                    <table className="w-full text-left text-xs bg-black/20" {...props} />
+                                  </div>
+                                ),
+                                thead: ({ node, ...props }) => (
+                                  <thead className="bg-white/5 border-b border-white/10" {...props} />
+                                ),
+                                tbody: ({ node, ...props }) => (
+                                  <tbody {...props} />
+                                ),
+                                tr: ({ node, ...props }) => (
+                                  <tr className="border-b border-white/5 last:border-0" {...props} />
+                                ),
+                                th: ({ node, ...props }) => (
+                                  <th className="px-4 py-2 font-semibold text-[#14C314]" {...props} />
+                                ),
+                                td: ({ node, ...props }) => (
+                                  <td className="px-4 py-2 text-slate-300" {...props} />
+                                ),
+                                code: ({ node, inline, className, children, ...props }: any) => {
+                                  const match = /language-(\w+)/.exec(className || '')
+                                  return !inline && match ? (
+                                    <div className="my-4 rounded-xl border border-white/10 bg-black/40 overflow-hidden">
+                                      <div className="flex items-center justify-between px-3 py-1.5 bg-white/5 border-b border-white/5">
+                                        <span className="text-[10px] font-medium text-white/50 uppercase">{match[1]}</span>
+                                        <button
+                                          onClick={() => navigator.clipboard.writeText(String(children))}
+                                          className="text-[10px] text-white/40 hover:text-white transition-colors"
+                                        >
+                                          Copy
+                                        </button>
+                                      </div>
+                                      <SyntaxHighlighter
+                                        language={match[1]}
+                                        style={atomOneDarkStyle as any}
+                                        customStyle={{ margin: 0, background: 'transparent', fontSize: '12px', padding: '16px' }}
+                                        wrapLongLines
+                                        {...props}
+                                      >
+                                        {String(children).replace(/\n$/, '')}
+                                      </SyntaxHighlighter>
+                                    </div>
+                                  ) : (
+                                    <code className="px-1.5 py-0.5 rounded bg-[#14C314]/10 text-[#14C314] text-[12px] font-mono border border-[#14C314]/20" {...props}>
+                                      {children}
+                                    </code>
+                                  )
+                                },
+                                ul: ({ node, ...props }) => (
+                                  <ul className="list-disc pl-4 space-y-1 my-2 text-slate-300 marker:text-[#14C314]" {...props} />
+                                ),
+                                ol: ({ node, ...props }) => (
+                                  <ol className="list-decimal pl-4 space-y-1 my-2 text-slate-300 marker:text-[#14C314]" {...props} />
+                                ),
+                                li: ({ node, ...props }) => (
+                                  <li className="pl-1" {...props} />
+                                ),
+                                strong: ({ node, ...props }) => (
+                                  <strong className="text-white font-semibold" {...props} />
+                                ),
+                                p: ({ node, ...props }) => (
+                                  <p className="mb-2 last:mb-0 leading-relaxed text-slate-300" {...props} />
+                                ),
+                                h1: ({ node, ...props }) => <h1 className="text-2xl font-bold text-white mb-4 mt-6 first:mt-0" {...props} />,
+                                h2: ({ node, ...props }) => <h2 className="text-xl font-bold text-white mb-3 mt-5 first:mt-0" {...props} />,
+                                h3: ({ node, ...props }) => <h3 className="text-lg font-semibold text-white mb-2 mt-4 first:mt-0" {...props} />,
+                                h4: ({ node, ...props }) => <h4 className="text-base font-semibold text-white mb-2 mt-3 first:mt-0" {...props} />,
+                              }}
+                            >
+                              {m.content}
+                            </ReactMarkdown>
                             {m.streaming && <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-[#14C314] animate-pulse" />}
                           </div>
                         )}
