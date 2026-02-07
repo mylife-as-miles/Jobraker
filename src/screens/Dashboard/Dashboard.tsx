@@ -19,7 +19,8 @@ import {
   Briefcase,
 
   // CreditCard,
-  Video
+  Video,
+  PanelLeft
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
@@ -281,13 +282,12 @@ export const Dashboard = (): JSX.Element => {
       )}
 
       {/* Sidebar - Modern & Advanced */}
-      <motion.div
-        initial={false}
-        animate={{ width: isCollapsed ? 80 : 288 }}
+      <div
         className={`
         fixed inset-y-0 left-0 z-50 bg-black/95 backdrop-blur-xl border-r border-white/5 flex flex-col
-        shadow-2xl shadow-black overflow-hidden
-        ${sidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full lg:translate-x-0'}
+        shadow-2xl shadow-black overflow-hidden transition-all duration-300 w-72
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        ${isCollapsed && isDesktop ? '-ml-72' : ''}
       `}
       >
         {/* Logo Section */}
@@ -313,16 +313,7 @@ export const Dashboard = (): JSX.Element => {
             >
               <X className="w-5 h-5" />
             </Button>
-
-            {/* Desktop Collapse Toggle */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden lg:flex ml-auto text-gray-600 hover:text-white absolute right-0"
-              onClick={() => setIsCollapsed(!isCollapsed)}
-            >
-              {isCollapsed ? <Menu className="w-4 h-4" /> : <Menu className="w-4 h-4 rotate-90" />}
-            </Button>
+            {/* Desktop Collapse Toggle - Removed, moved to header */}
           </div>
         </div>
 
@@ -415,29 +406,41 @@ export const Dashboard = (): JSX.Element => {
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Main Content - Responsive */}
-      <motion.div
-        animate={{ marginLeft: isDesktop ? (isCollapsed ? 80 : 288) : 0 }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="flex-1 flex flex-col min-w-0" // Removed lg:ml-72 xl:ml-80 handled by motion
+      <div
+        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isDesktop && !isCollapsed ? 'lg:ml-72' : ''}`}
       >
         {/* Header - Responsive */}
         <header className="sticky top-0 z-40 bg-[#0a0a0a]/95 backdrop-blur border-b border-[#1dff00]/20 p-2 sm:p-3 lg:p-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
               {currentPage !== "chat" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="lg:hidden text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2"
-                  onClick={() => setSidebarOpen(true)}
-                  title="Open sidebar navigation"
-                  aria-label="Open sidebar"
-                >
-                  <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
-                </Button>
+                <>
+                  {/* Desktop collapse toggle */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="hidden lg:flex text-gray-400 hover:text-[#1dff00] hover:bg-[#1dff00]/10 transition-all duration-200 p-2 mr-2"
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                    aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                  >
+                    <PanelLeft className="w-5 h-5" />
+                  </Button>
+                  {/* Mobile menu button */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="lg:hidden text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 transition-all duration-300 p-1 sm:p-2"
+                    onClick={() => setSidebarOpen(true)}
+                    title="Open sidebar navigation"
+                    aria-label="Open sidebar"
+                  >
+                    <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </Button>
+                </>
               )}
 
               {/* Current page (xs) */}
@@ -550,8 +553,8 @@ export const Dashboard = (): JSX.Element => {
 
         {/* Page Content - Responsive */}
         <div className={`flex-1 flex flex-col min-h-0 relative ${['chat', 'interview-studio'].includes(currentPage)
-            ? 'overflow-hidden'
-            : 'overflow-auto'
+          ? 'overflow-hidden'
+          : 'overflow-auto'
           }`}>
           <AnimatePresence mode="wait">
             <motion.div
@@ -566,7 +569,7 @@ export const Dashboard = (): JSX.Element => {
             </motion.div>
           </AnimatePresence>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };
