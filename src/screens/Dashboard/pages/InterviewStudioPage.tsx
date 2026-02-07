@@ -1,14 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Camera, Video, Download, Square, RectangleHorizontal, RectangleVertical,
-  Mic, MicOff, RefreshCw, Activity, AlertCircle, Sparkles
+  Camera, Video, Mic, MicOff, Activity, AlertCircle, Sparkles,
+  Square, RectangleHorizontal, RectangleVertical
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useRegisterCoachMarks } from "@/providers/TourProvider";
@@ -21,7 +20,7 @@ const aspectRatios = [
   { label: "Square (1:1)", value: "1:1" },
 ];
 
-const FILLER_WORDS = ['um', 'uh', 'like', 'you know', 'basically', 'actually', 'literally', 'so', 'right', 'well'];
+
 
 // Audio Visualizer Component
 const AudioVisualizer = ({ isActive }: { isActive: boolean }) => {
@@ -59,19 +58,10 @@ interface MediaDeviceOption {
   label: string;
 }
 
-interface SpeechMetrics {
-  wordCount: number;
-  fillerCount: number;
-  fillerWords: Record<string, number>;
-  transcription: string;
-  confidenceScore: number;
-  wordsPerMinute: number;
-}
-
 export const InterviewStudioPage: React.FC = () => {
   // Core state
   const [isRecording, setIsRecording] = useState(false);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [prompt, setPrompt] = useState("");
   // const [isFetchingPrompt, setIsFetchingPrompt] = useState(false); // Unused
@@ -92,28 +82,14 @@ export const InterviewStudioPage: React.FC = () => {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Speech analysis state
-  const [metrics, setMetrics] = useState<SpeechMetrics>({
-    wordCount: 0,
-    fillerCount: 0,
-    fillerWords: {},
-    transcription: "",
-    confidenceScore: 0,
-    wordsPerMinute: 0,
-  });
-  const recognitionRef = useRef<any>(null);
-  const recordingStartTimeRef = useRef<number>(0);
 
   // Media refs
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   // Gemini Live Hook
-  const { isConnected, isAIActive, error: liveError, connect, disconnect } = useGeminiLive({
+  const { isAIActive, connect, disconnect } = useGeminiLive({
     apiKey: import.meta.env.VITE_GEMINI_API_KEY || '',
-    onAIStateChange: (active) => {
-      // Optional: Update UI based on AI speaking state
-    }
   });
 
   // Register coach marks for guided tours
@@ -130,7 +106,7 @@ export const InterviewStudioPage: React.FC = () => {
         id: 'interview-record-btn',
         selector: '[data-tour="interview-record-btn"]',
         title: 'Record Button',
-        body: 'Click this button to start recording. Click again to stop. Your video will be available for playback and download.'
+        body: 'Click this button to start the live interview. Click again to stop.'
       },
       {
         id: 'interview-settings',
@@ -220,9 +196,6 @@ export const InterviewStudioPage: React.FC = () => {
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
       }
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
     };
   }, []);
 
@@ -233,64 +206,7 @@ export const InterviewStudioPage: React.FC = () => {
     }
   }, [selectedCamera, selectedMic]);
 
-  // Initialize Web Speech API
-  const initSpeechRecognition = useCallback(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      console.warn("Speech recognition not supported");
-      return null;
-    }
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-
-    recognition.onresult = (event: any) => {
-      let finalTranscript = '';
-      let interimTranscript = '';
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript + ' ';
-        } else {
-          interimTranscript += transcript;
-        }
-      }
-
-      if (finalTranscript) {
-        const words = finalTranscript.toLowerCase().split(/\s+/).filter(w => w.length > 0);
-        const newFillerWords: Record<string, number> = {};
-        let fillerCount = 0;
-
-        words.forEach(word => {
-          if (FILLER_WORDS.includes(word)) {
-            newFillerWords[word] = (newFillerWords[word] || 0) + 1;
-            fillerCount++;
-          }
-        });
-
-        const elapsedMinutes = (Date.now() - recordingStartTimeRef.current) / 60000;
-        const wpm = elapsedMinutes > 0 ? Math.round(words.length / elapsedMinutes) : 0;
-
-        setMetrics(prev => ({
-          wordCount: prev.wordCount + words.length,
-          fillerCount: prev.fillerCount + fillerCount,
-          fillerWords: { ...prev.fillerWords, ...newFillerWords },
-          transcription: prev.transcription + finalTranscript,
-          confidenceScore: Math.max(0, 100 - (fillerCount * 5)),
-          wordsPerMinute: wpm,
-        }));
-      }
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-    };
-
-    return recognition;
-  }, []);
 
   // Fetch interview prompts
   const fetchPrompt = async () => {
@@ -390,31 +306,6 @@ export const InterviewStudioPage: React.FC = () => {
     setCameraEnabled(!cameraEnabled);
   };
 
-  // Download recorded video
-  const handleDownload = () => {
-    if (!videoUrl) return;
-    const a = document.createElement("a");
-    a.href = videoUrl;
-    a.download = `jobraker-interview-${new Date().toISOString().slice(0, 10)}.webm`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
-
-  // Retake - clear video and reset
-  const handleRetake = () => {
-    setVideoUrl(null);
-    setElapsedSeconds(0);
-    setMetrics({
-      wordCount: 0,
-      fillerCount: 0,
-      fillerWords: {},
-      transcription: "",
-      confidenceScore: 0,
-      wordsPerMinute: 0,
-    });
-  };
-
   const getAspectRatioIcon = (value: string) => {
     switch (value) {
       case "9:16": return <RectangleVertical className="w-4 h-4 mr-2" />;
@@ -423,20 +314,6 @@ export const InterviewStudioPage: React.FC = () => {
       case "1:1": return <Square className="w-4 h-4 mr-2" />;
       default: return <RectangleHorizontal className="w-4 h-4 mr-2" />;
     }
-  };
-
-  const getFillerLevel = (count: number): string => {
-    if (count === 0) return "None";
-    if (count <= 3) return "Low";
-    if (count <= 7) return "Moderate";
-    return "High";
-  };
-
-  const getFillerLevelColor = (count: number): string => {
-    if (count === 0) return "text-[#1dff00]";
-    if (count <= 3) return "text-[#1dff00]";
-    if (count <= 7) return "text-yellow-400";
-    return "text-red-400";
   };
 
   return (
@@ -534,13 +411,10 @@ export const InterviewStudioPage: React.FC = () => {
                     className={`w-full h-full object-cover ${!cameraEnabled ? 'opacity-0' : 'opacity-100'}`}
                   />
 
-                  {/* Playback Overlay */}
-                  {!isRecording && videoUrl && (
-                    <video src={videoUrl} controls className="absolute inset-0 w-full h-full object-cover z-20" />
-                  )}
+
 
                   {/* Camera Off State */}
-                  {(!cameraEnabled && !videoUrl) && (
+                  {(!cameraEnabled) && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600 bg-zinc-900 z-10">
                       <Video className="w-8 h-8 mb-2 opacity-50" />
                       <p className="text-xs">Camera Disabled</p>
@@ -548,7 +422,7 @@ export const InterviewStudioPage: React.FC = () => {
                   )}
 
                   {/* No Stream State */}
-                  {!streamInitialized && !videoUrl && cameraEnabled && (
+                  {!streamInitialized && cameraEnabled && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600 bg-zinc-900 z-10">
                       <Camera className="w-8 h-8 mb-2 opacity-50 animate-pulse" />
                       <p className="text-xs">Initializing camera...</p>
@@ -625,24 +499,7 @@ export const InterviewStudioPage: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={!videoUrl}
-                  className="text-gray-400 hover:text-white gap-1.5 h-8 text-xs"
-                  onClick={handleRetake}
-                >
-                  <RefreshCw size={14} /> Retake
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!videoUrl}
-                  onClick={handleDownload}
-                  className="border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-[#1dff00] gap-1.5 rounded-lg h-8 text-xs"
-                >
-                  <Download size={14} /> Save
-                </Button>
+                {/* Actions removed for live interview mode */}
               </div>
             </div>
           </div>
@@ -745,88 +602,20 @@ export const InterviewStudioPage: React.FC = () => {
                   </TabsContent>
 
                   <TabsContent value="analysis" className="mt-0 space-y-4">
-                    {!videoUrl && !isRecording ? (
+                    {!isRecording ? (
                       <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-500">
                         <Activity size={32} className="mb-3 opacity-20" />
-                        <p className="text-xs">Start recording for real-time metrics.</p>
+                        <p className="text-xs">Start interview for real-time AI feedback.</p>
                       </div>
                     ) : (
                       <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        {/* Confidence Score */}
-                        <div className="space-y-1.5">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-gray-400">Confidence Score</span>
-                            <span className="text-[#1dff00]">{metrics.confidenceScore}%</span>
-                          </div>
-                          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${metrics.confidenceScore}%` }}
-                              className="h-full bg-[#1dff00] rounded-full"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="p-3 rounded-lg bg-white/5 border border-white/5 text-center">
-                            <div className="text-lg font-bold text-white mb-0.5">{metrics.wordsPerMinute || '—'}</div>
-                            <div className="text-[9px] uppercase tracking-wide text-gray-500">Words / Min</div>
-                          </div>
-                          <div className="p-3 rounded-lg bg-white/5 border border-white/5 text-center">
-                            <div className={`text-lg font-bold mb-0.5 ${getFillerLevelColor(metrics.fillerCount)}`}>
-                              {getFillerLevel(metrics.fillerCount)}
-                            </div>
-                            <div className="text-[9px] uppercase tracking-wide text-gray-500">Fillers ({metrics.fillerCount})</div>
-                          </div>
-                        </div>
-
-                        {/* Word Count */}
-                        <div className="p-3 rounded-lg bg-white/5 border border-white/5">
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-gray-400">Total Words Spoken</span>
-                            <span className="text-sm font-bold text-white">{metrics.wordCount}</span>
-                          </div>
-                        </div>
-
-                        {/* Filler Words Breakdown */}
-                        {Object.keys(metrics.fillerWords).length > 0 && (
-                          <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                            <h4 className="text-xs font-bold text-yellow-400 mb-2">Filler Words Detected</h4>
-                            <div className="flex flex-wrap gap-2">
-                              {Object.entries(metrics.fillerWords).map(([word, count]) => (
-                                <Badge key={word} variant="outline" className="border-yellow-500/30 text-yellow-400 text-[10px]">
-                                  "{word}" × {count}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Recording Duration */}
-                        <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                          <h4 className="text-xs font-bold text-blue-400 mb-1.5">Recording Duration</h4>
-                          <p className="text-2xl font-mono text-white">
-                            {formatTime(elapsedSeconds)}
+                        <div className="p-4 rounded-lg bg-[#1dff00]/5 border border-[#1dff00]/10 text-center">
+                          <Activity className="w-8 h-8 text-[#1dff00] mx-auto mb-2 animate-pulse" />
+                          <h4 className="text-sm font-bold text-white">AI Listening & Analyzing</h4>
+                          <p className="text-xs text-gray-400 mt-1">
+                            JobRaker is actively listening to your responses and providing real-time voice feedback.
                           </p>
                         </div>
-
-                        {/* Feedback */}
-                        {!isRecording && videoUrl && (
-                          <div className="p-3 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/20">
-                            <h4 className="text-xs font-bold text-[#1dff00] mb-1.5">AI Feedback</h4>
-                            <p className="text-[10px] text-gray-300 leading-relaxed">
-                              {metrics.fillerCount === 0
-                                ? "Excellent! No filler words detected. Your delivery was clean and professional."
-                                : metrics.fillerCount <= 3
-                                  ? "Good job! Very few filler words used. Try to be mindful of minor pauses."
-                                  : metrics.fillerCount <= 7
-                                    ? "Watch out for filler words like 'um' and 'like'. Practice pausing silently instead."
-                                    : "Consider slowing down. High filler word usage can reduce your perceived confidence."
-                              }
-                            </p>
-                          </div>
-                        )}
                       </div>
                     )}
                   </TabsContent>
@@ -839,5 +628,6 @@ export const InterviewStudioPage: React.FC = () => {
     </div>
   );
 };
+
 
 export default InterviewStudioPage;
