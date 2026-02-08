@@ -1,3 +1,4 @@
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Camera, Video, Mic, MicOff, Activity, AlertCircle, Sparkles,
   Square, Settings2, Edit2, Check
@@ -199,14 +200,18 @@ export const InterviewStudioPage: React.FC = () => {
 
   const toggleMic = () => {
     if (streamRef.current && !isRecording) {
-      streamRef.current.getAudioTracks().forEach(t => t.enabled = !micEnabled);
+      streamRef.current.getAudioTracks().forEach((track: MediaStreamTrack) => {
+        track.enabled = !micEnabled;
+      });
     }
     setMicEnabled(!micEnabled);
   };
 
   const toggleCamera = () => {
     if (streamRef.current && !isRecording) {
-      streamRef.current.getVideoTracks().forEach(t => t.enabled = !cameraEnabled);
+      streamRef.current.getVideoTracks().forEach((track: MediaStreamTrack) => {
+        track.enabled = !cameraEnabled;
+      });
     }
     setCameraEnabled(!cameraEnabled);
   };
@@ -298,7 +303,7 @@ export const InterviewStudioPage: React.FC = () => {
                       <Select value={selectedCamera} onValueChange={setSelectedCamera}>
                         <SelectTrigger className="bg-zinc-800 border-zinc-700"><SelectValue placeholder="Select Camera" /></SelectTrigger>
                         <SelectContent className="bg-zinc-800 border-zinc-700 text-white">
-                          {cameraDevices.map(d => <SelectItem key={d.deviceId} value={d.deviceId}>{d.label}</SelectItem>)}
+                          {cameraDevices.map((d: MediaDeviceOption) => <SelectItem key={d.deviceId} value={d.deviceId}>{d.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -307,7 +312,7 @@ export const InterviewStudioPage: React.FC = () => {
                       <Select value={selectedMic} onValueChange={setSelectedMic}>
                         <SelectTrigger className="bg-zinc-800 border-zinc-700"><SelectValue placeholder="Select Mic" /></SelectTrigger>
                         <SelectContent className="bg-zinc-800 border-zinc-700 text-white">
-                          {micDevices.map(d => <SelectItem key={d.deviceId} value={d.deviceId}>{d.label}</SelectItem>)}
+                          {micDevices.map((d: MediaDeviceOption) => <SelectItem key={d.deviceId} value={d.deviceId}>{d.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
