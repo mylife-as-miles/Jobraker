@@ -199,10 +199,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
 };
 
 
-const models = [
-  { id: 'ask', name: 'Ask' },
-  { id: 'agent', name: 'Agent' },
-];
+
 
 
 export const ChatPage = () => {
