@@ -4,6 +4,27 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 console.log("Hello from init-payment!");
 
+// Fetch real-time USD to NGN exchange rate
+async function getUsdToNgnRate(): Promise<number> {
+  try {
+    // Using open.er-api.com - free, no API key required
+    const response = await fetch("https://open.er-api.com/v6/latest/USD");
+    const data = await response.json();
+    
+    if (data.result === "success" && data.rates?.NGN) {
+      console.log(`Exchange rate fetched: 1 USD = ${data.rates.NGN} NGN`);
+      return data.rates.NGN;
+    }
+    
+    // Fallback rate if API fails (as of Feb 2026)
+    console.warn("Exchange rate API failed, using fallback rate");
+    return 1600;
+  } catch (error) {
+    console.error("Error fetching exchange rate:", error);
+    return 1600; // Fallback
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -39,7 +60,7 @@ serve(async (req) => {
     }
 
     // 3. Parse Request Body
-    const { planType, amount, metadata, currency = "USD" } = await req.json();
+    const { planType, amount, metadata } = await req.json();
 
     if (!planType || !amount) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -55,10 +76,14 @@ serve(async (req) => {
       throw new Error("Payment configuration error");
     }
 
-    // Convert amount to smallest currency unit (e.g. cents/kobo) if not already?
-    // User instruction says: amount: amount * 100
-    // Assuming 'amount' passed from frontend is in main unit (e.g. Dollars/Naira)
-    const paystackAmount = Math.round(amount * 100);
+    // 5. Convert USD to NGN
+    const exchangeRate = await getUsdToNgnRate();
+    const amountInNgn = amount * exchangeRate;
+    
+    // Convert to kobo (smallest unit) - Paystack expects amount in kobo
+    const paystackAmount = Math.round(amountInNgn * 100);
+    
+    console.log(`[init-payment] $${amount} USD * ${exchangeRate} = ₦${amountInNgn.toFixed(2)} NGN (${paystackAmount} kobo)`);
 
     const siteUrl = Deno.env.get("SITE_URL")!;
 
@@ -91,17 +116,7 @@ serve(async (req) => {
     const { error: orderError } = await supabaseClient.from("orders").insert({
       user_id: user.id,
       plan_type: planType,
-      total_amount: amount, // Storing as main unit or cents? Schema says integer. Let's store as main unit or ensure consistency.
-      // User schema: "total_amount integer". Usually money is stored as cents/kobo.
-      // Let's store as cents/kobo to be safe and precise.
-      // WAIT: "amount" in request is likely e.g. 19 (dollars).
-      // Paystack takes 1900.
-      // I'll store 1900 in DB to match "integer" expectation for currency.
-      // Actually, let's just stick to "amount" from request if it's already an integer?
-      // No, frontend usually sends 19.
-      // I will store the *paystackAmount* (cents) in the DB to avoid float issues.
-      // Wait, schema comment says "Amount in cents/kobo".
-      // So I'll store paystackAmount.
+
       total_amount: paystackAmount,
       tx_id: paystackData.data.reference,
       is_success: false,

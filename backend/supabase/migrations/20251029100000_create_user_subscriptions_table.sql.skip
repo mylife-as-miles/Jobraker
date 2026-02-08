@@ -14,6 +14,20 @@ CREATE TABLE IF NOT EXISTS public.user_subscriptions (
     UNIQUE(user_id, subscription_plan_id)
 );
 
+-- Ensure columns exist (in case table existed with different schema)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_subscriptions' AND column_name = 'started_at') THEN
+        ALTER TABLE public.user_subscriptions ADD COLUMN started_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_subscriptions' AND column_name = 'expires_at') THEN
+        ALTER TABLE public.user_subscriptions ADD COLUMN expires_at TIMESTAMPTZ;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_subscriptions' AND column_name = 'cancelled_at') THEN
+        ALTER TABLE public.user_subscriptions ADD COLUMN cancelled_at TIMESTAMPTZ;
+    END IF;
+END $$;
+
 -- Add indexes for performance
 CREATE INDEX IF NOT EXISTS idx_user_subscriptions_user_id ON public.user_subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_subscriptions_subscription_plan_id ON public.user_subscriptions(subscription_plan_id);
