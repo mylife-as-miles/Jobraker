@@ -48,7 +48,7 @@ serve(async (req) => {
 
                 try {
                     for await (const chunk of stream) {
-                        const text = chunk.text();
+                        const text = typeof chunk.text === 'function' ? chunk.text() : chunk.text;
                         if (text) {
                             const data = JSON.stringify({ delta: text });
                             const message = `event: message\ndata: ${data}\n\n`;

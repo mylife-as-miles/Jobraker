@@ -616,7 +616,7 @@ export const ChatPage = () => {
                         : 'glass-panel text-slate-200 rounded-tl-sm border-white/10'
                         }`}>
                         {m.role === 'user' ? (
-                          <div className="text-sm prose prose-invert break-words whitespace-pre-wrap">{m.content}</div>
+                          <div className="text-sm break-words whitespace-pre-wrap">{m.content}</div>
                         ) : (
                           <div className="text-sm prose prose-invert max-w-none overflow-hidden">
                             <ReactMarkdown
