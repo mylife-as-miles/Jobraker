@@ -398,8 +398,42 @@ export const ChatPage = () => {
     );
 
     // Update session title on first user message
-    if (currentMessages.filter(m => m.role === 'user').length === 0) {
-      setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, title: (message.text || 'New Chat').slice(0, 48) } : s));
+    const isFirstMessage = currentMessages.filter(m => m.role === 'user').length === 0;
+
+    if (isFirstMessage && activeSessionId) {
+      // 1. Optimistically set title to user message (truncated)
+      const optimisticTitle = (message.text || 'New Chat').slice(0, 40);
+      setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, title: optimisticTitle } : s));
+
+      // 2. Async call to generate AI title
+      (async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://127.0.0.1:54321';
+          const fnUrl = `${supabaseUrl}/functions/v1/generate-title`;
+
+          const response = await fetch(fnUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.access_token}`,
+            },
+            body: JSON.stringify({ message: message.text }),
+          });
+
+          if (response.ok) {
+            const { title } = await response.json();
+            if (title) {
+              // Update UI
+              setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, title } : s));
+              // Update DB
+              await supabase.from('chat_sessions').update({ title }).eq('id', activeSessionId);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to generate AI title", error);
+        }
+      })();
     }
 
     setText('');
