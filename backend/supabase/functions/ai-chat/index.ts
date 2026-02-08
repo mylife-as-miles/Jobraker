@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createGeminiClient, GEMINI_MODEL, GEMINI_TOOLS } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { fetchUserContext, formatUserContextForPrompt } from "../_shared/user-context.ts";
+import { APP_INTERFACE_GUIDE } from "../_shared/app-map.ts";
 
 console.log("Hello from ai-chat!");
 
@@ -84,6 +85,9 @@ serve(async (req) => {
 
     // Build system instruction based on mode
     let systemInstruction = system || "";
+    
+    // Inject App Interface Guide for ALL modes so it knows where it is
+    systemInstruction += `\n\n${APP_INTERFACE_GUIDE}`;
     
     if (mode === "ask" && userContext) {
       // RAG mode: inject user context

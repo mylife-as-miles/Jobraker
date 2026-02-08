@@ -10,7 +10,7 @@ export interface UserContext {
   subscriptionTier: string;
   credits: number;
   recentApplications: { job_title: string; company: string; status: string }[];
-  recentCoverLetters: { name: string; role: string | null; company: string | null }[];
+  recentCoverLetters: { name: string; role: string | null; company: string | null; content: string | null }[];
   resumes: { name: string; status: string }[];
 }
 
@@ -39,7 +39,7 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     supabase.from("chat_sessions").select("title").eq("user_id", userId).order("updated_at", { ascending: false }).limit(5),
     supabase.from("user_credits").select("balance").eq("user_id", userId).single(),
     supabase.from("applications").select("job_title, company, status").eq("user_id", userId).order("updated_at", { ascending: false }).limit(5),
-    supabase.from("cover_letters").select("name, role, company").eq("user_id", userId).order("updated_at", { ascending: false }).limit(3),
+    supabase.from("cover_letters").select("name, role, company, content").eq("user_id", userId).order("updated_at", { ascending: false }).limit(3),
     supabase.from("resumes").select("name, status").eq("user_id", userId).order("updated_at", { ascending: false }).limit(3)
   ]);
 
@@ -106,7 +106,15 @@ export function formatUserContextForPrompt(context: UserContext): string {
   if (context.recentCoverLetters.length > 0) {
     lines.push(`\n## Recent Cover Letters`);
     context.recentCoverLetters.forEach(cl => {
-      lines.push(`- ${cl.name} (For: ${cl.role || 'General'} at ${cl.company || 'Unknown'})`);
+      lines.push(`### ${cl.name}`);
+      lines.push(`Target: ${cl.role || 'General'} at ${cl.company || 'Unknown'}`);
+      if (cl.content) {
+        lines.push(`Content:\n${cl.content.slice(0, 1500)}`); // Include up to 1500 chars of content
+        if (cl.content.length > 1500) lines.push("...(truncated)");
+      } else {
+        lines.push(`Content: (Empty)`);
+      }
+      lines.push(``);
     });
   }
 

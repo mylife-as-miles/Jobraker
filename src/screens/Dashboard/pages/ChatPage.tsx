@@ -209,7 +209,6 @@ export const ChatPage = () => {
   const { error: toastError } = useToast();
   // UI state
   const [text, setText] = useState('');
-  const [model] = useState(models[0].id);
   const [persona, setPersona] = useState<Persona>('concise');
   const [sessions, setSessions] = useState<{ id: string; title: string; createdAt: number; updatedAt: number; updated_at?: string; messages: BasicMessage[]; responseId?: string | null }[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -733,7 +732,13 @@ export const ChatPage = () => {
                             >
                               {m.content}
                             </ReactMarkdown>
-                            {m.streaming && <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-[#14C314] animate-pulse" />}
+                            {m.streaming && (
+                              m.content ? (
+                                <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-[#14C314] animate-pulse" />
+                              ) : (
+                                <span className="text-sm font-medium text-slate-400 animate-pulse">Thinking...</span>
+                              )
+                            )}
                           </div>
                         )}
                       </div>
