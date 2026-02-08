@@ -1,12 +1,12 @@
 
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useRef, useCallback } from 'react';
+import { createClient } from "@/lib/supabaseClient";
 
 interface UseInterviewSessionProps {
   apiKey?: string; // Kept for interface compatibility but unused
 }
 
-export const useInterviewSession = ({ apiKey }: UseInterviewSessionProps) => {
+export const useInterviewSession = ({ apiKey: _apiKey }: UseInterviewSessionProps) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isAIActive, setIsAIActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -119,6 +119,7 @@ export const useInterviewSession = ({ apiKey }: UseInterviewSessionProps) => {
       setError(null);
       
       // Get current session token for auth
+      const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error("Authentication required");
