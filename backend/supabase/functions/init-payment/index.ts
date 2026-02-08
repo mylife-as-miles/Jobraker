@@ -4,38 +4,6 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 console.log("Hello from init-payment!");
 
-// Fetch real-time USD to NGN exchange rate
-async function getUsdToNgnRate(): Promise<number> {
-  try {
-    // Using exchangerate.host - free, no API key required
-    const response = await fetch("https://api.exchangerate.host/latest?base=USD&symbols=NGN");
-    const data = await response.json();
-    
-    if (data.success && data.rates?.NGN) {
-      console.log(`Exchange rate fetched: 1 USD = ${data.rates.NGN} NGN`);
-      return data.rates.NGN;
-    }
-    
-    // Fallback to alternative API if first fails
-    const fallbackResponse = await fetch("https://open.er-api.com/v6/latest/USD");
-    const fallbackData = await fallbackResponse.json();
-    
-    if (fallbackData.result === "success" && fallbackData.rates?.NGN) {
-      console.log(`Fallback exchange rate: 1 USD = ${fallbackData.rates.NGN} NGN`);
-      return fallbackData.rates.NGN;
-    }
-    
-    // If all APIs fail, use a reasonable fallback rate (updated periodically)
-    // As of January 2026 - this should be updated if APIs consistently fail
-    console.warn("Exchange rate APIs failed, using fallback rate");
-    return 1600;
-  } catch (error) {
-    console.error("Error fetching exchange rate:", error);
-    // Fallback rate if network error
-    return 1600;
-  }
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -71,7 +39,7 @@ serve(async (req) => {
     }
 
     // 3. Parse Request Body
-    const { planType, amount, metadata } = await req.json();
+    const { planType, amount, metadata, currency = "USD" } = await req.json();
 
     if (!planType || !amount) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -87,129 +55,70 @@ serve(async (req) => {
       throw new Error("Payment configuration error");
     }
 
-    console.log(`[init-payment] Processing payment for plan: ${planType}, Amount: ${amount} USD`);
+    // Convert amount to smallest currency unit (e.g. cents/kobo) if not already?
+    // User instruction says: amount: amount * 100
+    // Assuming 'amount' passed from frontend is in main unit (e.g. Dollars/Naira)
+    const paystackAmount = Math.round(amount * 100);
 
-    // 5. Convert USD to NGN using real-time exchange rate
-    const exchangeRate = await getUsdToNgnRate();
-    let amountInNgn = amount * exchangeRate;
-    
-    // Safety check for NaN
-    if (isNaN(amountInNgn)) {
-        console.error("[init-payment] Conversion resulted in NaN. Using fallback conversion.");
-        amountInNgn = amount * 1600;
-    }
+    const siteUrl = Deno.env.get("SITE_URL")!;
 
-    // Convert to kobo (smallest unit) - Paystack expects amount in kobo
-    const paystackAmountNGN = Math.round(amountInNgn * 100);
-    
-    console.log(`[init-payment] Trying NGN Init: $${amount} USD * ${exchangeRate} = ₦${amountInNgn.toFixed(2)} NGN -> ${paystackAmountNGN} kobo`);
-
-    let paystackData;
-    let usedCurrency = "NGN";
-    let finalPaystackAmount = paystackAmountNGN;
-
-    // --- ATTEMPT 1: NGN ---
-    const payloadNGN = {
-      email: user.email,
-      amount: paystackAmountNGN, // Pass as number (integer)
-      currency: "NGN",
-      callback_url: `${req.headers.get("origin")}/dashboard/billing?payment=verify`,
-      metadata: {
-        ...metadata,
-        user_id: user.id,
-        plan_type: planType,
-        original_amount_usd: amount,
-        exchange_rate: exchangeRate,
-        is_test: paystackSecret.startsWith("sk_test"), // Diagnostic tag
-      },
-    };
-
-    console.log(`[init-payment] Attempting NGN initialization...`);
-    const resNGN = await fetch("https://api.paystack.co/transaction/initialize", {
+    const paystackRes = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
-      headers: { Authorization: `Bearer ${paystackSecret}`, "Content-Type": "application/json" },
-      body: JSON.stringify(payloadNGN),
+      headers: {
+        Authorization: `Bearer ${paystackSecret}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: user.email,
+        amount: paystackAmount,
+        callback_url: `${siteUrl}/dashboard/billing?payment=verify`, // Redirect back to dashboard
+        metadata: {
+          ...metadata,
+          user_id: user.id,
+          plan_type: planType,
+        },
+      }),
     });
-    
-    paystackData = await resNGN.json();
 
-    // --- ATTEMPT 2: USD (Fallback if NGN is unsupported) ---
-    if (!paystackData.status && (paystackData.code === "unsupported_currency" || paystackData.message?.toLowerCase().includes("currency"))) {
-        console.warn(`[init-payment] NGN Attempt Failed: ${paystackData.message || "Unknown Error"}. Trying USD Fallback...`);
-        console.log("[init-payment] Full NGN Error Response:", JSON.stringify(paystackData));
-        
-        const paystackAmountUSD = Math.round(amount * 100); // Cents
-        usedCurrency = "USD";
-        finalPaystackAmount = paystackAmountUSD;
-
-        const payloadUSD = {
-            email: user.email,
-            amount: paystackAmountUSD, // Pass as number (integer)
-            currency: "USD",
-            callback_url: `${req.headers.get("origin")}/dashboard/billing?payment=verify`,
-            metadata: {
-                ...metadata,
-                user_id: user.id,
-                plan_type: planType,
-                original_amount_usd: amount,
-                is_test: paystackSecret.startsWith("sk_test"),
-            },
-            channels: ['card'] // Only card supports international USD usually
-        };
-
-        const resUSD = await fetch("https://api.paystack.co/transaction/initialize", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${paystackSecret}`, "Content-Type": "application/json" },
-            body: JSON.stringify(payloadUSD),
-        });
-
-        paystackData = await resUSD.json();
-        
-        if (!paystackData.status) {
-            console.error("[init-payment] USD Fallback also failed.");
-            console.log("[init-payment] Full USD Error Response:", JSON.stringify(paystackData));
-        }
-    }
-
-    console.log("[init-payment] Paystack final response:", JSON.stringify(paystackData));
+    const paystackData = await paystackRes.json();
 
     if (!paystackData.status) {
-      console.error("[init-payment] Paystack error:", paystackData);
+      console.error("Paystack error:", paystackData);
       throw new Error(paystackData.message || "Failed to initialize payment");
     }
 
-    // 6. Save Order to Database
+    // 5. Save Order to Database
     const { error: orderError } = await supabaseClient.from("orders").insert({
       user_id: user.id,
       plan_type: planType,
-      total_amount: finalPaystackAmount,
-      currency: usedCurrency,
+      total_amount: amount, // Storing as main unit or cents? Schema says integer. Let's store as main unit or ensure consistency.
+      // User schema: "total_amount integer". Usually money is stored as cents/kobo.
+      // Let's store as cents/kobo to be safe and precise.
+      // WAIT: "amount" in request is likely e.g. 19 (dollars).
+      // Paystack takes 1900.
+      // I'll store 1900 in DB to match "integer" expectation for currency.
+      // Actually, let's just stick to "amount" from request if it's already an integer?
+      // No, frontend usually sends 19.
+      // I will store the *paystackAmount* (cents) in the DB to avoid float issues.
+      // Wait, schema comment says "Amount in cents/kobo".
+      // So I'll store paystackAmount.
+      total_amount: paystackAmount,
       tx_id: paystackData.data.reference,
       is_success: false,
-      metadata: {
-        ...metadata,
-        original_amount_usd: amount,
-        exchange_rate: usedCurrency === "NGN" ? exchangeRate : null,
-      },
+      metadata: metadata,
     });
 
     if (orderError) {
-      console.error("[init-payment] limit order creation error:", orderError);
+      console.error("Order creation error:", orderError);
+      throw orderError;
     }
 
-    // 7. Return Authorization URL
-    return new Response(JSON.stringify({ 
-      url: paystackData.data.authorization_url,
-      converted: {
-        from_usd: amount,
-        to_ngn: amountInNgn,
-        rate: exchangeRate,
-      }
-    }), {
+    // 6. Return Authorization URL
+    return new Response(JSON.stringify({ url: paystackData.data.authorization_url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    console.error("[init-payment] Detailed error:", error);
+    console.error("Error in init-payment:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
