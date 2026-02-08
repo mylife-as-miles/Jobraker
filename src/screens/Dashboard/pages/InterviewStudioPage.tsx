@@ -1,7 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Camera, Video, Mic, MicOff, Activity, AlertCircle, Sparkles,
-  Square, RectangleHorizontal, RectangleVertical, Settings2, Edit2, Check
+  Square, Settings2, Edit2, Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -53,7 +52,6 @@ export const InterviewStudioPage: React.FC = () => {
   // Core state
   const [isRecording, setIsRecording] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [aspectRatio] = useState("16:9");
   const [prompt, setPrompt] = useState("");
   const [scriptText, setScriptText] = useState("Hi, my name is [Name] and I'm a software engineer with a passion for building scalable web applications...");
   const [isScriptEditing, setIsScriptEditing] = useState(false);
@@ -77,7 +75,7 @@ export const InterviewStudioPage: React.FC = () => {
   const streamRef = useRef<MediaStream | null>(null);
 
   // 1. AI Logic (Gemini Live)
-  const { isAIActive, connect, disconnect, error: aiError } = useInterviewSession({
+  const { isAIActive, connect, disconnect } = useInterviewSession({
     apiKey: import.meta.env.VITE_GEMINI_API_KEY || '',
   });
 
