@@ -24,16 +24,16 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
   // Fetch profile
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email, subscription_tier")
+    .select("first_name, last_name, job_title")
     .eq("id", userId)
     .single();
 
-  // Fetch latest parsed resume summary
+  // Fetch latest parsed resume structured data
   const { data: resume } = await supabase
     .from("parsed_resumes")
-    .select("summary, skills, experience")
+    .select("json")
     .eq("user_id", userId)
-    .order("created_at", { ascending: false })
+    .order("extracted_at", { ascending: false })
     .limit(1)
     .single();
 
@@ -52,20 +52,29 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     .eq("user_id", userId)
     .single();
 
-  // Build resume summary string
+  // Build resume summary string from JSON blob
   let resumeSummary = null;
-  if (resume) {
+  if (resume?.json) {
+    const data = resume.json;
     const parts = [];
-    if (resume.summary) parts.push(resume.summary);
-    if (resume.skills?.length) parts.push(`Skills: ${resume.skills.slice(0, 10).join(", ")}`);
-    if (resume.experience?.length) {
-      const recentJob = resume.experience[0];
+    
+    if (data.summary) parts.push(data.summary);
+    if (data.skills?.length) parts.push(`Skills: ${data.skills.slice(0, 10).join(", ")}`);
+    
+    // Handle experience array from JSON
+    if (Array.isArray(data.experience) && data.experience.length > 0) {
+      const recentJob = data.experience[0];
       if (recentJob?.title && recentJob?.company) {
         parts.push(`Most recent role: ${recentJob.title} at ${recentJob.company}`);
       }
     }
+    
     resumeSummary = parts.join(". ");
   }
+
+  const name = profile 
+    ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "User"
+    : "User";
 
   return {
     userId,
