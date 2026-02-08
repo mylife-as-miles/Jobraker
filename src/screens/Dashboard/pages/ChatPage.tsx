@@ -740,42 +740,13 @@ export const ChatPage = () => {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 md:p-6 pt-0 w-full max-w-5xl mx-auto z-10 shrink-0">
-              <div className="relative glass-panel rounded-3xl border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden bg-[#0a0a0a]/80 backdrop-blur-xl">
-                <div className="flex flex-col">
-                  {/* Toolbar */}
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-white/5">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setPersona('concise')}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${persona === 'concise'
-                          ? 'bg-[#14C314]/10 text-[#14C314] border-[#14C314]/20'
-                          : 'text-slate-500 dark:text-slate-400 border-transparent hover:bg-white/5'
-                          }`}
-                      >
-                        <Bolt size={14} />
-                        Ask
-                      </button>
-                      <button
-                        onClick={() => setPersona('analyst')}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${persona === 'analyst'
-                          ? 'bg-[#14C314]/10 text-[#14C314] border-[#14C314]/20'
-                          : 'text-slate-500 dark:text-slate-400 border-transparent hover:bg-white/5'
-                          }`}
-                      >
-                        <BookOpen size={14} />
-                        Agent
-                      </button>
-                    </div>
-                    <div className="flex gap-2">
-                      <button className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 transition-colors">
-                        <Paperclip size={18} />
-                      </button>
-                    </div>
-                  </div>
+            <div className="p-4 md:p-6 pt-0 w-full max-w-4xl mx-auto z-10 shrink-0">
+              <div className={`relative rounded-[24px] border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden transition-all duration-300 ${text.trim() ? 'bg-white dark:bg-[#0a0a0a] ring-1 ring-[#14C314]/50 border-[#14C314]/50' : 'bg-white/80 dark:bg-[#0a0a0a]/60 backdrop-blur-xl'
+                }`}>
 
+                <div className="flex flex-col">
                   {/* Textarea */}
-                  <div className="relative flex items-center p-2">
+                  <div className="relative flex items-end p-2 pb-2">
                     <textarea
                       ref={textareaRef}
                       value={text}
@@ -786,21 +757,60 @@ export const ChatPage = () => {
                           if (text.trim()) handleSubmit({ text } as any);
                         }
                       }}
-                      className="w-full bg-transparent border-none focus:ring-0 text-slate-900 dark:text-white placeholder:text-slate-500 py-4 px-4 resize-none min-h-[56px] max-h-48 text-lg"
-                      placeholder="Message JobRaker AI..."
+                      className="w-full bg-transparent border-none focus:ring-0 text-slate-900 dark:text-white placeholder:text-slate-400 py-3 px-4 resize-none min-h-[48px] max-h-48 text-base leading-relaxed scrollbar-hide"
+                      placeholder="Ask detailed questions about your career..."
                       rows={1}
+                      style={{ height: 'auto', minHeight: '52px' }}
+                      onInput={(e) => {
+                        const target = e.target as HTMLTextAreaElement;
+                        target.style.height = 'auto';
+                        target.style.height = `${target.scrollHeight}px`;
+                      }}
                     />
+
                     <button
                       onClick={() => text.trim() && handleSubmit({ text } as any)}
                       disabled={!text.trim() || status === 'in_progress'}
-                      className={`absolute right-4 bottom-4 w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-lg ${text.trim()
-                        ? 'bg-[#14C314] hover:bg-green-500 text-black shadow-[#14C314]/20'
-                        : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                      className={`mb-1.5 mr-1.5 w-8 h-8 rounded-full flex items-center justify-center transition-all ${text.trim()
+                        ? 'bg-[#14C314] hover:bg-green-500 text-black shadow-[0_0_15px_rgba(20,195,20,0.3)]'
+                        : 'bg-slate-200 dark:bg-white/10 text-slate-400 dark:text-white/20 cursor-not-allowed'
                         }`}
                     >
-                      <ArrowUp size={20} className="font-bold" />
+                      <ArrowUp size={16} className="font-bold" />
                     </button>
                   </div>
+
+                  {/* Toolbar - Moved to bottom for cleaner "Input first" feel */}
+                  <div className="flex items-center justify-between px-4 pb-3 pt-0">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPersona('concise')}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors ${persona === 'concise'
+                          ? 'bg-[#14C314]/10 text-[#14C314] border-[#14C314]/20'
+                          : 'text-slate-500 dark:text-slate-400 border-transparent hover:bg-slate-100 dark:hover:bg-white/5'
+                          }`}
+                      >
+                        <Bolt size={12} />
+                        Ask
+                      </button>
+                      <button
+                        onClick={() => setPersona('analyst')}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors ${persona === 'analyst'
+                          ? 'bg-[#14C314]/10 text-[#14C314] border-[#14C314]/20'
+                          : 'text-slate-500 dark:text-slate-400 border-transparent hover:bg-slate-100 dark:hover:bg-white/5'
+                          }`}
+                      >
+                        <BookOpen size={12} />
+                        Agent
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                        <Paperclip size={16} />
+                      </button>
+                    </div>
+                  </div>
+
                 </div>
               </div>
               <p className="text-center text-[10px] text-slate-500 mt-3 uppercase tracking-widest font-medium">
