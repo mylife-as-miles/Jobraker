@@ -43,7 +43,7 @@ const customStyles = `
 type Persona = 'concise' | 'friendly' | 'analyst' | 'coach';
 interface BasicMessage { id: string; role: 'user' | 'assistant'; content: string; parts?: { type: 'text'; text: string }[]; streaming?: boolean; createdAt: number; meta?: { persona?: Persona; parent?: string } }
 interface UseChatOptions { api: string; initialMessages?: BasicMessage[]; onFinish?: (msg: BasicMessage) => void; }
-interface UseChatReturn { messages: BasicMessage[]; status: 'idle' | 'in_progress'; append: (m: { role: 'user'; content: string }, opts?: { model?: string; webSearch?: boolean; system?: string }) => void; regenerate: () => void; setMessages: (m: BasicMessage[]) => void; responseId: string | null; setResponseId: (id: string | null) => void }
+interface UseChatReturn { messages: BasicMessage[]; status: 'idle' | 'in_progress'; append: (m: { role: 'user'; content: string }, opts?: { model?: string; webSearch?: boolean; system?: string; mode?: 'ask' | 'agent' }) => void; regenerate: () => void; setMessages: (m: BasicMessage[]) => void; responseId: string | null; setResponseId: (id: string | null) => void }
 
 const useChat = (opts: UseChatOptions): UseChatReturn => {
   const [messages, setMessages] = useState<BasicMessage[]>(opts.initialMessages || []);
@@ -51,7 +51,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
   const [responseId, setResponseId] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const append = useCallback(async (m: { role: 'user'; content: string }, chatOpts?: { model?: string; webSearch?: boolean; system?: string }) => {
+  const append = useCallback(async (m: { role: 'user'; content: string }, chatOpts?: { model?: string; webSearch?: boolean; system?: string; mode?: 'ask' | 'agent' }) => {
     if (status === 'in_progress') return;
 
     const userMessage: BasicMessage = { id: nanoid(), role: 'user', content: m.content, createdAt: Date.now(), parts: [{ type: 'text', text: m.content }] };
@@ -84,6 +84,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             role: m.role,
             content: m.content
           })),
+          mode: chatOpts?.mode || 'ask', // 'ask' for RAG, 'agent' for function calling
           webSearch: chatOpts?.webSearch,
           system: chatOpts?.system,
           previous_response_id: responseId,
@@ -388,12 +389,16 @@ export const ChatPage = () => {
 
     const currentMessages = sessions.find(s => s.id === activeSessionId)?.messages || [];
 
+    // Map persona to mode: 'concise' = ask, 'analyst' = agent
+    const mode = persona === 'analyst' ? 'agent' : 'ask';
+
     append(
       { role: 'user', content: message.text || '' },
       {
-        model: model === 'agent' ? 'openai/gpt-4o' : 'openai/gpt-4o-mini',
+        model: 'gemini-3-pro-preview',
         webSearch: false,
-        system: currentMessages.length === 0 ? systemInstruction : undefined, // Only send system on first turn
+        system: currentMessages.length === 0 ? systemInstruction : undefined,
+        mode,
       }
     );
 
