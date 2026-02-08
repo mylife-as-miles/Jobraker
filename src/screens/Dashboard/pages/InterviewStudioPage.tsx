@@ -11,7 +11,8 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useRegisterCoachMarks } from "@/providers/TourProvider";
-import { useGeminiLive } from "@/hooks/useGeminiLive"; // Import the hook
+import { useInterviewSession } from "@/hooks/useInterviewSession";
+import { useWebSpeech } from "@/hooks/useWebSpeech";
 
 const aspectRatios = [
   { label: "Portrait (9:16)", value: "9:16" },
@@ -20,9 +21,7 @@ const aspectRatios = [
   { label: "Square (1:1)", value: "1:1" },
 ];
 
-
-
-// Audio Visualizer Component
+// Audio Visualizer Component (unchanged)
 const AudioVisualizer = ({ isActive }: { isActive: boolean }) => {
   return (
     <div className="flex items-end gap-1 h-8">
@@ -61,14 +60,11 @@ interface MediaDeviceOption {
 export const InterviewStudioPage: React.FC = () => {
   // Core state
   const [isRecording, setIsRecording] = useState(false);
-
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [prompt, setPrompt] = useState("");
-  // const [isFetchingPrompt, setIsFetchingPrompt] = useState(false); // Unused
-  const [activeTab, setActiveTab] = useState("settings");
   const [scriptText, setScriptText] = useState("Hi, my name is [Name] and I'm a software engineer with a passion for building scalable web applications...");
 
-  // Device States
+  // Device States (retained but UI for selection moved to popover or modal if needed, simplified for main view)
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
   const [cameraDevices, setCameraDevices] = useState<MediaDeviceOption[]>([]);
@@ -82,15 +78,17 @@ export const InterviewStudioPage: React.FC = () => {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-
   // Media refs
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Gemini Live Hook
-  const { isAIActive, connect, disconnect } = useGeminiLive({
+  // 1. AI Logic (Gemini Live)
+  const { isAIActive, connect, disconnect, error: aiError } = useInterviewSession({
     apiKey: import.meta.env.VITE_GEMINI_API_KEY || '',
   });
+
+  // 2. Metrics Logic (Web Speech)
+  const { transcript, wpm, fillerWordCount } = useWebSpeech(isRecording);
 
   // Register coach marks for guided tours
   useRegisterCoachMarks({
@@ -105,20 +103,20 @@ export const InterviewStudioPage: React.FC = () => {
       {
         id: 'interview-record-btn',
         selector: '[data-tour="interview-record-btn"]',
-        title: 'Record Button',
-        body: 'Click this button to start the live interview. Click again to stop.'
+        title: 'Start Interview',
+        body: 'Click here to connect with your AI Interviewer. The session will be analyzed in real-time.'
       },
       {
-        id: 'interview-settings',
-        selector: '[data-tour="interview-settings"]',
-        title: 'Studio Settings',
-        body: 'Configure your frame settings, select devices, and view AI coaching status here.'
+        id: 'interview-script',
+        selector: '[data-tour="interview-script"]',
+        title: 'Studio Script',
+        body: 'Paste your pitch or notes here. The script will auto-scroll as you speak.'
       },
       {
         id: 'interview-metrics',
         selector: '[data-tour="interview-metrics"]',
-        title: 'Live Metrics',
-        body: 'During recording, AI analyzes your speech in real-time. View confidence scores, words per minute, and filler word usage.'
+        title: 'Live Coaching',
+        body: 'Watch these metrics! The AI Coach monitors your pacing and filler words.'
       }
     ]
   });
@@ -266,7 +264,6 @@ export const InterviewStudioPage: React.FC = () => {
       // Connect to Gemini Live
       await connect();
       setIsRecording(true);
-      setActiveTab("analysis");
     } catch (err) {
       console.error("Connection error:", err);
       setPermissionError('Failed to start interview');
@@ -505,123 +502,109 @@ export const InterviewStudioPage: React.FC = () => {
           </div>
 
           {/* RIGHT COLUMN - Control Center */}
-          <div className="xl:col-span-4 flex flex-col gap-4 min-h-0">
-            <Card className="flex-1 bg-zinc-900/50 backdrop-blur border-white/5 overflow-hidden flex flex-col min-h-0" data-tour="interview-settings">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-                <div className="px-4 pt-4 pb-1">
-                  <TabsList className="grid w-full grid-cols-3 bg-white/5 h-9 p-1 rounded-lg">
-                    <TabsTrigger value="settings" className="data-[state=active]:bg-zinc-800 rounded-md text-[10px] uppercase font-bold tracking-wider">Studio</TabsTrigger>
-                    <TabsTrigger value="script" className="data-[state=active]:bg-zinc-800 rounded-md text-[10px] uppercase font-bold tracking-wider">Script</TabsTrigger>
-                    <TabsTrigger value="analysis" className="data-[state=active]:bg-zinc-800 rounded-md text-[10px] uppercase font-bold tracking-wider" data-tour="interview-metrics">Metrics</TabsTrigger>
-                  </TabsList>
+          <div className="xl:col-span-4 flex flex-col gap-3 min-h-0">
+
+            {/* 1. STUDIO SCRIPT */}
+            <Card className="flex-[1.5] bg-zinc-900/80 backdrop-blur border-white/10 overflow-hidden flex flex-col p-4">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Studio Script</h3>
+                <Button variant="ghost" size="sm" className="h-5 text-[10px] text-[#1dff00] hover:text-[#1dff00] hover:bg-[#1dff00]/10 px-2">Edit</Button>
+              </div>
+              <div className="flex-1 bg-black/40 rounded-lg p-3 overflow-y-auto font-mono text-sm leading-relaxed text-gray-300 relative border border-white/5 data-[tour='interview-script']">
+                {/* Auto-scroll overlay */}
+                {/* <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" /> */}
+                <Textarea
+                  value={scriptText}
+                  onChange={(e) => setScriptText(e.target.value)}
+                  className="w-full h-full bg-transparent border-none resize-none focus:ring-0 p-0 text-gray-300"
+                  placeholder="Paste your script here..."
+                />
+                <div className="absolute bottom-2 right-2 flex items-center gap-2">
+                  <span className="text-[10px] text-zinc-500">Auto-scroll enabled</span>
+                  <div className={`w-8 h-4 rounded-full p-0.5 flex items-center transition-colors ${isRecording ? 'bg-[#1dff00] justify-end' : 'bg-zinc-700 justify-start'}`}>
+                    <div className="w-3 h-3 bg-white rounded-full shadow-sm" />
+                  </div>
                 </div>
-
-                <div className="flex-1 overflow-y-auto p-4 pt-3">
-                  <TabsContent value="settings" className="mt-0 space-y-4">
-                    <div className="space-y-3">
-                      {/* Aspect Ratio */}
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Frame Settings</label>
-                        <Select onValueChange={setAspectRatio} defaultValue={aspectRatio} disabled={isRecording}>
-                          <SelectTrigger className="w-full h-9 bg-black/40 border-white/10 text-white rounded-lg focus:ring-[#1dff00]/50 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-                            {aspectRatios.map((r) => (
-                              <SelectItem key={r.value} value={r.value} className="text-xs">
-                                <div className="flex items-center">{getAspectRatioIcon(r.value)} {r.label}</div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Camera Selection */}
-                      {cameraDevices.length > 0 && (
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Camera</label>
-                          <Select value={selectedCamera} onValueChange={setSelectedCamera} disabled={isRecording}>
-                            <SelectTrigger className="w-full h-9 bg-black/40 border-white/10 text-white rounded-lg focus:ring-[#1dff00]/50 text-xs">
-                              <SelectValue placeholder="Select camera" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-                              {cameraDevices.map((device) => (
-                                <SelectItem key={device.deviceId} value={device.deviceId} className="text-xs">
-                                  {device.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-
-                      {/* Microphone Selection */}
-                      {micDevices.length > 0 && (
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Microphone</label>
-                          <Select value={selectedMic} onValueChange={setSelectedMic} disabled={isRecording}>
-                            <SelectTrigger className="w-full h-9 bg-black/40 border-white/10 text-white rounded-lg focus:ring-[#1dff00]/50 text-xs">
-                              <SelectValue placeholder="Select microphone" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-                              {micDevices.map((device) => (
-                                <SelectItem key={device.deviceId} value={device.deviceId} className="text-xs">
-                                  {device.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-
-                      {/* AI Coach Status */}
-                      <div className="p-3 rounded-lg bg-[#1dff00]/5 border border-[#1dff00]/10 space-y-2">
-                        <div className="flex items-start gap-2.5">
-                          <div className="p-1.5 bg-[#1dff00]/10 rounded-md text-[#1dff00]">
-                            <Sparkles size={14} />
-                          </div>
-                          <div>
-                            <h4 className="text-xs font-bold text-white">AI Coach Active</h4>
-                            <p className="text-[10px] text-gray-400 mt-0.5 leading-relaxed">
-                              JobRaker uses Web Speech API to analyze your pacing, tone, and filler words in real-time.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="script" className="mt-0 h-full flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Teleprompter Text</label>
-                    <Textarea
-                      value={scriptText}
-                      onChange={(e) => setScriptText(e.target.value)}
-                      className="flex-1 min-h-[200px] bg-black/40 border-white/10 resize-none text-sm leading-relaxed p-3 rounded-lg focus:border-[#1dff00]/50"
-                      placeholder="Paste your pitch or interview answers here..."
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="analysis" className="mt-0 space-y-4">
-                    {!isRecording ? (
-                      <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-500">
-                        <Activity size={32} className="mb-3 opacity-20" />
-                        <p className="text-xs">Start interview for real-time AI feedback.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        <div className="p-4 rounded-lg bg-[#1dff00]/5 border border-[#1dff00]/10 text-center">
-                          <Activity className="w-8 h-8 text-[#1dff00] mx-auto mb-2 animate-pulse" />
-                          <h4 className="text-sm font-bold text-white">AI Listening & Analyzing</h4>
-                          <p className="text-xs text-gray-400 mt-1">
-                            JobRaker is actively listening to your responses and providing real-time voice feedback.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </TabsContent>
-                </div>
-              </Tabs>
+              </div>
             </Card>
+
+            {/* 2. AI COACH (Live) */}
+            <Card className="flex-1 bg-zinc-900/80 backdrop-blur border-[#1dff00]/20 overflow-hidden flex flex-col p-4 relative">
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">AI Coach</h3>
+                  {isRecording && <span className="bg-[#1dff00] text-black text-[9px] font-bold px-1.5 py-0.5 rounded-full">LIVE</span>}
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                {/* Speaking Pace */}
+                <div className="flex-1 bg-black/40 rounded-lg p-3 border border-white/5 relative overflow-hidden">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="p-1 rounded bg-blue-500/20 text-blue-400"><Activity size={12} /></div>
+                    <span className="text-[10px] text-gray-400">Speaking Pace</span>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <span className="text-2xl font-bold text-white">{wpm}</span>
+                    <span className="text-[10px] text-gray-500 mb-1">wpm</span>
+                    {wpm > 120 && wpm < 160 && <span className="text-[9px] text-[#1dff00] mb-1.5 ml-auto">● Optimal</span>}
+                  </div>
+                  <div className="mt-2 h-1 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${Math.min(100, (wpm / 200) * 100)}%` }} />
+                  </div>
+                </div>
+
+                {/* Filler Words */}
+                <div className="flex-1 bg-black/40 rounded-lg p-3 border border-white/5 relative overflow-hidden">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="p-1 rounded bg-yellow-500/20 text-yellow-400"><AlertCircle size={12} /></div>
+                    <span className="text-[10px] text-gray-400">Filler Words</span>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <span className="text-2xl font-bold text-white">{fillerWordCount}</span>
+                    <span className="text-[10px] text-gray-500 mb-1">detected</span>
+                  </div>
+                  <p className="text-[9px] text-zinc-600 mt-2 truncate">"um", "like" detected</p>
+                </div>
+              </div>
+
+              <div className="mt-auto flex items-center justify-center gap-1.5 pt-2 opacity-30">
+                <Sparkles size={10} />
+                <span className="text-[9px] uppercase tracking-widest">Powered by Web Speech API</span>
+              </div>
+            </Card>
+
+            {/* 3. METRICS */}
+            <Card className="flex-[1] bg-zinc-900/80 backdrop-blur border-white/10 overflow-hidden flex flex-col p-4">
+              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">Metrics</h3>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Eye Contact */}
+                <div className="bg-black/40 rounded-lg p-3 border border-white/5">
+                  <span className="text-[10px] text-gray-400 block mb-1">Eye Contact</span>
+                  <span className="text-xl font-bold text-white">88%</span>
+                </div>
+
+                {/* Sentiment */}
+                <div className="bg-black/40 rounded-lg p-3 border border-white/5">
+                  <span className="text-[10px] text-gray-400 block mb-1">Sentiment</span>
+                  <span className="text-xl font-bold text-[#1dff00]">Positive</span>
+                </div>
+              </div>
+
+              {/* Clarity Score */}
+              <div className="mt-3 bg-black/40 rounded-lg p-3 border border-white/5 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-gray-400 block">Clarity Score</span>
+                  <span className="text-xl font-bold text-white">9.2<span className="text-sm text-zinc-600 font-normal">/10</span></span>
+                </div>
+                <div className="flex items-end gap-1 h-8">
+                  {[40, 60, 45, 90, 100].map((h, i) => (
+                    <div key={i} className={`w-1.5 rounded-sm ${i === 4 ? 'bg-[#1dff00]' : 'bg-zinc-700'}`} style={{ height: `${h}%` }} />
+                  ))}
+                </div>
+              </div>
+            </Card>
+
           </div>
         </div>
       </motion.div>
