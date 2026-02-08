@@ -214,6 +214,8 @@ export const ChatPage = () => {
   const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate' | null>(null);
   const [loadingTier, setLoadingTier] = useState(true);
   const supabase = useMemo(() => createClient(), []);
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check subscription tier access
   useEffect(() => {
@@ -372,9 +374,53 @@ export const ChatPage = () => {
 
 
 
-  const handleSubmit = (message: { text: string; files?: any[] }) => {
-    const hasText = !!message.text?.trim();
-    if (!hasText) return;
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setAttachment(e.target.files[0]);
+    }
+  };
+
+  const handleSubmit = async (message: { text: string }) => {
+    if ((!message.text.trim() && !attachment) || status === 'in_progress') return;
+
+    // Reset UI immediately
+    setText('');
+    setAttachment(null);
+    // Reset textarea height
+    const textarea = document.querySelector('textarea');
+    if (textarea) textarea.style.height = 'auto';
+
+    let content = message.text || '';
+
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
+    if (attachment && userId) {
+      try {
+        const fileExt = attachment.name.split('.').pop();
+        const fileName = `${nanoid()}.${fileExt}`;
+        const filePath = `${userId}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('chat-attachments')
+          .upload(filePath, attachment);
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          toastError("Failed to upload attachment");
+          return;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('chat-attachments')
+          .getPublicUrl(filePath);
+
+        content += `\n\n[Attached: ${attachment.name}](${publicUrl})`;
+      } catch (e) {
+        console.error(e);
+        toastError("Error attachment file");
+      }
+    }
 
     const systemInstruction = {
       concise: 'You are a concise and direct assistant.',
@@ -389,7 +435,7 @@ export const ChatPage = () => {
     const mode = persona === 'analyst' ? 'agent' : 'ask';
 
     append(
-      { role: 'user', content: message.text || '' },
+      { role: 'user', content: content },
       {
         model: 'gemini-3-pro-preview',
         webSearch: false,
@@ -812,11 +858,38 @@ export const ChatPage = () => {
                       </button>
                     </div>
                     <div className="flex gap-2">
-                      <button className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        onChange={handleFileSelect}
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`transition-colors ${attachment ? 'text-[#14C314]' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
+                      >
                         <Paperclip size={16} />
                       </button>
                     </div>
                   </div>
+
+                  {attachment && (
+                    <div className="px-4 pb-2">
+                      <div className="inline-flex items-center gap-2 bg-slate-100 dark:bg-white/5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/10">
+                        <Paperclip size={12} className="text-[#14C314]" />
+                        <span className="max-w-[150px] truncate">{attachment.name}</span>
+                        <button
+                          onClick={() => {
+                            setAttachment(null);
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                          }}
+                          className="ml-1 hover:text-red-500"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                 </div>
               </div>
