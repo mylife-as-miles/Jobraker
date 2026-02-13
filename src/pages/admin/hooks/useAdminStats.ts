@@ -238,7 +238,7 @@ export const useUserActivities = () => {
           // Get feature usage - handle gracefully if table doesn't exist
           let jobSearches = 0;
           let autoApplies = 0;
-          let latestActivityDate: Date | null = null;
+          let latestActivityDate: any = null;
           try {
             const { data: transactions } = await supabase
               .from('credit_transactions')
