@@ -280,7 +280,7 @@ export const useUserActivities = () => {
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
           
           let lastActive = profile?.updated_at ? new Date(profile.updated_at) : null;
-          if (latestActivityDate && (!lastActive || latestActivityDate > lastActive)) {
+          if (latestActivityDate && (!lastActive || latestActivityDate.getTime() > lastActive.getTime())) {
             lastActive = latestActivityDate;
           }
           

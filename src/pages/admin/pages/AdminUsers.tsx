@@ -1101,7 +1101,7 @@ export default function AdminUsers() {
                       onChangePlan={() => openChangePlan(user)}
                       onDelete={() => openDelete(user)}
                       onToggleAdmin={() => handleToggleAdmin(user)}
-                      isAdmin={user.roles?.includes('admin')}
+                      isAdmin={user.roles?.includes('admin') ?? false}
                     />
                   </td>
                 </motion.tr>
