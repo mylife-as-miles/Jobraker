@@ -67,12 +67,20 @@ export interface UserGrowthData {
 
 export interface CreditTransaction {
   id: string;
-  user_email: string;
-  type: string;
+  user_email?: string;
+  user_id?: string;
+  type?: string;
+  transaction_type?: string;
   amount: number;
-  balance_before: number;
+  balance_before?: number;
   balance_after: number;
   description: string;
   created_at: string;
   reference_type?: string;
+}
+
+export interface AdminUserDetail extends UserActivity {
+  roles: string[];
+  transactions: CreditTransaction[];
+  created_at?: string;
 }
