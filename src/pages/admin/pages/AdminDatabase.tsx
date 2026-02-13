@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabaseClient';
-import { Database, Table, Layers, HardDrive, Search, Filter, ChevronDown, CheckCircle2, X, FileText, ArrowUpRight, Code, Server, AlertCircle, Loader2 } from 'lucide-react';
+import { Table, Layers, Search, CheckCircle2, X, FileText, Code, Server, AlertCircle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Defined list of core tables to monitor
