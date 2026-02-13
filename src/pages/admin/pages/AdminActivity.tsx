@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { createClient } from '@/lib/supabaseClient';
-import { Activity, Search, Zap, Clock, Loader2, TrendingUp, Filter, ChevronDown, X, FileText, ArrowUpRight, ArrowDownRight, Calendar, User as UserIcon } from 'lucide-react';
+import { Activity, Search, Zap, Clock, Loader2, TrendingUp, Filter, ChevronDown, X, ArrowUpRight, Calendar, User as UserIcon } from 'lucide-react';
+import { Activity, Search, Zap, Clock, Loader2, TrendingUp, Filter, ChevronDown, X, ArrowUpRight, Calendar, User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import { useRecentTransactions } from '../hooks/useAdminStats';
@@ -127,8 +127,6 @@ function ActivityDetailPanel({
 }
 
 export default function AdminActivity() {
-  const supabase = useMemo(() => createClient(), []);
-
   // Data hooks
   // Fetch 300 to get a good sample of recent activity
   const { transactions: recentTransactions, loading } = useRecentTransactions(300);
@@ -461,8 +459,8 @@ export default function AdminActivity() {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium ${activity.reference_type === 'job_search'
-                          ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                          : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                         }`}>
                         {activity.reference_type === 'job_search' ? (
                           <><Search className="w-3 h-3" /> Job Search</>
