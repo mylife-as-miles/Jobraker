@@ -275,9 +275,25 @@ export const useUserActivities = () => {
 
           const full_name = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || null;
 
+          // Get roles - handle gracefully if table doesn't exist
+          let roles: string[] = [];
+          try {
+            const { data: userRoles } = await supabase
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', profile.id);
+            
+            if (userRoles) {
+              roles = userRoles.map((r: any) => r.role);
+            }
+          } catch (e) {
+            // Roles table not deployed yet
+          }
+
           return {
             id: profile.id,
             email,
+            roles,
             full_name,
             updated_at: profile.updated_at,
             credits_balance: creditsBalance,

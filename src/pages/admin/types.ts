@@ -27,6 +27,7 @@ export interface UserActivity {
   auto_applies: number;
   total_spent: number;
   status: 'active' | 'inactive' | 'churned';
+  roles?: string[];
 }
 
 export interface RevenueData {

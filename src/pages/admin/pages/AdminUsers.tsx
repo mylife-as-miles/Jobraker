@@ -18,7 +18,6 @@ import {
   MoreVertical,
   Plus,
   Trash2,
-  Edit,
   Eye,
   X,
   Coins,
@@ -27,7 +26,6 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   RefreshCw,
-  Clock,
   CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -100,6 +98,12 @@ function UserDetailPanel({
                     {user.email}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
+                    {user.roles?.includes('admin') && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-medium bg-[#1dff00]/20 text-[#1dff00] border-[#1dff00]/30 uppercase tracking-wider">
+                        <Shield className="w-3 h-3" />
+                        Admin
+                      </span>
+                    )}
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-medium ${getStatusBadgeClass(user.status)}`}>
                       {user.status}
                     </span>
@@ -147,8 +151,8 @@ function UserDetailPanel({
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${(tx.transaction_type === 'bonus' || tx.transaction_type === 'earn' || tx.transaction_type === 'refill')
-                              ? 'bg-[#1dff00]/20 text-[#1dff00]'
-                              : 'bg-red-500/20 text-red-400'
+                            ? 'bg-[#1dff00]/20 text-[#1dff00]'
+                            : 'bg-red-500/20 text-red-400'
                             }`}>
                             {(tx.transaction_type === 'bonus' || tx.transaction_type === 'earn' || tx.transaction_type === 'refill')
                               ? <ArrowUpRight className="w-4 h-4" />
@@ -162,8 +166,8 @@ function UserDetailPanel({
                         </div>
                         <div className="text-right">
                           <p className={`text-sm font-bold ${(tx.transaction_type === 'bonus' || tx.transaction_type === 'earn' || tx.transaction_type === 'refill')
-                              ? 'text-[#1dff00]'
-                              : 'text-red-400'
+                            ? 'text-[#1dff00]'
+                            : 'text-red-400'
                             }`}>
                             {(tx.transaction_type === 'bonus' || tx.transaction_type === 'earn' || tx.transaction_type === 'refill') ? '+' : '-'}{tx.amount}
                           </p>
@@ -276,8 +280,8 @@ function TopUpDialog({
                     key={qa}
                     onClick={() => setAmount(qa)}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${amount === qa
-                        ? 'bg-[#1dff00]/20 border-[#1dff00] text-[#1dff00]'
-                        : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-[#1dff00]/50'
+                      ? 'bg-[#1dff00]/20 border-[#1dff00] text-[#1dff00]'
+                      : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-[#1dff00]/50'
                       }`}
                   >
                     +{qa}
@@ -432,8 +436,8 @@ function ChangePlanDialog({
                   whileTap={{ scale: 0.99 }}
                   onClick={() => setSelectedPlan(plan.id)}
                   className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl border transition-all ${selectedPlan === plan.id
-                      ? 'bg-[#1dff00]/10 border-[#1dff00] shadow-lg shadow-[#1dff00]/10'
-                      : 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
+                    ? 'bg-[#1dff00]/10 border-[#1dff00] shadow-lg shadow-[#1dff00]/10'
+                    : 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
                     }`}
                 >
                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${selectedPlan === plan.id ? 'bg-[#1dff00]/20' : 'bg-gray-700/50'
@@ -1019,7 +1023,15 @@ export default function AdminUsers() {
                 >
                   <td className="px-6 py-4">
                     <div>
-                      <p className="text-white font-medium group-hover:text-[#1dff00] transition-colors">{user.email}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-white font-medium group-hover:text-[#1dff00] transition-colors">{user.email}</p>
+                        {user.roles?.includes('admin') && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#1dff00]/20 text-[#1dff00] border border-[#1dff00]/30 uppercase tracking-wider">
+                            <Shield className="w-3 h-3" />
+                            Admin
+                          </span>
+                        )}
+                      </div>
                       {user.full_name && (
                         <p className="text-sm text-gray-400">{user.full_name}</p>
                       )}
