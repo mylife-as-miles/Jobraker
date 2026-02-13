@@ -85,3 +85,11 @@ export interface AdminUserDetail extends UserActivity {
   transactions: CreditTransaction[];
   created_at?: string;
 }
+
+export interface AdminTransaction extends CreditTransaction {
+  user: {
+    email: string;
+    full_name: string | null;
+    avatar_url?: string | null;
+  };
+}

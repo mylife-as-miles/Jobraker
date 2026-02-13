@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabaseClient';
-import type { AdminStats, UserActivity, RevenueData } from '../types';
+import type { AdminStats, UserActivity, RevenueData, AdminTransaction } from '../types';
 
 export const useAdminStats = () => {
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -317,6 +317,90 @@ export const useUserActivities = () => {
   };
 
   return { activities, loading, error, refetch: fetchUserActivities };
+};
+
+export const useRecentTransactions = (limit = 100) => {
+  const [transactions, setTransactions] = useState<AdminTransaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const supabase = useMemo(() => createClient(), []);
+
+  const fetchTransactions = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch recent transactions
+      const { data: txs, error: txError } = await supabase
+        .from('credit_transactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (txError) throw txError;
+
+      if (!txs || txs.length === 0) {
+        setTransactions([]);
+        return;
+      }
+
+      // Get unique user IDs
+      const userIds = Array.from(new Set(txs.map((t: any) => t.user_id).filter(Boolean)));
+
+      // Fetch profiles for these users
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, avatar_url')
+        .in('id', userIds);
+      
+      if (profilesError) console.error('Error fetching profiles for transactions:', profilesError);
+
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+
+      // Fetch emails (best effort via RPC or placeholder)
+      // We'll do this in parallel for the unique users
+      const emailMap = new Map<string, string>();
+      await Promise.all(userIds.map(async (uid: any) => {
+        try {
+          const { data: userData } = await supabase
+            .rpc('get_user_email', { user_id: uid })
+            .single();
+          if (userData && (userData as any).email) {
+            emailMap.set(uid, (userData as any).email);
+          } else {
+             emailMap.set(uid, `user-${uid.substring(0, 8)}@jobraker.com`);
+          }
+        } catch (e) {
+          emailMap.set(uid, `user-${uid.substring(0, 8)}@jobraker.com`);
+        }
+      }));
+
+      // Combine data
+      const formattedTransactions: AdminTransaction[] = txs.map((tx: any) => {
+        const profile = profileMap.get(tx.user_id);
+        const email = emailMap.get(tx.user_id) || 'Unknown';
+        
+        return {
+          ...tx,
+          user: {
+            email,
+            full_name: profile ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') : null,
+            avatar_url: profile?.avatar_url || null,
+          }
+        };
+      });
+
+      setTransactions(formattedTransactions);
+    } catch (err) {
+      console.error('Error fetching recent transactions:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [limit]);
+
+  return { transactions, loading, refetch: fetchTransactions };
 };
 
 export const useRevenueData = (days: number = 30) => {
