@@ -1,9 +1,9 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Users, 
-  CreditCard, 
-  TrendingUp, 
+import {
+  LayoutDashboard,
+  Users,
+  CreditCard,
+  TrendingUp,
   Activity,
   Settings,
   Database,
@@ -45,7 +45,7 @@ export default function AdminLayout() {
         const { isCurrentUserAdmin } = await import('@/lib/adminUtils');
         const admin = await isCurrentUserAdmin();
         setIsAdmin(admin);
-        
+
         if (!admin) {
           // Redirect non-admin users to dashboard
           navigate('/dashboard', { replace: true });
@@ -58,7 +58,7 @@ export default function AdminLayout() {
         setChecking(false);
       }
     };
-    
+
     checkAdminAccess();
   }, [navigate]);
 
@@ -166,11 +166,10 @@ export default function AdminLayout() {
                 }}
                 whileHover={{ x: 4 }}
                 whileTap={{ scale: 0.98 }}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                  isActive
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive
                     ? 'bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/10 text-[#1dff00] shadow-lg shadow-[#1dff00]/10 border border-[#1dff00]/30'
                     : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-[#1dff00]/20'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <Icon className={`w-5 h-5 ${isActive ? 'text-[#1dff00]' : ''}`} />
@@ -215,7 +214,7 @@ export default function AdminLayout() {
               >
                 <Menu className="w-6 h-6" />
               </button>
-              
+
               {/* Breadcrumb */}
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-gray-400">Admin</span>
