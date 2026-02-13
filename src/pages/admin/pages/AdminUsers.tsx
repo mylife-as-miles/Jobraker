@@ -593,7 +593,21 @@ function DeleteUserDialog({
 }
 
 // ─── Row Actions Dropdown ─────────────────────────────────────────────────
-function RowActions({ onView, onTopUp, onChangePlan, onDelete }: { onView: () => void; onTopUp: () => void; onChangePlan: () => void; onDelete: () => void; }) {
+function RowActions({
+  onView,
+  onTopUp,
+  onChangePlan,
+  onDelete,
+  onToggleAdmin,
+  isAdmin
+}: {
+  onView: () => void;
+  onTopUp: () => void;
+  onChangePlan: () => void;
+  onDelete: () => void;
+  onToggleAdmin: () => void;
+  isAdmin: boolean;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -622,6 +636,11 @@ function RowActions({ onView, onTopUp, onChangePlan, onDelete }: { onView: () =>
               </button>
               <button onClick={() => { setOpen(false); onChangePlan(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-all">
                 <Crown className="w-4 h-4 text-yellow-400" /> Change Plan
+              </button>
+
+              <button onClick={() => { setOpen(false); onToggleAdmin(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                <Shield className={`w-4 h-4 ${isAdmin ? 'text-[#1dff00]' : 'text-gray-400'}`} />
+                {isAdmin ? 'Remove Admin' : 'Make Admin'}
               </button>
               <div className="border-t border-gray-700/50" />
               <button onClick={() => { setOpen(false); onDelete(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all">
@@ -665,7 +684,7 @@ function getStatusBadgeClass(status: string) {
 // ─── Main Component ───────────────────────────────────────────────────────
 export default function AdminUsers() {
   const { activities, loading, error, refetch } = useUserActivities();
-  const { topUpCredits, changeSubscription, deleteUser, fetchPlans, fetchUserTransactions } = useAdminActions();
+  const { topUpCredits, changeSubscription, deleteUser, updateUserRole, removeUserRole, fetchPlans, fetchUserTransactions } = useAdminActions();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTier, setFilterTier] = useState<'all' | 'Free' | 'Basics' | 'Pro' | 'Ultimate'>('all');
@@ -693,6 +712,20 @@ export default function AdminUsers() {
       setSortField(field);
       setSortOrder('desc');
     }
+  };
+
+  const handleToggleAdmin = async (user: any) => {
+    setActionLoading(true);
+    const isAdmin = user.roles?.includes('admin');
+
+    if (isAdmin) {
+      await removeUserRole(user.id, 'admin');
+    } else {
+      await updateUserRole(user.id, 'admin');
+    }
+
+    await refetch();
+    setActionLoading(false);
   };
 
   // Filter and sort data
@@ -1067,6 +1100,8 @@ export default function AdminUsers() {
                       onTopUp={() => openTopUp(user)}
                       onChangePlan={() => openChangePlan(user)}
                       onDelete={() => openDelete(user)}
+                      onToggleAdmin={() => handleToggleAdmin(user)}
+                      isAdmin={user.roles?.includes('admin')}
                     />
                   </td>
                 </motion.tr>

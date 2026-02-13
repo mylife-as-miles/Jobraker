@@ -146,6 +146,28 @@ export function useAdminActions() {
   }, [supabase, success, showError]);
 
   /**
+   * Remove a role from a user.
+   */
+  const removeUserRole = useCallback(async (userId: string, role: string) => {
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
+        .eq('role', role);
+
+      if (error) throw error;
+
+      success(`Role ${role} removed`);
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error removing role:', err);
+      showError(err.message || 'Failed to remove role');
+      return { success: false, error: err.message };
+    }
+  }, [supabase, success, showError]);
+
+  /**
    * Fetch subscription plans for the plan selector dropdown.
    * Uses credits_per_month (actual DB column name).
    */
@@ -195,6 +217,7 @@ export function useAdminActions() {
     changeSubscription,
     deleteUser,
     updateUserRole,
+    removeUserRole,
     fetchPlans,
     fetchUserTransactions,
   };

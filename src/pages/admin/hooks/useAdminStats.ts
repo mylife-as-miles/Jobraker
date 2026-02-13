@@ -238,12 +238,23 @@ export const useUserActivities = () => {
           // Get feature usage - handle gracefully if table doesn't exist
           let jobSearches = 0;
           let autoApplies = 0;
+          let latestActivityDate: Date | null = null;
           try {
             const { data: transactions } = await supabase
               .from('credit_transactions')
-              .select('reference_type, transaction_type, description')
+              .select('reference_type, transaction_type, description, created_at')
               .eq('user_id', profile.id)
               .eq('transaction_type', 'deduction'); // Use 'deduction' to match actual schema
+            
+            // Track latest activity
+            if (transactions) {
+              transactions.forEach((t: any) => {
+                const date = new Date(t.created_at);
+                if (!latestActivityDate || date > latestActivityDate) {
+                  latestActivityDate = date;
+                }
+              });
+            }
 
             // For job searches, parse the description to get actual job count
             const jobSearchTransactions = (transactions || []).filter((t: any) => t.reference_type === 'job_search');
@@ -264,12 +275,16 @@ export const useUserActivities = () => {
             // Transaction table not deployed yet
           }
 
-          // Determine status based on profile updates
+          // Determine status based on profile updates or recent activity
           const thirtyDaysAgo = new Date();
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-          const profileUpdate = profile?.updated_at ? new Date(profile.updated_at) : null;
           
-          const status = profileUpdate && profileUpdate > thirtyDaysAgo
+          let lastActive = profile?.updated_at ? new Date(profile.updated_at) : null;
+          if (latestActivityDate && (!lastActive || latestActivityDate > lastActive)) {
+            lastActive = latestActivityDate;
+          }
+          
+          const status = lastActive && lastActive > thirtyDaysAgo
             ? 'active'
             : 'inactive';
 
