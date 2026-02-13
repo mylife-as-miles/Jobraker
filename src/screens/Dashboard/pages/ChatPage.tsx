@@ -8,7 +8,8 @@ import remarkGfm from 'remark-gfm';
 import { createClient } from "../../../lib/supabaseClient";
 import {
   MessageSquare, Wand2, Target, FileText, Sparkles, Zap, Plus, Search, Trash2, Bot,
-  Bolt, BookOpen, Paperclip, ArrowUp, PanelLeft
+  Bolt, BookOpen, Paperclip, ArrowUp, PanelLeft,
+  X
 } from 'lucide-react';
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useToast } from "../../../components/ui/toast-provider";
