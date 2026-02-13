@@ -39,7 +39,7 @@ interface SubscriptionPlan {
   name: string;
   description: string;
   price: number;
-  credits_per_cycle: number;
+  credits_per_month: number;
   billing_cycle: string;
   features: string[];
   is_active: boolean;
@@ -76,7 +76,7 @@ export default function AdminSubscriptions() {
     name: '',
     description: '',
     price: 0,
-    credits_per_cycle: 0,
+    credits_per_month: 0,
     billing_cycle: 'monthly',
     features: [],
     is_active: true,
@@ -375,7 +375,7 @@ export default function AdminSubscriptions() {
       name: '',
       description: '',
       price: 0,
-      credits_per_cycle: 0,
+      credits_per_month: 0,
       billing_cycle: 'monthly',
       features: [],
       is_active: true,
@@ -493,7 +493,7 @@ export default function AdminSubscriptions() {
               </div>
             </div>
             <p className="text-3xl font-bold text-white">
-              {Math.floor(plans.reduce((sum, p) => sum + p.credits_per_cycle, 0) / plans.length || 0)}
+              {Math.floor(plans.reduce((sum, p) => sum + p.credits_per_month, 0) / plans.length || 0)}
             </p>
             <p className="text-xs text-gray-500 mt-1">per cycle</p>
           </CardContent>
@@ -574,7 +574,7 @@ export default function AdminSubscriptions() {
                 {/* Credits */}
                 <div className="flex items-center gap-2 p-3 bg-black/30 rounded-lg mb-4">
                   <Zap className="w-4 h-4 text-[#1dff00]" />
-                  <span className="text-sm text-white font-medium">{plan.credits_per_cycle} credits</span>
+                  <span className="text-sm text-white font-medium">{plan.credits_per_month} credits</span>
                   <span className="text-xs text-gray-500">per cycle</span>
                 </div>
 
@@ -957,7 +957,7 @@ function ViewPlanDialog({
                   <Zap className="w-4 h-4 text-[#1dff00]" />
                   Credits
                 </p>
-                <p className="text-3xl font-bold text-[#1dff00]">{plan.credits_per_cycle}</p>
+                <p className="text-3xl font-bold text-[#1dff00]">{plan.credits_per_month}</p>
                 <p className="text-xs text-gray-500 mt-1">per cycle</p>
               </motion.div>
             </div>
@@ -1226,11 +1226,11 @@ function PlanFormDialog({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Credits per Cycle *</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Credits per Month *</label>
                 <input
                   type="number"
-                  value={formData.credits_per_cycle}
-                  onChange={(e) => setFormData({ ...formData, credits_per_cycle: parseInt(e.target.value) })}
+                  value={formData.credits_per_month}
+                  onChange={(e) => setFormData({ ...formData, credits_per_month: parseInt(e.target.value) })}
                   className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
                   placeholder="0"
                   min="0"
@@ -1574,8 +1574,8 @@ function SubscriberChangePlanDialog({
                 whileTap={{ scale: 0.99 }}
                 onClick={() => setSelectedPlanId(plan.id)}
                 className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl border transition-all ${selectedPlanId === plan.id
-                    ? 'bg-[#1dff00]/10 border-[#1dff00] shadow-lg shadow-[#1dff00]/10'
-                    : 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
+                  ? 'bg-[#1dff00]/10 border-[#1dff00] shadow-lg shadow-[#1dff00]/10'
+                  : 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
                   }`}
               >
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${selectedPlanId === plan.id ? 'bg-[#1dff00]/20' : 'bg-gray-700/50'
@@ -1584,7 +1584,7 @@ function SubscriberChangePlanDialog({
                 </div>
                 <div className="flex-1 text-left">
                   <p className="text-white font-medium">{plan.name}</p>
-                  <p className="text-xs text-gray-400">{plan.credits_per_cycle} credits/{plan.billing_cycle}</p>
+                  <p className="text-xs text-gray-400">{plan.credits_per_month} credits/{plan.billing_cycle}</p>
                 </div>
                 <p className="text-white font-bold">${plan.price}</p>
                 {selectedPlanId === plan.id && <CheckCircle2 className="w-5 h-5 text-[#1dff00]" />}
