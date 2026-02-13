@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabaseClient';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Loader2, 
-  Crown, 
-  Zap, 
-  Star, 
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Loader2,
+  Crown,
+  Zap,
+  Star,
   User,
   DollarSign,
   Users,
@@ -17,9 +17,20 @@ import {
   Copy,
   TrendingUp,
   Sparkles,
-  FileText
+  FileText,
+  MoreVertical,
+  RefreshCw,
+  Search,
+  Filter,
+  ChevronDown,
+  Mail,
+  Calendar,
+  AlertTriangle,
+  ArrowRightLeft,
+  Ban,
+  CheckCircle2
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast-provider';
 
@@ -37,6 +48,18 @@ interface SubscriptionPlan {
   created_at: string;
   updated_at: string;
   subscriber_count?: number;
+}
+
+interface SubscriberInfo {
+  id: string;
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  plan_name: string;
+  plan_id: string;
+  status: string;
+  created_at: string;
+  current_period_end: string | null;
 }
 
 export default function AdminSubscriptions() {
@@ -59,9 +82,140 @@ export default function AdminSubscriptions() {
     is_active: true,
   });
 
+  // Subscriber management state
+  const [subscribers, setSubscribers] = useState<SubscriberInfo[]>([]);
+  const [loadingSubscribers, setLoadingSubscribers] = useState(false);
+  const [subscriberSearch, setSubscriberSearch] = useState('');
+  const [subscriberPlanFilter, setSubscriberPlanFilter] = useState<string>('all');
+  const [selectedSubscriber, setSelectedSubscriber] = useState<SubscriberInfo | null>(null);
+  const [showChangePlanDialog, setShowChangePlanDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [subscriberActionLoading, setSubscriberActionLoading] = useState(false);
+
   useEffect(() => {
     fetchPlans();
+    fetchSubscribers();
   }, []);
+
+  const fetchSubscribers = async () => {
+    try {
+      setLoadingSubscribers(true);
+      const { data: subs, error: subsError } = await supabase
+        .from('user_subscriptions')
+        .select('id, user_id, subscription_plan_id, status, created_at, current_period_end, subscription_plans(name)')
+        .order('created_at', { ascending: false });
+
+      if (subsError) throw subsError;
+
+      // Fetch profile info for each subscriber
+      const subscriberList: SubscriberInfo[] = await Promise.all(
+        (subs || []).map(async (sub: any) => {
+          let email = `user-${sub.user_id.substring(0, 8)}@jobraker.com`;
+          let full_name: string | null = null;
+
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('id', sub.user_id)
+              .maybeSingle();
+            if (profile) {
+              full_name = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || null;
+            }
+          } catch (e) { /* ignore */ }
+
+          try {
+            const { data: userData } = await supabase
+              .rpc('get_user_email', { user_id: sub.user_id })
+              .single();
+            if (userData && (userData as any).email) email = (userData as any).email;
+          } catch (e) {
+            /* RPC function doesn't exist */
+          }
+
+          const planName = sub.subscription_plans && !Array.isArray(sub.subscription_plans)
+            ? (sub.subscription_plans as any).name
+            : 'Unknown';
+
+          return {
+            id: sub.id,
+            user_id: sub.user_id,
+            email,
+            full_name,
+            plan_name: planName,
+            plan_id: sub.subscription_plan_id,
+            status: sub.status,
+            created_at: sub.created_at,
+            current_period_end: sub.current_period_end,
+          };
+        })
+      );
+
+      setSubscribers(subscriberList);
+    } catch (err: any) {
+      console.error('Error fetching subscribers:', err);
+    } finally {
+      setLoadingSubscribers(false);
+    }
+  };
+
+  const handleChangeSubscriberPlan = async (subscriber: SubscriberInfo, newPlanId: string, newPlanName: string) => {
+    try {
+      setSubscriberActionLoading(true);
+      const periodEnd = new Date();
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+      const { error } = await supabase
+        .from('user_subscriptions')
+        .update({
+          subscription_plan_id: newPlanId,
+          current_period_start: new Date().toISOString(),
+          current_period_end: periodEnd.toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', subscriber.id);
+
+      if (error) throw error;
+      success(`Subscriber moved to ${newPlanName}`);
+      setShowChangePlanDialog(false);
+      setSelectedSubscriber(null);
+      fetchSubscribers();
+      fetchPlans();
+    } catch (err: any) {
+      showError('Failed to change plan: ' + err.message);
+    } finally {
+      setSubscriberActionLoading(false);
+    }
+  };
+
+  const handleCancelSubscription = async (subscriber: SubscriberInfo) => {
+    try {
+      setSubscriberActionLoading(true);
+      const { error } = await supabase
+        .from('user_subscriptions')
+        .update({ status: 'canceled', updated_at: new Date().toISOString() })
+        .eq('id', subscriber.id);
+
+      if (error) throw error;
+      success('Subscription canceled');
+      setShowCancelDialog(false);
+      setSelectedSubscriber(null);
+      fetchSubscribers();
+      fetchPlans();
+    } catch (err: any) {
+      showError('Failed to cancel: ' + err.message);
+    } finally {
+      setSubscriberActionLoading(false);
+    }
+  };
+
+  const filteredSubscribers = subscribers
+    .filter(s => {
+      const matchesSearch = s.email.toLowerCase().includes(subscriberSearch.toLowerCase()) ||
+        (s.full_name?.toLowerCase().includes(subscriberSearch.toLowerCase()) ?? false);
+      const matchesPlan = subscriberPlanFilter === 'all' || s.plan_name === subscriberPlanFilter;
+      return matchesSearch && matchesPlan;
+    });
 
   const fetchPlans = async () => {
     try {
@@ -72,12 +226,12 @@ export default function AdminSubscriptions() {
         .order('price', { ascending: true });
 
       if (error) throw error;
-      
+
       // Fetch subscriber counts for each plan
       const plansWithCounts = await Promise.all(
         (data || []).map(async (plan) => {
           let subscriberCount = 0;
-          
+
           try {
             // Try to get count of active subscriptions for this plan
             const { count: activeCount, error: subsError } = await supabase
@@ -109,7 +263,7 @@ export default function AdminSubscriptions() {
           }
 
           // Ensure features is always an array of strings
-          const features = Array.isArray(plan.features) 
+          const features = Array.isArray(plan.features)
             ? plan.features.map((f: any) => typeof f === 'string' ? f : (f.name || f.value || JSON.stringify(f)))
             : [];
 
@@ -120,7 +274,7 @@ export default function AdminSubscriptions() {
           };
         })
       );
-      
+
       setPlans(plansWithCounts);
     } catch (err: any) {
       console.error('Error fetching plans:', err);
@@ -137,7 +291,7 @@ export default function AdminSubscriptions() {
         .insert([formData]);
 
       if (error) throw error;
-      
+
       success('Subscription plan created successfully');
       setIsCreateDialogOpen(false);
       resetForm();
@@ -154,7 +308,7 @@ export default function AdminSubscriptions() {
     try {
       // Remove subscriber_count and any other computed fields
       const { subscriber_count, created_at, updated_at, ...updateData } = formData;
-      
+
       // Ensure features is properly formatted as an array
       const dataToUpdate = {
         ...updateData,
@@ -162,7 +316,7 @@ export default function AdminSubscriptions() {
       };
 
       console.log('Updating plan with data:', dataToUpdate);
-      
+
       const { error, data } = await supabase
         .from('subscription_plans')
         .update(dataToUpdate)
@@ -170,7 +324,7 @@ export default function AdminSubscriptions() {
         .select();
 
       if (error) throw error;
-      
+
       console.log('Update successful:', data);
       success('Subscription plan updated successfully');
       setIsEditDialogOpen(false);
@@ -193,7 +347,7 @@ export default function AdminSubscriptions() {
         .eq('id', selectedPlan.id);
 
       if (error) throw error;
-      
+
       success('Subscription plan deleted successfully');
       setIsDeleteDialogOpen(false);
       setSelectedPlan(null);
@@ -506,6 +660,152 @@ export default function AdminSubscriptions() {
         </div>
       )}
 
+      {/* ── Subscribers Table ── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-white">Active Subscribers</h2>
+            <p className="text-sm text-gray-400">Manage individual user subscriptions</p>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => { fetchSubscribers(); fetchPlans(); }}
+            className="p-2.5 rounded-xl border border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/10 transition-all"
+            title="Refresh"
+          >
+            <RefreshCw className="w-5 h-5" />
+          </motion.button>
+        </div>
+
+        {/* Subscriber Filters */}
+        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search subscribers..."
+                  value={subscriberSearch}
+                  onChange={(e) => setSubscriberSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
+                />
+              </div>
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <select
+                  value={subscriberPlanFilter}
+                  onChange={(e) => setSubscriberPlanFilter(e.target.value)}
+                  className="w-full pl-10 pr-10 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white appearance-none focus:border-[#1dff00] focus:outline-none transition-colors cursor-pointer"
+                >
+                  <option value="all">All Plans</option>
+                  {plans.map(p => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+              </div>
+              <div className="flex items-center gap-3 text-sm text-gray-400">
+                <Users className="w-4 h-4" />
+                <span>{filteredSubscribers.length} of {subscribers.length} subscribers</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Subscribers Table */}
+        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20 overflow-hidden">
+          {loadingSubscribers ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 text-[#1dff00] animate-spin" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-800/50 border-b border-[#1dff00]/20">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">
+                      <div className="flex items-center gap-2"><Mail className="w-4 h-4" /> User</div>
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">
+                      <div className="flex items-center gap-2"><Crown className="w-4 h-4" /> Plan</div>
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Status</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">
+                      <div className="flex items-center gap-2"><Calendar className="w-4 h-4" /> Subscribed</div>
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Renews</th>
+                    <th className="px-4 py-4 text-center text-sm font-semibold text-gray-300">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {filteredSubscribers.map((sub, idx) => (
+                    <motion.tr
+                      key={sub.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.02 }}
+                      className="hover:bg-gray-800/30 transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="text-white font-medium">{sub.email}</p>
+                          {sub.full_name && <p className="text-sm text-gray-400">{sub.full_name}</p>}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border text-sm font-medium ${getPlanBadgeClass(sub.plan_name)}`}>
+                          {getPlanBadgeIcon(sub.plan_name)}
+                          {sub.plan_name}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex px-3 py-1 rounded-lg border text-sm font-medium ${sub.status === 'active'
+                          ? 'bg-[#1dff00]/20 text-[#1dff00] border-[#1dff00]/30'
+                          : sub.status === 'canceled'
+                            ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                            : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                          }`}>
+                          {sub.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-gray-400 text-sm">
+                        {new Date(sub.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 text-gray-400 text-sm">
+                        {sub.current_period_end
+                          ? new Date(sub.current_period_end).toLocaleDateString()
+                          : '—'
+                        }
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <SubscriberRowActions
+                          onChangePlan={() => {
+                            setSelectedSubscriber(sub);
+                            setShowChangePlanDialog(true);
+                          }}
+                          onCancel={() => {
+                            setSelectedSubscriber(sub);
+                            setShowCancelDialog(true);
+                          }}
+                          isActive={sub.status === 'active'}
+                        />
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+              {filteredSubscribers.length === 0 && (
+                <div className="py-12 text-center">
+                  <p className="text-gray-400">No subscribers found</p>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+      </div>
+
       {/* View Dialog */}
       <ViewPlanDialog
         plan={selectedPlan}
@@ -541,39 +841,58 @@ export default function AdminSubscriptions() {
         }}
         onConfirm={handleDelete}
       />
+
+      {/* Subscriber Change Plan Dialog */}
+      <SubscriberChangePlanDialog
+        subscriber={selectedSubscriber}
+        isOpen={showChangePlanDialog}
+        onClose={() => { setShowChangePlanDialog(false); setSelectedSubscriber(null); }}
+        onConfirm={handleChangeSubscriberPlan}
+        plans={plans}
+        loading={subscriberActionLoading}
+      />
+
+      {/* Subscriber Cancel Dialog */}
+      <SubscriberCancelDialog
+        subscriber={selectedSubscriber}
+        isOpen={showCancelDialog}
+        onClose={() => { setShowCancelDialog(false); setSelectedSubscriber(null); }}
+        onConfirm={() => selectedSubscriber && handleCancelSubscription(selectedSubscriber)}
+        loading={subscriberActionLoading}
+      />
     </div>
   );
 }
 
 // View Plan Dialog Component
-function ViewPlanDialog({ 
-  plan, 
-  isOpen, 
-  onClose 
-}: { 
-  plan: SubscriptionPlan | null; 
-  isOpen: boolean; 
+function ViewPlanDialog({
+  plan,
+  isOpen,
+  onClose
+}: {
+  plan: SubscriptionPlan | null;
+  isOpen: boolean;
   onClose: () => void;
 }) {
   if (!plan || !isOpen) return null;
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-center justify-center"
     >
       {/* Enhanced Backdrop with gradient */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="absolute inset-0 bg-gradient-to-br from-black/90 via-purple-900/10 to-black/90 backdrop-blur-md"
         onClick={onClose}
       />
-      
+
       {/* Dialog Content with glass morphism */}
-      <motion.div 
+      <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ type: "spring", duration: 0.5 }}
@@ -581,13 +900,13 @@ function ViewPlanDialog({
       >
         {/* Animated gradient border glow */}
         <div className="absolute -inset-1 bg-gradient-to-r from-[#1dff00]/20 via-cyan-500/20 to-purple-500/20 rounded-3xl blur-2xl animate-pulse" />
-        
+
         <div className="relative bg-gradient-to-br from-[#0a0a0a]/95 via-[#111111]/95 to-[#0a0a0a]/95 backdrop-blur-xl border border-[#1dff00]/20 rounded-3xl overflow-y-auto max-h-[90vh] shadow-2xl">
           {/* Sticky Header with glass effect */}
           <div className="sticky top-0 z-10 bg-gradient-to-br from-[#0a0a0a]/98 via-[#111111]/98 to-[#0a0a0a]/98 backdrop-blur-xl border-b border-[#1dff00]/20 p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <motion.div 
+                <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#1dff00]/20 to-cyan-500/20 flex items-center justify-center backdrop-blur-sm border border-[#1dff00]/30 shadow-lg shadow-[#1dff00]/20"
                 >
@@ -615,141 +934,141 @@ function ViewPlanDialog({
           </div>
 
           <div className="p-8 space-y-6 text-white">
-          {/* Pricing Info with enhanced cards */}
-          <div className="grid grid-cols-2 gap-4">
-            <motion.div 
-              whileHover={{ scale: 1.02, y: -2 }}
-              className="p-5 bg-gradient-to-br from-black/40 to-purple-900/20 rounded-2xl border border-purple-500/30 backdrop-blur-sm relative overflow-hidden group"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-              <p className="text-sm text-gray-400 mb-1 flex items-center gap-2">
-                <DollarSign className="w-4 h-4" />
-                Price
-              </p>
-              <p className="text-3xl font-bold text-white">${plan.price}</p>
-              <p className="text-xs text-gray-500 mt-1">{plan.billing_cycle}</p>
-            </motion.div>
-            <motion.div 
-              whileHover={{ scale: 1.02, y: -2 }}
-              className="p-5 bg-gradient-to-br from-black/40 to-[#1dff00]/10 rounded-2xl border border-[#1dff00]/30 backdrop-blur-sm relative overflow-hidden group"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#1dff00]/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-              <p className="text-sm text-gray-400 mb-1 flex items-center gap-2">
-                <Zap className="w-4 h-4 text-[#1dff00]" />
-                Credits
-              </p>
-              <p className="text-3xl font-bold text-[#1dff00]">{plan.credits_per_cycle}</p>
-              <p className="text-xs text-gray-500 mt-1">per cycle</p>
-            </motion.div>
-          </div>
-
-          {/* Description with enhanced styling */}
-          <div className="p-5 bg-gradient-to-br from-black/30 to-blue-900/10 rounded-2xl border border-blue-500/20">
-            <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-blue-400" />
-              Description
-            </h4>
-            <p className="text-white leading-relaxed">{plan.description}</p>
-          </div>
-
-          {/* Features with enhanced styling */}
-          <div>
-            <h4 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-[#1dff00]" />
-              Features Included
-            </h4>
-            <div className="grid grid-cols-1 gap-3">
-              {plan.features?.map((feature, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  whileHover={{ scale: 1.02, x: 4 }}
-                  className="flex items-start gap-3 p-3 bg-gradient-to-r from-black/40 to-[#1dff00]/5 rounded-xl border border-[#1dff00]/20 backdrop-blur-sm group"
-                >
-                  <div className="w-5 h-5 rounded-full bg-[#1dff00]/20 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
-                    <Check className="w-3 h-3 text-[#1dff00]" />
-                  </div>
-                  <span className="text-sm text-gray-200">{feature}</span>
-                </motion.div>
-              ))}
+            {/* Pricing Info with enhanced cards */}
+            <div className="grid grid-cols-2 gap-4">
+              <motion.div
+                whileHover={{ scale: 1.02, y: -2 }}
+                className="p-5 bg-gradient-to-br from-black/40 to-purple-900/20 rounded-2xl border border-purple-500/30 backdrop-blur-sm relative overflow-hidden group"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                <p className="text-sm text-gray-400 mb-1 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4" />
+                  Price
+                </p>
+                <p className="text-3xl font-bold text-white">${plan.price}</p>
+                <p className="text-xs text-gray-500 mt-1">{plan.billing_cycle}</p>
+              </motion.div>
+              <motion.div
+                whileHover={{ scale: 1.02, y: -2 }}
+                className="p-5 bg-gradient-to-br from-black/40 to-[#1dff00]/10 rounded-2xl border border-[#1dff00]/30 backdrop-blur-sm relative overflow-hidden group"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#1dff00]/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                <p className="text-sm text-gray-400 mb-1 flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-[#1dff00]" />
+                  Credits
+                </p>
+                <p className="text-3xl font-bold text-[#1dff00]">{plan.credits_per_cycle}</p>
+                <p className="text-xs text-gray-500 mt-1">per cycle</p>
+              </motion.div>
             </div>
-          </div>
 
-          {/* Limits with enhanced cards */}
-          {(plan.max_resumes || plan.max_cover_letters) && (
+            {/* Description with enhanced styling */}
+            <div className="p-5 bg-gradient-to-br from-black/30 to-blue-900/10 rounded-2xl border border-blue-500/20">
+              <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-blue-400" />
+                Description
+              </h4>
+              <p className="text-white leading-relaxed">{plan.description}</p>
+            </div>
+
+            {/* Features with enhanced styling */}
             <div>
               <h4 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-cyan-400" />
-                Usage Limits
+                <Sparkles className="w-4 h-4 text-[#1dff00]" />
+                Features Included
               </h4>
-              <div className="grid grid-cols-2 gap-4">
-                {plan.max_resumes && (
-                  <motion.div 
-                    whileHover={{ scale: 1.05 }}
-                    className="p-4 bg-gradient-to-br from-black/40 to-cyan-900/20 rounded-xl border border-cyan-500/30 backdrop-blur-sm"
+              <div className="grid grid-cols-1 gap-3">
+                {plan.features?.map((feature, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    whileHover={{ scale: 1.02, x: 4 }}
+                    className="flex items-start gap-3 p-3 bg-gradient-to-r from-black/40 to-[#1dff00]/5 rounded-xl border border-[#1dff00]/20 backdrop-blur-sm group"
                   >
-                    <p className="text-xs text-gray-400 mb-2">Max Resumes</p>
-                    <p className="text-2xl font-bold text-cyan-400">{plan.max_resumes}</p>
+                    <div className="w-5 h-5 rounded-full bg-[#1dff00]/20 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
+                      <Check className="w-3 h-3 text-[#1dff00]" />
+                    </div>
+                    <span className="text-sm text-gray-200">{feature}</span>
                   </motion.div>
-                )}
-                {plan.max_cover_letters && (
-                  <motion.div 
-                    whileHover={{ scale: 1.05 }}
-                    className="p-4 bg-gradient-to-br from-black/40 to-purple-900/20 rounded-xl border border-purple-500/30 backdrop-blur-sm"
-                  >
-                    <p className="text-xs text-gray-400 mb-2">Max Cover Letters</p>
-                    <p className="text-2xl font-bold text-purple-400">{plan.max_cover_letters}</p>
-                  </motion.div>
-                )}
+                ))}
               </div>
             </div>
-          )}
 
-          {/* Status & Dates with enhanced styling */}
-          <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-700/50">
-            <div className="p-4 bg-gradient-to-br from-black/30 to-transparent rounded-xl border border-gray-700/30">
-              <p className="text-xs text-gray-400 mb-2">Status</p>
-              <div className="flex items-center gap-2">
-                {plan.is_active ? (
-                  <>
-                    <motion.div 
-                      animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ repeat: Infinity, duration: 2 }}
-                      className="w-2.5 h-2.5 rounded-full bg-[#1dff00] shadow-lg shadow-[#1dff00]/50" 
-                    />
-                    <span className="text-sm text-[#1dff00] font-semibold">Active</span>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                    <span className="text-sm text-red-400 font-semibold">Inactive</span>
-                  </>
-                )}
+            {/* Limits with enhanced cards */}
+            {(plan.max_resumes || plan.max_cover_letters) && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-cyan-400" />
+                  Usage Limits
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  {plan.max_resumes && (
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      className="p-4 bg-gradient-to-br from-black/40 to-cyan-900/20 rounded-xl border border-cyan-500/30 backdrop-blur-sm"
+                    >
+                      <p className="text-xs text-gray-400 mb-2">Max Resumes</p>
+                      <p className="text-2xl font-bold text-cyan-400">{plan.max_resumes}</p>
+                    </motion.div>
+                  )}
+                  {plan.max_cover_letters && (
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      className="p-4 bg-gradient-to-br from-black/40 to-purple-900/20 rounded-xl border border-purple-500/30 backdrop-blur-sm"
+                    >
+                      <p className="text-xs text-gray-400 mb-2">Max Cover Letters</p>
+                      <p className="text-2xl font-bold text-purple-400">{plan.max_cover_letters}</p>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Status & Dates with enhanced styling */}
+            <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-700/50">
+              <div className="p-4 bg-gradient-to-br from-black/30 to-transparent rounded-xl border border-gray-700/30">
+                <p className="text-xs text-gray-400 mb-2">Status</p>
+                <div className="flex items-center gap-2">
+                  {plan.is_active ? (
+                    <>
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ repeat: Infinity, duration: 2 }}
+                        className="w-2.5 h-2.5 rounded-full bg-[#1dff00] shadow-lg shadow-[#1dff00]/50"
+                      />
+                      <span className="text-sm text-[#1dff00] font-semibold">Active</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                      <span className="text-sm text-red-400 font-semibold">Inactive</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="p-4 bg-gradient-to-br from-black/30 to-transparent rounded-xl border border-gray-700/30">
+                <p className="text-xs text-gray-400 mb-2">Created</p>
+                <p className="text-sm text-white font-medium">{new Date(plan.created_at).toLocaleDateString()}</p>
               </div>
             </div>
-            <div className="p-4 bg-gradient-to-br from-black/30 to-transparent rounded-xl border border-gray-700/30">
-              <p className="text-xs text-gray-400 mb-2">Created</p>
-              <p className="text-sm text-white font-medium">{new Date(plan.created_at).toLocaleDateString()}</p>
+
+            {/* Close Button with enhanced styling */}
+            {/* Close Button with enhanced styling */}
+            <div className="flex justify-end pt-6 border-t border-gray-700/50">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={onClose}
+                className="px-8 py-3.5 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-white rounded-xl font-semibold transition-all duration-200 border border-gray-700 hover:border-gray-600 shadow-lg"
+              >
+                Close
+              </motion.button>
             </div>
-          </div>
-          
-          {/* Close Button with enhanced styling */}
-          {/* Close Button with enhanced styling */}
-          <div className="flex justify-end pt-6 border-t border-gray-700/50">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={onClose}
-              className="px-8 py-3.5 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-white rounded-xl font-semibold transition-all duration-200 border border-gray-700 hover:border-gray-600 shadow-lg"
-            >
-              Close
-            </motion.button>
           </div>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
     </motion.div>
   );
 }
@@ -796,22 +1115,22 @@ function PlanFormDialog({
   if (!isOpen) return null;
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-center justify-center"
     >
       {/* Enhanced Backdrop */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="absolute inset-0 bg-gradient-to-br from-black/90 via-blue-900/10 to-black/90 backdrop-blur-md"
         onClick={onClose}
       />
-      
+
       {/* Dialog Content with animations */}
-      <motion.div 
+      <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ type: "spring", duration: 0.5 }}
@@ -819,13 +1138,13 @@ function PlanFormDialog({
       >
         {/* Animated gradient border glow */}
         <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/30 via-[#1dff00]/30 to-purple-500/30 rounded-3xl blur-2xl animate-pulse" />
-        
+
         <div className="relative bg-gradient-to-br from-[#0a0a0a]/95 via-[#111111]/95 to-[#0a0a0a]/95 backdrop-blur-xl border border-blue-500/20 rounded-3xl overflow-y-auto max-h-[90vh] shadow-2xl">
           {/* Enhanced Sticky Header */}
           <div className="sticky top-0 z-10 bg-gradient-to-br from-[#0a0a0a]/98 via-[#111111]/98 to-[#0a0a0a]/98 backdrop-blur-xl border-b border-blue-500/20 p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <motion.div 
+                <motion.div
                   whileHover={{ rotate: 360 }}
                   transition={{ duration: 0.5 }}
                   className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/20 to-[#1dff00]/20 flex items-center justify-center backdrop-blur-sm border border-blue-500/30 shadow-lg shadow-blue-500/20"
@@ -853,173 +1172,173 @@ function PlanFormDialog({
             </div>
           </div>
 
-        <div className="p-6 space-y-6">
-          {/* Basic Info */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Plan Name *</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
-                placeholder="e.g., Pro, Ultimate"
-              />
+          <div className="p-6 space-y-6">
+            {/* Basic Info */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Plan Name *</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
+                  placeholder="e.g., Pro, Ultimate"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Billing Cycle *</label>
+                <select
+                  value={formData.billing_cycle}
+                  onChange={(e) => setFormData({ ...formData, billing_cycle: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-[#1dff00] focus:outline-none transition-colors"
+                >
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                  <option value="lifetime">Lifetime</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Billing Cycle *</label>
-              <select
-                value={formData.billing_cycle}
-                onChange={(e) => setFormData({ ...formData, billing_cycle: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-[#1dff00] focus:outline-none transition-colors"
-              >
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
-                <option value="lifetime">Lifetime</option>
-              </select>
-            </div>
-          </div>
 
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Description *</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={3}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors resize-none"
-              placeholder="Brief description of the plan..."
-            />
-          </div>
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Description *</label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={3}
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors resize-none"
+                placeholder="Brief description of the plan..."
+              />
+            </div>
 
-          {/* Pricing & Credits */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Price ($) *</label>
-              <input
-                type="number"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
-                placeholder="0.00"
-                step="0.01"
-                min="0"
-              />
+            {/* Pricing & Credits */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Price ($) *</label>
+                <input
+                  type="number"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Credits per Cycle *</label>
+                <input
+                  type="number"
+                  value={formData.credits_per_cycle}
+                  onChange={(e) => setFormData({ ...formData, credits_per_cycle: parseInt(e.target.value) })}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
+                  placeholder="0"
+                  min="0"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Credits per Cycle *</label>
-              <input
-                type="number"
-                value={formData.credits_per_cycle}
-                onChange={(e) => setFormData({ ...formData, credits_per_cycle: parseInt(e.target.value) })}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
-                placeholder="0"
-                min="0"
-              />
-            </div>
-          </div>
 
-          {/* Limits */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Max Resumes (optional)</label>
-              <input
-                type="number"
-                value={formData.max_resumes || ''}
-                onChange={(e) => setFormData({ ...formData, max_resumes: e.target.value ? parseInt(e.target.value) : undefined })}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
-                placeholder="Unlimited"
-                min="0"
-              />
+            {/* Limits */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Max Resumes (optional)</label>
+                <input
+                  type="number"
+                  value={formData.max_resumes || ''}
+                  onChange={(e) => setFormData({ ...formData, max_resumes: e.target.value ? parseInt(e.target.value) : undefined })}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
+                  placeholder="Unlimited"
+                  min="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Max Cover Letters (optional)</label>
+                <input
+                  type="number"
+                  value={formData.max_cover_letters || ''}
+                  onChange={(e) => setFormData({ ...formData, max_cover_letters: e.target.value ? parseInt(e.target.value) : undefined })}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
+                  placeholder="Unlimited"
+                  min="0"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Max Cover Letters (optional)</label>
-              <input
-                type="number"
-                value={formData.max_cover_letters || ''}
-                onChange={(e) => setFormData({ ...formData, max_cover_letters: e.target.value ? parseInt(e.target.value) : undefined })}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
-                placeholder="Unlimited"
-                min="0"
-              />
-            </div>
-          </div>
 
-          {/* Features */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Features</label>
-            <div className="flex gap-2 mb-3">
+            {/* Features */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Features</label>
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="text"
+                  value={featureInput}
+                  onChange={(e) => setFeatureInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())}
+                  className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
+                  placeholder="Add a feature..."
+                />
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={addFeature}
+                  className="px-6 py-3 bg-[#1dff00]/20 text-[#1dff00] border border-[#1dff00]/30 rounded-lg font-medium hover:bg-[#1dff00]/30 transition-colors"
+                >
+                  Add
+                </motion.button>
+              </div>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {formData.features?.map((feature, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg group">
+                    <div className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-[#1dff00]" />
+                      <span className="text-sm text-white">{feature}</span>
+                    </div>
+                    <button
+                      onClick={() => removeFeature(idx)}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition-all"
+                    >
+                      <X className="w-4 h-4 text-red-400" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Status */}
+            <div className="flex items-center gap-3">
               <input
-                type="text"
-                value={featureInput}
-                onChange={(e) => setFeatureInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())}
-                className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#1dff00] focus:outline-none transition-colors"
-                placeholder="Add a feature..."
+                type="checkbox"
+                id="is_active"
+                checked={formData.is_active}
+                onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                className="w-5 h-5 rounded border-gray-700 bg-gray-800 text-[#1dff00] focus:ring-[#1dff00] focus:ring-offset-0"
               />
+              <label htmlFor="is_active" className="text-sm font-medium text-gray-300 cursor-pointer">
+                Plan is active and available for subscription
+              </label>
+            </div>
+
+            {/* Actions with enhanced buttons */}
+            <div className="flex gap-4 pt-6 border-t border-blue-500/20">
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={addFeature}
-                className="px-6 py-3 bg-[#1dff00]/20 text-[#1dff00] border border-[#1dff00]/30 rounded-lg font-medium hover:bg-[#1dff00]/30 transition-colors"
+                onClick={onClose}
+                className="flex-1 px-8 py-3.5 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-white rounded-xl font-semibold transition-all duration-200 border border-gray-700 hover:border-gray-600"
               >
-                Add
+                Cancel
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(29, 255, 0, 0.3)" }}
+                whileTap={{ scale: 0.98 }}
+                onClick={onSave}
+                className="flex-1 px-8 py-3.5 bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black rounded-xl font-bold hover:shadow-2xl hover:shadow-[#1dff00]/30 transition-all duration-200 border border-[#1dff00]/50"
+              >
+                {isEdit ? 'Save Changes' : 'Create Plan'}
               </motion.button>
             </div>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {formData.features?.map((feature, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg group">
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-[#1dff00]" />
-                    <span className="text-sm text-white">{feature}</span>
-                  </div>
-                  <button
-                    onClick={() => removeFeature(idx)}
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition-all"
-                  >
-                    <X className="w-4 h-4 text-red-400" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Status */}
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="is_active"
-              checked={formData.is_active}
-              onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-              className="w-5 h-5 rounded border-gray-700 bg-gray-800 text-[#1dff00] focus:ring-[#1dff00] focus:ring-offset-0"
-            />
-            <label htmlFor="is_active" className="text-sm font-medium text-gray-300 cursor-pointer">
-              Plan is active and available for subscription
-            </label>
-          </div>
-
-          {/* Actions with enhanced buttons */}
-          <div className="flex gap-4 pt-6 border-t border-blue-500/20">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={onClose}
-              className="flex-1 px-8 py-3.5 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-white rounded-xl font-semibold transition-all duration-200 border border-gray-700 hover:border-gray-600"
-            >
-              Cancel
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(29, 255, 0, 0.3)" }}
-              whileTap={{ scale: 0.98 }}
-              onClick={onSave}
-              className="flex-1 px-8 py-3.5 bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black rounded-xl font-bold hover:shadow-2xl hover:shadow-[#1dff00]/30 transition-all duration-200 border border-[#1dff00]/50"
-            >
-              {isEdit ? 'Save Changes' : 'Create Plan'}
-            </motion.button>
           </div>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
     </motion.div>
   );
 }
@@ -1039,22 +1358,22 @@ function DeleteConfirmDialog({
   if (!plan || !isOpen) return null;
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-center justify-center"
     >
       {/* Enhanced Backdrop with red tint */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="absolute inset-0 bg-gradient-to-br from-black/90 via-red-900/10 to-black/90 backdrop-blur-md"
         onClick={onClose}
       />
-      
+
       {/* Dialog Content with warning style */}
-      <motion.div 
+      <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ type: "spring", duration: 0.5 }}
@@ -1062,12 +1381,12 @@ function DeleteConfirmDialog({
       >
         {/* Pulsing red border glow */}
         <div className="absolute -inset-1 bg-gradient-to-r from-red-500/40 via-orange-500/40 to-red-500/40 rounded-3xl blur-2xl animate-pulse" />
-        
+
         <div className="relative bg-gradient-to-br from-[#0a0a0a]/95 via-[#1a0a0a]/95 to-[#0a0a0a]/95 backdrop-blur-xl border border-red-500/30 rounded-3xl shadow-2xl">
           <div className="p-8">
             {/* Warning Header */}
             <div className="flex items-center gap-4 mb-6">
-              <motion.div 
+              <motion.div
                 animate={{ scale: [1, 1.1, 1] }}
                 transition={{ repeat: Infinity, duration: 2 }}
                 className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center backdrop-blur-sm border border-red-500/30 shadow-lg shadow-red-500/20"
@@ -1085,7 +1404,7 @@ function DeleteConfirmDialog({
             </div>
 
             {/* Warning Message */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
@@ -1123,5 +1442,250 @@ function DeleteConfirmDialog({
         </div>
       </motion.div>
     </motion.div>
+  );
+}
+
+// ─── Subscriber Helpers ───────────────────────────────────────────────────
+function getPlanBadgeClass(name: string) {
+  switch (name) {
+    case 'Ultimate': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+    case 'Pro': return 'bg-[#1dff00]/20 text-[#1dff00] border-[#1dff00]/30';
+    case 'Basics': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+    default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+  }
+}
+
+function getPlanBadgeIcon(name: string) {
+  switch (name) {
+    case 'Ultimate': return <Crown className="w-4 h-4 text-purple-400" />;
+    case 'Pro': return <Zap className="w-4 h-4 text-blue-400" />;
+    case 'Basics': return <Star className="w-4 h-4 text-yellow-400" />;
+    default: return <User className="w-4 h-4 text-gray-400" />;
+  }
+}
+
+// ─── Subscriber Row Actions ───────────────────────────────────────────────
+function SubscriberRowActions({ onChangePlan, onCancel, isActive }: { onChangePlan: () => void; onCancel: () => void; isActive: boolean }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+        className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+      >
+        <MoreVertical className="w-4 h-4" />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -5 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -5 }}
+              className="absolute right-0 top-full mt-1 w-48 bg-[#111111] border border-[#1dff00]/20 rounded-xl shadow-2xl z-50 overflow-hidden"
+            >
+              <button onClick={() => { setOpen(false); onChangePlan(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                <ArrowRightLeft className="w-4 h-4 text-yellow-400" /> Change Plan
+              </button>
+              {isActive && (
+                <>
+                  <div className="border-t border-gray-700/50" />
+                  <button onClick={() => { setOpen(false); onCancel(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all">
+                    <Ban className="w-4 h-4" /> Cancel Subscription
+                  </button>
+                </>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ─── Subscriber Change Plan Dialog ────────────────────────────────────────
+function SubscriberChangePlanDialog({
+  subscriber,
+  isOpen,
+  onClose,
+  onConfirm,
+  plans,
+  loading
+}: {
+  subscriber: SubscriberInfo | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (subscriber: SubscriberInfo, planId: string, planName: string) => void;
+  plans: SubscriptionPlan[];
+  loading: boolean;
+}) {
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+
+  useEffect(() => { setSelectedPlanId(''); }, [isOpen]);
+
+  if (!isOpen || !subscriber) return null;
+
+  const planIcons: Record<string, React.ReactNode> = {
+    'Free': <User className="w-5 h-5 text-gray-400" />,
+    'Basics': <Star className="w-5 h-5 text-yellow-400" />,
+    'Pro': <Zap className="w-5 h-5 text-blue-400" />,
+    'Ultimate': <Crown className="w-5 h-5 text-purple-400" />,
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          onClick={(e) => e.stopPropagation()}
+          className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-yellow-500/30 rounded-2xl w-full max-w-md shadow-2xl shadow-yellow-500/10"
+        >
+          <div className="px-6 pt-6 pb-4 border-b border-yellow-500/20">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+                <ArrowRightLeft className="w-5 h-5 text-yellow-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Change Plan</h3>
+                <p className="text-sm text-gray-400">{subscriber.email}</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-400">
+              Current: <span className="text-yellow-400 font-semibold">{subscriber.plan_name}</span>
+            </p>
+          </div>
+
+          <div className="p-6 space-y-3">
+            <label className="text-sm text-gray-400 block mb-1">Select New Plan</label>
+            {plans.filter(p => p.is_active).map((plan) => (
+              <motion.button
+                key={plan.id}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                onClick={() => setSelectedPlanId(plan.id)}
+                className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl border transition-all ${selectedPlanId === plan.id
+                    ? 'bg-[#1dff00]/10 border-[#1dff00] shadow-lg shadow-[#1dff00]/10'
+                    : 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
+                  }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${selectedPlanId === plan.id ? 'bg-[#1dff00]/20' : 'bg-gray-700/50'
+                  }`}>
+                  {planIcons[plan.name] || <Star className="w-5 h-5 text-gray-400" />}
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-white font-medium">{plan.name}</p>
+                  <p className="text-xs text-gray-400">{plan.credits_per_cycle} credits/{plan.billing_cycle}</p>
+                </div>
+                <p className="text-white font-bold">${plan.price}</p>
+                {selectedPlanId === plan.id && <CheckCircle2 className="w-5 h-5 text-[#1dff00]" />}
+              </motion.button>
+            ))}
+          </div>
+
+          <div className="px-6 pb-6 flex gap-3">
+            <button onClick={onClose} className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-gray-600 transition-all">
+              Cancel
+            </button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                const plan = plans.find(p => p.id === selectedPlanId);
+                if (plan) onConfirm(subscriber, plan.id, plan.name);
+              }}
+              disabled={loading || !selectedPlanId}
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightLeft className="w-4 h-4" />}
+              Change Plan
+            </motion.button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ─── Subscriber Cancel Dialog ─────────────────────────────────────────────
+function SubscriberCancelDialog({
+  subscriber,
+  isOpen,
+  onClose,
+  onConfirm,
+  loading
+}: {
+  subscriber: SubscriberInfo | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  loading: boolean;
+}) {
+  if (!isOpen || !subscriber) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          onClick={(e) => e.stopPropagation()}
+          className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-red-500/30 rounded-2xl w-full max-w-md shadow-2xl shadow-red-500/10"
+        >
+          <div className="px-6 pt-6 pb-4 border-b border-red-500/20">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Cancel Subscription</h3>
+                <p className="text-sm text-red-400">This will revoke plan access</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+              <p className="text-sm text-gray-300">
+                Cancel subscription for <strong className="text-white">{subscriber.email}</strong> on the <strong className="text-white">{subscriber.plan_name}</strong> plan?
+              </p>
+              <p className="text-xs text-gray-400 mt-2">The user will lose access to plan features but their credits and data will be preserved.</p>
+            </div>
+          </div>
+
+          <div className="px-6 pb-6 flex gap-3">
+            <button onClick={onClose} className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-gray-600 transition-all">
+              Keep Active
+            </button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={onConfirm}
+              disabled={loading}
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+              Cancel Subscription
+            </motion.button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 }

@@ -8,7 +8,7 @@ import { useToast } from '@/components/ui/toast-provider';
  */
 export function useAdminActions() {
   const supabase = useMemo(() => createClient(), []);
-  const { toast } = useToast();
+  const { success, error: showError } = useToast();
 
   /**
    * Top up credits for a user.
@@ -37,7 +37,6 @@ export function useAdminActions() {
       if (creditError) throw creditError;
 
       // Log transaction
-      // Allowed transaction_type values: 'earn', 'spend', 'refund', 'expire', 'bonus', 'refill', 'deduction'
       const { error: txError } = await supabase
         .from('credit_transactions')
         .insert({
@@ -53,23 +52,14 @@ export function useAdminActions() {
         console.warn('Transaction log failed (credits still updated):', txError);
       }
 
-      toast({
-        title: 'Credits Added',
-        description: `Successfully added ${amount} credits. New balance: ${newBalance}`,
-        variant: 'default',
-      });
-
+      success(`Successfully added ${amount} credits. New balance: ${newBalance}`);
       return { success: true, newBalance };
     } catch (err: any) {
       console.error('Error topping up credits:', err);
-      toast({
-        title: 'Error',
-        description: err.message || 'Failed to top up credits',
-        variant: 'destructive',
-      });
+      showError(err.message || 'Failed to top up credits');
       return { success: false, error: err.message };
     }
-  }, [supabase, toast]);
+  }, [supabase, success, showError]);
 
   /**
    * Change a user's subscription plan.
@@ -100,23 +90,14 @@ export function useAdminActions() {
 
       if (error) throw error;
 
-      toast({
-        title: 'Subscription Updated',
-        description: `User moved to ${planName} plan`,
-        variant: 'default',
-      });
-
+      success(`User moved to ${planName} plan`);
       return { success: true };
     } catch (err: any) {
       console.error('Error changing subscription:', err);
-      toast({
-        title: 'Error',
-        description: err.message || 'Failed to change subscription',
-        variant: 'destructive',
-      });
+      showError(err.message || 'Failed to change subscription');
       return { success: false, error: err.message };
     }
-  }, [supabase, toast]);
+  }, [supabase, success, showError]);
 
   /**
    * Delete a user's profile and associated data.
@@ -132,23 +113,14 @@ export function useAdminActions() {
 
       if (error) throw error;
 
-      toast({
-        title: 'User Deleted',
-        description: 'User and all associated data have been removed',
-        variant: 'default',
-      });
-
+      success('User and all associated data have been removed');
       return { success: true };
     } catch (err: any) {
       console.error('Error deleting user:', err);
-      toast({
-        title: 'Error',
-        description: err.message || 'Failed to delete user',
-        variant: 'destructive',
-      });
+      showError(err.message || 'Failed to delete user');
       return { success: false, error: err.message };
     }
-  }, [supabase, toast]);
+  }, [supabase, success, showError]);
 
   /**
    * Update a user's role (admin/user).
@@ -164,37 +136,34 @@ export function useAdminActions() {
 
       if (error) throw error;
 
-      toast({
-        title: 'Role Updated',
-        description: `User role set to ${role}`,
-        variant: 'default',
-      });
-
+      success(`User role set to ${role}`);
       return { success: true };
     } catch (err: any) {
       console.error('Error updating role:', err);
-      toast({
-        title: 'Error',
-        description: err.message || 'Failed to update role',
-        variant: 'destructive',
-      });
+      showError(err.message || 'Failed to update role');
       return { success: false, error: err.message };
     }
-  }, [supabase, toast]);
+  }, [supabase, success, showError]);
 
   /**
    * Fetch subscription plans for the plan selector dropdown.
+   * Uses credits_per_month (actual DB column name).
    */
   const fetchPlans = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('subscription_plans')
-        .select('id, name, price, credits_per_cycle, billing_cycle, is_active')
+        .select('id, name, price, credits_per_month, billing_cycle, is_active')
         .eq('is_active', true)
         .order('price', { ascending: true });
 
       if (error) throw error;
-      return data || [];
+
+      // Map credits_per_month to credits_per_cycle for display compatibility
+      return (data || []).map((plan: any) => ({
+        ...plan,
+        credits_per_cycle: plan.credits_per_month ?? 0,
+      }));
     } catch (err: any) {
       console.error('Error fetching plans:', err);
       return [];

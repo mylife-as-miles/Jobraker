@@ -221,7 +221,7 @@ export const useUserActivities = () => {
               .eq('status', 'active')
               .order('created_at', { ascending: false })
               .limit(1)
-              .single();
+              .maybeSingle();
 
             if (subscription && subscription.subscription_plans && !Array.isArray(subscription.subscription_plans)) {
               const plan = subscription.subscription_plans as any;
