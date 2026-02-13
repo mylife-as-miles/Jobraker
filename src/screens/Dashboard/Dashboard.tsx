@@ -20,7 +20,9 @@ import {
 
   // CreditCard,
   Video,
-  PanelLeft
+  PanelLeft,
+  FileText,
+  PenTool
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
@@ -41,6 +43,8 @@ import ProfilePage from "./pages/ProfilePage";
 import { ChatPage } from "./pages/ChatPage";
 import { BillingPage } from "./pages/BillingPage";
 import InterviewStudioPage from "./pages/InterviewStudioPage";
+import { ResumePage } from "./pages/ResumePage";
+import { CoverLetterPage } from "./pages/CoverLetterPage";
 
 type DashboardPage =
   | "overview"
@@ -53,7 +57,9 @@ type DashboardPage =
   | "profile"
   | "pricing"
   | "billing"
-  | "interview-studio";
+  | "interview-studio"
+  | "resume"
+  | "cover-letter";
 
 interface PageLink {
   id: DashboardPage;
@@ -124,6 +130,8 @@ export const Dashboard = (): JSX.Element => {
     "profile",
     "pricing",
     "interview-studio",
+    "resume",
+    "cover-letter",
   ];
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -204,6 +212,18 @@ export const Dashboard = (): JSX.Element => {
       path: "Dashboard / Application"
     },
     {
+      id: "resume",
+      label: "Resume",
+      icon: <FileText className="w-5 h-5" />,
+      path: "Dashboard / Resume"
+    },
+    {
+      id: "cover-letter",
+      label: "Cover Letter",
+      icon: <PenTool className="w-5 h-5" />,
+      path: "Dashboard / Cover Letter"
+    },
+    {
       id: "analytics",
       label: "Analytics",
       icon: <TrendingUp className="w-5 h-5" />,
@@ -260,6 +280,10 @@ export const Dashboard = (): JSX.Element => {
         return <BillingPage />;
       case "interview-studio":
         return <InterviewStudioPage />;
+      case "resume":
+        return <ResumePage />;
+      case "cover-letter":
+        return <CoverLetterPage />;
       case "settings":
         return <SettingsPage />;
       case "notifications":
