@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { Activity, Search, Zap, Clock, Loader2, TrendingUp, Filter, ChevronDown, X, ArrowUpRight, Calendar, User as UserIcon } from 'lucide-react';
-import { Activity, Search, Zap, Clock, Loader2, TrendingUp, Filter, ChevronDown, X, ArrowUpRight, Calendar, User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import { useRecentTransactions } from '../hooks/useAdminStats';
