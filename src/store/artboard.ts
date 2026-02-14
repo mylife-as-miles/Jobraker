@@ -1,49 +1,102 @@
 import { create } from 'zustand';
 
-// --- Resume Types ---
-export interface WorkExperience {
+// --- Reactive Resume Types ---
+
+export interface ResumeProfile {
+    network: string;
+    username: string;
+    url: string;
+    icon?: string;
+}
+
+export interface ResumeBasics {
+    name: string;
+    headline: string;
+    email: string;
+    phone: string;
+    location: string;
+    website: { url: string; label: string };
+    customFields: { id: string; icon: string; text: string; link?: string }[];
+    profiles?: ResumeProfile[];
+}
+
+export interface ResumeSectionItem {
+    id: string;
+    hidden: boolean;
+    // Common fields
+    name?: string;
+    title?: string;
+    company?: string;
+    school?: string;
+    degree?: string;
+    date?: string;
+    period?: string;
+    location?: string;
+    website?: { url: string; label: string };
+    description?: string;
+    
+    // Skills specific
+    level?: number;
+    keywords?: string[];
+    
+    // Other specific fields can be added as needed
+    [key: string]: any;
+}
+
+export interface ResumeSection {
     id: string;
     title: string;
-    company: string;
-    period: string;
-    description: string[];
+    columns: number;
+    hidden: boolean;
+    items: ResumeSectionItem[];
+    content?: string; // For summary
 }
 
-export interface Education {
-    id: string;
-    degree: string;
-    school: string;
-    period: string;
-}
-
-export interface ResumeState {
-    personalInfo: {
-        fullName: string;
-        jobTitle: string;
-        email: string;
-        phone: string;
-        location: string;
-        website: string;
+export interface ResumeData {
+    basics: ResumeBasics;
+    summary: ResumeSection; // Summary is treated as a section with content
+    sections: {
+        experience: ResumeSection;
+        education: ResumeSection;
+        skills: ResumeSection;
+        projects: ResumeSection;
+        // Add others as needed
+        [key: string]: ResumeSection;
     };
-    summary?: string;
-    experience: WorkExperience[];
-    education: Education[];
-    skills: string[];
     metadata: {
+        template: string;
+        layout: {
+            sidebarWidth: number;
+            pages: {
+                fullWidth: boolean;
+                main: string[];
+                sidebar: string[];
+            }[];
+        };
         page: {
-            format: 'a4' | 'letter';
+           format: 'a4' | 'letter';
+           margin: number;
         };
         typography: {
             font: {
                 family: string;
+                size: number;
             };
         };
+        css?: {
+            value: string;
+            visible: boolean;
+        }
     };
 }
 
-// --- Cover Letter Types ---
+export interface ResumeState {
+    data: ResumeData;
+}
+
+// --- Cover Letter Types (Unchanged) ---
 export interface CoverLetterState {
-    // Meta / Context
+    // ... existing cover letter types (kept for brevity in this replace block, assuming they come after)
     title: string;
     role: string;
     company: string;
@@ -87,21 +140,21 @@ export type ArtboardStore = {
 
     // Resume Actions
     setResume: (resume: Partial<ResumeState>) => void;
-    setResumeSection: <K extends keyof ResumeState>(section: K, data: ResumeState[K]) => void;
     
-    // CRUD Actions for Resume
-    addExperience: (experience: WorkExperience) => void;
-    updateExperience: (id: string, experience: Partial<WorkExperience>) => void;
-    removeExperience: (id: string) => void;
-
-    addEducation: (education: Education) => void;
-    updateEducation: (id: string, education: Partial<Education>) => void;
-    removeEducation: (id: string) => void;
+    // Helper to update deep nested resume data
+    setResumeData: (data: Partial<ResumeData>) => void;
+    
+    // Section Actions
+    addSectionItem: (sectionId: string, item: ResumeSectionItem) => void;
+    updateSectionItem: (sectionId: string, itemId: string, item: Partial<ResumeSectionItem>) => void;
+    removeSectionItem: (sectionId: string, itemId: string) => void;
+    
+    // Basics Actions
+    updateBasics: (basics: Partial<ResumeBasics>) => void;
     
     // Cover Letter Actions
     setCoverLetter: (coverLetter: Partial<CoverLetterState>) => void;
     setCoverLetterField: <K extends keyof CoverLetterState>(field: K, data: CoverLetterState[K]) => void;
-    // Helper to update nested fields like 'sender.name' or 'content.paragraphs'
     setCoverLetterNested: <K extends 'sender' | 'recipient' | 'content' | 'typography', F extends keyof CoverLetterState[K]>(
         section: K,
         field: F,
@@ -109,61 +162,113 @@ export type ArtboardStore = {
     ) => void;
 };
 
-export const useArtboardStore = create<ArtboardStore>((set) => ({
-    resume: {
-        personalInfo: {
-            fullName: 'John Doe',
-            jobTitle: 'Senior Software Engineer',
+// --- Initial State ---
+const initialResumeState: ResumeState = {
+    data: {
+        basics: {
+            name: 'John Doe',
+            headline: 'Senior Software Engineer',
             email: 'john@example.com',
             phone: '+1 (555) 123-4567',
             location: 'San Francisco, CA',
-            website: 'johndoe.dev'
+            website: { url: 'johndoe.dev', label: 'Portfolio' },
+            customFields: []
         },
-        // Initialize with empty array or default if preferred
-        summary: 'Experienced software engineer with a focus on building scalable web applications and enhancing user experiences.', 
-        experience: [
-            {
-                id: '1',
-                title: 'Senior Developer',
-                company: 'TechCorp Inc.',
-                period: '2020 - Present',
-                description: [
-                    'Led a team of 5 engineers to rebuild the core payment infrastructure, increasing transaction speed by 200%.',
-                    'Improved system latency by 40% through optimized caching strategies and database indexing.',
-                    'Mentored junior developers and conducted code reviews to ensure high code quality standards.'
+        summary: {
+            id: 'summary',
+            title: 'Summary',
+            columns: 1,
+            hidden: false,
+            content: 'Experienced software engineer with a focus on building scalable web applications.',
+            items: []
+        },
+        sections: {
+            experience: {
+                id: 'experience',
+                title: 'Experience',
+                columns: 1,
+                hidden: false,
+                items: [
+                    {
+                        id: '1',
+                        hidden: false,
+                        company: 'TechCorp Inc.',
+                        position: 'Senior Developer',
+                        period: '2020 - Present',
+                        description: 'Led a team of 5 engineers to rebuild the core payment infrastructure.'
+                    },
+                    {
+                         id: '2',
+                        hidden: false,
+                        company: 'StartupXY',
+                        position: 'Software Engineer',
+                        period: '2018 - 2020',
+                        description: 'Developed and maintained RESTful APIs.'
+                    }
                 ]
             },
-            {
-                id: '2',
-                title: 'Software Engineer',
-                company: 'StartupXY',
-                period: '2018 - 2020',
-                description: [
-                    'Developed and maintained RESTful APIs for the mobile application backend using Node.js.',
-                    'Collaborated with product managers to define feature requirements and project timelines.'
+            education: {
+                id: 'education',
+                title: 'Education',
+                columns: 1,
+                hidden: false,
+                items: [
+                    {
+                        id: '1',
+                        hidden: false,
+                        school: 'Stanford University',
+                        degree: 'B.S. Computer Science',
+                        period: '2014 - 2018'
+                    }
                 ]
+            },
+            skills: {
+                id: 'skills',
+                title: 'Skills',
+                columns: 1,
+                hidden: false,
+                items: [
+                   { id: '1', hidden: false, name: 'JavaScript', level: 5 },
+                   { id: '2', hidden: false, name: 'React', level: 5 },
+                   { id: '3', hidden: false, name: 'Node.js', level: 4 }
+                ]
+            },
+            projects: {
+                id: 'projects',
+                title: 'Projects',
+                columns: 1,
+                hidden: false,
+                items: []
             }
-        ],
-        education: [
-            {
-                id: '1',
-                degree: 'B.S. Computer Science',
-                school: 'Stanford University',
-                period: '2014 - 2018'
-            }
-        ],
-        skills: ['JavaScript', 'React', 'Node.js', 'Python', 'AWS', 'Docker', 'GraphQL'],
+        },
         metadata: {
+            template: 'azurill',
+            layout: {
+                sidebarWidth: 30,
+                pages: [
+                    {
+                        fullWidth: false,
+                        main: ['summary', 'experience', 'education', 'projects'],
+                        sidebar: ['skills']
+                    }
+                ]
+            },
             page: {
                 format: 'a4',
+                margin: 18
             },
             typography: {
                 font: {
-                    family: 'Inter',
-                },
-            },
-        },
-    },
+                    family: 'IBM Plex Serif',
+                    size: 14
+                }
+            }
+        }
+    }
+};
+
+export const useArtboardStore = create<ArtboardStore>((set) => ({
+    resume: initialResumeState,
     coverLetter: {
         title: '',
         role: '',
@@ -200,47 +305,74 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
     setResume: (resume) =>
         set((state) => ({ resume: { ...state.resume, ...resume } })),
 
-    setResumeSection: (section, data) =>
-        set((state) => ({ resume: { ...state.resume, [section]: data } })),
+    setResumeData: (data) =>
+        set((state) => ({ resume: { ...state.resume, data: { ...state.resume.data, ...data } } })),
 
-    addExperience: (exp) => 
-        set((state) => ({ resume: { ...state.resume, experience: [exp, ...state.resume.experience] } })),
-
-    updateExperience: (id, exp) =>
+    addSectionItem: (sectionId, item) =>
         set((state) => ({
             resume: {
                 ...state.resume,
-                experience: state.resume.experience.map((e) => (e.id === id ? { ...e, ...exp } : e))
+                data: {
+                    ...state.resume.data,
+                    sections: {
+                        ...state.resume.data.sections,
+                        [sectionId]: {
+                            ...state.resume.data.sections[sectionId],
+                            items: [item, ...state.resume.data.sections[sectionId].items]
+                        }
+                    }
+                }
             }
         })),
 
-    removeExperience: (id) =>
+    updateSectionItem: (sectionId, itemId, item) =>
         set((state) => ({
             resume: {
                 ...state.resume,
-                experience: state.resume.experience.filter((e) => e.id !== id)
+                data: {
+                    ...state.resume.data,
+                    sections: {
+                        ...state.resume.data.sections,
+                        [sectionId]: {
+                            ...state.resume.data.sections[sectionId],
+                            items: state.resume.data.sections[sectionId].items.map((i) => 
+                                i.id === itemId ? { ...i, ...item } : i
+                            )
+                        }
+                    }
+                }
             }
         })),
 
-    addEducation: (edu) =>
-        set((state) => ({ resume: { ...state.resume, education: [edu, ...state.resume.education] } })),
-
-    updateEducation: (id, edu) =>
+    removeSectionItem: (sectionId, itemId) =>
         set((state) => ({
             resume: {
                 ...state.resume,
-                education: state.resume.education.map((e) => (e.id === id ? { ...e, ...edu } : e))
+                data: {
+                    ...state.resume.data,
+                    sections: {
+                        ...state.resume.data.sections,
+                        [sectionId]: {
+                            ...state.resume.data.sections[sectionId],
+                            items: state.resume.data.sections[sectionId].items.filter((i) => i.id !== itemId)
+                        }
+                    }
+                }
             }
         })),
 
-    removeEducation: (id) =>
+    updateBasics: (basics) =>
         set((state) => ({
             resume: {
                 ...state.resume,
-                education: state.resume.education.filter((e) => e.id !== id)
+                data: {
+                    ...state.resume.data,
+                    basics: { ...state.resume.data.basics, ...basics }
+                }
             }
         })),
 
+    // Cover Letter Actions (Unchanged)
     setCoverLetter: (coverLetter) =>
         set((state) => ({ coverLetter: { ...state.coverLetter, ...coverLetter } })),
 
