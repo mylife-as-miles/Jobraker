@@ -1,5 +1,6 @@
 import { useArtboardStore, ArtboardStore } from '../../../store/artboard';
 import { X, Check } from 'lucide-react';
+import { TemplatePreview } from './TemplatePreview';
 
 const availableTemplates = [
     { id: 'azurill', name: 'Azurill', description: 'A clean, sidebar-based layout with blue accents.' },
@@ -57,18 +58,23 @@ export const TemplateSelector = ({ isOpen, onClose }: TemplateSelectorProps) => 
                                 `}
                             >
                                 {/* Preview Image Container */}
-                                <div className="aspect-[210/297] bg-gray-100 dark:bg-[#2A2A2A] relative">
-                                    {/* Placeholder for template preview image */}
-                                    <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm font-medium">
-                                        {template.name} Preview
+                                <div className="aspect-[210/297] bg-gray-100 dark:bg-[#2A2A2A] relative overflow-hidden">
+                                    {/* Live Preview */}
+                                    {/* We need a wrapper to center/contain the scaled preview if necessary, 
+                                         but the component handles scaling. 
+                                         However, since our scale is hardcoded to 0.3 (approx 240px), 
+                                         and the grid cards might vary, we might want a container that centers it. 
+                                     */}
+                                    <div className="w-full h-full flex items-start justify-center bg-gray-50 dark:bg-[#1A1A1A]">
+                                        <TemplatePreview templateId={template.id} />
                                     </div>
 
                                     {/* Overlay on Hover */}
-                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 dark:group-hover:bg-white/5 transition-colors" />
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 dark:group-hover:bg-white/5 transition-colors z-10" />
 
                                     {/* Selected Badge */}
                                     {currentTemplate === template.id && (
-                                        <div className="absolute top-3 right-3 bg-[#1dff00] text-black text-xs font-bold px-2 py-1 rounded-full shadow-sm flex items-center gap-1">
+                                        <div className="absolute top-3 right-3 z-20 bg-[#1dff00] text-black text-xs font-bold px-2 py-1 rounded-full shadow-sm flex items-center gap-1">
                                             <Check className="w-3 h-3" /> Selected
                                         </div>
                                     )}
