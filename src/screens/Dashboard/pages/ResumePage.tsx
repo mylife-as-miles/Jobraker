@@ -218,24 +218,58 @@ export const ResumePage = () => {
             });
             if (error) throw error;
             if (data) {
-                // Update the store with generated data
-                if (data.personalInfo) {
+                // Map Reactive Resume Schema to Artboard Store
+
+                // 1. Personal Info
+                if (data.basics) {
                     setResumeSection('personalInfo', {
-                        ...personalInfo,
-                        ...data.personalInfo
+                        fullName: data.basics.name || personalInfo.fullName,
+                        jobTitle: data.basics.headline || personalInfo.jobTitle,
+                        email: data.basics.email || personalInfo.email,
+                        phone: data.basics.phone || personalInfo.phone,
+                        location: data.basics.location || personalInfo.location,
+                        website: data.basics.website?.url || personalInfo.website
                     });
                 }
-                if (data.summary) {
-                    setResumeSection('summary', data.summary);
+
+                // 2. Summary
+                if (data.summary && data.summary.content) {
+                    // Strip HTML tags if store expects plain text, or keep if it supports HTML
+                    // Assuming store supports raw string. 
+                    const cleanSummary = data.summary.content.replace(/<[^>]*>?/gm, '');
+                    setResumeSection('summary', cleanSummary);
                 }
-                if (Array.isArray(data.experience)) {
-                    setResumeSection('experience', data.experience);
+
+                // 3. Experience
+                if (data.sections?.experience?.items && Array.isArray(data.sections.experience.items)) {
+                    const mappedExperience = data.sections.experience.items.map((item: any) => ({
+                        id: item.id || crypto.randomUUID(),
+                        title: item.position,
+                        company: item.company,
+                        period: item.period,
+                        description: item.description
+                            ? item.description.replace(/<ul>|<li>|<\/ul>|<\/li>/g, '').split('</li>').map((s: string) => s.trim()).filter(Boolean)
+                            : [] // Simple HTML list parsing
+                    }));
+                    setResumeSection('experience', mappedExperience);
                 }
-                if (Array.isArray(data.education)) {
-                    setResumeSection('education', data.education);
+
+                // 4. Education
+                if (data.sections?.education?.items && Array.isArray(data.sections.education.items)) {
+                    const mappedEducation = data.sections.education.items.map((item: any) => ({
+                        id: item.id || crypto.randomUUID(),
+                        degree: item.degree, // Store expects 'degree'
+                        school: item.school || item.institution,
+                        period: item.period || `${item.startDate} - ${item.endDate}`
+                    }));
+                    setResumeSection('education', mappedEducation);
                 }
-                if (Array.isArray(data.skills)) {
-                    setResumeSection('skills', data.skills);
+
+                // 5. Skills
+                if (data.sections?.skills?.items && Array.isArray(data.sections.skills.items)) {
+                    // Store expects string[]
+                    const mappedSkills = data.sections.skills.items.map((item: any) => item.name);
+                    setResumeSection('skills', mappedSkills);
                 }
             }
         } catch (e: any) {

@@ -144,35 +144,118 @@ serve(async (req) => {
 
     const systemPrompt = `You are an expert resume writer and career coach. Generate a complete, polished resume for the candidate based on the provided profile data.
 
-Your output MUST be a valid JSON object with this exact structure:
+Your output MUST be a valid JSON object that STRICTLY follows the Reactive Resume schema below.
+
+**CRITICAL**: All \`id\` fields must be valid UUIDs.
+**CRITICAL**: Do NOT include markdown formatting or code fences in your response. Return raw JSON only.
+
+Schema Reference:
 {
-  "personalInfo": {
-    "fullName": "string",
-    "jobTitle": "string",
-    "email": "string",
-    "phone": "string",
-    "location": "string",
-    "website": "string"
+  "basics": {
+    "name": "Full Name",
+    "headline": "Current Job Title",
+    "email": "email@example.com",
+    "phone": "Phone Number",
+    "location": "City, Country",
+    "website": { "url": "", "label": "" },
+    "customFields": []
   },
-  "summary": "string (2-4 sentence professional summary)",
-  "experience": [
-    {
-      "id": "string (use a unique short id)",
-      "title": "string",
-      "company": "string",
-      "period": "string (e.g. Jan 2020 - Present)",
-      "description": ["bullet point 1", "bullet point 2", "..."]
+  "summary": {
+    "title": "Summary",
+    "columns": 1,
+    "hidden": false,
+    "content": "<p>2-4 sentence professional summary in HTML format (e.g. using <p>, <strong> etc)</p>"
+  },
+  "sections": {
+    "experience": {
+      "title": "Experience",
+      "columns": 1,
+      "hidden": false,
+      "items": [
+        {
+          "id": "uuid-here",
+          "hidden": false,
+          "company": "Company Name",
+          "position": "Job Title",
+          "location": "Location",
+          "period": "Date Range",
+          "website": { "url": "", "label": "" },
+          "description": "<ul><li>Action-oriented bullet point 1</li><li>Quantifiable achievement 2</li></ul> (HTML list)"
+        }
+      ]
+    },
+    "education": {
+      "title": "Education",
+      "columns": 1,
+      "hidden": false,
+      "items": [
+        {
+          "id": "uuid-here",
+          "hidden": false,
+          "school": "School Name",
+          "degree": "Degree",
+          "area": "Field of Study",
+          "grade": "GPA (optional)",
+          "location": "Location",
+          "period": "Date Range",
+          "website": { "url": "", "label": "" },
+          "description": ""
+        }
+      ]
+    },
+    "skills": {
+      "title": "Skills",
+      "columns": 1,
+      "hidden": false,
+      "items": [
+        {
+          "id": "uuid-here",
+          "hidden": false,
+          "name": "Skill Name",
+          "proficiency": "Advanced",
+          "level": 4,
+          "keywords": []
+        }
+      ]
+    },
+    "projects": {
+      "title": "Projects",
+      "columns": 1,
+      "hidden": false,
+      "items": []
+    },
+    "languages": {
+      "title": "Languages",
+      "columns": 1,
+      "hidden": false,
+      "items": []
+    },
+    "interests": {
+        "title": "Interests",
+        "columns": 1,
+        "hidden": false,
+        "items": []
+    },
+    "certifications": {
+        "title": "Certifications",
+        "columns": 1,
+        "hidden": false,
+        "items": []
     }
-  ],
-  "education": [
-    {
-      "id": "string (use a unique short id)",
-      "degree": "string",
-      "school": "string",
-      "period": "string"
+  },
+  "metadata": {
+    "template": "onyx",
+    "layout": {
+      "sidebarWidth": 35,
+      "pages": [
+        {
+            "fullWidth": false,
+            "main": ["experience", "education", "projects"],
+            "sidebar": ["summary", "skills", "languages", "interests"]
+        }
+      ]
     }
-  ],
-  "skills": ["skill1", "skill2", "..."]
+  }
 }
 
 Resume writing guidelines:
@@ -182,8 +265,7 @@ Resume writing guidelines:
 - Use ${tone} tone throughout
 ${targetRole ? `- Tailor the resume for the target role: ${targetRole}` : ""}
 - Do NOT hallucinate or invent information. Only use what was provided.
-- If limited information is provided, work with what you have and make it compelling.
-- Return ONLY valid JSON, no markdown, no code fences.`;
+- If limited information is provided, work with what you have and make it compelling.`;
 
     const userPrompt = [
       "Candidate Profile:",
