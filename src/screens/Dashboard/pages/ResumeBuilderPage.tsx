@@ -28,7 +28,7 @@ import { TemplateSelector } from '../components/TemplateSelector';
 import { OnyxTemplate } from '../../../templates/onyx';
 import { useProfileSettings } from '../../../hooks/useProfileSettings';
 
-export const ResumePage = () => {
+export const ResumeBuilderPage = () => {
     const navigate = useNavigate();
     const [zoom, setZoom] = useState(0.8);
     const [aiLoading, setAiLoading] = useState(false);
