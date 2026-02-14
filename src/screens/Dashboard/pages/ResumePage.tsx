@@ -23,9 +23,10 @@ import { useNavigate } from 'react-router-dom';
 import { useArtboardStore } from '../../../store/artboard';
 import { createClient } from '../../../lib/supabaseClient';
 import jsPDF from 'jspdf';
-import { AzurillTemplate } from '../../../templates/azurill';
+import { AzurillTemplate } from '../../../templates/azurill/index';
 import { TemplateSelector } from '../components/TemplateSelector';
 import { OnyxTemplate } from '../../../templates/onyx';
+import { useProfileSettings } from '../../../hooks/useProfileSettings';
 
 export const ResumePage = () => {
     const navigate = useNavigate();
@@ -34,9 +35,72 @@ export const ResumePage = () => {
     const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
     const supabase = createClient();
 
-    // Global State from new ArtboardStore schema
+    // State
     const resumeData = useArtboardStore((state) => state.resume.data);
     const setResumeData = useArtboardStore((state) => state.setResumeData);
+
+    // Profile Data for Auto-population
+    const { profile, experiences, education: profileEducation, skills: profileSkills } = useProfileSettings();
+
+    // Auto-populate from profile if default
+    React.useEffect(() => {
+        if (resumeData.basics.name === 'John Doe' && profile) {
+            const newBasics = {
+                ...resumeData.basics,
+                name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
+                headline: profile.job_title || resumeData.basics.headline,
+                location: profile.location || resumeData.basics.location,
+            };
+
+            // Map Experience
+            const newExperience = {
+                ...resumeData.sections.experience,
+                items: experiences.data.length > 0 ? experiences.data.map(exp => ({
+                    id: exp.id,
+                    hidden: false,
+                    company: exp.company,
+                    title: exp.title,
+                    period: `${new Date(exp.start_date).getFullYear()} - ${exp.end_date ? new Date(exp.end_date).getFullYear() : 'Present'}`,
+                    description: exp.description,
+                    location: exp.location
+                })) : resumeData.sections.experience.items
+            };
+
+            // Map Education
+            const newEducation = {
+                ...resumeData.sections.education,
+                items: profileEducation.data.length > 0 ? profileEducation.data.map(edu => ({
+                    id: edu.id,
+                    hidden: false,
+                    school: edu.school,
+                    degree: edu.degree,
+                    period: `${new Date(edu.start_date).getFullYear()} - ${edu.end_date ? new Date(edu.end_date).getFullYear() : 'Present'}`,
+                    location: edu.location
+                })) : resumeData.sections.education.items
+            };
+
+            // Map Skills
+            const newSkills = {
+                ...resumeData.sections.skills,
+                items: profileSkills.data.length > 0 ? profileSkills.data.map(skill => ({
+                    id: skill.id,
+                    hidden: false,
+                    name: skill.name,
+                    level: 3 // Default level
+                })) : resumeData.sections.skills.items
+            };
+
+            setResumeData({
+                basics: newBasics,
+                sections: {
+                    ...resumeData.sections,
+                    experience: newExperience,
+                    education: newEducation,
+                    skills: newSkills
+                }
+            });
+        }
+    }, [profile, experiences.data, profileEducation.data, profileSkills.data, resumeData.basics.name]);
 
     // Actions
     const updateBasics = useArtboardStore((state) => state.updateBasics);

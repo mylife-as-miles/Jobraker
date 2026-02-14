@@ -1,5 +1,5 @@
 import { FC } from 'react';
-import { AzurillTemplate } from '../../../templates/azurill';
+import { AzurillTemplate } from '../../../templates/azurill/index';
 import { OnyxTemplate } from '../../../templates/onyx';
 
 interface TemplatePreviewProps {
