@@ -25,6 +25,7 @@ export interface ResumeState {
         location: string;
         website: string;
     };
+    summary?: string;
     experience: WorkExperience[];
     education: Education[];
     skills: string[];
@@ -87,11 +88,19 @@ export type ArtboardStore = {
     // Resume Actions
     setResume: (resume: Partial<ResumeState>) => void;
     setResumeSection: <K extends keyof ResumeState>(section: K, data: ResumeState[K]) => void;
+    
+    // CRUD Actions for Resume
+    addExperience: (experience: WorkExperience) => void;
+    updateExperience: (id: string, experience: Partial<WorkExperience>) => void;
+    removeExperience: (id: string) => void;
 
+    addEducation: (education: Education) => void;
+    updateEducation: (id: string, education: Partial<Education>) => void;
+    removeEducation: (id: string) => void;
+    
     // Cover Letter Actions
     setCoverLetter: (coverLetter: Partial<CoverLetterState>) => void;
     setCoverLetterField: <K extends keyof CoverLetterState>(field: K, data: CoverLetterState[K]) => void;
-    // Helper to update nested fields like 'sender.name' or 'content.paragraphs'
     // Helper to update nested fields like 'sender.name' or 'content.paragraphs'
     setCoverLetterNested: <K extends 'sender' | 'recipient' | 'content' | 'typography', F extends keyof CoverLetterState[K]>(
         section: K,
@@ -110,6 +119,8 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
             location: 'San Francisco, CA',
             website: 'johndoe.dev'
         },
+        // Initialize with empty array or default if preferred
+        summary: 'Experienced software engineer with a focus on building scalable web applications and enhancing user experiences.', 
         experience: [
             {
                 id: '1',
@@ -191,6 +202,44 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
 
     setResumeSection: (section, data) =>
         set((state) => ({ resume: { ...state.resume, [section]: data } })),
+
+    addExperience: (exp) => 
+        set((state) => ({ resume: { ...state.resume, experience: [exp, ...state.resume.experience] } })),
+
+    updateExperience: (id, exp) =>
+        set((state) => ({
+            resume: {
+                ...state.resume,
+                experience: state.resume.experience.map((e) => (e.id === id ? { ...e, ...exp } : e))
+            }
+        })),
+
+    removeExperience: (id) =>
+        set((state) => ({
+            resume: {
+                ...state.resume,
+                experience: state.resume.experience.filter((e) => e.id !== id)
+            }
+        })),
+
+    addEducation: (edu) =>
+        set((state) => ({ resume: { ...state.resume, education: [edu, ...state.resume.education] } })),
+
+    updateEducation: (id, edu) =>
+        set((state) => ({
+            resume: {
+                ...state.resume,
+                education: state.resume.education.map((e) => (e.id === id ? { ...e, ...edu } : e))
+            }
+        })),
+
+    removeEducation: (id) =>
+        set((state) => ({
+            resume: {
+                ...state.resume,
+                education: state.resume.education.filter((e) => e.id !== id)
+            }
+        })),
 
     setCoverLetter: (coverLetter) =>
         set((state) => ({ coverLetter: { ...state.coverLetter, ...coverLetter } })),

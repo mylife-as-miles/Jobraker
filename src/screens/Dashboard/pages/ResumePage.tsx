@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'; // Removed unused imports if any, keeping React
 import {
     ArrowLeft,
     Edit2,
@@ -18,10 +18,12 @@ import {
     ZoomOut,
     Mail,
     Phone,
-    MapPin
+    MapPin,
+    FileText // Added for Summary icon
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useArtboardStore } from '../../../store/artboard';
+import { useArtboardStore, WorkExperience, Education } from '../../../store/artboard';
+import jsPDF from 'jspdf'; // Assuming jspdf is installed or readily available
 
 export const ResumePage = () => {
     const navigate = useNavigate();
@@ -30,9 +32,16 @@ export const ResumePage = () => {
     // Global State
     const resume = useArtboardStore((state) => state.resume);
     const setResumeSection = useArtboardStore((state) => state.setResumeSection);
+    const addExperience = useArtboardStore((state) => state.addExperience);
+    const updateExperience = useArtboardStore((state) => state.updateExperience);
+    const removeExperience = useArtboardStore((state) => state.removeExperience);
+    const addEducation = useArtboardStore((state) => state.addEducation);
+    const updateEducation = useArtboardStore((state) => state.updateEducation);
+    const removeEducation = useArtboardStore((state) => state.removeEducation);
+    const setSummary = (val: string) => setResumeSection('summary', val);
 
-    // Destructure for easier access (optional, but keeps code similar)
-    const { personalInfo, experience, education, skills } = resume;
+    // Destructure for easier access
+    const { personalInfo, experience, education, skills, summary } = resume;
 
     // Local UI State
     const [newSkill, setNewSkill] = useState('');
@@ -56,6 +65,147 @@ export const ResumePage = () => {
     const updatePersonalInfo = (field: keyof typeof personalInfo, value: string) => {
         setResumeSection('personalInfo', { ...personalInfo, [field]: value });
     };
+
+    const handleAddExperience = () => {
+        const newExp: WorkExperience = {
+            id: crypto.randomUUID(),
+            title: 'New Position',
+            company: 'Company Name',
+            period: 'Present',
+            description: ['Description of responsibilities...']
+        };
+        addExperience(newExp);
+        // Automatically expand the new item logic could go here, but for now just adding it.
+    };
+
+    const handleAddEducation = () => {
+        const newEdu: Education = {
+            id: crypto.randomUUID(),
+            degree: 'Degree',
+            school: 'University',
+            period: 'Year'
+        };
+        addEducation(newEdu);
+    };
+
+    const downloadPDF = () => {
+        const doc = new jsPDF({
+            format: 'a4',
+            unit: 'pt'
+        });
+
+        const margin = 50;
+        let y = margin;
+
+        // Header
+        doc.setFontSize(24);
+        doc.setFont('helvetica', 'bold');
+        doc.text(personalInfo.fullName, margin, y);
+        y += 20;
+
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100);
+        doc.text(personalInfo.jobTitle, margin, y);
+        y += 20;
+
+        doc.setFontSize(10);
+        doc.setTextColor(150);
+        const contactInfo = [personalInfo.email, personalInfo.phone, personalInfo.location, personalInfo.website].filter(Boolean).join(' | ');
+        doc.text(contactInfo, margin, y);
+        y += 30;
+
+        doc.setTextColor(0);
+
+        // Summary
+        if (summary) {
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('SUMMARY', margin, y);
+            y += 15;
+            doc.line(margin, y - 5, 595 - margin, y - 5);
+
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            const splitSummary = doc.splitTextToSize(summary, 595 - margin * 2);
+            doc.text(splitSummary, margin, y);
+            y += splitSummary.length * 12 + 15;
+        }
+
+        // Experience
+        if (experience.length > 0) {
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('EXPERIENCE', margin, y);
+            y += 15;
+            doc.line(margin, y - 5, 595 - margin, y - 5);
+
+            experience.forEach(exp => {
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+                doc.text(exp.title, margin, y);
+                doc.setFont('helvetica', 'normal');
+                doc.text(exp.period, 595 - margin - doc.getTextWidth(exp.period), y);
+                y += 14;
+
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'italic');
+                doc.text(exp.company, margin, y);
+                y += 14;
+
+                doc.setFont('helvetica', 'normal');
+                exp.description.forEach(desc => {
+                    const bullet = '• ' + desc;
+                    const splitDesc = doc.splitTextToSize(bullet, 595 - margin * 2 - 10);
+                    doc.text(splitDesc, margin + 10, y);
+                    y += splitDesc.length * 12;
+                });
+                y += 10;
+            });
+            y += 5;
+        }
+
+        // Education
+        if (education.length > 0) {
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('EDUCATION', margin, y);
+            y += 15;
+            doc.line(margin, y - 5, 595 - margin, y - 5);
+
+            education.forEach(edu => {
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+                doc.text(edu.school, margin, y);
+                doc.setFont('helvetica', 'normal');
+                doc.text(edu.period, 595 - margin - doc.getTextWidth(edu.period), y);
+                y += 14;
+
+                doc.setFontSize(10);
+                doc.text(edu.degree, margin, y);
+                y += 18;
+            });
+            y += 5;
+        }
+
+        // Skills
+        if (skills.length > 0) {
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('SKILLS', margin, y);
+            y += 15;
+            doc.line(margin, y - 5, 595 - margin, y - 5);
+
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            const skillText = skills.join(' • ');
+            const splitSkills = doc.splitTextToSize(skillText, 595 - margin * 2);
+            doc.text(splitSkills, margin, y);
+        }
+
+        doc.save(`${personalInfo.fullName.replace(/\s+/g, '_')}_Resume.pdf`);
+    };
+
 
     return (
         <div className="flex flex-col h-full relative overflow-hidden bg-white dark:bg-[#0A0A0A]">
@@ -88,7 +238,10 @@ export const ResumePage = () => {
                         AI Polish
                     </button>
 
-                    <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/20 text-sm font-medium transition-all text-gray-700 dark:text-white">
+                    <button
+                        onClick={downloadPDF}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/20 text-sm font-medium transition-all text-gray-700 dark:text-white"
+                    >
                         <Download className="w-4 h-4" />
                         Download PDF
                     </button>
@@ -160,6 +313,50 @@ export const ResumePage = () => {
                                             className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100"
                                         />
                                     </div>
+                                    <div className="col-span-2">
+                                        <label className="block text-xs font-medium text-gray-400 mb-1.5">Location</label>
+                                        <input
+                                            type="text"
+                                            value={personalInfo.location || ''}
+                                            onChange={(e) => updatePersonalInfo('location', e.target.value)}
+                                            className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100"
+                                        />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="block text-xs font-medium text-gray-400 mb-1.5">Website</label>
+                                        <input
+                                            type="text"
+                                            value={personalInfo.website || ''}
+                                            onChange={(e) => updatePersonalInfo('website', e.target.value)}
+                                            className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Summary Section */}
+                        <div className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === 'summary' ? 'ring-1 ring-[#1dff00]/50' : 'hover:border-[#1dff00]/30'}`}>
+                            <div
+                                className="p-5 flex items-center justify-between cursor-pointer"
+                                onClick={() => toggleSection('summary')}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <FileText className="w-5 h-5 text-[#1dff00]" />
+                                    <h4 className="font-semibold text-gray-900 dark:text-white">Summary</h4>
+                                </div>
+                                {expandedSection === 'summary' ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                            </div>
+
+                            {expandedSection === 'summary' && (
+                                <div className="p-5 pt-0 animate-in slide-in-from-top-2 duration-200">
+                                    <textarea
+                                        value={summary || ''}
+                                        onChange={(e) => setSummary(e.target.value)}
+                                        rows={4}
+                                        className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100"
+                                        placeholder="Brief professional summary..."
+                                    />
                                 </div>
                             )}
                         </div>
@@ -175,7 +372,10 @@ export const ResumePage = () => {
                                     <h4 className="font-semibold text-gray-900 dark:text-white">Work Experience</h4>
                                 </div>
                                 {expandedSection === 'experience' ? (
-                                    <button className="text-xs bg-[#1dff00]/10 text-[#1dff00] px-2 py-1 rounded hover:bg-[#1dff00]/20 transition-colors flex items-center gap-1" onClick={(e) => { e.stopPropagation(); /* Add logic */ }}>
+                                    <button
+                                        className="text-xs bg-[#1dff00]/10 text-[#1dff00] px-2 py-1 rounded hover:bg-[#1dff00]/20 transition-colors flex items-center gap-1"
+                                        onClick={(e) => { e.stopPropagation(); handleAddExperience(); }}
+                                    >
                                         <Plus className="w-3 h-3" /> Add
                                     </button>
                                 ) : (
@@ -187,17 +387,36 @@ export const ResumePage = () => {
                                 <div className="p-5 pt-0 space-y-4 animate-in slide-in-from-top-2 duration-200">
                                     {experience.map((exp) => (
                                         <div key={exp.id} className="bg-gray-100 dark:bg-white/5 rounded-lg p-4 border border-gray-200 dark:border-white/5 relative group hover:border-[#1dff00]/30 transition-all">
-                                            <div className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                                                <button className="p-1.5 hover:bg-white/10 rounded text-gray-400 hover:text-[#1dff00]"><Edit2 className="w-3.5 h-3.5" /></button>
-                                                <button className="p-1.5 hover:bg-red-500/10 rounded text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                                            <div className="absolute right-3 top-3  flex gap-2">
+                                                <button onClick={() => removeExperience(exp.id)} className="p-1.5 hover:bg-red-500/10 rounded text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                                             </div>
-                                            <h5 className="font-medium text-gray-900 dark:text-white text-sm">{exp.title}</h5>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{exp.company} • {exp.period}</p>
 
-                                            <div className="mt-3 text-xs text-gray-600 dark:text-gray-300 space-y-1 pl-3 border-l-2 border-gray-200 dark:border-white/10">
-                                                {exp.description.slice(0, 2).map((desc, i) => (
-                                                    <p key={i} className="line-clamp-2">• {desc}</p>
-                                                ))}
+                                            <div className="space-y-3 pr-8">
+                                                <input
+                                                    value={exp.title}
+                                                    onChange={(e) => updateExperience(exp.id, { title: e.target.value })}
+                                                    className="w-full bg-transparent border-b border-transparent focus:border-[#1dff00] text-sm font-medium text-gray-900 dark:text-white placeholder-gray-500 outline-none"
+                                                    placeholder="Job Title"
+                                                />
+                                                <input
+                                                    value={exp.company}
+                                                    onChange={(e) => updateExperience(exp.id, { company: e.target.value })}
+                                                    className="w-full bg-transparent border-b border-transparent focus:border-[#1dff00] text-xs text-gray-500 dark:text-gray-400 outline-none"
+                                                    placeholder="Company"
+                                                />
+                                                <input
+                                                    value={exp.period}
+                                                    onChange={(e) => updateExperience(exp.id, { period: e.target.value })}
+                                                    className="w-full bg-transparent border-b border-transparent focus:border-[#1dff00] text-xs text-gray-500 dark:text-gray-400 outline-none"
+                                                    placeholder="Period (e.g., 2020 - Present)"
+                                                />
+                                                <textarea
+                                                    value={exp.description.join('\n')}
+                                                    onChange={(e) => updateExperience(exp.id, { description: e.target.value.split('\n') })}
+                                                    rows={3}
+                                                    className="w-full bg-transparent border border-gray-200 dark:border-white/10 rounded p-2 text-xs text-gray-600 dark:text-gray-300 outline-none focus:border-[#1dff00]"
+                                                    placeholder="Description (one per line)"
+                                                />
                                             </div>
                                         </div>
                                     ))}
@@ -215,8 +434,49 @@ export const ResumePage = () => {
                                     <GraduationCap className="w-5 h-5 text-[#1dff00]" />
                                     <h4 className="font-semibold text-gray-900 dark:text-white">Education</h4>
                                 </div>
-                                {expandedSection === 'education' ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                                {expandedSection === 'education' ? (
+                                    <button
+                                        className="text-xs bg-[#1dff00]/10 text-[#1dff00] px-2 py-1 rounded hover:bg-[#1dff00]/20 transition-colors flex items-center gap-1"
+                                        onClick={(e) => { e.stopPropagation(); handleAddEducation(); }}
+                                    >
+                                        <Plus className="w-3 h-3" /> Add
+                                    </button>
+                                ) : (
+                                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                                )}
                             </div>
+
+                            {expandedSection === 'education' && (
+                                <div className="p-5 pt-0 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                                    {education.map((edu) => (
+                                        <div key={edu.id} className="bg-gray-100 dark:bg-white/5 rounded-lg p-4 border border-gray-200 dark:border-white/5 relative group hover:border-[#1dff00]/30 transition-all">
+                                            <div className="absolute right-3 top-3 flex gap-2">
+                                                <button onClick={() => removeEducation(edu.id)} className="p-1.5 hover:bg-red-500/10 rounded text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                                            </div>
+                                            <div className="space-y-2 pr-8">
+                                                <input
+                                                    value={edu.degree}
+                                                    onChange={(e) => updateEducation(edu.id, { degree: e.target.value })}
+                                                    className="w-full bg-transparent border-b border-transparent focus:border-[#1dff00] text-sm font-medium text-gray-900 dark:text-white placeholder-gray-500 outline-none"
+                                                    placeholder="Degree"
+                                                />
+                                                <input
+                                                    value={edu.school}
+                                                    onChange={(e) => updateEducation(edu.id, { school: e.target.value })}
+                                                    className="w-full bg-transparent border-b border-transparent focus:border-[#1dff00] text-sm text-gray-700 dark:text-gray-300 outline-none"
+                                                    placeholder="School"
+                                                />
+                                                <input
+                                                    value={edu.period}
+                                                    onChange={(e) => updateEducation(edu.id, { period: e.target.value })}
+                                                    className="w-full bg-transparent border-b border-transparent focus:border-[#1dff00] text-xs text-gray-500 dark:text-gray-400 outline-none"
+                                                    placeholder="Year"
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Skills Section */}
@@ -293,9 +553,18 @@ export const ResumePage = () => {
                                 <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600">
                                     <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> {personalInfo.email}</span>
                                     <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> {personalInfo.phone}</span>
-                                    <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> {personalInfo.location}</span>
+                                    {personalInfo.location && <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> {personalInfo.location}</span>}
+                                    {personalInfo.website && <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> {personalInfo.website}</span>}
                                 </div>
                             </div>
+
+                            {/* Optional Summary Display */}
+                            {summary && (
+                                <section>
+                                    <h3 className="font-bold text-gray-900 uppercase tracking-wider mb-2 border-b border-gray-200 pb-1 text-sm">Summary</h3>
+                                    <p className="text-sm text-gray-600 leading-relaxed">{summary}</p>
+                                </section>
+                            )}
 
                             <div className="flex gap-8 flex-1">
                                 {/* Left Column */}
