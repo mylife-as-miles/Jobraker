@@ -16,7 +16,8 @@ import {
     BrainCircuit,
     X,
     ZoomIn,
-    ZoomOut
+    ZoomOut,
+    FileText
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useArtboardStore } from '../../../store/artboard';

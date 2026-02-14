@@ -18,7 +18,6 @@ const sectionClassName = cn(
 
 export function OnyxTemplate({ pageIndex = 0 }: TemplateProps) {
     const basics = useArtboardStore((state) => state.resume.data.basics);
-    const sections = useArtboardStore((state) => state.resume.data.sections);
 
     // Onyx is a simple single column layout
     // We'll just map through the main sections defined in metadata or defaults
