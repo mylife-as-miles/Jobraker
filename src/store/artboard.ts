@@ -108,7 +108,7 @@ export interface ResumeState {
 
 // --- Cover Letter Types (Unchanged) ---
 export interface CoverLetterState {
-    // ... existing cover letter types (kept for brevity in this replace block, assuming they come after)
+    id: string;
     title: string;
     role: string;
     company: string;
@@ -167,6 +167,7 @@ export type ArtboardStore = {
     
     // Cover Letter Actions
     setCoverLetter: (coverLetter: Partial<CoverLetterState>) => void;
+    setCoverLetterTitle: (title: string) => void;
     setCoverLetterField: <K extends keyof CoverLetterState>(field: K, data: CoverLetterState[K]) => void;
     setCoverLetterNested: <K extends 'sender' | 'recipient' | 'content' | 'typography', F extends keyof CoverLetterState[K]>(
         section: K,
@@ -284,7 +285,8 @@ const initialResumeState: ResumeState = {
 export const useArtboardStore = create<ArtboardStore>((set) => ({
     resume: initialResumeState,
     coverLetter: {
-        title: '',
+        id: crypto.randomUUID(),
+        title: 'Untitled Cover Letter',
         role: '',
         company: '',
         jobDescription: '',
@@ -392,6 +394,9 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
     // Cover Letter Actions (Unchanged)
     setCoverLetter: (coverLetter) =>
         set((state) => ({ coverLetter: { ...state.coverLetter, ...coverLetter } })),
+
+    setCoverLetterTitle: (title) =>
+        set((state) => ({ coverLetter: { ...state.coverLetter, title } })),
 
     setCoverLetterField: (field, data) =>
         set((state) => ({ coverLetter: { ...state.coverLetter, [field]: data } })),
