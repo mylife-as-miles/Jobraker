@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Plus,
@@ -14,19 +14,17 @@ import {
 } from 'lucide-react';
 import { useArtboardStore } from '../../../store/artboard';
 import { Button } from '../../../components/ui/button';
-import { useProfileSettings } from '../../../hooks/useProfileSettings';
 import { motion } from 'framer-motion';
 
 export const ResumeHomePage = () => {
     const navigate = useNavigate();
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-    const { profile } = useProfileSettings();
+    // const { profile } = useProfileSettings(); // This line is commented out or removed because useProfileSettings import is removed.
 
     // In a real app, this would be a list from the database.
     // For now, we simulate a list with 1 item (the current active resume state from store)
     // plus a few static ones to visualize the layout if needed, or just the one.
     const resumeData = useArtboardStore((state) => state.resume.data);
-    const resetResume = useArtboardStore((state) => state.setResume);
 
     // We'll just show the current "Active" resume as one card for now.
     const resumes = [
@@ -45,7 +43,7 @@ export const ResumeHomePage = () => {
         navigate('/dashboard/resume/edit');
     };
 
-    const handleEdit = (id: string) => {
+    const handleEdit = () => {
         navigate('/dashboard/resume/edit');
     };
 
@@ -120,7 +118,7 @@ export const ResumeHomePage = () => {
                         >
                             {/* Preview Area (Top 2/3) */}
                             <div
-                                onClick={() => handleEdit(resume.id)}
+                                onClick={() => handleEdit()}
                                 className="flex-1 bg-white relative cursor-pointer overflow-hidden"
                             >
                                 {/* Placeholder for preview - we can use a scaled down iframe or image later */}
@@ -195,7 +193,7 @@ export const ResumeHomePage = () => {
                                 {resume.updatedAt}
                             </div>
                             <div className="col-span-3 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => handleEdit(resume.id)} className="p-2 text-gray-400 hover:text-white hover:bg-[#ffffff10] rounded-lg" title="Edit">
+                                <button onClick={() => handleEdit()} className="p-2 text-gray-400 hover:text-white hover:bg-[#ffffff10] rounded-lg" title="Edit">
                                     <Edit2 className="w-4 h-4" />
                                 </button>
                                 <button className="p-2 text-gray-400 hover:text-white hover:bg-[#ffffff10] rounded-lg" title="Download">
