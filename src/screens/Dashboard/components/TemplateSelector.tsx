@@ -1,4 +1,3 @@
-import React from 'react';
 import { useArtboardStore, ArtboardStore } from '../../../store/artboard';
 import { X, Check } from 'lucide-react';
 

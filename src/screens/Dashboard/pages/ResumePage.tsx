@@ -16,11 +16,7 @@ import {
     BrainCircuit,
     X,
     ZoomIn,
-    ZoomOut,
-    Mail,
-    Phone,
-    MapPin,
-    FileText
+    ZoomOut
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useArtboardStore } from '../../../store/artboard';
@@ -28,6 +24,7 @@ import { createClient } from '../../../lib/supabaseClient';
 import jsPDF from 'jspdf';
 import { AzurillTemplate } from '../../../templates/azurill';
 import { TemplateSelector } from '../components/TemplateSelector';
+import { OnyxTemplate } from '../../../templates/onyx';
 
 export const ResumePage = () => {
     const navigate = useNavigate();
@@ -619,26 +616,7 @@ export const ResumePage = () => {
                         {selectedTemplate === 'azurill' ? (
                             <AzurillTemplate />
                         ) : (
-                            <div className="p-12 text-gray-800 h-full flex flex-col gap-8">
-                                {/* Fallback Default Layout (Onyx-like) */}
-                                <div className="border-b-2 border-gray-900 pb-6">
-                                    <h1 className="text-4xl font-bold uppercase tracking-tight text-gray-900 mb-2">{basics.name}</h1>
-                                    <p className="text-lg font-medium text-gray-600 mb-4">{basics.headline}</p>
-                                    <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600">
-                                        <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> {basics.email}</span>
-                                        <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> {basics.phone}</span>
-                                        {basics.location && <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> {basics.location}</span>}
-                                        {basics.website?.url && <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> {basics.website.url}</span>}
-                                    </div>
-                                </div>
-                                {summary.content && (
-                                    <section>
-                                        <h3 className="font-bold text-gray-900 uppercase tracking-wider mb-2 border-b border-gray-200 pb-1 text-sm">Summary</h3>
-                                        <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{summary.content.replace(/<[^>]*>?/gm, '')}</p>
-                                    </section>
-                                )}
-                                {/* ... Rest of generic layout ... relative to Azurill implementation */}
-                            </div>
+                            <OnyxTemplate />
                         )}
                     </div>
                 </div>
