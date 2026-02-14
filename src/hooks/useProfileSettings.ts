@@ -11,6 +11,7 @@ export interface Profile {
   location: string | null;
   goals: string[];
   updated_at: string;
+  phone?: string; // Added to interface
   // Walkthrough completion flags (added via migration 20251001100000)
   walkthrough_overview?: boolean;
   walkthrough_application?: boolean; // singular version for ApplicationPage

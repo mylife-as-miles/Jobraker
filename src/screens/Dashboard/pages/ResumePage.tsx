@@ -41,6 +41,13 @@ export const ResumePage = () => {
 
     // Profile Data for Auto-population
     const { profile, experiences, education: profileEducation, skills: profileSkills } = useProfileSettings();
+    const [userEmail, setUserEmail] = useState('');
+
+    React.useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => {
+            if (data?.user?.email) setUserEmail(data.user.email);
+        });
+    }, [supabase]);
 
     // Auto-populate from profile if default
     React.useEffect(() => {
@@ -50,6 +57,8 @@ export const ResumePage = () => {
                 name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
                 headline: profile.job_title || resumeData.basics.headline,
                 location: profile.location || resumeData.basics.location,
+                email: userEmail || resumeData.basics.email,
+                phone: profile.phone || resumeData.basics.phone,
             };
 
             // Map Experience
@@ -100,7 +109,7 @@ export const ResumePage = () => {
                 }
             });
         }
-    }, [profile, experiences.data, profileEducation.data, profileSkills.data, resumeData.basics.name]);
+    }, [profile, experiences.data, profileEducation.data, profileSkills.data, resumeData.basics.name, userEmail]);
 
     // Actions
     const updateBasics = useArtboardStore((state) => state.updateBasics);
