@@ -17,6 +17,17 @@ export interface ResumeBasics {
     location: string;
     website: { url: string; label: string };
     customFields: { id: string; icon: string; text: string; link?: string }[];
+    picture?: {
+        url: string;
+        size: number;
+        aspectRatio: number;
+        borderRadius: number;
+        effects: {
+            hidden: boolean;
+            border: boolean;
+            grayscale: boolean;
+        };
+    };
     profiles?: ResumeProfile[];
 }
 
