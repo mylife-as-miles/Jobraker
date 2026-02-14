@@ -36,7 +36,6 @@ export const ResumePage = () => {
     // Global State
     const resume = useArtboardStore((state) => state.resume);
     const setResumeSection = useArtboardStore((state) => state.setResumeSection);
-    const setResume = useArtboardStore((state) => state.setResume);
     const addExperience = useArtboardStore((state) => state.addExperience);
     const updateExperience = useArtboardStore((state) => state.updateExperience);
     const removeExperience = useArtboardStore((state) => state.removeExperience);
