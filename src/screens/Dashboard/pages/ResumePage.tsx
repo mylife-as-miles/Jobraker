@@ -1,9 +1,10 @@
-import React, { useState } from 'react'; // Removed unused imports if any, keeping React
+import React, { useState } from 'react';
 import {
     ArrowLeft,
     Edit2,
     LayoutTemplate,
     Sparkles,
+    Wand2,
     Download,
     User,
     ChevronUp,
@@ -19,19 +20,23 @@ import {
     Mail,
     Phone,
     MapPin,
-    FileText // Added for Summary icon
+    FileText
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useArtboardStore, WorkExperience, Education } from '../../../store/artboard';
-import jsPDF from 'jspdf'; // Assuming jspdf is installed or readily available
+import { createClient } from '../../../lib/supabaseClient';
+import jsPDF from 'jspdf';
 
 export const ResumePage = () => {
     const navigate = useNavigate();
     const [zoom, setZoom] = useState(1);
+    const [aiLoading, setAiLoading] = useState(false);
+    const supabase = createClient();
 
     // Global State
     const resume = useArtboardStore((state) => state.resume);
     const setResumeSection = useArtboardStore((state) => state.setResumeSection);
+    const setResume = useArtboardStore((state) => state.setResume);
     const addExperience = useArtboardStore((state) => state.addExperience);
     const updateExperience = useArtboardStore((state) => state.updateExperience);
     const removeExperience = useArtboardStore((state) => state.removeExperience);
@@ -206,6 +211,42 @@ export const ResumePage = () => {
         doc.save(`${personalInfo.fullName.replace(/\s+/g, '_')}_Resume.pdf`);
     };
 
+    const aiGenerateResume = async () => {
+        setAiLoading(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('ai-generate-resume', {
+                body: { targetRole: personalInfo.jobTitle, tone: 'professional' }
+            });
+            if (error) throw error;
+            if (data) {
+                // Update the store with generated data
+                if (data.personalInfo) {
+                    setResumeSection('personalInfo', {
+                        ...personalInfo,
+                        ...data.personalInfo
+                    });
+                }
+                if (data.summary) {
+                    setResumeSection('summary', data.summary);
+                }
+                if (Array.isArray(data.experience)) {
+                    setResumeSection('experience', data.experience);
+                }
+                if (Array.isArray(data.education)) {
+                    setResumeSection('education', data.education);
+                }
+                if (Array.isArray(data.skills)) {
+                    setResumeSection('skills', data.skills);
+                }
+            }
+        } catch (e: any) {
+            console.error('AI Generate Resume failed:', e);
+            alert('Failed to generate resume. Please try again.');
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
 
     return (
         <div className="flex flex-col h-full relative overflow-hidden bg-white dark:bg-[#0A0A0A]">
@@ -236,6 +277,15 @@ export const ResumePage = () => {
                     <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)]">
                         <Sparkles className="w-4 h-4" />
                         AI Polish
+                    </button>
+
+                    <button
+                        onClick={aiGenerateResume}
+                        disabled={aiLoading}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-gray-700 dark:text-white text-sm font-bold transition-all"
+                    >
+                        <Wand2 className={`w-4 h-4 ${aiLoading ? 'animate-spin' : ''}`} />
+                        {aiLoading ? 'Generating...' : 'AI Generate'}
                     </button>
 
                     <button

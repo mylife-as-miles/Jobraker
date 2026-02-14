@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useToast } from "../../../components/ui/toast-provider";
-import { RESUME_BUILDER_PROMPT } from '../../../lib/prompts/resume-skill';
 
 // Custom styles for the new design
 const customStyles = `
@@ -488,31 +487,6 @@ export const ChatPage = () => {
     setText('');
   };
 
-  const startResumeSession = async () => {
-    // 1. Set text to give visual feedback of what's happening
-    // setText("I want to build my resume"); // Optional, or just clear it
-
-    // 2. Append the message with the specific system prompt
-    await append(
-      { role: 'user', content: "I want to build my professional resume. Please guide me through the process." },
-      {
-        model: 'gemini-3-pro-preview',
-        webSearch: false,
-        system: RESUME_BUILDER_PROMPT,
-        mode: 'ask', // 'ask' mode uses the system prompt we provide
-      }
-    );
-
-    // 3. Set a title for the session
-    if (activeSessionId) {
-      // Update UI
-      const title = "Resume Builder";
-      setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, title } : s));
-      // Update DB
-      await supabase.from('chat_sessions').update({ title }).eq('id', activeSessionId);
-    }
-  };
-
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Filtered sessions based on search
@@ -691,19 +665,10 @@ export const ChatPage = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12">
                       {/* Suggestion Cards */}
-                      <button
-                        onClick={() => {
-                          // Call the function directly
-                          startResumeSession();
-                        }}
-                        className="suggestion-card glass-panel p-5 rounded-2xl text-left transition-all group relative overflow-hidden"
-                      >
-                        <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                          <Sparkles className="w-16 h-16 text-[#14C314]" />
-                        </div>
-                        <FileText className="text-[#14C314] mb-3 w-6 h-6 relative z-10" />
-                        <h4 className="font-semibold text-sm mb-1 text-slate-200 relative z-10">Build My Resume</h4>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 relative z-10">Create a ATS-optimized resume from scratch with AI guidance.</p>
+                      <button onClick={() => setText("Optimize my resume for a Senior Frontend role")} className="suggestion-card glass-panel p-5 rounded-2xl text-left transition-all group">
+                        <FileText className="text-[#14C314] mb-3 w-6 h-6" />
+                        <h4 className="font-semibold text-sm mb-1 text-slate-200">Optimize Resume</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Tailor your CV for specific job descriptions.</p>
                       </button>
 
                       <button onClick={() => setText("Find remote software engineer jobs in US")} className="suggestion-card glass-panel p-5 rounded-2xl text-left transition-all group">
