@@ -38,6 +38,7 @@ export const ResumeBuilderPage = () => {
     // State
     const resumeData = useArtboardStore((state) => state.resume.data);
     const setResumeData = useArtboardStore((state) => state.setResumeData);
+    const setResumeTitle = useArtboardStore((state) => state.setResumeTitle);
 
     // Profile Data for Auto-population
     const { profile, experiences, education: profileEducation, skills: profileSkills } = useProfileSettings();
@@ -344,16 +345,20 @@ export const ResumeBuilderPage = () => {
             <header className="h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-white/10 bg-white dark:bg-[#0A0A0A] z-10 shrink-0">
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => navigate('/dashboard')}
+                        onClick={() => navigate('/dashboard/resume')}
                         className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-900 dark:hover:text-white transition-colors"
                     >
                         <ArrowLeft className="w-4 h-4" />
                         <span>Back to Dashboard</span>
                     </button>
                     <div className="h-6 w-px bg-gray-200 dark:bg-white/10" />
-                    <div className="flex items-center gap-2">
-                        <h2 className="font-semibold text-gray-900 dark:text-white">Software Engineer Resume</h2>
-                        <Edit2 className="w-3.5 h-3.5 text-gray-400 hover:text-white cursor-pointer" />
+                    <div className="flex items-center gap-2 group">
+                        <input
+                            value={resumeData.title || 'Untitled Resume'}
+                            onChange={(e) => setResumeTitle(e.target.value)}
+                            className="font-semibold text-gray-900 dark:text-white bg-transparent border-none outline-none focus:ring-1 focus:ring-[#1dff00] rounded px-1 min-w-[200px]"
+                        />
+                        <Edit2 className="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                 </div>
 

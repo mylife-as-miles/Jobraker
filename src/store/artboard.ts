@@ -64,6 +64,7 @@ export interface ResumeSection {
 }
 
 export interface ResumeData {
+    title: string;
     basics: ResumeBasics;
     summary: ResumeSection; // Summary is treated as a section with content
     sections: {
@@ -154,6 +155,7 @@ export type ArtboardStore = {
     
     // Helper to update deep nested resume data
     setResumeData: (data: Partial<ResumeData>) => void;
+    setResumeTitle: (title: string) => void;
     
     // Section Actions
     addSectionItem: (sectionId: string, item: ResumeSectionItem) => void;
@@ -176,6 +178,7 @@ export type ArtboardStore = {
 // --- Initial State ---
 const initialResumeState: ResumeState = {
     data: {
+        title: 'Untitled Resume',
         basics: {
             name: 'John Doe',
             headline: 'Senior Software Engineer',
@@ -318,6 +321,9 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
 
     setResumeData: (data) =>
         set((state) => ({ resume: { ...state.resume, data: { ...state.resume.data, ...data } } })),
+
+    setResumeTitle: (title) =>
+        set((state) => ({ resume: { ...state.resume, data: { ...state.resume.data, title } } })),
 
     addSectionItem: (sectionId, item) =>
         set((state) => ({
