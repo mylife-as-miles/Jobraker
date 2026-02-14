@@ -21,73 +21,21 @@ import {
     MapPin
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-interface WorkExperience {
-    id: string;
-    title: string;
-    company: string;
-    period: string;
-    description: string[];
-}
-
-interface Education {
-    id: string;
-    degree: string;
-    school: string;
-    period: string;
-}
+import { useArtboardStore } from '../../../store/artboard';
 
 export const ResumePage = () => {
     const navigate = useNavigate();
     const [zoom, setZoom] = useState(1);
 
-    // State
-    const [personalInfo, setPersonalInfo] = useState({
-        fullName: 'John Doe',
-        jobTitle: 'Senior Software Engineer',
-        email: 'john@example.com',
-        phone: '+1 (555) 123-4567',
-        location: 'San Francisco, CA',
-        website: 'johndoe.dev'
-    });
+    // Global State
+    const resume = useArtboardStore((state) => state.resume);
+    const setResumeSection = useArtboardStore((state) => state.setResumeSection);
 
-    const [experience] = useState<WorkExperience[]>([
-        {
-            id: '1',
-            title: 'Senior Developer',
-            company: 'TechCorp Inc.',
-            period: '2020 - Present',
-            description: [
-                'Led a team of 5 engineers to rebuild the core payment infrastructure, increasing transaction speed by 200%.',
-                'Improved system latency by 40% through optimized caching strategies and database indexing.',
-                'Mentored junior developers and conducted code reviews to ensure high code quality standards.'
-            ]
-        },
-        {
-            id: '2',
-            title: 'Software Engineer',
-            company: 'StartupXY',
-            period: '2018 - 2020',
-            description: [
-                'Developed and maintained RESTful APIs for the mobile application backend using Node.js.',
-                'Collaborated with product managers to define feature requirements and project timelines.'
-            ]
-        }
-    ]);
+    // Destructure for easier access (optional, but keeps code similar)
+    const { personalInfo, experience, education, skills } = resume;
 
-    const [education] = useState<Education[]>([
-        {
-            id: '1',
-            degree: 'B.S. Computer Science',
-            school: 'Stanford University',
-            period: '2014 - 2018'
-        }
-    ]);
-
-    const [skills, setSkills] = useState(['JavaScript', 'React', 'Node.js', 'Python', 'AWS', 'Docker', 'GraphQL']);
+    // Local UI State
     const [newSkill, setNewSkill] = useState('');
-
-    // Sections State
     const [expandedSection, setExpandedSection] = useState<string | null>('personal');
 
     const toggleSection = (section: string) => {
@@ -96,13 +44,17 @@ export const ResumePage = () => {
 
     const handleSkillAdd = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && newSkill.trim()) {
-            setSkills([...skills, newSkill.trim()]);
+            setResumeSection('skills', [...skills, newSkill.trim()]);
             setNewSkill('');
         }
     };
 
     const removeSkill = (skillToRemove: string) => {
-        setSkills(skills.filter(skill => skill !== skillToRemove));
+        setResumeSection('skills', skills.filter(skill => skill !== skillToRemove));
+    };
+
+    const updatePersonalInfo = (field: keyof typeof personalInfo, value: string) => {
+        setResumeSection('personalInfo', { ...personalInfo, [field]: value });
     };
 
     return (
@@ -177,7 +129,7 @@ export const ResumePage = () => {
                                         <input
                                             type="text"
                                             value={personalInfo.fullName}
-                                            onChange={(e) => setPersonalInfo({ ...personalInfo, fullName: e.target.value })}
+                                            onChange={(e) => updatePersonalInfo('fullName', e.target.value)}
                                             className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100"
                                         />
                                     </div>
@@ -186,7 +138,7 @@ export const ResumePage = () => {
                                         <input
                                             type="text"
                                             value={personalInfo.jobTitle}
-                                            onChange={(e) => setPersonalInfo({ ...personalInfo, jobTitle: e.target.value })}
+                                            onChange={(e) => updatePersonalInfo('jobTitle', e.target.value)}
                                             className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100"
                                         />
                                     </div>
@@ -195,7 +147,7 @@ export const ResumePage = () => {
                                         <input
                                             type="email"
                                             value={personalInfo.email}
-                                            onChange={(e) => setPersonalInfo({ ...personalInfo, email: e.target.value })}
+                                            onChange={(e) => updatePersonalInfo('email', e.target.value)}
                                             className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100"
                                         />
                                     </div>
@@ -204,7 +156,7 @@ export const ResumePage = () => {
                                         <input
                                             type="text"
                                             value={personalInfo.phone}
-                                            onChange={(e) => setPersonalInfo({ ...personalInfo, phone: e.target.value })}
+                                            onChange={(e) => updatePersonalInfo('phone', e.target.value)}
                                             className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100"
                                         />
                                     </div>
