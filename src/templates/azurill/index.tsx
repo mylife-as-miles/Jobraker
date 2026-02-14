@@ -1,135 +1,153 @@
-import { PageLink } from '../shared/page-link';
-import { PageIcon } from '../shared/page-icon';
-import { PagePicture } from '../shared/page-picture';
-import { useArtboardStore } from '../../store/artboard';
+import { cn } from "../../lib/utils";
+import { getSectionComponent } from "../shared/get-section-component";
+import { PageIcon } from "../shared/page-icon";
+import { PageLink } from "../shared/page-link";
+import { PagePicture } from "../shared/page-picture";
+import { useArtboardStore } from "../../store/artboard";
+import type { TemplateProps } from "./types";
 
-export const AzurillTemplate = () => {
-    const resumeData = useArtboardStore((state) => state.resume.data);
-    const { basics, sections, summary } = resumeData;
-    const { experience, education, skills } = sections;
+const sectionClassName = cn(
+    // Heading Decoration in Sidebar Layout
+    "group-data-[layout=sidebar]:[&>h6]:px-4",
+    "group-data-[layout=sidebar]:[&>h6]:relative",
+    "group-data-[layout=sidebar]:[&>h6]:inline-flex",
+    "group-data-[layout=sidebar]:[&>h6]:items-center",
+    "group-data-[layout=sidebar]:[&>h6]:before:content-['']",
+    "group-data-[layout=sidebar]:[&>h6]:before:absolute",
+    "group-data-[layout=sidebar]:[&>h6]:before:left-0",
+    "group-data-[layout=sidebar]:[&>h6]:before:rounded-full",
+    "group-data-[layout=sidebar]:[&>h6]:before:size-2",
+    "group-data-[layout=sidebar]:[&>h6]:before:border",
+    "group-data-[layout=sidebar]:[&>h6]:before:border-[#3b82f6]", // Hardcoded primary color for now
+    "group-data-[layout=sidebar]:[&>h6]:after:content-['']",
+    "group-data-[layout=sidebar]:[&>h6]:after:absolute",
+    "group-data-[layout=sidebar]:[&>h6]:after:right-0",
+    "group-data-[layout=sidebar]:[&>h6]:after:rounded-full",
+    "group-data-[layout=sidebar]:[&>h6]:after:size-2",
+    "group-data-[layout=sidebar]:[&>h6]:after:border",
+    "group-data-[layout=sidebar]:[&>h6]:after:border-[#3b82f6]",
+
+    // Section in Sidebar Layout
+    "group-data-[layout=sidebar]:[&_.section-item-header>div]:flex-col",
+    "group-data-[layout=sidebar]:[&_.section-item-header>div]:items-start",
+
+    // Section in Main Layout
+    "group-data-[layout=main]:[&>.section-content]:relative",
+    "group-data-[layout=main]:[&>.section-content]:ml-4",
+    "group-data-[layout=main]:[&>.section-content]:pl-4",
+    "group-data-[layout=main]:[&>.section-content]:border-l",
+    "group-data-[layout=main]:[&>.section-content]:border-[#3b82f6]",
+
+    // Timeline Marker in Main Layout
+    "group-data-[layout=main]:[&>.section-content]:after:content-['']",
+    "group-data-[layout=main]:[&>.section-content]:after:absolute",
+    "group-data-[layout=main]:[&>.section-content]:after:top-5",
+    "group-data-[layout=main]:[&>.section-content]:after:left-0",
+    "group-data-[layout=main]:[&>.section-content]:after:size-2.5",
+    "group-data-[layout=main]:[&>.section-content]:after:translate-x-[-50%]",
+    "group-data-[layout=main]:[&>.section-content]:after:translate-y-[-50%]",
+    "group-data-[layout=main]:[&>.section-content]:after:rounded-full",
+    "group-data-[layout=main]:[&>.section-content]:after:border",
+    "group-data-[layout=main]:[&>.section-content]:after:border-[#3b82f6]",
+    "group-data-[layout=main]:[&>.section-content]:after:bg-white",
+);
+
+/**
+ * Template: Azurill
+ */
+export function AzurillTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
+    // Fallback if pageLayout is missing (e.g. initial render)
+    const defaultLayout = {
+        fullWidth: false,
+        main: ['summary', 'experience', 'education', 'projects'],
+        sidebar: ['skills']
+    };
+
+    // If not provided prop, grab from store or use default
+    const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
+    const layout = pageLayout || storeLayout || defaultLayout;
+
+    const isFirstPage = pageIndex === 0;
+    const { main, sidebar, fullWidth } = layout;
 
     return (
-        <div className="p-12 text-gray-800 h-full flex flex-col gap-8 bg-white min-h-[1123px] w-[794px]">
-            {/* Header */}
-            <div className="flex items-start gap-8 border-b-2 border-gray-900 pb-8">
-                <PagePicture className="w-32 h-32 rounded-full object-cover border-4 border-gray-100 shadow-md" />
+        <div className="template-azurill page-content space-y-4 px-12 pt-12 print:p-0 h-full bg-white text-gray-800">
+            {isFirstPage && <Header />}
 
-                <div className="flex-1 space-y-2">
-                    <h1 className="text-4xl font-bold uppercase tracking-tight text-gray-900">
-                        {basics.name}
-                    </h1>
-                    <p className="text-xl font-medium text-blue-600">
-                        {basics.headline}
-                    </p>
+            <div className="flex gap-x-8 h-full">
+                {!fullWidth && (
+                    <aside
+                        data-layout="sidebar"
+                        className="group page-sidebar w-[30%] shrink-0 space-y-4 overflow-x-hidden"
+                    >
+                        {sidebar.map((section: string) => {
+                            const Component = getSectionComponent(section, { sectionClassName });
+                            return <Component key={section} id={section} />;
+                        })}
+                    </aside>
+                )}
 
-                    <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600 mt-4">
-                        {basics.email && (
-                            <PageLink type="email" value={basics.email} icon={<PageIcon name="envelope" />} />
-                        )}
-                        {basics.phone && (
-                            <PageLink type="phone" value={basics.phone} icon={<PageIcon name="phone" />} />
-                        )}
-                        {basics.location && (
-                            <span className="flex items-center gap-1.5">
-                                <PageIcon name="map-pin" className="w-3.5 h-3.5" />
-                                {basics.location}
-                            </span>
-                        )}
-                        {basics.website?.url && (
-                            <PageLink type="url" value={basics.website.url} icon={<PageIcon name="globe" />} />
-                        )}
-                    </div>
-                </div>
+                <main data-layout="main" className="group page-main grow space-y-4">
+                    {main.map((section: string) => {
+                        const Component = getSectionComponent(section, { sectionClassName });
+                        return <Component key={section} id={section} />;
+                    })}
+                </main>
             </div>
+        </div>
+    );
+}
 
-            {/* Main Content */}
-            <div className="flex gap-10 flex-1">
-                {/* Left Column (Main) */}
-                <div className="flex-[3] space-y-8">
-                    {/* Summary */}
-                    {summary.content && (
-                        <section>
-                            <h3 className="font-bold text-gray-900 uppercase tracking-wider mb-3 border-b border-gray-200 pb-1 text-sm flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
-                                Professional Summary
-                            </h3>
-                            <div
-                                className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap"
-                                dangerouslySetInnerHTML={{ __html: summary.content }}
-                            />
-                        </section>
-                    )}
+function Header() {
+    const basics = useArtboardStore((state) => state.resume.data.basics);
 
-                    {/* Experience */}
-                    {experience.items.length > 0 && (
-                        <section>
-                            <h3 className="font-bold text-gray-900 uppercase tracking-wider mb-4 border-b border-gray-200 pb-1 text-sm flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
-                                {experience.title}
-                            </h3>
-                            <div className="space-y-6">
-                                {experience.items.map((exp: any) => (
-                                    <div key={exp.id}>
-                                        <div className="flex justify-between items-baseline mb-1">
-                                            <h4 className="font-bold text-gray-800 text-base">{exp.title}</h4>
-                                            <span className="text-sm text-gray-500 font-medium bg-gray-50 px-2 py-0.5 rounded">
-                                                {exp.period}
-                                            </span>
-                                        </div>
-                                        <p className="text-sm font-semibold text-blue-600 mb-2">{exp.company}</p>
-                                        <div
-                                            className="text-sm text-gray-600 leading-relaxed [&>ul]:list-disc [&>ul]:ml-4 [&>ul]:space-y-1"
-                                            dangerouslySetInnerHTML={{ __html: exp.description }}
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-                    )}
+    return (
+        <div className="page-header flex flex-col items-center gap-y-4 mb-8">
+            <PagePicture className="w-32 h-32 rounded-full border-4 border-gray-100 shadow-md" />
+
+            <div className="page-basics space-y-2 text-center">
+                <div className="basics-header">
+                    <h2 className="basics-name text-3xl font-bold uppercase tracking-tight text-gray-900">{basics.name}</h2>
+                    <p className="basics-headline text-lg text-[#3b82f6] font-medium">{basics.headline}</p>
                 </div>
 
-                {/* Right Column (Sidebar) */}
-                <div className="flex-[1.5] space-y-8">
-                    {/* Education */}
-                    {education.items.length > 0 && (
-                        <section>
-                            <h3 className="font-bold text-gray-900 uppercase tracking-wider mb-4 border-b border-gray-200 pb-1 text-sm flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
-                                {education.title}
-                            </h3>
-                            <div className="space-y-5">
-                                {education.items.map((edu: any) => (
-                                    <div key={edu.id}>
-                                        <h4 className="font-bold text-gray-800 text-sm leading-tight">{edu.degree}</h4>
-                                        <p className="text-sm text-gray-700 mt-1 font-medium">{edu.school}</p>
-                                        <p className="text-xs text-gray-500 mt-1">{edu.period}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
+                <div className="basics-items flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm text-gray-600 *:flex *:items-center *:gap-x-1.5">
+                    {basics.email && (
+                        <div className="basics-item-email">
+                            <PageIcon name="Envelope" />
+                            <PageLink type="email" value={basics.email} />
+                        </div>
                     )}
 
-                    {/* Skills */}
-                    {skills.items.length > 0 && (
-                        <section>
-                            <h3 className="font-bold text-gray-900 uppercase tracking-wider mb-4 border-b border-gray-200 pb-1 text-sm flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
-                                {skills.title}
-                            </h3>
-                            <div className="flex flex-wrap gap-2">
-                                {skills.items.map((skill: any) => (
-                                    <span
-                                        key={skill.id}
-                                        className="bg-blue-50 text-blue-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-blue-100"
-                                    >
-                                        {skill.name}
-                                    </span>
-                                ))}
-                            </div>
-                        </section>
+                    {basics.phone && (
+                        <div className="basics-item-phone">
+                            <PageIcon name="Phone" />
+                            <PageLink type="phone" value={basics.phone} />
+                        </div>
                     )}
+
+                    {basics.location && (
+                        <div className="basics-item-location">
+                            <PageIcon name="MapPin" />
+                            <span>{basics.location}</span>
+                        </div>
+                    )}
+
+                    {basics.website && basics.website.url && (
+                        <div className="basics-item-website">
+                            <PageIcon name="Globe" />
+                            <PageLink type="url" value={basics.website.url} label={basics.website.label || basics.website.url} />
+                        </div>
+                    )}
+
+                    {basics.customFields.map((field) => (
+                        <div key={field.id} className="basics-item-custom">
+                            <PageIcon name={field.icon} />
+                            {field.link ? <PageLink type="url" value={field.link} label={field.text} /> : <span>{field.text}</span>}
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
     );
-};
+}

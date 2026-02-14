@@ -27,11 +27,13 @@ import { useArtboardStore } from '../../../store/artboard';
 import { createClient } from '../../../lib/supabaseClient';
 import jsPDF from 'jspdf';
 import { AzurillTemplate } from '../../../templates/azurill';
+import { TemplateSelector } from '../components/TemplateSelector';
 
 export const ResumePage = () => {
     const navigate = useNavigate();
     const [zoom, setZoom] = useState(0.8);
     const [aiLoading, setAiLoading] = useState(false);
+    const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
     const supabase = createClient();
 
     // Global State from new ArtboardStore schema
@@ -48,13 +50,15 @@ export const ResumePage = () => {
     const setSummary = (val: string) => setResumeData({ summary: { ...resumeData.summary, content: val } });
 
     // Destructure for easier access
-    const { basics, sections, summary } = resumeData;
+    const { basics, sections, summary, metadata } = resumeData;
     const { experience, education, skills } = sections;
+
+    // Derive selected template from store, default to azurill
+    const selectedTemplate = metadata?.template || 'azurill';
 
     // Local UI State
     const [newSkill, setNewSkill] = useState('');
     const [expandedSection, setExpandedSection] = useState<string | null>('personal');
-    const [selectedTemplate, setSelectedTemplate] = useState('azurill');
 
     const toggleSection = (section: string) => {
         setExpandedSection(expandedSection === section ? null : section);
@@ -283,7 +287,10 @@ export const ResumePage = () => {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300">
+                    <button
+                        onClick={() => setIsTemplateSelectorOpen(true)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300"
+                    >
                         <LayoutTemplate className="w-4 h-4" />
                         Templates
                         <ChevronDown className="w-3 h-3 opacity-50" />
@@ -636,6 +643,7 @@ export const ResumePage = () => {
                     </div>
                 </div>
             </div>
+            <TemplateSelector isOpen={isTemplateSelectorOpen} onClose={() => setIsTemplateSelectorOpen(false)} />
         </div>
     );
 };
