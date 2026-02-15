@@ -10,7 +10,8 @@ const availableTemplates = [
     { id: 'ditgar', name: 'Ditgar', description: 'A bold, purple-accented layout with a prominent sidebar header.' },
     { id: 'ditto', name: 'Ditto', description: 'A playful layout with a header that spans the sidebar.' },
     { id: 'gengar', name: 'Gengar', description: 'A sleek, dark purple themed layout with a modern sidebar.' },
-    { id: 'glalie', name: 'Glalie', description: 'A cool, blue-accented layout with a boxed contact info section.' }
+    { id: 'glalie', name: 'Glalie', description: 'A cool, blue-accented layout with a boxed contact info section.' },
+    { id: 'kakuna', name: 'Kakuna', description: 'A centered, single-column layout with a focus on simplicity.' }
 ];
 
 interface TemplateSelectorProps {
