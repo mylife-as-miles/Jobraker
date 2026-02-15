@@ -34,6 +34,7 @@ import { GengarTemplate } from '../../../templates/gengar';
 import { GlalieTemplate } from '../../../templates/glalie';
 import { KakunaTemplate } from '../../../templates/kakuna';
 import { LaprasTemplate } from '../../../templates/lapras';
+import { PikachuTemplate } from '../../../templates/pikachu';
 import { useProfileSettings } from '../../../hooks/useProfileSettings';
 
 export const ResumeBuilderPage = () => {
@@ -710,6 +711,7 @@ export const ResumeBuilderPage = () => {
                         {selectedTemplate === 'glalie' && <GlalieTemplate />}
                         {selectedTemplate === 'kakuna' && <KakunaTemplate />}
                         {selectedTemplate === 'lapras' && <LaprasTemplate />}
+                        {selectedTemplate === 'pikachu' && <PikachuTemplate />}
                     </div>
                 </div>
             </div>

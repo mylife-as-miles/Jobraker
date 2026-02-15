@@ -9,6 +9,7 @@ import { GengarTemplate } from '../../../templates/gengar';
 import { GlalieTemplate } from '../../../templates/glalie';
 import { KakunaTemplate } from '../../../templates/kakuna';
 import { LaprasTemplate } from '../../../templates/lapras';
+import { PikachuTemplate } from '../../../templates/pikachu';
 
 interface TemplatePreviewProps {
     templateId: string;
@@ -55,6 +56,7 @@ export const TemplatePreview: FC<TemplatePreviewProps> = ({ templateId }) => {
                 {templateId === 'glalie' && <GlalieTemplate />}
                 {templateId === 'kakuna' && <KakunaTemplate />}
                 {templateId === 'lapras' && <LaprasTemplate />}
+                {templateId === 'pikachu' && <PikachuTemplate />}
             </div>
         </div>
     );

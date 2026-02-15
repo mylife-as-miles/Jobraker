@@ -12,7 +12,9 @@ const availableTemplates = [
     { id: 'gengar', name: 'Gengar', description: 'A sleek, dark purple themed layout with a modern sidebar.' },
     { id: 'glalie', name: 'Glalie', description: 'A cool, blue-accented layout with a boxed contact info section.' },
     { id: 'kakuna', name: 'Kakuna', description: 'A centered, single-column layout with a focus on simplicity.' },
-    { id: 'lapras', name: 'Lapras', description: 'A clean, card-based layout with rounded corners and distinct headers.' }
+    { id: 'lapras', name: 'Lapras', description: 'A clean, card-based layout with rounded corners and distinct headers.' },
+    { id: 'leafish', name: 'Leafish', description: 'A nature-inspired layout with a distinctive header and green accents.' },
+    { id: 'pikachu', name: 'Pikachu', description: 'A vibrant, yellow-accented layout with a bold header.' }
 ];
 
 interface TemplateSelectorProps {
