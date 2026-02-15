@@ -28,6 +28,7 @@ import { TemplateSelector } from '../components/TemplateSelector';
 import { OnyxTemplate } from '../../../templates/onyx';
 import { BronzorTemplate } from '../../../templates/bronzor';
 import { ChikoritaTemplate } from '../../../templates/chikorita';
+import { DitgarTemplate } from '../../../templates/ditgar';
 import { useProfileSettings } from '../../../hooks/useProfileSettings';
 
 export const ResumeBuilderPage = () => {
@@ -698,6 +699,7 @@ export const ResumeBuilderPage = () => {
                         {selectedTemplate === 'onyx' && <OnyxTemplate />}
                         {selectedTemplate === 'bronzor' && <BronzorTemplate />}
                         {selectedTemplate === 'chikorita' && <ChikoritaTemplate />}
+                        {selectedTemplate === 'ditgar' && <DitgarTemplate />}
                     </div>
                 </div>
             </div>
