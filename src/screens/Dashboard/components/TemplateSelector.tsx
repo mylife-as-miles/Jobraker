@@ -4,7 +4,8 @@ import { TemplatePreview } from './TemplatePreview';
 
 const availableTemplates = [
     { id: 'azurill', name: 'Azurill', description: 'A clean, sidebar-based layout with blue accents.' },
-    { id: 'onyx', name: 'Onyx', description: 'A classic, single-column professional layout.' } // Placeholder for now
+    { id: 'onyx', name: 'Onyx', description: 'A classic, single-column professional layout.' },
+    { id: 'bronzor', name: 'Bronzor', description: 'A professional layout with left-aligned section headers.' }
 ];
 
 interface TemplateSelectorProps {
