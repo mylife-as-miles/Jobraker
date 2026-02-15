@@ -27,6 +27,7 @@ import { AzurillTemplate } from '../../../templates/azurill/index';
 import { TemplateSelector } from '../components/TemplateSelector';
 import { OnyxTemplate } from '../../../templates/onyx';
 import { BronzorTemplate } from '../../../templates/bronzor';
+import { ChikoritaTemplate } from '../../../templates/chikorita';
 import { useProfileSettings } from '../../../hooks/useProfileSettings';
 
 export const ResumeBuilderPage = () => {
@@ -696,6 +697,7 @@ export const ResumeBuilderPage = () => {
                         {selectedTemplate === 'azurill' && <AzurillTemplate />}
                         {selectedTemplate === 'onyx' && <OnyxTemplate />}
                         {selectedTemplate === 'bronzor' && <BronzorTemplate />}
+                        {selectedTemplate === 'chikorita' && <ChikoritaTemplate />}
                     </div>
                 </div>
             </div>
