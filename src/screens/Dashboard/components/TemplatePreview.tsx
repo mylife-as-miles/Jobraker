@@ -3,6 +3,7 @@ import { AzurillTemplate } from '../../../templates/azurill/index';
 import { OnyxTemplate } from '../../../templates/onyx';
 import { BronzorTemplate } from '../../../templates/bronzor';
 import { ChikoritaTemplate } from '../../../templates/chikorita';
+import { DitgarTemplate } from '../../../templates/ditgar';
 
 interface TemplatePreviewProps {
     templateId: string;
@@ -43,6 +44,7 @@ export const TemplatePreview: FC<TemplatePreviewProps> = ({ templateId }) => {
                 {templateId === 'onyx' && <OnyxTemplate />}
                 {templateId === 'bronzor' && <BronzorTemplate />}
                 {templateId === 'chikorita' && <ChikoritaTemplate />}
+                {templateId === 'ditgar' && <DitgarTemplate />}
             </div>
         </div>
     );
