@@ -5,6 +5,7 @@ import { BronzorTemplate } from '../../../templates/bronzor';
 import { ChikoritaTemplate } from '../../../templates/chikorita';
 import { DitgarTemplate } from '../../../templates/ditgar';
 import { DittoTemplate } from '../../../templates/ditto';
+import { GengarTemplate } from '../../../templates/gengar';
 
 interface TemplatePreviewProps {
     templateId: string;
@@ -47,6 +48,7 @@ export const TemplatePreview: FC<TemplatePreviewProps> = ({ templateId }) => {
                 {templateId === 'chikorita' && <ChikoritaTemplate />}
                 {templateId === 'ditgar' && <DitgarTemplate />}
                 {templateId === 'ditto' && <DittoTemplate />}
+                {templateId === 'gengar' && <GengarTemplate />}
             </div>
         </div>
     );
