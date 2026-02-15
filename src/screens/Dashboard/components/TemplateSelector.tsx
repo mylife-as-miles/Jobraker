@@ -7,7 +7,8 @@ const availableTemplates = [
     { id: 'onyx', name: 'Onyx', description: 'A classic, single-column professional layout.' },
     { id: 'bronzor', name: 'Bronzor', description: 'A professional layout with left-aligned section headers.' },
     { id: 'chikorita', name: 'Chikorita', description: 'A fresh, nature-inspired layout with a sidebar background.' },
-    { id: 'ditgar', name: 'Ditgar', description: 'A bold, purple-accented layout with a prominent sidebar header.' }
+    { id: 'ditgar', name: 'Ditgar', description: 'A bold, purple-accented layout with a prominent sidebar header.' },
+    { id: 'ditto', name: 'Ditto', description: 'A playful layout with a header that spans the sidebar.' }
 ];
 
 interface TemplateSelectorProps {
