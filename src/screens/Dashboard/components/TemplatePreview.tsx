@@ -8,6 +8,7 @@ import { DittoTemplate } from '../../../templates/ditto';
 import { GengarTemplate } from '../../../templates/gengar';
 import { GlalieTemplate } from '../../../templates/glalie';
 import { KakunaTemplate } from '../../../templates/kakuna';
+import { LaprasTemplate } from '../../../templates/lapras';
 
 interface TemplatePreviewProps {
     templateId: string;
@@ -53,6 +54,7 @@ export const TemplatePreview: FC<TemplatePreviewProps> = ({ templateId }) => {
                 {templateId === 'gengar' && <GengarTemplate />}
                 {templateId === 'glalie' && <GlalieTemplate />}
                 {templateId === 'kakuna' && <KakunaTemplate />}
+                {templateId === 'lapras' && <LaprasTemplate />}
             </div>
         </div>
     );
