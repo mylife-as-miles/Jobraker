@@ -31,6 +31,7 @@ import { ChikoritaTemplate } from '../../../templates/chikorita';
 import { DitgarTemplate } from '../../../templates/ditgar';
 import { DittoTemplate } from '../../../templates/ditto';
 import { GengarTemplate } from '../../../templates/gengar';
+import { GlalieTemplate } from '../../../templates/glalie';
 import { useProfileSettings } from '../../../hooks/useProfileSettings';
 
 export const ResumeBuilderPage = () => {
@@ -704,6 +705,7 @@ export const ResumeBuilderPage = () => {
                         {selectedTemplate === 'ditgar' && <DitgarTemplate />}
                         {selectedTemplate === 'ditto' && <DittoTemplate />}
                         {selectedTemplate === 'gengar' && <GengarTemplate />}
+                        {selectedTemplate === 'glalie' && <GlalieTemplate />}
                     </div>
                 </div>
             </div>
