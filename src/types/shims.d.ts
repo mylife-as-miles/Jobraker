@@ -28,4 +28,8 @@ declare module "@phosphor-icons/react" {
   export const DownloadSimple: React.FC<React.SVGProps<SVGSVGElement>>;
   export const Flask: React.FC<React.SVGProps<SVGSVGElement>>;
   export const MagicWand: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const Envelope: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const Globe: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const MapPin: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const Phone: React.FC<React.SVGProps<SVGSVGElement>>;
 }declare module '@hookform/resolvers/zod';
