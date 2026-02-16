@@ -10,7 +10,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { X, Wand2 } from 'lucide-react';
-import { useArtboardStore } from '@/store/artboard';
+import { useArtboardStore, initialResumeState } from '@/store/artboard';
 import { useNavigate } from 'react-router-dom';
 
 import { createClient } from '@/lib/supabaseClient';
@@ -77,6 +77,14 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('User not authenticated');
 
+            // Construct initial data object
+            const initialData = {
+                ...initialResumeState.data,
+                title: name,
+                slug: slug,
+                tags: tags
+            };
+
             // 1. Insert into Database
             const { data, error } = await supabase
                 .from('resumes')
@@ -87,7 +95,8 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                         slug: slug,
                         tags: tags,
                         template: 'azurill',
-                        status: 'Draft'
+                        status: 'Draft',
+                        data: initialData
                     }
                 ])
                 .select()

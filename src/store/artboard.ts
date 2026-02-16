@@ -184,7 +184,7 @@ export type ArtboardStore = {
 };
 
 // --- Initial State ---
-const initialResumeState: ResumeState = {
+export const initialResumeState: ResumeState = {
     id: '',
     data: {
         title: 'Untitled Resume',
