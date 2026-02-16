@@ -17,13 +17,13 @@ const sectionClassName = cn(
     "group-data-[layout=sidebar]:[&>h6]:before:left-0",
     "group-data-[layout=sidebar]:[&>h6]:before:rounded-full",
     "group-data-[layout=sidebar]:[&>h6]:before:size-1.5",
-    "group-data-[layout=sidebar]:[&>h6]:before:bg-[#3b82f6]",
+    "group-data-[layout=sidebar]:[&>h6]:before:bg-[var(--page-primary-color)]",
     "group-data-[layout=sidebar]:[&>h6]:after:content-['']",
     "group-data-[layout=sidebar]:[&>h6]:after:absolute",
     "group-data-[layout=sidebar]:[&>h6]:after:right-0",
     "group-data-[layout=sidebar]:[&>h6]:after:rounded-full",
     "group-data-[layout=sidebar]:[&>h6]:after:size-1.5",
-    "group-data-[layout=sidebar]:[&>h6]:after:bg-[#3b82f6]",
+    "group-data-[layout=sidebar]:[&>h6]:after:bg-[var(--page-primary-color)]",
 
     // Section in Sidebar Layout
     "group-data-[layout=sidebar]:[&_.section-item-header>div]:flex-col",
@@ -34,7 +34,7 @@ const sectionClassName = cn(
     "group-data-[layout=main]:[&>.section-content]:ml-3",
     "group-data-[layout=main]:[&>.section-content]:pl-4",
     "group-data-[layout=main]:[&>.section-content]:border-l",
-    "group-data-[layout=main]:[&>.section-content]:border-[#3b82f6]/20",
+    "group-data-[layout=main]:[&>.section-content]:border-[var(--page-primary-color)]/20",
 
     // Timeline Marker
     "group-data-[layout=main]:[&>.section-content]:after:content-['']",
@@ -45,7 +45,7 @@ const sectionClassName = cn(
     "group-data-[layout=main]:[&>.section-content]:after:translate-x-[-50%]",
     "group-data-[layout=main]:[&>.section-content]:after:translate-y-[-50%]",
     "group-data-[layout=main]:[&>.section-content]:after:rounded-full",
-    "group-data-[layout=main]:[&>.section-content]:after:bg-[#3b82f6]",
+    "group-data-[layout=main]:[&>.section-content]:after:bg-[var(--page-primary-color)]",
 );
 
 /**
@@ -60,14 +60,33 @@ export function AzurillTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
     };
 
     const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
-    const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#3b82f6';
+    const metadata = useArtboardStore((state) => state.resume.data.metadata);
+    const theme = metadata.theme;
+    const typography = metadata.typography.font;
+    const page = metadata.page;
+
+    const themePrimary = theme?.primary || '#3b82f6';
+    const themeText = theme?.text || '#1f2937';
+    const themeBackground = theme?.background || '#ffffff';
+
     const layout = pageLayout || storeLayout || defaultLayout;
 
     const isFirstPage = pageIndex === 0;
     const { main, sidebar, fullWidth } = layout;
 
     return (
-        <div style={{ '--page-primary-color': themePrimary } as React.CSSProperties} className="template-azurill page-content space-y-5 px-10 pt-10 print:p-8 h-full bg-white text-gray-800">
+        <div
+            style={{
+                '--page-primary-color': themePrimary,
+                fontFamily: typography.family,
+                fontSize: `${typography.size}px`,
+                lineHeight: typography.lineHeight,
+                color: themeText,
+                backgroundColor: themeBackground,
+                padding: `${page.margin}mm`
+            } as React.CSSProperties}
+            className="template-azurill page-content space-y-5 h-full"
+        >
             {isFirstPage && <Header />}
 
             <div className="flex gap-x-8 h-full">
@@ -96,15 +115,17 @@ export function AzurillTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 
 function Header() {
     const basics = useArtboardStore((state) => state.resume.data.basics);
+    // Inherit colors from parent CSS variables or context, but for explicit classes we might need store or use 'text-[var(--page-primary-color)]'
+    // Since we set CSS variable in parent, we can use it here.
 
     return (
         <div className="page-header flex items-start gap-x-6 pb-6 border-b border-gray-100">
-            <PagePicture className="w-24 h-24 rounded-full border-2 border-[#3b82f6]/20 shadow-sm shrink-0" />
+            <PagePicture className="w-24 h-24 rounded-full border-2 border-[var(--page-primary-color)]/20 shadow-sm shrink-0" />
 
             <div className="page-basics space-y-2.5 min-w-0">
                 <div className="basics-header">
-                    <h2 className="basics-name text-2xl font-bold tracking-tight text-gray-900">{basics.name}</h2>
-                    <p className="basics-headline text-sm text-[#3b82f6] font-medium mt-0.5">{basics.headline}</p>
+                    <h2 className="basics-name text-2xl font-bold tracking-tight text-current">{basics.name}</h2>
+                    <p className="basics-headline text-sm text-[var(--page-primary-color)] font-medium mt-0.5">{basics.headline}</p>
                 </div>
 
                 <div className="basics-items flex flex-wrap gap-x-4 gap-y-1.5 text-[0.7rem] text-gray-500 *:flex *:items-center *:gap-x-1.5">

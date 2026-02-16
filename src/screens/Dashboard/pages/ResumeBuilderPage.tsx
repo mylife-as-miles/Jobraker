@@ -303,10 +303,9 @@ export const ResumeBuilderPage = () => {
                                 <span className={`w-1.5 h-1.5 rounded-full ${saving ? 'bg-yellow-500 animate-pulse' : 'bg-[#1dff00]'}`} />
                                 {saving ? 'Saving...' : 'Ready'}
                             </div>
-                        </div>
 
-                        {/* Personal Info Section */}
-                        <div className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === 'personal' ? 'ring-1 ring-[#1dff00]/50' : 'hover:border-[#1dff00]/30'}`}>
+                            {/* Personal Info Section */}
+                            <div className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === 'personal' ? 'ring-1 ring-[#1dff00]/50' : 'hover:border-[#1dff00]/30'}`}>
                             <div
                                 className="p-5 flex items-center justify-between cursor-pointer"
                                 onClick={() => toggleSection('personal')}
@@ -380,6 +379,48 @@ export const ResumeBuilderPage = () => {
                                             </button>
                                             {expandedSection === sectionId ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
                                         </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                            {/* Skills Section */}
+                            <div className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === 'skills' ? 'ring-1 ring-[#1dff00]/50' : 'hover:border-[#1dff00]/30'}`}>
+                                <div
+                                    className="p-5 flex items-center justify-between cursor-pointer"
+                                    onClick={() => toggleSection('skills')}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <BrainCircuit className="w-5 h-5 text-[#1dff00]" />
+                                        <h4 className="font-semibold text-gray-900 dark:text-white">Skills</h4>
+                                    </div>
+                                    {expandedSection === 'skills' ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                                </div>
+
+                                {expandedSection === 'skills' && (
+                                    <div className="p-5 pt-0 animate-in slide-in-from-top-2 duration-200">
+                                        <div className="flex flex-wrap gap-2 mb-4">
+                                            {skills.items.map((skill: any) => (
+                                                <span key={skill.id} className="px-2.5 py-1.5 bg-gray-100 dark:bg-white/10 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-white/5 flex items-center gap-1.5 group">
+                                                    {skill.name}
+                                                    <X
+                                                        className="w-3 h-3 text-gray-400 group-hover:text-red-400 cursor-pointer transition-colors"
+                                                        onClick={() => removeSkill(skill.id)}
+                                                    />
+                                                </span>
+                                            ))}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={newSkill}
+                                            onChange={(e) => setNewSkill(e.target.value)}
+                                            onKeyDown={handleSkillAdd}
+                                            placeholder="Type a skill and press Enter..."
+                                            className="w-full bg-transparent border-b border-gray-200 dark:border-white/10 px-0 py-2 text-sm focus:border-[#1dff00] outline-none transition-colors text-gray-900 dark:text-gray-100 placeholder:text-gray-500"
+                                        />
+                                    </div>
+                                )}
+                            </div>
                                     </div>
 
                                     {expandedSection === sectionId && (
@@ -406,8 +447,9 @@ export const ResumeBuilderPage = () => {
                                 Add Section
                              </Button>
                         </div>
-
-                    </div>
+                    ) : (
+                        <DesignPanel />
+                    )}
                 </div>
 
                 {/* Preview Panel (Right) */}

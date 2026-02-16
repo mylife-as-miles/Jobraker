@@ -107,6 +107,7 @@ export interface ResumeData {
             font: {
                 family: string;
                 size: number;
+                lineHeight: number;
             };
         };
         css?: {
@@ -185,6 +186,12 @@ export type ArtboardStore = {
     setResumeTitle: (title: string) => void;
     setResumeSlug: (slug: string) => void;
     setResumeTags: (tags: string[]) => void;
+
+    // Metadata Actions
+    updateTheme: (theme: Partial<ResumeData['metadata']['theme']>) => void;
+    updateTypography: (typography: Partial<ResumeData['metadata']['typography']['font']>) => void;
+    updatePage: (page: Partial<ResumeData['metadata']['page']>) => void;
+    updateLayout: (layout: Partial<ResumeData['metadata']['layout']>) => void;
     
     // Section Actions
     addSectionItem: (sectionId: string, item: ResumeSectionItem) => void;
@@ -338,14 +345,15 @@ export const initialResumeState: ResumeState = {
             typography: {
                 font: {
                     family: 'IBM Plex Serif',
-                    size: 14
+                    size: 14,
+                    lineHeight: 1.5
                 }
+            },
+            theme: {
+                primary: 'rgba(79, 57, 246, 1)',
+                text: 'rgba(0, 0, 0, 1)',
+                background: 'rgba(255, 255, 255, 1)',
             }
-        },
-        theme: {
-            primary: 'rgba(79, 57, 246, 1)',
-            text: 'rgba(0, 0, 0, 1)',
-            background: 'rgba(255, 255, 255, 1)',
         }
     }
 };
@@ -409,6 +417,77 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
 
     setResumeTags: (tags) =>
         set((state) => ({ resume: { ...state.resume, data: { ...state.resume.data, tags } } })),
+
+    updateTheme: (theme) =>
+        set((state) => ({
+            resume: {
+                ...state.resume,
+                data: {
+                    ...state.resume.data,
+                    metadata: {
+                        ...state.resume.data.metadata,
+                        theme: {
+                            ...state.resume.data.metadata.theme!,
+                            ...theme
+                        }
+                    }
+                }
+            }
+        })),
+
+    updateTypography: (font) =>
+        set((state) => ({
+            resume: {
+                ...state.resume,
+                data: {
+                    ...state.resume.data,
+                    metadata: {
+                        ...state.resume.data.metadata,
+                        typography: {
+                            ...state.resume.data.metadata.typography,
+                            font: {
+                                ...state.resume.data.metadata.typography.font,
+                                ...font
+                            }
+                        }
+                    }
+                }
+            }
+        })),
+
+    updatePage: (page) =>
+        set((state) => ({
+            resume: {
+                ...state.resume,
+                data: {
+                    ...state.resume.data,
+                    metadata: {
+                        ...state.resume.data.metadata,
+                        page: {
+                            ...state.resume.data.metadata.page,
+                            ...page
+                        }
+                    }
+                }
+            }
+        })),
+
+    updateLayout: (layout) =>
+        set((state) => ({
+            resume: {
+                ...state.resume,
+                data: {
+                    ...state.resume.data,
+                    metadata: {
+                        ...state.resume.data.metadata,
+                        layout: {
+                            ...state.resume.data.metadata.layout,
+                            ...layout
+                        }
+                    }
+                }
+            }
+        })),
 
     addSectionItem: (sectionId, item) =>
         set((state) => ({
