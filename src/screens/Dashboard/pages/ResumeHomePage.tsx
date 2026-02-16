@@ -16,6 +16,7 @@ import { useArtboardStore } from '../../../store/artboard';
 import { Button } from '../../../components/ui/button';
 import { motion } from 'framer-motion';
 import { ResumeCreationModal } from '../components/ResumeCreationModal';
+import { ResumePreviewCard } from '../components/ResumePreviewCard';
 import { createClient } from '@/lib/supabaseClient';
 
 const supabase = createClient();
@@ -137,10 +138,8 @@ export const ResumeHomePage = () => {
                                 onClick={() => handleEdit(resume.id, resume.name)}
                                 className="flex-1 bg-white relative cursor-pointer overflow-hidden"
                             >
-                                {/* Placeholder for preview - we can use a scaled down iframe or image later */}
-                                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 opacity-50">
-                                    <FileText className="w-12 h-12 text-gray-300" />
-                                </div>
+                                {/* Mini Resume Preview */}
+                                <ResumePreviewCard data={resume.data} />
 
                                 {/* Overlay on hover */}
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">

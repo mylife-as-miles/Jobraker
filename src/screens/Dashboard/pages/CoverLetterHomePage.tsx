@@ -15,6 +15,7 @@ import { Button } from '../../../components/ui/button';
 import { motion } from 'framer-motion';
 import { createClient } from '@/lib/supabaseClient';
 import { CoverLetterCreationModal } from '../components/CoverLetterCreationModal';
+import { CoverLetterPreviewCard } from '../components/CoverLetterPreviewCard';
 
 const supabase = createClient();
 
@@ -165,9 +166,8 @@ export const CoverLetterHomePage = () => {
                                         onClick={() => handleEdit(letter)}
                                         className="flex-1 bg-white relative cursor-pointer overflow-hidden"
                                     >
-                                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 opacity-50">
-                                            <Mail className="w-12 h-12 text-gray-300" />
-                                        </div>
+                                        {/* Mini Cover Letter Preview */}
+                                        <CoverLetterPreviewCard data={letter.data} name={letter.name} />
 
                                         {/* Overlay */}
                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
