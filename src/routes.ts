@@ -9,6 +9,7 @@ export const ROUTES = {
   ARTBOARD: '/artboard',
   BUILDER: '/builder',
   PRIVACY: '/privacy',
+  PUBLIC_RESUME: '/r/:id',
 } as const;
 
 export type RouteKey = keyof typeof ROUTES;

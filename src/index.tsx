@@ -8,6 +8,7 @@ import { Onboarding } from "./screens/Onboarding";
 import { Analytics } from "./screens/Analytics";
 import { Dashboard } from "./screens/Dashboard";
 import { PrivacyPolicy } from "./screens/PrivacyPolicy";
+import { PublicResumePage } from "./screens/Public/PublicResumePage";
 import { PublicOnly } from "./components/PublicOnly";
 import { RequireAuth } from "./components/RequireAuth";
 import GmailCallbackPage from "./screens/AuthCallback/GmailCallbackPage";
@@ -100,6 +101,9 @@ function AnimatedRoutes() {
 
         {/* Privacy Policy */}
         <Route path={ROUTES.PRIVACY} element={<PublicOnly><PageTransition><PrivacyPolicy /></PageTransition></PublicOnly>} />
+
+        {/* Public Resume View */}
+        <Route path={ROUTES.PUBLIC_RESUME} element={<PageTransition><PublicResumePage /></PageTransition>} />
 
         {/* Auth callback route */}
         <Route path="/auth/callback/gmail" element={<PageTransition><GmailCallbackPage /></PageTransition>} />
