@@ -15,9 +15,12 @@ import {
     X,
     Lock,
     FileType,
-    Edit2
+    FileType,
+    Edit2,
+    Check,
+    Loader2
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -59,10 +62,11 @@ export const CoverLetterBuilderPage = () => {
     const setCoverLetterField = useArtboardStore((state) => state.setCoverLetterField);
     const setNested = useArtboardStore((state) => state.setCoverLetterNested);
     const setCoverLetterTitle = useArtboardStore((state) => state.setCoverLetterTitle);
+    const setCoverLetterId = useArtboardStore((state) => state.setCoverLetterId);
 
     // Destructure for easier access
     const {
-        role, company, jobDescription, tone, lengthPref,
+        id, role, company, jobDescription, tone, lengthPref,
         sender, recipient, content, typography
     } = coverLetter;
 
@@ -109,29 +113,91 @@ export const CoverLetterBuilderPage = () => {
     // Remove unused copied
     // const [copied, setCopied] = useState(false);
     const [inlineEdit, setInlineEdit] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+    const { id: routeId } = useParams();
 
     // Derived
     const finalBody = content.paragraphs.length ? content.paragraphs.join('\n\n') : content.rawBody;
 
     // --- Effects ---
 
-    // Load library
+    // Load Initial Data
     useEffect(() => {
-        const fetchLibrary = async () => {
+        const loadData = async () => {
+            if (!routeId) return;
+
+            try {
+                const { data, error } = await supabase
+                    .from('cover_letters')
+                    .select('*')
+                    .eq('id', routeId)
+                    .single();
+
+                if (error) throw error;
+                if (data) {
+                    // Populate store
+                    setCoverLetterId(data.id);
+                    setCoverLetterTitle(data.name);
+
+                    if (data.data) {
+                        setCoverLetter(data.data);
+                    }
+                    // If no data column (legacy), we might need to map manual fields, but assume new structure for now
+                }
+            } catch (error) {
+                console.error('Error loading cover letter:', error);
+                toastError('Load failed', 'Could not load cover letter');
+                navigate('/dashboard/cover-letter');
+            }
+        };
+        loadData();
+    }, [routeId]);
+
+    // Save Function
+    const handleSave = async () => {
+        if (!id) return;
+        setIsSaving(true);
+        try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            const { data, error } = await supabase
-                .from('cover_letters')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('updated_at', { ascending: false });
+            const letterData = {
+                title: coverLetter.title,
+                role, company, jobDescription, tone, lengthPref,
+                sender, recipient, content, typography
+            };
 
-            if (data) setLibrary(data);
-            if (error) console.error(error);
-        };
-        fetchLibrary();
-    }, []);
+            const { error } = await supabase
+                .from('cover_letters')
+                .update({
+                    name: coverLetter.title,
+                    data: letterData,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', id);
+
+            if (error) throw error;
+            setLastSaved(new Date());
+        } catch (error) {
+            console.error('Save failed:', error);
+            toastError('Save failed', 'Could not save changes');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Auto-save
+    useEffect(() => {
+        if (!id) return;
+
+        const timeout = setTimeout(() => {
+            handleSave();
+        }, 2000);
+
+        return () => clearTimeout(timeout);
+    }, [coverLetter, id]); // Deep dependency might trigger too often, strictly relying on debounce
 
     // Check subscription
     useEffect(() => {
@@ -498,16 +564,32 @@ export const CoverLetterBuilderPage = () => {
                             />
                             <Edit2 className="w-5 h-5 text-gray-500 opacity-0 group-hover/title:opacity-100 transition-opacity" />
                         </div>
-                        <p className="text-xs sm:text-sm text-gray-400 mt-1.5 flex items-center gap-2.5">
-                            <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-[#1dff00]/20 border border-[#1dff00]/40">
-                                <span className="inline-block w-2 h-2 bg-[#1dff00] rounded-full animate-pulse shadow-[0_0_8px_rgba(29,255,0,0.8)]" />
-                            </span>
-                            Create professional, tailored cover letters with AI assistance
-                        </p>
+                        <div className="flex items-center gap-3 mt-1.5">
+                            <p className="text-xs sm:text-sm text-gray-400 flex items-center gap-2.5">
+                                <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-[#1dff00]/20 border border-[#1dff00]/40">
+                                    <span className="inline-block w-2 h-2 bg-[#1dff00] rounded-full animate-pulse shadow-[0_0_8px_rgba(29,255,0,0.8)]" />
+                                </span>
+                                AI Assistant Ready
+                            </p>
+                            {lastSaved && (
+                                <span className="text-xs text-brand/70 flex items-center gap-1">
+                                    <Check className="w-3 h-3" />
+                                    Saved {lastSaved.toLocaleTimeString()}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
 
                 <div className="relative flex items-center gap-2.5 overflow-x-auto">
+                    <Button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="rounded-xl h-11 border-[#1dff00]/30 bg-[#1dff00]/10 text-[#1dff00] hover:bg-[#1dff00]/20 gap-2"
+                    >
+                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                        {isSaving ? 'Saving...' : 'Save Changes'}
+                    </Button>
                     <Button variant="outline" onClick={() => setInlineEdit(!inlineEdit)} className={`rounded-xl whitespace-nowrap h-11 px-4 font-semibold transition-all duration-300 group/btn ${inlineEdit ? 'bg-[#1dff00]/10 border-[#1dff00] text-[#1dff00]' : 'border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:text-[#1dff00] hover:bg-[#1dff00]/5'}`}>
                         <Pencil className="w-4 h-4 mr-2" />
                         {inlineEdit ? 'Live Edit: On' : 'Enable Live Edit'}

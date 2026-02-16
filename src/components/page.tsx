@@ -10,8 +10,8 @@ type Props = {
 };
 
 export const Page = ({ mode = "preview", pageNumber, children }: Props) => {
-  const page = useArtboardStore((state: ArtboardStore) => state.resume?.metadata?.page);
-  const fontFamily = useArtboardStore((state: ArtboardStore) => state.resume?.metadata?.typography?.font?.family || "Inter");
+  const page = useArtboardStore((state: ArtboardStore) => state.resume?.data?.metadata?.page);
+  const fontFamily = useArtboardStore((state: ArtboardStore) => state.resume?.data?.metadata?.typography?.font?.family || "Inter");
 
   if (!page) {
     return <div data-page={pageNumber} className="relative bg-background text-foreground">Loading...</div>;

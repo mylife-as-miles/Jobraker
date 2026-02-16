@@ -14,6 +14,7 @@ import { useArtboardStore } from '../../../store/artboard';
 import { Button } from '../../../components/ui/button';
 import { motion } from 'framer-motion';
 import { createClient } from '@/lib/supabaseClient';
+import { CoverLetterCreationModal } from '../components/CoverLetterCreationModal';
 
 const supabase = createClient();
 
@@ -22,6 +23,7 @@ export const CoverLetterHomePage = () => {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [letters, setLetters] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     const setCoverLetter = useArtboardStore((state) => state.setCoverLetter);
 
@@ -49,25 +51,7 @@ export const CoverLetterHomePage = () => {
     }, []);
 
     const handleCreateNew = () => {
-        // Reset Logic could go here
-        // For now, we just navigate to the builder. 
-        // Ideally, we might want to clear the current store state to "Untitled"
-        setCoverLetter({
-            title: 'Untitled Cover Letter',
-            role: '',
-            company: '',
-            jobDescription: '',
-            content: {
-                date: new Date().toISOString().slice(0, 10),
-                subject: '',
-                salutation: 'Dear Hiring Manager,',
-                paragraphs: [],
-                closing: 'Best regards,',
-                signature: '',
-                rawBody: ''
-            }
-        });
-        navigate('/dashboard/cover-letter/edit');
+        setIsCreateModalOpen(true);
     };
 
     const handleEdit = (letter: any) => {
@@ -143,6 +127,11 @@ export const CoverLetterHomePage = () => {
                     </Button>
                 </div>
             </div>
+
+            <CoverLetterCreationModal
+                open={isCreateModalOpen}
+                onOpenChange={setIsCreateModalOpen}
+            />
 
             {loading ? (
                 <div className="text-gray-500">Loading your letters...</div>

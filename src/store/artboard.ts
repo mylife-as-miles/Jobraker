@@ -90,6 +90,10 @@ export interface ResumeData {
         page: {
            format: 'a4' | 'letter';
            margin: number;
+           options?: {
+               pageNumbers: boolean;
+               breakLine: boolean;
+           };
         };
         typography: {
             font: {
@@ -111,8 +115,10 @@ export interface ResumeState {
 
 // --- Cover Letter Types (Unchanged) ---
 export interface CoverLetterState {
-    id: string;
+    id: string; // Database ID
     title: string;
+    slug: string;
+    tags: string[];
     role: string;
     company: string;
     jobDescription: string;
@@ -174,7 +180,12 @@ export type ArtboardStore = {
     
     // Cover Letter Actions
     setCoverLetter: (coverLetter: Partial<CoverLetterState>) => void;
+    setCoverLetterId: (id: string) => void;
     setCoverLetterTitle: (title: string) => void;
+    setCoverLetterSlug: (slug: string) => void;
+    setCoverLetterTags: (tags: string[]) => void;
+    resetCoverLetter: () => void;
+    
     setCoverLetterField: <K extends keyof CoverLetterState>(field: K, data: CoverLetterState[K]) => void;
     setCoverLetterNested: <K extends 'sender' | 'recipient' | 'content' | 'typography', F extends keyof CoverLetterState[K]>(
         section: K,
@@ -280,7 +291,11 @@ export const initialResumeState: ResumeState = {
             },
             page: {
                 format: 'a4',
-                margin: 18
+                margin: 18,
+                options: {
+                    pageNumbers: false,
+                    breakLine: false
+                }
             },
             typography: {
                 font: {
@@ -295,8 +310,10 @@ export const initialResumeState: ResumeState = {
 export const useArtboardStore = create<ArtboardStore>((set) => ({
     resume: initialResumeState,
     coverLetter: {
-        id: crypto.randomUUID(),
+        id: '',
         title: 'Untitled Cover Letter',
+        slug: 'untitled-cover-letter',
+        tags: [],
         role: '',
         company: '',
         jobDescription: '',
@@ -328,6 +345,7 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
         }
     },
 
+    // Resume Actions
     setResume: (resume) =>
         set((state) => ({ resume: { ...state.resume, ...resume } })),
 
@@ -376,7 +394,7 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
                         ...state.resume.data.sections,
                         [sectionId]: {
                             ...state.resume.data.sections[sectionId],
-                            items: state.resume.data.sections[sectionId].items.map((i) => 
+                            items: state.resume.data.sections[sectionId].items.map((i) =>
                                 i.id === itemId ? { ...i, ...item } : i
                             )
                         }
@@ -413,12 +431,48 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
             }
         })),
 
-    // Cover Letter Actions (Unchanged)
+    // Cover Letter Actions
     setCoverLetter: (coverLetter) =>
         set((state) => ({ coverLetter: { ...state.coverLetter, ...coverLetter } })),
 
+    setCoverLetterId: (id) =>
+        set((state) => ({ coverLetter: { ...state.coverLetter, id } })),
+
     setCoverLetterTitle: (title) =>
         set((state) => ({ coverLetter: { ...state.coverLetter, title } })),
+
+    setCoverLetterSlug: (slug) =>
+        set((state) => ({ coverLetter: { ...state.coverLetter, slug } })),
+
+    setCoverLetterTags: (tags) =>
+        set((state) => ({ coverLetter: { ...state.coverLetter, tags } })),
+    
+    resetCoverLetter: () =>
+        set((state) => ({ 
+            coverLetter: {
+                id: '',
+                title: 'Untitled Cover Letter',
+                slug: 'untitled-cover-letter',
+                tags: [],
+                role: '',
+                company: '',
+                jobDescription: '',
+                tone: 'professional',
+                lengthPref: 'medium',
+                sender: { name: '', email: '', phone: '', address: '' },
+                recipient: { name: '', title: '', company: '', address: '' },
+                content: {
+                    date: new Date().toISOString().slice(0, 10),
+                    subject: '',
+                    salutation: 'Dear Hiring Manager,',
+                    paragraphs: [],
+                    closing: 'Best regards,',
+                    signature: '',
+                    rawBody: ''
+                },
+                typography: { fontSize: 16 }
+            }
+        })),
 
     setCoverLetterField: (field, data) =>
         set((state) => ({ coverLetter: { ...state.coverLetter, [field]: data } })),
