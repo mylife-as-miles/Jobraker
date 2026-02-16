@@ -167,7 +167,7 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                                 id="slug"
                                 value={slug}
                                 onChange={(e) => setSlug(e.target.value)}
-                                className="bg-zinc-900 border-zinc-800 focus:border-brand text-white pl-[140px]"
+                                className="bg-zinc-900 border-zinc-800 focus:border-brand text-white pl-[180px]"
                             />
                         </div>
                         <p className="text-xs text-zinc-500">

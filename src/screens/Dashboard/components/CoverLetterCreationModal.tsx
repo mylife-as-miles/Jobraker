@@ -178,7 +178,7 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
                                 id="slug"
                                 value={slug}
                                 onChange={(e) => setSlug(e.target.value)}
-                                className="bg-zinc-900 border-zinc-800 focus:border-brand text-white pl-[165px]"
+                                className="bg-zinc-900 border-zinc-800 focus:border-brand text-white pl-[230px]"
                             />
                         </div>
                         <p className="text-xs text-zinc-500">

@@ -409,7 +409,7 @@ export const ResumeBuilderPage = () => {
                         className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-900 dark:hover:text-white transition-colors"
                     >
                         <ArrowLeft className="w-4 h-4" />
-                        <span>Back to Dashboard</span>
+                        <span>Back</span>
                     </button>
                     <div className="h-6 w-px bg-gray-200 dark:bg-white/10" />
                     <div className="flex items-center gap-2 group">
