@@ -37,10 +37,11 @@ export function LaprasTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 
 	const containerBorderRadius = useArtboardStore((state) => Math.min(state.resume.data.basics.picture?.borderRadius || 0, 30));
 	const headingNegativeMargin = useArtboardStore((state) => (state.resume.data.metadata.typography.font.size || 16) + 6);
+	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#0369a1';
 
 	const style = useMemo(() => {
 		return {
-			'--page-primary-color': '#0369a1',
+			'--page-primary-color': themePrimary,
 			'--page-text-color': '#111827',
 			'--page-background-color': '#f8fafc',
 			'--page-margin-x': '2rem',
@@ -50,12 +51,12 @@ export function LaprasTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 			"--container-border-radius": `${containerBorderRadius}px`,
 			"--heading-negative-margin": `${headingNegativeMargin}px`,
 		} as React.CSSProperties;
-	}, [containerBorderRadius, headingNegativeMargin]);
+	}, [containerBorderRadius, headingNegativeMargin, themePrimary]);
 
 	return (
 		<div
 			style={style}
-			className="template-lapras page-content space-y-5 px-[var(--page-margin-x)] pt-[var(--page-margin-y)] print:p-8 h-full bg-[color:var(--page-background-color)] text-gray-800 font-[system-ui]"
+			className="template-lapras page-content space-y-5 px-[var(--page-margin-x)] pt-[var(--page-margin-y)] print:p-8 h-full bg-[color:var(--page-background-color)] text-gray-800"
 		>
 			{isFirstPage && <Header />}
 

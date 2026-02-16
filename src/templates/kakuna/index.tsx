@@ -23,20 +23,21 @@ export function KakunaTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 		sidebar: ['skills']
 	};
 	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
+	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#d97706';
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
 	const { main, sidebar, fullWidth } = layout;
 
 	const styles: React.CSSProperties = {
-		'--page-primary-color': '#d97706',
+		'--page-primary-color': themePrimary,
 		'--page-gap-y': '1.25rem',
 		'--page-margin-x': '2.5rem',
 		'--page-margin-y': '2.5rem',
 	} as React.CSSProperties;
 
 	return (
-		<div style={styles} className="template-kakuna page-content space-y-[var(--page-gap-y)] px-[var(--page-margin-x)] pt-[var(--page-margin-y)] print:p-8 h-full bg-white text-gray-800 font-[system-ui]">
+		<div style={styles} className="template-kakuna page-content space-y-[var(--page-gap-y)] px-[var(--page-margin-x)] pt-[var(--page-margin-y)] print:p-8 h-full bg-white text-gray-800">
 			{isFirstPage && <Header />}
 
 			<main data-layout="main" className="group page-main space-y-[var(--page-gap-y)]">

@@ -26,20 +26,21 @@ export function BronzorTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 	};
 
 	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
+	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#111827';
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
 	const { main, sidebar, fullWidth } = layout;
 
 	const styles: React.CSSProperties = {
-		'--page-primary-color': '#111827',
+		'--page-primary-color': themePrimary,
 		'--page-gap-y': '1.25rem',
 		'--page-margin-x': '2.5rem',
 		'--page-margin-y': '2.5rem',
 	} as React.CSSProperties;
 
 	return (
-		<div style={styles} className="template-bronzor page-content space-y-[var(--page-gap-y)] px-[var(--page-margin-x)] pt-[var(--page-margin-y)] print:p-8 h-full bg-white text-gray-800 font-[system-ui]">
+		<div style={styles} className="template-bronzor page-content space-y-[var(--page-gap-y)] px-[var(--page-margin-x)] pt-[var(--page-margin-y)] print:p-8 h-full bg-white text-gray-800">
 			{isFirstPage && <Header />}
 
 			<div className="space-y-[var(--page-gap-y)]">

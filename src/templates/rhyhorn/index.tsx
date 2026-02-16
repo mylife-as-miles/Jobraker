@@ -23,13 +23,14 @@ export function RhyhornTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 		sidebar: ['skills']
 	};
 	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
+	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#475569';
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
 	const { main, sidebar, fullWidth } = layout;
 
 	const styles: React.CSSProperties = {
-		'--page-primary-color': '#475569',
+		'--page-primary-color': themePrimary,
 		'--page-margin-x': '2.5rem',
 		'--page-margin-y': '2.5rem',
 		'--page-gap-y': '1.25rem',
@@ -37,7 +38,7 @@ export function RhyhornTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 	} as React.CSSProperties;
 
 	return (
-		<div style={styles} className="template-rhyhorn page-content space-y-[var(--page-gap-y)] px-[var(--page-margin-x)] pt-[var(--page-margin-y)] print:p-8 h-full bg-white text-gray-800 font-[system-ui]">
+		<div style={styles} className="template-rhyhorn page-content space-y-[var(--page-gap-y)] px-[var(--page-margin-x)] pt-[var(--page-margin-y)] print:p-8 h-full bg-white text-gray-800">
 			{isFirstPage && <Header />}
 
 			<main data-layout="main" className="group page-main space-y-[var(--page-gap-y)]">

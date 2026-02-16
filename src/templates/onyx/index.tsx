@@ -18,13 +18,14 @@ const sectionClassName = cn(
  */
 export function OnyxTemplate({ pageIndex = 0 }: TemplateProps) {
     const basics = useArtboardStore((state) => state.resume.data.basics);
+    const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#111';
 
     const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
     const defaultOrder = ['summary', 'experience', 'education', 'skills', 'projects'];
     const layoutSections = storeLayout ? [...storeLayout.main, ...storeLayout.sidebar] : defaultOrder;
 
     return (
-        <div className="template-onyx page-content p-12 h-full bg-white text-gray-800 font-[system-ui]">
+        <div style={{ '--page-primary-color': themePrimary } as React.CSSProperties} className="template-onyx page-content p-12 h-full bg-white text-gray-800">
             {/* Header */}
             <header className="mb-8">
                 {/* Top accent line */}

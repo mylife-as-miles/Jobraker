@@ -31,13 +31,14 @@ export function ChikoritaTemplate({ pageIndex = 0, pageLayout }: TemplateProps) 
 		sidebar: ['skills']
 	};
 	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
+	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#0d9488';
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
 	const { main, sidebar, fullWidth } = layout;
 
 	const styles: React.CSSProperties = {
-		'--page-primary-color': '#0d9488',
+		'--page-primary-color': themePrimary,
 		'--page-background-color': '#ffffff',
 		'--page-sidebar-width': '30%',
 		'--page-margin-x': '2.5rem',
@@ -45,7 +46,7 @@ export function ChikoritaTemplate({ pageIndex = 0, pageLayout }: TemplateProps) 
 	} as React.CSSProperties;
 
 	return (
-		<div style={styles} className="template-chikorita page-content relative h-full bg-white text-gray-800 font-[system-ui]">
+		<div style={styles} className="template-chikorita page-content relative h-full bg-white text-gray-800">
 			{/* Sidebar Background */}
 			{!fullWidth && (
 				<div className="page-sidebar-background pointer-events-none absolute inset-y-0 z-0 w-[var(--page-sidebar-width)] shrink-0 bg-[var(--page-primary-color)] right-0" />

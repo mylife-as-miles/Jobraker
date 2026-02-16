@@ -104,7 +104,12 @@ export interface ResumeData {
         css?: {
             value: string;
             visible: boolean;
-        }
+        };
+        theme?: {
+            primary: string;
+            text: string;
+            background: string;
+        };
     };
 }
 
@@ -303,6 +308,11 @@ export const initialResumeState: ResumeState = {
                     size: 14
                 }
             }
+        },
+        theme: {
+            primary: 'rgba(79, 57, 246, 1)',
+            text: 'rgba(0, 0, 0, 1)',
+            background: 'rgba(255, 255, 255, 1)',
         }
     }
 };

@@ -30,13 +30,14 @@ export function GengarTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 		sidebar: ['skills']
 	};
 	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
+	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#7c3aed';
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
 	const { main, sidebar, fullWidth } = layout;
 
 	const styles: React.CSSProperties = {
-		'--page-primary-color': '#7c3aed',
+		'--page-primary-color': themePrimary,
 		'--page-background-color': '#ffffff',
 		'--page-sidebar-width': '32%',
 		'--page-margin-x': '2rem',
@@ -51,7 +52,7 @@ export function GengarTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 	});
 
 	return (
-		<div style={styles} className="template-gengar page-content relative h-full bg-white text-gray-800 font-[system-ui]">
+		<div style={styles} className="template-gengar page-content relative h-full bg-white text-gray-800">
 			{/* Sidebar Background */}
 			{(!fullWidth || isFirstPage) && (
 				<div className="page-sidebar-background pointer-events-none absolute inset-y-0 z-0 w-[var(--page-sidebar-width)] shrink-0 bg-[color:var(--page-primary-color)] left-0" />

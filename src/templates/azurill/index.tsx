@@ -60,13 +60,14 @@ export function AzurillTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
     };
 
     const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
+    const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#3b82f6';
     const layout = pageLayout || storeLayout || defaultLayout;
 
     const isFirstPage = pageIndex === 0;
     const { main, sidebar, fullWidth } = layout;
 
     return (
-        <div className="template-azurill page-content space-y-5 px-10 pt-10 print:p-8 h-full bg-white text-gray-800 font-[system-ui]">
+        <div style={{ '--page-primary-color': themePrimary } as React.CSSProperties} className="template-azurill page-content space-y-5 px-10 pt-10 print:p-8 h-full bg-white text-gray-800">
             {isFirstPage && <Header />}
 
             <div className="flex gap-x-8 h-full">

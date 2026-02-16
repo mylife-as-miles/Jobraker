@@ -27,13 +27,14 @@ export function PikachuTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 		sidebar: ['skills']
 	};
 	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
+	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#f59e0b';
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
 	const { main, sidebar, fullWidth } = layout;
 
 	const styles: React.CSSProperties = {
-		'--page-primary-color': '#f59e0b',
+		'--page-primary-color': themePrimary,
 		'--page-background-color': '#ffffff',
 		'--page-sidebar-width': '30%',
 		'--page-margin-x': '2.5rem',
@@ -42,7 +43,7 @@ export function PikachuTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 	} as React.CSSProperties;
 
 	return (
-		<div style={styles} className="template-pikachu page-content px-[var(--page-margin-x)] pt-[var(--page-margin-y)] print:p-0 h-full bg-white text-gray-800 font-[system-ui]">
+		<div style={styles} className="template-pikachu page-content px-[var(--page-margin-x)] pt-[var(--page-margin-y)] print:p-0 h-full bg-white text-gray-800">
 			<div className="flex gap-x-[var(--page-margin-x)] h-full">
 				{!fullWidth && (
 					<aside
