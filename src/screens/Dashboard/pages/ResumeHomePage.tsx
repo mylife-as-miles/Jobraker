@@ -15,10 +15,12 @@ import {
 import { useArtboardStore } from '../../../store/artboard';
 import { Button } from '../../../components/ui/button';
 import { motion } from 'framer-motion';
+import { ResumeCreationModal } from '../components/ResumeCreationModal';
 
 export const ResumeHomePage = () => {
     const navigate = useNavigate();
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     // const { profile } = useProfileSettings(); // This line is commented out or removed because useProfileSettings import is removed.
 
     // In a real app, this would be a list from the database.
@@ -37,10 +39,7 @@ export const ResumeHomePage = () => {
     ];
 
     const handleCreateNew = () => {
-        // Reset the store to default state (implementation needed in store, or just partial update)
-        // For now, just navigate to the builder, assuming "New" means editing the current one or a new draft logic
-        // Ideally we'd have a `resetResume()` action.
-        navigate('/dashboard/resume/edit');
+        setIsCreateModalOpen(true);
     };
 
     const handleEdit = () => {
@@ -207,6 +206,8 @@ export const ResumeHomePage = () => {
                     ))}
                 </div>
             )}
+
+            <ResumeCreationModal open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} />
         </div>
     );
 };

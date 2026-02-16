@@ -75,6 +75,8 @@ export interface ResumeData {
         // Add others as needed
         [key: string]: ResumeSection;
     };
+    slug: string;
+    tags: string[];
     metadata: {
         template: string;
         layout: {
@@ -152,10 +154,13 @@ export type ArtboardStore = {
 
     // Resume Actions
     setResume: (resume: Partial<ResumeState>) => void;
+    resetResume: () => void;
     
     // Helper to update deep nested resume data
     setResumeData: (data: Partial<ResumeData>) => void;
     setResumeTitle: (title: string) => void;
+    setResumeSlug: (slug: string) => void;
+    setResumeTags: (tags: string[]) => void;
     
     // Section Actions
     addSectionItem: (sectionId: string, item: ResumeSectionItem) => void;
@@ -180,6 +185,8 @@ export type ArtboardStore = {
 const initialResumeState: ResumeState = {
     data: {
         title: 'Untitled Resume',
+        slug: 'untitled-resume',
+        tags: [],
         basics: {
             name: 'John Doe',
             headline: 'Senior Software Engineer',
@@ -321,11 +328,20 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
     setResume: (resume) =>
         set((state) => ({ resume: { ...state.resume, ...resume } })),
 
+    resetResume: () =>
+        set(() => ({ resume: structuredClone(initialResumeState) })),
+
     setResumeData: (data) =>
         set((state) => ({ resume: { ...state.resume, data: { ...state.resume.data, ...data } } })),
 
     setResumeTitle: (title) =>
         set((state) => ({ resume: { ...state.resume, data: { ...state.resume.data, title } } })),
+
+    setResumeSlug: (slug) =>
+        set((state) => ({ resume: { ...state.resume, data: { ...state.resume.data, slug } } })),
+
+    setResumeTags: (tags) =>
+        set((state) => ({ resume: { ...state.resume, data: { ...state.resume.data, tags } } })),
 
     addSectionItem: (sectionId, item) =>
         set((state) => ({

@@ -508,21 +508,21 @@ export const CoverLetterBuilderPage = () => {
                 </div>
 
                 <div className="relative flex items-center gap-2.5 overflow-x-auto">
-                    <Button variant="outline" onClick={() => setInlineEdit(!inlineEdit)} className={`rounded-xl whitespace-nowrap h-11 px-4 font-semibold transition-all duration-300 group/btn ${inlineEdit ? 'bg-[#1dff00]/10 border-[#1dff00] text-[#1dff00]' : 'border-[#1dff00]/30'}`}>
+                    <Button variant="outline" onClick={() => setInlineEdit(!inlineEdit)} className={`rounded-xl whitespace-nowrap h-11 px-4 font-semibold transition-all duration-300 group/btn ${inlineEdit ? 'bg-[#1dff00]/10 border-[#1dff00] text-[#1dff00]' : 'border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:text-[#1dff00] hover:bg-[#1dff00]/5'}`}>
                         <Pencil className="w-4 h-4 mr-2" />
                         {inlineEdit ? 'Live Edit: On' : 'Enable Live Edit'}
                     </Button>
-                    <Button onClick={aiPolish} disabled={aiLoading || subscriptionTier === 'Free'} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-white">
+                    <Button variant="outline" onClick={aiPolish} disabled={aiLoading || subscriptionTier === 'Free'} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 transition-all">
                         <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
                         {aiLoading ? 'Polishing' : 'AI Polish'}
                         {subscriptionTier === 'Free' && <Lock className="ml-2 w-3 h-3 opacity-50" />}
                     </Button>
-                    <Button onClick={aiWriteFull} disabled={aiLoading || subscriptionTier === 'Free'} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-white">
+                    <Button variant="outline" onClick={aiWriteFull} disabled={aiLoading || subscriptionTier === 'Free'} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 transition-all">
                         <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
                         {aiLoading ? 'Writing' : 'AI Generate'}
                         {subscriptionTier === 'Free' && <Lock className="ml-2 w-3 h-3 opacity-50" />}
                     </Button>
-                    <Button onClick={() => setExportOpen(true)} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-white">
+                    <Button variant="outline" onClick={() => setExportOpen(true)} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 transition-all">
                         <Download className="w-4 h-4 mr-2" />
                         Export
                     </Button>
