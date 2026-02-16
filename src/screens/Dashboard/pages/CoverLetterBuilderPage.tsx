@@ -15,7 +15,6 @@ import {
     X,
     Lock,
     FileType,
-    FileType,
     Edit2,
     Check,
     Loader2

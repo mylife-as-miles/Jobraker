@@ -61,6 +61,7 @@ export interface ResumeSection {
     hidden: boolean;
     items: ResumeSectionItem[];
     content?: string; // For summary
+    type?: 'basic' | 'list' | 'custom';
 }
 
 export interface ResumeData {
@@ -72,6 +73,13 @@ export interface ResumeData {
         education: ResumeSection;
         skills: ResumeSection;
         projects: ResumeSection;
+        languages: ResumeSection;
+        interests: ResumeSection;
+        awards: ResumeSection;
+        certifications: ResumeSection;
+        publications: ResumeSection;
+        volunteer: ResumeSection;
+        references: ResumeSection;
         // Add others as needed
         [key: string]: ResumeSection;
     };
@@ -115,6 +123,9 @@ export interface ResumeData {
 
 export interface ResumeState {
     id: string; // Database ID
+    is_public?: boolean;
+    views?: number;
+    downloads?: number;
     data: ResumeData;
 }
 
@@ -180,6 +191,12 @@ export type ArtboardStore = {
     updateSectionItem: (sectionId: string, itemId: string, item: Partial<ResumeSectionItem>) => void;
     removeSectionItem: (sectionId: string, itemId: string) => void;
     
+    addSection: (section: ResumeSection) => void;
+    removeSection: (sectionId: string) => void;
+    toggleSectionVisibility: (sectionId: string) => void;
+    reorderSection: (sectionId: string, direction: 'up' | 'down') => void;
+    togglePublicSharing: (enabled: boolean) => void;
+
     // Basics Actions
     updateBasics: (basics: Partial<ResumeBasics>) => void;
     
@@ -202,6 +219,9 @@ export type ArtboardStore = {
 // --- Initial State ---
 export const initialResumeState: ResumeState = {
     id: '',
+    is_public: false,
+    views: 0,
+    downloads: 0,
     data: {
         title: 'Untitled Resume',
         slug: 'untitled-resume',
@@ -213,7 +233,8 @@ export const initialResumeState: ResumeState = {
             phone: '+1 (555) 123-4567',
             location: 'San Francisco, CA',
             website: { url: 'johndoe.dev', label: 'Portfolio' },
-            customFields: []
+            customFields: [],
+            profiles: []
         },
         summary: {
             id: 'summary',
@@ -221,7 +242,8 @@ export const initialResumeState: ResumeState = {
             columns: 1,
             hidden: false,
             content: 'Experienced software engineer with a focus on building scalable web applications.',
-            items: []
+            items: [],
+            type: 'basic'
         },
         sections: {
             experience: {
@@ -246,7 +268,8 @@ export const initialResumeState: ResumeState = {
                         period: '2018 - 2020',
                         description: 'Developed and maintained RESTful APIs.'
                     }
-                ]
+                ],
+                type: 'basic'
             },
             education: {
                 id: 'education',
@@ -261,7 +284,8 @@ export const initialResumeState: ResumeState = {
                         degree: 'B.S. Computer Science',
                         period: '2014 - 2018'
                     }
-                ]
+                ],
+                type: 'basic'
             },
             skills: {
                 id: 'skills',
@@ -272,15 +296,24 @@ export const initialResumeState: ResumeState = {
                    { id: '1', hidden: false, name: 'JavaScript', level: 5 },
                    { id: '2', hidden: false, name: 'React', level: 5 },
                    { id: '3', hidden: false, name: 'Node.js', level: 4 }
-                ]
+                ],
+                type: 'list'
             },
             projects: {
                 id: 'projects',
                 title: 'Projects',
                 columns: 1,
-                hidden: false,
-                items: []
-            }
+                hidden: true,
+                items: [],
+                type: 'basic'
+            },
+            languages: { id: 'languages', title: 'Languages', columns: 1, hidden: true, items: [], type: 'list' },
+            interests: { id: 'interests', title: 'Interests', columns: 1, hidden: true, items: [], type: 'list' },
+            awards: { id: 'awards', title: 'Awards', columns: 1, hidden: true, items: [], type: 'basic' },
+            certifications: { id: 'certifications', title: 'Certifications', columns: 1, hidden: true, items: [], type: 'basic' },
+            publications: { id: 'publications', title: 'Publications', columns: 1, hidden: true, items: [], type: 'basic' },
+            volunteer: { id: 'volunteer', title: 'Volunteering', columns: 1, hidden: true, items: [], type: 'basic' },
+            references: { id: 'references', title: 'References', columns: 1, hidden: true, items: [], type: 'basic' }
         },
         metadata: {
             template: 'azurill',
@@ -289,8 +322,8 @@ export const initialResumeState: ResumeState = {
                 pages: [
                     {
                         fullWidth: false,
-                        main: ['summary', 'experience', 'education', 'projects'],
-                        sidebar: ['skills']
+                        main: ['summary', 'experience', 'education', 'projects', 'certifications', 'publications', 'volunteer', 'references', 'awards'],
+                        sidebar: ['skills', 'languages', 'interests']
                     }
                 ]
             },
@@ -427,6 +460,158 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
                         }
                     }
                 }
+            }
+        })),
+
+    addSection: (section) =>
+        set((state) => {
+            // Check if section already exists in layout
+            const page = state.resume.data.metadata.layout.pages[0];
+            const existsInLayout = page.main.includes(section.id) || page.sidebar.includes(section.id);
+
+            let newLayout = [...state.resume.data.metadata.layout.pages];
+
+            if (!existsInLayout) {
+                // Add to main layout by default at the end
+                newLayout[0].main.push(section.id);
+            }
+
+            return {
+                resume: {
+                    ...state.resume,
+                    data: {
+                        ...state.resume.data,
+                        sections: {
+                             ...state.resume.data.sections,
+                             [section.id]: { ...section, hidden: false }
+                        },
+                        metadata: {
+                            ...state.resume.data.metadata,
+                            layout: {
+                                ...state.resume.data.metadata.layout,
+                                pages: newLayout
+                            }
+                        }
+                    }
+                }
+            };
+        }),
+
+    removeSection: (sectionId) =>
+        set((state) => {
+            // Check if it's a custom section (not in the default list)
+            const isCustom = !['experience', 'education', 'skills', 'projects', 'languages', 'interests', 'awards', 'certifications', 'publications', 'volunteer', 'references'].includes(sectionId);
+
+            if (isCustom) {
+                 // Remove from sections and layout
+                 const newSections = { ...state.resume.data.sections };
+                 delete newSections[sectionId];
+
+                 const page = state.resume.data.metadata.layout.pages[0];
+                 return {
+                     resume: {
+                         ...state.resume,
+                         data: {
+                             ...state.resume.data,
+                             sections: newSections,
+                             metadata: {
+                                 ...state.resume.data.metadata,
+                                 layout: {
+                                     ...state.resume.data.metadata.layout,
+                                     pages: [{
+                                         ...page,
+                                         main: page.main.filter(id => id !== sectionId),
+                                         sidebar: page.sidebar.filter(id => id !== sectionId)
+                                     }]
+                                 }
+                             }
+                         }
+                     }
+                 };
+            }
+
+            return {
+                resume: {
+                    ...state.resume,
+                    data: {
+                        ...state.resume.data,
+                        sections: {
+                            ...state.resume.data.sections,
+                            [sectionId]: {
+                                ...state.resume.data.sections[sectionId],
+                                hidden: true
+                            }
+                        }
+                    }
+                }
+            };
+        }),
+
+    toggleSectionVisibility: (sectionId) =>
+        set((state) => ({
+            resume: {
+                ...state.resume,
+                data: {
+                    ...state.resume.data,
+                    sections: {
+                        ...state.resume.data.sections,
+                        [sectionId]: {
+                            ...state.resume.data.sections[sectionId],
+                            hidden: !state.resume.data.sections[sectionId].hidden
+                        }
+                    }
+                }
+            }
+        })),
+
+    reorderSection: (sectionId, direction) =>
+        set((state) => {
+            // Simplified: only reorders within the first page main/sidebar
+            // Finds where the section is and moves it
+            const layout = state.resume.data.metadata.layout.pages[0];
+            const newMain = [...layout.main];
+            const newSidebar = [...layout.sidebar];
+
+            const moveInArray = (arr: string[], id: string, dir: 'up' | 'down') => {
+                const idx = arr.indexOf(id);
+                if (idx === -1) return arr;
+                if (dir === 'up' && idx > 0) {
+                    [arr[idx], arr[idx - 1]] = [arr[idx - 1], arr[idx]];
+                } else if (dir === 'down' && idx < arr.length - 1) {
+                    [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+                }
+                return arr;
+            };
+
+            return {
+                resume: {
+                    ...state.resume,
+                    data: {
+                        ...state.resume.data,
+                        metadata: {
+                            ...state.resume.data.metadata,
+                            layout: {
+                                ...state.resume.data.metadata.layout,
+                                pages: [
+                                    {
+                                        ...layout,
+                                        main: moveInArray(newMain, sectionId, direction),
+                                        sidebar: moveInArray(newSidebar, sectionId, direction)
+                                    },
+                                    ...state.resume.data.metadata.layout.pages.slice(1)
+                                ]
+                            }
+                        }
+                    }
+                }
+            };
+        }),
+
+    togglePublicSharing: (enabled) =>
+        set((state) => ({
+            resume: {
+                ...state.resume,
+                is_public: enabled
             }
         })),
 
