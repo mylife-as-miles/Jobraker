@@ -25,6 +25,7 @@ import { createClient } from '../../../lib/supabaseClient';
 import jsPDF from 'jspdf';
 import { AzurillTemplate } from '../../../templates/azurill/index';
 import { TemplateSelector } from '../components/TemplateSelector';
+import { DesignPanel } from '../components/DesignPanel';
 import { OnyxTemplate } from '../../../templates/onyx';
 import { BronzorTemplate } from '../../../templates/bronzor';
 import { ChikoritaTemplate } from '../../../templates/chikorita';
@@ -166,6 +167,7 @@ export const ResumeBuilderPage = () => {
     const selectedTemplate = metadata?.template || 'azurill';
 
     // Local UI State
+    const [activeTab, setActiveTab] = useState<'content' | 'design'>('content');
     const [newSkill, setNewSkill] = useState('');
     const [expandedSection, setExpandedSection] = useState<string | null>('personal');
 
@@ -469,18 +471,35 @@ export const ResumeBuilderPage = () => {
             <div className="flex-1 flex overflow-hidden">
 
                 {/* Editor Panel (Left) */}
-                <div className="w-[40%] min-w-[350px] max-w-[500px] bg-gray-50 dark:bg-[#0A0A0A] border-r border-gray-200 dark:border-white/10 flex flex-col overflow-y-auto custom-scrollbar">
-                    <div className="p-6 space-y-6">
-                        <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Content</h3>
-                            <div className="text-[10px] text-[#1dff00] flex items-center gap-1 font-medium">
-                                <span className={`w-1.5 h-1.5 rounded-full ${saving ? 'bg-yellow-500 animate-pulse' : 'bg-[#1dff00]'}`} />
-                                {saving ? 'Saving...' : 'Ready'}
-                            </div>
-                        </div>
+                <div className="w-[40%] min-w-[350px] max-w-[500px] bg-gray-50 dark:bg-[#0A0A0A] border-r border-gray-200 dark:border-white/10 flex flex-col">
+                    {/* Tabs */}
+                    <div className="flex border-b border-gray-200 dark:border-white/10 shrink-0 bg-white dark:bg-[#0A0A0A] z-10">
+                        <button
+                            className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'content' ? 'border-[#1dff00] text-gray-900 dark:text-white' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
+                            onClick={() => setActiveTab('content')}
+                        >
+                            Content
+                        </button>
+                        <button
+                            className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'design' ? 'border-[#1dff00] text-gray-900 dark:text-white' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
+                            onClick={() => setActiveTab('design')}
+                        >
+                            Design
+                        </button>
+                    </div>
 
-                        {/* Personal Info Section */}
-                        <div className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === 'personal' ? 'ring-1 ring-[#1dff00]/50' : 'hover:border-[#1dff00]/30'}`}>
+                    {activeTab === 'content' ? (
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+                            <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Content Sections</h3>
+                                <div className="text-[10px] text-[#1dff00] flex items-center gap-1 font-medium">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${saving ? 'bg-yellow-500 animate-pulse' : 'bg-[#1dff00]'}`} />
+                                    {saving ? 'Saving...' : 'Ready'}
+                                </div>
+                            </div>
+
+                            {/* Personal Info Section */}
+                            <div className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === 'personal' ? 'ring-1 ring-[#1dff00]/50' : 'hover:border-[#1dff00]/30'}`}>
                             <div
                                 className="p-5 flex items-center justify-between cursor-pointer"
                                 onClick={() => toggleSection('personal')}
@@ -696,45 +715,47 @@ export const ResumeBuilderPage = () => {
                             )}
                         </div>
 
-                        {/* Skills Section */}
-                        <div className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === 'skills' ? 'ring-1 ring-[#1dff00]/50' : 'hover:border-[#1dff00]/30'}`}>
-                            <div
-                                className="p-5 flex items-center justify-between cursor-pointer"
-                                onClick={() => toggleSection('skills')}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <BrainCircuit className="w-5 h-5 text-[#1dff00]" />
-                                    <h4 className="font-semibold text-gray-900 dark:text-white">Skills</h4>
-                                </div>
-                                {expandedSection === 'skills' ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
-                            </div>
-
-                            {expandedSection === 'skills' && (
-                                <div className="p-5 pt-0 animate-in slide-in-from-top-2 duration-200">
-                                    <div className="flex flex-wrap gap-2 mb-4">
-                                        {skills.items.map((skill: any) => (
-                                            <span key={skill.id} className="px-2.5 py-1.5 bg-gray-100 dark:bg-white/10 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-white/5 flex items-center gap-1.5 group">
-                                                {skill.name}
-                                                <X
-                                                    className="w-3 h-3 text-gray-400 group-hover:text-red-400 cursor-pointer transition-colors"
-                                                    onClick={() => removeSkill(skill.id)}
-                                                />
-                                            </span>
-                                        ))}
+                            {/* Skills Section */}
+                            <div className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === 'skills' ? 'ring-1 ring-[#1dff00]/50' : 'hover:border-[#1dff00]/30'}`}>
+                                <div
+                                    className="p-5 flex items-center justify-between cursor-pointer"
+                                    onClick={() => toggleSection('skills')}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <BrainCircuit className="w-5 h-5 text-[#1dff00]" />
+                                        <h4 className="font-semibold text-gray-900 dark:text-white">Skills</h4>
                                     </div>
-                                    <input
-                                        type="text"
-                                        value={newSkill}
-                                        onChange={(e) => setNewSkill(e.target.value)}
-                                        onKeyDown={handleSkillAdd}
-                                        placeholder="Type a skill and press Enter..."
-                                        className="w-full bg-transparent border-b border-gray-200 dark:border-white/10 px-0 py-2 text-sm focus:border-[#1dff00] outline-none transition-colors text-gray-900 dark:text-gray-100 placeholder:text-gray-500"
-                                    />
+                                    {expandedSection === 'skills' ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
                                 </div>
-                            )}
-                        </div>
 
-                    </div>
+                                {expandedSection === 'skills' && (
+                                    <div className="p-5 pt-0 animate-in slide-in-from-top-2 duration-200">
+                                        <div className="flex flex-wrap gap-2 mb-4">
+                                            {skills.items.map((skill: any) => (
+                                                <span key={skill.id} className="px-2.5 py-1.5 bg-gray-100 dark:bg-white/10 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-white/5 flex items-center gap-1.5 group">
+                                                    {skill.name}
+                                                    <X
+                                                        className="w-3 h-3 text-gray-400 group-hover:text-red-400 cursor-pointer transition-colors"
+                                                        onClick={() => removeSkill(skill.id)}
+                                                    />
+                                                </span>
+                                            ))}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={newSkill}
+                                            onChange={(e) => setNewSkill(e.target.value)}
+                                            onKeyDown={handleSkillAdd}
+                                            placeholder="Type a skill and press Enter..."
+                                            className="w-full bg-transparent border-b border-gray-200 dark:border-white/10 px-0 py-2 text-sm focus:border-[#1dff00] outline-none transition-colors text-gray-900 dark:text-gray-100 placeholder:text-gray-500"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <DesignPanel />
+                    )}
                 </div>
 
                 {/* Preview Panel (Right) */}
