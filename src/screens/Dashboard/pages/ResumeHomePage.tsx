@@ -110,8 +110,46 @@ export const ResumeHomePage = () => {
                 </div>
             </div>
 
-            {/* Grid View */}
-            {viewMode === 'grid' && (
+            {/* Loading Skeleton */}
+            {loading && (
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                        <div
+                            key={i}
+                            className="aspect-[3/4] rounded-xl bg-[#ffffff08] border border-[#ffffff10] overflow-hidden flex flex-col"
+                        >
+                            {/* Preview skeleton */}
+                            <div className="flex-1 bg-gradient-to-br from-[#ffffff06] to-[#ffffff02] relative overflow-hidden">
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#ffffff08] to-transparent animate-[shimmer_1.5s_infinite] -translate-x-full" style={{ animation: `shimmer 1.5s infinite ${i * 0.15}s` }} />
+                                {/* Fake resume lines */}
+                                <div className="p-6 space-y-3 pt-8">
+                                    <div className="h-3 bg-[#ffffff10] rounded-full w-2/3 mx-auto" />
+                                    <div className="h-2 bg-[#ffffff08] rounded-full w-1/2 mx-auto" />
+                                    <div className="h-px bg-[#ffffff06] w-full mt-4" />
+                                    <div className="space-y-2 mt-4">
+                                        <div className="h-2 bg-[#ffffff08] rounded-full w-1/3" />
+                                        <div className="h-2 bg-[#ffffff06] rounded-full w-full" />
+                                        <div className="h-2 bg-[#ffffff06] rounded-full w-5/6" />
+                                        <div className="h-2 bg-[#ffffff06] rounded-full w-4/6" />
+                                    </div>
+                                    <div className="space-y-2 mt-4">
+                                        <div className="h-2 bg-[#ffffff08] rounded-full w-1/4" />
+                                        <div className="h-2 bg-[#ffffff06] rounded-full w-full" />
+                                        <div className="h-2 bg-[#ffffff06] rounded-full w-3/4" />
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Meta skeleton */}
+                            <div className="p-4 bg-[#0a0a0a] border-t border-[#ffffff10]">
+                                <div className="h-3 bg-[#ffffff10] rounded-full w-3/4 mb-2" />
+                                <div className="h-2 bg-[#ffffff06] rounded-full w-1/2" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {!loading && viewMode === 'grid' && (
                 <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {/* Create New Card */}
                     <motion.div
@@ -170,7 +208,7 @@ export const ResumeHomePage = () => {
             )}
 
             {/* List View */}
-            {viewMode === 'list' && (
+            {!loading && viewMode === 'list' && (
                 <div className="space-y-4">
                     <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
                         <div className="col-span-6">Name</div>
