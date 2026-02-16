@@ -8,8 +8,8 @@ import { useArtboardStore } from "../../store/artboard";
 import type { TemplateProps } from "../azurill/types";
 
 const sectionClassName = cn(
-	// Section Heading
-	"[&>h6]:border-[color:var(--page-primary-color)] [&>h6]:border-b",
+	// Section Heading with accent underline
+	"[&>h6]:border-[color:var(--page-primary-color)] [&>h6]:border-b-2 [&>h6]:pb-1",
 
 	// Section Item Header in Sidebar Layout
 	"group-data-[layout=sidebar]:[&_.section-item-header>div]:flex-col",
@@ -17,32 +17,32 @@ const sectionClassName = cn(
 );
 
 /**
- * Template: Pikachu
+ * Template: Pikachu — Bold Accent Banner
+ * A vibrant template with a colored header banner and sidebar layout.
  */
 export function PikachuTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 	const defaultLayout = {
-        fullWidth: false,
-        main: ['summary', 'experience', 'education', 'projects'],
-        sidebar: ['skills']
-    };
-    const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
-    const layout = pageLayout || storeLayout || defaultLayout;
+		fullWidth: false,
+		main: ['summary', 'experience', 'education', 'projects'],
+		sidebar: ['skills']
+	};
+	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
+	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
 	const { main, sidebar, fullWidth } = layout;
 
-    const styles: React.CSSProperties = {
-        '--page-primary-color': '#fdd835', // Yellow (Pikachu)
-        '--page-background-color': '#ffffff',
-        '--page-sidebar-width': '30%',
-        '--page-margin-x': '2rem',
-        '--page-margin-y': '2rem',
-        '--page-gap-y': '1.5rem',
-        '--picture-border-radius': '12px',
-    } as React.CSSProperties;
+	const styles: React.CSSProperties = {
+		'--page-primary-color': '#f59e0b',
+		'--page-background-color': '#ffffff',
+		'--page-sidebar-width': '30%',
+		'--page-margin-x': '2.5rem',
+		'--page-margin-y': '2.5rem',
+		'--page-gap-y': '1.25rem',
+	} as React.CSSProperties;
 
 	return (
-		<div style={styles} className="template-pikachu page-content px-[var(--page-margin-x)] pt-[var(--page-margin-y)] print:p-0 h-full bg-white text-gray-800">
+		<div style={styles} className="template-pikachu page-content px-[var(--page-margin-x)] pt-[var(--page-margin-y)] print:p-0 h-full bg-white text-gray-800 font-[system-ui]">
 			<div className="flex gap-x-[var(--page-margin-x)] h-full">
 				{!fullWidth && (
 					<aside
@@ -51,7 +51,7 @@ export function PikachuTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 					>
 						{isFirstPage && (
 							<div className="flex max-w-[var(--page-sidebar-width)] items-center justify-start">
-								<PagePicture />
+								<PagePicture className="w-full aspect-square rounded-xl object-cover" />
 							</div>
 						)}
 
@@ -69,7 +69,7 @@ export function PikachuTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 				<main data-layout="main" className="group page-main flex-1 space-y-[var(--page-gap-y)]">
 					{isFirstPage && (
 						<div className="flex items-center gap-x-6">
-							{fullWidth && <PagePicture />}
+							{fullWidth && <PagePicture className="w-20 h-20 rounded-xl" />}
 							<Header />
 						</div>
 					)}
@@ -90,15 +90,14 @@ function Header() {
 	const basics = useArtboardStore((state) => state.resume.data.basics);
 
 	return (
-		<div className="page-header w-full space-y-[var(--page-gap-y)] rounded-[var(--picture-border-radius)] bg-[color:var(--page-primary-color)] px-[var(--page-margin-x)] py-[var(--page-margin-y)] text-gray-900">
-			<div className="border-[var(--page-background-color)]/50 border-b pb-2">
-				<h2 className="basics-name text-3xl font-bold">{basics.name}</h2>
-				<p className="basics-headline text-lg opacity-90">{basics.headline}</p>
+		<div className="page-header w-full space-y-3 rounded-xl bg-[color:var(--page-primary-color)] px-[var(--page-margin-x)] py-6 text-gray-900">
+			<div className="border-[var(--page-background-color)]/30 border-b pb-2">
+				<h2 className="basics-name text-2xl font-extrabold tracking-tight">{basics.name}</h2>
+				<p className="basics-headline text-sm font-medium opacity-80 mt-0.5">{basics.headline}</p>
 			</div>
 
 			<div
-				className="basics-items flex flex-wrap gap-x-3 gap-y-0.5 *:flex *:items-center *:gap-x-1.5 text-sm"
-				style={{ "--page-primary-color": "var(--page-background-color)" } as React.CSSProperties}
+				className="basics-items flex flex-wrap gap-x-4 gap-y-1 *:flex *:items-center *:gap-x-1.5 text-[0.7rem] font-medium"
 			>
 				{basics.email && (
 					<div className="basics-item-email">
@@ -106,28 +105,24 @@ function Header() {
 						<PageLink type="email" value={basics.email} />
 					</div>
 				)}
-
 				{basics.phone && (
 					<div className="basics-item-phone">
 						<Phone />
 						<PageLink type="phone" value={basics.phone} />
 					</div>
 				)}
-
 				{basics.location && (
 					<div className="basics-item-location">
 						<MapPin />
 						<span>{basics.location}</span>
 					</div>
 				)}
-
 				{basics.website && basics.website.url && (
 					<div className="basics-item-website">
 						<Globe />
 						<PageLink type="url" value={basics.website.url} label={basics.website.label} />
 					</div>
 				)}
-
 				{basics.customFields.map((field) => (
 					<div key={field.id} className="basics-item-custom">
 						<PageIcon name={field.icon} />

@@ -7,8 +7,12 @@ import { useArtboardStore } from "../../store/artboard";
 import type { TemplateProps } from "../azurill/types";
 
 const sectionClassName = cn(
-	// Section Heading
-	"[&>h6]:border-b [&>h6]:border-[color:var(--page-primary-color)]",
+	// Section Heading with bottom accent
+	"[&>h6]:border-b [&>h6]:border-[color:var(--page-primary-color)]/30 [&>h6]:pb-1.5",
+
+	// Sidebar section headings in light color
+	"group-data-[layout=sidebar]:[&>h6]:text-white/90",
+	"group-data-[layout=sidebar]:[&>h6]:border-white/20",
 
 	// Section Item Header in Sidebar Layout
 	"group-data-[layout=sidebar]:[&_.section-item-header>div]:flex-col",
@@ -16,41 +20,41 @@ const sectionClassName = cn(
 );
 
 /**
- * Template: Gengar
+ * Template: Gengar — Dark Sidebar
+ * A dramatic template with a deep purple sidebar and white-on-dark header.
  */
 export function GengarTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 	const defaultLayout = {
-        fullWidth: false,
-        main: ['summary', 'experience', 'education', 'projects'],
-        sidebar: ['skills']
-    };
-    const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
-    const layout = pageLayout || storeLayout || defaultLayout;
+		fullWidth: false,
+		main: ['summary', 'experience', 'education', 'projects'],
+		sidebar: ['skills']
+	};
+	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
+	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
 	const { main, sidebar, fullWidth } = layout;
 
-    const styles: React.CSSProperties = {
-        '--page-primary-color': '#512da8', // Deep Purple (Gengar)
-        '--page-background-color': '#ffffff',
-        '--page-sidebar-width': '30%',
-        '--page-margin-x': '2rem',
-        '--page-margin-y': '2rem',
-    } as React.CSSProperties;
+	const styles: React.CSSProperties = {
+		'--page-primary-color': '#7c3aed',
+		'--page-background-color': '#ffffff',
+		'--page-sidebar-width': '32%',
+		'--page-margin-x': '2rem',
+		'--page-margin-y': '2rem',
+	} as React.CSSProperties;
 
-    // Use getSectionComponent to get the Summary implementation
-    const PageSummary = getSectionComponent("summary", {
-        sectionClassName: cn(
-            sectionClassName,
-            "bg-[color:var(--page-primary-color)] bg-opacity-20 px-[var(--page-margin-x)] py-[var(--page-margin-y)] [&>h6]:hidden"
-        ),
-    });
+	const PageSummary = getSectionComponent("summary", {
+		sectionClassName: cn(
+			sectionClassName,
+			"bg-[color:var(--page-primary-color)]/10 px-[var(--page-margin-x)] py-5 [&>h6]:hidden"
+		),
+	});
 
 	return (
-		<div style={styles} className="template-gengar page-content relative h-full bg-white text-gray-800">
+		<div style={styles} className="template-gengar page-content relative h-full bg-white text-gray-800 font-[system-ui]">
 			{/* Sidebar Background */}
 			{(!fullWidth || isFirstPage) && (
-				<div className="page-sidebar-background pointer-events-none absolute inset-y-0 z-0 w-[var(--page-sidebar-width)] shrink-0 bg-[color:var(--page-primary-color)] opacity-20 left-0" />
+				<div className="page-sidebar-background pointer-events-none absolute inset-y-0 z-0 w-[var(--page-sidebar-width)] shrink-0 bg-[color:var(--page-primary-color)] left-0" />
 			)}
 
 			<div className="flex h-full">
@@ -62,7 +66,7 @@ export function GengarTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 						{isFirstPage && <Header />}
 
 						{!fullWidth && (
-							<div className="shrink-0 space-y-4 overflow-x-hidden px-[var(--page-margin-x)] pt-[var(--page-margin-y)]">
+							<div className="shrink-0 space-y-5 overflow-x-hidden px-[var(--page-margin-x)] pt-5 text-white/90">
 								{sidebar
 									.filter((section: string) => section !== "summary")
 									.map((section: string) => {
@@ -76,10 +80,10 @@ export function GengarTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 
 				<main data-layout="main" className="group page-main z-10 flex-1">
 					{isFirstPage && (
-                        <PageSummary id="summary" />
+						<PageSummary id="summary" />
 					)}
 
-					<div className="space-y-4 px-[var(--page-margin-x)] pt-[var(--page-margin-y)]">
+					<div className="space-y-5 px-[var(--page-margin-x)] pt-5">
 						{main
 							.filter((section: string) => section !== "summary")
 							.map((section: string) => {
@@ -98,46 +102,39 @@ function Header() {
 
 	return (
 		<div className="page-header relative flex">
-			<div className="flex w-full shrink-0 flex-col justify-center gap-y-2 bg-[color:var(--page-primary-color)] px-[var(--page-margin-x)] py-[var(--page-margin-y)] text-[var(--page-background-color)]">
-				<PagePicture />
+			<div className="flex w-full shrink-0 flex-col justify-center gap-y-3 bg-[color:var(--page-primary-color)] px-[var(--page-margin-x)] py-[var(--page-margin-y)] text-white">
+				<PagePicture className="w-20 h-20 rounded-full border-2 border-white/30 shadow-lg" />
 
 				<div>
-					<h2 className="basics-name text-2xl font-bold">{basics.name}</h2>
-					<p className="basics-headline text-lg opacity-90">{basics.headline}</p>
+					<h2 className="basics-name text-xl font-extrabold tracking-tight">{basics.name}</h2>
+					<p className="basics-headline text-sm opacity-80 mt-0.5">{basics.headline}</p>
 				</div>
 
-				<div
-					className="basics-items flex flex-col gap-y-1 *:flex *:items-center *:gap-x-1.5 text-sm"
-					style={{ "--page-primary-color": "var(--page-background-color)" } as React.CSSProperties}
-				>
+				<div className="basics-items flex flex-col gap-y-1.5 *:flex *:items-center *:gap-x-1.5 text-[0.7rem] text-white/80">
 					{basics.email && (
 						<div className="basics-item-email">
 							<PageIcon name="Envelope" />
 							<PageLink type="email" value={basics.email} />
 						</div>
 					)}
-
 					{basics.phone && (
 						<div className="basics-item-phone">
 							<PageIcon name="Phone" />
 							<PageLink type="phone" value={basics.phone} />
 						</div>
 					)}
-
 					{basics.location && (
 						<div className="basics-item-location">
 							<PageIcon name="MapPin" />
 							<span>{basics.location}</span>
 						</div>
 					)}
-
 					{basics.website && basics.website.url && (
 						<div className="basics-item-website">
 							<PageIcon name="Globe" />
 							<PageLink type="url" value={basics.website.url} label={basics.website.label} />
 						</div>
 					)}
-
 					{basics.customFields.map((field) => (
 						<div key={field.id} className="basics-item-custom">
 							<PageIcon name={field.icon} />
