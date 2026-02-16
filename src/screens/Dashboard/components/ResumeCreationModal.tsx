@@ -13,6 +13,10 @@ import { X, Wand2 } from 'lucide-react';
 import { useArtboardStore } from '@/store/artboard';
 import { useNavigate } from 'react-router-dom';
 
+import { createClient } from '@/lib/supabaseClient';
+
+const supabase = createClient();
+
 interface ResumeCreationModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -32,8 +36,8 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
     const setResumeTitle = useArtboardStore((state) => state.setResumeTitle);
     const setResumeSlug = useArtboardStore((state) => state.setResumeSlug);
     const setResumeTags = useArtboardStore((state) => state.setResumeTags);
+    const setResumeId = useArtboardStore((state) => state.setResumeId);
     const resetResume = useArtboardStore((state) => state.resetResume);
-    const updateBasics = useArtboardStore((state) => state.updateBasics);
     // Ideally we would also have a resetResume action
 
     // Auto-generate slug from name
@@ -66,29 +70,45 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
     };
 
     const handleCreate = async () => {
+        if (!name) return;
         setLoading(true);
 
         try {
-            // Reset Store to defaults
-            resetResume();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('User not authenticated');
 
-            // Update Store with new values
+            // 1. Insert into Database
+            const { data, error } = await supabase
+                .from('resumes')
+                .insert([
+                    {
+                        user_id: user.id,
+                        name: name,
+                        slug: slug,
+                        tags: tags,
+                        template: 'azurill',
+                        status: 'Draft'
+                    }
+                ])
+                .select()
+                .single();
+
+            if (error) throw error;
+            if (!data) throw new Error('Failed to create resume');
+
+            // 2. Reset and Update Store
+            resetResume();
+            setResumeId(data.id);
             setResumeTitle(name);
             setResumeSlug(slug);
             setResumeTags(tags);
 
-            // Also update basics name if it's the default "John Doe"
-            // Actually, we should probably set it to the authenticated user's name if available, 
-            // but for now, we leave basics as is or set it to 'My Name' if we knew it.
-            // Let's assume the user will fill it in. 
-
-            // Simulate a brief delay or API call if we were creating it in DB immediately
-            await new Promise(resolve => setTimeout(resolve, 500));
-
+            // 3. Close and Navigate
             onOpenChange(false);
-            navigate('/dashboard/resume/edit');
+            navigate(`/dashboard/resume/edit/${data.id}`);
         } catch (error) {
             console.error('Failed to create resume:', error);
+            // Optionally show a toast error here
         } finally {
             setLoading(false);
         }

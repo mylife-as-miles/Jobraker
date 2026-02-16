@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Plus,
@@ -16,34 +16,51 @@ import { useArtboardStore } from '../../../store/artboard';
 import { Button } from '../../../components/ui/button';
 import { motion } from 'framer-motion';
 import { ResumeCreationModal } from '../components/ResumeCreationModal';
+import { createClient } from '@/lib/supabaseClient';
+
+const supabase = createClient();
 
 export const ResumeHomePage = () => {
     const navigate = useNavigate();
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    // const { profile } = useProfileSettings(); // This line is commented out or removed because useProfileSettings import is removed.
+    const [resumes, setResumes] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    // In a real app, this would be a list from the database.
-    // For now, we simulate a list with 1 item (the current active resume state from store)
-    // plus a few static ones to visualize the layout if needed, or just the one.
-    const resumeData = useArtboardStore((state) => state.resume.data);
+    const setResumeId = useArtboardStore((state) => state.setResumeId);
+    const setResumeTitle = useArtboardStore((state) => state.setResumeTitle);
 
-    // We'll just show the current "Active" resume as one card for now.
-    const resumes = [
-        {
-            id: 'current-active',
-            name: resumeData.basics.name !== 'John Doe' ? `${resumeData.basics.name}'s Resume` : 'My Resume',
-            updatedAt: new Date().toLocaleDateString(),
-            thumbnail: null, // We could eventually capture a screenshot
-        }
-    ];
+    useEffect(() => {
+        const fetchResumes = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+
+                const { data, error } = await supabase
+                    .from('resumes')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .order('updated_at', { ascending: false });
+
+                if (data) setResumes(data);
+                if (error) console.error(error);
+            } catch (error) {
+                console.error('Error fetching resumes:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchResumes();
+    }, []);
 
     const handleCreateNew = () => {
         setIsCreateModalOpen(true);
     };
 
-    const handleEdit = () => {
-        navigate('/dashboard/resume/edit');
+    const handleEdit = (id: string, name: string) => {
+        setResumeId(id);
+        setResumeTitle(name);
+        navigate(`/dashboard/resume/edit/${id}`);
     };
 
     return (
@@ -117,7 +134,7 @@ export const ResumeHomePage = () => {
                         >
                             {/* Preview Area (Top 2/3) */}
                             <div
-                                onClick={() => handleEdit()}
+                                onClick={() => handleEdit(resume.id, resume.name)}
                                 className="flex-1 bg-white relative cursor-pointer overflow-hidden"
                             >
                                 {/* Placeholder for preview - we can use a scaled down iframe or image later */}
@@ -140,7 +157,7 @@ export const ResumeHomePage = () => {
                                         <h3 className="font-semibold text-white truncate pr-2">{resume.name}</h3>
                                         <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                                             <Calendar className="w-3 h-3" />
-                                            Last edited {resume.updatedAt}
+                                            Last edited {new Date(resume.updated_at).toLocaleDateString()}
                                         </p>
                                     </div>
                                     <button className="text-gray-500 hover:text-white p-1 rounded hover:bg-[#ffffff10]">
@@ -189,10 +206,10 @@ export const ResumeHomePage = () => {
                                 </div>
                             </div>
                             <div className="col-span-3 text-sm text-gray-400">
-                                {resume.updatedAt}
+                                {new Date(resume.updated_at).toLocaleDateString()}
                             </div>
                             <div className="col-span-3 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => handleEdit()} className="p-2 text-gray-400 hover:text-white hover:bg-[#ffffff10] rounded-lg" title="Edit">
+                                <button onClick={() => handleEdit(resume.id, resume.name)} className="p-2 text-gray-400 hover:text-white hover:bg-[#ffffff10] rounded-lg" title="Edit">
                                     <Edit2 className="w-4 h-4" />
                                 </button>
                                 <button className="p-2 text-gray-400 hover:text-white hover:bg-[#ffffff10] rounded-lg" title="Download">

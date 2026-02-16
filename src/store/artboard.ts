@@ -105,6 +105,7 @@ export interface ResumeData {
 }
 
 export interface ResumeState {
+    id: string; // Database ID
     data: ResumeData;
 }
 
@@ -154,6 +155,7 @@ export type ArtboardStore = {
 
     // Resume Actions
     setResume: (resume: Partial<ResumeState>) => void;
+    setResumeId: (id: string) => void;
     resetResume: () => void;
     
     // Helper to update deep nested resume data
@@ -183,6 +185,7 @@ export type ArtboardStore = {
 
 // --- Initial State ---
 const initialResumeState: ResumeState = {
+    id: '',
     data: {
         title: 'Untitled Resume',
         slug: 'untitled-resume',
@@ -327,6 +330,9 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
 
     setResume: (resume) =>
         set((state) => ({ resume: { ...state.resume, ...resume } })),
+
+    setResumeId: (id) =>
+        set((state) => ({ resume: { ...state.resume, id } })),
 
     resetResume: () =>
         set(() => ({ resume: structuredClone(initialResumeState) })),
