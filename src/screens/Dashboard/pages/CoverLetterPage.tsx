@@ -5,10 +5,10 @@ import { CoverLetterBuilderPage } from './CoverLetterBuilderPage';
 export const CoverLetterPage = () => {
     return (
         <Routes>
-            <Route index element={<CoverLetterHomePage />} />
-            <Route path="create" element={<CoverLetterBuilderPage />} />
-            <Route path="edit" element={<CoverLetterBuilderPage />} />
-            <Route path="edit/:id" element={<CoverLetterBuilderPage />} />
+            <Route path="cover-letter" element={<CoverLetterHomePage />} />
+            <Route path="cover-letter/create" element={<CoverLetterBuilderPage />} />
+            <Route path="cover-letter/edit" element={<CoverLetterBuilderPage />} />
+            <Route path="cover-letter/edit/:id" element={<CoverLetterBuilderPage />} />
         </Routes>
     );
 };
