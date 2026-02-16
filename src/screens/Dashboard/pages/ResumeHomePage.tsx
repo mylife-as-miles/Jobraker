@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Plus,
@@ -18,6 +18,11 @@ import { motion } from 'framer-motion';
 import { ResumeCreationModal } from '../components/ResumeCreationModal';
 import { ResumePreviewCard } from '../components/ResumePreviewCard';
 import { createClient } from '@/lib/supabaseClient';
+import { extractTextFromPdf } from '@/lib/pdf-loader';
+import { parseResumeWithAI } from '@/services/ai/parseResumeProfile';
+import { mapParsedDataToResume } from '@/lib/resume-mapper';
+import { initialResumeState } from '@/store/artboard';
+import { nanoid } from 'nanoid';
 
 const supabase = createClient();
 
@@ -25,6 +30,8 @@ export const ResumeHomePage = () => {
     const navigate = useNavigate();
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isImporting, setIsImporting] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [resumes, setResumes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -64,8 +71,64 @@ export const ResumeHomePage = () => {
         navigate(`/dashboard/resume/edit/${id}`);
     };
 
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsImporting(true);
+        try {
+            console.log('Extracting text from PDF...');
+            const text = await extractTextFromPdf(file);
+
+            console.log('Parsing with AI...');
+            const parsedData = await parseResumeWithAI({ resumeText: text });
+
+            console.log('Mapping to ResumeData...');
+            const resumeData = mapParsedDataToResume(parsedData, initialResumeState.data);
+
+            // Generate slug
+            const baseSlug = resumeData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+            const slug = `${baseSlug}-${nanoid(6)}`;
+
+            console.log('Saving to Database...');
+            const { data, error } = await supabase
+                .from('resumes')
+                .insert({
+                    user_id: (await supabase.auth.getUser()).data.user?.id,
+                    name: resumeData.title,
+                    slug: slug,
+                    tags: [], // Could auto-tag "Imported"
+                    data: resumeData,
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('Import successful, navigating...');
+            navigate(`/dashboard/resume/edit/${data.id}`);
+        } catch (error: any) {
+            console.error('Import failed:', error);
+            alert(`Import failed: ${error.message}`);
+        } finally {
+            setIsImporting(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
     return (
         <div className="flex flex-col h-full bg-black text-white p-8 overflow-y-auto">
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".pdf"
+                className="hidden"
+            />
 
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
@@ -161,13 +224,22 @@ export const ResumeHomePage = () => {
                     <motion.div
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => { }} // Placeholder
-                        className="aspect-[3/4] rounded-xl border border-dashed border-[#ffffff20] bg-[#ffffff05] hover:bg-[#ffffff0a] hover:border-[#ffffff40] cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group"
+                        onClick={handleImportClick}
+                        className="aspect-[3/4] rounded-xl border border-dashed border-[#ffffff20] bg-[#ffffff05] hover:bg-[#ffffff0a] hover:border-[#ffffff40] cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group relative"
                     >
-                        <div className="w-16 h-16 rounded-full bg-[#ffffff10] flex items-center justify-center text-white group-hover:scale-110 transition-transform">
-                            <Upload className="w-8 h-8" />
-                        </div>
-                        <span className="font-medium text-gray-400 group-hover:text-white transition-colors">Import Existing</span>
+                        {isImporting ? (
+                            <div className="flex flex-col items-center gap-3">
+                                <div className="w-8 h-8 border-2 border-[#1dff00] border-t-transparent rounded-full animate-spin" />
+                                <span className="text-xs text-gray-500 animate-pulse">Analyzing PDF...</span>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="w-16 h-16 rounded-full bg-[#ffffff10] flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                                    <Upload className="w-8 h-8" />
+                                </div>
+                                <span className="font-medium text-gray-400 group-hover:text-white transition-colors">Import Existing</span>
+                            </>
+                        )}
                     </motion.div>
 
                     {/* Resume Cards */}
