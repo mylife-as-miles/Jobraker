@@ -14,7 +14,8 @@ const availableTemplates = [
     { id: 'kakuna', name: 'Kakuna', description: 'A centered, single-column layout with a focus on simplicity.' },
     { id: 'lapras', name: 'Lapras', description: 'A clean, card-based layout with rounded corners and distinct headers.' },
     { id: 'leafish', name: 'Leafish', description: 'A nature-inspired layout with a distinctive header and green accents.' },
-    { id: 'pikachu', name: 'Pikachu', description: 'A vibrant, yellow-accented layout with a bold header.' }
+    { id: 'pikachu', name: 'Pikachu', description: 'A vibrant, yellow-accented layout with a bold header.' },
+    { id: 'rhyhorn', name: 'Rhyhorn', description: 'A sturdy, professional layout with a right-aligned photo.' }
 ];
 
 interface TemplateSelectorProps {
