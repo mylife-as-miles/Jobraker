@@ -30,7 +30,7 @@ const SectionPlaceholder = ({ id, className }: { id: string; className?: string 
             </h6>
 
             <div className="text-sm">
-                {id === 'skills' ? (
+                {section.type === 'list' || id === 'skills' || id === 'languages' || id === 'interests' ? (
                     <SkillsSection items={section.items} />
                 ) : (
                     <ItemsSection items={section.items} />
