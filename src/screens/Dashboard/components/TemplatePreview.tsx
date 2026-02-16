@@ -1,6 +1,15 @@
 import { FC } from 'react';
 import { AzurillTemplate } from '../../../templates/azurill/index';
 import { OnyxTemplate } from '../../../templates/onyx';
+import { BronzorTemplate } from '../../../templates/bronzor';
+import { ChikoritaTemplate } from '../../../templates/chikorita';
+import { DitgarTemplate } from '../../../templates/ditgar';
+import { DittoTemplate } from '../../../templates/ditto';
+import { GengarTemplate } from '../../../templates/gengar';
+import { GlalieTemplate } from '../../../templates/glalie';
+import { KakunaTemplate } from '../../../templates/kakuna';
+import { PikachuTemplate } from '../../../templates/pikachu';
+import { RhyhornTemplate } from '../../../templates/rhyhorn';
 
 interface TemplatePreviewProps {
     templateId: string;
@@ -39,6 +48,15 @@ export const TemplatePreview: FC<TemplatePreviewProps> = ({ templateId }) => {
             >
                 {templateId === 'azurill' && <AzurillTemplate />}
                 {templateId === 'onyx' && <OnyxTemplate />}
+                {templateId === 'bronzor' && <BronzorTemplate />}
+                {templateId === 'chikorita' && <ChikoritaTemplate />}
+                {templateId === 'ditgar' && <DitgarTemplate />}
+                {templateId === 'ditto' && <DittoTemplate />}
+                {templateId === 'gengar' && <GengarTemplate />}
+                {templateId === 'glalie' && <GlalieTemplate />}
+                {templateId === 'kakuna' && <KakunaTemplate />}
+                {templateId === 'pikachu' && <PikachuTemplate />}
+                {templateId === 'rhyhorn' && <RhyhornTemplate />}
             </div>
         </div>
     );

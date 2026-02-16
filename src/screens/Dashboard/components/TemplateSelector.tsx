@@ -4,7 +4,17 @@ import { TemplatePreview } from './TemplatePreview';
 
 const availableTemplates = [
     { id: 'azurill', name: 'Azurill', description: 'A clean, sidebar-based layout with blue accents.' },
-    { id: 'onyx', name: 'Onyx', description: 'A classic, single-column professional layout.' } // Placeholder for now
+    { id: 'onyx', name: 'Onyx', description: 'A classic, single-column professional layout.' },
+    { id: 'bronzor', name: 'Bronzor', description: 'A professional layout with left-aligned section headers.' },
+    { id: 'chikorita', name: 'Chikorita', description: 'A fresh, nature-inspired layout with a sidebar background.' },
+    { id: 'ditgar', name: 'Ditgar', description: 'A bold, purple-accented layout with a prominent sidebar header.' },
+    { id: 'ditto', name: 'Ditto', description: 'A playful layout with a header that spans the sidebar.' },
+    { id: 'gengar', name: 'Gengar', description: 'A sleek, dark purple themed layout with a modern sidebar.' },
+    { id: 'glalie', name: 'Glalie', description: 'A cool, blue-accented layout with a boxed contact info section.' },
+    { id: 'kakuna', name: 'Kakuna', description: 'A centered, single-column layout with a focus on simplicity.' },
+    { id: 'lapras', name: 'Lapras', description: 'A clean, card-based layout with rounded corners and distinct headers.' },
+    { id: 'pikachu', name: 'Pikachu', description: 'A vibrant, yellow-accented layout with a bold header.' },
+    { id: 'rhyhorn', name: 'Rhyhorn', description: 'A sturdy, professional layout with a right-aligned photo.' }
 ];
 
 interface TemplateSelectorProps {

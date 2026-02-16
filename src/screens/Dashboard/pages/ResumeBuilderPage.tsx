@@ -26,6 +26,15 @@ import jsPDF from 'jspdf';
 import { AzurillTemplate } from '../../../templates/azurill/index';
 import { TemplateSelector } from '../components/TemplateSelector';
 import { OnyxTemplate } from '../../../templates/onyx';
+import { BronzorTemplate } from '../../../templates/bronzor';
+import { ChikoritaTemplate } from '../../../templates/chikorita';
+import { DitgarTemplate } from '../../../templates/ditgar';
+import { DittoTemplate } from '../../../templates/ditto';
+import { GengarTemplate } from '../../../templates/gengar';
+import { GlalieTemplate } from '../../../templates/glalie';
+import { KakunaTemplate } from '../../../templates/kakuna';
+import { PikachuTemplate } from '../../../templates/pikachu';
+import { RhyhornTemplate } from '../../../templates/rhyhorn';
 import { useProfileSettings } from '../../../hooks/useProfileSettings';
 
 export const ResumeBuilderPage = () => {
@@ -692,11 +701,17 @@ export const ResumeBuilderPage = () => {
                         className="bg-white shadow-2xl origin-top transition-transform duration-200 min-h-[1123px] w-[794px]"
                         style={{ transform: `scale(${zoom})`, marginBottom: `${(zoom - 1) * 1123}px` }}
                     >
-                        {selectedTemplate === 'azurill' ? (
-                            <AzurillTemplate />
-                        ) : (
-                            <OnyxTemplate />
-                        )}
+                        {selectedTemplate === 'azurill' && <AzurillTemplate />}
+                        {selectedTemplate === 'onyx' && <OnyxTemplate />}
+                        {selectedTemplate === 'bronzor' && <BronzorTemplate />}
+                        {selectedTemplate === 'chikorita' && <ChikoritaTemplate />}
+                        {selectedTemplate === 'ditgar' && <DitgarTemplate />}
+                        {selectedTemplate === 'ditto' && <DittoTemplate />}
+                        {selectedTemplate === 'gengar' && <GengarTemplate />}
+                        {selectedTemplate === 'glalie' && <GlalieTemplate />}
+                        {selectedTemplate === 'kakuna' && <KakunaTemplate />}
+                        {selectedTemplate === 'pikachu' && <PikachuTemplate />}
+                        {selectedTemplate === 'rhyhorn' && <RhyhornTemplate />}
                     </div>
                 </div>
             </div>
