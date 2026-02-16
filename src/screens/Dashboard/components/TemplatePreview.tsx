@@ -8,8 +8,8 @@ import { DittoTemplate } from '../../../templates/ditto';
 import { GengarTemplate } from '../../../templates/gengar';
 import { GlalieTemplate } from '../../../templates/glalie';
 import { KakunaTemplate } from '../../../templates/kakuna';
-import { LaprasTemplate } from '../../../templates/lapras';
 import { PikachuTemplate } from '../../../templates/pikachu';
+import { RhyhornTemplate } from '../../../templates/rhyhorn';
 
 interface TemplatePreviewProps {
     templateId: string;
@@ -55,8 +55,8 @@ export const TemplatePreview: FC<TemplatePreviewProps> = ({ templateId }) => {
                 {templateId === 'gengar' && <GengarTemplate />}
                 {templateId === 'glalie' && <GlalieTemplate />}
                 {templateId === 'kakuna' && <KakunaTemplate />}
-                {templateId === 'lapras' && <LaprasTemplate />}
                 {templateId === 'pikachu' && <PikachuTemplate />}
+                {templateId === 'rhyhorn' && <RhyhornTemplate />}
             </div>
         </div>
     );
