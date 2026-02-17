@@ -537,7 +537,7 @@ export const CoverLetterBuilderPage = () => {
                     </div>
                 </div>
 
-                <div className="hidden xl:flex relative items-center gap-2.5 overflow-x-auto">
+                <div className="hidden xl:flex relative items-center gap-2.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
                     <Button
                         onClick={handleSave}
                         disabled={isSaving}
