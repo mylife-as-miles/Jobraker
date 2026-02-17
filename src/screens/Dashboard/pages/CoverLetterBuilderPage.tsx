@@ -17,7 +17,9 @@ import {
     FileType,
     Edit2,
     Check,
-    Loader2
+    Loader2,
+    Menu,
+    Eye
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
@@ -114,6 +116,8 @@ export const CoverLetterBuilderPage = () => {
     const [inlineEdit, setInlineEdit] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
+    const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor');
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const { id: routeId } = useParams();
 
@@ -580,7 +584,7 @@ export const CoverLetterBuilderPage = () => {
                     </div>
                 </div>
 
-                <div className="relative flex items-center gap-2.5 overflow-x-auto">
+                <div className="hidden xl:flex relative items-center gap-2.5 overflow-x-auto">
                     <Button
                         onClick={handleSave}
                         disabled={isSaving}
@@ -608,13 +612,67 @@ export const CoverLetterBuilderPage = () => {
                         Export
                     </Button>
                 </div>
+
+                {/* Mobile Menu Button */}
+                <button
+                    className="xl:hidden p-2 text-white"
+                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                >
+                    <Menu className="w-6 h-6" />
+                </button>
+            </div>
+
+            {/* Mobile Menu Overlay */}
+            {mobileMenuOpen && (
+                <div className="xl:hidden flex flex-col gap-3 p-4 bg-[#0a0a0a] border border-[#1dff00]/30 rounded-xl mb-4">
+                    <Button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="rounded-xl h-11 border-[#1dff00]/30 bg-[#1dff00]/10 text-[#1dff00] hover:bg-[#1dff00]/20 gap-2 w-full justify-start"
+                    >
+                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                        {isSaving ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                    <Button variant="outline" onClick={() => setInlineEdit(!inlineEdit)} className={`rounded-xl h-11 px-4 font-semibold w-full justify-start ${inlineEdit ? 'bg-[#1dff00]/10 border-[#1dff00] text-[#1dff00]' : 'border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:text-[#1dff00] hover:bg-[#1dff00]/5 text-white'}`}>
+                        <Pencil className="w-4 h-4 mr-2" />
+                        {inlineEdit ? 'Live Edit: On' : 'Enable Live Edit'}
+                    </Button>
+                    <Button variant="outline" onClick={aiPolish} disabled={aiLoading || subscriptionTier === 'Free'} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 w-full justify-start">
+                        <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
+                        {aiLoading ? 'Polishing' : 'AI Polish'}
+                    </Button>
+                    <Button variant="outline" onClick={aiWriteFull} disabled={aiLoading || subscriptionTier === 'Free'} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 w-full justify-start">
+                        <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
+                        {aiLoading ? 'Writing' : 'AI Generate'}
+                    </Button>
+                    <Button variant="outline" onClick={() => setExportOpen(true)} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 w-full justify-start">
+                        <Download className="w-4 h-4 mr-2" />
+                        Export
+                    </Button>
+                </div>
+            )}
+
+            {/* Mobile Tab Bar */}
+            <div className="xl:hidden flex border-b border-[#1dff00]/30 bg-black/20 shrink-0 mb-4 rounded-xl overflow-hidden">
+                <button
+                    onClick={() => setActiveTab('editor')}
+                    className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${activeTab === 'editor' ? 'bg-[#1dff00]/20 text-[#1dff00]' : 'text-gray-400 hover:text-white'}`}
+                >
+                    <Edit2 className="w-4 h-4" /> Editor
+                </button>
+                <button
+                    onClick={() => setActiveTab('preview')}
+                    className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${activeTab === 'preview' ? 'bg-[#1dff00]/20 text-[#1dff00]' : 'text-gray-400 hover:text-white'}`}
+                >
+                    <Eye className="w-4 h-4" /> Preview
+                </button>
             </div>
 
             {/* Main Layout */}
-            <div id="cover-main-layout" className="grid gap-6 grid-cols-1 xl:grid-cols-[460px_minmax(0,1fr)] max-w-[1800px] mx-auto w-full">
+            < div id="cover-main-layout" className="grid gap-6 grid-cols-1 xl:grid-cols-[460px_minmax(0,1fr)] max-w-[1800px] mx-auto w-full" >
 
                 {/* CONFIG PANEL (LEFT) */}
-                <Card className="p-6 rounded-2xl bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 border border-[#1dff00]/30 backdrop-blur-xl">
+                < Card className={`p-6 rounded-2xl bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 border border-[#1dff00]/30 backdrop-blur-xl ${activeTab === 'editor' ? 'block' : 'hidden'} xl:block`}>
                     <div className="grid gap-6">
                         {/* Library */}
                         <div className="grid gap-3">
@@ -751,10 +809,10 @@ export const CoverLetterBuilderPage = () => {
                             <input value={content.signature} onChange={e => setSignatureName(e.target.value)} placeholder="Signature" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
                         </div>
                     </div>
-                </Card>
+                </Card >
 
                 {/* PREVIEW PANEL (RIGHT) */}
-                <Card className="p-8 bg-white min-h-[800px] text-black shadow-2xl overflow-y-auto">
+                < Card className={`p-8 bg-white min-h-[800px] text-black shadow-2xl overflow-y-auto ${activeTab === 'preview' ? 'block' : 'hidden'} xl:block`}>
                     <div className="max-w-[800px] mx-auto space-y-6" style={{ fontSize: `${typography.fontSize}px`, fontFamily: 'Times New Roman, serif' }}>
                         {/* Header Section */}
                         <div className="text-right space-y-1">
@@ -796,49 +854,51 @@ export const CoverLetterBuilderPage = () => {
                             <p className="font-bold">{content.signature || sender.name}</p>
                         </div>
                     </div>
-                </Card>
-            </div>
+                </Card >
+            </div >
 
             {/* Config Toolbar */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[#0a0a0a]/90 backdrop-blur border border-[#1dff00]/30 p-2 rounded-2xl shadow-xl z-50">
+            < div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[#0a0a0a]/90 backdrop-blur border border-[#1dff00]/30 p-2 rounded-2xl shadow-xl z-50" >
                 <Button size="icon" variant="ghost" onClick={zoomOut} className="hover:text-[#1dff00]"><Minus className="w-4 h-4" /></Button>
                 <span className="text-xs font-mono w-12 text-center">{typography.fontSize}px</span>
                 <Button size="icon" variant="ghost" onClick={zoomIn} className="hover:text-[#1dff00]"><Plus className="w-4 h-4" /></Button>
                 <div className="w-px h-4 bg-white/20 mx-2" />
                 <Button size="sm" variant="ghost" onClick={clearDraft} className="text-red-400 hover:text-red-500 hover:bg-red-500/10">Clear</Button>
-            </div>
+            </div >
 
             {/* Export Modal */}
-            {exportOpen && createPortal(
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="relative w-full max-w-md bg-[#0a0a0a] border border-[#1dff00]/30 rounded-2xl p-6 shadow-2xl">
-                        <button onClick={() => setExportOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white"><X className="w-5 h-5" /></button>
-                        <h2 className="text-xl font-bold text-white mb-2">Export Cover Letter</h2>
-                        <p className="text-sm text-gray-400 mb-6">Choose a format to download your letter.</p>
+            {
+                exportOpen && createPortal(
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <div className="relative w-full max-w-md bg-[#0a0a0a] border border-[#1dff00]/30 rounded-2xl p-6 shadow-2xl">
+                            <button onClick={() => setExportOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white"><X className="w-5 h-5" /></button>
+                            <h2 className="text-xl font-bold text-white mb-2">Export Cover Letter</h2>
+                            <p className="text-sm text-gray-400 mb-6">Choose a format to download your letter.</p>
 
-                        <div className="space-y-3">
-                            <Button onClick={exportPdf} disabled={!!exportBusy} className="w-full justify-start h-12 border-[#1dff00]/30 hover:bg-[#1dff00]/10" variant="outline">
-                                <FileText className="w-5 h-5 mr-3 text-[#1dff00]" /> PDF Document
-                                {exportBusy === 'pdf' && <span className="ml-auto animate-pulse">Processing...</span>}
-                            </Button>
-                            <Button onClick={exportDocx} disabled={!!exportBusy} className="w-full justify-start h-12 border-[#1dff00]/30 hover:bg-[#1dff00]/10" variant="outline">
-                                <FileType className="w-5 h-5 mr-3 text-blue-400" /> Word (DOCX)
-                                {exportBusy === 'docx' && <span className="ml-auto animate-pulse">Processing...</span>}
-                            </Button>
-                            <Button onClick={exportTxt} className="w-full justify-start h-12 border-[#1dff00]/30 hover:bg-[#1dff00]/10" variant="outline">
-                                <FileText className="w-5 h-5 mr-3 text-gray-400" /> Plain Text
-                            </Button>
-                        </div>
+                            <div className="space-y-3">
+                                <Button onClick={exportPdf} disabled={!!exportBusy} className="w-full justify-start h-12 border-[#1dff00]/30 hover:bg-[#1dff00]/10" variant="outline">
+                                    <FileText className="w-5 h-5 mr-3 text-[#1dff00]" /> PDF Document
+                                    {exportBusy === 'pdf' && <span className="ml-auto animate-pulse">Processing...</span>}
+                                </Button>
+                                <Button onClick={exportDocx} disabled={!!exportBusy} className="w-full justify-start h-12 border-[#1dff00]/30 hover:bg-[#1dff00]/10" variant="outline">
+                                    <FileType className="w-5 h-5 mr-3 text-blue-400" /> Word (DOCX)
+                                    {exportBusy === 'docx' && <span className="ml-auto animate-pulse">Processing...</span>}
+                                </Button>
+                                <Button onClick={exportTxt} className="w-full justify-start h-12 border-[#1dff00]/30 hover:bg-[#1dff00]/10" variant="outline">
+                                    <FileText className="w-5 h-5 mr-3 text-gray-400" /> Plain Text
+                                </Button>
+                            </div>
 
-                        <div className="mt-6 pt-4 border-t border-white/10 flex gap-3">
-                            <Button onClick={printLetter} className="flex-1" variant="ghost"><Printer className="w-4 h-4 mr-2" /> Print</Button>
-                            <Button onClick={copyPlain} className="flex-1" variant="ghost"><Share2 className="w-4 h-4 mr-2" /> Copy</Button>
-                            <Button onClick={share} className="flex-1" variant="ghost"><Share2 className="w-4 h-4 mr-2" /> Share</Button>
+                            <div className="mt-6 pt-4 border-t border-white/10 flex gap-3">
+                                <Button onClick={printLetter} className="flex-1" variant="ghost"><Printer className="w-4 h-4 mr-2" /> Print</Button>
+                                <Button onClick={copyPlain} className="flex-1" variant="ghost"><Share2 className="w-4 h-4 mr-2" /> Copy</Button>
+                                <Button onClick={share} className="flex-1" variant="ghost"><Share2 className="w-4 h-4 mr-2" /> Share</Button>
+                            </div>
                         </div>
-                    </div>
-                </div>,
-                document.body
-            )}
+                    </div>,
+                    document.body
+                )
+            }
         </div>
     );
 };
