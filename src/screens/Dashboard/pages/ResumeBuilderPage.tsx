@@ -447,154 +447,154 @@ export const ResumeBuilderPage = () => {
                                 <span className={`w-1.5 h-1.5 rounded-full ${saving ? 'bg-yellow-500 animate-pulse' : 'bg-[#1dff00]'}`} />
                                 {saving ? 'Saving...' : 'Ready'}
                             </div>
+                        </div>
 
-                            {/* Personal Info Section */}
-                            <div className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === 'personal' ? 'ring-1 ring-[#1dff00]/50' : 'hover:border-[#1dff00]/30'}`}>
-                                <div
-                                    className="p-5 flex items-center justify-between cursor-pointer"
-                                    onClick={() => toggleSection('personal')}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <User className="w-5 h-5 text-[#1dff00]" />
-                                        <h4 className="font-semibold text-gray-900 dark:text-white">Personal Info</h4>
-                                    </div>
-                                    {expandedSection === 'personal' ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                        {/* Personal Info Section */}
+                        <div className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === 'personal' ? 'ring-1 ring-[#1dff00]/50' : 'hover:border-[#1dff00]/30'}`}>
+                            <div
+                                className="p-5 flex items-center justify-between cursor-pointer"
+                                onClick={() => toggleSection('personal')}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <User className="w-5 h-5 text-[#1dff00]" />
+                                    <h4 className="font-semibold text-gray-900 dark:text-white">Personal Info</h4>
                                 </div>
-
-                                {expandedSection === 'personal' && <PersonalDetailsEditor />}
+                                {expandedSection === 'personal' ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
                             </div>
 
-                            {/* Summary Section */}
-                            {!summary.hidden && (
-                                <div className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === 'summary' ? 'ring-1 ring-[#1dff00]/50' : 'hover:border-[#1dff00]/30'}`}>
+                            {expandedSection === 'personal' && <PersonalDetailsEditor />}
+                        </div>
+
+                        {/* Summary Section */}
+                        {!summary.hidden && (
+                            <div className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === 'summary' ? 'ring-1 ring-[#1dff00]/50' : 'hover:border-[#1dff00]/30'}`}>
+                                <div
+                                    className="p-5 flex items-center justify-between cursor-pointer"
+                                    onClick={() => toggleSection('summary')}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <FileText className="w-5 h-5 text-[#1dff00]" />
+                                        <h4 className="font-semibold text-gray-900 dark:text-white">Summary</h4>
+                                    </div>
+                                    {expandedSection === 'summary' ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                                </div>
+
+                                {expandedSection === 'summary' && (
+                                    <div className="p-5 pt-0 animate-in slide-in-from-top-2 duration-200">
+                                        <textarea
+                                            value={summary.content || ''}
+                                            onChange={(e) => setSummary(e.target.value)}
+                                            rows={4}
+                                            className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100"
+                                            placeholder="Brief professional summary..."
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Dynamic Sections */}
+                        {visibleSections.map(sectionId => {
+                            const section = sections[sectionId];
+                            if (!section || section.hidden) return null;
+
+                            const Icon = SECTION_ICONS[sectionId] || SECTION_ICONS.custom;
+
+                            return (
+                                <div key={sectionId} className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === sectionId ? 'ring-1 ring-[#1dff00]/50' : 'hover:border-[#1dff00]/30'}`}>
                                     <div
                                         className="p-5 flex items-center justify-between cursor-pointer"
-                                        onClick={() => toggleSection('summary')}
+                                        onClick={() => toggleSection(sectionId)}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <FileText className="w-5 h-5 text-[#1dff00]" />
-                                            <h4 className="font-semibold text-gray-900 dark:text-white">Summary</h4>
+                                            <Icon className="w-5 h-5 text-[#1dff00]" />
+                                            <h4 className="font-semibold text-gray-900 dark:text-white">{section.title}</h4>
                                         </div>
-                                        {expandedSection === 'summary' ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                className="p-1 hover:bg-white/10 rounded text-gray-500 hover:text-red-500 transition-colors"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    toggleSectionVisibility(sectionId);
+                                                }}
+                                                title="Hide Section"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                            {expandedSection === sectionId ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                                        </div>
                                     </div>
 
-                                    {expandedSection === 'summary' && (
-                                        <div className="p-5 pt-0 animate-in slide-in-from-top-2 duration-200">
-                                            <textarea
-                                                value={summary.content || ''}
-                                                onChange={(e) => setSummary(e.target.value)}
-                                                rows={4}
-                                                className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100"
-                                                placeholder="Brief professional summary..."
-                                            />
+                                    {expandedSection === sectionId && (
+                                        <div className="p-5 pt-0">
+                                            {section.type === 'list' ? (
+                                                <ListEditor sectionId={sectionId} />
+                                            ) : (
+                                                <SectionEditor sectionId={sectionId} />
+                                            )}
                                         </div>
                                     )}
                                 </div>
-                            )}
+                            );
+                        })}
 
-                            {/* Dynamic Sections */}
-                            {visibleSections.map(sectionId => {
-                                const section = sections[sectionId];
-                                if (!section || section.hidden) return null;
-
-                                const Icon = SECTION_ICONS[sectionId] || SECTION_ICONS.custom;
-
-                                return (
-                                    <div key={sectionId} className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === sectionId ? 'ring-1 ring-[#1dff00]/50' : 'hover:border-[#1dff00]/30'}`}>
-                                        <div
-                                            className="p-5 flex items-center justify-between cursor-pointer"
-                                            onClick={() => toggleSection(sectionId)}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <Icon className="w-5 h-5 text-[#1dff00]" />
-                                                <h4 className="font-semibold text-gray-900 dark:text-white">{section.title}</h4>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    className="p-1 hover:bg-white/10 rounded text-gray-500 hover:text-red-500 transition-colors"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        toggleSectionVisibility(sectionId);
-                                                    }}
-                                                    title="Hide Section"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </button>
-                                                {expandedSection === sectionId ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
-                                            </div>
-                                        </div>
-
-                                        {expandedSection === sectionId && (
-                                            <div className="p-5 pt-0">
-                                                {section.type === 'list' ? (
-                                                    <ListEditor sectionId={sectionId} />
-                                                ) : (
-                                                    <SectionEditor sectionId={sectionId} />
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-
-                            {/* Skills Section */}
+                        {/* Skills Section */}
 
 
-                            {/* Add Section Button */}
-                            <div className="pt-4 pb-20">
-                                <Button
-                                    variant="outline"
-                                    className="w-full py-6 border-dashed border-gray-300 dark:border-white/20 hover:border-[#1dff00] hover:text-[#1dff00] hover:bg-[#1dff00]/5"
-                                    onClick={() => setIsAddSectionOpen(true)}
-                                >
-                                    <Plus className="w-5 h-5 mr-2" />
-                                    Add Section
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Preview Panel (Right) */}
-                    <div className={`${activeTab === 'preview' ? 'flex' : 'hidden'} md:flex flex-1 bg-gray-200 dark:bg-[#0A0A0A] overflow-y-auto justify-center p-4 md:p-8 relative custom-scrollbar`}>
-                        {/* ... (Existing Zoom and Preview Logic) ... */}
-                        <div className="fixed top-24 right-8 z-10 flex flex-col gap-2">
-                            <button
-                                onClick={() => setZoom(z => Math.min(z + 0.1, 1.5))}
-                                className="w-10 h-10 bg-white dark:bg-[#121212] rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-white/10"
+                        {/* Add Section Button */}
+                        <div className="pt-4 pb-20">
+                            <Button
+                                variant="outline"
+                                className="w-full py-6 border-dashed border-gray-300 dark:border-white/20 hover:border-[#1dff00] hover:text-[#1dff00] hover:bg-[#1dff00]/5"
+                                onClick={() => setIsAddSectionOpen(true)}
                             >
-                                <ZoomIn className="w-5 h-5" />
-                            </button>
-                            <button
-                                onClick={() => setZoom(z => Math.max(z - 0.1, 0.5))}
-                                className="w-10 h-10 bg-white dark:bg-[#121212] rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-white/10"
-                            >
-                                <ZoomOut className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <div
-                            className="bg-white shadow-2xl origin-top transition-transform duration-200 min-h-[1123px] w-[794px]"
-                            style={{ transform: `scale(${zoom})`, marginBottom: `${(zoom - 1) * 1123}px` }}
-                        >
-                            {selectedTemplate === 'azurill' && <AzurillTemplate />}
-                            {selectedTemplate === 'onyx' && <OnyxTemplate />}
-                            {selectedTemplate === 'bronzor' && <BronzorTemplate />}
-                            {selectedTemplate === 'chikorita' && <ChikoritaTemplate />}
-                            {selectedTemplate === 'ditgar' && <DitgarTemplate />}
-                            {selectedTemplate === 'ditto' && <DittoTemplate />}
-                            {selectedTemplate === 'gengar' && <GengarTemplate />}
-                            {selectedTemplate === 'glalie' && <GlalieTemplate />}
-                            {selectedTemplate === 'kakuna' && <KakunaTemplate />}
-                            {selectedTemplate === 'pikachu' && <PikachuTemplate />}
-                            {selectedTemplate === 'rhyhorn' && <RhyhornTemplate />}
+                                <Plus className="w-5 h-5 mr-2" />
+                                Add Section
+                            </Button>
                         </div>
                     </div>
                 </div>
 
-                <TemplateSelector isOpen={isTemplateSelectorOpen} onClose={() => setIsTemplateSelectorOpen(false)} />
-                <AddSectionDialog open={isAddSectionOpen} onOpenChange={setIsAddSectionOpen} />
-                <ShareDialog open={isShareOpen} onOpenChange={setIsShareOpen} />
+                {/* Preview Panel (Right) */}
+                <div className={`${activeTab === 'preview' ? 'flex' : 'hidden'} md:flex flex-1 bg-gray-200 dark:bg-[#0A0A0A] overflow-y-auto justify-center p-4 md:p-8 relative custom-scrollbar`}>
+                    {/* ... (Existing Zoom and Preview Logic) ... */}
+                    <div className="fixed top-24 right-8 z-10 flex flex-col gap-2">
+                        <button
+                            onClick={() => setZoom(z => Math.min(z + 0.1, 1.5))}
+                            className="w-10 h-10 bg-white dark:bg-[#121212] rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-white/10"
+                        >
+                            <ZoomIn className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={() => setZoom(z => Math.max(z - 0.1, 0.5))}
+                            className="w-10 h-10 bg-white dark:bg-[#121212] rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-white/10"
+                        >
+                            <ZoomOut className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    <div
+                        className="bg-white shadow-2xl origin-top transition-transform duration-200 min-h-[1123px] w-[794px]"
+                        style={{ transform: `scale(${zoom})`, marginBottom: `${(zoom - 1) * 1123}px` }}
+                    >
+                        {selectedTemplate === 'azurill' && <AzurillTemplate />}
+                        {selectedTemplate === 'onyx' && <OnyxTemplate />}
+                        {selectedTemplate === 'bronzor' && <BronzorTemplate />}
+                        {selectedTemplate === 'chikorita' && <ChikoritaTemplate />}
+                        {selectedTemplate === 'ditgar' && <DitgarTemplate />}
+                        {selectedTemplate === 'ditto' && <DittoTemplate />}
+                        {selectedTemplate === 'gengar' && <GengarTemplate />}
+                        {selectedTemplate === 'glalie' && <GlalieTemplate />}
+                        {selectedTemplate === 'kakuna' && <KakunaTemplate />}
+                        {selectedTemplate === 'pikachu' && <PikachuTemplate />}
+                        {selectedTemplate === 'rhyhorn' && <RhyhornTemplate />}
+                    </div>
+                </div>
             </div>
+
+            <TemplateSelector isOpen={isTemplateSelectorOpen} onClose={() => setIsTemplateSelectorOpen(false)} />
+            <AddSectionDialog open={isAddSectionOpen} onOpenChange={setIsAddSectionOpen} />
+            <ShareDialog open={isShareOpen} onOpenChange={setIsShareOpen} />
         </div>
     );
 };
