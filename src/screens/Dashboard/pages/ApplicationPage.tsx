@@ -42,7 +42,7 @@ function ApplicationPage() {
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesText, setNotesText] = useState("");
   const detailApp = useMemo(() => applications.find(a => a.id === detailId) || null, [detailId, applications]);
-  
+
   // Update notes text when detailApp changes
   useEffect(() => {
     if (detailApp) {
@@ -59,39 +59,39 @@ function ApplicationPage() {
       const qsStatus = u.searchParams.get('status');
       const qsQuery = u.searchParams.get('q');
       const qsView = u.searchParams.get('view');
-      if (qsStatus && ["All","Pending","Applied","Interview","Offer","Rejected","Withdrawn"].includes(qsStatus)) setSelectedStatus(qsStatus as any);
+      if (qsStatus && ["All", "Pending", "Applied", "Interview", "Offer", "Rejected", "Withdrawn"].includes(qsStatus)) setSelectedStatus(qsStatus as any);
       if (typeof qsQuery === 'string' && qsQuery.length) setSearchQuery(qsQuery);
-  if (qsView && (qsView === 'gantt' || qsView === 'list' || qsView === 'kanban' || qsView === 'calendar' || qsView === 'table')) setViewMode(qsView as any);
+      if (qsView && (qsView === 'gantt' || qsView === 'list' || qsView === 'kanban' || qsView === 'calendar' || qsView === 'table')) setViewMode(qsView as any);
 
       const raw = localStorage.getItem("jr.apps.prefs.v1");
       if (raw) {
         const p = JSON.parse(raw);
         // Only apply stored prefs if not overridden by query params
-  if (!qsView && (p.viewMode === "gantt" || p.viewMode === "list" || p.viewMode === "kanban" || p.viewMode === 'calendar' || p.viewMode === 'table')) setViewMode(p.viewMode);
-        if (!qsStatus && ["All","Pending","Applied","Interview","Offer","Rejected","Withdrawn"].includes(p.selectedStatus)) setSelectedStatus(p.selectedStatus as any);
-        if (["score","recent","company","status"].includes(p.sortBy)) setSortBy(p.sortBy);
+        if (!qsView && (p.viewMode === "gantt" || p.viewMode === "list" || p.viewMode === "kanban" || p.viewMode === 'calendar' || p.viewMode === 'table')) setViewMode(p.viewMode);
+        if (!qsStatus && ["All", "Pending", "Applied", "Interview", "Offer", "Rejected", "Withdrawn"].includes(p.selectedStatus)) setSelectedStatus(p.selectedStatus as any);
+        if (["score", "recent", "company", "status"].includes(p.sortBy)) setSortBy(p.sortBy);
         if (!qsQuery && typeof p.searchQuery === 'string') setSearchQuery(p.searchQuery);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   // Persist preferences when they change
   useEffect(() => {
     try {
-  const payload = { viewMode, selectedStatus, sortBy, searchQuery };
+      const payload = { viewMode, selectedStatus, sortBy, searchQuery };
       localStorage.setItem("jr.apps.prefs.v1", JSON.stringify(payload));
-    } catch {}
+    } catch { }
   }, [viewMode, selectedStatus, sortBy, searchQuery]);
 
-  useEffect(() => { try { localStorage.setItem('jr.apps.gantt.zoom', String(ganttZoom)); } catch {} }, [ganttZoom]);
-  useEffect(() => { try { localStorage.setItem('jr.apps.gantt.future', showFuture ? '1' : '0'); } catch {} }, [showFuture]);
+  useEffect(() => { try { localStorage.setItem('jr.apps.gantt.zoom', String(ganttZoom)); } catch { } }, [ganttZoom]);
+  useEffect(() => { try { localStorage.setItem('jr.apps.gantt.future', showFuture ? '1' : '0'); } catch { } }, [showFuture]);
 
   // Keyboard shortcuts for Gantt view
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-  if (viewMode !== 'gantt') return;
-      if (e.key === '+' || (e.key === '=' && e.shiftKey)) { setGanttZoom(z => Math.min(4, z+1)); }
-      else if (e.key === '-' ) { setGanttZoom(z => Math.max(0, z-1)); }
+      if (viewMode !== 'gantt') return;
+      if (e.key === '+' || (e.key === '=' && e.shiftKey)) { setGanttZoom(z => Math.min(4, z + 1)); }
+      else if (e.key === '-') { setGanttZoom(z => Math.max(0, z - 1)); }
       else if (e.key.toLowerCase() === 'f') { setShowFuture(f => !f); }
       else if (e.key === 'Escape' && detailId) { setDetailId(null); }
     }
@@ -149,7 +149,7 @@ function ApplicationPage() {
   // Expose update for inline table editing (scoped simple bridge) - cleaned on unmount
   useEffect(() => {
     (window as any).__apps_update = update;
-    return () => { try { delete (window as any).__apps_update; } catch {} };
+    return () => { try { delete (window as any).__apps_update; } catch { } };
   }, [update]);
 
   // Calendar events (Overview style): one per application using interview date if present else applied date
@@ -208,13 +208,13 @@ function ApplicationPage() {
   }, [viewMode]);
 
   const initialLoading = appsLoading && applications.length === 0;
-  
+
   return (
     <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Ambient Background Glow */}
       <div className="fixed top-20 right-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10"></div>
       <div className="fixed bottom-0 left-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10"></div>
-      
+
       {/* Header Section */}
       <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
@@ -222,9 +222,9 @@ function ApplicationPage() {
           <p className="text-sm text-white/50">Track and manage your job applications in one place</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
-            className="border-[#1dff00]/30 bg-gradient-to-br from-[#1dff00]/5 to-transparent text-white hover:bg-[#1dff00]/10 hover:border-[#1dff00]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]" 
+          <Button
+            variant="outline"
+            className="border-[#1dff00]/30 bg-gradient-to-br from-[#1dff00]/5 to-transparent text-white hover:bg-[#1dff00]/10 hover:border-[#1dff00]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]"
             onClick={exportCSV}
           >
             <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -232,12 +232,12 @@ function ApplicationPage() {
             </svg>
             Export CSV
           </Button>
-          <Button 
-            variant="outline" 
-            className="border-[#1dff00]/30 bg-gradient-to-br from-[#1dff00]/5 to-transparent text-white hover:bg-[#1dff00]/10 hover:border-[#1dff00]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]" 
+          <Button
+            variant="outline"
+            className="border-[#1dff00]/30 bg-gradient-to-br from-[#1dff00]/5 to-transparent text-white hover:bg-[#1dff00]/10 hover:border-[#1dff00]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]"
             onClick={() => refresh()}
           >
-            <RefreshCw className="w-4 h-4 mr-2" /> 
+            <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
         </div>
@@ -247,7 +247,7 @@ function ApplicationPage() {
       <Card className="relative overflow-hidden p-6 bg-gradient-to-br from-[#0a0a0a]/95 to-[#0f0f0f]/95 border border-[#1dff00]/20 rounded-2xl shadow-[0_0_30px_rgba(29,255,0,0.1)] backdrop-blur-xl">
         {/* Subtle gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#1dff00]/5 via-transparent to-transparent pointer-events-none"></div>
-        
+
         <div className="relative z-10 flex flex-col gap-5">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative group">
@@ -258,18 +258,19 @@ function ApplicationPage() {
                 placeholder="Search by title, company, location, or status..."
                 value={rawSearch}
                 onChange={(e) => setRawSearch(e.target.value)}
-                className="pl-12 h-12 bg-gradient-to-br from-white/5 to-white/[0.02] border-[#1dff00]/20 text-white placeholder:text-white/40 focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all duration-200 rounded-xl"
+                className="pl-14 h-12 bg-gradient-to-br from-white/5 to-white/[0.02] border-[#1dff00]/20 text-white placeholder:text-white/40 focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all duration-200 rounded-xl"
               />
             </div>
             <div className="flex items-center gap-3">
               <SortDropdown
                 value={sortBy}
                 onChange={(newSortBy) => setSortBy(newSortBy as SortOption)}
+                className="h-12 w-[180px] bg-gradient-to-br from-white/5 to-white/[0.02] border-[#1dff00]/20 text-white rounded-xl hover:bg-white/10"
               />
 
               <div id="application-view-toggle" className="inline-flex rounded-xl border border-[#1dff00]/30 overflow-hidden bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-sm shadow-lg" data-tour="application-view-toggle">
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 relative ${viewMode==='gantt' ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+                  className={`group px-4 h-12 flex items-center gap-2 text-sm transition-all duration-200 relative ${viewMode === 'gantt' ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
                   title="Gantt view"
                   onClick={() => setViewMode('gantt')}
                 >
@@ -279,7 +280,7 @@ function ApplicationPage() {
                   )}
                 </button>
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode==='list' ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+                  className={`group px-4 h-12 flex items-center gap-2 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === 'list' ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
                   title="List view"
                   onClick={() => setViewMode('list')}
                 >
@@ -289,7 +290,7 @@ function ApplicationPage() {
                   )}
                 </button>
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode==='kanban' ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+                  className={`group px-4 h-12 flex items-center gap-2 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === 'kanban' ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
                   title="Kanban view"
                   onClick={() => setViewMode('kanban')}
                 >
@@ -299,7 +300,7 @@ function ApplicationPage() {
                   )}
                 </button>
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode==='calendar' ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+                  className={`group px-4 h-12 flex items-center gap-2 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === 'calendar' ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
                   title="Calendar view"
                   onClick={() => setViewMode('calendar')}
                 >
@@ -309,7 +310,7 @@ function ApplicationPage() {
                   )}
                 </button>
                 <button
-                  className={`group px-4 py-3 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode==='table' ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+                  className={`group px-4 h-12 flex items-center gap-2 text-sm transition-all duration-200 border-l border-[#1dff00]/20 relative ${viewMode === 'table' ? 'bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/10 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
                   title="Table view"
                   onClick={() => setViewMode('table')}
                 >
@@ -334,18 +335,17 @@ function ApplicationPage() {
               };
               const color = statusColors[s] || '#ffffff';
               const isActive = selectedStatus === s;
-              
+
               return (
                 <Button
                   key={s}
                   size="sm"
                   variant="ghost"
                   onClick={() => setSelectedStatus(s)}
-                  className={`text-sm px-4 py-2 rounded-xl transition-all duration-200 border ${
-                    isActive 
-                      ? 'border-[#1dff00]/50 bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]' 
-                      : 'border-white/10 text-white/70 hover:text-white hover:bg-white/5 hover:border-white/20'
-                  }`}
+                  className={`text-sm px-4 py-2 rounded-xl transition-all duration-200 border ${isActive
+                    ? 'border-[#1dff00]/50 bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]'
+                    : 'border-white/10 text-white/70 hover:text-white hover:bg-white/5 hover:border-white/20'
+                    }`}
                   style={isActive ? {} : { color: color + 'b3' }}
                 >
                   {isActive && (
@@ -358,11 +358,11 @@ function ApplicationPage() {
             {viewMode === 'gantt' && (
               <div className="flex items-center gap-2 text-xs text-white/60 border-l border-[#1dff00]/20 pl-4 ml-2">
                 <label className="inline-flex items-center gap-2 cursor-pointer hover:text-white/80 transition-colors">
-                  <input 
-                    type="checkbox" 
-                    className="w-4 h-4 accent-[#1dff00] rounded border-white/20 bg-white/5" 
-                    checked={showFuture} 
-                    onChange={e => setShowFuture(e.target.checked)} 
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 accent-[#1dff00] rounded border-white/20 bg-white/5"
+                    checked={showFuture}
+                    onChange={e => setShowFuture(e.target.checked)}
                   />
                   <span>Extend active bars to today</span>
                 </label>
@@ -371,7 +371,7 @@ function ApplicationPage() {
           </div>
         </div>
       </Card>
-<div className="h-6"></div>
+      <div className="h-6"></div>
       {/* Content */}
       <div className="relative">
         {initialLoading ? (
@@ -380,7 +380,7 @@ function ApplicationPage() {
           <div className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] to-[#0f0f0f] rounded-2xl p-12 text-center shadow-[0_0_30px_rgba(29,255,0,0.1)]">
             {/* Ambient glow */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 bg-[#1dff00]/10 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
-            
+
             <div className="relative z-10 space-y-6">
               <div className="mx-auto w-20 h-20 rounded-2xl bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 border border-[#1dff00]/30 grid place-items-center shadow-[0_0_30px_rgba(29,255,0,0.2)]">
                 <Columns className="w-10 h-10 text-[#1dff00]" />
@@ -390,12 +390,12 @@ function ApplicationPage() {
                 <p className="text-base text-white/60 max-w-md mx-auto">Start tracking your job search journey by applying to jobs or importing existing applications.</p>
               </div>
               <div className="flex items-center justify-center gap-3 pt-2">
-                <Button 
-                  variant="outline" 
-                  className="border-[#1dff00]/40 bg-gradient-to-br from-[#1dff00]/10 to-transparent text-[#1dff00] hover:bg-[#1dff00]/20 hover:border-[#1dff00]/60 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.2)]" 
+                <Button
+                  variant="outline"
+                  className="border-[#1dff00]/40 bg-gradient-to-br from-[#1dff00]/10 to-transparent text-[#1dff00] hover:bg-[#1dff00]/20 hover:border-[#1dff00]/60 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.2)]"
                   onClick={() => refresh()}
                 >
-                  <RefreshCw className="w-4 h-4 mr-2" /> 
+                  <RefreshCw className="w-4 h-4 mr-2" />
                   Refresh
                 </Button>
               </div>
@@ -405,7 +405,7 @@ function ApplicationPage() {
           <div className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] to-[#0f0f0f] rounded-2xl p-12 text-center shadow-[0_0_30px_rgba(29,255,0,0.1)]">
             {/* Ambient glow */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 bg-yellow-400/10 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
-            
+
             <div className="relative z-10 space-y-6">
               <div className="mx-auto w-20 h-20 rounded-2xl bg-gradient-to-br from-yellow-400/20 to-yellow-400/5 border border-yellow-400/30 grid place-items-center shadow-[0_0_30px_rgba(250,204,21,0.2)]">
                 <Search className="w-10 h-10 text-yellow-400" />
@@ -418,358 +418,356 @@ function ApplicationPage() {
           </div>
         ) : (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}>
-              {viewMode === 'gantt' && (
-                <div className="space-y-6">
-                  <div className="flex flex-wrap gap-4 text-xs text-white/60 bg-gradient-to-br from-white/5 to-white/[0.02] border border-[#1dff00]/10 rounded-xl p-4">
-                    <span className="inline-flex items-center gap-2">
-                      <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#71717a] to-[#27272a] shadow-lg" />
-                      <span className="font-medium">Pending</span>
-                    </span>
-                    <span className="inline-flex items-center gap-2">
-                      <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#1dff00] to-[#0a8246] shadow-lg shadow-[#1dff00]/20" />
-                      <span className="font-medium">Applied</span>
-                    </span>
-                    <span className="inline-flex items-center gap-2">
-                      <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#fbbf24] to-[#a16207] shadow-lg shadow-amber-400/20" />
-                      <span className="font-medium">Interview</span>
-                    </span>
-                    <span className="inline-flex items-center gap-2">
-                      <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#84cc16] to-[#166534] shadow-lg shadow-lime-400/20" />
-                      <span className="font-medium">Offer</span>
-                    </span>
-                    <span className="inline-flex items-center gap-2">
-                      <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#fb7185] to-[#881337] shadow-lg shadow-rose-400/20" />
-                      <span className="font-medium">Rejected</span>
-                    </span>
-                    <span className="inline-flex items-center gap-2">
-                      <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#94a3b8] to-[#334155] shadow-lg" />
-                      <span className="font-medium">Withdrawn</span>
-                    </span>
-                  </div>
-                  <div id="application-gantt" data-tour="application-gantt">
-                    <Gantt
-                      zoom={ganttZoom}
-                      onZoomChange={setGanttZoom}
-                      showToday
-                      groupBy={(item) => item.status}
-                      onBarClick={(item) => handleBarClick(item)}
-                      items={filtered.map<GanttItem>(a => {
-                        const applied = new Date(a.applied_date);
-                        const updated = new Date(a.updated_at || a.applied_date || Date.now());
-                        const activeStatuses: ApplicationStatus[] = ['Pending','Applied','Interview'];
-                        let end: Date;
-                        if (activeStatuses.includes(a.status) && showFuture) {
-                          end = new Date();
-                        } else if (a.interview_date && a.status === 'Interview') {
-                          const idate = new Date(a.interview_date);
-                          end = idate > applied ? idate : updated;
-                        } else {
-                          end = updated > applied ? updated : new Date(applied.getTime() + 24*3600*1000);
-                        }
-                        if (end.getTime() === applied.getTime()) {
-                          end = new Date(end.getTime() + 6*3600*1000);
-                        }
-                        return {
-                          id: a.id,
-                          label: a.job_title || a.company || 'Untitled',
-                          start: applied,
-                          end,
-                          status: a.status,
-                          extra: a.company,
-                          groupKey: a.status,
-                          raw: a,
-                        };
-                      })}
-                      renderLabel={(item: any) => (
-                        <div className="flex flex-col truncate">
-                          <span className="truncate font-medium text-white/80 text-xs">{item.label}</span>
-                          {item.extra && <span className="truncate text-[10px] text-white/40">{item.extra}</span>}
-                        </div>
-                      )}
-                      renderBarContent={(item: any) => (
-                        <div className="flex items-center gap-1 w-full truncate">
-                          <span className="truncate">{item.status}</span>
-                        </div>
-                      )}
-                    />
-                  </div>
+            {viewMode === 'gantt' && (
+              <div className="space-y-6">
+                <div className="flex flex-wrap gap-4 text-xs text-white/60 bg-gradient-to-br from-white/5 to-white/[0.02] border border-[#1dff00]/10 rounded-xl p-4">
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#71717a] to-[#27272a] shadow-lg" />
+                    <span className="font-medium">Pending</span>
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#1dff00] to-[#0a8246] shadow-lg shadow-[#1dff00]/20" />
+                    <span className="font-medium">Applied</span>
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#fbbf24] to-[#a16207] shadow-lg shadow-amber-400/20" />
+                    <span className="font-medium">Interview</span>
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#84cc16] to-[#166534] shadow-lg shadow-lime-400/20" />
+                    <span className="font-medium">Offer</span>
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#fb7185] to-[#881337] shadow-lg shadow-rose-400/20" />
+                    <span className="font-medium">Rejected</span>
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-3 w-8 rounded-md bg-gradient-to-r from-[#94a3b8] to-[#334155] shadow-lg" />
+                    <span className="font-medium">Withdrawn</span>
+                  </span>
                 </div>
-              )}
-              {viewMode === 'list' && (
-                <div className="border border-[#1dff00]/20 rounded-2xl bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] overflow-hidden">
-                  {/* Ambient glow */}
-                  <div className="pointer-events-none absolute -top-20 left-0 h-64 w-64 rounded-full bg-[#1dff00]/10 blur-3xl opacity-40" />
-                  
-                  <ListProvider
-                    onDragEnd={async (e: ListDragEndEvent) => {
-                      const active = e.active?.data?.current as any;
-                      const over = e.over?.id as string | undefined;
-                      if (!active || !over || active.parent === over) return;
-                      const appId = active.id as string;
-                      try {
-                        await update(appId, { status: over as ApplicationStatus });
-                      } catch { await refresh(); }
-                    }}
-                    className="divide-y divide-[#1dff00]/5"
-                  >
-                    {(['Pending','Applied','Interview','Offer','Rejected','Withdrawn'] as ApplicationStatus[]).map(status => {
-                      const rows = filtered.filter(a => a.status === status);
-                      const color = (
-                        status === 'Applied' ? '#1dff00' :
-                        status === 'Interview' ? '#F59E0B' :
-                        status === 'Offer' ? '#10B981' :
-                        status === 'Rejected' ? '#EF4444' :
-                        status === 'Withdrawn' ? '#94A3B8' : '#6B7280'
-                      );
-                      if (rows.length === 0 && selectedStatus !== 'All') return null;
-                      return (
-                        <ListGroup key={status} id={status} className="flex flex-col">
-                          <ListHeader name={status} color={color} className="sticky top-0 z-10 backdrop-blur-xl bg-[#0a0a0a]/95 border-b border-[#1dff00]/10">
-                            <div className="flex items-center gap-3 px-4 py-3">
-                              <div className="h-2 w-2 rounded-full shadow-[0_0_8px_currentColor]" style={{ backgroundColor: color }} />
-                              <span className="text-sm font-semibold text-white/90">{status}</span>
-                              <span className="ml-auto inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium bg-white/5" style={{ borderColor: color + '40', color }}>
-                                {rows.length}
-                              </span>
-                            </div>
-                          </ListHeader>
-                          <ListItems className="p-3 sm:p-4 grid gap-2">
-                            {rows.length === 0 && (
-                              <div className="text-center py-8">
-                                <div className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-white/5 border border-white/10 mb-2">
-                                  <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-white/10 to-transparent" />
-                                </div>
-                                <div className="text-xs text-white/40">No {status.toLowerCase()} applications</div>
-                              </div>
-                            )}
-                            {rows.map((a, idx) => (
-                              <ListItem key={a.id} id={a.id} name={a.job_title} index={idx} parent={status} className="group relative">
-                                <div 
-                                  className="flex items-center gap-4 w-full p-4 rounded-xl border border-white/10 bg-gradient-to-br from-[#0a0a0a] to-[#0f0f0f] hover:border-[#1dff00]/40 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)] transition-all duration-200 cursor-pointer"
-                                  onClick={() => setDetailId(a.id)}
-                                >
-                                  {/* Company Logo/Initial */}
-                                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-[#1dff00] via-[#0a8246] to-[#1dff00] rounded-xl flex items-center justify-center text-black font-bold text-sm sm:text-base flex-shrink-0 shadow-lg group-hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] transition-shadow">
-                                    {(a.logo && a.logo.length > 1 ? a.logo : (((a.company || a.job_title || '')).split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('') || '').toUpperCase())}
-                                  </div>
-                                  
-                                  {/* Content */}
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <h3 className="text-white text-base font-semibold truncate" title={a.job_title}>{a.job_title}</h3>
-                                      <MatchScoreBadge score={a.match_score ?? 0} />
-                                    </div>
-                                    <div className="text-white/60 text-sm font-medium truncate mb-2">{a.company}</div>
-                                    <div className="flex flex-wrap items-center gap-2 text-xs text-white/40">
-                                      <span className="inline-flex items-center gap-1">
-                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                        </svg>
-                                        {new Date(a.applied_date).toLocaleDateString()}
-                                      </span>
-                                      {a.location && (
-                                        <>
-                                          <span>•</span>
-                                          <span className="inline-flex items-center gap-1 truncate max-w-[150px]">
-                                            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            </svg>
-                                            {a.location}
-                                          </span>
-                                        </>
-                                      )}
-                                      {a.interview_date && (
-                                        <>
-                                          <span>•</span>
-                                          <span className="inline-flex items-center gap-1 text-amber-400">
-                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                            </svg>
-                                            Interview {new Date(a.interview_date).toLocaleDateString()}
-                                          </span>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                  
-                                  {/* Quick Actions */}
-                                  <div className="flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    {a.app_url && (
-                                      <a 
-                                        href={a.app_url} 
-                                        target="_blank" 
-                                        rel="noreferrer" 
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/20 transition-colors text-xs font-medium"
-                                      >
-                                        <ExternalLink className="w-3.5 h-3.5" />
-                                        Open
-                                      </a>
-                                    )}
-                                    {a.recording_url && (
-                                      <a 
-                                        href={a.recording_url} 
-                                        target="_blank" 
-                                        rel="noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-colors text-xs font-medium"
-                                      >
-                                        <Link2 className="w-3.5 h-3.5" />
-                                        Video
-                                      </a>
-                                    )}
-                                  </div>
-                                  
-                                  {/* Status Badge */}
-                                  <span 
-                                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors"
-                                    style={{ 
-                                      backgroundColor: color + '15',
-                                      borderColor: color + '40',
-                                      color: color
-                                    }}
-                                  >
-                                    {a.status}
-                                  </span>
-                                </div>
-                              </ListItem>
-                            ))}
-                          </ListItems>
-                        </ListGroup>
-                      );
+                <div id="application-gantt" data-tour="application-gantt">
+                  <Gantt
+                    zoom={ganttZoom}
+                    onZoomChange={setGanttZoom}
+                    showToday
+                    groupBy={(item) => item.status}
+                    onBarClick={(item) => handleBarClick(item)}
+                    items={filtered.map<GanttItem>(a => {
+                      const applied = new Date(a.applied_date);
+                      const updated = new Date(a.updated_at || a.applied_date || Date.now());
+                      const activeStatuses: ApplicationStatus[] = ['Pending', 'Applied', 'Interview'];
+                      let end: Date;
+                      if (activeStatuses.includes(a.status) && showFuture) {
+                        end = new Date();
+                      } else if (a.interview_date && a.status === 'Interview') {
+                        const idate = new Date(a.interview_date);
+                        end = idate > applied ? idate : updated;
+                      } else {
+                        end = updated > applied ? updated : new Date(applied.getTime() + 24 * 3600 * 1000);
+                      }
+                      if (end.getTime() === applied.getTime()) {
+                        end = new Date(end.getTime() + 6 * 3600 * 1000);
+                      }
+                      return {
+                        id: a.id,
+                        label: a.job_title || a.company || 'Untitled',
+                        start: applied,
+                        end,
+                        status: a.status,
+                        extra: a.company,
+                        groupKey: a.status,
+                        raw: a,
+                      };
                     })}
-                  </ListProvider>
-                </div>
-              )}
-              {viewMode === 'calendar' && (
-                <div className="relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] p-6 shadow-[0_0_30px_rgba(29,255,0,0.1)] overflow-hidden">
-                  {/* Ambient Glow Effect */}
-                  <div className="absolute -top-20 -left-20 h-64 w-64 bg-[#1dff00]/10 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
-                  
-                  <div className="relative z-10">
-                    <KiboCalendar
-                      events={calendarEvents}
-                      showLegend
-                      highlightToday
-                      showHeader
-                      enableAnalyticsRibbon={false}
-                      enableICSExport
-                      heatmap
-                      densityMode="compact"
-                      onQuickCreate={(partial) => console.log('quick create', partial)}
-                      enableQuickCreate={false}
-                      selectedDate={selectedDate || undefined}
-                      onSelectDate={(d) => { setSelectedDate(d); setSelectedRange(null); }}
-                      rangeSelectable
-                      onSelectRange={(r) => { setSelectedRange(r); if (r) setSelectedDate(null); }}
-                      className="border border-[#1dff00]/20 rounded-xl bg-gradient-to-br from-[#0a0a0a]/50 to-[#0f0f0f]/50 backdrop-blur-sm"
-                    />
-                  </div>
-                  <CalendarDayDetail
-                    date={selectedDate}
-                    range={selectedRange}
-                    onClose={() => { setSelectedDate(null); setSelectedRange(null); }}
-                    applications={applications}
-                    onUpdateApplication={update}
-                    onCreateApplication={async () => { /* create not injected on ApplicationPage calendar detail */ }}
+                    renderLabel={(item: any) => (
+                      <div className="flex flex-col truncate">
+                        <span className="truncate font-medium text-white/80 text-xs">{item.label}</span>
+                        {item.extra && <span className="truncate text-[10px] text-white/40">{item.extra}</span>}
+                      </div>
+                    )}
+                    renderBarContent={(item: any) => (
+                      <div className="flex items-center gap-1 w-full truncate">
+                        <span className="truncate">{item.status}</span>
+                      </div>
+                    )}
                   />
                 </div>
-              )}
-              {viewMode === 'table' && (
-                <ApplicationsTable
-                  data={filtered}
-                  onRowClick={(id) => setDetailId(id)}
-                />
-              )}
-              {viewMode === 'kanban' && (
-                <KanbanProvider
-                  columns={[
-                    { id: 'Pending', name: 'Pending', color: '#6B7280' },
-                    { id: 'Applied', name: 'Applied', color: '#1dff00' },
-                    { id: 'Interview', name: 'Interview', color: '#F59E0B' },
-                    { id: 'Offer', name: 'Offer', color: '#10B981' },
-                    { id: 'Rejected', name: 'Rejected', color: '#EF4444' },
-                    { id: 'Withdrawn', name: 'Withdrawn', color: '#94A3B8' },
-                  ]}
-                  data={kanbanData.map((a) => ({ ...a, id: a.id, column: a.status }))}
-                  onItemMove={async (id, toColumn) => {
-                    const rec = applications.find((a) => a.id === id);
-                    if (!rec) return;
-                    if (rec.status === toColumn) return;
+              </div>
+            )}
+            {viewMode === 'list' && (
+              <div className="border border-[#1dff00]/20 rounded-2xl bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] overflow-hidden">
+                {/* Ambient glow */}
+                <div className="pointer-events-none absolute -top-20 left-0 h-64 w-64 rounded-full bg-[#1dff00]/10 blur-3xl opacity-40" />
+
+                <ListProvider
+                  onDragEnd={async (e: ListDragEndEvent) => {
+                    const active = e.active?.data?.current as any;
+                    const over = e.over?.id as string | undefined;
+                    if (!active || !over || active.parent === over) return;
+                    const appId = active.id as string;
                     try {
-                      await update(id, { status: toColumn as ApplicationStatus });
-                    } catch {
-                      await refresh();
-                    }
+                      await update(appId, { status: over as ApplicationStatus });
+                    } catch { await refresh(); }
                   }}
+                  className="divide-y divide-[#1dff00]/5"
                 >
-                  {(column) => (
-                    <KanbanBoard id={column.id} key={column.id}>
-                      <KanbanHeader>
-                        <div className="flex items-center gap-2.5">
-                          <div className="h-2.5 w-2.5 rounded-full shadow-sm" style={{ backgroundColor: column.color }} />
-                          <span className="text-sm font-semibold text-white/95 tracking-tight">{column.name}</span>
-                          <span className="inline-flex items-center justify-center min-w-[24px] h-5 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] font-medium text-white/80">
-                            {kanbanData.filter((a) => a.status === (column.id as ApplicationStatus)).length}
-                          </span>
-                        </div>
-                      </KanbanHeader>
-                      <KanbanCards id={column.id}>
-                        {(a: any) => (
-                          <KanbanCard key={a.id} id={a.id}>
-                            <div className="flex items-start gap-3">
-                              <div className="w-10 h-10 bg-gradient-to-br from-[#1dff00]/90 to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-xs flex-shrink-0 shadow-sm">
-                                {a.logo || (a.company?.[0] ?? "")}
+                  {(['Pending', 'Applied', 'Interview', 'Offer', 'Rejected', 'Withdrawn'] as ApplicationStatus[]).map(status => {
+                    const rows = filtered.filter(a => a.status === status);
+                    const color = (
+                      status === 'Applied' ? '#1dff00' :
+                        status === 'Interview' ? '#F59E0B' :
+                          status === 'Offer' ? '#10B981' :
+                            status === 'Rejected' ? '#EF4444' :
+                              status === 'Withdrawn' ? '#94A3B8' : '#6B7280'
+                    );
+                    if (rows.length === 0 && selectedStatus !== 'All') return null;
+                    return (
+                      <ListGroup key={status} id={status} className="flex flex-col">
+                        <ListHeader name={status} color={color} className="sticky top-0 z-10 backdrop-blur-xl bg-[#0a0a0a]/95 border-b border-[#1dff00]/10">
+                          <div className="flex items-center gap-3 px-4 py-3">
+                            <div className="h-2 w-2 rounded-full shadow-[0_0_8px_currentColor]" style={{ backgroundColor: color }} />
+                            <span className="text-sm font-semibold text-white/90">{status}</span>
+                            <span className="ml-auto inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium bg-white/5" style={{ borderColor: color + '40', color }}>
+                              {rows.length}
+                            </span>
+                          </div>
+                        </ListHeader>
+                        <ListItems className="p-3 sm:p-4 grid gap-2">
+                          {rows.length === 0 && (
+                            <div className="text-center py-8">
+                              <div className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-white/5 border border-white/10 mb-2">
+                                <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-white/10 to-transparent" />
                               </div>
-                              <div className="min-w-0 flex-1 space-y-1">
-                                <div className="text-white/95 text-sm font-semibold leading-tight truncate">{a.job_title}</div>
-                                <div className="text-white/65 text-xs font-medium truncate">{a.company}</div>
-                                <div className="flex items-center gap-2 text-[11px] text-white/50 mt-2 pt-2 border-t border-white/5">
-                                  <span className="font-medium">{new Date(a.applied_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                                  {a.location && (
-                                    <>
-                                      <span className="text-white/20">•</span>
-                                      <span className="truncate">{a.location}</span>
-                                    </>
+                              <div className="text-xs text-white/40">No {status.toLowerCase()} applications</div>
+                            </div>
+                          )}
+                          {rows.map((a, idx) => (
+                            <ListItem key={a.id} id={a.id} name={a.job_title} index={idx} parent={status} className="group relative">
+                              <div
+                                className="flex items-center gap-4 w-full p-4 rounded-xl border border-white/10 bg-gradient-to-br from-[#0a0a0a] to-[#0f0f0f] hover:border-[#1dff00]/40 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)] transition-all duration-200 cursor-pointer"
+                                onClick={() => setDetailId(a.id)}
+                              >
+                                {/* Company Logo/Initial */}
+                                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-[#1dff00] via-[#0a8246] to-[#1dff00] rounded-xl flex items-center justify-center text-black font-bold text-sm sm:text-base flex-shrink-0 shadow-lg group-hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] transition-shadow">
+                                  {(a.logo && a.logo.length > 1 ? a.logo : (((a.company || a.job_title || '')).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('') || '').toUpperCase())}
+                                </div>
+
+                                {/* Content */}
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h3 className="text-white text-base font-semibold truncate" title={a.job_title}>{a.job_title}</h3>
+                                    <MatchScoreBadge score={a.match_score ?? 0} />
+                                  </div>
+                                  <div className="text-white/60 text-sm font-medium truncate mb-2">{a.company}</div>
+                                  <div className="flex flex-wrap items-center gap-2 text-xs text-white/40">
+                                    <span className="inline-flex items-center gap-1">
+                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                      </svg>
+                                      {new Date(a.applied_date).toLocaleDateString()}
+                                    </span>
+                                    {a.location && (
+                                      <>
+                                        <span>•</span>
+                                        <span className="inline-flex items-center gap-1 truncate max-w-[150px]">
+                                          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                          </svg>
+                                          {a.location}
+                                        </span>
+                                      </>
+                                    )}
+                                    {a.interview_date && (
+                                      <>
+                                        <span>•</span>
+                                        <span className="inline-flex items-center gap-1 text-amber-400">
+                                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                          </svg>
+                                          Interview {new Date(a.interview_date).toLocaleDateString()}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Quick Actions */}
+                                <div className="flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {a.app_url && (
+                                    <a
+                                      href={a.app_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/20 transition-colors text-xs font-medium"
+                                    >
+                                      <ExternalLink className="w-3.5 h-3.5" />
+                                      Open
+                                    </a>
+                                  )}
+                                  {a.recording_url && (
+                                    <a
+                                      href={a.recording_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-colors text-xs font-medium"
+                                    >
+                                      <Link2 className="w-3.5 h-3.5" />
+                                      Video
+                                    </a>
                                   )}
                                 </div>
+
+                                {/* Status Badge */}
+                                <span
+                                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors"
+                                  style={{
+                                    backgroundColor: color + '15',
+                                    borderColor: color + '40',
+                                    color: color
+                                  }}
+                                >
+                                  {a.status}
+                                </span>
                               </div>
-                              <div className="flex-shrink-0 mt-0.5">
-                                <MatchScoreBadge score={a.match_score ?? 0} />
+                            </ListItem>
+                          ))}
+                        </ListItems>
+                      </ListGroup>
+                    );
+                  })}
+                </ListProvider>
+              </div>
+            )}
+            {viewMode === 'calendar' && (
+              <div className="relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] p-6 shadow-[0_0_30px_rgba(29,255,0,0.1)] overflow-hidden">
+                {/* Ambient Glow Effect */}
+                <div className="absolute -top-20 -left-20 h-64 w-64 bg-[#1dff00]/10 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
+
+                <div className="relative z-10">
+                  <KiboCalendar
+                    events={calendarEvents}
+                    showLegend
+                    highlightToday
+                    showHeader
+                    enableAnalyticsRibbon={false}
+                    enableICSExport
+                    heatmap
+                    densityMode="compact"
+                    onQuickCreate={(partial) => console.log('quick create', partial)}
+                    enableQuickCreate={false}
+                    selectedDate={selectedDate || undefined}
+                    onSelectDate={(d) => { setSelectedDate(d); setSelectedRange(null); }}
+                    rangeSelectable
+                    onSelectRange={(r) => { setSelectedRange(r); if (r) setSelectedDate(null); }}
+                    className="border border-[#1dff00]/20 rounded-xl bg-gradient-to-br from-[#0a0a0a]/50 to-[#0f0f0f]/50 backdrop-blur-sm"
+                  />
+                </div>
+                <CalendarDayDetail
+                  date={selectedDate}
+                  range={selectedRange}
+                  onClose={() => { setSelectedDate(null); setSelectedRange(null); }}
+                  applications={applications}
+                  onUpdateApplication={update}
+                  onCreateApplication={async () => { /* create not injected on ApplicationPage calendar detail */ }}
+                />
+              </div>
+            )}
+            {viewMode === 'table' && (
+              <ApplicationsTable
+                data={filtered}
+                onRowClick={(id) => setDetailId(id)}
+              />
+            )}
+            {viewMode === 'kanban' && (
+              <KanbanProvider
+                columns={[
+                  { id: 'Pending', name: 'Pending', color: '#6B7280' },
+                  { id: 'Applied', name: 'Applied', color: '#1dff00' },
+                  { id: 'Interview', name: 'Interview', color: '#F59E0B' },
+                  { id: 'Offer', name: 'Offer', color: '#10B981' },
+                  { id: 'Rejected', name: 'Rejected', color: '#EF4444' },
+                  { id: 'Withdrawn', name: 'Withdrawn', color: '#94A3B8' },
+                ]}
+                data={kanbanData.map((a) => ({ ...a, id: a.id, column: a.status }))}
+                onItemMove={async (id, toColumn) => {
+                  const rec = applications.find((a) => a.id === id);
+                  if (!rec) return;
+                  if (rec.status === toColumn) return;
+                  try {
+                    await update(id, { status: toColumn as ApplicationStatus });
+                  } catch {
+                    await refresh();
+                  }
+                }}
+              >
+                {(column) => (
+                  <KanbanBoard id={column.id} key={column.id}>
+                    <KanbanHeader>
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-2.5 w-2.5 rounded-full shadow-sm" style={{ backgroundColor: column.color }} />
+                        <span className="text-sm font-semibold text-white/95 tracking-tight">{column.name}</span>
+                        <span className="inline-flex items-center justify-center min-w-[24px] h-5 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] font-medium text-white/80">
+                          {kanbanData.filter((a) => a.status === (column.id as ApplicationStatus)).length}
+                        </span>
+                      </div>
+                    </KanbanHeader>
+                    <KanbanCards id={column.id}>
+                      {(a: any) => (
+                        <KanbanCard key={a.id} id={a.id}>
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-[#1dff00]/90 to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-xs flex-shrink-0 shadow-sm">
+                              {a.logo || (a.company?.[0] ?? "")}
+                            </div>
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="text-white/95 text-sm font-semibold leading-tight truncate">{a.job_title}</div>
+                              <div className="text-white/65 text-xs font-medium truncate">{a.company}</div>
+                              <div className="flex items-center gap-2 text-[11px] text-white/50 mt-2 pt-2 border-t border-white/5">
+                                <span className="font-medium">{new Date(a.applied_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                {a.location && (
+                                  <>
+                                    <span className="text-white/20">•</span>
+                                    <span className="truncate">{a.location}</span>
+                                  </>
+                                )}
                               </div>
                             </div>
-                          </KanbanCard>
-                        )}
-                      </KanbanCards>
-                    </KanbanBoard>
-                  )}
-                </KanbanProvider>
-              )}
-            </motion.div>
-          )}
-        </div>
-      
+                            <div className="flex-shrink-0 mt-0.5">
+                              <MatchScoreBadge score={a.match_score ?? 0} />
+                            </div>
+                          </div>
+                        </KanbanCard>
+                      )}
+                    </KanbanCards>
+                  </KanbanBoard>
+                )}
+              </KanbanProvider>
+            )}
+          </motion.div>
+        )}
+      </div>
+
       <Modal open={!!detailApp} onClose={() => setDetailId(null)} title="" side="right" size="lg">
         {detailApp ? (
           <div className="space-y-6">
             {/* Header Section with Status Badge */}
             <div className="relative pb-6 border-b border-[#1dff00]/10">
               <div className="absolute top-0 right-0">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                  detailApp.status === 'Applied' ? 'bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/20' :
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${detailApp.status === 'Applied' ? 'bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/20' :
                   detailApp.status === 'Interview' ? 'bg-amber-400/10 text-amber-400 border border-amber-400/20' :
-                  detailApp.status === 'Offer' ? 'bg-lime-400/10 text-lime-400 border border-lime-400/20' :
-                  detailApp.status === 'Rejected' ? 'bg-rose-400/10 text-rose-400 border border-rose-400/20' :
-                  'bg-gray-400/10 text-gray-400 border border-gray-400/20'
-                }`}>
-                  <div className={`h-1.5 w-1.5 rounded-full ${
-                    detailApp.status === 'Applied' ? 'bg-[#1dff00]' :
+                    detailApp.status === 'Offer' ? 'bg-lime-400/10 text-lime-400 border border-lime-400/20' :
+                      detailApp.status === 'Rejected' ? 'bg-rose-400/10 text-rose-400 border border-rose-400/20' :
+                        'bg-gray-400/10 text-gray-400 border border-gray-400/20'
+                  }`}>
+                  <div className={`h-1.5 w-1.5 rounded-full ${detailApp.status === 'Applied' ? 'bg-[#1dff00]' :
                     detailApp.status === 'Interview' ? 'bg-amber-400' :
-                    detailApp.status === 'Offer' ? 'bg-lime-400' :
-                    detailApp.status === 'Rejected' ? 'bg-rose-400' :
-                    'bg-gray-400'
-                  } shadow-[0_0_4px_currentColor]`} />
+                      detailApp.status === 'Offer' ? 'bg-lime-400' :
+                        detailApp.status === 'Rejected' ? 'bg-rose-400' :
+                          'bg-gray-400'
+                    } shadow-[0_0_4px_currentColor]`} />
                   {detailApp.status}
                 </span>
               </div>
@@ -799,7 +797,7 @@ function ApplicationPage() {
                     <div className="text-sm font-medium text-white/90">{new Date(detailApp.applied_date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' })}</div>
                   </div>
                 </div>
-                
+
                 {detailApp.interview_date && (
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-400/[0.02] border border-amber-400/10 hover:border-amber-400/30 transition-colors">
                     <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-gradient-to-br from-amber-400/10 to-transparent border border-amber-400/20 flex items-center justify-center">
@@ -899,7 +897,7 @@ function ApplicationPage() {
                   </div>
                 </div>
               ) : (
-                <div 
+                <div
                   className="p-4 rounded-xl bg-white/[0.02] border border-white/10 max-h-60 overflow-auto scrollbar-thin scrollbar-thumb-[#1dff00]/30 scrollbar-track-transparent cursor-text hover:border-white/20 transition-colors"
                   onClick={() => setEditingNotes(true)}
                 >
@@ -917,10 +915,10 @@ function ApplicationPage() {
               <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">Quick Actions</h3>
               <div className="flex flex-wrap gap-2">
                 {detailApp.app_url && (
-                  <a 
-                    href={detailApp.app_url} 
-                    target="_blank" 
-                    rel="noreferrer" 
+                  <a
+                    href={detailApp.app_url}
+                    target="_blank"
+                    rel="noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00] hover:bg-[#1dff00]/20 hover:shadow-[0_0_20px_rgba(29,255,0,0.2)] transition-all duration-200 text-sm font-medium"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -930,10 +928,10 @@ function ApplicationPage() {
                   </a>
                 )}
                 {detailApp.recording_url && (
-                  <a 
-                    href={detailApp.recording_url} 
-                    target="_blank" 
-                    rel="noreferrer" 
+                  <a
+                    href={detailApp.recording_url}
+                    target="_blank"
+                    rel="noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-200 text-sm font-medium"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -969,16 +967,16 @@ function ApplicationPage() {
 
             {/* Footer Actions */}
             <div className="pt-4 border-t border-white/10 flex gap-3">
-              <Button 
-                size="sm" 
-                variant="outline" 
+              <Button
+                size="sm"
+                variant="outline"
                 className="flex-1 border-white/20 hover:border-white/30 hover:bg-white/5 text-white/70 hover:text-white transition-all"
                 onClick={() => setDetailId(null)}
               >
                 Close
               </Button>
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 className="flex-1 bg-gradient-to-r from-[#1dff00] to-[#0a8246] hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] text-black font-semibold transition-all"
                 onClick={() => {
                   // Edit functionality can be added here
@@ -1061,7 +1059,7 @@ function GanttSkeleton() {
             <div className="flex-1 relative h-4">
               {Array.from({ length: Math.max(1, (r % 3) + 1) }).map((__, b) => (
                 <span key={b} className="absolute top-0 h-4 rounded-full">
-                  <Skeleton style={{ left: `${b * 18 + (r*7)%20}%`, width: `${20 + (r*13 + b*9)%35}%` }} className="h-4 bg-white/10" />
+                  <Skeleton style={{ left: `${b * 18 + (r * 7) % 20}%`, width: `${20 + (r * 13 + b * 9) % 35}%` }} className="h-4 bg-white/10" />
                 </span>
               ))}
             </div>
@@ -1075,7 +1073,7 @@ function GanttSkeleton() {
 function ListSkeleton() {
   return (
     <div className="border border-white/10 rounded-xl bg-black/30 overflow-hidden divide-y divide-white/5">
-      {(['Pending','Applied','Interview','Offer','Rejected','Withdrawn']).map(col => (
+      {(['Pending', 'Applied', 'Interview', 'Offer', 'Rejected', 'Withdrawn']).map(col => (
         <div key={col} className="flex flex-col">
           <div className="sticky top-0 z-10 backdrop-blur supports-[backdrop-filter]:bg-black/40 px-3 py-2 flex items-center gap-2">
             <Skeleton className="h-3 w-24 bg-white/10" />
@@ -1105,7 +1103,7 @@ function ListSkeleton() {
 function KanbanSkeleton() {
   return (
     <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
-      {(['Pending','Applied','Interview','Offer','Rejected','Withdrawn']).map(col => (
+      {(['Pending', 'Applied', 'Interview', 'Offer', 'Rejected', 'Withdrawn']).map(col => (
         <div key={col} className="flex flex-col gap-3 rounded-xl border border-white/10 bg-black/30 p-3">
           <div className="flex items-center gap-2">
             <Skeleton className="h-2 w-2 rounded-full bg-white/20" />
@@ -1262,7 +1260,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
         const row = info.row.original as ApplicationRow & { id: string };
         const value = info.getValue() as string;
         const isEditing = editingStatusId === row.id;
-        const selectableStatuses: ApplicationStatus[] = ['Pending','Applied','Interview','Offer','Rejected','Withdrawn'];
+        const selectableStatuses: ApplicationStatus[] = ['Pending', 'Applied', 'Interview', 'Offer', 'Rejected', 'Withdrawn'];
         const color = statusColors[value] || '#6B7280';
         return (
           <div
@@ -1279,7 +1277,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setEditingStatusId(row.id); }}
                 className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all hover:scale-105"
-                style={{ 
+                style={{
                   backgroundColor: color + '15',
                   borderColor: color + '40',
                   color: color
@@ -1302,14 +1300,14 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
                         if (s === value) { setEditingStatusId(null); return; }
                         try {
                           setBusyId(row.id);
-                          const updater = (window as any).__apps_update as undefined | ((id: string, patch: any)=>Promise<any>);
+                          const updater = (window as any).__apps_update as undefined | ((id: string, patch: any) => Promise<any>);
                           if (updater) await updater(row.id, { status: s });
                         } finally {
                           setBusyId(null);
                           setEditingStatusId(null);
                         }
                       }}
-                      className={`flex items-center gap-2 text-left text-xs px-3 py-2 rounded-lg border transition-all ${s===value ? 'bg-[#1dff00]/20 border-[#1dff00]/40 text-[#1dff00] font-semibold' : 'border-transparent hover:border-white/10 hover:bg-white/5 text-white/70'}`}
+                      className={`flex items-center gap-2 text-left text-xs px-3 py-2 rounded-lg border transition-all ${s === value ? 'bg-[#1dff00]/20 border-[#1dff00]/40 text-[#1dff00] font-semibold' : 'border-transparent hover:border-white/10 hover:bg-white/5 text-white/70'}`}
                     >
                       <span className="w-2 h-2 rounded-full" style={{ backgroundColor: sColor }}></span>
                       {s}
@@ -1342,7 +1340,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
           {(info.getValue<Date>()).toLocaleDateString()}
         </span>
       ),
-      sortingFn: (a,b,columnId) => (a.getValue<Date>(columnId).getTime() - b.getValue<Date>(columnId).getTime()),
+      sortingFn: (a, b, columnId) => (a.getValue<Date>(columnId).getTime() - b.getValue<Date>(columnId).getTime()),
     },
     {
       id: 'updated',
@@ -1360,7 +1358,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
           {(info.getValue<Date>()).toLocaleDateString()}
         </span>
       ),
-      sortingFn: (a,b,columnId) => (a.getValue<Date>(columnId).getTime() - b.getValue<Date>(columnId).getTime()),
+      sortingFn: (a, b, columnId) => (a.getValue<Date>(columnId).getTime() - b.getValue<Date>(columnId).getTime()),
     },
     {
       id: 'score',
@@ -1374,15 +1372,15 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
       ),
       accessorFn: row => row.match_score ?? 0,
       cell: info => <MatchScoreBadge score={info.getValue<number>()} />,
-      sortingFn: (a,b,columnId) => (a.getValue<number>(columnId) - b.getValue<number>(columnId)),
+      sortingFn: (a, b, columnId) => (a.getValue<number>(columnId) - b.getValue<number>(columnId)),
     },
   ], [busyId, editingStatusId]);
 
   return (
-    <div ref={(n)=> (tableRef.current = n)} className="relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] overflow-hidden shadow-[0_0_30px_rgba(29,255,0,0.1)]">
+    <div ref={(n) => (tableRef.current = n)} className="relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] overflow-hidden shadow-[0_0_30px_rgba(29,255,0,0.1)]">
       {/* Ambient Glow Effect */}
       <div className="absolute -top-20 -right-20 h-64 w-64 bg-[#1dff00]/10 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
-      
+
       <div className="overflow-auto relative z-10">
         <TableProvider<ApplicationRow, any> data={data} columns={columns} className="min-w-full">
           <KTableHeader className="sticky top-0 z-20 backdrop-blur-xl bg-gradient-to-r from-[#0a0a0a]/95 to-[#0f0f0f]/95 border-b border-[#1dff00]/20">
@@ -1398,9 +1396,9 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
             {(row) => {
               const original = row.row.original as ApplicationRow & { id: string };
               return (
-                <KTableRow 
-                  row={row.row} 
-                  className="cursor-pointer border-b border-white/5 hover:bg-gradient-to-r hover:from-[#1dff00]/5 hover:to-transparent hover:border-[#1dff00]/20 transition-all group" 
+                <KTableRow
+                  row={row.row}
+                  className="cursor-pointer border-b border-white/5 hover:bg-gradient-to-r hover:from-[#1dff00]/5 hover:to-transparent hover:border-[#1dff00]/20 transition-all group"
                   onClick={() => onRowClick(original.id)}
                 >
                   {({ cell }) => (

@@ -8,9 +8,10 @@ type Option = { value: string; label: string };
 type SortDropdownProps = {
   value: string;
   onChange: (value: string) => void;
+  className?: string; // Added className prop
 };
 
-export default function SortDropdown({ value, onChange }: SortDropdownProps) {
+export default function SortDropdown({ value, onChange, className }: SortDropdownProps) {
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -51,14 +52,14 @@ export default function SortDropdown({ value, onChange }: SortDropdownProps) {
   };
 
   return (
-    <div className="relative inline-block text-sm" ref={rootRef}>
+    <div className={`relative inline-block text-sm ${className || ''}`} ref={rootRef}>
       <button
         ref={triggerRef}
         type="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         onClick={toggleOpen}
-        className="inline-flex items-center justify-between w-[180px] px-3 py-2 rounded-md bg-neutral-900 text-white border border-neutral-700 hover:bg-neutral-800 transition-colors"
+        className={`inline-flex items-center justify-between w-full px-3 py-2 rounded-md bg-neutral-900 text-white border border-neutral-700 hover:bg-neutral-800 transition-colors ${className ? '' : 'w-[180px]'} ${className || ''}`} // allow className to override width/style
       >
         <span className="truncate">{selectedOption.label}</span>
         <ChevronDown

@@ -6,7 +6,7 @@ import {
     Share2,
     Printer,
     FileText,
-    Pencil,
+
     Plus,
     Minus,
     Trash2,
@@ -16,10 +16,9 @@ import {
     Lock,
     FileType,
     Edit2,
-    Check,
-    Loader2,
     Menu,
-    Eye
+    Eye,
+    Sparkles
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
@@ -112,9 +111,7 @@ export const CoverLetterBuilderPage = () => {
     // const [lastExport, setLastExport] = useState<string | null>(null);
     // Remove unused copied
     // const [copied, setCopied] = useState(false);
-    const [inlineEdit, setInlineEdit] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -202,7 +199,7 @@ export const CoverLetterBuilderPage = () => {
                 .eq('id', id);
 
             if (error) throw error;
-            setLastSaved(new Date());
+            if (error) throw error;
         } catch (error) {
             console.error('Save failed:', error);
             toastError('Save failed', 'Could not save changes');
@@ -499,111 +496,132 @@ export const CoverLetterBuilderPage = () => {
             <div className="fixed top-20 right-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10" />
             <div className="fixed bottom-20 left-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10" />
 
-            {/* Header */}
-            <div id="cover-header" className="relative flex items-center justify-between sticky top-0 z-10 bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 backdrop-blur-xl border border-[#1dff00]/30 rounded-2xl shadow-[0_0_40px_rgba(29,255,0,0.15)] px-4 sm:px-6 py-5 overflow-hidden group">
-                {/* Animated gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/0 via-[#1dff00]/5 to-[#1dff00]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
-                <div className="relative flex items-center gap-4">
-                    <Button variant="ghost" size="sm" className="h-12 w-12 p-0 rounded-xl border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:text-[#1dff00] hover:scale-110 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)] transition-all duration-200 group/btn" onClick={() => navigate('/dashboard/cover-letter')}>
-                        <ArrowLeft className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
-                    </Button>
-                    <div className="h-12 w-px bg-gradient-to-b from-transparent via-[#1dff00]/40 to-transparent shadow-[0_0_10px_rgba(29,255,0,0.3)]" />
-                    <div>
-                        {/* Dynamic Title Input */}
-                        <div className="flex items-center gap-2 group/title">
-                            <input
-                                value={coverLetter.title || 'Untitled Cover Letter'}
-                                onChange={(e) => setCoverLetterTitle(e.target.value)}
-                                className="text-3xl sm:text-4xl font-black tracking-tight bg-transparent border-none outline-none focus:ring-0 text-white placeholder-gray-500 min-w-[300px]"
-                                placeholder="Untitled Cover Letter"
-                            />
-                            <Edit2 className="w-5 h-5 text-gray-500 opacity-0 group-hover/title:opacity-100 transition-opacity" />
-                        </div>
-                        <div className="flex items-center gap-3 mt-1.5">
-                            <p className="text-xs sm:text-sm text-gray-400 flex items-center gap-2.5">
-                                <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-[#1dff00]/20 border border-[#1dff00]/40">
-                                    <span className="inline-block w-2 h-2 bg-[#1dff00] rounded-full animate-pulse shadow-[0_0_8px_rgba(29,255,0,0.8)]" />
-                                </span>
-                                AI Assistant Ready
-                            </p>
-                            {lastSaved && (
-                                <span className="text-xs text-brand/70 flex items-center gap-1">
-                                    <Check className="w-3 h-3" />
-                                    Saved {lastSaved.toLocaleTimeString()}
-                                </span>
-                            )}
-                        </div>
+            {/* Header toolbar */}
+            <header className="h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-white/10 bg-white dark:bg-[#0A0A0A] z-10 shrink-0">
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => navigate('/dashboard/cover-letter')}
+                        className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-900 dark:hover:text-white transition-colors"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        <span>Back</span>
+                    </button>
+                    <div className="h-6 w-px bg-gray-200 dark:bg-white/10" />
+                    <div className="flex items-center gap-2 group">
+                        <input
+                            value={coverLetter.title || 'Untitled Cover Letter'}
+                            onChange={(e) => setCoverLetterTitle(e.target.value)}
+                            className="font-semibold text-gray-900 dark:text-white bg-transparent border-none outline-none focus:ring-1 focus:ring-[#1dff00] rounded px-1 min-w-[200px]"
+                        />
+                        <Edit2 className="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                 </div>
 
-                <div className="hidden xl:flex relative items-center gap-2.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
-                    <Button
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="rounded-xl h-11 border-[#1dff00]/30 bg-[#1dff00]/10 text-[#1dff00] hover:bg-[#1dff00]/20 gap-2"
+                {/* Desktop Toolbar */}
+                <div className="hidden md:flex items-center gap-3">
+                    <button
+                        onClick={share}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300"
                     >
-                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                        <Share2 className="w-4 h-4" />
+                        Share
+                    </button>
+
+                    <button
+                        onClick={aiPolish}
+                        disabled={aiLoading || subscriptionTier === 'Free'}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <Sparkles className="w-4 h-4" />
+                        {aiLoading ? 'Polishing...' : 'AI Polish'}
+                        {subscriptionTier === 'Free' && <Lock className="ml-2 w-3 h-3 opacity-50" />}
+                    </button>
+
+                    <button
+                        onClick={aiWriteFull}
+                        disabled={aiLoading}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-gray-700 dark:text-white text-sm font-bold transition-all"
+                    >
+                        <Wand2 className={`w-4 h-4 ${aiLoading ? 'animate-spin' : ''}`} />
+                        {aiLoading ? 'Generating...' : 'AI Generate'}
+                    </button>
+
+                    <button
+                        onClick={handleSave}
+                        disabled={isSaving || !routeId}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-brand/50 hover:bg-brand/10 text-gray-700 dark:text-white text-sm font-bold transition-all disabled:opacity-50"
+                    >
+                        <FileText className={`w-4 h-4 ${isSaving ? 'animate-pulse' : ''}`} />
                         {isSaving ? 'Saving...' : 'Save Changes'}
-                    </Button>
-                    <Button variant="outline" onClick={() => setInlineEdit(!inlineEdit)} className={`rounded-xl whitespace-nowrap h-11 px-4 font-semibold transition-all duration-300 group/btn ${inlineEdit ? 'bg-[#1dff00]/10 border-[#1dff00] text-[#1dff00]' : 'border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:text-[#1dff00] hover:bg-[#1dff00]/5'}`}>
-                        <Pencil className="w-4 h-4 mr-2" />
-                        {inlineEdit ? 'Live Edit: On' : 'Enable Live Edit'}
-                    </Button>
-                    <Button variant="outline" onClick={aiPolish} disabled={aiLoading || subscriptionTier === 'Free'} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 transition-all">
-                        <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
-                        {aiLoading ? 'Polishing' : 'AI Polish'}
-                        {subscriptionTier === 'Free' && <Lock className="ml-2 w-3 h-3 opacity-50" />}
-                    </Button>
-                    <Button variant="outline" onClick={aiWriteFull} disabled={aiLoading || subscriptionTier === 'Free'} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 transition-all">
-                        <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
-                        {aiLoading ? 'Writing' : 'AI Generate'}
-                        {subscriptionTier === 'Free' && <Lock className="ml-2 w-3 h-3 opacity-50" />}
-                    </Button>
-                    <Button variant="outline" onClick={() => setExportOpen(true)} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 transition-all">
-                        <Download className="w-4 h-4 mr-2" />
-                        Export
-                    </Button>
+                    </button>
+
+                    <button
+                        onClick={() => setExportOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/20 text-sm font-medium transition-all text-gray-700 dark:text-white"
+                    >
+                        <Download className="w-4 h-4" />
+                        Download
+                    </button>
                 </div>
 
                 {/* Mobile Menu Button */}
                 <button
-                    className="xl:hidden p-2 text-white"
+                    className="md:hidden p-2 text-gray-500"
                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 >
                     <Menu className="w-6 h-6" />
                 </button>
-            </div>
+            </header>
 
             {/* Mobile Menu Overlay */}
-            {mobileMenuOpen && (
-                <div className="xl:hidden flex flex-col gap-3 p-4 bg-[#0a0a0a] border border-[#1dff00]/30 rounded-xl mb-4">
-                    <Button
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="rounded-xl h-11 border-[#1dff00]/30 bg-[#1dff00]/10 text-[#1dff00] hover:bg-[#1dff00]/20 gap-2 w-full justify-start"
-                    >
-                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                        {isSaving ? 'Saving...' : 'Save Changes'}
-                    </Button>
-                    <Button variant="outline" onClick={() => setInlineEdit(!inlineEdit)} className={`rounded-xl h-11 px-4 font-semibold w-full justify-start ${inlineEdit ? 'bg-[#1dff00]/10 border-[#1dff00] text-[#1dff00]' : 'border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:text-[#1dff00] hover:bg-[#1dff00]/5 text-white'}`}>
-                        <Pencil className="w-4 h-4 mr-2" />
-                        {inlineEdit ? 'Live Edit: On' : 'Enable Live Edit'}
-                    </Button>
-                    <Button variant="outline" onClick={aiPolish} disabled={aiLoading || subscriptionTier === 'Free'} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 w-full justify-start">
-                        <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
-                        {aiLoading ? 'Polishing' : 'AI Polish'}
-                    </Button>
-                    <Button variant="outline" onClick={aiWriteFull} disabled={aiLoading || subscriptionTier === 'Free'} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 w-full justify-start">
-                        <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
-                        {aiLoading ? 'Writing' : 'AI Generate'}
-                    </Button>
-                    <Button variant="outline" onClick={() => setExportOpen(true)} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 w-full justify-start">
-                        <Download className="w-4 h-4 mr-2" />
-                        Export
-                    </Button>
-                </div>
-            )}
+            {
+                mobileMenuOpen && (
+                    <div className="absolute top-16 left-0 right-0 bg-white dark:bg-[#0A0A0A] border-b border-gray-200 dark:border-white/10 p-4 z-50 md:hidden flex flex-col gap-3 shadow-xl">
+                        <button
+                            onClick={() => { share(); setMobileMenuOpen(false); }}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300"
+                        >
+                            <Share2 className="w-4 h-4" />
+                            Share
+                        </button>
+
+                        <button
+                            onClick={aiPolish}
+                            disabled={aiLoading || subscriptionTier === 'Free'}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-sm font-bold transition-all"
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            AI Polish
+                        </button>
+
+                        <button
+                            onClick={aiWriteFull}
+                            disabled={aiLoading}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-gray-700 dark:text-white text-sm font-bold transition-all"
+                        >
+                            <Wand2 className={`w-4 h-4 ${aiLoading ? 'animate-spin' : ''}`} />
+                            {aiLoading ? 'Generating...' : 'AI Generate'}
+                        </button>
+
+                        <button
+                            onClick={handleSave}
+                            disabled={isSaving || !routeId}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-brand/50 hover:bg-brand/10 text-gray-700 dark:text-white text-sm font-bold transition-all disabled:opacity-50"
+                        >
+                            <FileText className={`w-4 h-4 ${isSaving ? 'animate-pulse' : ''}`} />
+                            {isSaving ? 'Saving...' : 'Save Changes'}
+                        </button>
+
+                        <button
+                            onClick={() => { setExportOpen(true); setMobileMenuOpen(false); }}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/20 text-sm font-medium transition-all text-gray-700 dark:text-white"
+                        >
+                            <Download className="w-4 h-4" />
+                            Download
+                        </button>
+                    </div>
+                )
+            }
 
             {/* Mobile Tab Bar */}
             <div className="xl:hidden flex border-b border-[#1dff00]/30 bg-black/20 shrink-0 mb-4 rounded-xl overflow-hidden">
