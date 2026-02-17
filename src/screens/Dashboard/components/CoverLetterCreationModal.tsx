@@ -28,9 +28,6 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
 }) => {
     const navigate = useNavigate();
     const [name, setName] = useState('');
-    const [slug, setSlug] = useState('');
-    const [tagInput, setTagInput] = useState('');
-    const [tags, setTags] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
 
     const setCoverLetterTitle = useArtboardStore((state) => state.setCoverLetterTitle);
@@ -40,31 +37,9 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
     const resetCoverLetter = useArtboardStore((state) => state.resetCoverLetter);
     // Ideally we would also have a resetResume action
 
-    // Auto-generate slug from name
-    useEffect(() => {
-        if (name && !slug) {
-            const generatedSlug = name
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/(^-|-$)+/g, '');
-            setSlug(generatedSlug);
-        }
-    }, [name]);
 
-    const handleAddTag = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' || e.key === ',') {
-            e.preventDefault();
-            const newTag = tagInput.trim().replace(',', '');
-            if (newTag && !tags.includes(newTag)) {
-                setTags([...tags, newTag]);
-                setTagInput('');
-            }
-        }
-    };
 
-    const removeTag = (tagToRemove: string) => {
-        setTags(tags.filter(tag => tag !== tagToRemove));
-    };
+
 
     const handleCreate = async () => {
         if (!name) return;
@@ -77,8 +52,6 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
             // Construct initial data object - using default from store would be ideal but for now we manually construct
             const initialData = {
                 title: name,
-                slug: slug,
-                tags: tags,
                 role: '',
                 company: '',
                 jobDescription: '',
@@ -105,8 +78,6 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
                     {
                         user_id: user.id,
                         name: name,
-                        slug: slug,
-                        tags: tags,
                         data: initialData
                     }
                 ])
@@ -120,8 +91,6 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
             resetCoverLetter();
             setCoverLetterId(data.id);
             setCoverLetterTitle(name);
-            setCoverLetterSlug(slug);
-            setCoverLetterTags(tags);
 
             // 3. Close and Navigate
             onOpenChange(false);
@@ -165,54 +134,7 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
                         </p>
                     </div>
 
-                    {/* Slug Input */}
-                    <div className="grid gap-2">
-                        <label htmlFor="slug" className="text-sm font-medium text-zinc-300">
-                            Slug
-                        </label>
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">
-                                jobraker.io/cover-letter/
-                            </span>
-                            <Input
-                                id="slug"
-                                value={slug}
-                                onChange={(e) => setSlug(e.target.value)}
-                                className="bg-zinc-900 border-zinc-800 focus:border-brand text-white pl-[230px]"
-                            />
-                        </div>
-                        <p className="text-xs text-zinc-500">
-                            This is a URL-friendly name for your cover letter.
-                        </p>
-                    </div>
 
-                    {/* Tags Input */}
-                    <div className="grid gap-2">
-                        <label htmlFor="tags" className="text-sm font-medium text-zinc-300">
-                            Tags
-                        </label>
-                        <div className="min-h-[48px] p-2 bg-zinc-900 border border-zinc-800 rounded-xl focus-within:border-brand flex flex-wrap gap-2">
-                            {tags.map((tag) => (
-                                <span key={tag} className="bg-zinc-800 text-zinc-200 px-2 py-1 rounded-md text-sm flex items-center gap-1">
-                                    {tag}
-                                    <button onClick={() => removeTag(tag)} className="hover:text-white">
-                                        <X size={14} />
-                                    </button>
-                                </span>
-                            ))}
-                            <input
-                                id="tags"
-                                value={tagInput}
-                                onChange={(e) => setTagInput(e.target.value)}
-                                onKeyDown={handleAddTag}
-                                placeholder={tags.length === 0 ? "Add a keyword..." : ""}
-                                className="bg-transparent border-none outline-none text-white flex-1 min-w-[120px] text-sm h-7"
-                            />
-                        </div>
-                        <p className="text-xs text-zinc-500">
-                            Press <kbd className="bg-zinc-800 px-1 rounded text-zinc-300">Enter</kbd> or <kbd className="bg-zinc-800 px-1 rounded text-zinc-300">,</kbd> to add tags.
-                        </p>
-                    </div>
                 </div>
 
                 <DialogFooter>
