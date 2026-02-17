@@ -595,5 +595,6 @@ export const ResumeBuilderPage = () => {
                 <AddSectionDialog open={isAddSectionOpen} onOpenChange={setIsAddSectionOpen} />
                 <ShareDialog open={isShareOpen} onOpenChange={setIsShareOpen} />
             </div>
-            );
+        </div>
+    );
 };
