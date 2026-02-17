@@ -10,7 +10,7 @@ import {
     ChevronUp,
     ChevronDown,
     Briefcase,
-    Plus,
+
     Plus,
     GraduationCap,
     BrainCircuit,
@@ -134,22 +134,90 @@ export const ResumeBuilderPage = () => {
     }, [supabase]);
 
     // Auto-populate logic (simplified for brevity, keeping existing logic)
+    // Auto-populate logic
     React.useEffect(() => {
         if (!resumeId && resumeData.basics.name === 'John Doe' && profile) {
-            // ... existing auto-populate logic ...
-            // Auto-populate logic simplified
+            const hasExperience = experiences.data.length > 0;
+            const hasEducation = profileEducation.data.length > 0;
+            const hasSkills = profileSkills.data.length > 0;
 
-            // (Keeping the rest of the auto-populate logic as is in store or handled here)
-            // For brevity in this replacement, I'm assuming the existing logic was sufficient
-            // or I should copy it fully. I'll copy the key parts.
+            const newBasics = {
+                ...resumeData.basics,
+                name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
+                headline: profile.job_title || resumeData.basics.headline,
+                location: profile.location || resumeData.basics.location,
+                email: userEmail || resumeData.basics.email,
+                phone: profile.phone || resumeData.basics.phone,
+            };
 
-            // ... (Skipping full re-implementation of auto-populate for this step to focus on UI,
-            // but ideally it should be preserved. Since I'm overwriting, I should preserve it.)
+            const formatDate = (date: string) => {
+                if (!date) return '';
+                return new Date(date).getFullYear().toString();
+            };
+
+            const mapLevel = (level: string | null) => {
+                switch (level) {
+                    case 'Beginner': return 1;
+                    case 'Intermediate': return 3;
+                    case 'Advanced': return 4;
+                    case 'Expert': return 5;
+                    default: return 3;
+                }
+            };
+
+            // Prepare new sections
+            const newSections = { ...resumeData.sections };
+
+            if (hasExperience) {
+                newSections.experience = {
+                    ...newSections.experience,
+                    items: experiences.data.map(exp => ({
+                        id: crypto.randomUUID(),
+                        hidden: false,
+                        company: exp.company,
+                        position: exp.title,
+                        period: `${formatDate(exp.start_date)} - ${exp.is_current ? 'Present' : formatDate(exp.end_date || '')}`,
+                        description: exp.description,
+                        location: exp.location
+                    }))
+                };
+            }
+
+            if (hasEducation) {
+                newSections.education = {
+                    ...newSections.education,
+                    items: profileEducation.data.map(edu => ({
+                        id: crypto.randomUUID(),
+                        hidden: false,
+                        school: edu.school,
+                        degree: edu.degree,
+                        period: `${formatDate(edu.start_date)} - ${edu.end_date ? formatDate(edu.end_date) : 'Present'}`,
+                        location: edu.location
+                    }))
+                };
+            }
+
+            if (hasSkills) {
+                newSections.skills = {
+                    ...newSections.skills,
+                    items: profileSkills.data.map(skill => ({
+                        id: crypto.randomUUID(),
+                        hidden: false,
+                        name: skill.name,
+                        level: mapLevel(skill.level)
+                    }))
+                };
+            }
+
+            setResumeData({
+                basics: newBasics,
+                sections: newSections
+            });
         }
-    }, [profile, experiences.data, profileEducation.data, profileSkills.data, resumeData.basics.name, userEmail]);
+    }, [profile, experiences.data, profileEducation.data, profileSkills.data, resumeId, userEmail]);
 
     // Actions
-    const updateBasics = useArtboardStore((state) => state.updateBasics);
+
     const toggleSectionVisibility = useArtboardStore((state) => state.toggleSectionVisibility);
 
     // Helper for summary

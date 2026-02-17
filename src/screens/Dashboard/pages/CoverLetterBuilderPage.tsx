@@ -34,6 +34,7 @@ import { useArtboardStore } from '@/store/artboard';
 // Local PDF/Docx generation imports (assuming these pkgs exist or mocks handle them)
 import { jsPDF } from 'jspdf';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
+import { useProfileSettings } from '@/hooks/useProfileSettings';
 
 const supabase = createClient();
 
@@ -147,7 +148,6 @@ export const CoverLetterBuilderPage = () => {
                     if (data.data) {
                         setCoverLetter(data.data);
                     }
-                    // If no data column (legacy), we might need to map manual fields, but assume new structure for now
                 }
             } catch (error) {
                 console.error('Error loading cover letter:', error);
@@ -157,6 +157,28 @@ export const CoverLetterBuilderPage = () => {
         };
         loadData();
     }, [routeId]);
+
+    // Profile Data for Auto-population
+    const { profile } = useProfileSettings();
+    const [userEmail, setUserEmail] = useState('');
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => {
+            if (data?.user?.email) setUserEmail(data.user.email);
+        });
+    }, []);
+
+    // Auto-populate
+    useEffect(() => {
+        if (!id && !sender.name && profile) {
+            const name = [profile.first_name, profile.last_name].filter(Boolean).join(' ');
+            if (name) setSenderName(name);
+            if (profile.phone) setSenderPhone(profile.phone);
+            if (profile.location) setSenderAddress(profile.location);
+            if (userEmail) setSenderEmail(userEmail);
+            if (profile.job_title) setRole(profile.job_title);
+        }
+    }, [profile, id, userEmail]);
 
     // Save Function
     const handleSave = async () => {
@@ -327,32 +349,21 @@ export const CoverLetterBuilderPage = () => {
 
     const loadProfile = async () => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                toastError('Not signed in', 'Please sign in.');
+            if (!profile) {
+                toastError('Profile not loaded', 'Please wait for profile data to load.');
                 return;
             }
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('first_name,last_name,job_title,location,phone')
-                .eq('id', user.id)
-                .maybeSingle();
 
-            if (error) throw error;
-            if (data) {
-                const name = [data.first_name, data.last_name].filter(Boolean).join(' ');
-                if (name) {
-                    setSenderName(name);
-                    if (!content.signature) setSignatureName(name);
-                }
-                if (data.phone) setSenderPhone(data.phone);
-                if (user.email) setSenderEmail(user.email);
-                if (data.location) setSenderAddress(data.location);
-                if (data.job_title) setRole(data.job_title);
-                toastSuccess('Profile loaded', 'Filled details from your profile');
-            } else {
-                toastError('No profile found', 'Please complete your profile first.');
+            const name = [profile.first_name, profile.last_name].filter(Boolean).join(' ');
+            if (name) {
+                setSenderName(name);
+                if (!content.signature) setSignatureName(name);
             }
+            if (profile.phone) setSenderPhone(profile.phone);
+            if (userEmail) setSenderEmail(userEmail);
+            if (profile.location) setSenderAddress(profile.location);
+            if (profile.job_title) setRole(profile.job_title);
+            toastSuccess('Profile loaded', 'Filled details from your profile');
         } catch (e: any) {
             console.error(e);
             toastError('Profile load failed', e?.message);
