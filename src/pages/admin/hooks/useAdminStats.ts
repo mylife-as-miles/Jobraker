@@ -17,7 +17,18 @@ export const useAdminStats = () => {
       setLoading(true);
       setError(null);
 
-      // Get profiles - this is our primary source for user count
+      // 1. Fetch all users from Auth (via Edge Function)
+      let authUsers: any[] = [];
+      try {
+        const { data, error } = await supabase.functions.invoke('list-users');
+        if (error) throw error;
+        authUsers = data || [];
+        console.log('Admin Dashboard - Auth Users fetched:', authUsers.length);
+      } catch (e) {
+        console.warn('Failed to fetch auth users via edge function', e);
+      }
+
+      // 2. Fetch profiles
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, updated_at');
@@ -28,7 +39,14 @@ export const useAdminStats = () => {
 
       console.log('Admin Dashboard - Profiles fetched:', profiles?.length || 0, profiles);
 
-      const allUsers = profiles || [];
+      // Merge data
+      const allUsers = authUsers.length > 0 ? authUsers.map((u: any) => {
+        const profile = (profiles || []).find((p: any) => p.id === u.id);
+        return {
+          ...u,
+          updated_at: profile?.updated_at || u.last_sign_in_at || u.created_at
+        };
+      }) : (profiles || []);
 
       // Fetch credits - handle gracefully if table doesn't exist
       let credits: any[] = [];
@@ -164,122 +182,132 @@ export const useUserActivities = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch profiles with auth.users metadata through RPC or view
+      // 1. Fetch all users from Auth (via Edge Function)
+      let authUsers: any[] = [];
+      try {
+        const { data, error } = await supabase.functions.invoke('list-users');
+        if (error) throw error;
+        authUsers = data || [];
+      } catch (e) {
+        console.warn('Failed to fetch auth users via edge function', e);
+      }
+
+      // 2. Fetch profiles
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, updated_at');
+        .select('id, first_name, last_name, updated_at, avatar_url');
 
       if (profileError) {
         console.error('Error fetching profiles:', profileError);
-        throw profileError;
+        if (authUsers.length === 0) throw profileError;
       }
 
-      // For each profile, try to get their email from auth.users using a metadata query
-      // Since we can't use admin.listUsers(), we'll query the user's own session
-      const userActivities: UserActivity[] = await Promise.all(
-        (profiles || []).map(async (profile: any) => {
-          // Try to get user metadata - this might not work without admin privileges
-          let email = 'user@example.com';
-          
-          // Alternative: Check if there's an RPC function to get user email
-          try {
-            const { data: userData } = await supabase
-              .rpc('get_user_email', { user_id: profile.id })
-              .single();
-            if (userData && (userData as any).email) email = (userData as any).email;
-          } catch (e) {
-            // RPC function doesn't exist, use placeholder
-            email = `user-${profile.id.substring(0, 8)}@jobraker.com`;
-          }
+      // Create a map of profiles for quick lookup
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
 
-          // Get credits - handle gracefully if table doesn't exist
-          let creditsBalance = 0;
-          let creditsConsumed = 0;
-          try {
-            const { data: credits } = await supabase
-              .from('user_credits')
-              .select('balance, lifetime_spent')
-              .eq('user_id', profile.id)
-              .maybeSingle();
-            
-            if (credits) {
-              creditsBalance = credits.balance || 0;
-              creditsConsumed = credits.lifetime_spent || 0;
-            }
-          } catch (e) {
-            // Credits table not deployed yet
-          }
+      // 3. Determine the base list of users to iterate over
+      const baseUsers = authUsers.length > 0 ? authUsers : (profiles || []).map((p: any) => ({
+        id: p.id,
+        email: `user-${p.id.substring(0, 8)}@jobraker.com`,
+        created_at: new Date().toISOString(),
+        last_sign_in_at: new Date().toISOString(),
+      }));
 
-          // Get subscription - handle gracefully if table doesn't exist
-          let subscriptionTier: 'Free' | 'Basics' | 'Pro' | 'Ultimate' = 'Free';
-          let totalSpent = 0;
-          try {
-            const { data: subscription } = await supabase
-              .from('user_subscriptions')
-              .select('subscription_plan_id, subscription_plans(name, price)')
-              .eq('user_id', profile.id)
-              .eq('status', 'active')
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .maybeSingle();
+      // 4. Fetch related data in parallel
+      const [
+        { data: allCredits },
+        { data: allSubscriptions },
+        { data: allRoles },
+        { data: allTransactions }
+      ] = await Promise.all([
+        supabase.from('user_credits').select('user_id, balance, lifetime_spent'),
+        supabase.from('user_subscriptions')
+          .select('user_id, status, subscription_plan_id, subscription_plans(name, price)')
+          .eq('status', 'active'),
+        supabase.from('user_roles').select('user_id, role'),
+        supabase.from('credit_transactions')
+          .select('user_id, reference_type, transaction_type, description, created_at') 
+          .order('created_at', { ascending: false })
+      ]);
 
-            if (subscription && subscription.subscription_plans && !Array.isArray(subscription.subscription_plans)) {
-              const plan = subscription.subscription_plans as any;
-              const planName = plan.name;
-              if (planName === 'Free' || planName === 'Basics' || planName === 'Pro' || planName === 'Ultimate') {
-                subscriptionTier = planName;
-              }
-              totalSpent = plan.price || 0;
-            }
-          } catch (e) {
-            // Subscription tables not deployed yet or no active subscription
-          }
+      const creditMap = new Map((allCredits || []).map((c: any) => [c.user_id, c]));
+      const subscriptionMap = new Map((allSubscriptions || []).map((s: any) => [s.user_id, s]));
+      
+      const roleMap = new Map<string, string[]>();
+      (allRoles || []).forEach((r: any) => {
+        const current = roleMap.get(r.user_id) || [];
+        roleMap.set(r.user_id, [...current, r.role]);
+      });
 
-          // Get feature usage - handle gracefully if table doesn't exist
-          let jobSearches = 0;
-          let autoApplies = 0;
-          let latestActivityDate: any = null;
-          try {
-            const { data: transactions } = await supabase
-              .from('credit_transactions')
-              .select('reference_type, transaction_type, description, created_at')
-              .eq('user_id', profile.id)
-              .eq('transaction_type', 'deduction'); // Use 'deduction' to match actual schema
-            
-            // Track latest activity
-            if (transactions) {
-              transactions.forEach((t: any) => {
-                const date = new Date(t.created_at);
-                if (!latestActivityDate || date > latestActivityDate) {
-                  latestActivityDate = date;
-                }
-              });
-            }
+      const transactionMap = new Map<string, any[]>();
+      (allTransactions || []).forEach((t: any) => {
+        const current = transactionMap.get(t.user_id) || [];
+        transactionMap.set(t.user_id, [...current, t]);
+      });
 
-            // For job searches, parse the description to get actual job count
-            const jobSearchTransactions = (transactions || []).filter((t: any) => t.reference_type === 'job_search');
-            jobSearches = jobSearchTransactions.reduce((sum, t) => {
-              // Parse "Job search - X jobs found" from description
-              const match = t.description?.match(/(\d+)\s+jobs?\s+found/i);
-              return sum + (match ? parseInt(match[1]) : 1);
+      // 5. Construct UserActivity objects
+      const userActivities: UserActivity[] = baseUsers.map((user: any) => {
+        const profile = profileMap.get(user.id);
+        
+        // Basic Info - Prefer Auth email, fallback to constructed or unknown
+        const email = user.email || (profile ? `user-${user.id.substring(0, 8)}@jobraker.com` : 'Unknown');
+        
+        // Name Resolution
+        let full_name = null;
+        if (profile) {
+          const parts = [profile.first_name, profile.last_name].filter(Boolean);
+          if (parts.length > 0) full_name = parts.join(' ');
+        }
+        if (!full_name && user.user_metadata) {
+          full_name = user.user_metadata.full_name || user.user_metadata.name || null;
+        }
+
+        const updated_at = profile?.updated_at || user.last_sign_in_at || user.created_at;
+
+        // Credits
+        const userCredits = creditMap.get(user.id);
+        const credits_balance = userCredits?.balance || 0;
+        const credits_consumed = userCredits?.lifetime_spent || 0;
+
+        // Subscription
+        let subscription_tier: 'Free' | 'Basics' | 'Pro' | 'Ultimate' = 'Free';
+        let total_spent = 0;
+        const sub = subscriptionMap.get(user.id);
+        if (sub && sub.subscription_plans) {
+             const plan = Array.isArray(sub.subscription_plans) ? sub.subscription_plans[0] : sub.subscription_plans;
+             if (plan && ['Free', 'Basics', 'Pro', 'Ultimate'].includes(plan.name)) {
+                 subscription_tier = plan.name as any;
+             }
+             total_spent = plan?.price || 0;
+        }
+
+        // Feature Usage from Transactions
+        const userTx = transactionMap.get(user.id) || [];
+        
+        const jobSearches = userTx
+            .filter((t: any) => t.reference_type === 'job_search')
+            .reduce((sum: number, t: any) => {
+                const match = t.description?.match(/(\d+)\s+jobs?\s+found/i);
+                return sum + (match ? parseInt(match[1]) : 1);
             }, 0);
 
-            // For auto applies, parse the description to get actual job count
-            const autoApplyTransactions = (transactions || []).filter((t: any) => t.reference_type === 'auto_apply');
-            autoApplies = autoApplyTransactions.reduce((sum, t) => {
-              // Parse "Auto apply - X job(s) applied" from description
-              const match = t.description?.match(/(\d+)\s+jobs?/i);
-              return sum + (match ? parseInt(match[1]) : 1);
+        const autoApplies = userTx
+            .filter((t: any) => t.reference_type === 'auto_apply')
+            .reduce((sum: number, t: any) => {
+                const match = t.description?.match(/(\d+)\s+jobs?/i);
+                return sum + (match ? parseInt(match[1]) : 1);
             }, 0);
-          } catch (e) {
-            // Transaction table not deployed yet
+            
+         // Latest activity for status
+         let latestActivityDate: Date | null = null;
+          if (userTx.length > 0) {
+              latestActivityDate = new Date(userTx[0].created_at);
           }
 
-          // Determine status based on profile updates or recent activity
           const thirtyDaysAgo = new Date();
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
           
-          let lastActive = profile?.updated_at ? new Date(profile.updated_at) : null;
+          let lastActive = updated_at ? new Date(updated_at) : null;
           if (latestActivityDate && (!lastActive || latestActivityDate.getTime() > lastActive.getTime())) {
             lastActive = latestActivityDate;
           }
@@ -288,39 +316,21 @@ export const useUserActivities = () => {
             ? 'active'
             : 'inactive';
 
-          const full_name = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || null;
-
-          // Get roles - handle gracefully if table doesn't exist
-          let roles: string[] = [];
-          try {
-            const { data: userRoles } = await supabase
-              .from('user_roles')
-              .select('role')
-              .eq('user_id', profile.id);
-            
-            if (userRoles) {
-              roles = userRoles.map((r: any) => r.role);
-            }
-          } catch (e) {
-            // Roles table not deployed yet
-          }
-
-          return {
-            id: profile.id,
-            email,
-            roles,
-            full_name,
-            updated_at: profile.updated_at,
-            credits_balance: creditsBalance,
-            credits_consumed: creditsConsumed,
-            subscription_tier: subscriptionTier,
-            job_searches: jobSearches,
-            auto_applies: autoApplies,
-            total_spent: totalSpent,
-            status,
-          };
-        })
-      );
+        return {
+          id: user.id,
+          email,
+          roles: roleMap.get(user.id) || [],
+          full_name,
+          updated_at,
+          credits_balance,
+          credits_consumed,
+          subscription_tier,
+          job_searches: jobSearches,
+          auto_applies: autoApplies,
+          total_spent,
+          status,
+        };
+      });
 
       setActivities(userActivities);
     } catch (err: any) {
