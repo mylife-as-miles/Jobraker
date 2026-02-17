@@ -1,0 +1,84 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@reactive-resume/schema": [
+        "./src/lib/reactive-resume-schema.ts"
+      ],
+      "@reactive-resume/utils": [
+        "./src/lib/reactive-resume-utils.ts"
+      ],
+      "@reactive-resume/hooks": [
+        "./src/lib/reactive-resume-hooks.ts"
+      ],
+      "@reactive-resume/ui": [
+        "./src/lib/reactive-resume-ui.tsx"
+      ],
+      "@reactive-resume/dto": [
+        "./src/lib/reactive-resume-dto.ts"
+      ],
+      "@reactive-resume/parser": [
+        "./src/lib/reactive-resume-parser.ts"
+      ],
+      "@lingui/macro": [
+        "./src/lib/mocks/lingui-macro.ts"
+      ],
+      "@lingui/core": [
+        "./src/lib/mocks/lingui-core.ts"
+      ],
+      "@lingui/react": [
+        "./src/lib/mocks/lingui-react.tsx"
+      ],
+      "@lingui/detect-locale": [
+        "./src/lib/mocks/lingui-detect-locale.ts"
+      ],
+      "qrcode.react": [
+        "./src/lib/mocks/qrcode-react.tsx"
+      ],
+      "@radix-ui/react-visually-hidden": [
+        "./src/lib/mocks/radix-visually-hidden.tsx"
+      ],
+      "@sindresorhus/slugify": [
+        "./src/lib/mocks/slugify.ts"
+      ],
+      "react-parallax-tilt": [
+        "./src/lib/mocks/react-parallax-tilt.tsx"
+      ],
+      "openai": [
+        "./src/lib/mocks/openai.ts"
+      ]
+    }
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    // Legacy client subtree merged into main app and not compiled
+    "src/resume-builder/**"
+  ]
+}

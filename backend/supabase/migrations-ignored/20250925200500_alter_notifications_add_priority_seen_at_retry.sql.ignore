@@ -1,0 +1,2 @@
+-- Retry migration to add priority & seen_at columns to notifications (ensures execution)
+-- intentionally blank (superseded by later applied migration)

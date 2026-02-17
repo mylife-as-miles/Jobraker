@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <rect width="200" height="200" rx="20" fill="#6366F1"/>
+  <rect x="60" y="60" width="80" height="80" rx="8" fill="white" opacity="0.9"/>
+  <path d="M70 100 L90 100 M100 100 L120 100 M80 80 L80 120 M100 80 L100 120" stroke="#6366F1" stroke-width="4" stroke-linecap="round"/>
+  <text x="100" y="170" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">Levels.fyi</text>
+</svg>
+

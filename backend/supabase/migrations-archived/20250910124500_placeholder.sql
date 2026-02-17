@@ -1,0 +1,2 @@
+-- Placeholder numeric migration to reconcile remote history for 20250910124500
+-- (parsed_resume_embedding already applied manually)
