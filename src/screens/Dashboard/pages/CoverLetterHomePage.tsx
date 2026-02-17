@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Plus,
-    Upload,
+
     Grid,
     List,
     Calendar,
@@ -188,17 +188,7 @@ export const CoverLetterHomePage = () => {
                             </motion.div>
 
                             {/* Import Existing Card */}
-                            <motion.div
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={() => { }} // Placeholder
-                                className="aspect-[3/4] rounded-xl border border-dashed border-[#ffffff20] bg-[#ffffff05] hover:bg-[#ffffff0a] hover:border-[#ffffff40] cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group"
-                            >
-                                <div className="w-16 h-16 rounded-full bg-[#ffffff10] flex items-center justify-center text-white group-hover:scale-110 transition-transform">
-                                    <Upload className="w-8 h-8" />
-                                </div>
-                                <span className="font-medium text-gray-400 group-hover:text-white transition-colors">Import Existing</span>
-                            </motion.div>
+
 
                             {/* Letter Cards */}
                             {letters.map(letter => (

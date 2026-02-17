@@ -101,9 +101,7 @@ export const CoverLetterBuilderPage = () => {
 
 
     // Local UI State
-    const [libName, setLibName] = useState('');
-    const [library, setLibrary] = useState<any[]>([]);
-    const [currentLibId, setCurrentLibId] = useState<string | null>(null);
+
     const [aiLoading, setAiLoading] = useState(false);
     // Remove unused savedAt if not used, or use it 
     // const [savedAt, setSavedAt] = useState<string | null>(null); 
@@ -289,63 +287,7 @@ export const CoverLetterBuilderPage = () => {
 
     // --- Actions ---
 
-    const saveToLibrary = async (nameOverride?: string) => {
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                toastError('Not signed in', 'Please sign in to save.');
-                return;
-            }
 
-            const nameToUse = nameOverride || libName || `Cover Letter - ${company || 'Untitled'}`;
-            const stateToSave = {
-                role, company, jobDescription, tone, lengthPref,
-                sender, recipient, content, typography,
-                localTitle: nameToUse
-            };
-
-            if (currentLibId && !nameOverride) {
-                // Update
-                const { error } = await supabase
-                    .from('cover_letters')
-                    .update({
-                        name: nameToUse,
-                        content: stateToSave,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('id', currentLibId);
-
-                if (error) throw error;
-                toastSuccess('Updated', 'Cover letter saved.');
-                // setSavedAt(new Date().toISOString());
-                // Update local list
-                setLibrary(prev => prev.map(l => l.id === currentLibId ? { ...l, name: nameToUse, content: stateToSave, updated_at: new Date().toISOString() } : l));
-            } else {
-                // Insert
-                const { data, error } = await supabase
-                    .from('cover_letters')
-                    .insert({
-                        user_id: user.id,
-                        name: nameToUse,
-                        content: stateToSave
-                    })
-                    .select()
-                    .single();
-
-                if (error) throw error;
-                if (data) {
-                    setCurrentLibId(data.id);
-                    setLibName(nameToUse);
-                    setLibrary(prev => [data, ...prev]);
-                    toastSuccess('Saved', 'New cover letter created.');
-                    // setSavedAt(new Date().toISOString());
-                }
-            }
-        } catch (e: any) {
-            console.error(e);
-            toastError('Save failed', e?.message);
-        }
-    };
 
     const loadProfile = async () => {
         try {
@@ -685,37 +627,7 @@ export const CoverLetterBuilderPage = () => {
                 {/* CONFIG PANEL (LEFT) */}
                 < Card className={`p-6 rounded-2xl bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 border border-[#1dff00]/30 backdrop-blur-xl ${activeTab === 'editor' ? 'block' : 'hidden'} xl:block`}>
                     <div className="grid gap-6">
-                        {/* Library */}
-                        <div className="grid gap-3">
-                            <div className="flex items-center justify-between">
-                                <label className="text-sm font-semibold text-white">Save Cover Letter</label>
-                                <Button variant="outline" size="sm" onClick={() => { setCurrentLibId(null); setLibName(''); }} className="h-8">New</Button>
-                            </div>
-                            <input value={libName} onChange={e => setLibName(e.target.value)} placeholder="Letter Name" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
-                            <div className="grid grid-cols-2 gap-3">
-                                <Button onClick={() => saveToLibrary()} variant="outline" className="border-[#1dff00]/30">{currentLibId ? 'Update' : 'Save'}</Button>
-                                <Button onClick={() => saveToLibrary(libName)} variant="outline">Save As New</Button>
-                            </div>
-                            {library.length > 0 && (
-                                <select
-                                    className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-sm text-gray-400"
-                                    onChange={(e) => {
-                                        const lib = library.find(l => l.id === e.target.value);
-                                        if (lib && lib.content) {
-                                            setCoverLetter(lib.content);
-                                            setCurrentLibId(lib.id);
-                                            setLibName(lib.name);
-                                            // setSavedAt(lib.updated_at);
-                                            toastSuccess('Loaded', `Loaded ${lib.name}`);
-                                        }
-                                    }}
-                                    value={currentLibId || ''}
-                                >
-                                    <option value="">Select saved letter...</option>
-                                    {library.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                                </select>
-                            )}
-                        </div>
+
 
                         {/* Sender */}
                         <div className="grid gap-3">
