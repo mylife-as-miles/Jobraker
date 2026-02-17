@@ -12,6 +12,12 @@ import {
     Trash2,
     Download
 } from 'lucide-react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useArtboardStore } from '../../../store/artboard';
 import { Button } from '../../../components/ui/button';
 import { motion } from 'framer-motion';
@@ -69,6 +75,28 @@ export const ResumeHomePage = () => {
         setResumeId(id);
         setResumeTitle(name);
         navigate(`/dashboard/resume/edit/${id}`);
+    };
+
+    const handleDelete = async (id: string, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+
+        if (!confirm('Are you sure you want to delete this resume? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const { error } = await supabase
+                .from('resumes')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+
+            setResumes(prev => prev.filter(r => r.id !== id));
+        } catch (error) {
+            console.error('Error deleting resume:', error);
+            alert('Failed to delete resume. Please try again.');
+        }
     };
 
     const handleImportClick = () => {
@@ -275,71 +303,98 @@ export const ResumeHomePage = () => {
                                             Last edited {new Date(resume.updated_at).toLocaleDateString()}
                                         </p>
                                     </div>
-                                    <button className="text-gray-500 hover:text-white p-1 rounded hover:bg-[#ffffff10]">
-                                        <MoreVertical className="w-4 h-4" />
-                                    </button>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <button className="text-gray-500 hover:text-white p-1 rounded hover:bg-[#ffffff10] outline-none">
+                                                <MoreVertical className="w-4 h-4" />
+                                            </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-[160px] bg-[#1a1a1a] border-[#ffffff20] text-gray-200">
+                                            <DropdownMenuItem
+                                                onClick={() => handleEdit(resume.id, resume.name)}
+                                                className="cursor-pointer hover:bg-[#ffffff10] focus:bg-[#ffffff10]"
+                                            >
+                                                <Edit2 className="w-4 h-4 mr-2" />
+                                                Edit
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                onClick={(e) => handleDelete(resume.id, e)}
+                                                className="cursor-pointer text-red-400 hover:text-red-400 hover:bg-red-500/10 focus:bg-red-500/10 focus:text-red-400"
+                                            >
+                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                Delete
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                             </div>
                         </motion.div>
                     ))}
                 </div>
-            )}
+            )
+            }
 
             {/* List View */}
-            {!loading && viewMode === 'list' && (
-                <div className="space-y-4">
-                    <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <div className="col-span-6">Name</div>
-                        <div className="col-span-3">Last Modified</div>
-                        <div className="col-span-3 text-right">Actions</div>
-                    </div>
-
-                    <div
-                        onClick={handleCreateNew}
-                        className="grid grid-cols-12 gap-4 px-4 py-4 rounded-xl border border-dashed border-[#ffffff20] bg-[#ffffff05] hover:bg-[#ffffff0a] cursor-pointer items-center group transition-all"
-                    >
-                        <div className="col-span-6 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00]">
-                                <Plus className="w-5 h-5" />
-                            </div>
-                            <span className="font-medium text-gray-300 group-hover:text-white">Create New Resume</span>
+            {
+                !loading && viewMode === 'list' && (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <div className="col-span-6">Name</div>
+                            <div className="col-span-3">Last Modified</div>
+                            <div className="col-span-3 text-right">Actions</div>
                         </div>
-                    </div>
 
-                    {resumes.map(resume => (
                         <div
-                            key={resume.id}
-                            className="grid grid-cols-12 gap-4 px-4 py-4 rounded-xl bg-[#ffffff08] border border-[#ffffff10] hover:bg-[#ffffff0c] items-center transition-all group"
+                            onClick={handleCreateNew}
+                            className="grid grid-cols-12 gap-4 px-4 py-4 rounded-xl border border-dashed border-[#ffffff20] bg-[#ffffff05] hover:bg-[#ffffff0a] cursor-pointer items-center group transition-all"
                         >
-                            <div className="col-span-6 flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center">
-                                    <FileText className="w-5 h-5 text-gray-400" />
+                            <div className="col-span-6 flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00]">
+                                    <Plus className="w-5 h-5" />
                                 </div>
-                                <div>
-                                    <h3 className="font-semibold text-white">{resume.name}</h3>
-                                    <p className="text-xs text-gray-500">A4 • PDF</p>
-                                </div>
-                            </div>
-                            <div className="col-span-3 text-sm text-gray-400">
-                                {new Date(resume.updated_at).toLocaleDateString()}
-                            </div>
-                            <div className="col-span-3 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => handleEdit(resume.id, resume.name)} className="p-2 text-gray-400 hover:text-white hover:bg-[#ffffff10] rounded-lg" title="Edit">
-                                    <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button className="p-2 text-gray-400 hover:text-white hover:bg-[#ffffff10] rounded-lg" title="Download">
-                                    <Download className="w-4 h-4" />
-                                </button>
-                                <button className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg" title="Delete">
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                                <span className="font-medium text-gray-300 group-hover:text-white">Create New Resume</span>
                             </div>
                         </div>
-                    ))}
-                </div>
-            )}
+
+                        {resumes.map(resume => (
+                            <div
+                                key={resume.id}
+                                className="grid grid-cols-12 gap-4 px-4 py-4 rounded-xl bg-[#ffffff08] border border-[#ffffff10] hover:bg-[#ffffff0c] items-center transition-all group"
+                            >
+                                <div className="col-span-6 flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center">
+                                        <FileText className="w-5 h-5 text-gray-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-white">{resume.name}</h3>
+                                        <p className="text-xs text-gray-500">A4 • PDF</p>
+                                    </div>
+                                </div>
+                                <div className="col-span-3 text-sm text-gray-400">
+                                    {new Date(resume.updated_at).toLocaleDateString()}
+                                </div>
+                                <div className="col-span-3 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => handleEdit(resume.id, resume.name)} className="p-2 text-gray-400 hover:text-white hover:bg-[#ffffff10] rounded-lg" title="Edit">
+                                        <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <button className="p-2 text-gray-400 hover:text-white hover:bg-[#ffffff10] rounded-lg" title="Download">
+                                        <Download className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={(e) => handleDelete(resume.id, e)}
+                                        className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg"
+                                        title="Delete"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )
+            }
 
             <ResumeCreationModal open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} />
-        </div>
+        </div >
     );
 };
