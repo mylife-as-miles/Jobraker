@@ -1,7 +1,5 @@
-
 import { nanoid } from 'nanoid';
 import { ResumeData } from '../store/artboard';
-import { ParsedProfileData } from '../services/ai/parseResumeProfile';
 
 // Helper to ensure unique IDs
 function withIds(items: any[], type: string = 'basic') {
