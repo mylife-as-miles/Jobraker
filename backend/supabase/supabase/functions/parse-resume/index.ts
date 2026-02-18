@@ -75,7 +75,7 @@ Deno.serve(async (req: Request) => {
             }
           ]
         },
-        "awards": { "items": [{ "title": "string", "date": "string", "awarder": "string", "summary": "string" }] },
+        "awards": { "items": [{ "title": "string", "date": "string", "awarder": "string", "summary": "st ring" }] },
         "certifications": { "items": [{ "name": "string", "date": "string", "issuer": "string", "summary": "string" }] },
         "languages": { "items": [{ "name": "string", "description": "string (e.g. Fluent)" }] },
         "interests": { "items": [{ "name": "string" }] },

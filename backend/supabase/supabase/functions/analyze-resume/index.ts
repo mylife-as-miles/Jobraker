@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { GoogleGenAI } from "npm:@google/genai";
-import { getCorsHeaders } from "../_shared/types.ts";
+import { getCorsHeaders, corsHeaders } from "../_shared/types.ts";
 import { createGeminiClient, GEMINI_MODEL, createGeminiConfig } from "../_shared/gemini.ts";
 
 // IDE Hack
