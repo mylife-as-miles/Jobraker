@@ -21,6 +21,30 @@ function withIds(items: any[], type: string = 'basic') {
 export function mapParsedDataToResume(parsed: any, baseState: ResumeData): ResumeData {
     // Deep clone base state
     const resume = JSON.parse(JSON.stringify(baseState)) as ResumeData;
+
+    // Reset basics to blank to avoid "John Doe" defaults if parsing fails or is partial
+    // We only keep the structural defaults (sections, metadata), not the content.
+    resume.basics = {
+        name: '',
+        headline: '',
+        email: '',
+        phone: '',
+        location: '',
+        website: { url: '', label: '' },
+        customFields: [],
+        profiles: []
+    };
+    
+    // Clear summary content
+    resume.summary.content = '';
+    resume.summary.hidden = true; // Default to hidden until we find content
+
+    // Clear all section items
+    Object.keys(resume.sections).forEach(key => {
+        resume.sections[key].items = [];
+        resume.sections[key].hidden = true;
+    });
+
     
     // Safety check - if parsed is null/undefined
     if (!parsed) return resume;
