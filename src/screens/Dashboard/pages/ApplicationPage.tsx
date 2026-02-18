@@ -11,7 +11,7 @@ import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 
 
-import { cn } from "../../../lib/utils";
+
 
 
 import { List as ListIcon, Search, Columns, ExternalLink, Link2, RefreshCw, GanttChart, Calendar as CalendarIcon, Table as TableIcon } from "lucide-react";
@@ -213,10 +213,7 @@ function ApplicationPage() {
   const initialLoading = appsLoading && applications.length === 0;
 
   return (
-    <div className={cn(
-      "relative mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8",
-      viewMode === 'list' || viewMode === 'calendar' ? "max-w-7xl" : "max-w-[1920px]"
-    )}>
+    <div className="relative mx-auto max-w-[1920px] px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Ambient Background Glow */}
       <div className="fixed top-20 right-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10"></div>
       <div className="fixed bottom-0 left-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10"></div>
