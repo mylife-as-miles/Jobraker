@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-
 import fs from 'fs';
 import path from 'path';
 
@@ -25,13 +24,14 @@ const env = loadEnv(path.resolve(process.cwd(), '.env'));
 // Merge envs (local overrides base)
 const mergedEnv = { ...process.env, ...env, ...envLocal };
 
-const supabaseUrl = mergedEnv.VITE_SUPABASE_URL || mergedEnv.SUPABASE_URL;
-const supabaseKey = mergedEnv.VITE_SUPABASE_ANON_KEY || mergedEnv.SUPABASE_ANON_KEY;
+// Fallback to local defaults from supabaseClient.ts
+const DEFAULT_URL = 'http://127.0.0.1:54321';
+const DEFAULT_KEY = 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH'; // Pulled from supabaseClient.ts
 
-if (!supabaseUrl || !supabaseKey) {
-    console.error('Missing Supabase URL or Key');
-    process.exit(1);
-}
+const supabaseUrl = mergedEnv.VITE_SUPABASE_URL || mergedEnv.SUPABASE_URL || DEFAULT_URL;
+const supabaseKey = mergedEnv.VITE_SUPABASE_ANON_KEY || mergedEnv.SUPABASE_ANON_KEY || DEFAULT_KEY;
+
+console.log(`Connecting to ${supabaseUrl}`);
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
