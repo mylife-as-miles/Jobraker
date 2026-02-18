@@ -23,6 +23,7 @@ import { Button } from '../../../components/ui/button';
 import { motion } from 'framer-motion';
 import { ResumeCreationModal } from '../components/ResumeCreationModal';
 import { ResumePreviewCard } from '../components/ResumePreviewCard';
+import { DeleteConfirmationDialog } from '../components/DeleteConfirmationDialog';
 import { createClient } from '@/lib/supabaseClient';
 import { extractTextFromPdf } from '@/lib/pdf-loader';
 import { parseResumeWithAI } from '@/services/ai/parseResumeProfile';
@@ -67,6 +68,10 @@ export const ResumeHomePage = () => {
         fetchResumes();
     }, []);
 
+    const [deleteId, setDeleteId] = useState<string | null>(null);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
     const handleCreateNew = () => {
         setIsCreateModalOpen(true);
     };
@@ -77,26 +82,32 @@ export const ResumeHomePage = () => {
         navigate(`/dashboard/resume/edit/${id}`);
     };
 
-    const handleDelete = async (id: string, e?: React.MouseEvent) => {
-        if (e) e.stopPropagation();
-
-        if (!confirm('Are you sure you want to delete this resume? This action cannot be undone.')) {
-            return;
-        }
-
+    const confirmDelete = async () => {
+        if (!deleteId) return;
+        setIsDeleting(true);
         try {
             const { error } = await supabase
                 .from('resumes')
                 .delete()
-                .eq('id', id);
+                .eq('id', deleteId);
 
             if (error) throw error;
 
-            setResumes(prev => prev.filter(r => r.id !== id));
+            setResumes(prev => prev.filter(r => r.id !== deleteId));
+            setIsDeleteModalOpen(false);
         } catch (error) {
             console.error('Error deleting resume:', error);
             alert('Failed to delete resume. Please try again.');
+        } finally {
+            setIsDeleting(false);
+            setDeleteId(null);
         }
+    };
+
+    const handleDelete = (id: string, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        setDeleteId(id);
+        setIsDeleteModalOpen(true);
     };
 
     const handleImportClick = () => {
@@ -395,6 +406,13 @@ export const ResumeHomePage = () => {
             }
 
             <ResumeCreationModal open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} />
-        </div >
+
+            <DeleteConfirmationDialog
+                open={isDeleteModalOpen}
+                onOpenChange={setIsDeleteModalOpen}
+                onConfirm={confirmDelete}
+                loading={isDeleting}
+            />
+        </div>
     );
 };

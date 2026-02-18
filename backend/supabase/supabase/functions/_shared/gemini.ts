@@ -1,5 +1,6 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI } from "npm:@google/genai";
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // Hack to satisfy IDE if Deno is not in lib
 declare const Deno: any;

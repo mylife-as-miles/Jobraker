@@ -11,9 +11,9 @@
 // }
 // Returns: { text: string }
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI } from "npm:@google/genai";
 import { getCorsHeaders } from "../_shared/types.ts";
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // IDE Hack
 declare const Deno: any;

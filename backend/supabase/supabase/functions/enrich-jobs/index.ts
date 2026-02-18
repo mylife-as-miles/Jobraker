@@ -3,8 +3,8 @@
 // POST body: { job_ids?: string[], sinceMinutes?: number, limit?: number }
 // - If job_ids provided, process those. Otherwise process jobs created within last sinceMinutes (default 60), up to limit (default 20).
 
-import { GoogleGenAI } from "@google/genai";
-import { createClient } from '@supabase/supabase-js';
+import { GoogleGenAI } from "npm:@google/genai";
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getCorsHeaders } from "../_shared/types.ts";
 
 // Hack to satisfy IDE if Deno is not in lib
