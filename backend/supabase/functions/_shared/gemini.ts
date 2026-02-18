@@ -1,5 +1,5 @@
 
-import { GoogleGenAI } from "npm:@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 export const resolveGeminiApiKey = (): string => {
   const apiKey = Deno.env.get("GEMINI_API_KEY");

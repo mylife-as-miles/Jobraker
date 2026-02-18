@@ -1,8 +1,11 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "@supabase/supabase-js";
 import { createGeminiClient, GEMINI_MODEL, createGeminiConfig } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/types.ts";
+
+// IDE Hack
+declare const Deno: any;
 
 interface ResumeAnalysisRequest {
   resumeText: string;
@@ -120,7 +123,7 @@ function toResult(raw: any): ResumeAnalysisResult {
   };
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -166,7 +169,7 @@ serve(async (req) => {
         contents: [{ role: 'user', parts: [{ text: userPrompt }] }]
     });
 
-    const content = response.text();
+    const content = typeof (response as any).text === 'function' ? (response as any).text() : (response as any).text || '';
     if (!content) throw new Error("Invalid response from Gemini (empty)");
 
     let parsed;

@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { createClient } from "@supabase/supabase-js";
 import { corsHeaders } from "../_shared/cors.ts";
+
+// IDE Hack
+declare const Deno: any;
 
 console.log("Hello from init-payment!");
 
@@ -25,7 +28,7 @@ async function getUsdToNgnRate(): Promise<number> {
   }
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

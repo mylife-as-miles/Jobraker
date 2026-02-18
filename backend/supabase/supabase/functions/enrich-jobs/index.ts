@@ -3,18 +3,22 @@
 // POST body: { job_ids?: string[], sinceMinutes?: number, limit?: number }
 // - If job_ids provided, process those. Otherwise process jobs created within last sinceMinutes (default 60), up to limit (default 20).
 
-import { GoogleGenAI } from "npm:@google/genai";
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { GoogleGenAI } from "@google/genai";
+import { createClient } from '@supabase/supabase-js';
 import { getCorsHeaders } from "../_shared/types.ts";
+
+// Hack to satisfy IDE if Deno is not in lib
+declare const Deno: any;
 
 const GEMINI_MODEL = 'gemini-3-pro-preview';
 
 function trim(s: any): string { return (typeof s === 'string' ? s : '').trim(); }
 
-Deno.serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
+Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req.headers.get('origin') || undefined);
   
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { ...corsHeaders, 'content-type': 'application/json' } });
 
   try {
@@ -33,7 +37,7 @@ Deno.serve(async (req) => {
 
     // Select candidate jobs to enrich
     let jobs: any[] = [];
-    if (jobIds && jobIds.length) {
+    if (jobIds && jobIds.length > 0) {
       const { data, error } = await sbUser
         .from('jobs')
         .select('*')
@@ -115,7 +119,7 @@ Rules:
         const response = await ai.models.generateContent({
           model: GEMINI_MODEL,
           config: {
-            thinkingConfig: { thinkingLevel: 'HIGH' },
+            thinkingConfig: { thinkingLevel: 'HIGH' as any }, 
             tools: [{ urlContext: {} }, { googleSearch: {} }],
             responseMimeType: 'application/json',
             systemInstruction: systemPrompt,
@@ -123,7 +127,11 @@ Rules:
           contents: [{ role: 'user', parts: [{ text: schemaHint + "\n\n" + user }] }]
         });
         
-        const content = response.text()?.trim() || '';
+        // Handle response.text() vs response.text property safely
+        const content = typeof (response as any).text === 'function'
+             ? (response as any).text() 
+             : ((response as any).text || '');
+        
         // Extract JSON block
         const jsonMatch = content.match(/\{[\s\S]*\}$/);
         const jsonText = jsonMatch ? jsonMatch[0] : content;

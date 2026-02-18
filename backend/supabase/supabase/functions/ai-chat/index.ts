@@ -12,7 +12,7 @@ interface UIMessagePart { text?: string }
 interface UIMessage { id?: string; role: string; content?: string; parts?: UIMessagePart[] }
 interface ChatBody { model?: string; messages: UIMessage[]; webSearch?: boolean; system?: string; previous_response_id?: string }
 
-serve(async (req) => {
+serve(async (req: Request) => {
     if (req.method === "OPTIONS") {
         return new Response("ok", { headers: corsHeaders });
     }
@@ -45,7 +45,7 @@ serve(async (req) => {
 
         const config = {
             thinkingConfig: {
-                thinkingLevel: 'HIGH',
+                thinkingLevel: 'HIGH' as any,
             },
             tools: GEMINI_TOOLS,
             ...(systemInstruction ? { systemInstruction } : {}),
@@ -63,7 +63,10 @@ serve(async (req) => {
 
                 try {
                     for await (const chunk of stream) {
-                        const text = chunk.text();
+                        const text = typeof (chunk as any).text === 'function' 
+                            ? (chunk as any).text() 
+                            : (chunk as any).text;
+                        
                         if (text) {
                             const data = JSON.stringify({ delta: text });
                             const message = `event: message\ndata: ${data}\n\n`;
