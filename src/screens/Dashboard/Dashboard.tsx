@@ -335,7 +335,7 @@ export const Dashboard = (): JSX.Element => {
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
-          className='fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden'
+          className='fixed inset-0 bg-fore/50 backdrop-blur-sm z-40 lg:hidden'
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -344,7 +344,7 @@ export const Dashboard = (): JSX.Element => {
       <div
         className={`
         fixed inset-y-0 left-0 z-50 bg-card/95 backdrop-blur-xl border-r border-border/40 flex flex-col
-        shadow-2xl shadow-black/20 overflow-hidden transition-all duration-300
+        shadow-2xl shadow-fore/20 overflow-hidden transition-all duration-300
         ${sidebarOpen ? "translate-x-0 w-72" : "-translate-x-full lg:translate-x-0"}
         ${isCollapsed && isDesktop ? "lg:w-20" : "lg:w-72"}
       `}
@@ -357,7 +357,7 @@ export const Dashboard = (): JSX.Element => {
             className={`flex items-center gap-3 relative z-10 w-full ${isCollapsed ? "justify-center" : ""}`}
           >
             <div className='w-9 h-9 bg-gradient-to-br from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(29,255,0,0.3)] shrink-0'>
-              <span className='text-black font-extrabold text-sm tracking-tighter'>
+              <span className='text-fore font-extrabold text-sm tracking-tighter'>
                 JR
               </span>
             </div>
@@ -630,7 +630,7 @@ export const Dashboard = (): JSX.Element => {
               >
                 <Bell className='w-4 h-4 sm:w-5 sm:h-5' />
                 {unreadCount > 0 && (
-                  <span className='absolute -top-1 -right-1 min-w-3 h-3 sm:min-w-4 sm:h-4 lg:min-w-5 lg:h-5 bg-[#1dff00] rounded-full text-black text-[10px] font-bold flex items-center justify-center animate-pulse px-[2px]'>
+                  <span className='absolute -top-1 -right-1 min-w-3 h-3 sm:min-w-4 sm:h-4 lg:min-w-5 lg:h-5 bg-[#1dff00] rounded-full text-fore text-[10px] font-bold flex items-center justify-center animate-pulse px-[2px]'>
                     <span className='hidden sm:inline text-xs max-w-[2.5rem] truncate'>
                       {unreadCount}
                     </span>
@@ -666,7 +666,7 @@ export const Dashboard = (): JSX.Element => {
                         className='w-full h-full object-cover'
                       />
                     ) : (
-                      <span className='text-black font-bold text-xs sm:text-sm lg:text-base'>
+                      <span className='text-foreground font-bold text-xs sm:text-sm lg:text-base'>
                         {initials}
                       </span>
                     )}
@@ -701,7 +701,7 @@ export const Dashboard = (): JSX.Element => {
                       className='w-full h-full object-cover'
                     />
                   ) : (
-                    <span className='text-black font-bold text-xs'>
+                    <span className='text-foreground font-bold text-xs'>
                       {initials}
                     </span>
                   )}

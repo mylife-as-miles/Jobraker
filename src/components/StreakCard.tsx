@@ -35,7 +35,7 @@ export const StreakCard = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
       whileHover={{ scale: 1.02 }}
-      className="relative overflow-hidden min-h-[200px] sm:min-h-[220px] rounded-xl border border-foreground/10 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 backdrop-blur-[25px] shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500"
+      className="relative overflow-hidden min-h-[200px] sm:min-h-[220px] rounded-xl border border-foreground/10 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 backdrop-blur-text-[#1dff00] [25px] shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500"
     >
       <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[#1dff00]/5 blur-3xl" />
       <div className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full bg-[#1dff00]/3 blur-2xl" />
