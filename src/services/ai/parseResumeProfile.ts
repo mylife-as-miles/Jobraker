@@ -62,34 +62,90 @@ export async function parseResumeWithAI({
 }
 
 // Helper to ensure data matches the interface (sanitize nulls etc)
+// Helper to parse date ranges (e.g. "2020 - 2022" or "Jan 2020 - Present")
+function parseDateRange(dateStr: string) {
+    if (!dateStr) return { start: '', end: '' };
+    const parts = dateStr.split(/\s+-\s+|\s+to\s+/i);
+    return {
+        start: parts[0] || '',
+        end: parts[1] || ''
+    };
+}
+
 function sanitizeData(raw: any): ParsedProfileData {
     const str = (v: any) => typeof v === 'string' ? v.trim() : "";
     const num = (v: any) => typeof v === 'number' ? v : null;
-    const arr = (v: any) => Array.isArray(v) ? v.filter(i => typeof i === 'string') : [];
     
+    // Handle new ResumeData structure (nested) vs old flat structure
+    const basics = raw.basics || {};
+    const sections = raw.sections || {};
+    const summary = raw.summary || {};
+
+    // Name splitting
+    const fullName = str(basics.name || raw.firstName + ' ' + raw.lastName);
+    const [firstName, ...lastNameParts] = fullName.split(' ');
+    const lastName = lastNameParts.join(' ');
+
+    // Skills mapping
+    let skills: string[] = [];
+    if (sections.skills?.items && Array.isArray(sections.skills.items)) {
+        skills = sections.skills.items.map((i: any) => str(i.name)).filter(Boolean);
+    } else if (Array.isArray(raw.skills)) {
+        skills = raw.skills.filter((s: any) => typeof s === 'string');
+    }
+
+    // Experience mapping
+    let experience: any[] = [];
+    if (sections.experience?.items && Array.isArray(sections.experience.items)) {
+        experience = sections.experience.items.map((i: any) => {
+            const { start, end } = parseDateRange(i.date || i.period || '');
+            return {
+                company: str(i.company),
+                title: str(i.position || i.title),
+                location: str(i.location),
+                startDate: start,
+                endDate: end,
+                description: str(i.summary || i.description)
+            };
+        });
+    } else if (Array.isArray(raw.experience)) {
+        experience = raw.experience; // format assumed compatible or old schema
+    }
+
+    // Education mapping
+    let education: any[] = [];
+    if (sections.education?.items && Array.isArray(sections.education.items)) {
+        education = sections.education.items.map((i: any) => {
+            const { start, end } = parseDateRange(i.date || i.period || '');
+            return {
+                school: str(i.school || i.institution),
+                degree: str(i.degree || i.area),
+                start: start,
+                end: end
+            };
+        });
+    } else if (Array.isArray(raw.education)) {
+        education = raw.education;
+    }
+
+    // Experience years estimation (if not present)
+    let experienceYears = num(raw.experienceYears || raw.experience_years);
+    if (experienceYears === null && experience.length > 0) {
+        // Simple heuristic: 1 year per job? Or just leave null.
+        // Let's leave null to prompt user or default logic elsewhere
+    }
+
     return {
-        firstName: str(raw.firstName || raw.first_name),
-        lastName: str(raw.lastName || raw.last_name),
-        email: str(raw.email),
-        phone: str(raw.phone),
-        location: str(raw.location),
-        jobTitle: str(raw.jobTitle || raw.job_title),
-        experienceYears: num(raw.experienceYears || raw.experience_years),
-        about: str(raw.about),
-        skills: arr(raw.skills),
-        education: Array.isArray(raw.education) ? raw.education.map((e: any) => ({
-            school: str(e.school),
-            degree: str(e.degree),
-            start: str(e.start || e.start_date),
-            end: str(e.end || e.end_date)
-        })) : [],
-        experience: Array.isArray(raw.experience) ? raw.experience.map((e: any) => ({
-            company: str(e.company),
-            title: str(e.title),
-            location: str(e.location),
-            startDate: str(e.startDate || e.start_date),
-            endDate: str(e.endDate || e.end_date),
-            description: str(e.description)
-        })) : []
+        firstName: firstName || str(raw.firstName || raw.first_name),
+        lastName: lastName || str(raw.lastName || raw.last_name),
+        email: str(basics.email || raw.email),
+        phone: str(basics.phone || raw.phone),
+        location: str(basics.location || raw.location),
+        jobTitle: str(basics.headline || raw.jobTitle || raw.job_title),
+        experienceYears: experienceYears,
+        about: str(summary.content || raw.about || raw.summary),
+        skills: skills,
+        education: education,
+        experience: experience
     };
 }
