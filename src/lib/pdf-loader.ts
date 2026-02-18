@@ -20,5 +20,9 @@ export async function extractTextFromPdf(file: File): Promise<string> {
         fullText += pageText + '\n\n';
     }
 
+    if (!fullText.trim()) {
+        throw new Error("No text found in PDF. This often happens with scanned images. Please use a text-based PDF.");
+    }
+
     return fullText.trim();
 }
