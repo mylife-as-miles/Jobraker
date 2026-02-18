@@ -258,7 +258,7 @@ function ApplicationPage() {
                 placeholder="Search by title, company, location, or status..."
                 value={rawSearch}
                 onChange={(e) => setRawSearch(e.target.value)}
-                className="pl-14 h-12 bg-gradient-to-br from-white/5 to-white/[0.02] border-[#1dff00]/20 text-white placeholder:text-white/40 focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all duration-200 rounded-xl"
+                className="!pl-14 h-12 bg-gradient-to-br from-white/5 to-white/[0.02] border-[#1dff00]/20 text-white placeholder:text-white/40 focus:border-[#1dff00]/50 focus:ring-2 focus:ring-[#1dff00]/20 transition-all duration-200 rounded-xl"
               />
             </div>
             <div className="flex items-center gap-3">
