@@ -21,44 +21,76 @@ Deno.serve(async (req: Request) => {
 
     const ai = createGeminiClient();
 
-    const systemPrompt = `You are an expert resume parser. Extract structured data from the provided resume text into the following JSON format.
-    
+    const systemPrompt = `You are an expert resume parser. Extract structured data from the provided resume text into the exact JSON format required by our resume builder.
+
     Required JSON Schema:
     {
-      "firstName": "string",
-      "lastName": "string",
-      "email": "string",
-      "phone": "string",
-      "location": "string",
-      "jobTitle": "string (current or most recent)",
-      "experienceYears": number,
-      "about": "string (short professional summary)",
-      "skills": ["string", "string"],
-      "education": [
-        {
-          "school": "string",
-          "degree": "string",
-          "start": "string (YYYY-MM or YYYY)",
-          "end": "string (YYYY-MM or YYYY or Present)"
-        }
-      ],
-      "experience": [
-        {
-          "company": "string",
-          "title": "string",
-          "location": "string",
-          "startDate": "string",
-          "endDate": "string",
-          "description": "string (summary of responsibilities)"
-        }
-      ]
+      "basics": {
+        "name": "string (Full Name)",
+        "headline": "string (Current Job Title)",
+        "email": "string",
+        "phone": "string",
+        "location": "string",
+        "website": { "url": "string", "label": "string (e.g. Portfolio)" },
+        "profiles": [
+          { "network": "string (e.g. LinkedIn)", "username": "string", "url": "string" }
+        ]
+      },
+      "summary": {
+        "content": "string (Professional summary)"
+      },
+      "sections": {
+        "experience": {
+          "items": [
+            {
+              "company": "string",
+              "position": "string",
+              "location": "string",
+              "date": "string (e.g. 2020 - Present)",
+              "summary": "string (responsibilities)"
+            }
+          ]
+        },
+        "education": {
+          "items": [
+            {
+              "school": "string",
+              "degree": "string",
+              "date": "string (e.g. 2016 - 2020)"
+            }
+          ]
+        },
+        "skills": {
+          "items": [
+            { "name": "string", "level": number (1-5, default 3) }
+          ]
+        },
+        "projects": {
+          "items": [
+            {
+              "name": "string",
+              "description": "string",
+              "date": "string",
+              "website": { "url": "string", "label": "string" }
+            }
+          ]
+        },
+        "awards": { "items": [{ "title": "string", "date": "string", "awarder": "string", "summary": "string" }] },
+        "certifications": { "items": [{ "name": "string", "date": "string", "issuer": "string", "summary": "string" }] },
+        "languages": { "items": [{ "name": "string", "description": "string (e.g. Fluent)" }] },
+        "interests": { "items": [{ "name": "string" }] },
+        "volunteer": { "items": [{ "organization": "string", "position": "string", "date": "string", "summary": "string" }] },
+        "publications": { "items": [{ "name": "string", "publisher": "string", "date": "string", "summary": "string" }] },
+        "references": { "items": [{ "name": "string", "description": "string (Relationship/Contact)" }] }
+      }
     }
 
     Rules:
-    - If a field is missing, use empty string "" or null for numbers.
-    - Infer experienceYears from the work history if not explicitly stated.
-    - Extract skills from the entire document.
     - Return ONLY valid JSON.
+    - If a section is missing in the resume, return an empty array for "items".
+    - Populate "basics" fields as best as possible.
+    - For "date" fields, use "YYYY-MM" or "YYYY" format, or ranges like "2020 - 2022".
+    - Do not invent information.
     `;
 
     const response = await ai.models.generateContent({
