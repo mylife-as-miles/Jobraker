@@ -556,7 +556,13 @@ function ApplicationPage() {
                               >
                                 {/* Company Logo/Initial */}
                                 <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-[#1dff00] via-[#0a8246] to-[#1dff00] rounded-xl flex items-center justify-center text-black font-bold text-sm sm:text-base flex-shrink-0 shadow-lg group-hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] transition-shadow">
-                                  {(a.logo && a.logo.length > 1 ? a.logo : (((a.company || a.job_title || '')).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('') || '').toUpperCase())}
+                                  {a.logo && (a.logo.startsWith("http") || a.logo.startsWith("//")) ? (
+                                    <img src={a.logo} alt={a.company} className="w-full h-full object-cover rounded-xl" />
+                                  ) : (
+                                    <span className="text-black font-bold text-sm sm:text-base">
+                                      {(a.logo && a.logo.length <= 3 ? a.logo : (((a.company || a.job_title || '')).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('') || '').toUpperCase())}
+                                    </span>
+                                  )}
                                 </div>
 
                                 {/* Content */}
@@ -725,8 +731,12 @@ function ApplicationPage() {
                       {(a: any) => (
                         <KanbanCard key={a.id} id={a.id}>
                           <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-[#1dff00]/90 to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-xs flex-shrink-0 shadow-sm">
-                              {a.logo || (a.company?.[0] ?? "")}
+                            <div className="w-10 h-10 bg-gradient-to-br from-[#1dff00]/90 to-[#0a8246] rounded-lg flex items-center justify-center text-black font-bold text-xs flex-shrink-0 shadow-sm overflow-hidden">
+                              {a.logo && (a.logo.startsWith("http") || a.logo.startsWith("//")) ? (
+                                <img src={a.logo} alt={a.company} className="w-full h-full object-cover" />
+                              ) : (
+                                (a.logo && a.logo.length <= 3 ? a.logo : (a.company?.[0] ?? "")).toUpperCase()
+                              )}
                             </div>
                             <div className="min-w-0 flex-1 space-y-1">
                               <div className="text-white/95 text-sm font-semibold leading-tight truncate">{a.job_title}</div>
@@ -780,8 +790,12 @@ function ApplicationPage() {
               <div className="space-y-2 pr-32">
                 <h2 className="text-2xl font-bold text-white">{detailApp.job_title}</h2>
                 <div className="flex items-center gap-2 text-white/60">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 flex items-center justify-center">
-                    <span className="text-xs font-bold text-[#1dff00]">{detailApp.company.charAt(0)}</span>
+                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 flex items-center justify-center overflow-hidden">
+                    {detailApp.logo && (detailApp.logo.startsWith("http") || detailApp.logo.startsWith("//")) ? (
+                      <img src={detailApp.logo} alt={detailApp.company} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xs font-bold text-[#1dff00]">{detailApp.company.charAt(0)}</span>
+                    )}
                   </div>
                   <span className="text-base font-medium text-white/80">{detailApp.company}</span>
                 </div>
@@ -1238,10 +1252,10 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
           <span className="truncate font-semibold text-white/90 text-sm">{info.getValue()}</span>
           {info.row.original.company && (
             <div className="flex items-center gap-2">
-              {info.row.original.logo_url && (
+              {info.row.original.logo && (info.row.original.logo.startsWith("http") || info.row.original.logo.startsWith("//")) && (
                 <div className="relative w-4 h-4 rounded overflow-hidden flex-shrink-0 bg-gradient-to-br from-[#1dff00] via-[#0a8246] to-[#1dff00] p-[1px]">
                   <div className="w-full h-full bg-[#0a0a0a] rounded flex items-center justify-center">
-                    <img src={info.row.original.logo_url} alt="" className="w-3 h-3 object-contain" />
+                    <img src={info.row.original.logo} alt="" className="w-3 h-3 object-contain" />
                   </div>
                 </div>
               )}
