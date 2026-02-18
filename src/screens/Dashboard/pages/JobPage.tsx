@@ -2541,7 +2541,7 @@ export const JobPage = (): JSX.Element => {
                                   <h1 className="text-base sm:text-lg md:text-xl font-semibold text-white leading-tight line-clamp-3" title={job.title}>
                                     {job.title.length > 30 ? job.title.slice(0, 30) + '...' : job.title}
                                   </h1>
-                                  <div className="flex items-center gap-2 text-sm text-[#ffffffc0] overflow-x-auto scrollbar-hide">
+                                  <div className="flex flex-wrap items-center gap-2 text-sm text-[#ffffffc0]">
                                     <span className="font-medium text-white/90 whitespace-nowrap">{job.company}</span>
                                     {siteHost && (
                                       <span className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full border border-white/10 bg-white/5 text-white/60 whitespace-nowrap flex-shrink-0" title={primaryHref || undefined}>
