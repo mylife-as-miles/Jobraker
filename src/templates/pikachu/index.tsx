@@ -20,14 +20,19 @@ const sectionClassName = cn(
  * Template: Pikachu — Bold Accent Banner
  * A vibrant template with a colored header banner and sidebar layout.
  */
-export function PikachuTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
+export function PikachuTemplate({ pageIndex = 0, pageLayout, metadataOverride }: TemplateProps) {
 	const defaultLayout = {
 		fullWidth: false,
 		main: ['summary', 'experience', 'education', 'projects'],
 		sidebar: ['skills']
 	};
 	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
-	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#f59e0b';
+	const storeMetadata = useArtboardStore((state) => state.resume.data.metadata);
+
+	const metadata = metadataOverride || storeMetadata;
+	const themePrimary = metadata.theme?.primary || '#f59e0b';
+	const typography = metadata.typography.font;
+
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
@@ -40,6 +45,7 @@ export function PikachuTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 		'--page-margin-x': '2.5rem',
 		'--page-margin-y': '2.5rem',
 		'--page-gap-y': '1.25rem',
+		fontFamily: typography.family,
 	} as React.CSSProperties;
 
 	return (

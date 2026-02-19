@@ -15,18 +15,20 @@ const sectionClassName = cn(
  * Template: Eevee — Boxed Header & Clean Layout
  * A professional template with a distinctive boxed header and organized sidebar.
  */
-export function EeveeTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
+export function EeveeTemplate({ pageIndex = 0, pageLayout, metadataOverride }: TemplateProps) {
     const defaultLayout = {
         fullWidth: false,
-        // Standard layout based on image:
-        // Left: Details (manual), Skills, Hobbies, Languages
-        // Right: Profile (Summary), Employment, Education, Extra-curricular, Internships
         sidebar: ['skills', 'interests', 'languages'],
         main: ['summary', 'experience', 'education', 'volunteer', 'projects', 'certifications', 'awards', 'references']
     };
 
     const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
-    const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#000000'; // Default black for this template
+    const storeMetadata = useArtboardStore((state) => state.resume.data.metadata);
+
+    const metadata = metadataOverride || storeMetadata;
+    const themePrimary = metadata.theme?.primary || '#000000';
+    const typography = metadata.typography.font;
+
     const layout = pageLayout || storeLayout || defaultLayout;
     const basics = useArtboardStore((state) => state.resume.data.basics);
 
@@ -40,6 +42,7 @@ export function EeveeTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
         '--page-margin-x': '2.5rem',
         '--page-margin-y': '2.5rem',
         '--page-gap-y': '2rem',
+        fontFamily: typography.family,
     } as React.CSSProperties;
 
     return (

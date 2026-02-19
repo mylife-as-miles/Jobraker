@@ -23,14 +23,19 @@ const sectionClassName = cn(
  * Template: Glalie — Left Sidebar with Card Contact
  * A modern template with a light left sidebar, centered profile, and contact info in a bordered card.
  */
-export function GlalieTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
+export function GlalieTemplate({ pageIndex = 0, pageLayout, metadataOverride }: TemplateProps) {
 	const defaultLayout = {
 		fullWidth: false,
 		main: ['summary', 'experience', 'education', 'projects'],
 		sidebar: ['skills']
 	};
 	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
-	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#0ea5e9';
+	const storeMetadata = useArtboardStore((state) => state.resume.data.metadata);
+
+	const metadata = metadataOverride || storeMetadata;
+	const themePrimary = metadata.theme?.primary || '#0ea5e9';
+	const typography = metadata.typography.font;
+
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
@@ -42,6 +47,7 @@ export function GlalieTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 		'--page-sidebar-width': '30%',
 		'--page-margin-x': '2rem',
 		'--page-margin-y': '2rem',
+		fontFamily: typography.family,
 	} as React.CSSProperties;
 
 	return (

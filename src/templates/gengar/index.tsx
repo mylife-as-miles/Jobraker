@@ -23,14 +23,19 @@ const sectionClassName = cn(
  * Template: Gengar — Dark Sidebar
  * A dramatic template with a deep purple sidebar and white-on-dark header.
  */
-export function GengarTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
+export function GengarTemplate({ pageIndex = 0, pageLayout, metadataOverride }: TemplateProps) {
 	const defaultLayout = {
 		fullWidth: false,
 		main: ['summary', 'experience', 'education', 'projects'],
 		sidebar: ['skills']
 	};
 	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
-	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#7c3aed';
+	const storeMetadata = useArtboardStore((state) => state.resume.data.metadata);
+
+	const metadata = metadataOverride || storeMetadata;
+	const themePrimary = metadata.theme?.primary || '#7c3aed';
+	const typography = metadata.typography.font;
+
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
@@ -42,6 +47,7 @@ export function GengarTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 		'--page-sidebar-width': '32%',
 		'--page-margin-x': '2rem',
 		'--page-margin-y': '2rem',
+		fontFamily: typography.family,
 	} as React.CSSProperties;
 
 	const PageSummary = getSectionComponent("summary", {

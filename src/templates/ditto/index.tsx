@@ -17,14 +17,19 @@ const sectionClassName = cn(
  * Template: Ditto — Overlapping Portrait
  * A striking template with a rose-colored banner and an overlapping profile picture.
  */
-export function DittoTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
+export function DittoTemplate({ pageIndex = 0, pageLayout, metadataOverride }: TemplateProps) {
 	const defaultLayout = {
 		fullWidth: false,
 		main: ['summary', 'experience', 'education', 'projects'],
 		sidebar: ['skills']
 	};
 	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
-	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#e11d48';
+	const storeMetadata = useArtboardStore((state) => state.resume.data.metadata);
+
+	const metadata = metadataOverride || storeMetadata;
+	const themePrimary = metadata.theme?.primary || '#e11d48';
+	const typography = metadata.typography.font;
+
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
@@ -36,6 +41,7 @@ export function DittoTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 		'--page-sidebar-width': '170px',
 		'--page-margin-x': '2.5rem',
 		'--page-margin-y': '2rem',
+		fontFamily: typography.family,
 	} as React.CSSProperties;
 
 	return (

@@ -3,6 +3,7 @@ import { X, Check, Edit3, LayoutTemplate, Search } from 'lucide-react';
 import { useArtboardStore, ArtboardStore } from '../../../store/artboard';
 import { cn } from '../../../lib/utils';
 import { TemplatePreview } from './TemplatePreview';
+import { TemplateDetailPreview } from './TemplateDetailPreview';
 
 const availableTemplates = [
     { id: 'azurill', name: 'Azurill', description: 'Timeline style, clean typography.', category: 'Professional' },
@@ -26,17 +27,27 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
     const currentTemplate = useArtboardStore((state: ArtboardStore) => state.resume.data.metadata.template);
     const setResumeData = useArtboardStore((state: ArtboardStore) => state.setResumeData);
 
-    const [selectedId, setSelectedId] = useState(currentTemplate);
     const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState('All');
+    const [detailId, setDetailId] = useState<string | null>(null);
 
     if (!isOpen) return null;
+
+    if (detailId) {
+        return (
+            <TemplateDetailPreview
+                templateId={detailId}
+                onClose={onClose}
+                onBack={() => setDetailId(null)}
+            />
+        );
+    }
 
     const handleConfirm = () => {
         setResumeData({
             metadata: {
                 ...useArtboardStore.getState().resume.data.metadata,
-                template: selectedId
+                template: detailId || currentTemplate
             }
         });
         onClose();
@@ -49,7 +60,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
         return matchesSearch && matchesFilter;
     });
 
-    const activeTemplateInfo = availableTemplates.find(t => t.id === selectedId);
+    const activeTemplateInfo = availableTemplates.find(t => t.id === currentTemplate);
 
     return (
         <div className="fixed inset-0 z-[100] bg-[#102213] flex flex-col overflow-hidden animate-in fade-in duration-300">
@@ -115,12 +126,12 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                         {filteredTemplates.map((template) => (
                             <div
                                 key={template.id}
-                                onClick={() => setSelectedId(template.id)}
+                                onClick={() => setDetailId(template.id)}
                                 className="group cursor-pointer"
                             >
                                 <div className={cn(
                                     "relative bg-white aspect-[1/1.414] rounded-xl overflow-hidden border transition-all duration-300 transform group-hover:scale-[1.02]",
-                                    selectedId === template.id
+                                    currentTemplate === template.id
                                         ? "border-[#1dff00] border-4 shadow-[0_0_30px_rgba(29,255,0,0.2)]"
                                         : "border-[#28392b] hover:border-[#1dff00]/50"
                                 )}>
@@ -130,7 +141,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                                     </div>
 
                                     {/* Selected Indicator */}
-                                    {selectedId === template.id && (
+                                    {currentTemplate === template.id && (
                                         <div className="absolute top-4 right-4 z-20 bg-[#1dff00] text-black rounded-full p-1.5 shadow-lg border-2 border-[#102213]">
                                             <Check className="w-5 h-5 font-bold" />
                                         </div>
@@ -139,10 +150,10 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                                     {/* Hover Overlay */}
                                     <div className={cn(
                                         "absolute inset-0 bg-black/0 group-hover:bg-[#111812]/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100",
-                                        selectedId === template.id && "bg-[#111812]/5 group-hover:bg-[#111812]/10"
+                                        currentTemplate === template.id && "bg-[#111812]/5 group-hover:bg-[#111812]/10"
                                     )}>
                                         <div className="bg-white text-black font-bold py-2.5 px-8 rounded-full shadow-2xl transform translate-y-4 group-hover:translate-y-0 transition-transform">
-                                            {selectedId === template.id ? 'Active' : 'Select'}
+                                            {currentTemplate === template.id ? 'Active' : 'Select'}
                                         </div>
                                     </div>
                                 </div>
@@ -152,10 +163,10 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                                     <div>
                                         <h3 className={cn(
                                             "font-bold text-xl transition-colors",
-                                            selectedId === template.id ? "text-[#1dff00]" : "text-white"
+                                            currentTemplate === template.id ? "text-[#1dff00]" : "text-white"
                                         )}>
                                             {template.name}
-                                            {selectedId === template.id && (
+                                            {currentTemplate === template.id && (
                                                 <span className="ml-2 text-[10px] bg-[#1dff00]/20 text-[#1dff00] px-2 py-0.5 rounded border border-[#1dff00]/20 uppercase tracking-wider vertical-middle">Selected</span>
                                             )}
                                         </h3>

@@ -16,14 +16,19 @@ const sectionClassName = cn(
  * Template: Rhyhorn — Horizontal Professional
  * A clean professional template with a horizontal header layout and pipe-separated contact details.
  */
-export function RhyhornTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
+export function RhyhornTemplate({ pageIndex = 0, pageLayout, metadataOverride }: TemplateProps) {
 	const defaultLayout = {
 		fullWidth: false,
 		main: ['summary', 'experience', 'education', 'projects'],
 		sidebar: ['skills']
 	};
 	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
-	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#475569';
+	const storeMetadata = useArtboardStore((state) => state.resume.data.metadata);
+
+	const metadata = metadataOverride || storeMetadata;
+	const themePrimary = metadata.theme?.primary || '#475569';
+	const typography = metadata.typography.font;
+
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
@@ -35,6 +40,7 @@ export function RhyhornTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 		'--page-margin-y': '2.5rem',
 		'--page-gap-y': '1.25rem',
 		'--page-gap-x': '1.5rem',
+		fontFamily: typography.family,
 	} as React.CSSProperties;
 
 	return (
