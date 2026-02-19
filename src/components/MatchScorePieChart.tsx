@@ -1,6 +1,6 @@
 "use client";
 
-import { LabelList, Pie, PieChart, ResponsiveContainer } from "recharts";
+import { Cell, Label, Pie, PieChart, ResponsiveContainer } from "recharts";
 import {
   Card,
   CardContent,
@@ -35,50 +35,47 @@ const chartConfig = {
   score: {
     label: "Score",
   },
-  skills: {
-    label: "Skills",
-    color: "var(--chart-1)",
+  role: {
+    label: "Role Focus",
+    color: "#1dff00",
   },
-  experience: {
-    label: "Experience",
-    color: "var(--chart-2)",
+  keywords: {
+    label: "Keywords",
+    color: "#56c2ff",
+  },
+  goals: {
+    label: "Goals",
+    color: "#ffd700",
   },
   location: {
     label: "Location",
-    color: "var(--chart-3)",
-  },
-  salary: {
-    label: "Salary",
-    color: "var(--chart-4)",
-  },
-  culture: {
-    label: "Culture",
-    color: "var(--chart-5)",
+    color: "#ff6b6b",
   },
 } satisfies ChartConfig;
 
 const getCategoryColor = (label: string) => {
   const normalized = label.toLowerCase();
-  if (normalized.includes("role") || normalized.includes("focus")) return "#1dff00"; // Applied green
-  if (normalized.includes("keyword") || normalized.includes("match")) return "#56c2ff"; // Interview blue
-  if (normalized.includes("goal") || normalized.includes("profile")) return "#ffd700"; // Offer gold
-  if (normalized.includes("location") || normalized.includes("alignment")) return "#ff6b6b"; // Rejected red
-  return "#1dff00"; // Default green
+  if (normalized.includes("role") || normalized.includes("focus")) return "#1dff00";
+  if (normalized.includes("keyword") || normalized.includes("match")) return "#56c2ff";
+  if (normalized.includes("goal") || normalized.includes("profile")) return "#ffd700";
+  if (normalized.includes("location") || normalized.includes("alignment")) return "#ff6b6b";
+  return "#1dff00";
 };
 
 export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieChartProps) {
+  // Filter out 0% scores to prevent overlapping labels/segments
   const chartData = breakdown?.map((item) => ({
     label: item.label,
-    score: Math.round(item.componentScore), // Round to whole number
+    score: Math.round(item.componentScore),
     fill: getCategoryColor(item.label),
-  })) || [];
+  })).filter(item => item.score > 0) || [];
 
   const hasBreakdown = chartData.length > 0;
 
   return (
     <Card className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a]">
       <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
-      
+
       <CardHeader className="relative items-center pb-2">
         <div className="flex w-full items-center justify-between">
           <div className="flex items-center gap-2">
@@ -89,18 +86,18 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
             variant="outline"
             className={
               score >= 70
-                ? "text-[#1dff00] bg-[#1dff00]/10 border-none"
+                ? "text-[#1dff00] bg-[#1dff00]/10 border-none px-3 py-1.5"
                 : score >= 50
-                ? "text-[#ffd78b] bg-[#ffd78b]/10 border-none"
-                : "text-[#ff8b8b] bg-[#ff8b8b]/10 border-none"
+                  ? "text-[#ffd78b] bg-[#ffd78b]/10 border-none px-3 py-1.5"
+                  : "text-[#ff8b8b] bg-[#ff8b8b]/10 border-none px-3 py-1.5"
             }
           >
-            <TrendingUp className="h-4 w-4" />
-            <span>{score}%</span>
+            <TrendingUp className="h-3.5 w-3.5 mr-1" />
+            <span className="font-bold text-sm">{Math.round(score)}%</span>
           </Badge>
         </div>
         {summary && (
-          <p className="mt-2 w-full text-left text-sm text-white/60">{summary}</p>
+          <p className="mt-2 w-full text-left text-sm text-white/60 leading-relaxed">{summary}</p>
         )}
       </CardHeader>
 
@@ -120,20 +117,45 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
                     />
                     <Pie
                       data={chartData}
-                      innerRadius={30}
-                      outerRadius={80}
+                      innerRadius={70}
+                      outerRadius={100}
                       dataKey="score"
                       nameKey="label"
-                      cornerRadius={8}
-                      paddingAngle={4}
+                      cornerRadius={6}
+                      paddingAngle={5}
+                      stroke="none"
                     >
-                      <LabelList
-                        dataKey="score"
-                        stroke="none"
-                        fontSize={14}
-                        fontWeight={600}
-                        fill="#000000"
-                        formatter={(value: number) => `${value}%`}
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                      <Label
+                        content={({ viewBox }) => {
+                          if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                            return (
+                              <text
+                                x={viewBox.cx}
+                                y={viewBox.cy}
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                              >
+                                <tspan
+                                  x={viewBox.cx}
+                                  y={viewBox.cy}
+                                  className="fill-[#1dff00] text-3xl font-bold"
+                                >
+                                  {Math.round(score)}%
+                                </tspan>
+                                <tspan
+                                  x={viewBox.cx}
+                                  y={(viewBox.cy || 0) + 24}
+                                  className="fill-white/40 text-xs uppercase tracking-widest"
+                                >
+                                  MATCH
+                                </tspan>
+                              </text>
+                            )
+                          }
+                        }}
                       />
                     </Pie>
                   </PieChart>
