@@ -55,6 +55,7 @@ import { KakunaTemplate } from '../../../templates/kakuna';
 import { PikachuTemplate } from '../../../templates/pikachu';
 import { RhyhornTemplate } from '../../../templates/rhyhorn';
 import { EeveeTemplate } from '../../../templates/eevee';
+import { LaprasTemplate } from '../../../templates/lapras';
 import { useProfileSettings } from '../../../hooks/useProfileSettings';
 import { Button } from '../../../components/ui/button';
 
@@ -134,88 +135,87 @@ export const ResumeBuilderPage = () => {
         });
     }, [supabase]);
 
-    // Auto-populate logic (simplified for brevity, keeping existing logic)
-    // Auto-populate logic
-    React.useEffect(() => {
-        if (!resumeId && resumeData.basics.name === 'John Doe' && profile) {
-            const hasExperience = experiences.data.length > 0;
-            const hasEducation = profileEducation.data.length > 0;
-            const hasSkills = profileSkills.data.length > 0;
+    // Auto-populate logic moved to handler
+    const handleImportProfile = () => {
+        if (!profile) return;
 
-            const newBasics = {
-                ...resumeData.basics,
-                name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
-                headline: profile.job_title || resumeData.basics.headline,
-                location: profile.location || resumeData.basics.location,
-                email: userEmail || resumeData.basics.email,
-                phone: profile.phone || resumeData.basics.phone,
-            };
+        const hasExperience = experiences.data.length > 0;
+        const hasEducation = profileEducation.data.length > 0;
+        const hasSkills = profileSkills.data.length > 0;
 
-            const formatDate = (date: string) => {
-                if (!date) return '';
-                return new Date(date).getFullYear().toString();
-            };
+        const newBasics = {
+            ...resumeData.basics,
+            name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
+            headline: profile.job_title || resumeData.basics.headline,
+            location: profile.location || resumeData.basics.location,
+            email: userEmail || resumeData.basics.email,
+            phone: profile.phone || resumeData.basics.phone,
+        };
 
-            const mapLevel = (level: string | null) => {
-                switch (level) {
-                    case 'Beginner': return 1;
-                    case 'Intermediate': return 3;
-                    case 'Advanced': return 4;
-                    case 'Expert': return 5;
-                    default: return 3;
-                }
-            };
+        const formatDate = (date: string) => {
+            if (!date) return '';
+            return new Date(date).getFullYear().toString();
+        };
 
-            // Prepare new sections
-            const newSections = { ...resumeData.sections };
-
-            if (hasExperience) {
-                newSections.experience = {
-                    ...newSections.experience,
-                    items: experiences.data.map(exp => ({
-                        id: crypto.randomUUID(),
-                        hidden: false,
-                        company: exp.company,
-                        position: exp.title,
-                        period: `${formatDate(exp.start_date)} - ${exp.is_current ? 'Present' : formatDate(exp.end_date || '')}`,
-                        description: exp.description,
-                        location: exp.location
-                    }))
-                };
+        const mapLevel = (level: string | null) => {
+            switch (level) {
+                case 'Beginner': return 1;
+                case 'Intermediate': return 3;
+                case 'Advanced': return 4;
+                case 'Expert': return 5;
+                default: return 3;
             }
+        };
 
-            if (hasEducation) {
-                newSections.education = {
-                    ...newSections.education,
-                    items: profileEducation.data.map(edu => ({
-                        id: crypto.randomUUID(),
-                        hidden: false,
-                        school: edu.school,
-                        degree: edu.degree,
-                        period: `${formatDate(edu.start_date)} - ${edu.end_date ? formatDate(edu.end_date) : 'Present'}`,
-                        location: edu.location
-                    }))
-                };
-            }
+        // Prepare new sections
+        const newSections = { ...resumeData.sections };
 
-            if (hasSkills) {
-                newSections.skills = {
-                    ...newSections.skills,
-                    items: profileSkills.data.map(skill => ({
-                        id: crypto.randomUUID(),
-                        hidden: false,
-                        name: skill.name,
-                        level: mapLevel(skill.level)
-                    }))
-                };
-            }
-
-            setResumeData({
-                basics: newBasics,
-                sections: newSections
-            });
+        if (hasExperience) {
+            newSections.experience = {
+                ...newSections.experience,
+                items: experiences.data.map(exp => ({
+                    id: crypto.randomUUID(),
+                    hidden: false,
+                    company: exp.company,
+                    position: exp.title,
+                    period: `${formatDate(exp.start_date)} - ${exp.is_current ? 'Present' : formatDate(exp.end_date || '')}`,
+                    description: exp.description,
+                    location: exp.location
+                }))
+            };
         }
-    }, [profile, experiences.data, profileEducation.data, profileSkills.data, resumeId, userEmail]);
+
+        if (hasEducation) {
+            newSections.education = {
+                ...newSections.education,
+                items: profileEducation.data.map(edu => ({
+                    id: crypto.randomUUID(),
+                    hidden: false,
+                    school: edu.school,
+                    degree: edu.degree,
+                    period: `${formatDate(edu.start_date)} - ${edu.end_date ? formatDate(edu.end_date) : 'Present'}`,
+                    location: edu.location
+                }))
+            };
+        }
+
+        if (hasSkills) {
+            newSections.skills = {
+                ...newSections.skills,
+                items: profileSkills.data.map(skill => ({
+                    id: crypto.randomUUID(),
+                    hidden: false,
+                    name: skill.name,
+                    level: mapLevel(skill.level)
+                }))
+            };
+        }
+
+        setResumeData({
+            basics: newBasics,
+            sections: newSections
+        });
+    };
 
     // Actions
 
@@ -318,6 +318,15 @@ export const ResumeBuilderPage = () => {
                     </button>
 
                     <button
+                        onClick={handleImportProfile}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300"
+                        title="Import data from your profile"
+                    >
+                        <User className="w-4 h-4" />
+                        Use Profile
+                    </button>
+
+                    <button
                         onClick={() => setIsShareOpen(true)}
                         className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300"
                     >
@@ -376,6 +385,14 @@ export const ResumeBuilderPage = () => {
                         >
                             <LayoutTemplate className="w-4 h-4" />
                             Templates
+                        </button>
+
+                        <button
+                            onClick={() => { handleImportProfile(); setMobileMenuOpen(false); }}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300"
+                        >
+                            <User className="w-4 h-4" />
+                            Use Profile
                         </button>
 
                         <button
@@ -589,6 +606,7 @@ export const ResumeBuilderPage = () => {
                         {selectedTemplate === 'kakuna' && <KakunaTemplate />}
                         {selectedTemplate === 'pikachu' && <PikachuTemplate />}
                         {selectedTemplate === 'rhyhorn' && <RhyhornTemplate />}
+                        {selectedTemplate === 'lapras' && <LaprasTemplate />}
                         {selectedTemplate === 'eevee' && <EeveeTemplate />}
                     </div>
                 </div>

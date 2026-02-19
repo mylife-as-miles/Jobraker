@@ -44,30 +44,12 @@ export function EeveeTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 
     return (
         <div style={styles} className="template-eevee w-full h-full bg-white text-gray-800 relative">
-            {/* Gray background overlay for the left sidebar area if needed, 
-                but here the image shows a white background with maybe a subtle sidebar background? 
-                Actually the image shows a LIGHT GRAY background for the sidebar and HEADER area? 
-                Let's look closely at the image. 
-                The header is on a white background, but the sidebar seems to have a light gray background extending to the top?
-                Wait, the header box is overlapping the sidebar?
-                Actually, looking at the image:
-                - The whole top area (Header) is white.
-                - The Left Sidebar has a light gray background.
-                - The Right Column is white.
-                
-                Let's implement a full-height sidebar background.
-            */}
+            {/* Gray background overlay for the left sidebar area if needed */}
             <div className="absolute top-0 bottom-0 left-0 w-[var(--page-sidebar-width)] bg-gray-100/50 print:bg-gray-100/50" />
 
             <div className="relative z-10 h-full flex flex-col px-[var(--page-margin-x)] pt-[var(--page-margin-y)]">
 
-                {/* Header Section - Spans full width effectively, but visually indented? 
-                    The image shows the header box is centered or maybe aligned with the main content? 
-                    "JOHNPAUL..." box is quite wide. 
-                    Let's make checks...
-                    The box starts vaguely where the main content starts.
-                    Let's try to match the alignment.
-                */}
+                {/* Header Section */}
                 {isFirstPage && (
                     <header className="mb-12 flex justify-end">
                         <div className="w-[65%] border-[3px] border-gray-900 p-8 text-center bg-white">
