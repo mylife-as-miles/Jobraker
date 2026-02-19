@@ -75,6 +75,10 @@ const SECTION_ICONS: Record<string, any> = {
     custom: LayoutTemplate
 };
 
+import { AIPolishDialog } from '../components/resume/AIPolishDialog';
+
+// ... (existing imports)
+
 export const ResumeBuilderPage = () => {
     const navigate = useNavigate();
     const { id: urlId } = useParams();
@@ -84,6 +88,7 @@ export const ResumeBuilderPage = () => {
     const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
     const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
     const [isShareOpen, setIsShareOpen] = useState(false);
+    const [isAIPolishOpen, setIsAIPolishOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const supabase = createClient();
@@ -334,7 +339,15 @@ export const ResumeBuilderPage = () => {
                         Share
                     </button>
 
-                    <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)]">
+                    <button
+                        onClick={() => {
+                            setAiLoading(true);
+                            setIsAIPolishOpen(true);
+                            // Simulate AI Loading
+                            setTimeout(() => setAiLoading(false), 1500);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)]"
+                    >
                         <Sparkles className="w-4 h-4" />
                         AI Polish
                     </button>
@@ -615,6 +628,17 @@ export const ResumeBuilderPage = () => {
             <TemplateSelector isOpen={isTemplateSelectorOpen} onClose={() => setIsTemplateSelectorOpen(false)} />
             <AddSectionDialog open={isAddSectionOpen} onOpenChange={setIsAddSectionOpen} />
             <ShareDialog open={isShareOpen} onOpenChange={setIsShareOpen} />
+            <AIPolishDialog
+                open={isAIPolishOpen}
+                onClose={() => setIsAIPolishOpen(false)}
+                originalText="Led a team of 5 engineers to rebuild the core payment infrastructure."
+                onApply={(text) => {
+                    console.log('Applied:', text);
+                    setIsAIPolishOpen(false);
+                    // TODO: Update actual field
+                }}
+                loading={aiLoading}
+            />
         </div>
     );
 };
