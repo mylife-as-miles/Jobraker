@@ -515,38 +515,38 @@ export const Dashboard = (): JSX.Element => {
                 "application",
               ].includes(i.id),
           ) && (
-              <div className='space-y-1'>
-                {!isCollapsed && (
-                  <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
-                    Account
-                  </h4>
-                )}
-                {navigationItems
-                  .filter(
-                    (i) =>
-                      ![
-                        "overview",
-                        "analytics",
-                        "chat",
-                        "interview-studio",
-                        "jobs",
-                        "application",
-                      ].includes(i.id),
-                  )
-                  .map((item) => (
-                    <SidebarItem
-                      key={item.id}
-                      item={item}
-                      isActive={currentPage === item.id}
-                      isCollapsed={isCollapsed}
-                      onClick={() => {
-                        navigate(`/dashboard/${item.id}`);
-                        setSidebarOpen(false);
-                      }}
-                    />
-                  ))}
-              </div>
-            )}
+            <div className='space-y-1'>
+              {!isCollapsed && (
+                <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
+                  Account
+                </h4>
+              )}
+              {navigationItems
+                .filter(
+                  (i) =>
+                    ![
+                      "overview",
+                      "analytics",
+                      "chat",
+                      "interview-studio",
+                      "jobs",
+                      "application",
+                    ].includes(i.id),
+                )
+                .map((item) => (
+                  <SidebarItem
+                    key={item.id}
+                    item={item}
+                    isActive={currentPage === item.id}
+                    isCollapsed={isCollapsed}
+                    onClick={() => {
+                      navigate(`/dashboard/${item.id}`);
+                      setSidebarOpen(false);
+                    }}
+                  />
+                ))}
+            </div>
+          )}
         </div>
 
         {/* Premium Upgrade - Sleek Banner */}
