@@ -1,0 +1,160 @@
+# Configure Job Sources for JobRaker
+
+This guide shows how to configure and schedule job ingestion sources for the `jobs-cron` Supabase Edge Function.
+
+## Prerequisites
+- A Supabase project with Edge Functions deployed (jobs-cron, get-jobs, process-and-match)
+- Project access to set environment variables
+
+## 1) Set the schedule (optional)
+Use a cron expression to run the cron function automatically.
+
+- Key: `JOBS_CRON_EXPR`
+- Example (every 6 hours):
+  - `0 */6 * * *`
+
+Add this under Supabase → Project Settings → Functions → Environment Variables.
+
+## 2) Define job sources
+Configure sources via a JSON array stored in `JOB_SOURCES`. Supported source types:
+
+- `remotive` (remote jobs; supports `query`)
+- `remoteok` (remote jobs)
+- `arbeitnow` (jobs board; supports `query`)
+- `json` (custom JSON feed; requires `url`)
+- `deepresearch` (Firecrawl deep research; supports `query`, `workType`[], `location`, `salaryRange`, `experienceLevel`, `maxResults`) — requires `FIRECRAWL_API_KEY` secret
+
+Examples:
+```json
+[
+  { "type": "remotive", "query": "software engineer" },
+  { "type": "remoteok" },
+  { "type": "arbeitnow", "query": "typescript" },
+  { "type": "json", "url": "https://your.cdn.example/jobs.json" }
+]
+```
+
+Deep research example:
+
+```json
+[
+  {
+    "type": "deepresearch",
+    "query": "senior full-stack engineer react node",
+    "workType": ["Remote", "Hybrid"],
+    "location": "United States",
+    "salaryRange": "120k-200k",
+    "experienceLevel": "senior",
+    "maxResults": 20
+  }
+]
+```
+
+Add this under Supabase → Project Settings → Functions → Environment Variables.
+
+## 3) Custom JSON feed format
+When using `{"type":"json","url":"..."}`, each item in your feed can include:
+
+- `id` or `external_id` (string)
+- `title` (string)
+- `company` (string)
+- `location` (string)
+- `url` (string)
+- `source` (string, optional; e.g., "myboard")
+- `posted_at` (ISO timestamp string)
+- `description` (string)
+- `tags` (string array)
+- `salary_min` (number)
+- `salary_max` (number)
+- `work_type` (string; e.g., `Remote`, `On-site`, `Hybrid`)
+
+Notes:
+- The cron function de-duplicates rows using `source_url` (derived from `url`).
+- `work_type` defaults to `Remote` for Remotive/RemoteOK if not present.
+
+## 4) What gets stored
+The `jobs-cron` function upserts to `public.job_listings` with fields:
+- `job_title`, `company_name`, `location`, `work_type`, `full_job_description`
+- `source_url` (unique), `source`, `external_id`, `posted_at`, `tags`
+- `salary_min`, `salary_max`, `updated_at`
+
+## 5) Verify ingestion
+- Trigger a run by calling the function endpoint (or wait for the schedule):
+  - `jobs-cron` → should respond with JSON including `fetched`, `unique`, and `upserted` counts.
+- Check `public.job_listings` in Supabase Studio to see new rows.
+- Call `get-jobs` to retrieve recent jobs, optionally filtered by `q`, `location`, and `type`.
+
+## 6) Troubleshooting
+- If a source returns zero jobs:
+  - Verify your `JOB_SOURCES` JSON is valid.
+  - Confirm the source endpoint is reachable and not rate-limited.
+- If rows aren’t appearing in `job_listings`:
+  - Check Edge Function logs for errors.
+  - Ensure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are available to functions.
+- For custom JSON feeds:
+  - Confirm your feed items include at least `title`, `company`, and `url`.
+
+- For `deepresearch`:
+  - Set the `FIRECRAWL_API_KEY` secret in Supabase → Functions → Environment Variables.
+  - Rate limits or timeouts can reduce results; adjust `maxResults` and try narrower queries.
+
+## 7) UI behavior
+- The Job Search page first tries live scraping via `process-and-match`.
+ - The Job Search page first tries live scraping via `process-and-match`.
+   - It now supports advanced flags: `debug`, `clearExisting`, `relaxSchema`.
+   - Automatic retry: if structured extraction fails (`no_structured_results`), it retries once with `relaxSchema=true`.
+   - Response reason codes:
+     - `no_sources` (deep research found zero candidate URLs)
+     - `no_structured_results` (URLs found but schema extraction failed)
+     - `deep_research_failed` (provider/network error)
+   - Safe insertion: existing jobs are only cleared when `clearExisting=true` AND new jobs were scraped.
+   - Duplicate prevention: an upsert ensures `(user_id, source_id)` pairs are unique.
+- If no results, it falls back to `get-jobs` (DB), and shows a small `Source` badge derived from the stored `source`.
+
+### Include LinkedIn and search listing pages
+By default, live search now allows LinkedIn links and search/listing pages and attempts to extract multiple jobs from them.
+
+- You can control this per-request by sending flags to `process-and-match`:
+  - `includeLinkedIn`: boolean (default: true)
+  - `includeSearch`: boolean (default: true)
+
+Example body:
+```
+{
+  "searchQuery": "software engineer",
+  "location": "Remote",
+  "includeLinkedIn": true,
+  "includeSearch": true,
+  "clearExisting": true,
+  "debug": false,
+  "relaxSchema": false
+}
+```
+
+For the scheduled `jobs-cron` deep research ingestion, you can control similar behavior via environment variables:
+
+- `INCLUDE_LINKEDIN` = `true|false` (default: true)
+- `INCLUDE_SEARCH` = `true|false` (default: true)
+
+### Salary amount and time duration
+When present in the page content, the system parses salary ranges and infers a period (hour/day/week/month/year) and currency. Parsed numeric ranges populate `salary_min`/`salary_max` in the database; inferred `salary_period`/`salary_currency` are exposed in live responses when available.
+
+---
+
+Need help? Open an issue or ping us on Discord.
+
+---
+
+Related secrets
+
+If you use the `process-and-match` function (live scraping/extraction), set your Firecrawl API key only in Supabase as a Function Secret:
+
+- `FIRECRAWL_API_KEY` — your Firecrawl API key.
+
+You can set it via CLI:
+
+```
+supabase secrets set FIRECRAWL_API_KEY="<your-firecrawl-api-key>" --project-ref <your-project-ref>
+```
+
+Note: `jobs-cron` will use `FIRECRAWL_API_KEY` when a `deepresearch` source is configured.

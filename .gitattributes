@@ -1,0 +1,28 @@
+# Ensure consistent line endings in repo
+* text=auto eol=lf
+
+# Windows-specific files can keep CRLF if needed
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Treat common binaries correctly
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.rar binary
+*.7z binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+
+# Lock files as text but don’t normalize whitespace
+package-lock.json -diff
+pnpm-lock.yaml -diff
+yarn.lock -diff

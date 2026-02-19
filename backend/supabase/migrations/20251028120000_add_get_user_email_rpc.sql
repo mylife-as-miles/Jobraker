@@ -1,0 +1,21 @@
+-- Create RPC function to get user email from auth.users
+-- This allows non-admin users to query user emails for admin dashboard
+
+CREATE OR REPLACE FUNCTION public.get_user_email(user_id uuid)
+RETURNS TABLE (email text)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT au.email::text
+  FROM auth.users au
+  WHERE au.id = user_id;
+END;
+$$;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION public.get_user_email(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_email(uuid) TO service_role;
+
+COMMENT ON FUNCTION public.get_user_email IS 'Returns the email address for a given user ID from auth.users';
