@@ -222,12 +222,12 @@ export const FeatureUsageAnalytics: React.FC<FeatureUsageAnalyticsProps> = ({
                       data={pieData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={8}
+                      innerRadius={70}
+                      outerRadius={100}
+                      paddingAngle={5}
                       dataKey="value"
                       stroke="none"
-                      cornerRadius={10}
+                      cornerRadius={6}
                     >
                       {pieData.map((entry, index) => (
                         <Cell

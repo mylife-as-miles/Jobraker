@@ -278,10 +278,10 @@ export default function AdminOverview() {
                     cy="50%"
                     innerRadius={70}
                     outerRadius={100}
-                    paddingAngle={8}
+                    paddingAngle={5}
                     dataKey="value"
                     stroke="none"
-                    cornerRadius={8}
+                    cornerRadius={6}
                   >
                     {subscriptionData.map((entry, index) => (
                       <Cell

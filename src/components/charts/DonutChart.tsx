@@ -32,18 +32,20 @@ export const AnimatedDonutChart: React.FC<DonutChartProps> = ({ data, size = 160
             data={data}
             cx="50%"
             cy="50%"
-            innerRadius={size * 0.25}
-            outerRadius={size * 0.4}
-            paddingAngle={2}
+            innerRadius={size * 0.35} // Standardized proportion (0.35 * 200 = 70)
+            outerRadius={size * 0.5}  // Standardized proportion (0.5 * 200 = 100)
+            paddingAngle={5}
+            cornerRadius={6}
             dataKey="value"
             onMouseEnter={onPieEnter}
             onMouseLeave={onPieLeave}
             animationBegin={0}
             animationDuration={1000}
+            stroke="none"
           >
             {data.map((entry, index) => (
-              <Cell 
-                key={`cell-${index}`} 
+              <Cell
+                key={`cell-${index}`}
                 fill={entry.color}
                 stroke={activeIndex === index ? '#fff' : 'none'}
                 strokeWidth={activeIndex === index ? 2 : 0}

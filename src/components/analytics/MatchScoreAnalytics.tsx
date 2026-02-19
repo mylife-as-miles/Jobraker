@@ -3,7 +3,7 @@
 import { Card } from "../ui/card"
 import { motion } from "framer-motion"
 import { ArrowDownRight, ArrowUpRight, Sparkles, TrendingUp } from "lucide-react"
-import { LabelList, Pie, PieChart, ResponsiveContainer } from "recharts"
+import { Label, Pie, PieChart, ResponsiveContainer } from "recharts"
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "../ui/chart"
 import { Badge } from "../ui/badge"
 
@@ -15,7 +15,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export function MatchScoreAnalytics({ period, data }: { period: Period; data: any }) {
+export function MatchScoreAnalytics({ period: _, data }: { period: Period; data: any }) {
   const hasMatchBars = Array.isArray(data?.matchBarData) && data.matchBarData.length > 0
   const barData = hasMatchBars ? data.matchBarData : (data?.barData || [])
   const metrics = { matchScore: data?.metrics?.avgMatchScore ?? 0 }
@@ -68,8 +68,8 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
               <Badge
                 variant='outline'
                 className={`${delta > 0
-                    ? "text-[#1dff00] bg-[#1dff00]/10 border-[#1dff00]/30"
-                    : "text-[#ff8b8b] bg-[#ff8b8b]/10 border-[#ff8b8b]/30"
+                  ? "text-[#1dff00] bg-[#1dff00]/10 border-[#1dff00]/30"
+                  : "text-[#ff8b8b] bg-[#ff8b8b]/10 border-[#ff8b8b]/30"
                   }`}
               >
                 {delta > 0 ? (
@@ -85,25 +85,6 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
             )}
           </div>
 
-          {/* Large centered score */}
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className='text-center mb-2'
-          >
-            <div className='relative inline-block'>
-              <div className='text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-[#1dff00] via-[#00ff88] to-[#1dff00] drop-shadow-[0_0_20px_rgba(29,255,0,0.5)]'>
-                {Math.round(metrics.matchScore)}
-              </div>
-              <div className='absolute -top-2 -right-8'>
-                <span className='text-3xl font-bold text-[#1dff00]/80'>%</span>
-              </div>
-            </div>
-            <p className='text-sm text-foreground/60 mt-1'>
-              in {String(period ?? "").toUpperCase()}
-            </p>
-          </motion.div>
         </div>
 
         {/* Chart section */}
@@ -120,22 +101,43 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
                     <ChartTooltip content={<ChartTooltipContent hideLabel />} />
                     <Pie
                       data={chartData}
-                      innerRadius={65}
-                      outerRadius={95}
+                      innerRadius={70}
+                      outerRadius={100}
                       dataKey='value'
                       nameKey='name'
-                      cornerRadius={12}
-                      paddingAngle={8}
+                      cornerRadius={6}
+                      paddingAngle={5}
                       animationDuration={1000}
                       stroke="none"
                     >
-                      <LabelList
-                        dataKey='value'
-                        stroke='none'
-                        fontSize={14}
-                        fontWeight={700}
-                        fill='#000000'
-                        formatter={(value: number) => `${value}%`}
+                      <Label
+                        content={({ viewBox }) => {
+                          if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                            return (
+                              <text
+                                x={viewBox.cx}
+                                y={viewBox.cy}
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                              >
+                                <tspan
+                                  x={viewBox.cx}
+                                  y={viewBox.cy}
+                                  className="fill-[#1dff00] text-3xl font-bold"
+                                >
+                                  {Math.round(metrics.matchScore)}%
+                                </tspan>
+                                <tspan
+                                  x={viewBox.cx}
+                                  y={(viewBox.cy || 0) + 24}
+                                  className="fill-foreground/40 text-[10px] uppercase tracking-widest font-bold"
+                                >
+                                  MATCH
+                                </tspan>
+                              </text>
+                            )
+                          }
+                        }}
                       />
                     </Pie>
                   </PieChart>

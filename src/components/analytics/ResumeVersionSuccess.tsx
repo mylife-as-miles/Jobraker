@@ -53,12 +53,12 @@ export function ResumeVersionSuccess({ period: _period, data }: { period: Period
                   data={chartData}
                   cx='50%'
                   cy='50%'
-                  innerRadius={65}
-                  outerRadius={85}
-                  paddingAngle={8}
+                  innerRadius={70}
+                  outerRadius={100}
+                  paddingAngle={5}
                   dataKey='value'
                   stroke='none'
-                  cornerRadius={10}
+                  cornerRadius={6}
                 >
                   {chartData.map((entry: any, index: number) => (
                     <Cell
