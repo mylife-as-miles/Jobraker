@@ -1,9 +1,5 @@
 
 import { GoogleGenAI } from "npm:@google/genai";
-import { createClient } from 'npm:@supabase/supabase-js@2';
-
-// Hack to satisfy IDE if Deno is not in lib
-declare const Deno: any;
 
 export const resolveGeminiApiKey = (): string => {
   const apiKey = Deno.env.get("GEMINI_API_KEY");
@@ -33,7 +29,7 @@ export const createGeminiConfig = (options?: {
     responseMimeType?: string;
 }) => ({
     thinkingConfig: {
-        thinkingLevel: 'HIGH' as any,
+        thinkingLevel: 'HIGH',
     },
     tools: GEMINI_TOOLS,
     responseMimeType: options?.responseMimeType || 'application/json',
@@ -87,13 +83,7 @@ export const generateAiDescription = async (
         ]
      });
 
-     // @google/genai response.text is a function in some versions, property in others.
-     // Based on error "Type 'String' has no call signatures", it's a property.
-     // Checking for property existence first.
-     const text = typeof (response as any).text === 'function' 
-        ? (response as any).text() 
-        : (response as any).text;
-
+     const text = response.text();
      if (!text) throw new Error("Empty response from Gemini");
      
      return JSON.parse(text) as AiDescriptionResponse;

@@ -1,7 +1,13 @@
 import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "../tailwind.css";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import { LandingPage } from "./screens/LandingPage";
 import { JobrackerSignup } from "./screens/JobrackerSignup";
 import { Onboarding } from "./screens/Onboarding";
@@ -13,6 +19,7 @@ import { PublicOnly } from "./components/PublicOnly";
 import { RequireAuth } from "./components/RequireAuth";
 import GmailCallbackPage from "./screens/AuthCallback/GmailCallbackPage";
 import { ToastProvider } from "./components/ui/toast-provider";
+import { AppearanceProvider } from "./providers/AppearanceProvider";
 
 import { TourProvider } from "./providers/TourProvider"; // Product tour context for dashboard pages
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
@@ -35,7 +42,10 @@ import {
 import AdminSubscriptions from "./pages/admin/pages/AdminSubscriptions";
 
 // Error boundary component
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false };
@@ -46,13 +56,13 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Application error:', error, errorInfo);
+    console.error("Application error:", error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '20px', textAlign: 'center' }}>
+        <div style={{ padding: "20px", textAlign: "center" }}>
           <h1>Something went wrong.</h1>
           <p>Please refresh the page or contact support.</p>
         </div>
@@ -67,19 +77,55 @@ function AnimatedRoutes() {
   const location = useLocation();
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode='wait'>
       <Routes location={location} key={location.pathname}>
         {/* Default route shows landing page */}
-        <Route path={ROUTES.ROOT} element={<PublicOnly><PageTransition><LandingPage /></PageTransition></PublicOnly>} />
+        <Route
+          path={ROUTES.ROOT}
+          element={
+            <PublicOnly>
+              <PageTransition>
+                <LandingPage />
+              </PageTransition>
+            </PublicOnly>
+          }
+        />
 
         {/* Step 1: Signup Page */}
-        <Route path={ROUTES.SIGNUP} element={<PublicOnly><PageTransition><JobrackerSignup /></PageTransition></PublicOnly>} />
+        <Route
+          path={ROUTES.SIGNUP}
+          element={
+            <PublicOnly>
+              <PageTransition>
+                <JobrackerSignup />
+              </PageTransition>
+            </PublicOnly>
+          }
+        />
 
         {/* Sign In Page */}
-        <Route path={ROUTES.SIGNIN} element={<PublicOnly><PageTransition><JobrackerSignup /></PageTransition></PublicOnly>} />
+        <Route
+          path={ROUTES.SIGNIN}
+          element={
+            <PublicOnly>
+              <PageTransition>
+                <JobrackerSignup />
+              </PageTransition>
+            </PublicOnly>
+          }
+        />
 
         {/* Step 2: Onboarding Page (after signup) */}
-        <Route path={ROUTES.ONBOARDING} element={<RequireAuth><PageTransition><Onboarding /></PageTransition></RequireAuth>} />
+        <Route
+          path={ROUTES.ONBOARDING}
+          element={
+            <RequireAuth>
+              <PageTransition>
+                <Onboarding />
+              </PageTransition>
+            </RequireAuth>
+          }
+        />
 
         {/* Step 3: Dashboard Page (after onboarding completion) - Now serves as main container */}
         <Route
@@ -88,46 +134,90 @@ function AnimatedRoutes() {
             <RequireAuth>
               {/* Inject TourProvider so all dashboard subpages can use useProductTour */}
               <TourProvider>
-                <PageTransition>
-                  <Dashboard />
-                </PageTransition>
+                <Dashboard />
               </TourProvider>
             </RequireAuth>
           }
         />
 
         {/* Standalone Analytics Page (for backward compatibility) */}
-        <Route path={ROUTES.ANALYTICS} element={<RequireAuth><PageTransition><Analytics /></PageTransition></RequireAuth>} />
+        <Route
+          path={ROUTES.ANALYTICS}
+          element={
+            <RequireAuth>
+              <PageTransition>
+                <Analytics />
+              </PageTransition>
+            </RequireAuth>
+          }
+        />
 
         {/* Privacy Policy */}
-        <Route path={ROUTES.PRIVACY} element={<PublicOnly><PageTransition><PrivacyPolicy /></PageTransition></PublicOnly>} />
+        <Route
+          path={ROUTES.PRIVACY}
+          element={
+            <PublicOnly>
+              <PageTransition>
+                <PrivacyPolicy />
+              </PageTransition>
+            </PublicOnly>
+          }
+        />
 
         {/* Public Resume View */}
-        <Route path={ROUTES.PUBLIC_RESUME} element={<PageTransition><PublicResumePage /></PageTransition>} />
+        <Route
+          path={ROUTES.PUBLIC_RESUME}
+          element={
+            <PageTransition>
+              <PublicResumePage />
+            </PageTransition>
+          }
+        />
 
         {/* Auth callback route */}
-        <Route path="/auth/callback/gmail" element={<PageTransition><GmailCallbackPage /></PageTransition>} />
+        <Route
+          path='/auth/callback/gmail'
+          element={
+            <PageTransition>
+              <GmailCallbackPage />
+            </PageTransition>
+          }
+        />
 
         {/* Admin Dashboard Routes */}
-        <Route path="/admin" element={<RequireAuth><AdminLayout /></RequireAuth>}>
+        <Route
+          path='/admin'
+          element={
+            <RequireAuth>
+              <AdminLayout />
+            </RequireAuth>
+          }
+        >
           <Route index element={<AdminOverview />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="subscriptions" element={<AdminSubscriptions />} />
-          <Route path="revenue" element={<AdminRevenue />} />
-          <Route path="credits" element={<AdminCredits />} />
-          <Route path="activity" element={<AdminActivity />} />
-          <Route path="database" element={<AdminDatabase />} />
-          <Route path="performance" element={<AdminPerformance />} />
-          <Route path="settings" element={<AdminSettings />} />
+          <Route path='users' element={<AdminUsers />} />
+          <Route path='subscriptions' element={<AdminSubscriptions />} />
+          <Route path='revenue' element={<AdminRevenue />} />
+          <Route path='credits' element={<AdminCredits />} />
+          <Route path='activity' element={<AdminActivity />} />
+          <Route path='database' element={<AdminDatabase />} />
+          <Route path='performance' element={<AdminPerformance />} />
+          <Route path='settings' element={<AdminSettings />} />
         </Route>
 
         {/* Admin utility route - check user credits */}
-        <Route path="/admin/check-credits-old" element={<RequireAuth><PageTransition><AdminCheckCredits /></PageTransition></RequireAuth>} />
-
-
+        <Route
+          path='/admin/check-credits-old'
+          element={
+            <RequireAuth>
+              <PageTransition>
+                <AdminCheckCredits />
+              </PageTransition>
+            </RequireAuth>
+          }
+        />
 
         {/* Catch all - redirect to landing page */}
-        <Route path="*" element={<Navigate to={ROUTES.ROOT} replace />} />
+        <Route path='*' element={<Navigate to={ROUTES.ROOT} replace />} />
       </Routes>
     </AnimatePresence>
   );
@@ -141,8 +231,10 @@ function App() {
       <BrowserRouter>
         {/* Global providers */}
         <ToastProvider>
-          <ToastEventBridge />
-          <AnimatedRoutes />
+          <AppearanceProvider>
+            <ToastEventBridge />
+            <AnimatedRoutes />
+          </AppearanceProvider>
         </ToastProvider>
       </BrowserRouter>
     </QueryClientProvider>
@@ -150,18 +242,19 @@ function App() {
 }
 
 // Add error logging
-window.addEventListener('error', (event) => {
-  console.error('Global error:', event.error);
+window.addEventListener("error", (event) => {
+  console.error("Global error:", event.error);
 });
 
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('Unhandled promise rejection:', event.reason);
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("Unhandled promise rejection:", event.reason);
 });
 
 const rootElement = document.getElementById("app");
 if (!rootElement) {
-  console.error('Root element #app not found');
-  document.body.innerHTML = '<div style="color: red; padding: 20px;">Error: Root element #app not found</div>';
+  console.error("Root element #app not found");
+  document.body.innerHTML =
+    '<div style="color: red; padding: 20px;">Error: Root element #app not found</div>';
 } else {
   try {
     const root = createRoot(rootElement);
@@ -170,11 +263,12 @@ if (!rootElement) {
         <ErrorBoundary>
           <App />
         </ErrorBoundary>
-      </StrictMode>
+      </StrictMode>,
     );
-    console.log('JobRaker app rendered successfully');
+    console.log("JobRaker app rendered successfully");
   } catch (error) {
-    console.error('Failed to render app:', error);
-    rootElement.innerHTML = '<div style="color: red; padding: 20px;">Failed to render JobRaker app. Check console for details.</div>';
+    console.error("Failed to render app:", error);
+    rootElement.innerHTML =
+      '<div style="color: red; padding: 20px;">Failed to render JobRaker app. Check console for details.</div>';
   }
 }

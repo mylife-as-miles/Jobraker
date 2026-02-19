@@ -6,7 +6,7 @@ import {
     Share2,
     Printer,
     FileText,
-
+    Pencil,
     Plus,
     Minus,
     Trash2,
@@ -16,9 +16,8 @@ import {
     Lock,
     FileType,
     Edit2,
-    Menu,
-    Eye,
-    Sparkles
+    Check,
+    Loader2
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
@@ -33,7 +32,6 @@ import { useArtboardStore } from '@/store/artboard';
 // Local PDF/Docx generation imports (assuming these pkgs exist or mocks handle them)
 import { jsPDF } from 'jspdf';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
-import { useProfileSettings } from '@/hooks/useProfileSettings';
 
 const supabase = createClient();
 
@@ -100,7 +98,9 @@ export const CoverLetterBuilderPage = () => {
 
 
     // Local UI State
-
+    const [libName, setLibName] = useState('');
+    const [library, setLibrary] = useState<any[]>([]);
+    const [currentLibId, setCurrentLibId] = useState<string | null>(null);
     const [aiLoading, setAiLoading] = useState(false);
     // Remove unused savedAt if not used, or use it 
     // const [savedAt, setSavedAt] = useState<string | null>(null); 
@@ -111,9 +111,9 @@ export const CoverLetterBuilderPage = () => {
     // const [lastExport, setLastExport] = useState<string | null>(null);
     // Remove unused copied
     // const [copied, setCopied] = useState(false);
+    const [inlineEdit, setInlineEdit] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor');
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
     const { id: routeId } = useParams();
 
@@ -143,6 +143,7 @@ export const CoverLetterBuilderPage = () => {
                     if (data.data) {
                         setCoverLetter(data.data);
                     }
+                    // If no data column (legacy), we might need to map manual fields, but assume new structure for now
                 }
             } catch (error) {
                 console.error('Error loading cover letter:', error);
@@ -152,28 +153,6 @@ export const CoverLetterBuilderPage = () => {
         };
         loadData();
     }, [routeId]);
-
-    // Profile Data for Auto-population
-    const { profile } = useProfileSettings();
-    const [userEmail, setUserEmail] = useState('');
-
-    useEffect(() => {
-        supabase.auth.getUser().then(({ data }) => {
-            if (data?.user?.email) setUserEmail(data.user.email);
-        });
-    }, []);
-
-    // Auto-populate
-    useEffect(() => {
-        if (!id && !sender.name && profile) {
-            const name = [profile.first_name, profile.last_name].filter(Boolean).join(' ');
-            if (name) setSenderName(name);
-            if (profile.phone) setSenderPhone(profile.phone);
-            if (profile.location) setSenderAddress(profile.location);
-            if (userEmail) setSenderEmail(userEmail);
-            if (profile.job_title) setRole(profile.job_title);
-        }
-    }, [profile, id, userEmail]);
 
     // Save Function
     const handleSave = async () => {
@@ -199,7 +178,7 @@ export const CoverLetterBuilderPage = () => {
                 .eq('id', id);
 
             if (error) throw error;
-            if (error) throw error;
+            setLastSaved(new Date());
         } catch (error) {
             console.error('Save failed:', error);
             toastError('Save failed', 'Could not save changes');
@@ -284,25 +263,92 @@ export const CoverLetterBuilderPage = () => {
 
     // --- Actions ---
 
-
-
-    const loadProfile = async () => {
+    const saveToLibrary = async (nameOverride?: string) => {
         try {
-            if (!profile) {
-                toastError('Profile not loaded', 'Please wait for profile data to load.');
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                toastError('Not signed in', 'Please sign in to save.');
                 return;
             }
 
-            const name = [profile.first_name, profile.last_name].filter(Boolean).join(' ');
-            if (name) {
-                setSenderName(name);
-                if (!content.signature) setSignatureName(name);
+            const nameToUse = nameOverride || libName || `Cover Letter - ${company || 'Untitled'}`;
+            const stateToSave = {
+                role, company, jobDescription, tone, lengthPref,
+                sender, recipient, content, typography,
+                localTitle: nameToUse
+            };
+
+            if (currentLibId && !nameOverride) {
+                // Update
+                const { error } = await supabase
+                    .from('cover_letters')
+                    .update({
+                        name: nameToUse,
+                        content: stateToSave,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', currentLibId);
+
+                if (error) throw error;
+                toastSuccess('Updated', 'Cover letter saved.');
+                // setSavedAt(new Date().toISOString());
+                // Update local list
+                setLibrary(prev => prev.map(l => l.id === currentLibId ? { ...l, name: nameToUse, content: stateToSave, updated_at: new Date().toISOString() } : l));
+            } else {
+                // Insert
+                const { data, error } = await supabase
+                    .from('cover_letters')
+                    .insert({
+                        user_id: user.id,
+                        name: nameToUse,
+                        content: stateToSave
+                    })
+                    .select()
+                    .single();
+
+                if (error) throw error;
+                if (data) {
+                    setCurrentLibId(data.id);
+                    setLibName(nameToUse);
+                    setLibrary(prev => [data, ...prev]);
+                    toastSuccess('Saved', 'New cover letter created.');
+                    // setSavedAt(new Date().toISOString());
+                }
             }
-            if (profile.phone) setSenderPhone(profile.phone);
-            if (userEmail) setSenderEmail(userEmail);
-            if (profile.location) setSenderAddress(profile.location);
-            if (profile.job_title) setRole(profile.job_title);
-            toastSuccess('Profile loaded', 'Filled details from your profile');
+        } catch (e: any) {
+            console.error(e);
+            toastError('Save failed', e?.message);
+        }
+    };
+
+    const loadProfile = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                toastError('Not signed in', 'Please sign in.');
+                return;
+            }
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('first_name,last_name,job_title,location,phone')
+                .eq('id', user.id)
+                .maybeSingle();
+
+            if (error) throw error;
+            if (data) {
+                const name = [data.first_name, data.last_name].filter(Boolean).join(' ');
+                if (name) {
+                    setSenderName(name);
+                    if (!content.signature) setSignatureName(name);
+                }
+                if (data.phone) setSenderPhone(data.phone);
+                if (user.email) setSenderEmail(user.email);
+                if (data.location) setSenderAddress(data.location);
+                if (data.job_title) setRole(data.job_title);
+                toastSuccess('Profile loaded', 'Filled details from your profile');
+            } else {
+                toastError('No profile found', 'Please complete your profile first.');
+            }
         } catch (e: any) {
             console.error(e);
             toastError('Profile load failed', e?.message);
@@ -496,156 +542,111 @@ export const CoverLetterBuilderPage = () => {
             <div className="fixed top-20 right-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10" />
             <div className="fixed bottom-20 left-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10" />
 
-            {/* Header toolbar */}
-            <header className="h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-white/10 bg-white dark:bg-[#0A0A0A] z-10 shrink-0">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => navigate('/dashboard/cover-letter')}
-                        className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-900 dark:hover:text-white transition-colors"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        <span>Back</span>
-                    </button>
-                    <div className="h-6 w-px bg-gray-200 dark:bg-white/10" />
-                    <div className="flex items-center gap-2 group">
-                        <input
-                            value={coverLetter.title || 'Untitled Cover Letter'}
-                            onChange={(e) => setCoverLetterTitle(e.target.value)}
-                            className="font-semibold text-gray-900 dark:text-white bg-transparent border-none outline-none focus:ring-1 focus:ring-[#1dff00] rounded px-1 min-w-[200px]"
-                        />
-                        <Edit2 className="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+            {/* Header */}
+            <div id="cover-header" className="relative flex items-center justify-between sticky top-0 z-10 bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 backdrop-blur-xl border border-[#1dff00]/30 rounded-2xl shadow-[0_0_40px_rgba(29,255,0,0.15)] px-4 sm:px-6 py-5 overflow-hidden group">
+                {/* Animated gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/0 via-[#1dff00]/5 to-[#1dff00]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+                <div className="relative flex items-center gap-4">
+                    <Button variant="ghost" size="sm" className="h-12 w-12 p-0 rounded-xl border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:text-[#1dff00] hover:scale-110 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)] transition-all duration-200 group/btn" onClick={() => navigate('/dashboard/cover-letter')}>
+                        <ArrowLeft className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+                    </Button>
+                    <div className="h-12 w-px bg-gradient-to-b from-transparent via-[#1dff00]/40 to-transparent shadow-[0_0_10px_rgba(29,255,0,0.3)]" />
+                    <div>
+                        {/* Dynamic Title Input */}
+                        <div className="flex items-center gap-2 group/title">
+                            <input
+                                value={coverLetter.title || 'Untitled Cover Letter'}
+                                onChange={(e) => setCoverLetterTitle(e.target.value)}
+                                className="text-3xl sm:text-4xl font-black tracking-tight bg-transparent border-none outline-none focus:ring-0 text-white placeholder-gray-500 min-w-[300px]"
+                                placeholder="Untitled Cover Letter"
+                            />
+                            <Edit2 className="w-5 h-5 text-gray-500 opacity-0 group-hover/title:opacity-100 transition-opacity" />
+                        </div>
+                        <div className="flex items-center gap-3 mt-1.5">
+                            <p className="text-xs sm:text-sm text-gray-400 flex items-center gap-2.5">
+                                <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-[#1dff00]/20 border border-[#1dff00]/40">
+                                    <span className="inline-block w-2 h-2 bg-[#1dff00] rounded-full animate-pulse shadow-[0_0_8px_rgba(29,255,0,0.8)]" />
+                                </span>
+                                AI Assistant Ready
+                            </p>
+                            {lastSaved && (
+                                <span className="text-xs text-brand/70 flex items-center gap-1">
+                                    <Check className="w-3 h-3" />
+                                    Saved {lastSaved.toLocaleTimeString()}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                {/* Desktop Toolbar */}
-                <div className="hidden md:flex items-center gap-3">
-                    <button
-                        onClick={share}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300"
-                    >
-                        <Share2 className="w-4 h-4" />
-                        Share
-                    </button>
-
-                    <button
-                        onClick={aiPolish}
-                        disabled={aiLoading || subscriptionTier === 'Free'}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <Sparkles className="w-4 h-4" />
-                        {aiLoading ? 'Polishing...' : 'AI Polish'}
-                        {subscriptionTier === 'Free' && <Lock className="ml-2 w-3 h-3 opacity-50" />}
-                    </button>
-
-                    <button
-                        onClick={aiWriteFull}
-                        disabled={aiLoading}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-gray-700 dark:text-white text-sm font-bold transition-all"
-                    >
-                        <Wand2 className={`w-4 h-4 ${aiLoading ? 'animate-spin' : ''}`} />
-                        {aiLoading ? 'Generating...' : 'AI Generate'}
-                    </button>
-
-                    <button
+                <div className="relative flex items-center gap-2.5 overflow-x-auto">
+                    <Button
                         onClick={handleSave}
-                        disabled={isSaving || !routeId}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-brand/50 hover:bg-brand/10 text-gray-700 dark:text-white text-sm font-bold transition-all disabled:opacity-50"
+                        disabled={isSaving}
+                        className="rounded-xl h-11 border-[#1dff00]/30 bg-[#1dff00]/10 text-[#1dff00] hover:bg-[#1dff00]/20 gap-2"
                     >
-                        <FileText className={`w-4 h-4 ${isSaving ? 'animate-pulse' : ''}`} />
+                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                         {isSaving ? 'Saving...' : 'Save Changes'}
-                    </button>
-
-                    <button
-                        onClick={() => setExportOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/20 text-sm font-medium transition-all text-gray-700 dark:text-white"
-                    >
-                        <Download className="w-4 h-4" />
-                        Download
-                    </button>
+                    </Button>
+                    <Button variant="outline" onClick={() => setInlineEdit(!inlineEdit)} className={`rounded-xl whitespace-nowrap h-11 px-4 font-semibold transition-all duration-300 group/btn ${inlineEdit ? 'bg-[#1dff00]/10 border-[#1dff00] text-[#1dff00]' : 'border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:text-[#1dff00] hover:bg-[#1dff00]/5'}`}>
+                        <Pencil className="w-4 h-4 mr-2" />
+                        {inlineEdit ? 'Live Edit: On' : 'Enable Live Edit'}
+                    </Button>
+                    <Button variant="outline" onClick={aiPolish} disabled={aiLoading || subscriptionTier === 'Free'} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 transition-all">
+                        <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
+                        {aiLoading ? 'Polishing' : 'AI Polish'}
+                        {subscriptionTier === 'Free' && <Lock className="ml-2 w-3 h-3 opacity-50" />}
+                    </Button>
+                    <Button variant="outline" onClick={aiWriteFull} disabled={aiLoading || subscriptionTier === 'Free'} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 transition-all">
+                        <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
+                        {aiLoading ? 'Writing' : 'AI Generate'}
+                        {subscriptionTier === 'Free' && <Lock className="ml-2 w-3 h-3 opacity-50" />}
+                    </Button>
+                    <Button variant="outline" onClick={() => setExportOpen(true)} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 transition-all">
+                        <Download className="w-4 h-4 mr-2" />
+                        Export
+                    </Button>
                 </div>
-
-                {/* Mobile Menu Button */}
-                <button
-                    className="md:hidden p-2 text-gray-500"
-                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                >
-                    <Menu className="w-6 h-6" />
-                </button>
-            </header>
-
-            {/* Mobile Menu Overlay */}
-            {
-                mobileMenuOpen && (
-                    <div className="absolute top-16 left-0 right-0 bg-white dark:bg-[#0A0A0A] border-b border-gray-200 dark:border-white/10 p-4 z-50 md:hidden flex flex-col gap-3 shadow-xl">
-                        <button
-                            onClick={() => { share(); setMobileMenuOpen(false); }}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300"
-                        >
-                            <Share2 className="w-4 h-4" />
-                            Share
-                        </button>
-
-                        <button
-                            onClick={aiPolish}
-                            disabled={aiLoading || subscriptionTier === 'Free'}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-sm font-bold transition-all"
-                        >
-                            <Sparkles className="w-4 h-4" />
-                            AI Polish
-                        </button>
-
-                        <button
-                            onClick={aiWriteFull}
-                            disabled={aiLoading}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-gray-700 dark:text-white text-sm font-bold transition-all"
-                        >
-                            <Wand2 className={`w-4 h-4 ${aiLoading ? 'animate-spin' : ''}`} />
-                            {aiLoading ? 'Generating...' : 'AI Generate'}
-                        </button>
-
-                        <button
-                            onClick={handleSave}
-                            disabled={isSaving || !routeId}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-brand/50 hover:bg-brand/10 text-gray-700 dark:text-white text-sm font-bold transition-all disabled:opacity-50"
-                        >
-                            <FileText className={`w-4 h-4 ${isSaving ? 'animate-pulse' : ''}`} />
-                            {isSaving ? 'Saving...' : 'Save Changes'}
-                        </button>
-
-                        <button
-                            onClick={() => { setExportOpen(true); setMobileMenuOpen(false); }}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/20 text-sm font-medium transition-all text-gray-700 dark:text-white"
-                        >
-                            <Download className="w-4 h-4" />
-                            Download
-                        </button>
-                    </div>
-                )
-            }
-
-            {/* Mobile Tab Bar */}
-            <div className="xl:hidden flex border-b border-[#1dff00]/30 bg-black/20 shrink-0 mb-4 rounded-xl overflow-hidden">
-                <button
-                    onClick={() => setActiveTab('editor')}
-                    className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${activeTab === 'editor' ? 'bg-[#1dff00]/20 text-[#1dff00]' : 'text-gray-400 hover:text-white'}`}
-                >
-                    <Edit2 className="w-4 h-4" /> Editor
-                </button>
-                <button
-                    onClick={() => setActiveTab('preview')}
-                    className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${activeTab === 'preview' ? 'bg-[#1dff00]/20 text-[#1dff00]' : 'text-gray-400 hover:text-white'}`}
-                >
-                    <Eye className="w-4 h-4" /> Preview
-                </button>
             </div>
 
             {/* Main Layout */}
-            < div id="cover-main-layout" className="grid gap-6 grid-cols-1 xl:grid-cols-[460px_minmax(0,1fr)] max-w-[1800px] mx-auto w-full" >
+            <div id="cover-main-layout" className="grid gap-6 grid-cols-1 xl:grid-cols-[460px_minmax(0,1fr)] max-w-[1800px] mx-auto w-full">
 
                 {/* CONFIG PANEL (LEFT) */}
-                < Card className={`p-6 rounded-2xl bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 border border-[#1dff00]/30 backdrop-blur-xl ${activeTab === 'editor' ? 'block' : 'hidden'} xl:block`}>
+                <Card className="p-6 rounded-2xl bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 border border-[#1dff00]/30 backdrop-blur-xl">
                     <div className="grid gap-6">
-
+                        {/* Library */}
+                        <div className="grid gap-3">
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-semibold text-white">Save Cover Letter</label>
+                                <Button variant="outline" size="sm" onClick={() => { setCurrentLibId(null); setLibName(''); }} className="h-8">New</Button>
+                            </div>
+                            <input value={libName} onChange={e => setLibName(e.target.value)} placeholder="Letter Name" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                            <div className="grid grid-cols-2 gap-3">
+                                <Button onClick={() => saveToLibrary()} variant="outline" className="border-[#1dff00]/30">{currentLibId ? 'Update' : 'Save'}</Button>
+                                <Button onClick={() => saveToLibrary(libName)} variant="outline">Save As New</Button>
+                            </div>
+                            {library.length > 0 && (
+                                <select
+                                    className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-sm text-gray-400"
+                                    onChange={(e) => {
+                                        const lib = library.find(l => l.id === e.target.value);
+                                        if (lib && lib.content) {
+                                            setCoverLetter(lib.content);
+                                            setCurrentLibId(lib.id);
+                                            setLibName(lib.name);
+                                            // setSavedAt(lib.updated_at);
+                                            toastSuccess('Loaded', `Loaded ${lib.name}`);
+                                        }
+                                    }}
+                                    value={currentLibId || ''}
+                                >
+                                    <option value="">Select saved letter...</option>
+                                    {library.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                                </select>
+                            )}
+                        </div>
 
                         {/* Sender */}
                         <div className="grid gap-3">
@@ -750,10 +751,10 @@ export const CoverLetterBuilderPage = () => {
                             <input value={content.signature} onChange={e => setSignatureName(e.target.value)} placeholder="Signature" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
                         </div>
                     </div>
-                </Card >
+                </Card>
 
                 {/* PREVIEW PANEL (RIGHT) */}
-                < Card className={`p-8 bg-white min-h-[800px] text-black shadow-2xl overflow-y-auto ${activeTab === 'preview' ? 'block' : 'hidden'} xl:block`}>
+                <Card className="p-8 bg-white min-h-[800px] text-black shadow-2xl overflow-y-auto">
                     <div className="max-w-[800px] mx-auto space-y-6" style={{ fontSize: `${typography.fontSize}px`, fontFamily: 'Times New Roman, serif' }}>
                         {/* Header Section */}
                         <div className="text-right space-y-1">
@@ -795,51 +796,49 @@ export const CoverLetterBuilderPage = () => {
                             <p className="font-bold">{content.signature || sender.name}</p>
                         </div>
                     </div>
-                </Card >
-            </div >
+                </Card>
+            </div>
 
             {/* Config Toolbar */}
-            < div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[#0a0a0a]/90 backdrop-blur border border-[#1dff00]/30 p-2 rounded-2xl shadow-xl z-50" >
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[#0a0a0a]/90 backdrop-blur border border-[#1dff00]/30 p-2 rounded-2xl shadow-xl z-50">
                 <Button size="icon" variant="ghost" onClick={zoomOut} className="hover:text-[#1dff00]"><Minus className="w-4 h-4" /></Button>
                 <span className="text-xs font-mono w-12 text-center">{typography.fontSize}px</span>
                 <Button size="icon" variant="ghost" onClick={zoomIn} className="hover:text-[#1dff00]"><Plus className="w-4 h-4" /></Button>
                 <div className="w-px h-4 bg-white/20 mx-2" />
                 <Button size="sm" variant="ghost" onClick={clearDraft} className="text-red-400 hover:text-red-500 hover:bg-red-500/10">Clear</Button>
-            </div >
+            </div>
 
             {/* Export Modal */}
-            {
-                exportOpen && createPortal(
-                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                        <div className="relative w-full max-w-md bg-[#0a0a0a] border border-[#1dff00]/30 rounded-2xl p-6 shadow-2xl">
-                            <button onClick={() => setExportOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white"><X className="w-5 h-5" /></button>
-                            <h2 className="text-xl font-bold text-white mb-2">Export Cover Letter</h2>
-                            <p className="text-sm text-gray-400 mb-6">Choose a format to download your letter.</p>
+            {exportOpen && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <div className="relative w-full max-w-md bg-[#0a0a0a] border border-[#1dff00]/30 rounded-2xl p-6 shadow-2xl">
+                        <button onClick={() => setExportOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white"><X className="w-5 h-5" /></button>
+                        <h2 className="text-xl font-bold text-white mb-2">Export Cover Letter</h2>
+                        <p className="text-sm text-gray-400 mb-6">Choose a format to download your letter.</p>
 
-                            <div className="space-y-3">
-                                <Button onClick={exportPdf} disabled={!!exportBusy} className="w-full justify-start h-12 border-[#1dff00]/30 hover:bg-[#1dff00]/10" variant="outline">
-                                    <FileText className="w-5 h-5 mr-3 text-[#1dff00]" /> PDF Document
-                                    {exportBusy === 'pdf' && <span className="ml-auto animate-pulse">Processing...</span>}
-                                </Button>
-                                <Button onClick={exportDocx} disabled={!!exportBusy} className="w-full justify-start h-12 border-[#1dff00]/30 hover:bg-[#1dff00]/10" variant="outline">
-                                    <FileType className="w-5 h-5 mr-3 text-blue-400" /> Word (DOCX)
-                                    {exportBusy === 'docx' && <span className="ml-auto animate-pulse">Processing...</span>}
-                                </Button>
-                                <Button onClick={exportTxt} className="w-full justify-start h-12 border-[#1dff00]/30 hover:bg-[#1dff00]/10" variant="outline">
-                                    <FileText className="w-5 h-5 mr-3 text-gray-400" /> Plain Text
-                                </Button>
-                            </div>
-
-                            <div className="mt-6 pt-4 border-t border-white/10 flex gap-3">
-                                <Button onClick={printLetter} className="flex-1" variant="ghost"><Printer className="w-4 h-4 mr-2" /> Print</Button>
-                                <Button onClick={copyPlain} className="flex-1" variant="ghost"><Share2 className="w-4 h-4 mr-2" /> Copy</Button>
-                                <Button onClick={share} className="flex-1" variant="ghost"><Share2 className="w-4 h-4 mr-2" /> Share</Button>
-                            </div>
+                        <div className="space-y-3">
+                            <Button onClick={exportPdf} disabled={!!exportBusy} className="w-full justify-start h-12 border-[#1dff00]/30 hover:bg-[#1dff00]/10" variant="outline">
+                                <FileText className="w-5 h-5 mr-3 text-[#1dff00]" /> PDF Document
+                                {exportBusy === 'pdf' && <span className="ml-auto animate-pulse">Processing...</span>}
+                            </Button>
+                            <Button onClick={exportDocx} disabled={!!exportBusy} className="w-full justify-start h-12 border-[#1dff00]/30 hover:bg-[#1dff00]/10" variant="outline">
+                                <FileType className="w-5 h-5 mr-3 text-blue-400" /> Word (DOCX)
+                                {exportBusy === 'docx' && <span className="ml-auto animate-pulse">Processing...</span>}
+                            </Button>
+                            <Button onClick={exportTxt} className="w-full justify-start h-12 border-[#1dff00]/30 hover:bg-[#1dff00]/10" variant="outline">
+                                <FileText className="w-5 h-5 mr-3 text-gray-400" /> Plain Text
+                            </Button>
                         </div>
-                    </div>,
-                    document.body
-                )
-            }
+
+                        <div className="mt-6 pt-4 border-t border-white/10 flex gap-3">
+                            <Button onClick={printLetter} className="flex-1" variant="ghost"><Printer className="w-4 h-4 mr-2" /> Print</Button>
+                            <Button onClick={copyPlain} className="flex-1" variant="ghost"><Share2 className="w-4 h-4 mr-2" /> Copy</Button>
+                            <Button onClick={share} className="flex-1" variant="ghost"><Share2 className="w-4 h-4 mr-2" /> Share</Button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 };

@@ -15,13 +15,9 @@ export async function extractTextFromPdf(file: File): Promise<string> {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         const pageText = textContent.items
-            .map((item: any) => item.str || '')
+            .map((item: any) => item.str)
             .join(' ');
         fullText += pageText + '\n\n';
-    }
-
-    if (!fullText.trim()) {
-        throw new Error("No text found in PDF. This often happens with scanned images. Please use a text-based PDF.");
     }
 
     return fullText.trim();

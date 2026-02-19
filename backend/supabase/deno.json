@@ -17,9 +17,7 @@
         ]
     },
     "imports": {
-        "std/": "https://deno.land/std@0.168.0/",
-        "@supabase/supabase-js": "npm:@supabase/supabase-js@2",
-        "@google/genai": "npm:@google/genai",
-        "cors": "https://esm.sh/cors@2.8.5"
+        "https://deno.land/std@0.168.0/": "https://deno.land/std@0.168.0/",
+        "https://esm.sh/": "https://esm.sh/"
     }
 }

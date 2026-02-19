@@ -15,17 +15,14 @@ import { GoogleGenAI } from "npm:@google/genai";
 import { getCorsHeaders } from "../_shared/types.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-// IDE Hack
-declare const Deno: any;
-
 const GEMINI_MODEL = 'gemini-3-pro-preview';
 
 function trimText(s: any): string {
   return (typeof s === 'string' ? s : '').trim();
 }
 
-Deno.serve(async (req: Request) => {
-  const corsHeaders = getCorsHeaders(req.headers.get('origin') || undefined);
+Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -154,18 +151,22 @@ Deno.serve(async (req: Request) => {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    const prompt = `${systemPrompt}\n\n${userPrompt}`;
-
     const response = await ai.models.generateContent({
       model: GEMINI_MODEL,
       config: {
-        thinkingConfig: { thinkingLevel: "HIGH" as any },
-        tools: [{ googleSearch: {} }]
+        thinkingConfig: {
+          thinkingLevel: 'HIGH',
+        },
+        tools: [
+          { urlContext: {} },
+          { googleSearch: {} }
+        ],
+        systemInstruction: systemPrompt,
       },
-      contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      contents: [{ role: 'user', parts: [{ text: userPrompt }] }]
     });
 
-    const text = typeof (response as any).text === 'function' ? (response as any).text() : (response as any).text;
+    const text = response.text()?.trim() || '';
 
     return new Response(JSON.stringify({ text }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
   } catch (e: any) {

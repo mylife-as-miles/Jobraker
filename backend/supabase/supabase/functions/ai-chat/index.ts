@@ -1,8 +1,7 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { GoogleGenAI } from "npm:@google/genai";
-import { getCorsHeaders } from "../_shared/types.ts";
-import { createGeminiClient, GEMINI_MODEL, GEMINI_TOOLS, createGeminiConfig } from "../_shared/gemini.ts";
+import { createGeminiClient, GEMINI_MODEL, GEMINI_TOOLS } from "../_shared/gemini.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 /**
  * Supabase Edge Function: ai-chat
@@ -13,8 +12,7 @@ interface UIMessagePart { text?: string }
 interface UIMessage { id?: string; role: string; content?: string; parts?: UIMessagePart[] }
 interface ChatBody { model?: string; messages: UIMessage[]; webSearch?: boolean; system?: string; previous_response_id?: string }
 
-serve(async (req: Request) => {
-    const corsHeaders = getCorsHeaders(req.headers.get('origin') || undefined);
+serve(async (req) => {
     if (req.method === "OPTIONS") {
         return new Response("ok", { headers: corsHeaders });
     }
@@ -47,7 +45,7 @@ serve(async (req: Request) => {
 
         const config = {
             thinkingConfig: {
-                thinkingLevel: 'HIGH' as any,
+                thinkingLevel: 'HIGH',
             },
             tools: GEMINI_TOOLS,
             ...(systemInstruction ? { systemInstruction } : {}),
@@ -65,10 +63,7 @@ serve(async (req: Request) => {
 
                 try {
                     for await (const chunk of stream) {
-                        const text = typeof (chunk as any).text === 'function' 
-                            ? (chunk as any).text() 
-                            : (chunk as any).text;
-                        
+                        const text = chunk.text();
                         if (text) {
                             const data = JSON.stringify({ delta: text });
                             const message = `event: message\ndata: ${data}\n\n`;

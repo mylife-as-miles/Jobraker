@@ -126,9 +126,6 @@ export function useApplications() {
       if (reqId !== listRequestId.current) return; // stale
       if (error) throw error;
       setApplications((data ?? []) as ApplicationRecord[]);
-      const apps = data as ApplicationRecord[] ?? [];
-      const withScore = apps.filter(a => a.match_score != null);
-      console.log(`[Jobraker Debug] Loaded ${apps.length} apps. With score: ${withScore.length}. Sample type: ${withScore.length ? typeof withScore[0].match_score : 'N/A'}`);
     } catch (e: any) {
       if (reqId !== listRequestId.current) return; // stale
       const msg = e.message || "Failed to load applications";

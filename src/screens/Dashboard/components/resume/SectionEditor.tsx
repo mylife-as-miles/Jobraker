@@ -1,17 +1,17 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useArtboardStore } from '../../../../store/artboard';
 import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
+import { cn } from '../../../../lib/utils';
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
-import { PolishableTextArea } from './PolishableTextArea';
+import { Textarea } from '../../../../components/ui/textarea'; // Assuming textarea exists
 
 interface SectionEditorProps {
     sectionId: string;
-    onPolish?: (rect: DOMRect, text: string, itemId: string) => void;
-    isPolishing?: (itemId: string) => boolean;
+    title?: string;
 }
 
-export const SectionEditor = ({ sectionId, onPolish, isPolishing }: SectionEditorProps) => {
+export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
     const section = useArtboardStore((state) => state.resume.data.sections[sectionId]);
     const addSectionItem = useArtboardStore((state) => state.addSectionItem);
     const updateSectionItem = useArtboardStore((state) => state.updateSectionItem);
@@ -71,11 +71,11 @@ export const SectionEditor = ({ sectionId, onPolish, isPolishing }: SectionEdito
                                 <div className="col-span-2">
                                     <label className="text-xs font-medium text-gray-500 mb-1 block">
                                         {sectionId === 'education' ? 'School / University' :
-                                            sectionId === 'awards' ? 'Award Name' :
-                                                sectionId === 'certifications' ? 'Certification Name' :
-                                                    sectionId === 'publications' ? 'Publication Title' :
-                                                        sectionId === 'references' ? 'Referee Name' :
-                                                            'Title / Role'}
+                                         sectionId === 'awards' ? 'Award Name' :
+                                         sectionId === 'certifications' ? 'Certification Name' :
+                                         sectionId === 'publications' ? 'Publication Title' :
+                                         sectionId === 'references' ? 'Referee Name' :
+                                         'Title / Role'}
                                     </label>
                                     <Input
                                         value={item.title || item.degree || item.name || ''}
@@ -87,11 +87,11 @@ export const SectionEditor = ({ sectionId, onPolish, isPolishing }: SectionEdito
                                 <div className="col-span-2 sm:col-span-1">
                                     <label className="text-xs font-medium text-gray-500 mb-1 block">
                                         {sectionId === 'education' ? 'Degree' :
-                                            sectionId === 'awards' ? 'Issuer' :
-                                                sectionId === 'certifications' ? 'Issuing Organization' :
-                                                    sectionId === 'publications' ? 'Publisher' :
-                                                        sectionId === 'references' ? 'Company / Relation' :
-                                                            'Company / Organization'}
+                                         sectionId === 'awards' ? 'Issuer' :
+                                         sectionId === 'certifications' ? 'Issuing Organization' :
+                                         sectionId === 'publications' ? 'Publisher' :
+                                         sectionId === 'references' ? 'Company / Relation' :
+                                         'Company / Organization'}
                                     </label>
                                     <Input
                                         value={item.company || item.school || item.institution || item.issuer || ''}
@@ -113,11 +113,9 @@ export const SectionEditor = ({ sectionId, onPolish, isPolishing }: SectionEdito
 
                                 <div className="col-span-2">
                                     <label className="text-xs font-medium text-gray-500 mb-1 block">Description</label>
-                                    <PolishableTextArea
+                                    <Textarea
                                         value={item.description || ''}
                                         onChange={(e) => updateSectionItem(sectionId, item.id, { description: e.target.value })}
-                                        onPolish={(rect, val) => onPolish?.(rect, val, item.id)}
-                                        isPolishing={isPolishing?.(item.id)}
                                         placeholder="Description..."
                                         rows={3}
                                         className="text-xs"

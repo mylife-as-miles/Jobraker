@@ -1,6 +1,6 @@
 "use client";
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useMemo, useState, useCallback, useEffect } from "react";
+import { motion } from "framer-motion";
 
 export interface CalendarEvent {
   id: string;
@@ -24,14 +24,14 @@ export interface CalendarProps {
   maxVisibleEventsPerDay?: number;
   rangeSelectable?: boolean;
   onSelectRange?: (range: { start: Date; end: Date } | null) => void;
-  viewMode?: 'month' | 'week';
-  onViewModeChange?: (mode: 'month' | 'week') => void;
+  viewMode?: "month" | "week";
+  onViewModeChange?: (mode: "month" | "week") => void;
   showDayEventCount?: boolean;
   heatmap?: boolean; // color intensity based on event density
   showLegend?: boolean;
   // New enhancement props
-  densityMode?: 'full' | 'compact';
-  onDensityModeChange?: (mode: 'full' | 'compact') => void;
+  densityMode?: "full" | "compact";
+  onDensityModeChange?: (mode: "full" | "compact") => void;
   enableQuickCreate?: boolean;
   onQuickCreate?: (partial: { date: Date; title: string }) => void;
   allowDrag?: boolean;
@@ -45,8 +45,12 @@ export interface CalendarProps {
   reducedMotion?: boolean;
 }
 
-function startOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 1); }
-function addMonths(d: Date, n: number) { return new Date(d.getFullYear(), d.getMonth() + n, 1); }
+function startOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+function addMonths(d: Date, n: number) {
+  return new Date(d.getFullYear(), d.getMonth() + n, 1);
+}
 
 export const KiboCalendar: React.FC<CalendarProps> = ({
   month,
@@ -54,7 +58,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
   onMonthChange,
   onSelectDate,
   showHeader = true,
-  className = '',
+  className = "",
   highlightToday = true,
   weekStartsOn = 0,
   locale,
@@ -62,12 +66,12 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
   maxVisibleEventsPerDay = 3,
   rangeSelectable = false,
   onSelectRange,
-  viewMode = 'month',
+  viewMode = "month",
   onViewModeChange,
   showDayEventCount = true,
   heatmap = false,
   showLegend = false,
-  densityMode = 'full',
+  densityMode = "full",
   onDensityModeChange,
   enableQuickCreate = false,
   onQuickCreate,
@@ -83,7 +87,9 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
 }) => {
   const today = new Date();
   const viewMonth = startOfMonth(month || today);
-  const usedLocale = locale || (typeof navigator !== 'undefined' ? navigator.language : undefined);
+  const usedLocale =
+    locale ||
+    (typeof navigator !== "undefined" ? navigator.language : undefined);
 
   // Range selection state
   const [rangeStart, setRangeStart] = useState<Date | null>(null);
@@ -95,7 +101,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
   React.useEffect(() => {
     if (!rangeSelectable) return;
     try {
-      const raw = localStorage.getItem('calendar_last_range');
+      const raw = localStorage.getItem("calendar_last_range");
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (parsed && parsed.start && parsed.end) {
@@ -106,25 +112,25 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
         onSelectRange?.({ start: s < e ? s : e, end: e > s ? e : s });
       }
     } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Mouse up listener for drag selection
   React.useEffect(() => {
     if (!rangeSelectable) return;
     const up = () => setDragging(false);
-    window.addEventListener('mouseup', up);
-    return () => window.removeEventListener('mouseup', up);
+    window.addEventListener("mouseup", up);
+    return () => window.removeEventListener("mouseup", up);
   }, [rangeSelectable]);
 
   const prefersReduced = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }, []);
   const motionDisabled = reducedMotion ?? prefersReduced;
 
   const grid = useMemo(() => {
-    if (viewMode === 'week' && selectedDate) {
+    if (viewMode === "week" && selectedDate) {
       const base = selectedDate;
       const weekday = (base.getDay() - weekStartsOn + 7) % 7;
       const start = new Date(base);
@@ -133,7 +139,10 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
       for (let i = 0; i < 7; i++) {
         const d = new Date(start);
         d.setDate(start.getDate() + i);
-        cells.push({ date: d, inCurrent: d.getMonth() === viewMonth.getMonth() });
+        cells.push({
+          date: d,
+          inCurrent: d.getMonth() === viewMonth.getMonth(),
+        });
       }
       return cells;
     }
@@ -149,66 +158,100 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
     return cells;
   }, [viewMonth, weekStartsOn, viewMode, selectedDate]);
 
-  const monthLabel = viewMonth.toLocaleString(usedLocale, { month: 'long', year: 'numeric' });
-  const isSameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const monthLabel = viewMonth.toLocaleString(usedLocale, {
+    month: "long",
+    year: "numeric",
+  });
+  const isSameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
 
   // Map events by day key
   const visibleEvents = useMemo(() => {
     if (!statusFilters || statusFilters.length === 0) return events;
-    const set = new Set(statusFilters.map(s => s.toLowerCase()));
-    return events.filter(ev => !ev.status || set.has(ev.status.toLowerCase()));
+    const set = new Set(statusFilters.map((s) => s.toLowerCase()));
+    return events.filter(
+      (ev) => !ev.status || set.has(ev.status.toLowerCase()),
+    );
   }, [events, statusFilters]);
 
   const eventsByDay = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {};
-    visibleEvents.forEach(ev => {
-      const key = ev.date.toISOString().slice(0,10); // YYYY-MM-DD
+    visibleEvents.forEach((ev) => {
+      const key = ev.date.toISOString().slice(0, 10); // YYYY-MM-DD
       (map[key] ||= []).push(ev);
     });
     // sort events per day by status then title
-    Object.values(map).forEach(list => list.sort((a,b) => (a.status||'').localeCompare(b.status||'') || a.title.localeCompare(b.title)));
+    Object.values(map).forEach((list) =>
+      list.sort(
+        (a, b) =>
+          (a.status || "").localeCompare(b.status || "") ||
+          a.title.localeCompare(b.title),
+      ),
+    );
     return map;
   }, [visibleEvents]);
 
   const heatmapMax = useMemo(() => {
     if (!heatmap) return 0;
     let m = 0;
-    Object.values(eventsByDay).forEach(list => { if (list.length > m) m = list.length; });
+    Object.values(eventsByDay).forEach((list) => {
+      if (list.length > m) m = list.length;
+    });
     return m;
   }, [eventsByDay, heatmap]);
 
   const statusColor = (status?: string) => {
-    if (!status) return '#5a5a5a';
-    const pal: Record<string,string> = {
-      pending: '#8b8b8b',
-      applied: '#1dff00',
-      interview: '#56c2ff',
-      offer: '#f8d74a',
-      rejected: '#ff5f56',
-      withdrawn: '#b3b3b3'
+    if (!status) return "#5a5a5a";
+    const pal: Record<string, string> = {
+      pending: "#8b8b8b",
+      applied: "#1dff00",
+      interview: "#56c2ff",
+      offer: "#f8d74a",
+      rejected: "#ff5f56",
+      withdrawn: "#b3b3b3",
     };
-    return pal[status.toLowerCase()] || '#7c7c7c';
+    return pal[status.toLowerCase()] || "#7c7c7c";
   };
 
   // Overflow expansion per day
-  const [expandedDays, setExpandedDays] = useState<Set<string>>(()=>new Set());
-  const toggleExpanded = (k: string) => setExpandedDays(prev => { const n = new Set(prev); n.has(k)?n.delete(k):n.add(k); return n; });
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const toggleExpanded = (k: string) =>
+    setExpandedDays((prev) => {
+      const n = new Set(prev);
+      n.has(k) ? n.delete(k) : n.add(k);
+      return n;
+    });
 
   // Quick create inline mini-form
-  const [quickCreate, setQuickCreate] = useState<{ key: string; date: Date; title: string } | null>(null);
+  const [quickCreate, setQuickCreate] = useState<{
+    key: string;
+    date: Date;
+    title: string;
+  } | null>(null);
   const handleQuickCreateSubmit = () => {
     if (quickCreate && quickCreate.title.trim()) {
-      onQuickCreate?.({ date: quickCreate.date, title: quickCreate.title.trim() });
+      onQuickCreate?.({
+        date: quickCreate.date,
+        title: quickCreate.title.trim(),
+      });
       setQuickCreate(null);
     }
   };
 
   // Drag/drop reschedule
-  const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(null);
+  const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(
+    null,
+  );
   const handleDragStart = (e: React.DragEvent, ev: CalendarEvent) => {
     if (!allowDrag) return;
     setDraggingEvent(ev);
-    try { e.dataTransfer.setData('text/plain', ev.id); } catch {}
+    try {
+      e.dataTransfer.setData("text/plain", ev.id);
+    } catch {}
   };
   const handleDrop = (e: React.DragEvent, date: Date) => {
     if (!allowDrag || !draggingEvent) return;
@@ -216,7 +259,9 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
     onReschedule?.(draggingEvent.id, date);
     setDraggingEvent(null);
   };
-  const handleDragOver = (e: React.DragEvent) => { if (allowDrag) e.preventDefault(); };
+  const handleDragOver = (e: React.DragEvent) => {
+    if (allowDrag) e.preventDefault();
+  };
 
   // Range analytics
   const analytics = useMemo(() => {
@@ -225,17 +270,17 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
     const e = rangeEnd > rangeStart ? rangeEnd : rangeStart;
     const counts: Record<string, number> = {};
     let total = 0;
-    visibleEvents.forEach(ev => {
+    visibleEvents.forEach((ev) => {
       if (ev.date >= s && ev.date <= e) {
-        const st = (ev.status || 'unknown').toLowerCase();
+        const st = (ev.status || "unknown").toLowerCase();
         counts[st] = (counts[st] || 0) + 1;
         total++;
       }
     });
-    const applied = (counts['applied'] || 0) + (counts['pending'] || 0);
-    const interview = counts['interview'] || 0;
-    const offer = counts['offer'] || 0;
-    const rejection = counts['rejected'] || 0;
+    const applied = (counts["applied"] || 0) + (counts["pending"] || 0);
+    const interview = counts["interview"] || 0;
+    const offer = counts["offer"] || 0;
+    const rejection = counts["rejected"] || 0;
     return {
       total,
       counts,
@@ -247,62 +292,86 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
         appliedToInterview: applied ? interview / applied : 0,
         interviewToOffer: interview ? offer / interview : 0,
         appliedToOffer: applied ? offer / applied : 0,
-      }
+      },
     };
   }, [rangeStart, rangeEnd, visibleEvents]);
 
   // ICS export
   const exportICS = useCallback(() => {
     if (!enableICSExport) return;
-    const escape = (s: string) => s.replace(/,/g,'\\,').replace(/;/g,'\\;');
-    const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Jobraker//Calendar//EN'];
+    const escape = (s: string) => s.replace(/,/g, "\\,").replace(/;/g, "\\;");
+    const lines = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Jobraker//Calendar//EN",
+    ];
     const target = (() => {
       if (rangeStart && rangeEnd) {
         const s = rangeStart < rangeEnd ? rangeStart : rangeEnd;
         const e = rangeEnd > rangeStart ? rangeEnd : rangeStart;
-        return visibleEvents.filter(ev => ev.date >= s && ev.date <= e);
+        return visibleEvents.filter((ev) => ev.date >= s && ev.date <= e);
       }
-      return visibleEvents.filter(ev => ev.date.getMonth()===viewMonth.getMonth() && ev.date.getFullYear()===viewMonth.getFullYear());
+      return visibleEvents.filter(
+        (ev) =>
+          ev.date.getMonth() === viewMonth.getMonth() &&
+          ev.date.getFullYear() === viewMonth.getFullYear(),
+      );
     })();
-    target.forEach(ev => {
-      const dt = ev.date.toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
-      lines.push('BEGIN:VEVENT');
+    target.forEach((ev) => {
+      const dt = ev.date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+      lines.push("BEGIN:VEVENT");
       lines.push(`UID:${ev.id}@jobraker`);
       lines.push(`DTSTAMP:${dt}`);
       lines.push(`DTSTART:${dt}`);
       lines.push(`DTEND:${dt}`);
       lines.push(`SUMMARY:${escape(ev.title)}`);
       if (ev.subtitle) lines.push(`DESCRIPTION:${escape(ev.subtitle)}`);
-      lines.push('END:VEVENT');
+      lines.push("END:VEVENT");
     });
-    lines.push('END:VCALENDAR');
-    const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8;' });
+    lines.push("END:VCALENDAR");
+    const blob = new Blob([lines.join("\r\n")], {
+      type: "text/calendar;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `calendar${rangeStart && rangeEnd ? '-range':'-month'}.ics`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    a.download = `calendar${rangeStart && rangeEnd ? "-range" : "-month"}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }, [enableICSExport, rangeStart, rangeEnd, visibleEvents, viewMonth]);
 
   // UI prefs persistence
   useEffect(() => {
-    try { localStorage.setItem('calendar_ui_prefs', JSON.stringify({ densityMode, focusContrast })); } catch {}
+    try {
+      localStorage.setItem(
+        "calendar_ui_prefs",
+        JSON.stringify({ densityMode, focusContrast }),
+      );
+    } catch {}
   }, [densityMode, focusContrast]);
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('calendar_ui_prefs');
-      if (!raw) return; const p = JSON.parse(raw);
-      if (p.densityMode && ['full','compact'].includes(p.densityMode)) onDensityModeChange?.(p.densityMode);
-      if (typeof p.focusContrast === 'boolean') onFocusContrastChange?.(p.focusContrast);
+      const raw = localStorage.getItem("calendar_ui_prefs");
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      if (p.densityMode && ["full", "compact"].includes(p.densityMode))
+        onDensityModeChange?.(p.densityMode);
+      if (typeof p.focusContrast === "boolean")
+        onFocusContrastChange?.(p.focusContrast);
     } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const inSelectedRange = (d: Date) => {
     if (!rangeStart || !rangeEnd) return false;
     const s = rangeStart < rangeEnd ? rangeStart : rangeEnd;
     const e = rangeEnd > rangeStart ? rangeEnd : rangeStart;
-    return d >= new Date(s.getFullYear(), s.getMonth(), s.getDate()) && d <= new Date(e.getFullYear(), e.getMonth(), e.getDate(), 23,59,59,999);
+    return (
+      d >= new Date(s.getFullYear(), s.getMonth(), s.getDate()) &&
+      d <= new Date(e.getFullYear(), e.getMonth(), e.getDate(), 23, 59, 59, 999)
+    );
   };
 
   const handleDayClick = (date: Date) => {
@@ -333,13 +402,23 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
     const s = rangeStart < date ? rangeStart : date;
     const e = rangeStart < date ? date : rangeStart;
     onSelectRange?.({ start: s, end: e });
-    try { localStorage.setItem('calendar_last_range', JSON.stringify({ start: s, end: e })); } catch {}
+    try {
+      localStorage.setItem(
+        "calendar_last_range",
+        JSON.stringify({ start: s, end: e }),
+      );
+    } catch {}
   };
 
   const handleKey = (e: React.KeyboardEvent) => {
     if (!rangeSelectable) return;
     if (!e.shiftKey) return; // only act with Shift for safety
-    const deltas: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+    const deltas: Record<string, number> = {
+      ArrowLeft: -1,
+      ArrowRight: 1,
+      ArrowUp: -7,
+      ArrowDown: 7,
+    };
     if (!(e.key in deltas)) return;
     e.preventDefault();
     const base = rangeEnd || rangeStart || selectedDate || today;
@@ -350,10 +429,15 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
       setRangeStart(base);
     }
     setRangeEnd(next);
-    const s = (rangeStart || base) < next ? (rangeStart || base) : next;
-    const eDate = (rangeStart || base) < next ? next : (rangeStart || base);
+    const s = (rangeStart || base) < next ? rangeStart || base : next;
+    const eDate = (rangeStart || base) < next ? next : rangeStart || base;
     onSelectRange?.({ start: s, end: eDate });
-    try { localStorage.setItem('calendar_last_range', JSON.stringify({ start: s, end: eDate })); } catch {}
+    try {
+      localStorage.setItem(
+        "calendar_last_range",
+        JSON.stringify({ start: s, end: eDate }),
+      );
+    } catch {}
   };
 
   return (
@@ -361,254 +445,479 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
       ref={containerRef}
       tabIndex={rangeSelectable ? 0 : -1}
       onKeyDown={handleKey}
-      className={"w-full outline-none focus-visible:ring-2 ring-[#1dff00]/40 rounded " + className}
-      aria-label="Calendar"
-      aria-describedby={rangeSelectable ? 'calendar-range-hint' : undefined}
+      className={
+        "w-full outline-none focus-visible:ring-2 ring-[#1dff00]/40 rounded " +
+        className
+      }
+      aria-label='Calendar'
+      aria-describedby={rangeSelectable ? "calendar-range-hint" : undefined}
     >
       {showHeader && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-4">
-          <div className="flex items-center gap-2">
+        <div className='flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-4'>
+          <div className='flex items-center gap-2'>
             <button
-              type="button"
-              aria-label="Previous month"
+              type='button'
+              aria-label='Previous month'
               onClick={() => onMonthChange?.(addMonths(viewMonth, -1))}
-              className="bg-transparent text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-2 rounded transition"
+              className='bg-transparent text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-2 rounded transition'
             >
               ←
             </button>
-            <div className="flex flex-col items-center min-w-[140px]">
-              <h3 className="text-sm sm:text-base font-semibold text-white select-none leading-tight">{monthLabel}</h3>
-              <div className="mt-1 flex items-center gap-1 opacity-70 text-[9px]">
-                <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10">{addMonths(viewMonth,-1).toLocaleString(undefined,{month:'short'})}</span>
-                <span className="px-1.5 py-0.5 rounded bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00]">{viewMonth.toLocaleString(undefined,{month:'short'})}</span>
-                <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10">{addMonths(viewMonth,1).toLocaleString(undefined,{month:'short'})}</span>
+            <div className='flex flex-col items-center min-w-[140px]'>
+              <h3 className='text-sm sm:text-base font-semibold text-white select-none leading-tight'>
+                {monthLabel}
+              </h3>
+              <div className='mt-1 flex items-center gap-1 opacity-70 text-[9px]'>
+                <span className='px-1.5 py-0.5 rounded bg-white/5 border border-white/10'>
+                  {addMonths(viewMonth, -1).toLocaleString(undefined, {
+                    month: "short",
+                  })}
+                </span>
+                <span className='px-1.5 py-0.5 rounded bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00]'>
+                  {viewMonth.toLocaleString(undefined, { month: "short" })}
+                </span>
+                <span className='px-1.5 py-0.5 rounded bg-white/5 border border-white/10'>
+                  {addMonths(viewMonth, 1).toLocaleString(undefined, {
+                    month: "short",
+                  })}
+                </span>
               </div>
             </div>
             <button
-              type="button"
-              aria-label="Next month"
+              type='button'
+              aria-label='Next month'
               onClick={() => onMonthChange?.(addMonths(viewMonth, 1))}
-              className="bg-transparent text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-2 rounded transition"
+              className='bg-transparent text-[#1dff00] hover:bg-[#1dff00]/10 hover:scale-110 p-2 rounded transition'
             >
               →
             </button>
           </div>
-          <div className="flex items-center justify-end flex-wrap gap-1">
+          <div className='flex items-center justify-end flex-wrap gap-1'>
             <button
-              type="button"
+              type='button'
               onClick={() => onMonthChange?.(startOfMonth(new Date()))}
-              className="bg-transparent text-white/90 hover:text-[#1dff00] text-xs px-2 py-1 rounded border border-white/10 hover:border-[#1dff00]/40 transition"
+              className='bg-transparent text-foreground/90 hover:text-[#1dff00] text-xs px-2 py-1 rounded border border-foreground/10 hover:border-[#1dff00]/40 transition'
             >
               Today
             </button>
             <button
-              type="button"
-              onClick={() => onViewModeChange?.(viewMode === 'month' ? 'week' : 'month')}
-              className="bg-transparent text-xs px-2 py-1 rounded border border-white/10 hover:border-[#1dff00]/40 text-white/80 hover:text-[#1dff00] transition"
+              type='button'
+              onClick={() =>
+                onViewModeChange?.(viewMode === "month" ? "week" : "month")
+              }
+              className='bg-transparent text-xs px-2 py-1 rounded border border-foreground/10 hover:border-[#1dff00]/40 text-foreground/80 hover:text-[#1dff00] transition'
             >
-              {viewMode === 'month' ? 'Week' : 'Month'}
+              {viewMode === "month" ? "Week" : "Month"}
             </button>
             <button
-              type="button"
-              onClick={() => onDensityModeChange?.(densityMode==='full'?'compact':'full')}
-              className="bg-transparent text-xs px-2 py-1 rounded border border-white/10 hover:border-[#1dff00]/40 text-white/70 hover:text-[#1dff00] transition"
-            >{densityMode==='full'?'Compact':'Full'}</button>
+              type='button'
+              onClick={() =>
+                onDensityModeChange?.(
+                  densityMode === "full" ? "compact" : "full",
+                )
+              }
+              className='bg-transparent text-xs px-2 py-1 rounded border border-foreground/10 hover:border-[#1dff00]/40 text-foreground/70 hover:text-[#1dff00] transition'
+            >
+              {densityMode === "full" ? "Compact" : "Full"}
+            </button>
             <button
-              type="button"
+              type='button'
               onClick={() => onFocusContrastChange?.(!focusContrast)}
-              className={"text-xs px-2 py-1 rounded border transition "+(focusContrast?"bg-[#1dff00]/15 border-[#1dff00]/40 text-[#1dff00]":"bg-transparent border-white/10 text-white/60 hover:text-[#1dff00] hover:border-[#1dff00]/40")}
-            >Contrast</button>
+              className={
+                "text-xs px-2 py-1 rounded border transition " +
+                (focusContrast
+                  ? "bg-[#1dff00]/15 border-[#1dff00]/40 text-[#1dff00]"
+                  : "bg-transparent border-foreground/10 text-foreground/60 hover:text-[#1dff00] hover:border-[#1dff00]/40")
+              }
+            >
+              Contrast
+            </button>
             {enableICSExport && (
               <button
-                type="button"
+                type='button'
                 onClick={exportICS}
-                className="bg-transparent text-xs px-2 py-1 rounded border border-white/10 hover:border-[#1dff00]/40 text-white/60 hover:text-[#1dff00] transition"
-              >Export</button>
+                className='bg-transparent text-xs px-2 py-1 rounded border border-foreground/10 hover:border-[#1dff00]/40 text-foreground/60 hover:text-[#1dff00] transition'
+              >
+                Export
+              </button>
             )}
           </div>
         </div>
       )}
       {showLegend && (
-        <div className="flex flex-wrap gap-2 mb-3 text-[10px] sm:text-xs">
-          {['Pending','Applied','Interview','Offer','Rejected','Withdrawn'].map(s => (
+        <div className='flex flex-wrap gap-2 mb-3 text-[10px] sm:text-xs'>
+          {[
+            "Pending",
+            "Applied",
+            "Interview",
+            "Offer",
+            "Rejected",
+            "Withdrawn",
+          ].map((s) => (
             <span
               key={s}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] text-white/60 shadow-sm hover:border-[#1dff00]/30 hover:text-white/80 transition"
+              className='inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-foreground/10 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] text-foreground/60 shadow-sm hover:border-[#1dff00]/30 hover:text-foreground/80 transition'
             >
               <span
-                style={{ background: statusColor(s), boxShadow: `0 0 0 2px #000, 0 0 4px ${statusColor(s)}55`, width:8, height:8 }}
-                className="inline-block rounded-full"
-              /> {s}
+                style={{
+                  background: statusColor(s),
+                  boxShadow: `0 0 0 2px #000, 0 0 4px ${statusColor(s)}55`,
+                  width: 8,
+                  height: 8,
+                }}
+                className='inline-block rounded-full'
+              />{" "}
+              {s}
             </span>
           ))}
           {heatmap && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-[#1dff00]/30 bg-[#1dff00]/5 text-[#1dff00]/80 shadow-sm">
-              <span className="w-2 h-2 rounded-sm bg-[#1dff00] animate-pulse" /> Density
+            <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-[#1dff00]/30 bg-[#1dff00]/5 text-[#1dff00]/80 shadow-sm'>
+              <span className='w-2 h-2 rounded-sm bg-[#1dff00] animate-pulse' />{" "}
+              Density
             </span>
           )}
         </div>
       )}
 
       {/* Week header */}
-      <div className="grid grid-cols-7 gap-1 mb-2">
+      <div className='grid grid-cols-7 gap-1 mb-2'>
         {(() => {
           // Localized weekday narrow labels (Mon .. Sun) respecting weekStartsOn
           const base = [] as string[];
-          for (let i=0;i<7;i++) {
-            const ref = new Date(2021, 7, i+1); // arbitrary week
-            const lbl = new Intl.DateTimeFormat(usedLocale, { weekday: 'narrow' }).format(ref);
+          for (let i = 0; i < 7; i++) {
+            const ref = new Date(2021, 7, i + 1); // arbitrary week
+            const lbl = new Intl.DateTimeFormat(usedLocale, {
+              weekday: "narrow",
+            }).format(ref);
             base.push(lbl);
           }
-          const ordered = base.slice(weekStartsOn).concat(base.slice(0, weekStartsOn));
-          return ordered.map(d => <div key={d} className="text-center text-[10px] sm:text-xs text-[#666] font-medium py-1 select-none">{d}</div>);
+          const ordered = base
+            .slice(weekStartsOn)
+            .concat(base.slice(0, weekStartsOn));
+          return ordered.map((d) => (
+            <div
+              key={d}
+              className='text-center text-[10px] sm:text-xs text-[#666] font-medium py-1 select-none'
+            >
+              {d}
+            </div>
+          ));
         })()}
       </div>
 
       {/* Status Filters */}
       {onStatusFiltersChange && (
-        <div className="flex flex-wrap gap-1 mb-2 text-[10px] sm:text-[11px]">
-          {['Pending','Applied','Interview','Offer','Rejected','Withdrawn'].map(s => {
-            const active = !statusFilters || statusFilters.length===0 || statusFilters.includes(s);
+        <div className='flex flex-wrap gap-1 mb-2 text-[10px] sm:text-[11px]'>
+          {[
+            "Pending",
+            "Applied",
+            "Interview",
+            "Offer",
+            "Rejected",
+            "Withdrawn",
+          ].map((s) => {
+            const active =
+              !statusFilters ||
+              statusFilters.length === 0 ||
+              statusFilters.includes(s);
             return (
-              <button key={s} type="button"
+              <button
+                key={s}
+                type='button'
                 onClick={() => {
                   let next: string[] = [];
-                  if (!statusFilters || statusFilters.length===0) {
-                    next = ['Pending','Applied','Interview','Offer','Rejected','Withdrawn'].filter(x=>x!==s);
+                  if (!statusFilters || statusFilters.length === 0) {
+                    next = [
+                      "Pending",
+                      "Applied",
+                      "Interview",
+                      "Offer",
+                      "Rejected",
+                      "Withdrawn",
+                    ].filter((x) => x !== s);
                   } else {
-                    next = active ? statusFilters.filter(x=>x!==s) : [...statusFilters, s];
+                    next = active
+                      ? statusFilters.filter((x) => x !== s)
+                      : [...statusFilters, s];
                   }
                   onStatusFiltersChange(next);
                 }}
-                className={"px-2 py-0.5 rounded border text-xs transition "+(active?"bg-[#1dff00]/15 border-[#1dff00]/40 text-[#1dff00]":"bg-transparent border-white/10 text-white/40 hover:text-white/70 hover:border-white/30")}
-              >{s}</button>
+                className={
+                  "px-2 py-0.5 rounded border text-xs transition " +
+                  (active
+                    ? "bg-[#1dff00]/15 border-[#1dff00]/40 text-[#1dff00]"
+                    : "bg-transparent border-foreground/10 text-foreground/40 hover:text-foreground/70 hover:border-foreground/30")
+                }
+              >
+                {s}
+              </button>
             );
           })}
-          <button type="button" onClick={()=>onStatusFiltersChange([])} className="bg-transparent px-2 py-0.5 rounded border text-xs border-white/10 text-white/50 hover:text-[#1dff00] hover:border-[#1dff00]/40 transition">Reset</button>
+          <button
+            type='button'
+            onClick={() => onStatusFiltersChange([])}
+            className='bg-transparent px-2 py-0.5 rounded border text-xs border-foreground/10 text-foreground/50 hover:text-[#1dff00] hover:border-[#1dff00]/40 transition'
+          >
+            Reset
+          </button>
         </div>
       )}
 
       {enableAnalyticsRibbon && analytics && (
-        <div className="mb-2 rounded-lg border border-[#1dff00]/20 bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 px-3 py-2 flex flex-wrap items-center gap-3 text-[10px] sm:text-[11px]">
-          <span className="text-white/70">Range:</span>
-          <span className="text-[#1dff00] font-semibold">{analytics.total}</span>
-          <span className="text-white/60">Applied+Pending {analytics.funnel.applied}</span>
-          <span className="text-[#56c2ff]">Interview {analytics.funnel.interview}</span>
-            <span className="text-[#f8d74a]">Offer {analytics.funnel.offer}</span>
-            <span className="text-[#ff5f56]">Rejected {analytics.funnel.rejection}</span>
-          <span className="text-white/50 ml-auto flex items-center gap-2">
-            <span>A→I {(analytics.funnel.appliedToInterview*100).toFixed(0)}%</span>
-            <span>I→O {(analytics.funnel.interviewToOffer*100).toFixed(0)}%</span>
-            <span>A→O {(analytics.funnel.appliedToOffer*100).toFixed(0)}%</span>
+        <div className='mb-2 rounded-lg border border-[#1dff00]/20 bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 px-3 py-2 flex flex-wrap items-center gap-3 text-[10px] sm:text-[11px]'>
+          <span className='text-foreground/70'>Range:</span>
+          <span className='text-[#1dff00] font-semibold'>
+            {analytics.total}
+          </span>
+          <span className='text-foreground/60'>
+            Applied+Pending {analytics.funnel.applied}
+          </span>
+          <span className='text-[#56c2ff]'>
+            Interview {analytics.funnel.interview}
+          </span>
+          <span className='text-[#f8d74a]'>Offer {analytics.funnel.offer}</span>
+          <span className='text-[#ff5f56]'>
+            Rejected {analytics.funnel.rejection}
+          </span>
+          <span className='text-foreground/50 ml-auto flex items-center gap-2'>
+            <span>
+              A→I {(analytics.funnel.appliedToInterview * 100).toFixed(0)}%
+            </span>
+            <span>
+              I→O {(analytics.funnel.interviewToOffer * 100).toFixed(0)}%
+            </span>
+            <span>
+              A→O {(analytics.funnel.appliedToOffer * 100).toFixed(0)}%
+            </span>
           </span>
         </div>
       )}
 
       {/* Days */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className='grid grid-cols-7 gap-1'>
         {grid.map((cell, idx) => {
           const isToday = highlightToday && isSameDay(cell.date, today);
           const isSelected = selectedDate && isSameDay(cell.date, selectedDate);
-          const dayKey = cell.date.toISOString().slice(0,10);
+          const dayKey = cell.date.toISOString().slice(0, 10);
           const dayEvents = eventsByDay[dayKey] || [];
           const expanded = expandedDays.has(dayKey);
           const limit = expanded ? dayEvents.length : maxVisibleEventsPerDay;
           const extra = dayEvents.length - limit;
-          const isWeekend = [0,6].includes(cell.date.getDay());
+          const isWeekend = [0, 6].includes(cell.date.getDay());
           let heatmapStyle: React.CSSProperties = {};
           if (heatmap && dayEvents.length > 0 && !isToday) {
-            const ratio = heatmapMax ? Math.min(1, dayEvents.length / heatmapMax) : 0;
+            const ratio = heatmapMax
+              ? Math.min(1, dayEvents.length / heatmapMax)
+              : 0;
             const alpha = 0.05 + ratio * 0.45;
-            const base = focusContrast && ratio < 0.2 ? '0,0,0' : '29,255,0';
-            heatmapStyle.background = (isSelected ? 'linear-gradient(135deg, rgba('+base+','+alpha+'), rgba('+base+','+(alpha*0.5)+'))' : 'rgba('+base+','+alpha+')');
+            const base = focusContrast && ratio < 0.2 ? "0,0,0" : "29,255,0";
+            heatmapStyle.background = isSelected
+              ? "linear-gradient(135deg, rgba(" +
+                base +
+                "," +
+                alpha +
+                "), rgba(" +
+                base +
+                "," +
+                alpha * 0.5 +
+                "))"
+              : "rgba(" + base + "," + alpha + ")";
           }
           return (
             <motion.button
-              key={cell.date.toISOString()+idx}
-              type="button"
+              key={cell.date.toISOString() + idx}
+              type='button'
               onClick={() => handleDayClick(cell.date)}
               onMouseDown={() => beginDrag(cell.date)}
               onMouseEnter={() => dragOver(cell.date)}
-              onDrop={(e)=>handleDrop(e, cell.date)}
+              onDrop={(e) => handleDrop(e, cell.date)}
               onDragOver={handleDragOver}
-              onDoubleClick={() => { if (enableQuickCreate) setQuickCreate({ key: dayKey, date: cell.date, title: '' }); }}
+              onDoubleClick={() => {
+                if (enableQuickCreate)
+                  setQuickCreate({ key: dayKey, date: cell.date, title: "" });
+              }}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.94 }}
               className={[
-                'relative text-left p-2 rounded-xl transition-all duration-150 flex flex-col gap-1 min-h-[72px] sm:min-h-[84px] group shadow-inner',
-                'focus:outline-none focus-visible:ring-2 ring-[#1dff00]/60',
-                'bg-[#0a0a0a]', // Base dark background for all cells
-                cell.inCurrent ? 'cursor-pointer' : 'cursor-pointer opacity-40',
-                isWeekend && !isToday ? 'bg-[#0c0c0c]' : '', // Slightly lighter for weekends
-                isToday ? '!bg-gradient-to-br from-[#1dff00] to-[#15c944] text-black font-bold shadow-lg ring-1 ring-[#1dff00]/60' : '',
-                !isToday && cell.inCurrent ? 'text-[#e5e5e5] hover:bg-[#1a1a1a] hover:text-[#1dff00]' : '',
-                !cell.inCurrent && !isToday ? 'text-[#565656] hover:bg-[#141414]' : '',
-                isSelected && !isToday ? 'border border-[#1dff00]/70 shadow-lg shadow-[#1dff00]/10 !bg-[#111111]' : 'border border-white/5',
-                inSelectedRange(cell.date) && !isToday ? '!bg-gradient-to-br from-[#1dff00]/15 to-[#1dff00]/5 backdrop-blur-sm' : '',
-                focusContrast && dayEvents.length===0 && !isToday ? 'opacity-30 hover:opacity-60' : ''
-              ].join(' ')}
+                "relative text-left p-2 rounded-xl transition-all duration-150 flex flex-col gap-1 min-h-[72px] sm:min-h-[84px] group shadow-inner",
+                "focus:outline-none focus-visible:ring-2 ring-[#1dff00]/60",
+                "bg-foreground/10 text-for", // Base dark background for all cells
+                cell.inCurrent ? "cursor-pointer" : "cursor-pointer opacity-40",
+                isWeekend && !isToday ? "bg-[#0c0c0c]" : "", // Slightly lighter for weekends
+                isToday
+                  ? "!bg-gradient-to-br from-[#1dff00] to-[#15c944] text-foreground font-bold shadow-lg ring-1 ring-[#1dff00]/60"
+                  : "",
+                !isToday && cell.inCurrent
+                  ? "text-foreground/70 hover:bg-foreground/80 hover:text-[#1dff00]"
+                  : "",
+                !cell.inCurrent && !isToday
+                  ? "text-[#565656] hover:bg-foreground/80"
+                  : "",
+                isSelected && !isToday
+                  ? "border border-[#1dff00]/70 shadow-lg shadow-[#1dff00]/10 !bg-foreground"
+                  : "border border-foreground/5",
+                inSelectedRange(cell.date) && !isToday
+                  ? "!bg-gradient-to-br from-[#1dff00]/15 to-[#1dff00]/5 backdrop-blur-sm"
+                  : "",
+                focusContrast && dayEvents.length === 0 && !isToday
+                  ? "opacity-30 hover:opacity-60"
+                  : "",
+              ].join(" ")}
               style={heatmapStyle}
             >
               <div className='flex items-center justify-between w-full'>
-                <div className='text-xs sm:text-sm leading-none mb-0.5 font-medium tracking-wide'>{cell.date.getDate()}</div>
+                <div className='text-xs sm:text-sm leading-none mb-0.5 font-medium tracking-wide'>
+                  {cell.date.getDate()}
+                </div>
                 {showDayEventCount && dayEvents.length > 0 && (
-                  <span className='text-[10px] px-1.5 rounded-md bg-[#1dff00]/15 text-[#1dff00] font-semibold shadow-sm'>{dayEvents.length}</span>
+                  <span className='text-[10px] px-1.5 rounded-md bg-foreground/15 text-[#1dff00] font-semibold shadow-sm'>
+                    {dayEvents.length}
+                  </span>
                 )}
               </div>
-              <div className="flex-1 w-full overflow-hidden flex flex-col">
-                {densityMode==='compact' && dayEvents.length>0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {dayEvents.slice(0, limit).map(ev => (
-                      <span key={ev.id} title={ev.title} draggable={allowDrag} onDragStart={(e)=>handleDragStart(e,ev)} className="w-2.5 h-2.5 rounded-full border border-black/40 shadow" style={{ background: statusColor(ev.status) }} />
+              <div className='flex-1 w-full overflow-hidden flex flex-col'>
+                {densityMode === "compact" && dayEvents.length > 0 && (
+                  <div className='flex flex-wrap gap-1 mt-1'>
+                    {dayEvents.slice(0, limit).map((ev) => (
+                      <span
+                        key={ev.id}
+                        title={ev.title}
+                        draggable={allowDrag}
+                        onDragStart={(e) => handleDragStart(e, ev)}
+                        className='w-2.5 h-2.5 rounded-full border border-foreground/40 shadow'
+                        style={{ background: statusColor(ev.status) }}
+                      />
                     ))}
-                    {extra>0 && !expanded && (
-                      <button type="button" onClick={()=>toggleExpanded(dayKey)} className="text-[10px] px-1.5 rounded bg-white/5 text-white/60 hover:text-[#1dff00]">+{extra}</button>
+                    {extra > 0 && !expanded && (
+                      <button
+                        type='button'
+                        onClick={() => toggleExpanded(dayKey)}
+                        className='text-[10px] px-1.5 rounded bg-foreground/5 text-foreground/60 hover:text-[#1dff00]'
+                      >
+                        +{extra}
+                      </button>
                     )}
                   </div>
                 )}
-                {densityMode==='full' && dayEvents.slice(0, limit).map(ev => (
-                  <div key={ev.id} draggable={allowDrag} onDragStart={(e)=>handleDragStart(e,ev)}
-                       title={ev.subtitle ? ev.title + ' — ' + ev.subtitle : ev.title}
-                       className={"relative group truncate rounded-md px-2 py-1 text-xs sm:text-sm font-medium mb-1 last:mb-0 flex items-center gap-1.5 border "+(motionDisabled?'':'transition-all hover:scale-[1.02]')}
-                       style={{
-                         background: 'linear-gradient(135deg,'+statusColor(ev.status)+'30, '+statusColor(ev.status)+'10)',
-                         color: statusColor(ev.status),
-                         borderColor: statusColor(ev.status)+'55',
-                         boxShadow: (ev.status||'').toLowerCase()==='offer' ? '0 0 0 1px #f8d74a55,0 0 6px #f8d74a55' : (ev.status||'').toLowerCase()==='rejected' ? '0 0 0 1px #ff5f5655,0 0 6px #ff5f5644' : 'none'
-                       }}>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusColor(ev.status) }} />
-                    {ev.title}
-                    <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute z-30 left-0 top-full mt-1 min-w-[160px] max-w-[220px] p-2 rounded-md border border-[#1dff00]/30 bg-[#050505]/95 backdrop-blur-sm text-[10px] leading-snug text-white shadow-2xl">
-                      <div className="font-semibold text-[#1dff00] mb-0.5 truncate">{ev.title}</div>
-                      {ev.subtitle && <div className="text-white/70 truncate">{ev.subtitle}</div>}
-                      {ev.status && <div className="mt-0.5 text-[9px] uppercase tracking-wide" style={{ color: statusColor(ev.status) }}>{ev.status}</div>}
-                      <div className="mt-0.5 text-[9px] text-white/50">{cell.date.toLocaleDateString(usedLocale)}</div>
+                {densityMode === "full" &&
+                  dayEvents.slice(0, limit).map((ev) => (
+                    <div
+                      key={ev.id}
+                      draggable={allowDrag}
+                      onDragStart={(e) => handleDragStart(e, ev)}
+                      title={
+                        ev.subtitle ? ev.title + " — " + ev.subtitle : ev.title
+                      }
+                      className={
+                        "relative group truncate rounded-md px-2 py-1 text-xs sm:text-sm font-medium mb-1 last:mb-0 flex items-center gap-1.5 border " +
+                        (motionDisabled
+                          ? ""
+                          : "transition-all hover:scale-[1.02]")
+                      }
+                      style={{
+                        background:
+                          "linear-gradient(135deg," +
+                          statusColor(ev.status) +
+                          "30, " +
+                          statusColor(ev.status) +
+                          "10)",
+                        color: statusColor(ev.status),
+                        borderColor: statusColor(ev.status) + "55",
+                        boxShadow:
+                          (ev.status || "").toLowerCase() === "offer"
+                            ? "0 0 0 1px #f8d74a55,0 0 6px #f8d74a55"
+                            : (ev.status || "").toLowerCase() === "rejected"
+                              ? "0 0 0 1px #ff5f5655,0 0 6px #ff5f5644"
+                              : "none",
+                      }}
+                    >
+                      <span
+                        className='w-1.5 h-1.5 rounded-full'
+                        style={{ background: statusColor(ev.status) }}
+                      />
+                      {ev.title}
+                      <div className='pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute z-30 left-0 top-full mt-1 min-w-[160px] max-w-[220px] p-2 rounded-md border border-[#1dff00]/30 bg-foreground/95 backdrop-blur-sm text-[10px] leading-snug text-foreground shadow-2xl'>
+                        <div className='font-semibold text-[#1dff00] mb-0.5 truncate'>
+                          {ev.title}
+                        </div>
+                        {ev.subtitle && (
+                          <div className='text-foreground/70 truncate'>
+                            {ev.subtitle}
+                          </div>
+                        )}
+                        {ev.status && (
+                          <div
+                            className='mt-0.5 text-[9px] uppercase tracking-wide'
+                            style={{ color: statusColor(ev.status) }}
+                          >
+                            {ev.status}
+                          </div>
+                        )}
+                        <div className='mt-0.5 text-[9px] text-foreground/50'>
+                          {cell.date.toLocaleDateString(usedLocale)}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-                {extra>0 && densityMode==='full' && !expanded && (
-                  <button type="button" onClick={()=>toggleExpanded(dayKey)} className="mt-auto text-[9px] sm:text-[10px] text-[#1dff00] font-semibold italic opacity-80 hover:underline">+{extra} more</button>
+                  ))}
+                {extra > 0 && densityMode === "full" && !expanded && (
+                  <button
+                    type='button'
+                    onClick={() => toggleExpanded(dayKey)}
+                    className='mt-auto text-[9px] sm:text-[10px] text-[#1dff00] font-semibold italic opacity-80 hover:underline'
+                  >
+                    +{extra} more
+                  </button>
                 )}
-                {expanded && extra>0 && (
-                  <button type="button" onClick={()=>toggleExpanded(dayKey)} className="mt-auto text-[9px] sm:text-[10px] text-white/50 hover:text-[#ff5f56]">Collapse</button>
+                {expanded && extra > 0 && (
+                  <button
+                    type='button'
+                    onClick={() => toggleExpanded(dayKey)}
+                    className='mt-auto text-[9px] sm:text-[10px] text-foreground/50 hover:text-[#ff5f56]'
+                  >
+                    Collapse
+                  </button>
                 )}
-                {quickCreate && quickCreate.key===dayKey && (
-                  <div className="mt-1 p-1.5 rounded-md border border-[#1dff00]/30 bg-black/60 flex items-center gap-1">
-                    <input autoFocus value={quickCreate.title} onChange={e=>setQuickCreate({...quickCreate,title:e.target.value})}
-                      onKeyDown={e=>{ if (e.key==='Enter'){ handleQuickCreateSubmit(); } else if (e.key==='Escape'){ setQuickCreate(null);} }}
-                      placeholder="New event title" className="bg-transparent text-[10px] flex-1 outline-none placeholder-white/30" />
-                    <button type="button" onClick={handleQuickCreateSubmit} className="text-[10px] px-1 py-0.5 rounded bg-[#1dff00]/20 text-[#1dff00] hover:bg-[#1dff00]/30">Add</button>
+                {quickCreate && quickCreate.key === dayKey && (
+                  <div className='mt-1 p-1.5 rounded-md border border-[#1dff00]/30 bg-black/60 flex items-center gap-1'>
+                    <input
+                      autoFocus
+                      value={quickCreate.title}
+                      onChange={(e) =>
+                        setQuickCreate({
+                          ...quickCreate,
+                          title: e.target.value,
+                        })
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleQuickCreateSubmit();
+                        } else if (e.key === "Escape") {
+                          setQuickCreate(null);
+                        }
+                      }}
+                      placeholder='New event title'
+                      className='bg-transparent text-[10px] flex-1 outline-none placeholder-foreground/30'
+                    />
+                    <button
+                      type='button'
+                      onClick={handleQuickCreateSubmit}
+                      className='text-[10px] px-1 py-0.5 rounded bg-[#1dff00]/20 text-[#1dff00] hover:bg-[#1dff00]/30'
+                    >
+                      Add
+                    </button>
                   </div>
                 )}
               </div>
               {/* subtle focus / hover outline overlay */}
-              <div className="pointer-events-none absolute inset-0 rounded-xl ring-0 group-hover:ring-1 group-hover:ring-[#1dff00]/40 transition" />
+              <div className='pointer-events-none absolute inset-0 rounded-xl ring-0 group-hover:ring-1 group-hover:ring-[#1dff00]/40 transition' />
             </motion.button>
           );
         })}
       </div>
       {enableQuickCreate && !quickCreate && (
-        <div className="mt-1 text-[10px] text-white/30">Double-click a day to quick add.</div>
+        <div className='mt-1 text-[10px] text-foreground/30'>
+          Double-click a day to quick add.
+        </div>
       )}
     </div>
   );

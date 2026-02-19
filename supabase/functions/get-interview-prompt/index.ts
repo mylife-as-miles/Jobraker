@@ -9,7 +9,8 @@ const openai = new OpenAI({
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
@@ -23,7 +24,8 @@ serve(async (req) => {
     const messages = [
       {
         role: "system",
-        content: "You are a friendly and encouraging interview coach. Provide a concise, open-ended question to help a user practice for a job interview. Questions should be under 15 words and inspire a thoughtful response.",
+        content:
+          "You are a friendly and encouraging interview coach. Provide a concise, open-ended question to help a user practice for a job interview. Questions should be under 15 words and inspire a thoughtful response.",
       },
     ];
 

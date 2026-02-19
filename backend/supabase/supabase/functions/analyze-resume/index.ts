@@ -1,12 +1,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { GoogleGenAI } from "npm:@google/genai";
-import { getCorsHeaders, corsHeaders } from "../_shared/types.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createGeminiClient, GEMINI_MODEL, createGeminiConfig } from "../_shared/gemini.ts";
-
-// IDE Hack
-declare const Deno: any;
+import { corsHeaders } from "../_shared/types.ts";
 
 interface ResumeAnalysisRequest {
   resumeText: string;
@@ -124,7 +120,7 @@ function toResult(raw: any): ResumeAnalysisResult {
   };
 }
 
-serve(async (req: Request) => {
+serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -170,7 +166,7 @@ serve(async (req: Request) => {
         contents: [{ role: 'user', parts: [{ text: userPrompt }] }]
     });
 
-    const content = typeof (response as any).text === 'function' ? (response as any).text() : (response as any).text || '';
+    const content = response.text();
     if (!content) throw new Error("Invalid response from Gemini (empty)");
 
     let parsed;

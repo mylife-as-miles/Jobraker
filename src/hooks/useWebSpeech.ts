@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 export const useWebSpeech = (isListening: boolean) => {
   const [transcript, setTranscript] = useState('');

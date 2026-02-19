@@ -10,8 +10,6 @@ import { GlalieTemplate } from '../../../templates/glalie';
 import { KakunaTemplate } from '../../../templates/kakuna';
 import { PikachuTemplate } from '../../../templates/pikachu';
 import { RhyhornTemplate } from '../../../templates/rhyhorn';
-import { EeveeTemplate } from '../../../templates/eevee';
-import { LaprasTemplate } from '../../../templates/lapras';
 
 interface TemplatePreviewProps {
     templateId: string;
@@ -59,8 +57,6 @@ export const TemplatePreview: FC<TemplatePreviewProps> = ({ templateId }) => {
                 {templateId === 'kakuna' && <KakunaTemplate />}
                 {templateId === 'pikachu' && <PikachuTemplate />}
                 {templateId === 'rhyhorn' && <RhyhornTemplate />}
-                {templateId === 'lapras' && <LaprasTemplate />}
-                {templateId === 'eevee' && <EeveeTemplate />}
             </div>
         </div>
     );

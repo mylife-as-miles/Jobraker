@@ -48,7 +48,7 @@ export function AnalyticsContent({ period = "30d", data = {} as any }: { period?
   };
 
   const Delta = ({ value }: { value: number }) => {
-    if (!value) return <span className="text-[11px] text-white/60">0%</span>
+    if (!value) return <span className="text-[11px] text-foreground/60">0%</span>
     const positive = value > 0
     return (
       <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -59,47 +59,47 @@ export function AnalyticsContent({ period = "30d", data = {} as any }: { period?
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 lg:space-y-8 p-1 sm:p-2 bg-black">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8 p-1 sm:p-2 bg-foreground/5">
       {/* KPI Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-        <button type="button" onClick={() => gotoApplications()} className="text-left rounded-xl border border-white/15 bg-white/[0.04] p-3 sm:p-4 hover:border-[#1dff00]/40 hover:bg-white/[0.08] transition">
+        <button type="button" onClick={() => gotoApplications()} className="text-left rounded-xl border border-foreground/15 bg-foreground/[0.04] p-3 sm:p-4 hover:border-[#1dff00]/40 hover:bg-white/[0.08] transition">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-white/70">Applications</span>
-            <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center"><Briefcase className="w-4 h-4 text-white/80" /></div>
+            <span className="text-xs text-foreground/70">Applications</span>
+            <div className="w-7 h-7 rounded-full bg-foreground/10 flex items-center justify-center"><Briefcase className="w-4 h-4 text-foreground/80" /></div>
           </div>
           <div className="flex items-end justify-between">
-            <div className="text-2xl sm:text-3xl font-bold text-white">{metrics.applications}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-foreground">{metrics.applications}</div>
             <Delta value={comparisons.applicationsDeltaPct} />
           </div>
         </button>
-        <button type="button" onClick={() => gotoApplications('Interview')} className="text-left rounded-xl border border-white/15 bg-white/[0.04] p-3 sm:p-4 hover:border-[#1dff00]/40 hover:bg-white/[0.08] transition">
+        <button type="button" onClick={() => gotoApplications('Interview')} className="text-left rounded-xl border border-foreground/15 bg-foreground/[0.04] p-3 sm:p-4 hover:border-[#1dff00]/40 hover:bg-foreground/[0.08] transition">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-white/70">Interviews</span>
-            <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center"><CalendarCheck className="w-4 h-4 text-white/80" /></div>
+            <span className="text-xs text-foreground/70">Interviews</span>
+            <div className="w-7 h-7 rounded-full bg-foreground/10 flex items-center justify-center"><CalendarCheck className="w-4 h-4 text-foreground/80" /></div>
           </div>
           <div className="flex items-end justify-between">
-            <div className="text-2xl sm:text-3xl font-bold text-white">{metrics.interviews}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-foreground">{metrics.interviews}</div>
             <Delta value={comparisons.interviewsDeltaPct} />
           </div>
         </button>
-        <button type="button" onClick={gotoJobs} className="text-left rounded-xl border border-white/15 bg-white/[0.04] p-3 sm:p-4 hover:border-[#1dff00]/40 hover:bg-white/[0.08] transition">
+        <button type="button" onClick={gotoJobs} className="text-left rounded-xl border border-foreground/15 bg-foreground/[0.04] p-3 sm:p-4 hover:border-[#1dff00]/40 hover:bg-foreground/[0.08] transition">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-white/70">Jobs found</span>
-            <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center"><Globe className="w-4 h-4 text-white/80" /></div>
+            <span className="text-xs text-foreground/70">Jobs found</span>
+            <div className="w-7 h-7 rounded-full bg-foreground/10 flex items-center justify-center"><Globe className="w-4 h-4 text-foreground/80" /></div>
           </div>
           <div className="flex items-end justify-between">
-            <div className="text-2xl sm:text-3xl font-bold text-white">{metrics.jobsFound}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-foreground">{metrics.jobsFound}</div>
             <Delta value={comparisons.jobsFoundDeltaPct} />
           </div>
         </button>
-        <div className="rounded-xl border border-white/15 bg-white/[0.04] p-3 sm:p-4">
+        <div className="rounded-xl border border-foreground/15 bg-foreground/[0.04] p-3 sm:p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-white/70">Sources</span>
-            <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center"><Layers className="w-4 h-4 text-white/80" /></div>
+            <span className="text-xs text-foreground/70">Sources</span>
+            <div className="w-7 h-7 rounded-full bg-foreground/10 flex items-center justify-center"><Layers className="w-4 h-4 text-foreground/80" /></div>
           </div>
           <div className="flex items-end justify-between">
-            <div className="text-2xl sm:text-3xl font-bold text-white">{metrics.sources}</div>
-            <span className="text-[11px] text-white/60">distinct</span>
+            <div className="text-2xl sm:text-3xl font-bold text-foreground">{metrics.sources}</div>
+            <span className="text-[11px] text-foreground/60">distinct</span>
           </div>
         </div>
       </div>

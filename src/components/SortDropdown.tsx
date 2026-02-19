@@ -8,10 +8,9 @@ type Option = { value: string; label: string };
 type SortDropdownProps = {
   value: string;
   onChange: (value: string) => void;
-  className?: string; // Added className prop
 };
 
-export default function SortDropdown({ value, onChange, className }: SortDropdownProps) {
+export default function SortDropdown({ value, onChange }: SortDropdownProps) {
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -52,14 +51,14 @@ export default function SortDropdown({ value, onChange, className }: SortDropdow
   };
 
   return (
-    <div className={`relative inline-block text-sm ${className || ''}`} ref={rootRef}>
+    <div className="relative inline-block text-sm" ref={rootRef}>
       <button
         ref={triggerRef}
         type="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         onClick={toggleOpen}
-        className={`inline-flex items-center justify-between w-full px-3 py-2 rounded-md bg-neutral-900 text-white border border-neutral-700 hover:bg-neutral-800 transition-colors ${className ? '' : 'w-[180px]'} ${className || ''}`} // allow className to override width/style
+        className="inline-flex items-center justify-between w-[180px] px-3 py-2 rounded-md bg-transparent text-foreground border transition-colors"
       >
         <span className="truncate">{selectedOption.label}</span>
         <ChevronDown
@@ -68,14 +67,14 @@ export default function SortDropdown({ value, onChange, className }: SortDropdow
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 bottom-full mb-1 w-[180px] bg-neutral-900 border border-neutral-700 rounded-md shadow-lg">
+        <div className="absolute z-50 bottom-full mb-1 w-[180px] bg-transparent border border-neutral-700 rounded-md shadow-lg">
           <div role="listbox" aria-label="Sort options" className="p-1">
             {options.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => handleSelect(opt)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded text-left text-sm text-white bg-neutral-900 hover:bg-neutral-800"
+                className="w-full flex items-center justify-between px-3 py-2 rounded text-left text-sm text-white bg-transparent hover:bg-neutral-800"
               >
                 <span className="truncate">{opt.label}</span>
                 {value === opt.value && <Check className="h-4 w-4" />}

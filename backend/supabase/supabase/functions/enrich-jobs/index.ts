@@ -7,18 +7,14 @@ import { GoogleGenAI } from "npm:@google/genai";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getCorsHeaders } from "../_shared/types.ts";
 
-// Hack to satisfy IDE if Deno is not in lib
-declare const Deno: any;
-
 const GEMINI_MODEL = 'gemini-3-pro-preview';
 
 function trim(s: any): string { return (typeof s === 'string' ? s : '').trim(); }
 
-Deno.serve(async (req: Request) => {
-  const corsHeaders = getCorsHeaders(req.headers.get('origin') || undefined);
+Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { ...corsHeaders, 'content-type': 'application/json' } });
 
   try {
@@ -37,7 +33,7 @@ Deno.serve(async (req: Request) => {
 
     // Select candidate jobs to enrich
     let jobs: any[] = [];
-    if (jobIds && jobIds.length > 0) {
+    if (jobIds && jobIds.length) {
       const { data, error } = await sbUser
         .from('jobs')
         .select('*')
@@ -119,7 +115,7 @@ Rules:
         const response = await ai.models.generateContent({
           model: GEMINI_MODEL,
           config: {
-            thinkingConfig: { thinkingLevel: 'HIGH' as any }, 
+            thinkingConfig: { thinkingLevel: 'HIGH' },
             tools: [{ urlContext: {} }, { googleSearch: {} }],
             responseMimeType: 'application/json',
             systemInstruction: systemPrompt,
@@ -127,11 +123,7 @@ Rules:
           contents: [{ role: 'user', parts: [{ text: schemaHint + "\n\n" + user }] }]
         });
         
-        // Handle response.text() vs response.text property safely
-        const content = typeof (response as any).text === 'function'
-             ? (response as any).text() 
-             : ((response as any).text || '');
-        
+        const content = response.text()?.trim() || '';
         // Extract JSON block
         const jsonMatch = content.match(/\{[\s\S]*\}$/);
         const jsonText = jsonMatch ? jsonMatch[0] : content;
