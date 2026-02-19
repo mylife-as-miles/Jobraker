@@ -1,32 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>Jobraker - Autonomous Job Application Platform</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="The world's first fully autonomous job application platform. Jobraker leverages advanced AI to search, apply, and optimize your job hunt 24/7." />
-    <meta property="og:title" content="Jobraker - Autonomous Job Application Platform" />
-    <meta property="og:description" content="The world's first fully autonomous job application platform. Jobraker leverages advanced AI to search, apply, and optimize your job hunt 24/7." />
-    <meta property="og:type" content="website" />
-    <style>
-      @import url("https://fonts.googleapis.com/css?family=Inter:500");
-    </style>
-    <script>
-      (function initializeTheme() {
-        try {
-          if (localStorage.theme === "dark" || (!('theme' in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
-            document.documentElement.classList.add("dark");
-          } else {
-            document.documentElement.classList.remove("dark");
-          }
-        } catch (_) {}
-      })();
-    </script>
-    <!-- Styles are imported via Vite in src/index.tsx (../tailwind.css) -->
-  </head>
-  <body style="margin: 0; padding: 0; background-color: #000;">
-    <div id="app"></div>
-    <div id="radix-portal"></div>
-    <script type="module" src="./src/index.tsx"></script>
-  </body>
+
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Jobraker - Autonomous Job Application Platform</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description"
+    content="The world's first fully autonomous job application platform. Jobraker leverages advanced AI to search, apply, and optimize your job hunt 24/7." />
+  <meta property="og:title" content="Jobraker - Autonomous Job Application Platform" />
+  <meta property="og:description"
+    content="The world's first fully autonomous job application platform. Jobraker leverages advanced AI to search, apply, and optimize your job hunt 24/7." />
+  <meta property="og:type" content="website" />
+  <style>
+    @import url("https://fonts.googleapis.com/css?family=Inter:500");
+  </style>
+  <script>
+    (function initializeTheme() {
+      try {
+        if (localStorage.theme === "dark" || (!('theme' in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+      } catch (_) { }
+    })();
+  </script>
+  <!-- Styles are imported via Vite in src/index.tsx (../tailwind.css) -->
+</head>
+
+<body style="margin: 0; padding: 0; background-color: #000;">
+  <div id="app"></div>
+  <div id="radix-portal"></div>
+  <script type="module" src="./src/index.tsx"></script>
+</body>
+
 </html>

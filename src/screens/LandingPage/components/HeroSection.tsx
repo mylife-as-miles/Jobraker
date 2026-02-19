@@ -1,4 +1,3 @@
-import React from "react";
 import { Button } from "../../../components/ui/button";
 import { ArrowRight, Terminal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
