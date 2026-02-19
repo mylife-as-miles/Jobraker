@@ -1,7 +1,6 @@
 "use client"
 import React from "react"
 import { Area, AreaChart, CartesianGrid, XAxis, ResponsiveContainer } from "recharts"
-import { motion } from "framer-motion"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "../../../components/ui/chart"
 import { useMemo, useState } from "react"
 
@@ -147,7 +146,6 @@ export function SplitLineAreaChart({
       >
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
-            accessibilityLayer
             data={data}
             margin={{ left: 12, right: 12, top: 12 }}
             stackOffset={effectiveStacked ? 'expand' : undefined}
@@ -174,18 +172,16 @@ export function SplitLineAreaChart({
                 const gradientId = `fill_${s.key}`
                 return (
                   <linearGradient key={gradientId} id={gradientId} x1="0" y1="0" x2="1" y2="0">
-                    <motion.stop offset="0%" stopColor={color as string} stopOpacity={0.9} />
-                    <motion.stop
+                    <stop offset="0%" stopColor={color as string} stopOpacity={0.9} />
+                    <stop
+                      offset={`${splitOffset}%`}
                       stopColor={color as string}
                       stopOpacity={0.8}
-                      animate={{ offset: `${splitOffset}%` }}
-                      transition={{ duration: 0.4, ease: "easeInOut" }}
                     />
-                    <motion.stop
+                    <stop
+                      offset={`${splitOffset + 0.1}%`}
                       stopColor={color as string}
                       stopOpacity={0.2}
-                      animate={{ offset: `${splitOffset + 0.1}%` }}
-                      transition={{ duration: 0.4, ease: "easeInOut" }}
                     />
                     <stop offset="95%" stopColor="#0a2f0a" stopOpacity={0.1} />
                   </linearGradient>
