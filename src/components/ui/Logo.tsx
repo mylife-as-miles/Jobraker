@@ -11,7 +11,6 @@ interface LogoProps {
 export const Logo: React.FC<LogoProps> = ({
     className,
     iconOnly = false,
-    width = "auto",
     height = 32
 }) => {
     return (
