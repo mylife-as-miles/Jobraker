@@ -216,10 +216,10 @@ export type ArtboardStore = {
     resetCoverLetter: () => void;
     
     setCoverLetterField: <K extends keyof CoverLetterState>(field: K, data: CoverLetterState[K]) => void;
-    setCoverLetterNested: <K extends 'sender' | 'recipient' | 'content' | 'typography', F extends keyof CoverLetterState[K]>(
-        section: K,
-        field: F,
-        value: CoverLetterState[K][F]
+    setCoverLetterNested: (
+        section: 'sender' | 'recipient' | 'content' | 'typography',
+        field: string,
+        value: any
     ) => void;
 };
 
@@ -722,7 +722,7 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
         set((state) => ({ coverLetter: { ...state.coverLetter, tags } })),
     
     resetCoverLetter: () =>
-        set((state) => ({ 
+        set(() => ({ 
             coverLetter: {
                 id: '',
                 title: 'Untitled Cover Letter',
