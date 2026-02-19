@@ -51,7 +51,8 @@ export function SplitLineAreaChart({
   const effectiveStacked = stacked && visible.size > 1
 
   const n = Math.max(1, (data?.length || 0) - 1)
-  const splitOffset = hoverIndex != null ? (hoverIndex / n) * 100 : 100
+  const rawOffset = hoverIndex != null ? (hoverIndex / n) * 100 : 100
+  const splitOffset = Math.max(0, Math.min(99.9, rawOffset))
 
   const chartConfig: ChartConfig = useMemo(() => {
     const cfg: Record<string, { label: string; color: string }> = {}
@@ -66,14 +67,10 @@ export function SplitLineAreaChart({
 
   // Notify parent about visible series change
   React.useEffect(() => {
-    // call if provided
-    // avoid recreating array unnecessarily
-    // sort for stable order
     const arr = Array.from(visible)
     arr.sort()
       ; (typeof onVisibleChange === 'function') && onVisibleChange(arr)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible])
+  }, [visible, onVisibleChange])
 
   // Sync visibility when defaultVisible or series change
   React.useEffect(() => {
@@ -84,8 +81,7 @@ export function SplitLineAreaChart({
     } else {
       setVisible(keys)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultVisible, series.map(s => s.key).join("|")])
+  }, [defaultVisible, series])
 
   return (
     <div className={`relative ${className} overflow-hidden`}>
@@ -172,18 +168,18 @@ export function SplitLineAreaChart({
                 const gradientId = `fill_${s.key}`
                 return (
                   <linearGradient key={gradientId} id={gradientId} x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor={color as string} stopOpacity={0.9} />
+                    <stop offset="0%" stopColor={color as string} stopOpacity={0.8} />
                     <stop
                       offset={`${splitOffset}%`}
                       stopColor={color as string}
-                      stopOpacity={0.8}
+                      stopOpacity={0.6}
                     />
                     <stop
-                      offset={`${splitOffset + 0.1}%`}
+                      offset={`${Math.min(99.9, splitOffset + 0.1)}%`}
                       stopColor={color as string}
-                      stopOpacity={0.2}
+                      stopOpacity={0.1}
                     />
-                    <stop offset="95%" stopColor="#0a2f0a" stopOpacity={0.1} />
+                    <stop offset="100%" stopColor={color as string} stopOpacity={0.05} />
                   </linearGradient>
                 )
               })}
@@ -196,14 +192,16 @@ export function SplitLineAreaChart({
                 <Area
                   key={s.key}
                   dataKey={s.key}
-                  type="natural"
+                  type="monotone"
                   fill={`url(#${gradientId})`}
                   stroke={color as string}
                   strokeWidth={effectiveStacked ? 1.5 : 2}
-                  fillOpacity={effectiveStacked ? 0.9 : 0.6}
+                  fillOpacity={1}
                   dot={false}
+                  activeDot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
                   stackId={effectiveStacked ? "a" : undefined}
                   hide={!visible.has(s.key)}
+                  connectNulls
                 />
               )
             })}
