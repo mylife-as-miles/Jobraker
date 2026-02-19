@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Logo } from "../../components/ui/Logo";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 
@@ -82,11 +83,10 @@ const SidebarItem = ({
     variant='ghost'
     onClick={onClick}
     title={isCollapsed ? item.label : undefined}
-    className={`w-full justify-start rounded-xl mb-1 transition-all duration-200 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${
-      isActive
-        ? "text-foreground bg-[#1dff00]/10 border border-[#1dff00]/20"
-        : "text-foreground/60 hover:text-foreground/40 hover:bg-foreground/5"
-    } ${isCollapsed ? "justify-center px-2" : ""}`}
+    className={`w-full justify-start rounded-xl mb-1 transition-all duration-200 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${isActive
+      ? "text-foreground bg-[#1dff00]/10 border border-[#1dff00]/20"
+      : "text-foreground/60 hover:text-foreground/40 hover:bg-foreground/5"
+      } ${isCollapsed ? "justify-center px-2" : ""}`}
   >
     {isActive && (
       <div className='absolute left-0 top-0 bottom-0 w-1 bg-[#1dff00] shadow-[0_0_10px_#1dff00]' />
@@ -349,42 +349,32 @@ export const Dashboard = (): JSX.Element => {
         ${isCollapsed && isDesktop ? "lg:w-20" : "lg:w-72"}
       `}
       >
-        {/* Logo Section */}
+
+        // Logo Section
         <div className='h-20 flex items-center px-6 border-b border-border/40 relative shrink-0'>
           <div className='absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[#1dff00]/50 to-transparent opacity-50' />
 
           <div
             className={`flex items-center gap-3 relative z-10 w-full ${isCollapsed ? "justify-center" : ""}`}
+            onClick={() => navigate("/dashboard/overview")}
+            style={{ cursor: 'pointer' }}
           >
-            <div className='w-9 h-9 bg-gradient-to-br from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(29,255,0,0.3)] shrink-0'>
-              <span className='text-fore font-extrabold text-sm tracking-tighter'>
-                JR
-              </span>
-            </div>
-            {!isCollapsed && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className='flex flex-col min-w-0'
-              >
-                <span className='font-bold text-lg leading-none tracking-tight text-foreground truncate'>
-                  JobRaker
-                </span>
-                <span className='text-[10px] uppercase tracking-widest text-muted-foreground font-medium mt-1 truncate'>
-                  Enterprise AI
-                </span>
-              </motion.div>
-            )}
-
+            <Logo
+              height={isCollapsed ? 32 : 36}
+              iconOnly={isCollapsed}
+              className={isCollapsed ? "justify-center" : ""}
+            />
             <Button
               variant='ghost'
               size='icon'
               className='lg:hidden ml-auto text-muted-foreground hover:text-foreground'
-              onClick={() => setSidebarOpen(false)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSidebarOpen(false);
+              }}
             >
               <X className='w-5 h-5' />
             </Button>
-            {/* Desktop Collapse Toggle - Removed, moved to header */}
           </div>
         </div>
 
@@ -470,37 +460,37 @@ export const Dashboard = (): JSX.Element => {
                 "application",
               ].includes(i.id),
           ) && (
-            <div className='space-y-1'>
-              {!isCollapsed && (
-                <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
-                  Account
-                </h4>
-              )}
-              {navigationItems
-                .filter(
-                  (i) =>
-                    ![
-                      "overview",
-                      "analytics",
-                      "chat",
-                      "interview-studio",
-                      "jobs",
-                      "application",
-                    ].includes(i.id),
-                )
-                .map((item) => (
-                  <SidebarItem
-                    key={item.id}
-                    item={item}
-                    isActive={currentPage === item.id}
-                    onClick={() => {
-                      navigate(`/dashboard/${item.id}`);
-                      setSidebarOpen(false);
-                    }}
-                  />
-                ))}
-            </div>
-          )}
+              <div className='space-y-1'>
+                {!isCollapsed && (
+                  <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
+                    Account
+                  </h4>
+                )}
+                {navigationItems
+                  .filter(
+                    (i) =>
+                      ![
+                        "overview",
+                        "analytics",
+                        "chat",
+                        "interview-studio",
+                        "jobs",
+                        "application",
+                      ].includes(i.id),
+                  )
+                  .map((item) => (
+                    <SidebarItem
+                      key={item.id}
+                      item={item}
+                      isActive={currentPage === item.id}
+                      onClick={() => {
+                        navigate(`/dashboard/${item.id}`);
+                        setSidebarOpen(false);
+                      }}
+                    />
+                  ))}
+              </div>
+            )}
         </div>
 
         {/* Premium Upgrade - Sleek Banner */}
@@ -713,11 +703,10 @@ export const Dashboard = (): JSX.Element => {
 
         {/* Page Content - Responsive */}
         <div
-          className={`flex-1 flex flex-col min-h-0 relative ${
-            ["chat", "interview-studio"].includes(currentPage)
-              ? "overflow-hidden"
-              : "overflow-auto"
-          }`}
+          className={`flex-1 flex flex-col min-h-0 relative ${["chat", "interview-studio"].includes(currentPage)
+            ? "overflow-hidden"
+            : "overflow-auto"
+            }`}
         >
           <AnimatePresence mode='wait'>
             <motion.div
