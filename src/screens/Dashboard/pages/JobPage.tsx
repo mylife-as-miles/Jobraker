@@ -2519,18 +2519,18 @@ export const JobPage = (): JSX.Element => {
                         <Card id="jobs-ai-match" data-tour="jobs-ai-match" className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] p-6">
                           <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
                           <div className="relative flex flex-col gap-6">
-                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
-                              <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+                              <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                                 {/* Logo - comes first */}
                                 {job.logoUrl && !logoError[job.id] ? (
                                   <img
                                     src={job.logoUrl}
                                     alt={job.company}
-                                    className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-xl object-contain bg-white flex-shrink-0"
+                                    className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-xl object-contain bg-white flex-shrink-0"
                                     onError={() => setLogoError(e => ({ ...e, [job.id]: true }))}
                                   />
                                 ) : (
-                                  <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-xl sm:text-2xl md:text-3xl flex-shrink-0">
+                                  <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text-black font-bold text-xl sm:text-2xl md:text-3xl flex-shrink-0">
                                     {job.logo}
                                   </div>
                                 )}
@@ -2544,7 +2544,7 @@ export const JobPage = (): JSX.Element => {
                                   <h1 className="text-base sm:text-lg md:text-xl font-semibold text-white leading-tight line-clamp-3" title={job.title}>
                                     {job.title.length > 30 ? job.title.slice(0, 30) + '...' : job.title}
                                   </h1>
-                                  <div className="text-sm font-medium text-white/90 mb-1">{job.company}</div>
+                                  <div className="text-sm font-medium text-white/90">{job.company}</div>
                                   <div className="flex flex-wrap items-center gap-2 text-sm text-[#ffffffc0]">
                                     {siteHost && (
                                       <span className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full border border-white/10 bg-white/5 text-white/60 whitespace-nowrap flex-shrink-0" title={primaryHref || undefined}>
@@ -2590,7 +2590,7 @@ export const JobPage = (): JSX.Element => {
                                 {metaTiles.map((tile) => (
                                   <div
                                     key={`${tile.label}-${tile.value}`}
-                                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-3"
+                                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 h-full"
                                   >
                                     <div className="text-[11px] uppercase tracking-wide text-white/40">{tile.label}</div>
                                     <div className={`text-sm font-medium ${tile.tone === 'urgent' ? 'text-[#ff8b8b]' : tile.tone === 'soon' ? 'text-[#ffd78b]' : tile.tone === 'future' ? 'text-[#8bffb1]' : 'text-white/85'}`}>{tile.value}</div>
