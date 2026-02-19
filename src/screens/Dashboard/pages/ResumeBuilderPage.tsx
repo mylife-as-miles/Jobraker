@@ -29,7 +29,7 @@ import { useArtboardStore } from '../../../store/artboard';
 import { createClient } from '../../../lib/supabaseClient';
 import jsPDF from 'jspdf';
 import { AzurillTemplate } from '../../../templates/azurill/index';
-import { TemplateSelector } from '../components/TemplateSelector';
+import { TemplateGallery } from '../components/TemplateGallery';
 import { AddSectionDialog } from '../components/resume/AddSectionDialog';
 import { SectionEditor } from '../components/resume/SectionEditor';
 // List Editor Component
@@ -538,7 +538,7 @@ export const ResumeBuilderPage = () => {
                 </div>
             </div >
 
-            <TemplateSelector isOpen={isTemplateSelectorOpen} onClose={() => setIsTemplateSelectorOpen(false)} />
+            <TemplateGallery isOpen={isTemplateSelectorOpen} onClose={() => setIsTemplateSelectorOpen(false)} />
             <AddSectionDialog open={isAddSectionOpen} onOpenChange={setIsAddSectionOpen} />
             <ShareDialog open={isShareOpen} onOpenChange={setIsShareOpen} />
             <AIPolishDialog
