@@ -609,6 +609,9 @@ export const JobPage = (): JSX.Element => {
   const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);
   const [dbgSearchRes, setDbgSearchRes] = useState<any>(null);
 
+  // Job Description Expand State
+  const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
+
 
   const { profile, loading: profileLoading } = useProfileSettings();
   // Load user resumes for selection (used by the Auto Apply -> "Choose a resume" dialog)
@@ -2600,18 +2603,52 @@ export const JobPage = (): JSX.Element => {
                       );
                     })()}
 
-                    <Card className="border border-white/12 bg-gradient-to-b from-[#0c0c0c] via-[#060606] to-[#020202] p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="inline-flex items-center gap-2 text-sm font-medium text-white/80">
-                          <FileText className="w-4 h-4 text-[#1dff00]" />
-                          Job Description
+                    <div className="flex flex-col">
+                      <Card
+                        className="border border-white/12 bg-gradient-to-b from-[#0c0c0c] via-[#060606] to-[#020202] p-6 cursor-pointer hover:border-[#1dff00]/30 transition-colors group"
+                        onClick={() => setIsDescriptionOpen(true)}
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="inline-flex items-center gap-2 text-sm font-medium text-white/80 group-hover:text-white transition-colors">
+                            <FileText className="w-4 h-4 text-[#1dff00]" />
+                            Job Description
+                          </div>
+                          <span className="text-[11px] uppercase tracking-wide text-white/35 flex items-center gap-1 group-hover:text-[#1dff00] transition-colors">
+                            Full brief <ChevronsRight className="w-3 h-3" />
+                          </span>
                         </div>
-                        <span className="text-[11px] uppercase tracking-wide text-white/35">Full brief</span>
-                      </div>
-                      <div className="max-w-none text-[#ffffffcc] leading-relaxed whitespace-pre-wrap">
-                        {job.description || ''}
-                      </div>
-                    </Card>
+                        <div className="max-w-none text-[#ffffffcc] leading-relaxed whitespace-pre-wrap line-clamp-[10] relative">
+                          {job.description || ''}
+                          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[#020202] to-transparent pointer-events-none" />
+                        </div>
+                      </Card>
+
+                      <Modal
+                        open={isDescriptionOpen}
+                        onClose={() => setIsDescriptionOpen(false)}
+                        title="Job Description"
+                        size="2xl"
+                      >
+                        <div className="p-6 max-h-[70vh] overflow-y-auto">
+                          <div className="flex items-center gap-3 mb-6 pb-6 border-b border-white/10">
+                            {job.logoUrl ? (
+                              <img src={job.logoUrl} alt={job.company} className="w-12 h-12 rounded-lg bg-white object-contain p-1" />
+                            ) : (
+                              <div className="w-12 h-12 rounded-lg bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00] font-bold text-lg border border-[#1dff00]/20">
+                                {job.logo}
+                              </div>
+                            )}
+                            <div>
+                              <h3 className="text-lg font-semibold text-white">{job.title}</h3>
+                              <div className="text-sm text-white/60">{job.company}</div>
+                            </div>
+                          </div>
+                          <div className="text-white/80 whitespace-pre-wrap leading-relaxed space-y-4 font-light text-sm sm:text-base">
+                            {job.description || "No description available."}
+                          </div>
+                        </div>
+                      </Modal>
+                    </div>
 
                     {/* AI Match Score Card - Gated for Pro/Ultimate */}
                     {subscriptionTier === 'Free' ? (
