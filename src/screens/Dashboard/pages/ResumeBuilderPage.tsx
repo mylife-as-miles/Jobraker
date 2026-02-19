@@ -54,6 +54,7 @@ import { GlalieTemplate } from '../../../templates/glalie';
 import { KakunaTemplate } from '../../../templates/kakuna';
 import { PikachuTemplate } from '../../../templates/pikachu';
 import { RhyhornTemplate } from '../../../templates/rhyhorn';
+import { EeveeTemplate } from '../../../templates/eevee';
 import { useProfileSettings } from '../../../hooks/useProfileSettings';
 import { Button } from '../../../components/ui/button';
 
@@ -588,6 +589,7 @@ export const ResumeBuilderPage = () => {
                         {selectedTemplate === 'kakuna' && <KakunaTemplate />}
                         {selectedTemplate === 'pikachu' && <PikachuTemplate />}
                         {selectedTemplate === 'rhyhorn' && <RhyhornTemplate />}
+                        {selectedTemplate === 'eevee' && <EeveeTemplate />}
                     </div>
                 </div>
             </div>
