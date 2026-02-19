@@ -2627,7 +2627,7 @@ export const JobPage = (): JSX.Element => {
                         open={isDescriptionOpen}
                         onClose={() => setIsDescriptionOpen(false)}
                         title="Job Description"
-                        size="2xl"
+                        size="xl"
                       >
                         <div className="p-6 max-h-[70vh] overflow-y-auto">
                           <div className="flex items-center gap-3 mb-6 pb-6 border-b border-white/10">
