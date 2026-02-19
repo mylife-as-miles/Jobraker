@@ -349,8 +349,6 @@ export const Dashboard = (): JSX.Element => {
         ${isCollapsed && isDesktop ? "lg:w-20" : "lg:w-72"}
       `}
       >
-
-        // Logo Section
         <div className='h-20 flex items-center px-6 border-b border-border/40 relative shrink-0'>
           <div className='absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[#1dff00]/50 to-transparent opacity-50' />
 
