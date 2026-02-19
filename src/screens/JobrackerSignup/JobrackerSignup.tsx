@@ -431,7 +431,7 @@ export const JobrackerSignup = (): JSX.Element => {
                       inputSize='sm'
                       className='pl-11 h-9 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-lg placeholder:text-gray-500 text-xs'
                       placeholder='Confirm Password'
-                      type='password'
+                      type={showPassword ? "text" : "password"}
                       value={formData.confirmPassword}
                       onChange={(e) =>
                         setFormData({
@@ -441,6 +441,17 @@ export const JobrackerSignup = (): JSX.Element => {
                       }
                       required
                     />
+                    <button
+                      type='button'
+                      onClick={() => setShowPassword(!showPassword)}
+                      className='bg-transparent absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors'
+                    >
+                      {showPassword ? (
+                        <EyeOff className='w-3.5 h-3.5' />
+                      ) : (
+                        <Eye className='w-3.5 h-3.5' />
+                      )}
+                    </button>
                   </div>
                   {/* Minimal Password Strength Indicator for Sign Up */}
                   {formData.password.length > 0 && (
@@ -477,10 +488,7 @@ export const JobrackerSignup = (): JSX.Element => {
 
               <Button
                 type='submit'
-                disabled={
-                  submitting ||
-                  (isSignUp && !showForgotPassword && !passwordCheck.valid)
-                }
+                disabled={submitting || !passwordCheck.valid || formData.password !== formData.confirmPassword}
                 className='w-full h-9 bg-[#1dff00] hover:bg-[#1dff00]/90 text-black font-semibold rounded-lg text-xs transition-all shadow-[0_0_15px_rgba(29,255,0,0.2)] hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] mt-1'
               >
                 {submitting ? (

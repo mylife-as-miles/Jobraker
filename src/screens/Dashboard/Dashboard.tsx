@@ -91,8 +91,14 @@ const SidebarItem = ({
     {isActive && (
       <div className='absolute left-0 top-0 bottom-0 w-1 bg-[#1dff00] shadow-[0_0_10px_#1dff00]' />
     )}
-    <span className={`relative z-10 transition-colors mr-3`}>{item.icon}</span>
-    {!isCollapsed && <span className='relative z-10'>{item.label}</span>}
+    <span
+      className={`relative z-10 transition-all ${isCollapsed ? "" : "mr-3"}`}
+    >
+      {item.icon}
+    </span>
+    <span className={`relative ${isCollapsed ? "hidden" : ""}`}>
+      {item.label}
+    </span>
   </Button>
 );
 
@@ -404,6 +410,7 @@ export const Dashboard = (): JSX.Element => {
                   key={item.id}
                   item={item}
                   isActive={currentPage === item.id}
+                  isCollapsed={isCollapsed}
                   onClick={() => {
                     navigate(`/dashboard/${item.id}`);
                     setSidebarOpen(false);
@@ -493,6 +500,7 @@ export const Dashboard = (): JSX.Element => {
                     key={item.id}
                     item={item}
                     isActive={currentPage === item.id}
+                    isCollapsed={isCollapsed}
                     onClick={() => {
                       navigate(`/dashboard/${item.id}`);
                       setSidebarOpen(false);
