@@ -1,9 +1,9 @@
 import { useAdminStats } from '../hooks/useAdminStats';
-import { 
-  Users, 
-  DollarSign, 
-  Coins, 
-  TrendingUp, 
+import {
+  Users,
+  DollarSign,
+  Coins,
+  TrendingUp,
   Activity,
   Search,
   Zap,
@@ -153,7 +153,7 @@ export default function AdminOverview() {
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
           const TrendIcon = stat.trend === 'up' ? ArrowUp : ArrowDown;
-          
+
           return (
             <motion.div
               key={stat.title}
@@ -210,34 +210,46 @@ export default function AdminOverview() {
                   <AreaChart data={creditUsageTrend}>
                     <defs>
                       <linearGradient id="mrrGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#1dff00" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#1dff00" stopOpacity={0}/>
+                        <stop offset="0%" stopColor="#1dff00" stopOpacity={0.4} />
+                        <stop offset="50%" stopColor="#1dff00" stopOpacity={0.1} />
+                        <stop offset="100%" stopColor="#1dff00" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis 
-                      dataKey="date" 
-                      stroke="#6b7280"
-                      style={{ fontSize: '12px' }}
+                    <CartesianGrid strokeDasharray="0" stroke="#ffffff08" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      stroke="#ffffff33"
+                      style={{ fontSize: '10px', fontWeight: 500 }}
+                      tickLine={false}
+                      axisLine={false}
+                      dy={10}
                     />
-                    <YAxis 
-                      stroke="#6b7280"
-                      style={{ fontSize: '12px' }}
+                    <YAxis
+                      stroke="#ffffff33"
+                      style={{ fontSize: '10px', fontWeight: 500 }}
+                      tickLine={false}
+                      axisLine={false}
+                      dx={-10}
+                      tickFormatter={(val) => `$${val}`}
                     />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#1f2937', 
-                        border: '1px solid #374151',
-                        borderRadius: '8px',
-                        color: '#fff'
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'rgba(10, 10, 10, 0.8)',
+                        border: '1px solid rgba(29, 255, 0, 0.2)',
+                        borderRadius: '12px',
+                        backdropFilter: 'blur(12px)',
+                        color: '#fff',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
                       }}
+                      cursor={{ stroke: '#1dff0033', strokeWidth: 2 }}
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="mrr" 
-                      stroke="#1dff00" 
-                      strokeWidth={2}
+                    <Area
+                      type="monotone"
+                      dataKey="mrr"
+                      stroke="#1dff00"
+                      strokeWidth={3}
                       fill="url(#mrrGradient)"
+                      activeDot={{ r: 6, fill: "#1dff00", stroke: "#000", strokeWidth: 2 }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -264,25 +276,33 @@ export default function AdminOverview() {
                     data={subscriptionData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
+                    innerRadius={70}
                     outerRadius={100}
-                    paddingAngle={5}
+                    paddingAngle={8}
                     dataKey="value"
+                    stroke="none"
+                    cornerRadius={8}
                   >
                     {subscriptionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.color}
+                        style={{ filter: `drop-shadow(0 0 8px ${entry.color}44)` }}
+                      />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#1f2937', 
-                      border: '1px solid #1dff00',
-                      borderRadius: '8px',
-                      color: '#fff'
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(10, 10, 10, 0.8)',
+                      border: '1px solid rgba(29, 255, 0, 0.2)',
+                      borderRadius: '12px',
+                      backdropFilter: 'blur(12px)',
+                      color: '#fff',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
                     }}
                   />
-                  <Legend 
-                    verticalAlign="bottom" 
+                  <Legend
+                    verticalAlign="bottom"
                     height={36}
                     iconType="circle"
                     formatter={(value) => <span className="text-gray-300">{value}</span>}
@@ -308,27 +328,40 @@ export default function AdminOverview() {
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={featureUsage}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis 
-                  dataKey="feature" 
-                  stroke="#6b7280"
-                  style={{ fontSize: '14px' }}
+                <CartesianGrid strokeDasharray="0" stroke="#ffffff08" vertical={false} />
+                <XAxis
+                  dataKey="feature"
+                  stroke="#ffffff33"
+                  style={{ fontSize: '11px', fontWeight: 500 }}
+                  tickLine={false}
+                  axisLine={false}
+                  dy={10}
                 />
-                <YAxis 
-                  stroke="#6b7280"
-                  style={{ fontSize: '12px' }}
+                <YAxis
+                  stroke="#ffffff33"
+                  style={{ fontSize: '10px', fontWeight: 500 }}
+                  tickLine={false}
+                  axisLine={false}
+                  dx={-10}
                 />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1f2937', 
-                    border: '1px solid #1dff00',
-                    borderRadius: '8px',
-                    color: '#fff'
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'rgba(10, 10, 10, 0.8)',
+                    border: '1px solid rgba(29, 255, 0, 0.2)',
+                    borderRadius: '12px',
+                    backdropFilter: 'blur(12px)',
+                    color: '#fff',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
                   }}
+                  cursor={{ fill: 'rgba(255, 255, 255, 0.03)' }}
                 />
-                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
                   {featureUsage.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.fill}
+                      style={{ filter: `drop-shadow(0 0 12px ${entry.fill}33)` }}
+                    />
                   ))}
                 </Bar>
               </BarChart>

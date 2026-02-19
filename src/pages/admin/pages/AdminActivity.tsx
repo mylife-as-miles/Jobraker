@@ -317,34 +317,50 @@ export default function AdminActivity() {
 
         <ResponsiveContainer width="100%" height={350}>
           <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+            <CartesianGrid strokeDasharray="0" stroke="#ffffff08" vertical={false} />
             <XAxis
               dataKey="date"
-              stroke="#6b7280"
-              style={{ fontSize: '12px' }}
+              stroke="#ffffff33"
+              style={{ fontSize: '10px', fontWeight: 500 }}
               tickLine={false}
               axisLine={false}
               dy={10}
             />
             <YAxis
-              stroke="#6b7280"
-              style={{ fontSize: '12px' }}
+              stroke="#ffffff33"
+              style={{ fontSize: '10px', fontWeight: 500 }}
               tickLine={false}
               axisLine={false}
               dx={-10}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: '#111',
-                border: '1px solid #333',
-                borderRadius: '8px',
-                color: '#fff'
+                backgroundColor: 'rgba(10, 10, 10, 0.8)',
+                border: '1px solid rgba(29, 255, 0, 0.2)',
+                borderRadius: '12px',
+                backdropFilter: 'blur(12px)',
+                color: '#fff',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
               }}
-              cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+              cursor={{ fill: 'rgba(255, 255, 255, 0.03)' }}
             />
             <Legend wrapperStyle={{ paddingTop: '20px' }} />
-            <Bar dataKey="searches" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Job Searches" maxBarSize={50} />
-            <Bar dataKey="applies" fill="#10b981" radius={[4, 4, 0, 0]} name="Auto Applies" maxBarSize={50} />
+            <Bar
+              dataKey="searches"
+              fill="#3b82f6"
+              radius={[4, 4, 0, 0]}
+              name="Job Searches"
+              maxBarSize={32}
+              style={{ filter: 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.2))' }}
+            />
+            <Bar
+              dataKey="applies"
+              fill="#1dff00"
+              radius={[4, 4, 0, 0]}
+              name="Auto Applies"
+              maxBarSize={32}
+              style={{ filter: 'drop-shadow(0 0 8px rgba(29, 255, 0, 0.2))' }}
+            />
           </BarChart>
         </ResponsiveContainer>
       </motion.div>

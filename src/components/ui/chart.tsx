@@ -101,7 +101,7 @@ const ChartTooltipClass = cva("recharts-tooltip-wrapper", {
   variants: {
     variant: {
       default:
-        "rounded-lg border bg-background/95 p-2 shadow-lg backdrop-blur-lg",
+        "rounded-xl border border-white/10 bg-black/60 p-3 shadow-2xl backdrop-blur-xl",
     },
   },
   defaultVariants: {
@@ -112,12 +112,12 @@ const ChartTooltipClass = cva("recharts-tooltip-wrapper", {
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> &
-    Omit<TooltipProps<any, any>, "content"> &
+  Omit<TooltipProps<any, any>, "content"> &
   VariantProps<typeof ChartTooltipClass> & {
-      indicator?: "line" | "dot" | "dashed"
-      hideLabel?: boolean
-      hideIndicator?: boolean
-    }
+    indicator?: "line" | "dot" | "dashed"
+    hideLabel?: boolean
+    hideIndicator?: boolean
+  }
 >(
   ({
     active,
@@ -136,7 +136,7 @@ const ChartTooltipContent = React.forwardRef<
     hideLabel?: boolean
     hideIndicator?: boolean
   },
-  ref: React.Ref<HTMLDivElement>
+    ref: React.Ref<HTMLDivElement>
   ) => {
     const { config } = useChart()
 
@@ -147,7 +147,7 @@ const ChartTooltipContent = React.forwardRef<
     const nestLabel = payload.length === 1 && indicator !== "dot"
 
     return (
-  <div ref={ref} className={cn(ChartTooltipClass({ variant: "default", className }))}>
+      <div ref={ref} className={cn(ChartTooltipClass({ variant: "default", className }))}>
         {!hideLabel ? (
           <div className="font-medium">{label}</div>
         ) : null}
@@ -160,8 +160,8 @@ const ChartTooltipContent = React.forwardRef<
               typeof item.value === "number"
                 ? item.value
                 : Number.isFinite(Number(item.value))
-                ? Number(item.value)
-                : null
+                  ? Number(item.value)
+                  : null
 
             return (
               <div
@@ -251,8 +251,8 @@ const ChartLegend = cva("recharts-legend-wrapper", {
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> &
-    Pick<LegendProps, "payload"> &
-    VariantProps<typeof ChartLegend>
+  Pick<LegendProps, "payload"> &
+  VariantProps<typeof ChartLegend>
 >(({ className, payload, align, direction }: {
   className?: string
   payload?: any[]
@@ -312,15 +312,15 @@ type ChartConfig = {
     icon?: React.ComponentType
   } & (
     | {
-        color?: string
-        theme?: never
-      }
+      color?: string
+      theme?: never
+    }
     | {
-        color?: never
-        theme: {
-          [k in keyof typeof THEMES]: string
-        }
+      color?: never
+      theme: {
+        [k in keyof typeof THEMES]: string
       }
+    }
   )
 }
 

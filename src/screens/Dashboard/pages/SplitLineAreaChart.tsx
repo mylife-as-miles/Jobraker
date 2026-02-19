@@ -72,7 +72,7 @@ export function SplitLineAreaChart({
     // sort for stable order
     const arr = Array.from(visible)
     arr.sort()
-    ;(typeof onVisibleChange === 'function') && onVisibleChange(arr)
+      ; (typeof onVisibleChange === 'function') && onVisibleChange(arr)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible])
 
@@ -107,9 +107,8 @@ export function SplitLineAreaChart({
                     return next
                   })
                 }}
-                className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs transition-colors ${
-                  active ? "border-white/20 text-white" : "border-white/10 text-white/50"
-                }`}
+                className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs transition-colors ${active ? "border-white/20 text-white" : "border-white/10 text-white/50"
+                  }`}
                 title={`${active ? 'Hide' : 'Show'} series: ${s.label ?? s.key}`}
                 aria-label={`${active ? 'Hide' : 'Show'} series ${s.label ?? s.key}`}
                 aria-pressed={active}
@@ -157,12 +156,14 @@ export function SplitLineAreaChart({
             }}
             onMouseLeave={() => setHoverIndex(null)}
           >
-            <CartesianGrid vertical={false} />
+            <CartesianGrid vertical={false} stroke="#ffffff08" strokeDasharray="0" />
             <XAxis
               dataKey={xKey}
               tickLine={false}
               axisLine={false}
-              tickMargin={8}
+              tickMargin={12}
+              stroke="#ffffff33"
+              style={{ fontSize: '10px', fontWeight: 500 }}
               tickFormatter={(value: string) => (tickFormatter ? tickFormatter(value) : String(value))}
             />
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />

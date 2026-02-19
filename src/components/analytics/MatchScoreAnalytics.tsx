@@ -67,11 +67,10 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
             {delta !== 0 && (
               <Badge
                 variant='outline'
-                className={`${
-                  delta > 0
+                className={`${delta > 0
                     ? "text-[#1dff00] bg-[#1dff00]/10 border-[#1dff00]/30"
                     : "text-[#ff8b8b] bg-[#ff8b8b]/10 border-[#ff8b8b]/30"
-                }`}
+                  }`}
               >
                 {delta > 0 ? (
                   <ArrowUpRight className='h-3 w-3' />
@@ -121,18 +120,19 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
                     <ChartTooltip content={<ChartTooltipContent hideLabel />} />
                     <Pie
                       data={chartData}
-                      innerRadius={50}
+                      innerRadius={65}
                       outerRadius={95}
                       dataKey='value'
                       nameKey='name'
-                      cornerRadius={10}
-                      paddingAngle={5}
-                      animationDuration={800}
+                      cornerRadius={12}
+                      paddingAngle={8}
+                      animationDuration={1000}
+                      stroke="none"
                     >
                       <LabelList
                         dataKey='value'
                         stroke='none'
-                        fontSize={16}
+                        fontSize={14}
                         fontWeight={700}
                         fill='#000000'
                         formatter={(value: number) => `${value}%`}

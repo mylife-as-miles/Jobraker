@@ -3,7 +3,7 @@
 import { Card } from "../ui/card"
 import { motion } from "framer-motion"
 import { ArrowDownRight, ArrowUpRight } from "lucide-react"
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { useMemo } from "react"
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
@@ -136,11 +136,12 @@ export function IndustriesCard({ period, data }: { period: Period; data: any }) 
                 </defs>
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "rgba(10, 10, 10, 0.95)",
-                    border: "1px solid rgba(29, 255, 0, 0.3)",
+                    backgroundColor: "rgba(10, 10, 10, 0.8)",
+                    border: "1px solid rgba(29, 255, 0, 0.2)",
                     borderRadius: "12px",
+                    backdropFilter: "blur(12px)",
                     color: "#fff",
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+                    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
                   }}
                   itemStyle={{ color: "#1dff00" }}
                   labelStyle={{ color: "#fff", marginBottom: "0.25rem" }}
