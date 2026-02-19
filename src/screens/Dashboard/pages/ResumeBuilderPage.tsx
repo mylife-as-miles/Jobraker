@@ -490,7 +490,7 @@ export const ResumeBuilderPage = () => {
                                     {expandedSection === sectionId && (
                                         <div className="p-5 pt-0">
                                             {section.type === 'list' ? (
-                                                <ListEditor sectionId={sectionId} />
+                                                <ResumeListEditor sectionId={sectionId} />
                                             ) : (
                                                 <SectionEditor
                                                     sectionId={sectionId}
