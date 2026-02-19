@@ -144,7 +144,6 @@ export function SplitLineAreaChart({
           <AreaChart
             data={data}
             margin={{ left: 12, right: 12, top: 12 }}
-            stackOffset={effectiveStacked ? 'expand' : undefined}
             onMouseMove={(state: any) => {
               if (state && state.activeTooltipIndex != null) setHoverIndex(state.activeTooltipIndex)
             }}
@@ -162,54 +161,32 @@ export function SplitLineAreaChart({
             />
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
 
-            <defs>
-              {series.map((s, idx) => {
-                const color = s.color ?? `var(--chart-${(idx % 5) + 1})`
-                const gradientId = `fill_${s.key}`
-                return (
-                  <linearGradient key={gradientId} id={gradientId} x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor={color as string} stopOpacity={0.8} />
-                    <stop
-                      offset={`${splitOffset}%`}
-                      stopColor={color as string}
-                      stopOpacity={0.6}
-                    />
-                    <stop
-                      offset={`${Math.min(99.9, splitOffset + 0.1)}%`}
-                      stopColor={color as string}
-                      stopOpacity={0.1}
-                    />
-                    <stop offset="100%" stopColor={color as string} stopOpacity={0.05} />
-                  </linearGradient>
-                )
-              })}
-            </defs>
-
             {series.map((s, idx) => {
               const color = s.color ?? `var(--chart-${(idx % 5) + 1})`
-              const gradientId = `fill_${s.key}`
               return (
                 <Area
                   key={s.key}
                   dataKey={s.key}
                   type="monotone"
-                  fill={`url(#${gradientId})`}
+                  fill={color as string}
                   stroke={color as string}
-                  strokeWidth={effectiveStacked ? 1.5 : 2}
-                  fillOpacity={1}
+                  strokeWidth={2}
+                  strokeOpacity={1}
+                  fillOpacity={0.3}
                   dot={false}
                   activeDot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
-                  stackId={effectiveStacked ? "a" : undefined}
+                  stackId={stacked ? "a" : undefined}
                   hide={!visible.has(s.key)}
                   connectNulls
+                  isAnimationActive={false}
                 />
               )
             })}
           </AreaChart>
         </ResponsiveContainer>
       </ChartContainer>
-      {effectiveStacked && (
-        <div className="absolute bottom-1 right-2 text-[10px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/60 tracking-wide uppercase">Stacked %</div>
+      {stacked && (
+        <div className="absolute bottom-1 right-2 text-[10px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/60 tracking-wide uppercase pointer-events-none">Stacked</div>
       )}
     </div>
   )
