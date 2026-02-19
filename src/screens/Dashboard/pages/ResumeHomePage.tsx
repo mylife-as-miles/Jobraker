@@ -30,11 +30,13 @@ import { parseResumeWithAI } from '@/services/ai/parseResumeProfile';
 import { mapParsedDataToResume } from '@/lib/resume-mapper';
 import { initialResumeState } from '@/store/artboard';
 import { nanoid } from 'nanoid';
+import { useToast } from '@/components/ui/toast-provider';
 
 const supabase = createClient();
 
 export const ResumeHomePage = () => {
     const navigate = useNavigate();
+    const { addToast } = useToast();
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
@@ -149,10 +151,30 @@ export const ResumeHomePage = () => {
             if (error) throw error;
 
             console.log('Import successful, navigating...');
+            addToast({
+                title: "Resume Imported",
+                description: "Your resume has been successfully verified and imported.",
+                variant: "success"
+            });
             navigate(`/dashboard/resume/edit/${data.id}`);
         } catch (error: any) {
             console.error('Import failed:', error);
-            alert(`Import failed: ${error.message}`);
+
+            // UX: Show a more helpful error message
+            let errorMessage = error.message;
+            let errorTitle = "Import Failed";
+
+            if (errorMessage.includes("No text found")) {
+                errorTitle = "Scanned PDF Detected";
+                errorMessage = "This PDF appears to be a scanned image. Please upload a text-based PDF or convert it first.";
+            }
+
+            addToast({
+                title: errorTitle,
+                description: errorMessage,
+                variant: "destructive",
+                duration: 6000
+            });
         } finally {
             setIsImporting(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
