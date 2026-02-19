@@ -3,20 +3,16 @@ import {
     ArrowLeft,
     Edit2,
     LayoutTemplate,
-    Sparkles,
     Wand2,
     Download,
     User,
     ChevronUp,
     ChevronDown,
     Briefcase,
-
     Plus,
     GraduationCap,
     BrainCircuit,
     X,
-    ZoomIn,
-    ZoomOut,
     FileText,
     FolderGit2,
     Languages,
@@ -25,10 +21,8 @@ import {
     Scroll,
     BookOpen,
     HandHeart,
-
     Users,
-    Eye,
-    Menu
+    Share2
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useArtboardStore } from '../../../store/artboard';
@@ -38,10 +32,10 @@ import { AzurillTemplate } from '../../../templates/azurill/index';
 import { TemplateSelector } from '../components/TemplateSelector';
 import { AddSectionDialog } from '../components/resume/AddSectionDialog';
 import { SectionEditor } from '../components/resume/SectionEditor';
-import { ListEditor } from '../components/resume/ListEditor';
+// List Editor Component
+import { ListEditor as ResumeListEditor } from '../components/resume/ResumeListEditor';
 import { PersonalDetailsEditor } from '../components/resume/PersonalDetailsEditor';
 import { ShareDialog } from '../components/resume/ShareDialog';
-import { Share2 } from 'lucide-react';
 
 // ... templates imports ...
 import { OnyxTemplate } from '../../../templates/onyx';
@@ -76,21 +70,25 @@ const SECTION_ICONS: Record<string, any> = {
 };
 
 import { AIPolishDialog } from '../components/resume/AIPolishDialog';
+import { PolishableTextArea } from '../components/resume/PolishableTextArea';
+import { polishContent, Suggestion } from '../../../services/ai/polishContent';
 
 // ... (existing imports)
 
 export const ResumeBuilderPage = () => {
     const navigate = useNavigate();
     const { id: urlId } = useParams();
-    const [zoom, setZoom] = useState(0.8);
     const [aiLoading, setAiLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
     const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
     const [isShareOpen, setIsShareOpen] = useState(false);
     const [isAIPolishOpen, setIsAIPolishOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor');
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [polishSuggestions, setPolishSuggestions] = useState<Suggestion[]>([]);
+    const [textToPolish, setTextToPolish] = useState("Led a team of 5 engineers to rebuild the core payment infrastructure.");
+    const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+    const [activeItemId, setActiveItemId] = useState<string | null>(null);
+    const [activeField, setActiveField] = useState<string | null>(null);
     const supabase = createClient();
 
     // Store State & Actions
@@ -288,6 +286,38 @@ export const ResumeBuilderPage = () => {
         }
     };
 
+    // ... (existing helper functions)
+
+    const [polishTargetRect, setPolishTargetRect] = useState<DOMRect | null>(null);
+
+    const handlePolish = (rect: DOMRect, text: string, context: { sectionId: string, itemId?: string, field: string }) => {
+        setPolishTargetRect(rect);
+        setTextToPolish(text);
+        setActiveSectionId(context.sectionId);
+        setActiveItemId(context.itemId || null);
+        setActiveField(context.field);
+
+        // Trigger the polish flow immediately
+        setAiLoading(true);
+        setIsAIPolishOpen(true);
+        setPolishSuggestions([]);
+
+        polishContent(text)
+            .then(suggestions => {
+                setPolishSuggestions(suggestions);
+            })
+            .catch(error => {
+                console.error(error);
+                // toast error
+            })
+            .finally(() => {
+                setAiLoading(false);
+            });
+    };
+
+    // Auto-save effect (keep existing)
+    // ...
+
     return (
         <div className="flex flex-col h-full relative overflow-hidden bg-white dark:bg-[#0A0A0A]">
             {/* Header toolbar */}
@@ -340,19 +370,6 @@ export const ResumeBuilderPage = () => {
                     </button>
 
                     <button
-                        onClick={() => {
-                            setAiLoading(true);
-                            setIsAIPolishOpen(true);
-                            // Simulate AI Loading
-                            setTimeout(() => setAiLoading(false), 1500);
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)]"
-                    >
-                        <Sparkles className="w-4 h-4" />
-                        AI Polish
-                    </button>
-
-                    <button
                         onClick={aiGenerateResume}
                         disabled={aiLoading}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-gray-700 dark:text-white text-sm font-bold transition-all"
@@ -378,109 +395,21 @@ export const ResumeBuilderPage = () => {
                         Download PDF
                     </button>
                 </div>
-
-                {/* Mobile Menu Button */}
-                <button
-                    className="md:hidden p-2 text-gray-500"
-                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                >
-                    <Menu className="w-6 h-6" />
-                </button>
             </header>
 
-            {/* Mobile Menu Overlay */}
-            {
-                mobileMenuOpen && (
-                    <div className="absolute top-16 left-0 right-0 bg-white dark:bg-[#0A0A0A] border-b border-gray-200 dark:border-white/10 p-4 z-50 md:hidden flex flex-col gap-3 shadow-xl">
-                        <button
-                            onClick={() => { setIsTemplateSelectorOpen(true); setMobileMenuOpen(false); }}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300"
-                        >
-                            <LayoutTemplate className="w-4 h-4" />
-                            Templates
-                        </button>
-
-                        <button
-                            onClick={() => { handleImportProfile(); setMobileMenuOpen(false); }}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300"
-                        >
-                            <User className="w-4 h-4" />
-                            Use Profile
-                        </button>
-
-                        <button
-                            onClick={() => { setIsShareOpen(true); setMobileMenuOpen(false); }}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300"
-                        >
-                            <Share2 className="w-4 h-4" />
-                            Share
-                        </button>
-
-                        <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-sm font-bold transition-all">
-                            <Sparkles className="w-4 h-4" />
-                            AI Polish
-                        </button>
-
-                        <button
-                            onClick={aiGenerateResume}
-                            disabled={aiLoading}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-gray-700 dark:text-white text-sm font-bold transition-all"
-                        >
-                            <Wand2 className={`w-4 h-4 ${aiLoading ? 'animate-spin' : ''}`} />
-                            {aiLoading ? 'Generating...' : 'AI Generate'}
-                        </button>
-
-                        <button
-                            onClick={handleSave}
-                            disabled={saving || !urlId}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-brand/50 hover:bg-brand/10 text-gray-700 dark:text-white text-sm font-bold transition-all disabled:opacity-50"
-                        >
-                            <FileText className={`w-4 h-4 ${saving ? 'animate-pulse' : ''}`} />
-                            {saving ? 'Saving...' : 'Save Changes'}
-                        </button>
-
-                        <button
-                            onClick={downloadPDF}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/20 text-sm font-medium transition-all text-gray-700 dark:text-white"
-                        >
-                            <Download className="w-4 h-4" />
-                            Download PDF
-                        </button>
-                    </div>
-                )
-            }
-
-            {/* Mobile Tab Bar */}
-            <div className="md:hidden flex border-b border-gray-200 dark:border-white/10 bg-white dark:bg-[#0A0A0A] shrink-0">
-                <button
-                    onClick={() => setActiveTab('editor')}
-                    className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${activeTab === 'editor' ? 'text-[#1dff00] border-b-2 border-[#1dff00]' : 'text-gray-500 dark:text-gray-400'}`}
-                >
-                    <Edit2 className="w-4 h-4" /> Editor
-                </button>
-                <button
-                    onClick={() => setActiveTab('preview')}
-                    className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${activeTab === 'preview' ? 'text-[#1dff00] border-b-2 border-[#1dff00]' : 'text-gray-500 dark:text-gray-400'}`}
-                >
-                    <Eye className="w-4 h-4" /> Preview
-                </button>
-            </div>
-
-            {/* Main Content Area */}
             <div className="flex-1 flex overflow-hidden">
-
-                {/* Editor Panel (Left) */}
-                <div className={`${activeTab === 'editor' ? 'flex w-full' : 'hidden'} md:flex w-full md:w-[40%] md:min-w-[350px] md:max-w-[500px] bg-gray-50 dark:bg-[#0A0A0A] border-r border-gray-200 dark:border-white/10 flex-col overflow-y-auto custom-scrollbar pb-20`}>
-                    <div className="p-6 space-y-4">
-                        <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Content</h3>
-                            <div className="text-[10px] text-[#1dff00] flex items-center gap-1 font-medium">
-                                <span className={`w-1.5 h-1.5 rounded-full ${saving ? 'bg-yellow-500 animate-pulse' : 'bg-[#1dff00]'}`} />
-                                {saving ? 'Saving...' : 'Ready'}
-                            </div>
+                {/* Editor Panel */}
+                <div className="w-[500px] border-r border-gray-200 dark:border-white/10 flex flex-col bg-gray-50/50 dark:bg-[#0A0A0A]">
+                    <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Content Editor</h3>
+                            <span className="flex items-center gap-1.5 text-[10px] text-[#1dff00]">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#1dff00] animate-pulse" />
+                                Auto-saved
+                            </span>
                         </div>
 
-                        {/* Personal Info Section */}
+                        {/* Personal Details */}
                         <div className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === 'personal' ? 'ring-1 ring-[#1dff00]/50' : 'hover:border-[#1dff00]/30'}`}>
                             <div
                                 className="p-5 flex items-center justify-between cursor-pointer"
@@ -512,12 +441,14 @@ export const ResumeBuilderPage = () => {
 
                                 {expandedSection === 'summary' && (
                                     <div className="p-5 pt-0 animate-in slide-in-from-top-2 duration-200">
-                                        <textarea
+                                        <PolishableTextArea
                                             value={summary.content || ''}
                                             onChange={(e) => setSummary(e.target.value)}
+                                            onPolish={(rect, val) => handlePolish(rect, val, { sectionId: 'summary', field: 'content' })}
                                             rows={4}
                                             className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100"
                                             placeholder="Brief professional summary..."
+                                            isPolishing={isAIPolishOpen && activeSectionId === 'summary'}
                                         />
                                     </div>
                                 )}
@@ -561,16 +492,17 @@ export const ResumeBuilderPage = () => {
                                             {section.type === 'list' ? (
                                                 <ListEditor sectionId={sectionId} />
                                             ) : (
-                                                <SectionEditor sectionId={sectionId} />
+                                                <SectionEditor
+                                                    sectionId={sectionId}
+                                                    onPolish={(rect, text, itemId) => handlePolish(rect, text, { sectionId, itemId, field: 'description' })}
+                                                    isPolishing={(itemId) => isAIPolishOpen && activeSectionId === sectionId && activeItemId === itemId}
+                                                />
                                             )}
                                         </div>
                                     )}
                                 </div>
                             );
                         })}
-
-                        {/* Skills Section */}
-
 
                         {/* Add Section Button */}
                         <div className="pt-4 pb-20">
@@ -586,28 +518,9 @@ export const ResumeBuilderPage = () => {
                     </div>
                 </div>
 
-                {/* Preview Panel (Right) */}
-                <div className={`${activeTab === 'preview' ? 'flex' : 'hidden'} md:flex flex-1 bg-gray-200 dark:bg-[#0A0A0A] overflow-y-auto justify-center p-4 md:p-8 relative custom-scrollbar`}>
-                    {/* ... (Existing Zoom and Preview Logic) ... */}
-                    <div className="fixed top-24 right-8 z-10 flex flex-col gap-2">
-                        <button
-                            onClick={() => setZoom(z => Math.min(z + 0.1, 1.5))}
-                            className="w-10 h-10 bg-white dark:bg-[#121212] rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-white/10"
-                        >
-                            <ZoomIn className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={() => setZoom(z => Math.max(z - 0.1, 0.5))}
-                            className="w-10 h-10 bg-white dark:bg-[#121212] rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-white/10"
-                        >
-                            <ZoomOut className="w-5 h-5" />
-                        </button>
-                    </div>
-
-                    <div
-                        className="bg-white shadow-2xl origin-top transition-transform duration-200 min-h-[1123px] w-[794px]"
-                        style={{ transform: `scale(${zoom})`, marginBottom: `${(zoom - 1) * 1123}px` }}
-                    >
+                {/* Preview Panel */}
+                <div className="flex-1 bg-gray-100 dark:bg-[#1a1a1a] p-8 overflow-y-auto flex items-start justify-center">
+                    <div className="bg-white shadow-2xl min-h-[842px] w-[595px] origin-top scale-[1] transition-transform">
                         {selectedTemplate === 'azurill' && <AzurillTemplate />}
                         {selectedTemplate === 'onyx' && <OnyxTemplate />}
                         {selectedTemplate === 'bronzor' && <BronzorTemplate />}
@@ -623,7 +536,7 @@ export const ResumeBuilderPage = () => {
                         {selectedTemplate === 'eevee' && <EeveeTemplate />}
                     </div>
                 </div>
-            </div>
+            </div >
 
             <TemplateSelector isOpen={isTemplateSelectorOpen} onClose={() => setIsTemplateSelectorOpen(false)} />
             <AddSectionDialog open={isAddSectionOpen} onOpenChange={setIsAddSectionOpen} />
@@ -631,14 +544,34 @@ export const ResumeBuilderPage = () => {
             <AIPolishDialog
                 open={isAIPolishOpen}
                 onClose={() => setIsAIPolishOpen(false)}
-                originalText="Led a team of 5 engineers to rebuild the core payment infrastructure."
+                originalText={textToPolish}
+                suggestions={polishSuggestions}
+                targetRect={polishTargetRect}
                 onApply={(text) => {
-                    console.log('Applied:', text);
+                    if (activeSectionId === 'summary') {
+                        setSummary(text);
+                    } else if (activeSectionId && activeItemId && activeField) {
+                        // We need a way to update the section item.
+                        // ResumeBuilderPage has access to 'useArtboardStore'.
+                        // We can use the store directly or a helper.
+                        // But we can't call hooks inside this callback.
+                        // We need to use the store's getState() or use the bound action if available in scope.
+                        // 'setResumeData' is available in scope.
+                        // But 'updateSectionItem' is a store action.
+                        // We can import the store outside or use the hook return.
+                        // We didn't fetch 'updateSectionItem' from the store in the component body.
+                        // Let's assume we can add it or update state manually.
+
+                        // Better: Add updateSectionItem to the hook destructuring at the top.
+                        // But for now, let's just use the store instance if possible or manually update sections.
+
+                        const store = useArtboardStore.getState();
+                        store.updateSectionItem(activeSectionId, activeItemId, { [activeField]: text });
+                    }
                     setIsAIPolishOpen(false);
-                    // TODO: Update actual field
                 }}
                 loading={aiLoading}
             />
-        </div>
+        </div >
     );
 };

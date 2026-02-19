@@ -2,65 +2,64 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Wand2, Check } from 'lucide-react';
 import { useState } from 'react';
 
-interface Suggestion {
-    id: string;
-    type: 'enhancement' | 'correction' | 'professional';
-    label: string;
-    isRecommended?: boolean;
-    content: string;
-    original: string;
-}
+import { Suggestion } from '../../../../services/ai/polishContent';
 
 interface AIPolishDialogProps {
     open: boolean;
     onClose: () => void;
     originalText: string;
+    suggestions: Suggestion[];
     onApply: (text: string) => void;
     loading?: boolean;
+    targetRect?: DOMRect | null;
 }
 
-export const AIPolishDialog = ({ open, onClose, originalText, onApply, loading = false }: AIPolishDialogProps) => {
+export const AIPolishDialog = ({ open, onClose, originalText, suggestions, onApply, loading = false, targetRect }: AIPolishDialogProps) => {
     const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null);
-
-    // Mock suggestions for now - in real app this would come from API
-    const suggestions: Suggestion[] = [
-        {
-            id: '1',
-            type: 'enhancement',
-            label: 'Stronger Verbs + Metrics',
-            isRecommended: true,
-            original: originalText,
-            content: originalText.replace(/Led/g, 'Spearheaded').replace(/improved/g, 'optimized').replace(/\./g, ', resulting in 40% efficiency increase.')
-        },
-        {
-            id: '2',
-            type: 'professional',
-            label: 'More Professional',
-            original: originalText,
-            content: `Directed strategy and execution for ${originalText.toLowerCase()}, ensuring alignment with corporate objectives.`
-        }
-    ];
 
     if (!open) return null;
 
+    // Calculate position
+    let style = {};
+    let connectorStyle = {};
+
+    if (targetRect) {
+        // Position to the right of the target if space permits, otherwise below
+        // For this demo, let's assume valid desktop space as per the image
+        const top = targetRect.top + window.scrollY;
+        const left = targetRect.right + 20 + window.scrollX; // 20px gap
+
+        style = {
+            position: 'absolute',
+            top: top,
+            left: left,
+            margin: 0
+        };
+    }
+
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-50 flex items-center justify-center">
+            {/* Overlay - clear/none to allow clicking outside but maybe capturing clicks? 
+                Actually for this "popover" style, we usually want a transparent overlay to close on click outside.
+            */}
+            <div className="fixed inset-0 z-50" onClick={onClose}>
+                {/* Pointer events none wrapper */}
                 <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 bg-black/70 backdrop-blur-[1px]"
-                    onClick={onClose}
-                />
-
-                {/* Pointer events none wrapper to position relative to trigger if needed, but centering for now as per request */}
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                    className="relative w-[450px] z-50 pointer-events-auto flex flex-col"
+                    initial={{ opacity: 0, scale: 0.95, x: -10 }}
+                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, x: -10 }}
+                    className="absolute z-50 pointer-events-auto flex flex-col w-[450px]"
+                    style={style}
+                    onClick={(e) => e.stopPropagation()}
                 >
+                    {/* Connector Line/Dot */}
+                    {targetRect && (
+                        <div className="absolute top-6 -left-6 flex items-center">
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#1dff00] shadow-[0_0_10px_#1dff00]" />
+                            <div className="w-6 h-[1px] bg-gradient-to-r from-[#1dff00] to-[#1dff00]/30" />
+                        </div>
+                    )}
+
                     {/* Glow effect */}
                     <div className="absolute -inset-4 border-2 border-[#1dff00] rounded-xl shadow-[0_0_30px_rgba(29,255,0,0.2)] bg-transparent animate-pulse pointer-events-none" />
 
