@@ -16,67 +16,12 @@ export const Logo: React.FC<LogoProps> = ({
 }) => {
     return (
         <div className={cn("flex items-center select-none", className)}>
-            <svg
-                width={width}
-                height={height}
-                viewBox={iconOnly ? "0 0 100 100" : "0 0 500 100"}
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-full w-auto"
-            >
-                <defs>
-                    <linearGradient id="logo-glow-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#1dff00" />
-                        <stop offset="100%" stopColor="#80ff72" />
-                    </linearGradient>
-                </defs>
-
-                <g fill="#1dff00">
-                    {!iconOnly && (
-                        <g transform="translate(10, 15)">
-                            {/* J */}
-                            <path d="M0 10H30V40C30 55 20 60 5 60H0V50H5C15 50 20 45 20 40V20H0V10Z" />
-                        </g>
-                    )}
-
-                    {/* O - Stylized Icon centerpiece - Adjusted Spacing */}
-                    <g transform={iconOnly ? "translate(10, 10)" : "translate(65, 15)"}>
-                        {/* The O Arc Layers */}
-                        <path d="M5 35C5 20 12 10 25 7V17C18 20 15 27 15 35C15 43 18 50 25 53V63C12 60 5 50 5 35Z" />
-                        <path d="M65 35C65 50 58 60 45 63V53C52 50 55 43 55 35C55 27 52 20 45 17V7C58 10 65 20 65 35Z" />
-
-                        {/* Lower Diagonal Bar - Deep Green Accent */}
-                        <path d="M15 60L35 40L45 50L25 70L15 60Z" fill="#13a300" opacity="0.9" />
-
-                        {/* Upper Diagonal Bar with Arrowhead - Glow Green */}
-                        <path d="M25 50L58 17L68 27L35 60L25 50Z" fill="url(#logo-glow-grad)" />
-
-                        {/* Sharp Arrowheads / Points */}
-                        <path d="M55 13L72 13V30" stroke="#1dff00" strokeWidth="6" strokeLinecap="square" />
-                        <path d="M72 13L84 1" stroke="#1dff00" strokeWidth="6" strokeLinecap="square" />
-
-                        {/* Top ghost notch extension */}
-                        <path d="M42 17L52 7L56 11L46 21L42 17Z" fill="#1dff00" opacity="0.7" />
-                    </g>
-
-                    {!iconOnly && (
-                        <g transform="translate(160, 15)">
-                            {/* B */}
-                            <path d="M0 10H25C40 10 45 15 45 25C45 32 40 36 30 38C37 40 45 45 45 55C45 65 40 70 25 70H0V10ZM10 20V35H23C30 35 33 32 33 27C33 22 30 20 23 20H10ZM10 45V60H27C33 60 35 57 35 52.5C35 48 33 45 27 45H10Z" />
-                            {/* R */}
-                            <path d="M55 10H85C95 10 100 15 100 25C100 33 95 38 85 38L100 70H88L73 38H65V70H55V10ZM65 20V30H80C85 30 88 28 88 25C88 22 85 20 80 20H65Z" />
-                            {/* A */}
-                            <path d="M125 10L145 70H133L130 60H112L109 70H97L117 10H125ZM121 25L115 45H127L121 25Z" />
-                            {/* K */}
-                            <path d="M150 10H160V35L180 10H192L170 38L192 70H180L160 45V70H150V10Z" />
-                            {/* E */}
-                            <path d="M200 10H225V20H210V35H225V45H210V60H225V70H200V10Z" />
-                            {/* R */}
-                            <path d="M235 10H265C275 10 280 15 280 25C280 33 275 38 265 38L280 70H268L253 38H245V70H235V10ZM245 20V30H260C265 30 268 28 268 25C268 22 265 20 260 20H245Z" />
-                        </g>
-                    )}
-                </g>
-            </svg>
+            <img
+                src={iconOnly ? "/favicon.png" : "/logo.png"}
+                alt="Jobraker"
+                style={{ height: typeof height === 'number' ? `${height}px` : height, width: "auto" }}
+                className="block object-contain"
+            />
         </div>
     )
 }
