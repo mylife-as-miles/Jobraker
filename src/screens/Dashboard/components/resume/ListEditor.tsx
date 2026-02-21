@@ -79,4 +79,3 @@ export const ListEditor = ({ sectionId }: ListEditorProps) => {
     </div>
   );
 };
-

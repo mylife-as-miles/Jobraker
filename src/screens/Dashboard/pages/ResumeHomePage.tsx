@@ -218,6 +218,49 @@ export const ResumeHomePage = () => {
 
       {!loading && viewMode === "grid" && (
         <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6'>
+          {/* Resume Cards */}
+          {resumes.map((resume) => (
+            <motion.div
+              key={resume.id}
+              whileHover={{ y: -5 }}
+              className='aspect-[3/4] rounded-xl bg-foreground/10 border overflow-hidden group hover:shadow-xl transition-all relative flex flex-col'
+            >
+              {/* Preview Area (Top 2/3) */}
+              <div
+                onClick={() => handleEdit(resume.id, resume.name)}
+                className='flex-1 bg-white relative cursor-pointer overflow-hidden'
+              >
+                {/* Mini Resume Preview */}
+                <ResumePreviewCard data={resume.data} />
+
+                {/* Overlay on hover */}
+                <div className='absolute inset-0 bg-foreground/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
+                  <Button size='sm' variant='secondary' className='gap-2'>
+                    <Edit2 className='w-3 h-3' /> Edit
+                  </Button>
+                </div>
+              </div>
+
+              {/* Meta Info (Bottom) */}
+              <div className='p-4 border-t border-[#ffffff10]'>
+                <div className='flex items-start justify-between'>
+                  <div>
+                    <h3 className='font-semibold text-foreground truncate pr-2'>
+                      {resume.name}
+                    </h3>
+                    <p className='text-xs text-foreground/60 mt-1 flex items-center gap-1'>
+                      <Calendar className='w-3 h-3' />
+                      Last edited{" "}
+                      {new Date(resume.updated_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  {/* <button className='text-foreground/60 hover:text-foreground/60 p-1 rounded hover:bg-[#ffffff10]'>
+                    <MoreVertical className='w-4 h-4' />
+                  </button> */}
+                </div>
+              </div>
+            </motion.div>
+          ))}
           {/* Create New Card */}
           <motion.div
             whileHover={{ scale: 1.02 }}
@@ -253,55 +296,11 @@ export const ResumeHomePage = () => {
                   <Upload className='w-8 h-8' />
                 </div>
                 <span className='font-medium text-foreground/60 group-hover:text-foreground transition-colors'>
-                  Import Existing
-                </span>
-              </>
-            )}
+                Import Existing
+              </span>
+            </>
+          )}
           </motion.div>
-
-          {/* Resume Cards */}
-          {resumes.map((resume) => (
-            <motion.div
-              key={resume.id}
-              whileHover={{ y: -5 }}
-              className='product-section-card aspect-[3/4] overflow-hidden group hover:shadow-xl transition-all relative flex flex-col p-0'
-            >
-              {/* Preview Area (Top 2/3) */}
-              <div
-                onClick={() => handleEdit(resume.id, resume.name)}
-                className='flex-1 bg-white relative cursor-pointer overflow-hidden'
-              >
-                {/* Mini Resume Preview */}
-                <ResumePreviewCard data={resume.data} />
-
-                {/* Overlay on hover */}
-                <div className='absolute inset-0 bg-foreground/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
-                  <Button size='sm' variant='secondary' className='gap-2'>
-                    <Edit2 className='w-3 h-3' /> Edit
-                  </Button>
-                </div>
-              </div>
-
-              {/* Meta Info (Bottom) */}
-              <div className='p-4 border-t border-foreground/5'>
-                <div className='flex items-start justify-between'>
-                  <div>
-                    <h3 className='font-semibold text-foreground truncate pr-2'>
-                      {resume.name}
-                    </h3>
-                    <p className='product-helper-text text-xs mt-1 flex items-center gap-1'>
-                      <Calendar className='w-3 h-3' />
-                      Last edited{' '}
-                      {new Date(resume.updated_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  {/* <button className='text-foreground/60 hover:text-foreground/60 p-1 rounded hover:bg-foreground/5'>
-                    <MoreVertical className='w-4 h-4' />
-                  </button> */}
-                </div>
-              </div>
-            </motion.div>
-          ))}
         </div>
       )}
 

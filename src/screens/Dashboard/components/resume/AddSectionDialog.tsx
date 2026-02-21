@@ -195,4 +195,3 @@ export const AddSectionDialog = ({
     </Dialog>
   );
 };
-
