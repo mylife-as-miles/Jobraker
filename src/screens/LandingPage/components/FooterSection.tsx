@@ -1,5 +1,5 @@
-import { Logo } from '../../../components/ui/Logo';
-import { Github, Twitter, Linkedin } from 'lucide-react';
+import React from 'react';
+import { Bot, Github, Twitter, Linkedin } from 'lucide-react';
 
 export const FooterSection = () => {
   return (
@@ -7,8 +7,11 @@ export const FooterSection = () => {
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center mb-6">
-              <Logo height={32} />
+            <div className="flex items-center space-x-2 mb-6">
+              <div className="w-8 h-8 bg-[#1dff00] rounded flex items-center justify-center">
+                <Bot className="w-5 h-5 text-black" />
+              </div>
+              <span className="text-white font-bold text-xl tracking-tighter">JOBRAKER</span>
             </div>
             <p className="text-gray-500 font-mono text-sm max-w-sm">
               Autonomous AI agents for career acceleration. We build the future of work, one application at a time.
@@ -37,7 +40,7 @@ export const FooterSection = () => {
 
         <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-600 text-xs font-mono mb-4 md:mb-0">
-            © {new Date().getFullYear()} Jobraker Inc. All systems operational.
+            © {new Date().getFullYear()} JobRaker Inc. All systems operational.
           </p>
           <div className="flex space-x-6">
             <a href="#" className="text-gray-500 hover:text-[#1dff00] transition-colors"><Twitter className="w-5 h-5" /></a>

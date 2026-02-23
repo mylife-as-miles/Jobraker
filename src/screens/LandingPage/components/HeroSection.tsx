@@ -1,3 +1,4 @@
+import React from "react";
 import { Button } from "../../../components/ui/button";
 import { ArrowRight, Terminal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -31,7 +32,7 @@ export const HeroSection = () => {
           </h1>
 
           <p className="max-w-xl mx-auto lg:mx-0 text-sm sm:text-base md:text-lg text-neutral-400 font-mono leading-relaxed">
-            Jobraker is the world's first autonomous AI agent that applies to jobs for you.
+            JobRaker is the world's first autonomous AI agent that applies to jobs for you.
             It scans 50k+ boards, optimizes your resume, and submits applications 24/7.
           </p>
 
@@ -54,23 +55,23 @@ export const HeroSection = () => {
 
           {/* Trust/Stats Mini-section */}
           <div className="pt-8 flex items-center justify-center lg:justify-start space-x-8 text-neutral-500 text-sm font-mono">
-            <div className="flex items-center space-x-2">
-              <span className="text-[#1dff00] font-bold">50k+</span>
-              <span>Job Boards</span>
-            </div>
-            <div className="w-px h-4 bg-neutral-800" />
-            <div className="flex items-center space-x-2">
-              <span className="text-[#1dff00] font-bold">24/7</span>
-              <span>Active</span>
-            </div>
+             <div className="flex items-center space-x-2">
+                <span className="text-[#1dff00] font-bold">50k+</span>
+                <span>Job Boards</span>
+             </div>
+             <div className="w-px h-4 bg-neutral-800" />
+             <div className="flex items-center space-x-2">
+                <span className="text-[#1dff00] font-bold">24/7</span>
+                <span>Active</span>
+             </div>
           </div>
         </div>
 
         {/* Right Column: 3D Orb - Adjusted sizing and positioning */}
         <div className="flex-1 w-full relative h-[400px] sm:h-[500px] lg:h-[600px] flex items-center justify-center perspective-1000 -mt-10 lg:mt-0">
-          {/* Glow effect behind orb */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-[#1dff00] rounded-full blur-[150px] opacity-15 pointer-events-none" />
-          <EarthOrb />
+             {/* Glow effect behind orb */}
+             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-[#1dff00] rounded-full blur-[150px] opacity-15 pointer-events-none" />
+             <EarthOrb />
         </div>
 
       </div>

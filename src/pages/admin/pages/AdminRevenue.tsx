@@ -1,5 +1,5 @@
 import { useRevenueData, useRecentTransactions } from '../hooks/useAdminStats';
-import { DollarSign, TrendingUp, CreditCard, Users, Loader2, ArrowUp, Search, X, ArrowDownRight, Calendar } from 'lucide-react';
+import { DollarSign, TrendingUp, CreditCard, Users, Loader2, ArrowUp, Search, Filter, ChevronDown, CheckCircle2, X, FileText, ArrowUpRight, ArrowDownRight, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Area, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Bar, BarChart, Legend, Line, ComposedChart } from 'recharts';
 import { useState, useEffect, useMemo } from 'react';
@@ -232,58 +232,46 @@ export default function AdminRevenue() {
               <ComposedChart data={chartData}>
                 <defs>
                   <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#1dff00" stopOpacity={0.4} />
-                    <stop offset="50%" stopColor="#1dff00" stopOpacity={0.1} />
-                    <stop offset="100%" stopColor="#1dff00" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#1dff00" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#1dff00" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="mrrGradient2" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0a8246" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#0a8246" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#0a8246" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#0a8246" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="0" stroke="#ffffff08" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis
                   dataKey="date"
-                  stroke="#ffffff33"
-                  style={{ fontSize: '10px', fontWeight: 500 }}
-                  tickLine={false}
-                  axisLine={false}
-                  dy={10}
+                  stroke="#6b7280"
+                  style={{ fontSize: '12px' }}
                 />
                 <YAxis
-                  stroke="#ffffff33"
-                  style={{ fontSize: '10px', fontWeight: 500 }}
-                  tickLine={false}
-                  axisLine={false}
-                  dx={-10}
-                  tickFormatter={(val) => `$${val}`}
+                  stroke="#6b7280"
+                  style={{ fontSize: '12px' }}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'rgba(10, 10, 10, 0.8)',
-                    border: '1px solid rgba(29, 255, 0, 0.2)',
-                    borderRadius: '12px',
-                    backdropFilter: 'blur(12px)',
-                    color: '#fff',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                    backgroundColor: '#1f2937',
+                    border: '1px solid #1dff00',
+                    borderRadius: '8px',
+                    color: '#fff'
                   }}
-                  cursor={{ stroke: '#ffffff11', strokeWidth: 1 }}
                 />
-                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
+                <Legend />
                 <Area
                   type="monotone"
                   dataKey="revenue"
                   stroke="#1dff00"
-                  strokeWidth={3}
+                  strokeWidth={2}
                   fill="url(#revenueGradient)"
                   name="Revenue"
-                  activeDot={{ r: 6, fill: "#1dff00", stroke: "#000", strokeWidth: 2 }}
                 />
                 <Line
                   type="monotone"
                   dataKey="mrr"
                   stroke="#0a8246"
-                  strokeWidth={3}
+                  strokeWidth={2}
                   name="MRR"
                   dot={false}
                 />
@@ -308,41 +296,25 @@ export default function AdminRevenue() {
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="0" stroke="#ffffff08" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                   <XAxis
                     dataKey="date"
-                    stroke="#ffffff33"
-                    style={{ fontSize: '10px', fontWeight: 500 }}
-                    tickLine={false}
-                    axisLine={false}
-                    dy={10}
+                    stroke="#6b7280"
+                    style={{ fontSize: '11px' }}
                   />
                   <YAxis
-                    stroke="#ffffff33"
-                    style={{ fontSize: '10px', fontWeight: 500 }}
-                    tickLine={false}
-                    axisLine={false}
-                    dx={-10}
+                    stroke="#6b7280"
+                    style={{ fontSize: '12px' }}
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'rgba(10, 10, 10, 0.8)',
-                      border: '1px solid rgba(29, 255, 0, 0.2)',
-                      borderRadius: '12px',
-                      backdropFilter: 'blur(12px)',
-                      color: '#fff',
-                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                      backgroundColor: '#1f2937',
+                      border: '1px solid #1dff00',
+                      borderRadius: '8px',
+                      color: '#fff'
                     }}
-                    cursor={{ fill: 'rgba(255, 255, 255, 0.03)' }}
                   />
-                  <Bar
-                    dataKey="newSubs"
-                    fill="#1dff00"
-                    radius={[6, 6, 0, 0]}
-                    name="New Subscriptions"
-                    barSize={32}
-                    style={{ filter: 'drop-shadow(0 0 12px rgba(29, 255, 0, 0.2))' }}
-                  />
+                  <Bar dataKey="newSubs" fill="#1dff00" radius={[8, 8, 0, 0]} name="New Subscriptions" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -541,9 +513,9 @@ export default function AdminRevenue() {
                       </td>
                       <td className="py-3 px-4">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${tx.transaction_type === 'purchase' ? 'bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/20' :
-                          tx.transaction_type === 'bonus' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
-                            tx.transaction_type === 'refund' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
-                              'bg-red-500/10 text-red-400 border-red-500/20'
+                            tx.transaction_type === 'bonus' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
+                              tx.transaction_type === 'refund' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
+                                'bg-red-500/10 text-red-400 border-red-500/20'
                           }`}>
                           {tx.transaction_type === 'purchase' && <DollarSign className="w-3 h-3 mr-1" />}
                           {tx.transaction_type === 'bonus' && <ArrowUp className="w-3 h-3 mr-1" />}
