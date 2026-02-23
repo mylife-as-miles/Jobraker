@@ -10,17 +10,12 @@ import { GlalieTemplate } from '../../../templates/glalie';
 import { KakunaTemplate } from '../../../templates/kakuna';
 import { PikachuTemplate } from '../../../templates/pikachu';
 import { RhyhornTemplate } from '../../../templates/rhyhorn';
-import { EeveeTemplate } from '../../../templates/eevee';
-import { LaprasTemplate } from '../../../templates/lapras';
-
-import { ResumeData } from '../../../store/artboard';
 
 interface TemplatePreviewProps {
     templateId: string;
-    metadataOverride?: ResumeData['metadata'];
 }
 
-export const TemplatePreview: FC<TemplatePreviewProps> = ({ templateId, metadataOverride }) => {
+export const TemplatePreview: FC<TemplatePreviewProps> = ({ templateId }) => {
     // 210mm is approx 794px at 96 DPI
     // The container in TemplateSelector is defined by aspect-ratio, we need to scale this 794px content to fit.
     // We'll use a CSS transform scale.
@@ -51,19 +46,17 @@ export const TemplatePreview: FC<TemplatePreviewProps> = ({ templateId, metadata
                 }}
                 className="absolute top-0 left-0 pointer-events-none select-none shadow-sm origin-top-left"
             >
-                {templateId === 'azurill' && <AzurillTemplate metadataOverride={metadataOverride} />}
-                {templateId === 'onyx' && <OnyxTemplate metadataOverride={metadataOverride} />}
-                {templateId === 'bronzor' && <BronzorTemplate metadataOverride={metadataOverride} />}
-                {templateId === 'chikorita' && <ChikoritaTemplate metadataOverride={metadataOverride} />}
-                {templateId === 'ditgar' && <DitgarTemplate metadataOverride={metadataOverride} />}
-                {templateId === 'ditto' && <DittoTemplate metadataOverride={metadataOverride} />}
-                {templateId === 'gengar' && <GengarTemplate metadataOverride={metadataOverride} />}
-                {templateId === 'glalie' && <GlalieTemplate metadataOverride={metadataOverride} />}
-                {templateId === 'kakuna' && <KakunaTemplate metadataOverride={metadataOverride} />}
-                {templateId === 'pikachu' && <PikachuTemplate metadataOverride={metadataOverride} />}
-                {templateId === 'rhyhorn' && <RhyhornTemplate metadataOverride={metadataOverride} />}
-                {templateId === 'eevee' && <EeveeTemplate metadataOverride={metadataOverride} />}
-                {templateId === 'lapras' && <LaprasTemplate metadataOverride={metadataOverride} />}
+                {templateId === 'azurill' && <AzurillTemplate />}
+                {templateId === 'onyx' && <OnyxTemplate />}
+                {templateId === 'bronzor' && <BronzorTemplate />}
+                {templateId === 'chikorita' && <ChikoritaTemplate />}
+                {templateId === 'ditgar' && <DitgarTemplate />}
+                {templateId === 'ditto' && <DittoTemplate />}
+                {templateId === 'gengar' && <GengarTemplate />}
+                {templateId === 'glalie' && <GlalieTemplate />}
+                {templateId === 'kakuna' && <KakunaTemplate />}
+                {templateId === 'pikachu' && <PikachuTemplate />}
+                {templateId === 'rhyhorn' && <RhyhornTemplate />}
             </div>
         </div>
     );

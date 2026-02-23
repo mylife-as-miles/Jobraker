@@ -3,9 +3,8 @@
 import { Card } from "../ui/card"
 import { motion } from "framer-motion"
 import { ArrowDownRight, ArrowUpRight } from "lucide-react"
-import { Area, AreaChart, ResponsiveContainer, XAxis } from 'recharts'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "../ui/chart"
-import { useMemo, useState } from "react"
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { useMemo } from "react"
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 
@@ -20,8 +19,6 @@ export function IndustriesCard({ period, data }: { period: Period; data: any }) 
     applicationsDeltaPct: data?.comparisons?.applicationsDeltaPct ?? 0,
     interviewsDeltaPct: data?.comparisons?.interviewsDeltaPct ?? 0,
   }
-
-  const [hoverIndex, setHoverIndex] = useState<number | null>(null)
 
   const Delta = ({ value }: { value: number }) => {
     if (value === 0) return <span className="text-[11px] text-foreground/60">0%</span>
@@ -123,69 +120,41 @@ export function IndustriesCard({ period, data }: { period: Period; data: any }) 
 
           {/* Enhanced trend chart with Recharts */}
           <div className='flex-shrink-0 h-24 sm:h-28 lg:h-32 xl:h-36 relative'>
-            <ChartContainer
-              config={{
-                value: {
-                  label: "Value",
-                  color: "#1dff00",
-                },
-              }}
-              data={rechartData}
-              className="h-full w-full"
-            >
-              <ResponsiveContainer width='100%' height='100%'>
-                <AreaChart
-                  data={rechartData}
-                  onMouseMove={(state: any) => {
-                    if (state && state.activeTooltipIndex != null) {
-                      setHoverIndex(state.activeTooltipIndex)
-                    }
+            <ResponsiveContainer width='100%' height='100%'>
+              <AreaChart data={rechartData}>
+                <defs>
+                  <linearGradient
+                    id='industryGradient'
+                    x1='0'
+                    y1='0'
+                    x2='0'
+                    y2='1'
+                  >
+                    <stop offset='5%' stopColor='#1dff00' stopOpacity={0.3} />
+                    <stop offset='95%' stopColor='#1dff00' stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "rgba(10, 10, 10, 0.95)",
+                    border: "1px solid rgba(29, 255, 0, 0.3)",
+                    borderRadius: "12px",
+                    color: "#fff",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
                   }}
-                  onMouseLeave={() => setHoverIndex(null)}
-                >
-                  <defs>
-                    <linearGradient
-                      id='industryGradient'
-                      x1='0'
-                      y1='0'
-                      x2='1'
-                      y2='0'
-                    >
-                      <stop offset='0%' stopColor='#1dff00' stopOpacity={0.4} />
-                      <stop
-                        offset={hoverIndex !== null ? `${(hoverIndex / (rechartData.length - 1)) * 100}%` : "100%"}
-                        stopColor='#1dff00'
-                        stopOpacity={0.3}
-                      />
-                      <stop
-                        offset={hoverIndex !== null ? `${(hoverIndex / (rechartData.length - 1)) * 100 + 0.1}%` : "100.1%"}
-                        stopColor='#1dff00'
-                        stopOpacity={0.1}
-                      />
-                      <stop offset='100%' stopColor='#1dff00' stopOpacity={0.05} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey='name' hide />
-                  <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                  <Area
-                    type='natural'
-                    dataKey='value'
-                    stroke='#1dff00'
-                    strokeWidth={3}
-                    fill='url(#industryGradient)'
-                    fillOpacity={1}
-                    dot={false}
-                    activeDot={{
-                      r: 4,
-                      fill: "#fff",
-                      stroke: "#1dff00",
-                      strokeWidth: 2,
-                    }}
-                    animationDuration={1500}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </ChartContainer>
+                  itemStyle={{ color: "#1dff00" }}
+                  labelStyle={{ color: "#fff", marginBottom: "0.25rem" }}
+                />
+                <Area
+                  type='monotone'
+                  dataKey='value'
+                  stroke='#1dff00'
+                  strokeWidth={3}
+                  fill='url(#industryGradient)'
+                  animationDuration={1500}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </Card>
