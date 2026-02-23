@@ -391,44 +391,42 @@ export default function AdminCredits() {
           <ComposedChart data={chartData}>
             <defs>
               <linearGradient id="earnedGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
-                <stop offset="50%" stopColor="#10b981" stopOpacity={0.1} />
-                <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="0" stroke="#ffffff08" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
             <XAxis
               dataKey="date"
-              stroke="#ffffff33"
-              style={{ fontSize: '10px', fontWeight: 500 }}
+              stroke="#6b7280"
+              style={{ fontSize: '12px' }}
               tickLine={false}
               axisLine={false}
               dy={10}
             />
             <YAxis
-              stroke="#ffffff33"
-              style={{ fontSize: '10px', fontWeight: 500 }}
+              stroke="#6b7280"
+              style={{ fontSize: '12px' }}
               tickLine={false}
               axisLine={false}
               dx={-10}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: 'rgba(10, 10, 10, 0.8)',
-                border: '1px solid rgba(29, 255, 0, 0.2)',
+                backgroundColor: '#111',
+                border: '1px solid #333',
                 borderRadius: '12px',
-                backdropFilter: 'blur(12px)',
                 color: '#fff',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
               }}
-              cursor={{ stroke: '#ffffff11', strokeWidth: 1 }}
+              cursor={{ stroke: '#374151', strokeWidth: 1 }}
             />
             <Legend wrapperStyle={{ paddingTop: '20px' }} />
             <Area
               type="monotone"
               dataKey="earned"
               stroke="#10b981"
-              strokeWidth={3}
+              strokeWidth={2}
               fill="url(#earnedGradient)"
               name="Credits Earned"
             />
@@ -437,15 +435,14 @@ export default function AdminCredits() {
               fill="#ef4444"
               radius={[4, 4, 0, 0]}
               name="Credits Consumed"
-              maxBarSize={32}
-              style={{ filter: 'drop-shadow(0 0 8px rgba(239, 68, 68, 0.2))' }}
+              maxBarSize={40}
             />
 
             <Line
               type="monotone"
               dataKey="net"
               stroke="#3b82f6"
-              strokeWidth={3}
+              strokeWidth={2}
               name="Net Change"
               dot={false}
             />

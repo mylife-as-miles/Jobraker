@@ -1,11 +1,10 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import { Card } from "../ui/card"
 import { Lightbulb, ChevronLeft, ChevronRight } from "lucide-react"
 import { motion } from "framer-motion"
-import { Area, AreaChart, ResponsiveContainer, XAxis, CartesianGrid } from 'recharts'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "../ui/chart"
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 
@@ -28,8 +27,6 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
       value: item.value || 0,
     }))
   }, [chartData])
-
-  const [hoverIndex, setHoverIndex] = useState<number | null>(null)
 
   return (
     <motion.div
@@ -88,76 +85,70 @@ export function InsightCard({ period, data }: { period: Period; data: any }) {
 
           <div className='flex-1 min-h-[200px]'>
             {rechartData.length > 0 ? (
-              <ChartContainer
-                config={{
-                  value: {
-                    label: "Value",
-                    color: "#1dff00",
-                  },
-                }}
-                data={rechartData}
-                className="h-full w-full"
-              >
-                <ResponsiveContainer width='100%' height='100%'>
-                  <AreaChart
-                    data={rechartData}
-                    onMouseMove={(state: any) => {
-                      if (state && state.activeTooltipIndex != null) {
-                        setHoverIndex(state.activeTooltipIndex)
-                      }
+              <ResponsiveContainer width='100%' height='100%'>
+                <AreaChart data={rechartData}>
+                  <defs>
+                    <linearGradient
+                      id='insightGradient'
+                      x1='0'
+                      y1='0'
+                      x2='0'
+                      y2='1'
+                    >
+                      <stop offset='5%' stopColor='#1dff00' stopOpacity={0.4} />
+                      <stop
+                        offset='50%'
+                        stopColor='#1dff00'
+                        stopOpacity={0.2}
+                      />
+                      <stop
+                        offset='95%'
+                        stopColor='#1dff00'
+                        stopOpacity={0.05}
+                      />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray='3 3'
+                    stroke='rgba(255,255,255,0.1)'
+                  />
+                  <XAxis
+                    dataKey='name'
+                    stroke='rgba(255,255,255,0.5)'
+                    style={{ fontSize: "11px" }}
+                    tick={{ fill: "rgba(255,255,255,0.7)" }}
+                  />
+                  <YAxis
+                    stroke='rgba(255,255,255,0.5)'
+                    style={{ fontSize: "11px" }}
+                    tick={{ fill: "rgba(255,255,255,0.7)" }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "rgba(10, 10, 10, 0.95)",
+                      border: "1px solid rgba(29, 255, 0, 0.3)",
+                      borderRadius: "12px",
+                      color: "#fff",
+                      backdropFilter: "blur(10px)",
                     }}
-                    onMouseLeave={() => setHoverIndex(null)}
-                  >
-                    <defs>
-                      <linearGradient
-                        id='insightGradient'
-                        x1='0'
-                        y1='0'
-                        x2='1'
-                        y2='0'
-                      >
-                        <stop offset='0%' stopColor='#1dff00' stopOpacity={0.4} />
-                        <stop
-                          offset={hoverIndex !== null ? `${(hoverIndex / (rechartData.length - 1)) * 100}%` : "100%"}
-                          stopColor='#1dff00'
-                          stopOpacity={0.3}
-                        />
-                        <stop
-                          offset={hoverIndex !== null ? `${(hoverIndex / (rechartData.length - 1)) * 100 + 0.1}%` : "100.1%"}
-                          stopColor='#1dff00'
-                          stopOpacity={0.1}
-                        />
-                        <stop offset='100%' stopColor='#1dff00' stopOpacity={0.05} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid
-                      vertical={false}
-                      stroke='rgba(255,255,255,0.05)'
-                    />
-                    <XAxis
-                      dataKey='name'
-                      hide
-                    />
-                    <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                    <Area
-                      type='natural'
-                      dataKey='value'
-                      stroke='#1dff00'
-                      strokeWidth={3}
-                      fill='url(#insightGradient)'
-                      fillOpacity={1}
-                      dot={false}
-                      activeDot={{
-                        r: 5,
-                        fill: "#fff",
-                        stroke: "#1dff00",
-                        strokeWidth: 2,
-                      }}
-                      animationDuration={1500}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+                    labelStyle={{ color: "#1dff00", fontWeight: "bold" }}
+                  />
+                  <Area
+                    type='monotone'
+                    dataKey='value'
+                    stroke='#1dff00'
+                    strokeWidth={3}
+                    fill='url(#insightGradient)'
+                    dot={{ fill: "#1dff00", strokeWidth: 2, r: 4 }}
+                    activeDot={{
+                      r: 6,
+                      fill: "#fff",
+                      stroke: "#1dff00",
+                      strokeWidth: 2,
+                    }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             ) : (
               <div className='w-full h-full flex items-center justify-center text-foreground/40 text-sm'>
                 No data available for this period

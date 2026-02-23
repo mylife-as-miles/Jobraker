@@ -1,6 +1,7 @@
 "use client"
 import React from "react"
 import { Area, AreaChart, CartesianGrid, XAxis, ResponsiveContainer } from "recharts"
+import { motion } from "framer-motion"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "../../../components/ui/chart"
 import { useMemo, useState } from "react"
 
@@ -51,8 +52,7 @@ export function SplitLineAreaChart({
   const effectiveStacked = stacked && visible.size > 1
 
   const n = Math.max(1, (data?.length || 0) - 1)
-  const rawOffset = hoverIndex != null ? (hoverIndex / n) * 100 : 100
-  const splitOffset = Math.max(0, Math.min(99.9, rawOffset))
+  const splitOffset = hoverIndex != null ? (hoverIndex / n) * 100 : 100
 
   const chartConfig: ChartConfig = useMemo(() => {
     const cfg: Record<string, { label: string; color: string }> = {}
@@ -67,10 +67,14 @@ export function SplitLineAreaChart({
 
   // Notify parent about visible series change
   React.useEffect(() => {
+    // call if provided
+    // avoid recreating array unnecessarily
+    // sort for stable order
     const arr = Array.from(visible)
     arr.sort()
-      ; (typeof onVisibleChange === 'function') && onVisibleChange(arr)
-  }, [visible, onVisibleChange])
+    ;(typeof onVisibleChange === 'function') && onVisibleChange(arr)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible])
 
   // Sync visibility when defaultVisible or series change
   React.useEffect(() => {
@@ -81,7 +85,8 @@ export function SplitLineAreaChart({
     } else {
       setVisible(keys)
     }
-  }, [defaultVisible, series])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultVisible, series.map(s => s.key).join("|")])
 
   return (
     <div className={`relative ${className} overflow-hidden`}>
@@ -102,8 +107,9 @@ export function SplitLineAreaChart({
                     return next
                   })
                 }}
-                className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs transition-colors ${active ? "border-white/20 text-white" : "border-white/10 text-white/50"
-                  }`}
+                className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs transition-colors ${
+                  active ? "border-white/20 text-white" : "border-white/10 text-white/50"
+                }`}
                 title={`${active ? 'Hide' : 'Show'} series: ${s.label ?? s.key}`}
                 aria-label={`${active ? 'Hide' : 'Show'} series ${s.label ?? s.key}`}
                 aria-pressed={active}
@@ -142,51 +148,73 @@ export function SplitLineAreaChart({
       >
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
+            accessibilityLayer
             data={data}
             margin={{ left: 12, right: 12, top: 12 }}
+            stackOffset={effectiveStacked ? 'expand' : undefined}
             onMouseMove={(state: any) => {
               if (state && state.activeTooltipIndex != null) setHoverIndex(state.activeTooltipIndex)
             }}
             onMouseLeave={() => setHoverIndex(null)}
           >
-            <CartesianGrid vertical={false} stroke="#ffffff08" strokeDasharray="0" />
+            <CartesianGrid vertical={false} />
             <XAxis
               dataKey={xKey}
               tickLine={false}
               axisLine={false}
-              tickMargin={12}
-              stroke="#ffffff33"
-              style={{ fontSize: '10px', fontWeight: 500 }}
+              tickMargin={8}
               tickFormatter={(value: string) => (tickFormatter ? tickFormatter(value) : String(value))}
             />
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
 
+            <defs>
+              {series.map((s, idx) => {
+                const color = s.color ?? `var(--chart-${(idx % 5) + 1})`
+                const gradientId = `fill_${s.key}`
+                return (
+                  <linearGradient key={gradientId} id={gradientId} x1="0" y1="0" x2="1" y2="0">
+                    <motion.stop offset="0%" stopColor={color as string} stopOpacity={0.9} />
+                    <motion.stop
+                      stopColor={color as string}
+                      stopOpacity={0.8}
+                      animate={{ offset: `${splitOffset}%` }}
+                      transition={{ duration: 0.4, ease: "easeInOut" }}
+                    />
+                    <motion.stop
+                      stopColor={color as string}
+                      stopOpacity={0.2}
+                      animate={{ offset: `${splitOffset + 0.1}%` }}
+                      transition={{ duration: 0.4, ease: "easeInOut" }}
+                    />
+                    <stop offset="95%" stopColor="#0a2f0a" stopOpacity={0.1} />
+                  </linearGradient>
+                )
+              })}
+            </defs>
+
             {series.map((s, idx) => {
               const color = s.color ?? `var(--chart-${(idx % 5) + 1})`
+              const gradientId = `fill_${s.key}`
               return (
                 <Area
                   key={s.key}
                   dataKey={s.key}
-                  type="monotone"
-                  fill={color as string}
+                  type="natural"
+                  fill={`url(#${gradientId})`}
                   stroke={color as string}
-                  strokeWidth={2}
-                  strokeOpacity={1}
-                  fillOpacity={0.3}
+                  strokeWidth={effectiveStacked ? 1.5 : 2}
+                  fillOpacity={effectiveStacked ? 0.9 : 0.6}
                   dot={false}
-                  activeDot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
-                  stackId={stacked ? "a" : undefined}
+                  stackId={effectiveStacked ? "a" : undefined}
                   hide={!visible.has(s.key)}
-                  connectNulls
-                  isAnimationActive={false}
                 />
               )
             })}
           </AreaChart>
         </ResponsiveContainer>
       </ChartContainer>
-      {stacked && (
-        <div className="absolute bottom-1 right-2 text-[10px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/60 tracking-wide uppercase pointer-events-none">Stacked</div>
+      {effectiveStacked && (
+        <div className="absolute bottom-1 right-2 text-[10px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/60 tracking-wide uppercase">Stacked %</div>
       )}
     </div>
   )

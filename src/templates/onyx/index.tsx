@@ -16,21 +16,16 @@ const sectionClassName = cn(
  * Template: Onyx — Elegant Minimalism
  * A clean, minimal single-column template with strong typographic hierarchy.
  */
-export function OnyxTemplate({ pageIndex = 0, pageLayout, metadataOverride }: TemplateProps) {
+export function OnyxTemplate({ pageIndex = 0 }: TemplateProps) {
     const basics = useArtboardStore((state) => state.resume.data.basics);
-    const storeMetadata = useArtboardStore((state) => state.resume.data.metadata);
-
-    const metadata = metadataOverride || storeMetadata;
-    const themePrimary = metadata.theme?.primary || '#111';
-    const typography = metadata.typography.font;
+    const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#111';
 
     const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
     const defaultOrder = ['summary', 'experience', 'education', 'skills', 'projects'];
-    const layout = pageLayout || storeLayout;
-    const layoutSections = layout ? [...layout.main, ...layout.sidebar] : defaultOrder;
+    const layoutSections = storeLayout ? [...storeLayout.main, ...storeLayout.sidebar] : defaultOrder;
 
     return (
-        <div style={{ '--page-primary-color': themePrimary, fontFamily: typography.family } as React.CSSProperties} className="template-onyx page-content p-12 h-full bg-white text-gray-800">
+        <div style={{ '--page-primary-color': themePrimary } as React.CSSProperties} className="template-onyx page-content p-12 h-full bg-white text-gray-800">
             {/* Header */}
             <header className="mb-8">
                 {/* Top accent line */}

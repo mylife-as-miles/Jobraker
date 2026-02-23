@@ -168,41 +168,17 @@ export const FeatureUsageAnalytics: React.FC<FeatureUsageAnalyticsProps> = ({
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="0" stroke="#ffffff08" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
                       dataKey="name"
-                      stroke="#ffffff33"
-                      style={{ fontSize: '10px', fontWeight: 500 }}
-                      tickLine={false}
-                      axisLine={false}
+                      tick={{ fontSize: 12 }}
                       angle={-45}
                       textAnchor="end"
                       height={60}
                     />
-                    <YAxis
-                      stroke="#ffffff33"
-                      style={{ fontSize: '10px', fontWeight: 500 }}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'rgba(10, 10, 10, 0.8)',
-                        border: '1px solid rgba(29, 255, 0, 0.2)',
-                        borderRadius: '12px',
-                        backdropFilter: 'blur(12px)',
-                        color: '#fff',
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
-                      }}
-                      cursor={{ fill: 'rgba(255, 255, 255, 0.03)' }}
-                    />
-                    <Bar
-                      dataKey="credits"
-                      fill="#1dff00"
-                      radius={[6, 6, 0, 0]}
-                      barSize={32}
-                      style={{ filter: 'drop-shadow(0 0 12px rgba(29, 255, 0, 0.2))' }}
-                    />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="credits" fill="#3b82f6" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -222,31 +198,17 @@ export const FeatureUsageAnalytics: React.FC<FeatureUsageAnalyticsProps> = ({
                       data={pieData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={70}
-                      outerRadius={100}
-                      paddingAngle={5}
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
                       dataKey="value"
-                      stroke="none"
-                      cornerRadius={6}
                     >
                       {pieData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={entry.color}
-                          style={{ filter: `drop-shadow(0 0 8px ${entry.color}44)` }}
-                        />
+                        <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'rgba(10, 10, 10, 0.8)',
-                        border: '1px solid rgba(29, 255, 0, 0.2)',
-                        borderRadius: '12px',
-                        backdropFilter: 'blur(12px)',
-                        color: '#fff',
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
-                      }}
-                    />
+                    <Tooltip />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
