@@ -35,16 +35,15 @@ export function ResumeVersionSuccess({ period: _period, data }: { period: Period
               <PieChart>
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "rgba(10, 10, 10, 0.8)",
-                    border: "1px solid rgba(29, 255, 0, 0.2)",
+                    backgroundColor: "rgba(10, 10, 10, 0.95)",
+                    border: "1px solid rgba(255, 255, 255, 0.1)",
                     borderRadius: "12px",
-                    backdropFilter: "blur(12px)",
                     color: "#fff",
-                    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
                   }}
                   itemStyle={{ color: "#fff" }}
                   labelStyle={{ display: "none" }}
-                  formatter={(value: any, name: any) => [
+                  formatter={(value: any, name: any, props: any) => [
                     `${value}%`,
                     name,
                   ]}
@@ -53,12 +52,12 @@ export function ResumeVersionSuccess({ period: _period, data }: { period: Period
                   data={chartData}
                   cx='50%'
                   cy='50%'
-                  innerRadius={70}
-                  outerRadius={100}
+                  innerRadius={60}
+                  outerRadius={80}
                   paddingAngle={5}
                   dataKey='value'
                   stroke='none'
-                  cornerRadius={6}
+                  cornerRadius={4}
                 >
                   {chartData.map((entry: any, index: number) => (
                     <Cell

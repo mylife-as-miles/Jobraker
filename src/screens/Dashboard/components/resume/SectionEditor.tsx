@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useArtboardStore } from '../../../../store/artboard';
 import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
@@ -9,11 +9,9 @@ import { Textarea } from '../../../../components/ui/textarea'; // Assuming texta
 interface SectionEditorProps {
     sectionId: string;
     title?: string;
-    onPolish?: (rect: DOMRect, text: string, itemId: string) => void;
-    isPolishing?: (itemId: string) => boolean;
 }
 
-export const SectionEditor = ({ sectionId, onPolish, isPolishing }: SectionEditorProps) => {
+export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
     const section = useArtboardStore((state) => state.resume.data.sections[sectionId]);
     const addSectionItem = useArtboardStore((state) => state.addSectionItem);
     const updateSectionItem = useArtboardStore((state) => state.updateSectionItem);
@@ -73,11 +71,11 @@ export const SectionEditor = ({ sectionId, onPolish, isPolishing }: SectionEdito
                                 <div className="col-span-2">
                                     <label className="text-xs font-medium text-gray-500 mb-1 block">
                                         {sectionId === 'education' ? 'School / University' :
-                                            sectionId === 'awards' ? 'Award Name' :
-                                                sectionId === 'certifications' ? 'Certification Name' :
-                                                    sectionId === 'publications' ? 'Publication Title' :
-                                                        sectionId === 'references' ? 'Referee Name' :
-                                                            'Title / Role'}
+                                         sectionId === 'awards' ? 'Award Name' :
+                                         sectionId === 'certifications' ? 'Certification Name' :
+                                         sectionId === 'publications' ? 'Publication Title' :
+                                         sectionId === 'references' ? 'Referee Name' :
+                                         'Title / Role'}
                                     </label>
                                     <Input
                                         value={item.title || item.degree || item.name || ''}
@@ -89,11 +87,11 @@ export const SectionEditor = ({ sectionId, onPolish, isPolishing }: SectionEdito
                                 <div className="col-span-2 sm:col-span-1">
                                     <label className="text-xs font-medium text-gray-500 mb-1 block">
                                         {sectionId === 'education' ? 'Degree' :
-                                            sectionId === 'awards' ? 'Issuer' :
-                                                sectionId === 'certifications' ? 'Issuing Organization' :
-                                                    sectionId === 'publications' ? 'Publisher' :
-                                                        sectionId === 'references' ? 'Company / Relation' :
-                                                            'Company / Organization'}
+                                         sectionId === 'awards' ? 'Issuer' :
+                                         sectionId === 'certifications' ? 'Issuing Organization' :
+                                         sectionId === 'publications' ? 'Publisher' :
+                                         sectionId === 'references' ? 'Company / Relation' :
+                                         'Company / Organization'}
                                     </label>
                                     <Input
                                         value={item.company || item.school || item.institution || item.issuer || ''}
@@ -122,24 +120,6 @@ export const SectionEditor = ({ sectionId, onPolish, isPolishing }: SectionEdito
                                         rows={3}
                                         className="text-xs"
                                     />
-                                    {onPolish && (
-                                        <div className="absolute top-2 right-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className={cn(
-                                                    "h-7 px-2 text-[10px] gap-1.5 bg-white/50 dark:bg-zinc-900 border border-gray-200 dark:border-white/10 hover:border-[#1dff00]/50 transition-all",
-                                                    isPolishing?.(item.id) && "border-[#1dff00] text-[#1dff00]"
-                                                )}
-                                                onClick={(e) => {
-                                                    const rect = e.currentTarget.getBoundingClientRect();
-                                                    onPolish(rect, item.description || '', item.id);
-                                                }}
-                                            >
-                                                AI Polish
-                                            </Button>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         </div>
