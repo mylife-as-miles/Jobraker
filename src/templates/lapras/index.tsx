@@ -23,25 +23,21 @@ const sectionClassName = cn(
  * Template: Lapras — Card-Based Layout
  * A modern card-based template with floating section headers and subtle shadows.
  */
-export function LaprasTemplate({ pageIndex = 0, pageLayout, metadataOverride }: TemplateProps) {
+export function LaprasTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 	const defaultLayout = {
 		fullWidth: false,
 		main: ['summary', 'experience', 'education', 'projects'],
 		sidebar: ['skills']
 	};
 	const storeLayout = useArtboardStore((state) => state.resume.data.metadata.layout.pages[pageIndex]);
-	const storeMetadata = useArtboardStore((state) => state.resume.data.metadata);
-
-	const metadata = metadataOverride || storeMetadata;
 	const layout = pageLayout || storeLayout || defaultLayout;
 
 	const isFirstPage = pageIndex === 0;
 	const { main, sidebar, fullWidth } = layout;
 
 	const containerBorderRadius = useArtboardStore((state) => Math.min(state.resume.data.basics.picture?.borderRadius || 0, 30));
-	const headingNegativeMargin = useArtboardStore((state) => (metadata.typography.font.size || 16) + 6);
-	const themePrimary = metadata.theme?.primary || '#0369a1';
-	const typography = metadata.typography.font;
+	const headingNegativeMargin = useArtboardStore((state) => (state.resume.data.metadata.typography.font.size || 16) + 6);
+	const themePrimary = useArtboardStore((state) => state.resume.data.metadata.theme?.primary) || '#0369a1';
 
 	const style = useMemo(() => {
 		return {
@@ -54,9 +50,8 @@ export function LaprasTemplate({ pageIndex = 0, pageLayout, metadataOverride }: 
 			'--picture-border-radius': `${containerBorderRadius}px`,
 			"--container-border-radius": `${containerBorderRadius}px`,
 			"--heading-negative-margin": `${headingNegativeMargin}px`,
-			fontFamily: typography.family,
 		} as React.CSSProperties;
-	}, [containerBorderRadius, headingNegativeMargin, themePrimary, typography.family]);
+	}, [containerBorderRadius, headingNegativeMargin, themePrimary]);
 
 	return (
 		<div

@@ -260,9 +260,9 @@ export const JobrackerSignup = (): JSX.Element => {
   };
 
   return (
-    <div className='h-screen w-full flex bg-black overflow-hidden relative'>
+    <div className='h-screen w-full flex bg-background overflow-hidden relative'>
       {/* LEFT SIDE: Login Form */}
-      <div className='w-full lg:w-1/2 flex flex-col relative z-20 bg-black/80 backdrop-blur-sm lg:backdrop-blur-none border-r border-white/5 h-full'>
+      <div className='w-full lg:w-1/2 flex flex-col relative z-20 bg-background/80 backdrop-blur-sm lg:backdrop-blur-none border-r border-foreground/5 h-full'>
         <div className='flex-1 flex flex-col justify-center overflow-y-auto py-6 px-4 sm:px-8 no-scrollbar'>
           <div className='max-w-[320px] w-full mx-auto space-y-5'>
             {/* Header / Logo */}
@@ -275,23 +275,23 @@ export const JobrackerSignup = (): JSX.Element => {
               <div className='flex items-center gap-2 mb-4'>
                 <div className='relative flex items-center justify-center w-7 h-7 bg-[#1dff00] rounded-md shadow-[0_0_10px_rgba(29,255,0,0.4)]'>
                   <Sparkles
-                    className='text-black w-3.5 h-3.5'
+                    className='text-background w-3.5 h-3.5'
                     strokeWidth={2.5}
                   />
                 </div>
-                <span className='text-base font-bold tracking-tight text-white font-mono'>
+                <span className='text-base font-bold tracking-tight text-foreground font-mono'>
                   JOBRAKER
                 </span>
               </div>
 
-              <h1 className='text-2xl font-bold text-white tracking-tight'>
+              <h1 className='text-2xl font-bold text-foreground tracking-tight'>
                 {showForgotPassword
                   ? "Reset Password"
                   : isSignUp
                     ? "Create Account"
                     : "Welcome Back"}
               </h1>
-              <p className='text-gray-400 text-xs'>
+              <p className='text-foreground/80 text-xs'>
                 {showForgotPassword
                   ? "Enter your email to receive a reset link"
                   : isSignUp
@@ -310,34 +310,34 @@ export const JobrackerSignup = (): JSX.Element => {
               >
                 <Button
                   variant='ghost'
-                  className='flex items-center justify-center h-9 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all duration-300 group text-xs'
+                  className='flex items-center justify-center h-9 bg-foreground/5 hover:bg-foreground/10 border border-foreground/10 rounded-lg transition-all duration-300 group text-xs'
                   type='button'
                   disabled={submitting}
                   onClick={() => handleOAuth("google")}
                 >
                   <img
-                    className='w-3.5 h-3.5 mr-2'
+                    className='w-3.5 h-3.5 mr-2 invert dark:invert-0'
                     alt='Google'
                     src='/flat-color-icons-google.svg'
                   />
-                  <span className='text-white/80 group-hover:text-white font-medium'>
+                  <span className='text-foreground/80 group-hover:text-foreground font-medium'>
                     Google
                   </span>
                 </Button>
 
                 <Button
                   variant='ghost'
-                  className='flex items-center justify-center h-9 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all duration-300 group text-xs'
+                  className='flex items-center justify-center h-9 bg-foreground/5 hover:bg-foreground/10 border border-foreground/10 rounded-lg transition-all duration-300 group text-xs'
                   type='button'
                   disabled={submitting}
                   onClick={() => handleOAuth("linkedin_oidc")}
                 >
                   <img
-                    className='w-3.5 h-3.5 mr-2'
+                    className='w-3.5 h-3.5 mr-2 invert dark:invert-0'
                     alt='LinkedIn'
                     src='/logos-linkedin-icon.svg'
                   />
-                  <span className='text-white/80 group-hover:text-white font-medium'>
+                  <span className='text-foreground/80 group-hover:text-foreground font-medium'>
                     LinkedIn
                   </span>
                 </Button>
@@ -352,11 +352,11 @@ export const JobrackerSignup = (): JSX.Element => {
                 transition={{ delay: 0.2 }}
                 className='relative flex items-center py-1'
               >
-                <div className='flex-grow border-t border-white/10'></div>
+                <div className='flex-grow border-t border-foreground/10'></div>
                 <span className='flex-shrink-0 mx-3 text-gray-500 text-[10px] uppercase tracking-wider'>
                   Or continue with
                 </span>
-                <div className='flex-grow border-t border-white/10'></div>
+                <div className='flex-grow border-t border-foreground/10'></div>
               </motion.div>
             )}
 
@@ -374,7 +374,7 @@ export const JobrackerSignup = (): JSX.Element => {
                   <MailIcon className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-3.5 h-3.5' />
                   <Input
                     inputSize='sm'
-                    className='pl-11 h-9 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-lg placeholder:text-gray-500 text-xs'
+                    className='pl-11 h-9 bg-foreground/5 border-foreground/10 focus:border-[#1dff00]/50 focus:ring-0 text-foreground rounded-lg placeholder:text-gray-500 text-xs'
                     placeholder='name@example.com'
                     type='email'
                     value={formData.email}
@@ -398,7 +398,7 @@ export const JobrackerSignup = (): JSX.Element => {
                     <LockKeyholeIcon className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-3.5 h-3.5' />
                     <Input
                       inputSize='sm'
-                      className='pl-11 pr-9 h-9 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-lg placeholder:text-gray-500 text-xs'
+                      className='pl-11 pr-9 h-9 bg-foreground/5 border-foreground/10 focus:border-[#1dff00]/50 focus:ring-0 text-foreground rounded-lg placeholder:text-gray-500 text-xs'
                       placeholder='Password'
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
@@ -410,7 +410,7 @@ export const JobrackerSignup = (): JSX.Element => {
                     <button
                       type='button'
                       onClick={() => setShowPassword(!showPassword)}
-                      className='bg-transparent absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors'
+                      className='bg-transparent absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-foreground transition-colors'
                     >
                       {showPassword ? (
                         <EyeOff className='w-3.5 h-3.5' />
@@ -429,9 +429,9 @@ export const JobrackerSignup = (): JSX.Element => {
                     <LockKeyholeIcon className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#1dff00] transition-colors w-3.5 h-3.5' />
                     <Input
                       inputSize='sm'
-                      className='pl-11 h-9 bg-white/5 border-white/10 focus:border-[#1dff00]/50 focus:ring-0 text-white rounded-lg placeholder:text-gray-500 text-xs'
+                      className='pl-11 h-9 bg-foreground/5 border-foreground/10 focus:border-[#1dff00]/50 focus:ring-0 text-foreground rounded-lg placeholder:text-gray-500 text-xs'
                       placeholder='Confirm Password'
-                      type='password'
+                      type={showPassword ? "text" : "password"}
                       value={formData.confirmPassword}
                       onChange={(e) =>
                         setFormData({
@@ -441,18 +441,29 @@ export const JobrackerSignup = (): JSX.Element => {
                       }
                       required
                     />
+                    <button
+                      type='button'
+                      onClick={() => setShowPassword(!showPassword)}
+                      className='bg-transparent absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-foreground transition-colors'
+                    >
+                      {showPassword ? (
+                        <EyeOff className='w-3.5 h-3.5' />
+                      ) : (
+                        <Eye className='w-3.5 h-3.5' />
+                      )}
+                    </button>
                   </div>
                   {/* Minimal Password Strength Indicator for Sign Up */}
                   {formData.password.length > 0 && (
                     <div className='pt-1.5 flex items-center gap-1.5 text-[10px]'>
                       <div
-                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 1 ? "bg-red-500" : "bg-white/10"}`}
+                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 1 ? "bg-red-500" : "bg-foreground/10"}`}
                       />
                       <div
-                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 3 ? "bg-yellow-500" : "bg-white/10"}`}
+                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 3 ? "bg-yellow-500" : "bg-foreground/10"}`}
                       />
                       <div
-                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 4 ? "bg-[#1dff00]" : "bg-white/10"}`}
+                        className={`flex-1 h-0.5 rounded-full ${passwordCheck.score >= 4 ? "bg-[#1dff00]" : "bg-foreground/10"}`}
                       />
                       <span className='text-gray-400 ml-1'>
                         {passwordCheck.strength}
@@ -477,16 +488,13 @@ export const JobrackerSignup = (): JSX.Element => {
 
               <Button
                 type='submit'
-                disabled={
-                  submitting ||
-                  (isSignUp && !showForgotPassword && !passwordCheck.valid)
-                }
-                className='w-full h-9 bg-[#1dff00] hover:bg-[#1dff00]/90 text-black font-semibold rounded-lg text-xs transition-all shadow-[0_0_15px_rgba(29,255,0,0.2)] hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] mt-1'
+                disabled={submitting || !passwordCheck.valid || formData.password !== formData.confirmPassword}
+                className='w-full h-9 bg-[#1dff00] hover:bg-[#1dff00]/90 text-background font-semibold rounded-lg text-xs transition-all shadow-[0_0_15px_rgba(29,255,0,0.2)] hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] mt-1'
               >
                 {submitting ? (
                   <Loader2 className='animate-spin w-3.5 h-3.5' />
                 ) : (
-                  <div className='flex items-center justify-center gap-1.5'>
+                  <div className='flex items-center text-foreground justify-center gap-1.5'>
                     <span>
                       {showForgotPassword
                         ? "Send Reset Link"
@@ -512,7 +520,7 @@ export const JobrackerSignup = (): JSX.Element => {
                   type='button'
                   variant='link'
                   onClick={() => setShowForgotPassword(false)}
-                  className='text-gray-400 hover:text-white text-xs'
+                  className='text-gray-400 hover:text-foreground text-xs'
                 >
                   ← Back to sign in
                 </Button>
@@ -541,7 +549,7 @@ export const JobrackerSignup = (): JSX.Element => {
       {/* RIGHT SIDE: Immersive Visual */}
       <div className='hidden lg:block lg:w-1/2 relative bg-[#050505] overflow-hidden h-full'>
         {/* Background Grid */}
-        <div className='absolute inset-0 bg-[linear-gradient(rgba(29,255,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(29,255,0,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_80%)]' />
+        <div className='absolute inset-0 bg-[linear-gradient(rgba(29,255,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(29,255,0,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,background_40%,transparent_80%)]' />
 
         {/* 3D Self-Solving Cube */}
         <div className='absolute inset-0 flex items-center justify-center scale-110 translate-x-12 pointer-events-none'>
@@ -554,14 +562,14 @@ export const JobrackerSignup = (): JSX.Element => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6, duration: 0.8 }}
-            className='bg-black/40 backdrop-blur-md border border-white/10 p-6 rounded-2xl'
+            className='bg-background/40 backdrop-blur-md border border-foreground/10 p-6 rounded-2xl'
           >
             <div className='flex items-start gap-4'>
               <div className='w-10 h-10 rounded-full bg-[#1dff00]/10 flex items-center justify-center border border-[#1dff00]/20 flex-shrink-0'>
                 <CheckCircle2 className='w-5 h-5 text-[#1dff00]' />
               </div>
               <div>
-                <h3 className='text-white font-bold text-lg mb-1'>
+                <h3 className='text-foreground font-bold text-lg mb-1'>
                   Autonomous Applications
                 </h3>
                 <p className='text-gray-400 text-sm leading-relaxed'>
@@ -583,9 +591,9 @@ export const JobrackerSignup = (): JSX.Element => {
         size='sm'
       >
         <div className='space-y-4'>
-          <p className='text-white/80 text-sm'>
+          <p className='text-foreground/80 text-sm'>
             We sent a verification link to{" "}
-            <span className='text-white font-medium'>
+            <span className='text-foreground font-medium'>
               {formData.email || "your email"}
             </span>
             . Please check your inbox and click the link to activate your
@@ -593,14 +601,14 @@ export const JobrackerSignup = (): JSX.Element => {
           </p>
           <div className='flex flex-col sm:flex-row gap-2 sm:gap-3'>
             <Button
-              className='flex-1 bg-white/10 hover:bg-white/20 text-white'
+              className='flex-1 bg-foreground/10 hover:bg-foreground/20 text-foreground'
               onClick={openEmailApp}
             >
               Open email app
             </Button>
             <Button
               variant='ghost'
-              className='flex-1 border border-[#1dff00]/30 hover:bg-white/10 text-white'
+              className='flex-1 border border-[#1dff00]/30 hover:bg-foreground/10 text-foreground'
               disabled={resending}
               onClick={handleResendVerification}
             >
@@ -610,7 +618,7 @@ export const JobrackerSignup = (): JSX.Element => {
           </div>
           <div className='pt-2'>
             <Button
-              className='w-full bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] text-white'
+              className='w-full bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] text-foreground'
               onClick={() => {
                 setShowVerifyModal(false);
                 navigate(ROUTES.SIGNIN);

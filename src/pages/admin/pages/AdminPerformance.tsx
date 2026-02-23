@@ -336,24 +336,23 @@ export default function AdminPerformance() {
           <AreaChart data={history}>
             <defs>
               <linearGradient id="colorDb" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#1dff00" stopOpacity={0.4} />
-                <stop offset="50%" stopColor="#1dff00" stopOpacity={0.1} />
-                <stop offset="100%" stopColor="#1dff00" stopOpacity={0} />
+                <stop offset="5%" stopColor="#1dff00" stopOpacity={0.1} />
+                <stop offset="95%" stopColor="#1dff00" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="0" stroke="#ffffff08" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
             <XAxis
               dataKey="time"
-              stroke="#ffffff33"
-              style={{ fontSize: '10px', fontWeight: 500 }}
+              stroke="#6b7280"
+              style={{ fontSize: '10px' }}
               tickLine={false}
               axisLine={false}
               dy={10}
-              interval={4}
+              interval={4} // Show fewer labels
             />
             <YAxis
-              stroke="#ffffff33"
-              style={{ fontSize: '10px', fontWeight: 500 }}
+              stroke="#6b7280"
+              style={{ fontSize: '10px' }}
               tickLine={false}
               axisLine={false}
               dx={-10}
@@ -361,24 +360,22 @@ export default function AdminPerformance() {
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: 'rgba(10, 10, 10, 0.8)',
-                border: '1px solid rgba(29, 255, 0, 0.2)',
-                borderRadius: '12px',
-                backdropFilter: 'blur(12px)',
+                backgroundColor: '#111',
+                border: '1px solid #333',
+                borderRadius: '8px',
                 color: '#fff',
-                fontSize: '12px',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                fontSize: '12px'
               }}
-              cursor={{ stroke: '#ffffff11', strokeWidth: 1 }}
+              cursor={{ stroke: '#333' }}
             />
             <Area
               type="monotone"
               dataKey="database"
               stroke="#1dff00"
-              strokeWidth={3}
+              strokeWidth={2}
               fillOpacity={1}
               fill="url(#colorDb)"
-              isAnimationActive={false}
+              isAnimationActive={false} // Disable animation for smoother live updates
             />
             <Area
               type="monotone"
