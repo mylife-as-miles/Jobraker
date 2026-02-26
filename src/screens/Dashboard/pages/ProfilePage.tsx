@@ -42,7 +42,7 @@ const ProfilePage = (): JSX.Element => {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData?.user?.id;
       if (!userId) return;
-      
+
       // Try to get from active subscription first
       const { data: subscription } = await supabase
         .from('user_subscriptions')
@@ -52,7 +52,7 @@ const ProfilePage = (): JSX.Element => {
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
-      
+
       if (subscription && (subscription as any).subscription_plans?.name) {
         setSubscriptionTier((subscription as any).subscription_plans.name);
       } else {
@@ -62,7 +62,7 @@ const ProfilePage = (): JSX.Element => {
           .select('subscription_tier')
           .eq('id', userId)
           .single();
-        
+
         if (profileData?.subscription_tier) {
           setSubscriptionTier(profileData.subscription_tier);
         }
@@ -119,6 +119,35 @@ const ProfilePage = (): JSX.Element => {
   const interviews = applications?.filter(a => a.status === 'Interview').length ?? 0;
   const offers = applications?.filter(a => a.status === 'Offer').length ?? 0;
   const successRate = totalApps > 0 ? Math.round((offers / totalApps) * 100) : 0;
+
+  // --- PRD Metrics for Success ---
+  // 1. Applications Submitted This Week
+  const appsThisWeek = useMemo(() => {
+    if (!applications?.length) return 0;
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+    startOfWeek.setHours(0, 0, 0, 0);
+    return applications.filter(a => new Date(a.applied_date) >= startOfWeek).length;
+  }, [applications]);
+
+  // 2. Interview Conversion Rate
+  const interviewConversion = totalApps > 0 ? Math.round((interviews / totalApps) * 100) : 0;
+
+  // 3. Time Saved (20 min per application)
+  const timeSavedMinutes = totalApps * 20;
+  const timeSavedDisplay = timeSavedMinutes >= 60
+    ? `${Math.floor(timeSavedMinutes / 60)}h ${timeSavedMinutes % 60}m`
+    : `${timeSavedMinutes}m`;
+
+  // 4. Automation Success Rate
+  const automationMetrics = useMemo(() => {
+    if (!applications?.length) return { total: 0, succeeded: 0, rate: 0 };
+    const automated = applications.filter(a => a.run_id);
+    const total = automated.length;
+    const succeeded = automated.filter(a => a.provider_status !== 'failed').length;
+    return { total, succeeded, rate: total > 0 ? Math.round((succeeded / total) * 100) : 0 };
+  }, [applications]);
 
   // skill level helpers
   const getSkillLevelColor = (level: string) => {
@@ -242,12 +271,12 @@ const ProfilePage = (): JSX.Element => {
                       </>
                     )}
                   </div>
-                  
+
                   <h2 className="text-xl font-bold text-white mb-1">
                     {(profile?.first_name || '').trim() || 'Your'} {(profile?.last_name || '').trim() || 'Name'}
                   </h2>
                   <p className="text-[#ffffff80] mb-2">{profile?.job_title || 'Add a job title'}</p>
-                  
+
                   {/* Subscription Tier Badge */}
                   {(() => {
                     const tierBadge = getTierBadge(subscriptionTier);
@@ -260,12 +289,12 @@ const ProfilePage = (): JSX.Element => {
                       </div>
                     );
                   })()}
-                  
+
                   <p className="text-[#ffffff60] text-sm mb-4 flex items-center justify-center">
                     <MapPin className="w-4 h-4 mr-1" />
                     {profile?.location || 'Add location'}
                   </p>
-                  
+
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center justify-center text-[#ffffff80] hover:text-white transition-colors duration-300">
                       <Mail className="w-4 h-4 mr-2" />
@@ -276,19 +305,19 @@ const ProfilePage = (): JSX.Element => {
                       <span>{(profile as any)?.phone || 'Add phone'}</span>
                     </div>
                   </div>
-                  
+
                   <div className="flex justify-center space-x-2 mt-4">
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
+                    <Button
+                      size="sm"
+                      variant="outline"
                       className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
                     >
                       <ExternalLink className="w-4 h-4 mr-1" />
                       LinkedIn
                     </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
+                    <Button
+                      size="sm"
+                      variant="outline"
                       className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
                     >
                       <ExternalLink className="w-4 h-4 mr-1" />
@@ -336,6 +365,41 @@ const ProfilePage = (): JSX.Element => {
                       <span className="text-[#ffffff80]">Success Rate</span>
                       <span className="text-[#1dff00] font-semibold">{successRate}%</span>
                     </div>
+
+                    {/* PRD Metrics for Success */}
+                    <div className="border-t border-[#ffffff15] my-2 pt-3">
+                      <p className="text-[10px] uppercase tracking-widest text-[#ffffff50] mb-3">Key Metrics</p>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#ffffff80] flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 text-[#1dff00]/60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            Apps This Week
+                          </span>
+                          <span className="text-[#1dff00] font-semibold">{appsThisWeek}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#ffffff80] flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 text-cyan-400/60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            Interview Rate
+                          </span>
+                          <span className="text-cyan-400 font-semibold">{interviewConversion}%</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#ffffff80] flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 text-amber-400/60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            Time Saved
+                          </span>
+                          <span className="text-amber-400 font-semibold">{timeSavedDisplay}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#ffffff80] flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 text-purple-400/60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                            Automation Rate
+                          </span>
+                          <span className="text-purple-400 font-semibold">{automationMetrics.rate}%</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </Card>
@@ -353,11 +417,11 @@ const ProfilePage = (): JSX.Element => {
               className="transition-transform duration-300"
             >
               <Card id="profile-about" data-tour="profile-about" className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white">About</h3>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
+                  <Button
+                    size="sm"
+                    variant="ghost"
                     className="text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300"
                     onClick={() => setIsEditing(!isEditing)}
                   >
@@ -391,7 +455,7 @@ const ProfilePage = (): JSX.Element => {
                         title="Tell Your Story"
                         description="Add your role, location and years of experience so recruiters immediately understand your professional narrative."
                         primaryAction={{ label: "Start Editing", onClick: () => setIsEditing(true) }}
-                        secondaryChips={["Job Title", "Location", "Years", "Impact" ]}
+                        secondaryChips={["Job Title", "Location", "Years", "Impact"]}
                         tone="info"
                       />
                     ) : (
@@ -425,8 +489,8 @@ const ProfilePage = (): JSX.Element => {
                     <Briefcase className="w-5 h-5 mr-2 text-white" />
                     Experience
                   </h3>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
                     onClick={() => setShowAddExperience(v => !v)}
                   >
@@ -519,24 +583,24 @@ const ProfilePage = (): JSX.Element => {
                           </p>
                           <p className="text-[#ffffff60] text-sm flex items-center mt-1">
                             <Calendar className="w-3 h-3 mr-1" />
-                            {exp.start_date?.slice(0,7)} - {exp.is_current ? "Present" : (exp.end_date ? exp.end_date.slice(0,7) : '')}
+                            {exp.start_date?.slice(0, 7)} - {exp.is_current ? "Present" : (exp.end_date ? exp.end_date.slice(0, 7) : '')}
                           </p>
                           <p className="text-[#ffffff80] text-sm mt-2 leading-relaxed">{exp.description}</p>
                         </div>
                         <div className="flex space-x-1 ml-4">
                           {editingExpId === exp.id ? null : (
-                            <Button 
-                              size="sm" 
-                              variant="ghost" 
+                            <Button
+                              size="sm"
+                              variant="ghost"
                               className="text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300 p-1"
                               onClick={() => setEditingExpId(exp.id)}
                             >
                               <Edit className="w-3 h-3" />
                             </Button>
                           )}
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             className="text-[#ffffff60] hover:text-red-400 hover:scale-110 transition-all duration-300 p-1"
                             onClick={() => deleteExperience(exp.id)}
                           >
@@ -552,8 +616,8 @@ const ProfilePage = (): JSX.Element => {
                             <input defaultValue={exp.company} id={`exp-edit-company-${exp.id}`} placeholder="Company" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
                             <input defaultValue={exp.location} id={`exp-edit-location-${exp.id}`} placeholder="Location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
                             <div className="flex gap-2">
-                              <input type="month" defaultValue={(exp.start_date || '').slice(0,7)} id={`exp-edit-start-${exp.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
-                              <input type="month" defaultValue={exp.end_date ? exp.end_date.slice(0,7) : ''} id={`exp-edit-end-${exp.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
+                              <input type="month" defaultValue={(exp.start_date || '').slice(0, 7)} id={`exp-edit-start-${exp.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
+                              <input type="month" defaultValue={exp.end_date ? exp.end_date.slice(0, 7) : ''} id={`exp-edit-end-${exp.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
                             </div>
                             <label className="flex items-center gap-2 text-xs text-[#ffffff80]">
                               <input type="checkbox" defaultChecked={!!exp.is_current} id={`exp-edit-current-${exp.id}`} className="accent-[#1dff00]" /> Current Role
@@ -597,8 +661,8 @@ const ProfilePage = (): JSX.Element => {
                     <GraduationCap className="w-5 h-5 mr-2 text-white" />
                     Education
                   </h3>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
                     onClick={() => setShowAddEducation(v => !v)}
                   >
@@ -686,7 +750,7 @@ const ProfilePage = (): JSX.Element => {
                           </p>
                           <p className="text-[#ffffff60] text-sm flex items-center mt-1">
                             <Calendar className="w-3 h-3 mr-1" />
-                            {edu.start_date?.slice(0,7)} - {edu.end_date?.slice(0,7)}
+                            {edu.start_date?.slice(0, 7)} - {edu.end_date?.slice(0, 7)}
                           </p>
                           {edu.gpa && (
                             <p className="text-[#ffffff80] text-sm mt-1">GPA: {edu.gpa}</p>
@@ -694,18 +758,18 @@ const ProfilePage = (): JSX.Element => {
                         </div>
                         <div className="flex space-x-1 ml-4">
                           {editingEduId === edu.id ? null : (
-                            <Button 
-                              size="sm" 
-                              variant="ghost" 
+                            <Button
+                              size="sm"
+                              variant="ghost"
                               className="text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300 p-1"
                               onClick={() => setEditingEduId(edu.id)}
                             >
                               <Edit className="w-3 h-3" />
                             </Button>
                           )}
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             className="text-[#ffffff60] hover:text-red-400 hover:scale-110 transition-all duration-300 p-1"
                             onClick={() => deleteEducation(edu.id)}
                           >
@@ -720,8 +784,8 @@ const ProfilePage = (): JSX.Element => {
                             <input defaultValue={edu.school} id={`edu-edit-school-${edu.id}`} placeholder="School" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
                             <input defaultValue={edu.location} id={`edu-edit-location-${edu.id}`} placeholder="Location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
                             <div className="flex gap-2">
-                              <input type="month" defaultValue={(edu.start_date || '').slice(0,7)} id={`edu-edit-start-${edu.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
-                              <input type="month" defaultValue={edu.end_date ? edu.end_date.slice(0,7) : ''} id={`edu-edit-end-${edu.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
+                              <input type="month" defaultValue={(edu.start_date || '').slice(0, 7)} id={`edu-edit-start-${edu.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
+                              <input type="month" defaultValue={edu.end_date ? edu.end_date.slice(0, 7) : ''} id={`edu-edit-end-${edu.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
                             </div>
                             <input defaultValue={edu.gpa || ''} id={`edu-edit-gpa-${edu.id}`} placeholder="GPA" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
                           </div>
@@ -761,8 +825,8 @@ const ProfilePage = (): JSX.Element => {
                     <Award className="w-5 h-5 mr-2 text-white" />
                     Skills
                   </h3>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
                     onClick={() => setShowAddSkill(v => !v)}
                   >
@@ -888,7 +952,7 @@ const ProfilePage = (): JSX.Element => {
                       ) : (
                         <>
                           <div className="w-full bg-[#ffffff20] rounded-full h-2">
-                            <div 
+                            <div
                               className={`h-2 rounded-full transition-all duration-500 ${getSkillLevelColor(skill.level || '')} ${getSkillLevelWidth(skill.level || '')}`}
                             ></div>
                           </div>
@@ -920,16 +984,16 @@ function AboutEditor({ profile, onSave, onCancel }: { profile: { job_title: stri
         <input value={years} onChange={(e) => setYears(e.target.value)} placeholder="Years experience" inputMode="numeric" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
       </div>
       <div className="flex space-x-2">
-        <Button 
-          size="sm" 
+        <Button
+          size="sm"
           className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
           onClick={() => onSave({ job_title: jobTitle.trim(), location: location.trim() || null, experience_years: years ? Number(years) : null })}
         >
           Save
         </Button>
-        <Button 
-          size="sm" 
-          variant="outline" 
+        <Button
+          size="sm"
+          variant="outline"
           className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:scale-105 transition-all duration-300"
           onClick={onCancel}
         >
