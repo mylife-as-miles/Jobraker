@@ -43,6 +43,8 @@ import { useToast } from "../../../components/ui/toast";
 import { SimpleDropdown } from "../../../components/SimpleDropdown";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
 import { evaluateJobFit, type EvaluateJobFitResponse } from "../../../services/ai/evaluateJobFit";
+import { tailorResumeViaEdge } from "../../../services/ai/tailorResume";
+import { generateCoverLetterViaEdge } from "../../../services/ai/generateCoverLetter";
 import { cn } from "../../../lib/utils";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
@@ -515,7 +517,9 @@ export const JobPage = (): JSX.Element => {
   // Resume attach dialog state
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
-  const [autoApplyStep, setAutoApplyStep] = useState<1 | 2>(1);
+  const [autoApplyStep, setAutoApplyStep] = useState<1 | 2 | 3>(1);
+  const [generatingDraft, setGeneratingDraft] = useState(false);
+  const [draftData, setDraftData] = useState<{ resumeText: string; coverLetterText: string } | null>(null);
   const [coverLetterLibrary, setCoverLetterLibrary] = useState<
     CoverLetterLibraryEntry[]
   >([]);
@@ -1245,7 +1249,7 @@ export const JobPage = (): JSX.Element => {
   }, [resumeDialogOpen, loadCoverLetterLibrary]);
 
   // Apply all jobs by delegating to automation workflow, then prune applied rows
-  const applyAllJobs = useCallback(async () => {
+  const applyAllJobs = useCallback(async (saveAsDraftOnly: boolean = false) => {
     if (applyingAll) return;
     const targetJobs = jobToAutoApply ? [jobToAutoApply] : jobs;
     if (!targetJobs.length) return;
@@ -1358,7 +1362,28 @@ export const JobPage = (): JSX.Element => {
       }
       // ------------------------------------------------------------------------
 
-      const coverLetterPayload = composeCoverLetterPayload(selectedCoverLetter);
+      const targetJob = jobsWithTargets[0]?.job;
+      if (draftModeEnabled && jobsWithTargets.length === 1 && !draftData) {
+        setGeneratingDraft(true);
+        try {
+          const [tailoredResume, tailoredCoverLetter] = await Promise.all([
+            tailorResumeViaEdge({ jobDescription: targetJob?.description || "", resumeText: selectedResume?.raw_text || "No resume text" }),
+            generateCoverLetterViaEdge({ jobDescription: targetJob?.description || "", resumeText: selectedResume?.raw_text || "No resume text" })
+          ]);
+          setDraftData({ resumeText: tailoredResume, coverLetterText: tailoredCoverLetter });
+          setAutoApplyStep(3);
+          setGeneratingDraft(false);
+          setApplyingAll(false);
+          return; // Pause auto-apply to wait for user to review Draft step
+        } catch (draftErr) {
+          console.error("Draft generation failed", draftErr);
+          safeInfo("Draft Generation Failed", "Skipping draft mode and falling back to base materials.");
+        }
+        setGeneratingDraft(false);
+      }
+
+      const finalCoverLetterPayload = draftData ? draftData.coverLetterText : composeCoverLetterPayload(selectedCoverLetter);
+
       events.autoApplyStarted(
         jobsWithTargets.length,
         selectedResumeId || undefined,
@@ -1388,24 +1413,36 @@ export const JobPage = (): JSX.Element => {
         }
       }
 
-      const automationResult = await applyToJobs({
-        jobs: payloadJobs,
-        title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
-        cover_letter: coverLetterPayload,
-        ...(profileSnapshot ? { additional_information: profileSnapshot } : {}),
-        ...(resumeSignedUrl ? { resume: resumeSignedUrl } : {}),
-        ...(userEmail ? { email: userEmail } : {}),
-      });
+      let automationResult = null;
+      let runId = null;
+      let workflowId = null;
+      let providerStatus = saveAsDraftOnly ? "Draft saved" : "Automation launched";
+      let recordingUrl = null;
 
-      const { runId, workflowId, providerStatus, recordingUrl } =
-        extractAutomationMetadata(automationResult);
+      if (!saveAsDraftOnly) {
+        automationResult = await applyToJobs({
+          jobs: payloadJobs,
+          title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
+          cover_letter: finalCoverLetterPayload,
+          ...(profileSnapshot ? { additional_information: profileSnapshot } : {}),
+          ...(draftData ? { resume: draftData.resumeText } : (resumeSignedUrl ? { resume: resumeSignedUrl } : {})),
+          ...(userEmail ? { email: userEmail } : {}),
+        });
+
+        const metadata = extractAutomationMetadata(automationResult);
+        runId = metadata.runId;
+        workflowId = metadata.workflowId;
+        providerStatus = metadata.providerStatus ?? "Automation launched";
+        recordingUrl = metadata.recordingUrl;
+      }
+
       // userId already declared above, reuse it
       const applicationsToInsert: any[] = [];
       const appliedTimestamp = new Date().toISOString();
 
       safeInfo(
-        "Automation launched",
-        `Dispatched ${jobsWithTargets.length} job${jobsWithTargets.length === 1 ? "" : "s"} to the automation runner${skipped > 0 ? `; skipped ${skipped}.` : "."}`,
+        saveAsDraftOnly ? "Draft saved" : "Automation launched",
+        saveAsDraftOnly ? `Saved ${jobsWithTargets.length} application draft(s).` : `Dispatched ${jobsWithTargets.length} job(s) to the automation runner.`,
       );
 
       let success = 0;
@@ -1447,7 +1484,8 @@ export const JobPage = (): JSX.Element => {
                 company: job.company,
                 location: job.location ?? "",
                 applied_date: appliedTimestamp,
-                status: "Applied",
+                status: saveAsDraftOnly ? "Saved" : "Applied",
+                draft_status: saveAsDraftOnly ? "draft" : "sent",
                 salary: formatSalaryRange(job),
                 notes: matchNote,
                 match_score: matchScore,
@@ -3959,6 +3997,39 @@ export const JobPage = (): JSX.Element => {
                 </div>
               )}
 
+              {draftData && autoApplyStep === 3 && (
+                <div className='grid gap-4 mt-4'>
+                  <div className='rounded-xl border border-[#1dff00]/30 bg-[#1dff00]/5 p-5'>
+                    <div className='flex items-center gap-2 text-sm font-medium text-[#1dff00]'>
+                      <Sparkles className='w-5 h-5' />
+                      Draft Mode Review
+                    </div>
+                    <p className='mt-2 text-sm text-foreground/70'>
+                      AI has tailored your materials for this specific job. Review and edit the drafts below before launching the automation, or save them for later.
+                    </p>
+
+                    <div className='mt-5 space-y-4'>
+                      <div>
+                        <label className='text-xs font-medium text-foreground/60 uppercase tracking-wider'>Tailored Cover Letter</label>
+                        <textarea
+                          className='w-full mt-1 h-32 p-3 text-sm bg-background border border-foreground/10 rounded-lg focus:outline-none focus:border-[#1dff00]/50 resize-y'
+                          value={draftData.coverLetterText}
+                          onChange={(e) => setDraftData({ ...draftData, coverLetterText: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className='text-xs font-medium text-foreground/60 uppercase tracking-wider'>Tailored Resume Content</label>
+                        <textarea
+                          className='w-full mt-1 h-48 p-3 text-sm bg-background border border-foreground/10 rounded-lg focus:outline-none focus:border-[#1dff00]/50 resize-y'
+                          value={draftData.resumeText}
+                          onChange={(e) => setDraftData({ ...draftData, resumeText: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-foreground/12'>
                 <p className='text-xs text-foreground/50 flex items-center gap-2'>
                   <ShieldCheck className='w-3.5 h-3.5 text-[#1dff00]' />
@@ -3972,18 +4043,24 @@ export const JobPage = (): JSX.Element => {
                     onClick={() => {
                       setResumeDialogOpen(false);
                       setAutoApplyStep(1);
+                      setDraftData(null);
                     }}
                   >
                     Close
                   </Button>
-                  {autoApplyStep === 2 && (
+                  {(autoApplyStep === 2 || autoApplyStep === 3) && (
                     <Button
                       variant='outline'
                       className='border-foreground/20 text-foreground hover:border-foreground/40 hover:bg-foreground/10'
                       onClick={() => {
-                        setAutoApplyStep(1);
-                        setAiEvaluation(null);
-                        setForceSubmit(false);
+                        if (autoApplyStep === 3) {
+                          setAutoApplyStep(1);
+                          setDraftData(null);
+                        } else {
+                          setAutoApplyStep(1);
+                          setAiEvaluation(null);
+                          setForceSubmit(false);
+                        }
                       }}
                     >
                       Back
@@ -3998,10 +4075,27 @@ export const JobPage = (): JSX.Element => {
                     >
                       Acknowledge & Edit Profile
                     </Button>
+                  ) : autoApplyStep === 3 ? (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        className='bg-foreground/10 hover:bg-foreground/20 text-foreground'
+                        onClick={() => applyAllJobs(true)}
+                        disabled={applyingAll}
+                      >
+                        {applyingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Save as Draft"}
+                      </Button>
+                      <Button
+                        className='border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25'
+                        onClick={() => applyAllJobs(false)}
+                        disabled={applyingAll}
+                      >
+                        {applyingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Launch automation"}
+                      </Button>
+                    </div>
                   ) : (
                     <Button
-                      className={`border ${evaluatingJob ? "border-[#1dff00]/50" : (aiEvaluation ? "border-[#ffb347]/50 text-[#ffb347] bg-[#ffb347]/15 hover:bg-[#ffb347]/25" : "border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25")} ${autoApplyPrimaryDisabled || evaluatingJob ? "opacity-50 cursor-not-allowed" : ""}`}
-                      disabled={autoApplyPrimaryDisabled || evaluatingJob}
+                      className={`border ${evaluatingJob || generatingDraft ? "border-[#1dff00]/50" : (aiEvaluation ? "border-[#ffb347]/50 text-[#ffb347] bg-[#ffb347]/15 hover:bg-[#ffb347]/25" : "border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25")} ${autoApplyPrimaryDisabled || evaluatingJob || generatingDraft ? "opacity-50 cursor-not-allowed" : ""}`}
+                      disabled={autoApplyPrimaryDisabled || evaluatingJob || generatingDraft}
                       onClick={() => {
                         if (autoApplyStep === 1) {
                           if (canAdvanceFromStepOne) setAutoApplyStep(2);
@@ -4016,10 +4110,10 @@ export const JobPage = (): JSX.Element => {
                         }
                       }}
                     >
-                      {evaluatingJob ? (
+                      {evaluatingJob || generatingDraft ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Evaluating Job Fit...
+                          {evaluatingJob ? "Evaluating Job Fit..." : "Drafting Materials..."}
                         </>
                       ) : autoApplyStep === 1 ? "Continue" : (aiEvaluation ? "Ignore & Proceed" : "Launch automation")}
                     </Button>
