@@ -31,6 +31,9 @@ export interface ApplicationRecord {
   match_reasons?: string[] | null;
   receipt_url?: string | null;
   success_url?: string | null;
+  draft_status?: "draft" | "ready" | "sent" | null;
+  ai_confidence_score?: number | null;
+  user_review_notes?: string | null;
 }
 
 type CreateInput = Partial<Omit<ApplicationRecord, "id" | "user_id" | "created_at" | "updated_at">> & {
@@ -203,6 +206,9 @@ export function useApplications() {
         match_reasons: input.match_reasons ?? null,
         receipt_url: input.receipt_url ?? null,
         success_url: input.success_url ?? null,
+        draft_status: input.draft_status ?? 'ready',
+        ai_confidence_score: input.ai_confidence_score ?? null,
+        user_review_notes: input.user_review_notes ?? null,
       };
       const { data, error } = await (supabase as any)
         .from("applications")

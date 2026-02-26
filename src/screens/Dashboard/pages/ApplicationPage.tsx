@@ -1149,6 +1149,39 @@ function ApplicationPage() {
               </div>
             </div>
 
+            {/* Draft Status & AI Confidence Badges */}
+            {(detailApp.draft_status || detailApp.ai_confidence_score != null) && (
+              <div className='flex flex-wrap items-center gap-2'>
+                {detailApp.draft_status && detailApp.draft_status !== 'sent' && (
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-wider border ${detailApp.draft_status === 'draft'
+                        ? 'bg-yellow-400/10 text-yellow-400 border-yellow-400/20'
+                        : 'bg-cyan-400/10 text-cyan-400 border-cyan-400/20'
+                      }`}
+                  >
+                    <div className={`h-1.5 w-1.5 rounded-full ${detailApp.draft_status === 'draft' ? 'bg-yellow-400' : 'bg-cyan-400'
+                      }`} />
+                    {detailApp.draft_status}
+                  </span>
+                )}
+                {detailApp.ai_confidence_score != null && (
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border ${detailApp.ai_confidence_score >= 70
+                        ? 'bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/20'
+                        : detailApp.ai_confidence_score >= 40
+                          ? 'bg-amber-400/10 text-amber-400 border-amber-400/20'
+                          : 'bg-rose-400/10 text-rose-400 border-rose-400/20'
+                      }`}
+                  >
+                    <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' />
+                    </svg>
+                    AI Confidence: {detailApp.ai_confidence_score}%
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Timeline & Key Dates */}
             <div className='space-y-3'>
               <h3 className='text-xs font-semibold uppercase tracking-wider text-foreground/40'>
@@ -1587,6 +1620,25 @@ function ApplicationPage() {
                   Add Follow-up Note
                 </button>
               </div>
+            </div>
+
+            {/* User Review Notes */}
+            <div className='space-y-3'>
+              <h3 className='text-xs font-semibold uppercase tracking-wider text-foreground/40'>
+                Your Review Notes
+              </h3>
+              <textarea
+                defaultValue={detailApp.user_review_notes || ''}
+                placeholder='Add personal review notes about this application…'
+                onBlur={(e) => {
+                  const val = e.target.value.trim();
+                  if (val !== (detailApp.user_review_notes || '')) {
+                    update(detailApp.id, { user_review_notes: val || null });
+                  }
+                }}
+                rows={3}
+                className='w-full rounded-xl bg-foreground/[0.03] border border-foreground/10 px-4 py-3 text-sm text-foreground/80 placeholder:text-foreground/30 focus:border-[#1dff00]/40 focus:ring-1 focus:ring-[#1dff00]/20 focus:outline-none transition-all resize-none'
+              />
             </div>
 
             {/* Footer Actions */}

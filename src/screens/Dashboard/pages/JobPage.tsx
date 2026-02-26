@@ -1662,6 +1662,7 @@ export const JobPage = (): JSX.Element => {
                 recording_url: recordingUrl,
                 failure_reason: null,
                 match_reasons: matchedKeywords.length > 0 ? matchedKeywords : null,
+                ai_confidence_score: aiEvaluation?.confidence_score ?? null,
               });
             }
           }
