@@ -167,7 +167,7 @@ function ApplicationPage() {
         if (!qsQuery && typeof p.searchQuery === "string")
           setSearchQuery(p.searchQuery);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   // Persist preferences when they change
@@ -175,18 +175,18 @@ function ApplicationPage() {
     try {
       const payload = { viewMode, selectedStatus, sortBy, searchQuery };
       localStorage.setItem("jr.apps.prefs.v1", JSON.stringify(payload));
-    } catch {}
+    } catch { }
   }, [viewMode, selectedStatus, sortBy, searchQuery]);
 
   useEffect(() => {
     try {
       localStorage.setItem("jr.apps.gantt.zoom", String(ganttZoom));
-    } catch {}
+    } catch { }
   }, [ganttZoom]);
   useEffect(() => {
     try {
       localStorage.setItem("jr.apps.gantt.future", showFuture ? "1" : "0");
-    } catch {}
+    } catch { }
   }, [showFuture]);
 
   // Keyboard shortcuts for Gantt view
@@ -276,7 +276,7 @@ function ApplicationPage() {
     return () => {
       try {
         delete (window as any).__apps_update;
-      } catch {}
+      } catch { }
     };
   }, [update]);
 
@@ -507,11 +507,10 @@ function ApplicationPage() {
                   size='sm'
                   variant='ghost'
                   onClick={() => setSelectedStatus(s)}
-                  className={`text-sm px-4 py-2 rounded-xl transition-all duration-200 border ${
-                    isActive
+                  className={`text-sm px-4 py-2 rounded-xl transition-all duration-200 border ${isActive
                       ? "border-[#1dff00]/50 bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]"
                       : "border-foreground/10 text-foreground/70 hover:text-foreground hover:bg-foreground/5 hover:border-foreground/20"
-                  }`}
+                    }`}
                   style={isActive ? {} : { color: color + "b3" }}
                 >
                   {isActive && (
@@ -795,13 +794,13 @@ function ApplicationPage() {
                                   {a.logo && a.logo.length > 1
                                     ? a.logo
                                     : (
-                                        (a.company || a.job_title || "")
-                                          .split(/\s+/)
-                                          .filter(Boolean)
-                                          .slice(0, 2)
-                                          .map((w) => w[0])
-                                          .join("") || ""
-                                      ).toUpperCase()}
+                                      (a.company || a.job_title || "")
+                                        .split(/\s+/)
+                                        .filter(Boolean)
+                                        .slice(0, 2)
+                                        .map((w) => w[0])
+                                        .join("") || ""
+                                    ).toUpperCase()}
                                 </div>
 
                                 {/* Content */}
@@ -1107,8 +1106,7 @@ function ApplicationPage() {
             <div className='relative pb-6 border-b border-[#1dff00]/10'>
               <div className='absolute top-0 right-0'>
                 <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                    detailApp.status === "Applied"
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${detailApp.status === "Applied"
                       ? "bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/20"
                       : detailApp.status === "Interview"
                         ? "bg-amber-400/10 text-amber-400 border border-amber-400/20"
@@ -1117,11 +1115,10 @@ function ApplicationPage() {
                           : detailApp.status === "Rejected"
                             ? "bg-rose-400/10 text-rose-400 border border-rose-400/20"
                             : "bg-gray-400/10 text-gray-400 border border-gray-400/20"
-                  }`}
+                    }`}
                 >
                   <div
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      detailApp.status === "Applied"
+                    className={`h-1.5 w-1.5 rounded-full ${detailApp.status === "Applied"
                         ? "bg-[#1dff00]"
                         : detailApp.status === "Interview"
                           ? "bg-amber-400"
@@ -1130,7 +1127,7 @@ function ApplicationPage() {
                             : detailApp.status === "Rejected"
                               ? "bg-rose-400"
                               : "bg-gray-400"
-                    } shadow-[0_0_4px_currentColor]`}
+                      } shadow-[0_0_4px_currentColor]`}
                   />
                   {detailApp.status}
                 </span>
@@ -1381,6 +1378,40 @@ function ApplicationPage() {
                 </div>
               )}
             </div>
+
+            {/* Failure Handoff */}
+            {detailApp.provider_status === 'failed' && (
+              <div className='space-y-3'>
+                <div className='p-4 rounded-xl border border-[#ff4747]/35 bg-[#ff4747]/10'>
+                  <div className='flex items-center gap-2 text-sm font-medium text-[#ff4747] mb-2'>
+                    <svg className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' />
+                    </svg>
+                    Automation Failed
+                  </div>
+                  <p className='text-sm text-foreground/80 mb-4'>
+                    I couldn't finish this, but I did the heavy lifting. Click here to finish.
+                  </p>
+                  <Button
+                    onClick={() => {
+                      const sourceUrl = detailApp.app_url || (detailApp.notes?.includes("Source:") ? detailApp.notes.split("Source:")[1].split('\n')[0].trim() : "");
+                      const summaryData = `Role: ${detailApp.job_title}\nCompany: ${detailApp.company}`;
+
+                      if (navigator.clipboard?.writeText) {
+                        navigator.clipboard.writeText(summaryData).then(() => {
+                          if (sourceUrl) window.open(sourceUrl, '_blank', 'noopener,noreferrer');
+                        });
+                      } else {
+                        if (sourceUrl) window.open(sourceUrl, '_blank', 'noopener,noreferrer');
+                      }
+                    }}
+                    className='w-full bg-[#ff4747]/15 hover:bg-[#ff4747]/25 text-[#ff4747] border border-[#ff4747]/50 transition-colors py-2 h-auto whitespace-normal text-left sm:text-center block break-words'
+                  >
+                    Copy Basic Info & Complete Manually
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Quick Actions */}
             <div className='space-y-3'>

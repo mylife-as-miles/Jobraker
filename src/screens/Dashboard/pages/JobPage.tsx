@@ -1339,6 +1339,11 @@ export const JobPage = (): JSX.Element => {
             const detail = searchData.detail || "An unknown error occurred.";
             setErrorDedup({ message: `Failed to search: ${detail}` });
           }
+
+          // Fallback to cached jobs
+          await fetchJobQueue();
+          safeInfo("Search Fallback", "Showing your recently saved jobs instead due to search failure.");
+
           setQueueStatus("ready");
           setIncrementalMode(false);
           return;
