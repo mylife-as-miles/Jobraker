@@ -470,15 +470,6 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
   };
 };
 
-const toPlainText = (html: string) => {
-  if (typeof window === "undefined" || !html) {
-    return "";
-  }
-  const div = document.createElement("div");
-  div.innerHTML = html;
-  return div.textContent || div.innerText || "";
-};
-
 export const JobPage = (): JSX.Element => {
   const isMobile = useMediaQuery("(max-width: 1023px)");
   const navigate = useNavigate();
@@ -1342,7 +1333,7 @@ export const JobPage = (): JSX.Element => {
           const evaluation = await evaluateJobFit(
             targetJob.description || "",
             profileSnapshot || "No profile provided.",
-            selectedResume?.raw_text || "No resume content provided."
+            (selectedResume as any)?.raw_text || "No resume content provided."
           );
 
           matchedKeywords = evaluation.matched_keywords || [];
@@ -1363,12 +1354,12 @@ export const JobPage = (): JSX.Element => {
       // ------------------------------------------------------------------------
 
       const targetJob = jobsWithTargets[0]?.job;
-      if (draftModeEnabled && jobsWithTargets.length === 1 && !draftData) {
+      if (jobsWithTargets.length === 1 && !draftData) {
         setGeneratingDraft(true);
         try {
           const [tailoredResume, tailoredCoverLetter] = await Promise.all([
-            tailorResumeViaEdge({ jobDescription: targetJob?.description || "", resumeText: selectedResume?.raw_text || "No resume text" }),
-            generateCoverLetterViaEdge({ jobDescription: targetJob?.description || "", resumeText: selectedResume?.raw_text || "No resume text" })
+            tailorResumeViaEdge({ jobDescription: targetJob?.description || "", resumeText: (selectedResume as any)?.raw_text || "No resume text" }),
+            generateCoverLetterViaEdge({ jobDescription: targetJob?.description || "", resumeText: (selectedResume as any)?.raw_text || "No resume text" })
           ]);
           setDraftData({ resumeText: tailoredResume, coverLetterText: tailoredCoverLetter });
           setAutoApplyStep(3);
