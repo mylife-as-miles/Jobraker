@@ -1418,35 +1418,11 @@ export const JobPage = (): JSX.Element => {
         }
       }
 
-      let automationResult = null;
-      let runId = null;
-      let workflowId = null;
-      let providerStatus = payloadJobs.length === 0 ? "Draft saved" : "Automation launched";
-      let recordingUrl = null;
-
-      if (payloadJobs.length > 0) {
-        automationResult = await applyToJobs({
-          jobs: payloadJobs,
-          title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
-          cover_letter: finalCoverLetterPayload,
-          ...(profileSnapshot ? { additional_information: profileSnapshot } : {}),
-          ...(draftData ? { resume: draftData.resumeText } : (resumeSignedUrl ? { resume: resumeSignedUrl } : {})),
-          ...(userEmail ? { email: userEmail } : {}),
-        });
-
-        const metadata = extractAutomationMetadata(automationResult);
-        runId = metadata.runId;
-        workflowId = metadata.workflowId;
-        providerStatus = metadata.providerStatus ?? "Automation launched";
-        recordingUrl = metadata.recordingUrl;
-      }
-
-      // userId already declared above, reuse it
       const applicationsToInsert: any[] = [];
       const appliedTimestamp = new Date().toISOString();
 
       if (jobsToAutoApply.length > 0) {
-        safeInfo("Automation launched", `Dispatched ${jobsToAutoApply.length} job(s) to the automation runner.`);
+        safeInfo("Automation launching", `Dispatching ${jobsToAutoApply.length} job(s) individually to the automation runner.`);
       }
       if (jobsToDraft.length > 0) {
         safeInfo("Drafts saved", `Saved ${jobsToDraft.length} application(s) as draft (untrusted source or <90% match).`);
@@ -1459,6 +1435,36 @@ export const JobPage = (): JSX.Element => {
 
       for (const { job, target } of jobsWithTargets) {
         try {
+          const isDraft = jobsToDraft.some(d => d.job.id === job.id);
+          const isLaunch = jobsToAutoApply.some(d => d.job.id === job.id);
+
+          let runId = null;
+          let workflowId = null;
+          let providerStatus = "Draft saved";
+          let recordingUrl = null;
+
+          // Dispatch to Skyvern INDIVIDUALLY to isolate batch failures 
+          if (isLaunch) {
+            const automationResult = await applyToJobs({
+              jobs: [{
+                sourceUrl: target,
+                url: job.apply_url ?? target,
+                source_url: job.source_id ?? target,
+              }],
+              title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
+              cover_letter: finalCoverLetterPayload,
+              ...(profileSnapshot ? { additional_information: profileSnapshot } : {}),
+              ...(draftData ? { resume: draftData.resumeText } : (resumeSignedUrl ? { resume: resumeSignedUrl } : {})),
+              ...(userEmail ? { email: userEmail } : {}),
+            });
+
+            const metadata = extractAutomationMetadata(automationResult);
+            runId = metadata.runId;
+            workflowId = metadata.workflowId;
+            providerStatus = metadata.providerStatus ?? "Automation launched";
+            recordingUrl = metadata.recordingUrl;
+          }
+
           const { error } = await supabase
             .from("jobs")
             .delete()
@@ -1478,7 +1484,6 @@ export const JobPage = (): JSX.Element => {
             setApplyProgress((prev) => ({ ...prev, done, success }));
             events.autoApplyJobSuccess(job.id, job.status || "unknown", 0);
             if (userId) {
-              const isDraft = jobsToDraft.some(d => d.job.id === job.id);
               const matchScore =
                 typeof job.matchScore === "number"
                   ? Math.round(job.matchScore)

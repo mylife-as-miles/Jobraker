@@ -257,6 +257,8 @@ async function fetchFromSourcesForUser(userId: string): Promise<Job[]> {
       }
     } catch (e) {
       console.error("Source fetch error (user)", s, e);
+      // Let the error bubble up so the manual trigger UI catches rate-limit/failures
+      throw e; 
     }
   }
   return results;
@@ -407,7 +409,7 @@ async function fetchDeepResearchJobs(cfg: DeepResearchConfig): Promise<Job[]> {
     return jobs;
   } catch (e) {
     console.error('Deep research fetch error', { userId: cfg.userId, query: cfg.query, error: e?.message });
-    return [];
+    throw e; // Do NOT swallow firecrawl failures. Bubble up to UI correctly!
   }
 }
 
