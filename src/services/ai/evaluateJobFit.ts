@@ -4,6 +4,7 @@ export interface EvaluateJobFitResponse {
   confidence_score: number;
   missing_requirements: string[];
   tailoring_suggestions: string[];
+  matched_keywords: string[];
 }
 
 const supabase = createClient();

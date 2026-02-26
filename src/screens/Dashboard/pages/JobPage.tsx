@@ -1531,6 +1531,7 @@ export const JobPage = (): JSX.Element => {
       }
 
       // --- AI Decision Boundary Check (Only for single job apply currently) ---
+      let matchedKeywords: string[] = aiEvaluation?.matched_keywords || [];
       if (jobsWithTargets.length === 1 && !forceSubmit && !applyingAll) {
         const targetJob = jobsWithTargets[0].job;
         setEvaluatingJob(true);
@@ -1540,6 +1541,8 @@ export const JobPage = (): JSX.Element => {
             profileSnapshot || "No profile provided.",
             selectedResume?.raw_text || "No resume content provided."
           );
+
+          matchedKeywords = evaluation.matched_keywords || [];
 
           if ((evaluation.missing_requirements && evaluation.missing_requirements.length > 0) || evaluation.confidence_score < 70) {
             setAiEvaluation(evaluation);
@@ -1658,6 +1661,7 @@ export const JobPage = (): JSX.Element => {
                 provider_status: providerStatus ?? "Automation launched",
                 recording_url: recordingUrl,
                 failure_reason: null,
+                match_reasons: matchedKeywords.length > 0 ? matchedKeywords : null,
               });
             }
           }

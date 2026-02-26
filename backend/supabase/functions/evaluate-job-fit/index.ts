@@ -13,12 +13,14 @@ interface EvaluateJobFitResponse {
   confidence_score: number;
   missing_requirements: string[];
   tailoring_suggestions: string[];
+  matched_keywords: string[];
 }
 
 const JSON_FAILSAFE: EvaluateJobFitResponse = {
   confidence_score: 50,
   missing_requirements: [],
   tailoring_suggestions: [],
+  matched_keywords: [],
 };
 
 const buildPromptBody = (jobDescription: string, profileSnapshot: string, resumeText: string) => `
@@ -28,7 +30,8 @@ Required output JSON schema:
 {
   "confidence_score": number (0-100, indicating your confidence in the feasibility and match quality of an application. >70 is considered auto-apply safe),
   "missing_requirements": string[] (Array of strict, non-negotiable job requirements that the user clearly lacks. For example, "Requires active Secret Clearance", "Must reside in New York, NY", "Requires portfolio URL". If none, return empty array. Only list absolute dealbreakers, not "nice-to-haves"),
-  "tailoring_suggestions": string[] (Array of conversational, actionable suggestions to improve the resume or profile for this specific job. E.g., "This job emphasizes 'React Native'. Your resume only says 'React'. Should we highlight mobile experience?")
+  "tailoring_suggestions": string[] (Array of conversational, actionable suggestions to improve the resume or profile for this specific job. E.g., "This job emphasizes 'React Native'. Your resume only says 'React'. Should we highlight mobile experience?"),
+  "matched_keywords": string[] (Array of specific skills, keywords, or technologies that overlap between the job requirements and the user's profile/resume)
 }
 
 Rule: If missing_requirements has items, confidence_score should generally be lower (e.g., < 70).
@@ -110,6 +113,7 @@ serve(async (req) => {
       confidence_score: typeof parsed.confidence_score === "number" ? parsed.confidence_score : JSON_FAILSAFE.confidence_score,
       missing_requirements: Array.isArray(parsed.missing_requirements) ? parsed.missing_requirements : JSON_FAILSAFE.missing_requirements,
       tailoring_suggestions: Array.isArray(parsed.tailoring_suggestions) ? parsed.tailoring_suggestions : JSON_FAILSAFE.tailoring_suggestions,
+      matched_keywords: Array.isArray(parsed.matched_keywords) ? parsed.matched_keywords : JSON_FAILSAFE.matched_keywords,
     };
 
     return new Response(

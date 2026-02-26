@@ -508,8 +508,8 @@ function ApplicationPage() {
                   variant='ghost'
                   onClick={() => setSelectedStatus(s)}
                   className={`text-sm px-4 py-2 rounded-xl transition-all duration-200 border ${isActive
-                      ? "border-[#1dff00]/50 bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]"
-                      : "border-foreground/10 text-foreground/70 hover:text-foreground hover:bg-foreground/5 hover:border-foreground/20"
+                    ? "border-[#1dff00]/50 bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]"
+                    : "border-foreground/10 text-foreground/70 hover:text-foreground hover:bg-foreground/5 hover:border-foreground/20"
                     }`}
                   style={isActive ? {} : { color: color + "b3" }}
                 >
@@ -1107,26 +1107,26 @@ function ApplicationPage() {
               <div className='absolute top-0 right-0'>
                 <span
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${detailApp.status === "Applied"
-                      ? "bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/20"
-                      : detailApp.status === "Interview"
-                        ? "bg-amber-400/10 text-amber-400 border border-amber-400/20"
-                        : detailApp.status === "Offer"
-                          ? "bg-lime-400/10 text-lime-400 border border-lime-400/20"
-                          : detailApp.status === "Rejected"
-                            ? "bg-rose-400/10 text-rose-400 border border-rose-400/20"
-                            : "bg-gray-400/10 text-gray-400 border border-gray-400/20"
+                    ? "bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/20"
+                    : detailApp.status === "Interview"
+                      ? "bg-amber-400/10 text-amber-400 border border-amber-400/20"
+                      : detailApp.status === "Offer"
+                        ? "bg-lime-400/10 text-lime-400 border border-lime-400/20"
+                        : detailApp.status === "Rejected"
+                          ? "bg-rose-400/10 text-rose-400 border border-rose-400/20"
+                          : "bg-gray-400/10 text-gray-400 border border-gray-400/20"
                     }`}
                 >
                   <div
                     className={`h-1.5 w-1.5 rounded-full ${detailApp.status === "Applied"
-                        ? "bg-[#1dff00]"
-                        : detailApp.status === "Interview"
-                          ? "bg-amber-400"
-                          : detailApp.status === "Offer"
-                            ? "bg-lime-400"
-                            : detailApp.status === "Rejected"
-                              ? "bg-rose-400"
-                              : "bg-gray-400"
+                      ? "bg-[#1dff00]"
+                      : detailApp.status === "Interview"
+                        ? "bg-amber-400"
+                        : detailApp.status === "Offer"
+                          ? "bg-lime-400"
+                          : detailApp.status === "Rejected"
+                            ? "bg-rose-400"
+                            : "bg-gray-400"
                       } shadow-[0_0_4px_currentColor]`}
                   />
                   {detailApp.status}
@@ -1262,6 +1262,28 @@ function ApplicationPage() {
                 </div>
               </div>
             </div>
+
+            {/* Trust & Explainability: Why this match? */}
+            {detailApp.match_reasons && detailApp.match_reasons.length > 0 && (
+              <div className='space-y-3'>
+                <h3 className='text-xs font-semibold flex items-center gap-2 uppercase tracking-wider text-[#1dff00]'>
+                  <svg className='w-4 h-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 10V3L4 14h7v7l9-11h-7z' />
+                  </svg>
+                  Why this match?
+                </h3>
+                <div className='flex flex-wrap gap-2 p-3 rounded-xl bg-gradient-to-br from-[#1dff00]/10 to-transparent border border-[#1dff00]/20'>
+                  {detailApp.match_reasons.map((reason, idx) => (
+                    <span
+                      key={idx}
+                      className='inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-[#1dff00]/20 text-[#1dff00]'
+                    >
+                      {reason}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Additional Information */}
             {detailApp.salary && (
@@ -1409,6 +1431,59 @@ function ApplicationPage() {
                   >
                     Copy Basic Info & Complete Manually
                   </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Trust & Explainability: What did you send? / Did it work? */}
+            {(detailApp.receipt_url || detailApp.success_url) && (
+              <div className='space-y-3'>
+                <h3 className='text-xs font-semibold uppercase tracking-wider text-foreground/40'>
+                  Application Receipts
+                </h3>
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                  {detailApp.receipt_url && (
+                    <a
+                      href={detailApp.receipt_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className='group relative block overflow-hidden rounded-xl border border-foreground/10 bg-foreground/5 transition-all hover:border-[#1dff00]/50 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)] aspect-[4/3]'
+                    >
+                      <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10' />
+                      <img
+                        src={detailApp.receipt_url}
+                        alt="Application Form Receipt"
+                        className='absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-80'
+                      />
+                      <div className='absolute bottom-0 left-0 right-0 p-3 z-20 flex items-center justify-between'>
+                        <span className='text-xs font-medium text-white'>View Form Data</span>
+                        <svg className='w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14' />
+                        </svg>
+                      </div>
+                    </a>
+                  )}
+                  {detailApp.success_url && (
+                    <a
+                      href={detailApp.success_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className='group relative block overflow-hidden rounded-xl border border-foreground/10 bg-foreground/5 transition-all hover:border-[#1dff00]/50 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)] aspect-[4/3]'
+                    >
+                      <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10' />
+                      <img
+                        src={detailApp.success_url}
+                        alt="Success Confirmation"
+                        className='absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-80'
+                      />
+                      <div className='absolute bottom-0 left-0 right-0 p-3 z-20 flex items-center justify-between'>
+                        <span className='text-xs font-medium focus:text-white text-[#1dff00]'>Success Screenshot</span>
+                        <svg className='w-4 h-4 focus:text-white text-[#1dff00] opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' />
+                        </svg>
+                      </div>
+                    </a>
+                  )}
                 </div>
               </div>
             )}

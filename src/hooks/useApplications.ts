@@ -28,6 +28,9 @@ export interface ApplicationRecord {
   provider_status?: string | null;
   recording_url?: string | null;
   failure_reason?: string | null;
+  match_reasons?: string[] | null;
+  receipt_url?: string | null;
+  success_url?: string | null;
 }
 
 type CreateInput = Partial<Omit<ApplicationRecord, "id" | "user_id" | "created_at" | "updated_at">> & {
@@ -197,6 +200,9 @@ export function useApplications() {
         next_step: input.next_step ?? null,
         interview_date: input.interview_date ?? null,
         logo: input.logo ?? null,
+        match_reasons: input.match_reasons ?? null,
+        receipt_url: input.receipt_url ?? null,
+        success_url: input.success_url ?? null,
       };
       const { data, error } = await (supabase as any)
         .from("applications")
