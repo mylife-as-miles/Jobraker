@@ -15,7 +15,7 @@ export const createGeminiClient = () => {
 }
 
 // Default model - Gemini 3 Pro Preview
-export const GEMINI_MODEL = 'gemini-3-pro-preview';
+export const GEMINI_MODEL = 'gemini-3.1-pro-preview';
 
 // Standard tools configuration
 export const GEMINI_TOOLS = [

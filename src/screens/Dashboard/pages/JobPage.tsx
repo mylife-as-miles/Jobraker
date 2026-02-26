@@ -45,6 +45,7 @@ import { applyToJobs } from "../../../services/applications/applyToJobs";
 import { evaluateJobFit, type EvaluateJobFitResponse } from "../../../services/ai/evaluateJobFit";
 import { tailorResumeViaEdge } from "../../../services/ai/tailorResume";
 import { generateCoverLetterViaEdge } from "../../../services/ai/generateCoverLetter";
+import { isTrustedSource } from "../../../utils/trustedSources";
 import { cn } from "../../../lib/utils";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
@@ -511,6 +512,7 @@ export const JobPage = (): JSX.Element => {
   const [autoApplyStep, setAutoApplyStep] = useState<1 | 2 | 3>(1);
   const [generatingDraft, setGeneratingDraft] = useState(false);
   const [draftData, setDraftData] = useState<{ resumeText: string; coverLetterText: string } | null>(null);
+  const [trueAutonomyEnabled, setTrueAutonomyEnabled] = useState(true);
   const [coverLetterLibrary, setCoverLetterLibrary] = useState<
     CoverLetterLibraryEntry[]
   >([]);
@@ -1375,13 +1377,25 @@ export const JobPage = (): JSX.Element => {
 
       const finalCoverLetterPayload = draftData ? draftData.coverLetterText : composeCoverLetterPayload(selectedCoverLetter);
 
+      let jobsToAutoApply = jobsWithTargets;
+      let jobsToDraft: typeof jobsWithTargets = [];
+
+      if (saveAsDraftOnly) {
+        jobsToAutoApply = [];
+        jobsToDraft = jobsWithTargets;
+      } else if (trueAutonomyEnabled && jobsWithTargets.length > 1) {
+        // Enforce Phase 2.0 True Autonomy: Only auto-apply trusted sources with >90% match. Draft the rest.
+        jobsToAutoApply = jobsWithTargets.filter(item => isTrustedSource(item.target) && (item.job.matchScore ?? 0) >= 90);
+        jobsToDraft = jobsWithTargets.filter(item => !isTrustedSource(item.target) || (item.job.matchScore ?? 0) < 90);
+      }
+
       events.autoApplyStarted(
-        jobsWithTargets.length,
+        jobsToAutoApply.length,
         selectedResumeId || undefined,
         selectedCoverLetterId || undefined,
       );
 
-      const payloadJobs = jobsWithTargets.map(({ job, target }) => ({
+      const payloadJobs = jobsToAutoApply.map(({ job, target }) => ({
         sourceUrl: target,
         url: job.apply_url ?? target,
         source_url: job.source_id ?? target,
@@ -1407,10 +1421,10 @@ export const JobPage = (): JSX.Element => {
       let automationResult = null;
       let runId = null;
       let workflowId = null;
-      let providerStatus = saveAsDraftOnly ? "Draft saved" : "Automation launched";
+      let providerStatus = payloadJobs.length === 0 ? "Draft saved" : "Automation launched";
       let recordingUrl = null;
 
-      if (!saveAsDraftOnly) {
+      if (payloadJobs.length > 0) {
         automationResult = await applyToJobs({
           jobs: payloadJobs,
           title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
@@ -1431,10 +1445,12 @@ export const JobPage = (): JSX.Element => {
       const applicationsToInsert: any[] = [];
       const appliedTimestamp = new Date().toISOString();
 
-      safeInfo(
-        saveAsDraftOnly ? "Draft saved" : "Automation launched",
-        saveAsDraftOnly ? `Saved ${jobsWithTargets.length} application draft(s).` : `Dispatched ${jobsWithTargets.length} job(s) to the automation runner.`,
-      );
+      if (jobsToAutoApply.length > 0) {
+        safeInfo("Automation launched", `Dispatched ${jobsToAutoApply.length} job(s) to the automation runner.`);
+      }
+      if (jobsToDraft.length > 0) {
+        safeInfo("Drafts saved", `Saved ${jobsToDraft.length} application(s) as draft (untrusted source or <90% match).`);
+      }
 
       let success = 0;
       let fail = 0;
@@ -1462,6 +1478,7 @@ export const JobPage = (): JSX.Element => {
             setApplyProgress((prev) => ({ ...prev, done, success }));
             events.autoApplyJobSuccess(job.id, job.status || "unknown", 0);
             if (userId) {
+              const isDraft = jobsToDraft.some(d => d.job.id === job.id);
               const matchScore =
                 typeof job.matchScore === "number"
                   ? Math.round(job.matchScore)
@@ -1475,8 +1492,8 @@ export const JobPage = (): JSX.Element => {
                 company: job.company,
                 location: job.location ?? "",
                 applied_date: appliedTimestamp,
-                status: saveAsDraftOnly ? "Saved" : "Applied",
-                draft_status: saveAsDraftOnly ? "draft" : "sent",
+                status: isDraft ? "Saved" : "Applied",
+                draft_status: isDraft ? "draft" : "sent",
                 salary: formatSalaryRange(job),
                 notes: matchNote,
                 match_score: matchScore,
@@ -3938,6 +3955,29 @@ export const JobPage = (): JSX.Element => {
                       </li>
                     </ul>
                   </div>
+
+                  {/* True Autonomy Toggle */}
+                  <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-4 sm:p-5 flex items-center justify-between'>
+                    <div>
+                      <div className='flex items-center gap-2 text-sm font-medium text-[#1dff00]'>
+                        <Sparkles className='w-4 h-4' />
+                        True Autonomy
+                      </div>
+                      <p className='mt-1 text-xs text-foreground/60 max-w-[85%]'>
+                        Restricts auto-submit to trusted sources (e.g. Greenhouse, Lever) with &gt;90% match score. Other jobs will safely fallback to Draft Mode.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTrueAutonomyEnabled(!trueAutonomyEnabled)}
+                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${trueAutonomyEnabled ? 'bg-[#1dff00]' : 'bg-foreground/20'}`}
+                      role="switch"
+                      aria-checked={trueAutonomyEnabled}
+                    >
+                      <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${trueAutonomyEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
                 </div>
               )}
 
