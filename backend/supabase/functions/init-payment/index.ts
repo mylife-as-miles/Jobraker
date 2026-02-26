@@ -4,26 +4,8 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 console.log("Hello from init-payment!");
 
-// Fetch real-time USD to NGN exchange rate
-async function getUsdToNgnRate(): Promise<number> {
-  try {
-    // Using open.er-api.com - free, no API key required
-    const response = await fetch("https://open.er-api.com/v6/latest/USD");
-    const data = await response.json();
-    
-    if (data.result === "success" && data.rates?.NGN) {
-      console.log(`Exchange rate fetched: 1 USD = ${data.rates.NGN} NGN`);
-      return data.rates.NGN;
-    }
-    
-    // Fallback rate if API fails (as of Feb 2026)
-    console.warn("Exchange rate API failed, using fallback rate");
-    return 1600;
-  } catch (error) {
-    console.error("Error fetching exchange rate:", error);
-    return 1600; // Fallback
-  }
-}
+// Fixed exchange rate for reliable checkout (1 USD = 1600 NGN)
+const FIXED_EXCHANGE_RATE = 1600;
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -77,7 +59,7 @@ serve(async (req) => {
     }
 
     // 5. Convert USD to NGN
-    const exchangeRate = await getUsdToNgnRate();
+    const exchangeRate = FIXED_EXCHANGE_RATE;
     const amountInNgn = amount * exchangeRate;
     
     // Convert to kobo (smallest unit) - Paystack expects amount in kobo

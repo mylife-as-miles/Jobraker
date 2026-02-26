@@ -39,7 +39,6 @@ import { ApplicationPage } from "./pages/ApplicationPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { NotificationPage } from "./pages/NotificationPage";
 import ProfilePage from "./pages/ProfilePage";
-import { ChatPage } from "./pages/ChatPage";
 import { BillingPage } from "./pages/BillingPage";
 import InterviewStudioPage from "./pages/InterviewStudioPage";
 import { ResumePage } from "./pages/ResumePage";
@@ -48,7 +47,6 @@ import { CoverLetterPage } from "./pages/CoverLetterPage";
 type DashboardPage =
   | "overview"
   | "analytics"
-  | "chat"
   | "jobs"
   | "application"
   | "settings"
@@ -82,11 +80,10 @@ const SidebarItem = ({
     variant='ghost'
     onClick={onClick}
     title={isCollapsed ? item.label : undefined}
-    className={`w-full justify-start rounded-xl mb-1 transition-all duration-200 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${
-      isActive
+    className={`w-full justify-start rounded-xl mb-1 transition-all duration-200 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${isActive
         ? "text-foreground bg-[#1dff00]/10 border border-[#1dff00]/20"
         : "text-foreground/60 hover:text-foreground/40 hover:bg-foreground/5"
-    } ${isCollapsed ? "justify-center px-2" : ""}`}
+      } ${isCollapsed ? "justify-center px-2" : ""}`}
   >
     {isActive && (
       <div className='absolute left-0 top-0 bottom-0 w-1 bg-[#1dff00] shadow-[0_0_10px_#1dff00]' />
@@ -145,7 +142,6 @@ export const Dashboard = (): JSX.Element => {
   const pages: DashboardPage[] = [
     "overview",
     "analytics",
-    "chat",
     "jobs",
     "application",
     "billing",
@@ -224,12 +220,6 @@ export const Dashboard = (): JSX.Element => {
       label: "Dashboard",
       icon: <BarChart3 className='w-5 h-5' />,
       path: "Dashboard",
-    },
-    {
-      id: "chat",
-      label: "Chat",
-      icon: <MessageSquare className='w-5 h-5' />,
-      path: "Dashboard / Chat",
     },
     {
       id: "interview-studio",
@@ -315,8 +305,6 @@ export const Dashboard = (): JSX.Element => {
         return <JobPage />;
       case "application":
         return <ApplicationPage />;
-      case "chat":
-        return <ChatPage />;
       case "billing":
         return <BillingPage />;
       case "interview-studio":
@@ -477,38 +465,38 @@ export const Dashboard = (): JSX.Element => {
                 "application",
               ].includes(i.id),
           ) && (
-            <div className='space-y-1'>
-              {!isCollapsed && (
-                <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
-                  Account
-                </h4>
-              )}
-              {navigationItems
-                .filter(
-                  (i) =>
-                    ![
-                      "overview",
-                      "analytics",
-                      "chat",
-                      "interview-studio",
-                      "jobs",
-                      "application",
-                    ].includes(i.id),
-                )
-                .map((item) => (
-                  <SidebarItem
-                    key={item.id}
-                    item={item}
-                    isActive={currentPage === item.id}
-                    isCollapsed={isCollapsed}
-                    onClick={() => {
-                      navigate(`/dashboard/${item.id}`);
-                      setSidebarOpen(false);
-                    }}
-                  />
-                ))}
-            </div>
-          )}
+              <div className='space-y-1'>
+                {!isCollapsed && (
+                  <h4 className='px-3 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 truncate'>
+                    Account
+                  </h4>
+                )}
+                {navigationItems
+                  .filter(
+                    (i) =>
+                      ![
+                        "overview",
+                        "analytics",
+                        "chat",
+                        "interview-studio",
+                        "jobs",
+                        "application",
+                      ].includes(i.id),
+                  )
+                  .map((item) => (
+                    <SidebarItem
+                      key={item.id}
+                      item={item}
+                      isActive={currentPage === item.id}
+                      isCollapsed={isCollapsed}
+                      onClick={() => {
+                        navigate(`/dashboard/${item.id}`);
+                        setSidebarOpen(false);
+                      }}
+                    />
+                  ))}
+              </div>
+            )}
         </div>
 
         {/* Premium Upgrade - Sleek Banner */}
@@ -721,11 +709,10 @@ export const Dashboard = (): JSX.Element => {
 
         {/* Page Content - Responsive */}
         <div
-          className={`flex-1 flex flex-col min-h-0 relative ${
-            ["chat", "interview-studio"].includes(currentPage)
+          className={`flex-1 flex flex-col min-h-0 relative ${["chat", "interview-studio"].includes(currentPage)
               ? "overflow-hidden"
               : "overflow-auto"
-          }`}
+            }`}
         >
           <AnimatePresence mode='wait'>
             <motion.div

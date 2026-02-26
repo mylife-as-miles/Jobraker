@@ -92,263 +92,49 @@ type MatchContext = {
   profile?: Profile | null;
 };
 
-const tokenize = (input?: string | null): string[] => {
-  if (!input) return [];
-  return input
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .map((token) => token.trim())
-    .filter((token) => token.length > 1);
-};
+const fetchJobMatchInsights = async (jobs: Job[], context: MatchContext): Promise<Job[]> => {
+  if (jobs.length === 0) return jobs;
 
-const uniqueTokens = (tokens: string[]): string[] =>
-  Array.from(new Set(tokens));
-
-const clamp = (value: number, min = 0, max = 100) =>
-  Math.min(max, Math.max(min, value));
-
-const buildTokenSet = (
-  ...segments: Array<string | undefined | null>
-): Set<string> => {
-  const tokens = segments.flatMap((segment) => uniqueTokens(tokenize(segment)));
-  return new Set(tokens);
-};
-
-const measureOverlap = (needles: Set<string>, haystack: Set<string>) => {
-  if (!needles.size) return { score: 0, matches: [] as string[] };
-  const matches: string[] = [];
-  needles.forEach((token) => {
-    if (haystack.has(token)) matches.push(token);
-  });
-  const score = clamp((matches.length / needles.size) * 100);
-  return { score, matches };
-};
-
-const evaluateLocationFit = (
-  job: Job,
-  context: MatchContext,
-): { score: number; detail: string } => {
-  const preferredLocationRaw = context.selectedLocation?.trim();
-  const profileLocationRaw = context.profile?.location?.trim();
-  const preference = preferredLocationRaw || profileLocationRaw || "";
-  const preferenceTokens = buildTokenSet(preference);
-  const jobLocationPieces: string[] = [];
-  if (job.location) jobLocationPieces.push(job.location);
-  if (job.remote_type) jobLocationPieces.push(job.remote_type);
-  const rawData = job.raw_data as Record<string, any> | undefined;
-  if (rawData?.location) jobLocationPieces.push(String(rawData.location));
-  if (rawData?.scraped_data?.location)
-    jobLocationPieces.push(String(rawData.scraped_data.location));
-  const jobLocationString = jobLocationPieces.join(" ").toLowerCase();
-  const wantsRemote = preference.toLowerCase().includes("remote");
-  const jobIsRemote =
-    /remote|anywhere/i.test(jobLocationString) ||
-    /remote/i.test(job.remote_type || "");
-
-  if (!preferenceTokens.size) {
-    if (jobIsRemote) {
-      return {
-        score: 85,
-        detail: "Remote-friendly role suits broad location preferences.",
-      };
-    }
-    if (!jobLocationString) {
-      return {
-        score: 60,
-        detail: "Location unspecified; monitor posting for details.",
-      };
-    }
-    return {
-      score: 65,
-      detail: "No location preference set; defaulting to neutral fit.",
-    };
-  }
-
-  if (jobIsRemote && wantsRemote) {
-    return {
-      score: 95,
-      detail: "Remote flexibility aligns with your preference.",
-    };
-  }
-
-  const matchedTokens: string[] = [];
-  preferenceTokens.forEach((token) => {
-    if (token && jobLocationString.includes(token)) matchedTokens.push(token);
-  });
-
-  if (matchedTokens.length) {
-    return {
-      score: 100,
-      detail: `Job location highlights ${matchedTokens.join(", ")}, matching your preference.`,
-    };
-  }
-
-  if (jobIsRemote) {
-    return {
-      score: 80,
-      detail:
-        "Role is remote-friendly, partially offsetting location mismatch.",
-    };
-  }
-
-  if (!jobLocationString) {
-    return {
-      score: 45,
-      detail: "Job location not specified; unable to confirm alignment.",
-    };
-  }
-
-  return {
-    score: 30,
-    detail: "Location does not mention your preferred region.",
-  };
-};
-
-const computeJobMatchInsights = (job: Job, context: MatchContext) => {
-  const breakdown: MatchScoreBreakdown[] = [];
-  const totalWeights = {
-    role: 0.35,
-    keywords: 0.3,
-    goals: 0.2,
-    location: 0.15,
-  } as const;
-
-  const profileTitleTokens = buildTokenSet(
-    context.profile?.job_title,
-    context.profile?.goals?.join(" ") || "",
-  );
-  const searchTokens = buildTokenSet(context.searchQuery);
-  const roleTargetTokens = new Set<string>([
-    ...profileTitleTokens,
-    ...searchTokens,
-  ]);
-  const jobTitleTokens = buildTokenSet(job.title);
-  const roleOverlap = measureOverlap(roleTargetTokens, jobTitleTokens);
-  const roleScore = roleTargetTokens.size
-    ? roleOverlap.score
-    : clamp(jobTitleTokens.size ? 55 : 40);
-  breakdown.push({
-    label: "Role focus",
-    componentScore: roleScore,
-    contribution: roleScore * totalWeights.role,
-    weight: totalWeights.role,
-    detail: roleTargetTokens.size
-      ? roleOverlap.matches.length
-        ? `Matches ${roleOverlap.matches.length}/${roleTargetTokens.size} target role keywords.`
-        : "Job title only loosely overlaps with your role focus."
-      : "No role keywords provided; using neutral baseline.",
-    matches: roleOverlap.matches,
-  });
-
-  const jobDescriptionText = [
-    job.description,
-    (job.raw_data as any)?.scraped_data?.description,
-    toPlainText(job.description || ""),
-  ]
-    .filter(Boolean)
-    .join(" ");
-  const jobTagTokens = buildTokenSet(
-    Array.isArray((job.raw_data as any)?.scraped_data?.tags)
-      ? ((job.raw_data as any)?.scraped_data?.tags as string[]).join(" ")
-      : undefined,
-    Array.isArray((job.raw_data as any)?.scraped_data?.skills)
-      ? ((job.raw_data as any)?.scraped_data?.skills as string[]).join(" ")
-      : undefined,
-  );
-  const jobTextTokens = new Set<string>([
-    ...buildTokenSet(jobDescriptionText),
-    ...jobTagTokens,
-    ...jobTitleTokens,
-  ]);
-  const keywordOverlap = measureOverlap(searchTokens, jobTextTokens);
-  const keywordScore = searchTokens.size
-    ? keywordOverlap.score
-    : clamp(jobTextTokens.size ? 60 : 40);
-  breakdown.push({
-    label: "Keyword match",
-    componentScore: keywordScore,
-    contribution: keywordScore * totalWeights.keywords,
-    weight: totalWeights.keywords,
-    detail: searchTokens.size
-      ? keywordOverlap.matches.length
-        ? `Job content covers ${keywordOverlap.matches.join(", ")}.`
-        : "Posting lacks your search keywords."
-      : "No search keywords supplied; treated as neutral.",
-    matches: keywordOverlap.matches,
-  });
-
-  const goalTokens = buildTokenSet(context.profile?.goals?.join(" ") || "");
-  const goalOverlap = measureOverlap(goalTokens, jobTextTokens);
-  const goalScore = goalTokens.size
-    ? goalOverlap.score
-    : clamp(jobTextTokens.size ? 55 : 40);
-  breakdown.push({
-    label: "Profile goals",
-    componentScore: goalScore,
-    contribution: goalScore * totalWeights.goals,
-    weight: totalWeights.goals,
-    detail: goalTokens.size
-      ? goalOverlap.matches.length
-        ? `Mentions your goals: ${goalOverlap.matches.join(", ")}.`
-        : "Job description does not reference your stated goals."
-      : "Add goals to your profile for deeper matching.",
-    matches: goalOverlap.matches,
-  });
-
-  const locationFit = evaluateLocationFit(job, context);
-  breakdown.push({
-    label: "Location alignment",
-    componentScore: locationFit.score,
-    contribution: locationFit.score * totalWeights.location,
-    weight: totalWeights.location,
-    detail: locationFit.detail,
-  });
-
-  const totalScore = clamp(
-    Math.round(breakdown.reduce((acc, item) => acc + item.contribution, 0)),
-  );
-
-  const positiveHighlights = breakdown
-    .filter((item) => item.componentScore >= 70)
-    .map((item) => item.label.toLowerCase());
-  const opportunityAreas = breakdown
-    .filter((item) => item.componentScore < 50)
-    .map((item) => item.label.toLowerCase());
-
-  let summary = "";
-  if (positiveHighlights.length) {
-    summary = `Strong alignment on ${positiveHighlights.join(", ")}.`;
-  }
-  if (opportunityAreas.length) {
-    summary = summary
-      ? `${summary} Needs attention on ${opportunityAreas.join(", ")}.`
-      : `Needs attention on ${opportunityAreas.join(", ")}.`;
-  }
-  if (!summary) {
-    summary =
-      "Limited signals detected — consider refining your search or profile.";
-  }
-
-  return {
-    score: totalScore,
-    breakdown,
-    summary,
-  };
-};
-
-const decorateJobWithMatchInsights = (job: Job, context: MatchContext): Job => {
   try {
-    const insights = computeJobMatchInsights(job, context);
-    return {
-      ...job,
-      matchScore: insights.score,
-      matchBreakdown: insights.breakdown,
-      matchSummary: insights.summary,
-    };
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return jobs;
+
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL || 'https://yquhsllwrwfvrwolqywh.supabase.co'}/functions/v1/calculate-match-score`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ jobs, context })
+    });
+
+    if (!res.ok) throw new Error("Match score fetch failed");
+
+    const { results } = await res.json();
+    if (!Array.isArray(results)) return jobs;
+
+    // Map insights back to jobs
+    const scoreMap = new Map();
+    results.forEach((r: any) => {
+      if (r.id) scoreMap.set(r.id, r);
+    });
+
+    return jobs.map(j => {
+      const insight = scoreMap.get(j.id);
+      if (insight) {
+        return {
+          ...j,
+          matchScore: insight.score,
+          matchBreakdown: insight.breakdown,
+          matchSummary: insight.summary
+        };
+      }
+      return j;
+    });
+
   } catch (err) {
-    console.error("match insight computation failed", err);
-    return job;
+    console.error("fetchJobMatchInsights error:", err);
+    return jobs; // Fallback to raw jobs if scoring fails
   }
 };
 
@@ -1041,16 +827,29 @@ export const JobPage = (): JSX.Element => {
     }),
     [searchQuery, selectedLocation, profile],
   );
-  const decorateJobsRef = useRef<(list: Job[]) => Job[]>((list) => list);
+
+  const decorateJobsRef = useRef<(list: Job[]) => Promise<Job[]>>(async (list) => list);
+
   const decorateJobs = useCallback(
-    (list: Job[]) =>
-      list.map((job) => decorateJobWithMatchInsights(job, matchContext)),
+    async (list: Job[]) => await fetchJobMatchInsights(list, matchContext),
     [matchContext],
   );
+
   useEffect(() => {
     decorateJobsRef.current = decorateJobs;
-    setJobs((prev) => (prev.length ? decorateJobs(prev) : prev));
   }, [decorateJobs]);
+
+  // Re-decorate jobs when context changes
+  useEffect(() => {
+    let active = true;
+    const redecorate = async () => {
+      if (jobs.length === 0) return;
+      const decorated = await decorateJobs(jobs);
+      if (active) setJobs(decorated);
+    };
+    redecorate();
+    return () => { active = false; };
+  }, [decorateJobs]); // Note: jobs is intentionally omitted to avoid infinite loop
 
   // Check admin status
   useEffect(() => {
@@ -1159,7 +958,7 @@ export const JobPage = (): JSX.Element => {
       if (fetchError) throw new Error(fetchError.message);
 
       const jobList = (data.jobs || []).map(mapDbJobToUiJob);
-      const decorated = decorateJobsRef.current(jobList);
+      const decorated = await decorateJobsRef.current(jobList);
       setJobs(decorated);
 
       if (decorated.length > 0) {
