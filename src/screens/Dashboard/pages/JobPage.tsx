@@ -42,6 +42,7 @@ import { events } from "../../../lib/analytics";
 import { useToast } from "../../../components/ui/toast";
 import { SimpleDropdown } from "../../../components/SimpleDropdown";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
+import { evaluateJobFit, type EvaluateJobFitResponse } from "../../../services/ai/evaluateJobFit";
 import { cn } from "../../../lib/utils";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
@@ -508,9 +509,9 @@ const composeCoverLetterPayload = (
 
   const paragraphs = Array.isArray(data.paragraphs)
     ? (data.paragraphs as unknown[])
-        .filter((p): p is string => typeof p === "string")
-        .map((p) => p.trim())
-        .filter((p) => p.length > 0)
+      .filter((p): p is string => typeof p === "string")
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0)
     : [];
   const body = read("content");
   if (typeof body === "string") {
@@ -646,7 +647,7 @@ const getCompanyLogoUrl = (
   try {
     const domain = new URL(
       sourceUrl ||
-        `https://www.${companyName.toLowerCase().replace(/\s/g, "")}.com`,
+      `https://www.${companyName.toLowerCase().replace(/\s/g, "")}.com`,
     ).hostname;
     return `https://logo.clearbit.com/${domain}`;
   } catch {
@@ -739,6 +740,11 @@ export const JobPage = (): JSX.Element => {
   const [subscriptionTier, setSubscriptionTier] = useState<
     "Free" | "Basics" | "Pro" | "Ultimate"
   >("Free");
+
+  // AI Decision Boundary states
+  const [evaluatingJob, setEvaluatingJob] = useState(false);
+  const [aiEvaluation, setAiEvaluation] = useState<EvaluateJobFitResponse | null>(null);
+  const [forceSubmit, setForceSubmit] = useState(false);
 
   // Debug payload capture for in-app panel
   const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);
@@ -901,13 +907,12 @@ export const JobPage = (): JSX.Element => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
-              className={`relative flex items-center gap-2 rounded-lg border p-2.5 transition-all duration-300 ${
-                isActive
-                  ? "border-[#1dff00] bg-[#1dff00]/10 shadow-[0_0_15px_rgba(29,255,0,0.2)]"
-                  : isCompleted
-                    ? "border-[#1dff00]/50 bg-[#1dff00]/5"
-                    : "border-[#ffffff18] bg-[#ffffff08]"
-              }`}
+              className={`relative flex items-center gap-2 rounded-lg border p-2.5 transition-all duration-300 ${isActive
+                ? "border-[#1dff00] bg-[#1dff00]/10 shadow-[0_0_15px_rgba(29,255,0,0.2)]"
+                : isCompleted
+                  ? "border-[#1dff00]/50 bg-[#1dff00]/5"
+                  : "border-[#ffffff18] bg-[#ffffff08]"
+                }`}
             >
               <div className='relative flex-shrink-0'>
                 {isCompleted ? (
@@ -1105,8 +1110,8 @@ export const JobPage = (): JSX.Element => {
             const draftName =
               String(
                 parsedDraft?.subject ||
-                  parsedDraft?.role ||
-                  "Latest cover letter",
+                parsedDraft?.role ||
+                "Latest cover letter",
               ).trim() || "Latest cover letter";
             const draftUpdatedAt =
               parsedDraft?.savedAt || new Date().toISOString();
@@ -1417,6 +1422,8 @@ export const JobPage = (): JSX.Element => {
   const openAutoApplyFlow = useCallback(() => {
     setAutoApplyStep(1);
     setResumeDialogOpen(true);
+    setAiEvaluation(null);
+    setForceSubmit(false);
     loadCoverLetterLibrary();
     setSelectedResumeId((prev) => {
       if (prev && resumes?.some((r: any) => r.id === prev)) return prev;
@@ -1517,6 +1524,32 @@ export const JobPage = (): JSX.Element => {
           return;
         }
       }
+
+      // --- AI Decision Boundary Check (Only for single job apply currently) ---
+      if (jobsWithTargets.length === 1 && !forceSubmit && !applyingAll) {
+        const targetJob = jobsWithTargets[0].job;
+        setEvaluatingJob(true);
+        try {
+          const evaluation = await evaluateJobFit(
+            targetJob.description || "",
+            profileSnapshot || "No profile provided.",
+            selectedResume?.raw_text || "No resume content provided."
+          );
+
+          if ((evaluation.missing_requirements && evaluation.missing_requirements.length > 0) || evaluation.confidence_score < 70) {
+            setAiEvaluation(evaluation);
+            return; // Stop execution here and wait for user response
+          }
+        } catch (evalErr) {
+          console.error("Failed to evaluate job fit", evalErr);
+          // If the AI evaluation fails completely, deciding whether to block or proceed is tricky.
+          // For now, we'll log it and proceed to let them apply anyway so we don't completely break the flow if Gemini is down.
+          safeInfo("AI Evaluation Failed", "Could not complete confidence check, proceeding with submission.");
+        } finally {
+          setEvaluatingJob(false);
+        }
+      }
+      // ------------------------------------------------------------------------
 
       const coverLetterPayload = composeCoverLetterPayload(selectedCoverLetter);
       events.autoApplyStarted(
@@ -1700,7 +1733,10 @@ export const JobPage = (): JSX.Element => {
       events.autoApplyFinished(0, jobsWithTargets.length);
     } finally {
       setApplyingAll(false);
-      setAutoApplyStep(1);
+      // Only reset step if we aren't waiting on the AI Evaluation UI
+      if (!aiEvaluation) {
+        setAutoApplyStep(1);
+      }
     }
   }, [
     applyingAll,
@@ -1713,6 +1749,8 @@ export const JobPage = (): JSX.Element => {
     selectedResumeId,
     safeInfo,
     setError,
+    forceSubmit,
+    aiEvaluation
   ]);
 
   // Fetch subscription tier
@@ -1872,10 +1910,10 @@ export const JobPage = (): JSX.Element => {
             existing.score === nextInsights.score &&
             existing.summary === nextInsights.summary &&
             JSON.stringify(existing.breakdown ?? null) ===
-              JSON.stringify(nextInsights.breakdown ?? null) &&
+            JSON.stringify(nextInsights.breakdown ?? null) &&
             (existing.search_query || null) === nextInsights.search_query &&
             (existing.location_preference || null) ===
-              nextInsights.location_preference;
+            nextInsights.location_preference;
           if (unchanged) {
             matchInsightSignaturesRef.current.set(job.id, signature);
             return null;
@@ -1884,10 +1922,10 @@ export const JobPage = (): JSX.Element => {
           return { id: job.id, raw_data: rawData, signature };
         })
         .filter(Boolean) as Array<{
-        id: string;
-        raw_data: Record<string, any>;
-        signature: string;
-      }>;
+          id: string;
+          raw_data: Record<string, any>;
+          signature: string;
+        }>;
       if (!updates.length) return;
       try {
         await Promise.all(
@@ -2143,11 +2181,10 @@ export const JobPage = (): JSX.Element => {
                   <Button
                     variant='ghost'
                     onClick={() => populateQueue(searchQuery, selectedLocation)}
-                    className={`group relative flex-1 sm:flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${
-                      queueStatus === "populating" || queueStatus === "loading"
-                        ? "border-[#1dff00]/60 text-[#1dff00] bg-[#1dff00]/15"
-                        : "border-foreground/20 text-foreground bg-foreground/5 hover:text-[#1dff00] hover:border-[#1dff00]/60 hover:bg-[#1dff00]/10 shadow-[0_12px_32px_rgba(8,122,52,0.35)]"
-                    }`}
+                    className={`group relative flex-1 sm:flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${queueStatus === "populating" || queueStatus === "loading"
+                      ? "border-[#1dff00]/60 text-[#1dff00] bg-[#1dff00]/15"
+                      : "border-foreground/20 text-foreground bg-foreground/5 hover:text-[#1dff00] hover:border-[#1dff00]/60 hover:bg-[#1dff00]/10 shadow-[0_12px_32px_rgba(8,122,52,0.35)]"
+                      }`}
                     title='Find a fresh batch of jobs'
                     disabled={
                       queueStatus === "populating" || queueStatus === "loading"
@@ -2181,13 +2218,12 @@ export const JobPage = (): JSX.Element => {
                   <Button
                     variant='ghost'
                     onClick={() => setConfirmDeleteOpen(true)}
-                    className={`group relative flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md ${
-                      clearingJobs
-                        ? "border-red-500/60 text-red-400 bg-red-500/15 cursor-not-allowed opacity-60"
-                        : jobs.length === 0
-                          ? "border-red-500/20 text-red-400/40 bg-red-500/5 cursor-not-allowed opacity-40"
-                          : "border-red-500/40 text-red-400 bg-red-500/10 hover:text-red-300 hover:border-red-500/60 hover:bg-red-500/20"
-                    }`}
+                    className={`group relative flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md ${clearingJobs
+                      ? "border-red-500/60 text-red-400 bg-red-500/15 cursor-not-allowed opacity-60"
+                      : jobs.length === 0
+                        ? "border-red-500/20 text-red-400/40 bg-red-500/5 cursor-not-allowed opacity-40"
+                        : "border-red-500/40 text-red-400 bg-red-500/10 hover:text-red-300 hover:border-red-500/60 hover:bg-red-500/20"
+                      }`}
                     title={
                       jobs.length === 0
                         ? "No jobs to clear"
@@ -2783,19 +2819,17 @@ export const JobPage = (): JSX.Element => {
                   transition={{ duration: 0.4, delay: index * 0.04 }}
                 >
                   <div
-                    className={`relative overflow-hidden rounded-2xl border transition-all duration-300 p-5 sm:p-6 ${
-                      selectedJob === job.id
-                        ? "bg-[#0a0a0a] border-[#1dff00] shadow-[0_0_30px_rgba(29,255,0,0.15)]"
-                        : "bg-gradient-to-br from-[#0f0f0f] to-[#0a0a0a] border-foreground/5 hover:border-[#1dff00]/30 hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
-                    }`}
+                    className={`relative overflow-hidden rounded-2xl border transition-all duration-300 p-5 sm:p-6 ${selectedJob === job.id
+                      ? "bg-[#0a0a0a] border-[#1dff00] shadow-[0_0_30px_rgba(29,255,0,0.15)]"
+                      : "bg-gradient-to-br from-[#0f0f0f] to-[#0a0a0a] border-foreground/5 hover:border-[#1dff00]/30 hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+                      }`}
                   >
                     {/* Selection Indicator Line */}
                     <div
-                      className={`absolute left-0 top-0 bottom-0 w-1 transition-all duration-300 ${
-                        selectedJob === job.id
-                          ? "bg-[#1dff00]"
-                          : "bg-transparent group-hover:bg-[#1dff00]/50"
-                      }`}
+                      className={`absolute left-0 top-0 bottom-0 w-1 transition-all duration-300 ${selectedJob === job.id
+                        ? "bg-[#1dff00]"
+                        : "bg-transparent group-hover:bg-[#1dff00]/50"
+                        }`}
                     />
 
                     {/* Glass highlight effect on hover */}
@@ -2828,11 +2862,10 @@ export const JobPage = (): JSX.Element => {
                         <div className='flex flex-col sm:flex-row sm:items-start justify-between gap-2'>
                           <div className='space-y-1'>
                             <h3
-                              className={`font-bold text-lg sm:text-xl leading-tight transition-colors ${
-                                selectedJob === job.id
-                                  ? "text-[#1dff00]"
-                                  : "text-foreground group-hover:text-[#1dff00]"
-                              }`}
+                              className={`font-bold text-lg sm:text-xl leading-tight transition-colors ${selectedJob === job.id
+                                ? "text-[#1dff00]"
+                                : "text-foreground group-hover:text-[#1dff00]"
+                                }`}
                               title={job.title}
                             >
                               {job.title}
@@ -2877,11 +2910,10 @@ export const JobPage = (): JSX.Element => {
                             )}
                             {job.status && (
                               <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${
-                                  job.status === "applied"
-                                    ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
-                                    : "bg-foreground/5 text-gray-400 border-foreground/10"
-                                }`}
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${job.status === "applied"
+                                  ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+                                  : "bg-foreground/5 text-gray-400 border-foreground/10"
+                                  }`}
                               >
                                 {job.status}
                               </span>
@@ -3000,9 +3032,9 @@ export const JobPage = (): JSX.Element => {
                                     alt=''
                                     className='w-3.5 h-3.5 rounded-sm opacity-70'
                                     onError={(e) =>
-                                      ((
-                                        e.target as HTMLImageElement
-                                      ).style.display = "none")
+                                    ((
+                                      e.target as HTMLImageElement
+                                    ).style.display = "none")
                                     }
                                   />
                                   <span className='truncate max-w-[100px]'>
@@ -3261,10 +3293,10 @@ export const JobPage = (): JSX.Element => {
                             : null,
                           deadlineMeta
                             ? {
-                                label: "Deadline",
-                                value: deadlineMeta.label,
-                                tone: deadlineMeta.level,
-                              }
+                              label: "Deadline",
+                              value: deadlineMeta.label,
+                              tone: deadlineMeta.level,
+                            }
                             : null,
                           salaryText
                             ? { label: "Compensation", value: salaryText }
@@ -3333,9 +3365,9 @@ export const JobPage = (): JSX.Element => {
                                               alt=''
                                               className='w-3 h-3 rounded'
                                               onError={(e) =>
-                                                ((
-                                                  e.target as HTMLImageElement
-                                                ).style.display = "none")
+                                              ((
+                                                e.target as HTMLImageElement
+                                              ).style.display = "none")
                                               }
                                             />
                                           )}
@@ -3536,9 +3568,9 @@ export const JobPage = (): JSX.Element => {
                                           alt=''
                                           className='w-4 h-4 rounded'
                                           onError={(e) =>
-                                            ((
-                                              e.target as HTMLImageElement
-                                            ).style.display = "none")
+                                          ((
+                                            e.target as HTMLImageElement
+                                          ).style.display = "none")
                                           }
                                         />
                                       )}
@@ -3676,13 +3708,12 @@ export const JobPage = (): JSX.Element => {
                   return (
                     <div
                       key={step.id}
-                      className={`flex-1 rounded-xl border p-3 sm:p-4 transition-all duration-300 ${
-                        status === "active"
-                          ? "border-[#1dff00]/60 bg-[#1dff00]/10 shadow-[0_0_18px_rgba(29,255,0,0.25)]"
-                          : status === "done"
-                            ? "border-[#1dff00]/30 bg-[#1dff00]/12 text-foreground/80"
-                            : "border-foreground/12 bg-foreground/[0.02] text-foreground/60"
-                      }`}
+                      className={`flex-1 rounded-xl border p-3 sm:p-4 transition-all duration-300 ${status === "active"
+                        ? "border-[#1dff00]/60 bg-[#1dff00]/10 shadow-[0_0_18px_rgba(29,255,0,0.25)]"
+                        : status === "done"
+                          ? "border-[#1dff00]/30 bg-[#1dff00]/12 text-foreground/80"
+                          : "border-foreground/12 bg-foreground/[0.02] text-foreground/60"
+                        }`}
                     >
                       <div className='flex items-center gap-2 text-sm font-medium'>
                         {status === "done" ? (
@@ -3691,11 +3722,10 @@ export const JobPage = (): JSX.Element => {
                           </span>
                         ) : (
                           <span
-                            className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-[11px] ${
-                              status === "active"
-                                ? "border-[#1dff00]/70 text-[#1dff00]"
-                                : "border-foreground/25 text-foreground/35"
-                            }`}
+                            className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-[11px] ${status === "active"
+                              ? "border-[#1dff00]/70 text-[#1dff00]"
+                              : "border-foreground/25 text-foreground/35"
+                              }`}
                           >
                             0{step.id}
                           </span>
@@ -3743,11 +3773,10 @@ export const JobPage = (): JSX.Element => {
                               key={r.id}
                               type='button'
                               onClick={() => setSelectedResumeId(r.id)}
-                              className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
-                                selected
-                                  ? "border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]"
-                                  : "border-foreground/12 bg-foreground/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8"
-                              }`}
+                              className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${selected
+                                ? "border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]"
+                                : "border-foreground/12 bg-foreground/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8"
+                                }`}
                             >
                               <div className='min-w-0 space-y-1'>
                                 <div className='flex items-center gap-2'>
@@ -3773,11 +3802,10 @@ export const JobPage = (): JSX.Element => {
                                 </div>
                               </div>
                               <span
-                                className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${
-                                  selected
-                                    ? "border-[#1dff00]/70 bg-[#1dff00] text-"
-                                    : "border-foreground/20 text-foreground/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]"
-                                }`}
+                                className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${selected
+                                  ? "border-[#1dff00]/70 bg-[#1dff00] text-"
+                                  : "border-foreground/20 text-foreground/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]"
+                                  }`}
                               >
                                 {selected ? (
                                   <Check className='w-4 h-4' />
@@ -3822,16 +3850,15 @@ export const JobPage = (): JSX.Element => {
                     </div>
                     <div className='max-h-60 overflow-y-auto pr-1 space-y-3'>
                       {Array.isArray(coverLetterLibrary) &&
-                      coverLetterLibrary.length > 0 ? (
+                        coverLetterLibrary.length > 0 ? (
                         <div className='grid gap-3'>
                           <button
                             type='button'
                             onClick={() => setSelectedCoverLetterId(null)}
-                            className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
-                              !selectedCoverLetterId
-                                ? "border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]"
-                                : "border-foreground/12 bg-foreground/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8"
-                            }`}
+                            className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${!selectedCoverLetterId
+                              ? "border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]"
+                              : "border-foreground/12 bg-foreground/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8"
+                              }`}
                           >
                             <div className='min-w-0 space-y-1'>
                               <div className='flex items-center gap-2'>
@@ -3847,11 +3874,10 @@ export const JobPage = (): JSX.Element => {
                               </div>
                             </div>
                             <span
-                              className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${
-                                !selectedCoverLetterId
-                                  ? "border-[#1dff00]/70 bg-[#1dff00] text-"
-                                  : "border-foreground/20 text-foreground/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]"
-                              }`}
+                              className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${!selectedCoverLetterId
+                                ? "border-[#1dff00]/70 bg-[#1dff00] text-"
+                                : "border-foreground/20 text-foreground/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]"
+                                }`}
                             >
                               {!selectedCoverLetterId ? (
                                 <Check className='w-4 h-4' />
@@ -3885,11 +3911,10 @@ export const JobPage = (): JSX.Element => {
                                 onClick={() =>
                                   setSelectedCoverLetterId(entry.id)
                                 }
-                                className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
-                                  selected
-                                    ? "border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]"
-                                    : "border-foreground/12 bg-foreground/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8"
-                                }`}
+                                className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${selected
+                                  ? "border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]"
+                                  : "border-foreground/12 bg-foreground/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8"
+                                  }`}
                               >
                                 <div className='min-w-0 space-y-1'>
                                   <div className='flex items-center gap-2'>
@@ -3919,11 +3944,10 @@ export const JobPage = (): JSX.Element => {
                                   )}
                                 </div>
                                 <span
-                                  className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${
-                                    selected
-                                      ? "border-[#1dff00]/70 bg-[#1dff00] text-"
-                                      : "border-foreground/20 text-foreground/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]"
-                                  }`}
+                                  className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${selected
+                                    ? "border-[#1dff00]/70 bg-[#1dff00] text-"
+                                    : "border-foreground/20 text-foreground/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]"
+                                    }`}
                                 >
                                   {selected ? (
                                     <Check className='w-4 h-4' />
@@ -4079,6 +4103,53 @@ export const JobPage = (): JSX.Element => {
                 </div>
               )}
 
+              {aiEvaluation && autoApplyStep === 2 && (
+                <div className='grid gap-4 mt-4'>
+                  <div className={`rounded-xl border p-5 ${aiEvaluation.missing_requirements.length > 0 ? "border-[#ff4747]/35 bg-[#ff4747]/10" : "border-[#ffb347]/35 bg-[#ffb347]/10"}`}>
+                    <div className={`flex items-center gap-2 text-sm font-medium ${aiEvaluation.missing_requirements.length > 0 ? "text-[#ff4747]" : "text-[#ffb347]"}`}>
+                      <AlertTriangle className='w-5 h-5' />
+                      AI Decision Boundary Alert
+                    </div>
+
+                    <div className='mt-4 flex flex-col sm:flex-row items-baseline gap-4'>
+                      <div className='flex items-baseline gap-2'>
+                        <span className={`text-3xl font-semibold ${aiEvaluation.confidence_score >= 70 ? "text-[#1dff00]" : "text-[#ffb347]"}`}>
+                          {aiEvaluation.confidence_score}%
+                        </span>
+                        <span className='text-sm text-foreground/75'>
+                          Confidence Score
+                        </span>
+                      </div>
+                    </div>
+
+                    {aiEvaluation.missing_requirements.length > 0 && (
+                      <div className='mt-5 pt-4 border-t border-foreground/10'>
+                        <h4 className='text-sm font-medium text-[#ff4747] mb-2'>Strict Missing Requirements:</h4>
+                        <ul className='list-disc pl-5 space-y-1 text-sm text-foreground/80'>
+                          {aiEvaluation.missing_requirements.map((req, i) => (
+                            <li key={i}>{req}</li>
+                          ))}
+                        </ul>
+                        <p className='mt-3 text-xs text-foreground/60'>
+                          The AI has determined your profile/resume explicitly lacks these hard requirements. It is strongly recommended to update your profile before applying.
+                        </p>
+                      </div>
+                    )}
+
+                    {aiEvaluation.tailoring_suggestions.length > 0 && (
+                      <div className='mt-5 pt-4 border-t border-foreground/10'>
+                        <h4 className='text-sm font-medium text-[#ffb347] mb-2'>Tailoring Suggestions:</h4>
+                        <ul className='space-y-2 text-sm text-foreground/80'>
+                          {aiEvaluation.tailoring_suggestions.map((sug, i) => (
+                            <li key={i} className='bg-foreground/5 p-3 rounded-lg border border-foreground/10'>{sug}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-foreground/12'>
                 <p className='text-xs text-foreground/50 flex items-center gap-2'>
                   <ShieldCheck className='w-3.5 h-3.5 text-[#1dff00]' />
@@ -4100,25 +4171,50 @@ export const JobPage = (): JSX.Element => {
                     <Button
                       variant='outline'
                       className='border-foreground/20 text-foreground hover:border-foreground/40 hover:bg-foreground/10'
-                      onClick={() => setAutoApplyStep(1)}
+                      onClick={() => {
+                        setAutoApplyStep(1);
+                        setAiEvaluation(null);
+                        setForceSubmit(false);
+                      }}
                     >
                       Back
                     </Button>
                   )}
-                  <Button
-                    className={`border border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25 ${autoApplyPrimaryDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
-                    disabled={autoApplyPrimaryDisabled}
-                    onClick={() => {
-                      if (autoApplyStep === 1) {
-                        if (canAdvanceFromStepOne) setAutoApplyStep(2);
-                      } else if (canLaunchAutoApply) {
+                  {aiEvaluation && aiEvaluation.missing_requirements.length > 0 ? (
+                    <Button
+                      className={`border border-[#ff4747]/50 text-[#ff4747] bg-[#ff4747]/15 hover:bg-[#ff4747]/25`}
+                      onClick={() => {
                         setResumeDialogOpen(false);
-                        applyAllJobs();
-                      }
-                    }}
-                  >
-                    {autoApplyStep === 1 ? "Continue" : "Launch automation"}
-                  </Button>
+                      }}
+                    >
+                      Acknowledge & Edit Profile
+                    </Button>
+                  ) : (
+                    <Button
+                      className={`border ${evaluatingJob ? "border-[#1dff00]/50" : (aiEvaluation ? "border-[#ffb347]/50 text-[#ffb347] bg-[#ffb347]/15 hover:bg-[#ffb347]/25" : "border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25")} ${autoApplyPrimaryDisabled || evaluatingJob ? "opacity-50 cursor-not-allowed" : ""}`}
+                      disabled={autoApplyPrimaryDisabled || evaluatingJob}
+                      onClick={() => {
+                        if (autoApplyStep === 1) {
+                          if (canAdvanceFromStepOne) setAutoApplyStep(2);
+                        } else if (canLaunchAutoApply) {
+                          if (aiEvaluation) {
+                            // User is forcing submit despite warnings
+                            setForceSubmit(true);
+                            setAiEvaluation(null);
+                          } else {
+                            applyAllJobs();
+                          }
+                        }
+                      }}
+                    >
+                      {evaluatingJob ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Evaluating Job Fit...
+                        </>
+                      ) : autoApplyStep === 1 ? "Continue" : (aiEvaluation ? "Ignore & Proceed" : "Launch automation")}
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -4204,10 +4300,10 @@ export const JobPage = (): JSX.Element => {
                       : null,
                     deadlineMeta
                       ? {
-                          label: "Deadline",
-                          value: deadlineMeta.label,
-                          tone: deadlineMeta.level,
-                        }
+                        label: "Deadline",
+                        value: deadlineMeta.label,
+                        tone: deadlineMeta.level,
+                      }
                       : null,
                     salaryText ? { label: "Comp", value: salaryText } : null,
                   ].filter(Boolean) as {
@@ -4258,9 +4354,9 @@ export const JobPage = (): JSX.Element => {
                                       alt=''
                                       className='w-3 h-3 rounded-sm'
                                       onError={(e) =>
-                                        ((
-                                          e.target as HTMLImageElement
-                                        ).style.display = "none")
+                                      ((
+                                        e.target as HTMLImageElement
+                                      ).style.display = "none")
                                       }
                                     />
                                   )}
@@ -4451,9 +4547,9 @@ export const JobPage = (): JSX.Element => {
                                     alt=''
                                     className='w-4 h-4 rounded'
                                     onError={(e) =>
-                                      ((
-                                        e.target as HTMLImageElement
-                                      ).style.display = "none")
+                                    ((
+                                      e.target as HTMLImageElement
+                                    ).style.display = "none")
                                     }
                                   />
                                 )}
