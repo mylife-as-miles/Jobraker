@@ -3,13 +3,14 @@ import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
-import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award, GraduationCap, Briefcase, Lightbulb, Crown, Zap } from "lucide-react";
+import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award, GraduationCap, Briefcase, Lightbulb, Crown, Zap, Trophy, Lock } from "lucide-react";
 import { EmptyState } from "../../../components/ui/empty-state";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import type { ProfileEducationRecord as TProfileEducation, ProfileExperienceRecord as TProfileExperience, ProfileSkillRecord as TProfileSkill } from "../../../hooks/useProfileSettings";
 import { useApplications } from "../../../hooks/useApplications";
 import { createClient } from "../../../lib/supabaseClient";
+import { useGamification } from "../../../hooks/useGamification";
 
 // Data now comes from Supabase via useProfileCollections
 
@@ -20,6 +21,7 @@ const ProfilePage = (): JSX.Element => {
   const [email, setEmail] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
+  const gamification = useGamification();
   const initials = useMemo(() => {
     const a = (profile?.first_name || '').trim();
     const b = (profile?.last_name || '').trim();
@@ -402,6 +404,92 @@ const ProfilePage = (): JSX.Element => {
                     </div>
                   </div>
                 )}
+              </Card>
+            </motion.div>
+
+            {/* XP Level Bar */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.15 }}
+              whileHover={{ scale: 1.02 }}
+              className='transition-transform duration-300'
+            >
+              <Card className='relative overflow-hidden bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-5 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300'>
+                <div className='absolute -top-20 -right-20 w-56 h-56 rounded-full bg-[#1dff00]/5 blur-3xl' />
+                <div className='relative z-10'>
+                  <div className='flex items-center justify-between mb-3'>
+                    <div className='flex items-center gap-2.5'>
+                      <div className='w-10 h-10 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 border border-[#1dff00]/30 flex items-center justify-center shadow-inner'>
+                        <Zap className='w-5 h-5 text-[#1dff00]' />
+                      </div>
+                      <div>
+                        <h3 className='text-sm sm:text-base font-semibold text-white tracking-tight'>Level {gamification.streak.level}</h3>
+                        <p className='text-[9px] sm:text-[10px] text-[#ffffff50] uppercase tracking-wider font-medium'>Experience Points</p>
+                      </div>
+                    </div>
+                    <div className='text-right'>
+                      <div className='text-lg sm:text-xl font-bold text-[#1dff00]'>{gamification.streak.total_xp} <span className='text-xs font-normal text-[#ffffff40]'>XP</span></div>
+                    </div>
+                  </div>
+                  <div className='mb-1'>
+                    <div className='flex items-center justify-between mb-1.5'>
+                      <span className='text-[9px] sm:text-[10px] text-[#ffffff60] uppercase tracking-wider font-medium'>Next Level</span>
+                      <span className='text-xs font-semibold text-[#1dff00]'>{gamification.xpProgress}/{gamification.xpForNext}</span>
+                    </div>
+                    <div className='relative w-full h-2.5 rounded-full bg-[#ffffff08] overflow-hidden'>
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.min(100, (gamification.xpProgress / gamification.xpForNext) * 100)}%` }}
+                        transition={{ duration: 1.2, ease: 'easeOut', delay: 0.2 }}
+                        className='absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-[#1dff00] to-[#0ea855] shadow-lg shadow-[#1dff00]/50'
+                      />
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+
+            {/* Achievements Grid */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.25 }}
+              className='transition-transform duration-300'
+            >
+              <Card className='relative overflow-hidden bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-5 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300'>
+                <div className='flex items-center gap-2.5 mb-3'>
+                  <div className='w-9 h-9 rounded-xl bg-gradient-to-br from-yellow-500/20 to-yellow-500/5 border border-yellow-500/30 flex items-center justify-center shadow-inner'>
+                    <Trophy className='w-4 h-4 text-yellow-400' />
+                  </div>
+                  <div>
+                    <h3 className='text-sm sm:text-base font-semibold text-white tracking-tight'>Achievements</h3>
+                    <p className='text-[9px] sm:text-[10px] text-[#ffffff50] uppercase tracking-wider font-medium'>
+                      {gamification.allAchievements.filter(a => a.unlocked).length}/{gamification.allAchievements.length} Unlocked
+                    </p>
+                  </div>
+                </div>
+                <div className='grid grid-cols-5 gap-2'>
+                  {gamification.allAchievements.map((ach) => (
+                    <motion.div
+                      key={ach.key}
+                      whileHover={{ scale: 1.12 }}
+                      title={`${ach.title}: ${ach.description}`}
+                      className={`relative flex flex-col items-center justify-center p-2 rounded-lg border transition-all duration-300 cursor-default ${ach.unlocked
+                          ? 'bg-[#1dff00]/10 border-[#1dff00]/40 shadow-lg shadow-[#1dff00]/20'
+                          : 'bg-[#ffffff03] border-[#ffffff08] opacity-40'
+                        }`}
+                    >
+                      <span className='text-lg sm:text-xl'>{ach.icon}</span>
+                      <span className='text-[7px] sm:text-[8px] text-[#ffffff60] mt-0.5 font-medium text-center leading-tight truncate w-full'>
+                        {ach.title}
+                      </span>
+                      {!ach.unlocked && (
+                        <Lock className='absolute top-1 right-1 w-2.5 h-2.5 text-[#ffffff30]' />
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
               </Card>
             </motion.div>
           </div>
