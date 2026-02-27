@@ -137,7 +137,7 @@ export const OverviewPage = (): JSX.Element => {
   }, [stacked, visibleSeries]);
 
   // Build real series based on selected period with status-specific keys
-  const { seriesData, seriesMeta, appliedCount, interviewCount, totals } =
+  const { seriesData, seriesMeta, interviewCount, totals } =
     useMemo(() => {
       const period = selectedPeriod;
 
