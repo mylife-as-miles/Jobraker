@@ -9,6 +9,7 @@ import { Skeleton } from "../../../components/ui/skeleton";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
 import { scheduleInterviewViaEdge, type ScheduleInterviewResponse } from "../../../services/ai/scheduleInterview";
+import { useGamification } from "../../../hooks/useGamification";
 
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
@@ -70,6 +71,7 @@ function ApplicationPage() {
     refresh,
     loading: appsLoading,
   } = useApplications();
+  const gamificationHook = useGamification();
 
   // Debounced search state: raw input updates immediately; searchQuery drives filters.
   const [rawSearch, setRawSearch] = useState("");
@@ -1022,6 +1024,12 @@ function ApplicationPage() {
                   if (rec.status === toColumn) return;
                   try {
                     await update(id, { status: toColumn as ApplicationStatus });
+                    // Gamification: emit XP events for status transitions
+                    if (toColumn === 'Interview') {
+                      try { gamificationHook.recordEvent('interview_scheduled', { applicationId: id }); } catch { }
+                    } else if (toColumn === 'Offer') {
+                      try { gamificationHook.recordEvent('offer_received', { applicationId: id }); } catch { }
+                    }
                   } catch {
                     await refresh();
                   }

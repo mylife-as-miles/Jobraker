@@ -46,6 +46,7 @@ import { evaluateJobFit, type EvaluateJobFitResponse } from "../../../services/a
 import { tailorResumeViaEdge } from "../../../services/ai/tailorResume";
 import { generateCoverLetterViaEdge } from "../../../services/ai/generateCoverLetter";
 import { isTrustedSource } from "../../../utils/trustedSources";
+import { useGamification } from "../../../hooks/useGamification";
 import { cn } from "../../../lib/utils";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
@@ -474,6 +475,7 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
 export const JobPage = (): JSX.Element => {
   const isMobile = useMediaQuery("(max-width: 1023px)");
   const navigate = useNavigate();
+  const gamificationHook = useGamification();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("Remote");
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
@@ -1483,6 +1485,8 @@ export const JobPage = (): JSX.Element => {
             appliedIds.push(job.id);
             setApplyProgress((prev) => ({ ...prev, done, success }));
             events.autoApplyJobSuccess(job.id, job.status || "unknown", 0);
+            // Gamification: award XP for each successful application
+            try { gamificationHook.recordEvent('job_applied', { jobId: job.id, title: job.title }); } catch { }
             if (userId) {
               const matchScore =
                 typeof job.matchScore === "number"

@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { MatchScoreAnalytics } from "../../../components/analytics/MatchScoreAnalytics";
 import { Switch } from "../../../components/ui/switch";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
-import { motion } from "framer-motion";
-import { Building2, AlertCircle, Inbox } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Building2, AlertCircle, Inbox, Zap, Trophy, Lock } from "lucide-react";
 import KiboCalendar, {
   CalendarEvent,
 } from "../../../components/ui/kibo-ui/calendar";
@@ -20,6 +20,7 @@ import { SplitLineAreaChart } from "./SplitLineAreaChart";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { useAnalyticsData } from "../../../hooks/useAnalyticsData";
 import { StreakCard } from "../../../components/StreakCard";
+import { useGamification } from "../../../hooks/useGamification";
 // SplitLineAreaChart removed; chart moved to Application section
 
 // Using realtime notifications; no local interface needed here
@@ -122,7 +123,7 @@ export const OverviewPage = (): JSX.Element => {
       ) {
         setVisibleSeries(parsed.visible);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   // Persist on change
@@ -132,7 +133,7 @@ export const OverviewPage = (): JSX.Element => {
         "overview_apps_chart_ui",
         JSON.stringify({ stacked, visible: visibleSeries }),
       );
-    } catch {}
+    } catch { }
   }, [stacked, visibleSeries]);
 
   // Build real series based on selected period with status-specific keys
@@ -323,134 +324,33 @@ export const OverviewPage = (): JSX.Element => {
     });
   }, [applications]);
 
-  // Calculate streak data from applications
+  // Gamification: XP, streaks, achievements from DB
+  const gamification = useGamification();
+  const dailyLoginFired = useRef(false);
+
+  // Emit daily_login XP event once per dashboard visit per day
+  useEffect(() => {
+    if (!gamification.loading && !dailyLoginFired.current) {
+      dailyLoginFired.current = true;
+      gamification.recordEvent('daily_login').catch(() => { });
+    }
+  }, [gamification.loading]);
+
+  // Build streakData from the gamification hook (DB-backed)
   const streakData = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Calculate start of current week (Monday)
-    const currentDayOfWeek = today.getDay();
-    const daysFromMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - daysFromMonday);
-    startOfWeek.setHours(0, 0, 0, 0);
-
-    // Get activity for this week (Mon-Sun)
-    const weekActivity = [false, false, false, false, false, false, false];
-    let weekCount = 0;
-
-    applications.forEach((app) => {
-      // Parse the date string and create a local date (not UTC)
-      const appDate = new Date(app.applied_date);
-      // Normalize to local midnight
-      const localDate = new Date(
-        appDate.getFullYear(),
-        appDate.getMonth(),
-        appDate.getDate(),
-      );
-
-      // Check if in current week
-      const weekEnd = new Date(startOfWeek);
-      weekEnd.setDate(startOfWeek.getDate() + 7);
-
-      if (localDate >= startOfWeek && localDate < weekEnd) {
-        const daysSinceMonday = Math.floor(
-          (localDate.getTime() - startOfWeek.getTime()) / (1000 * 60 * 60 * 24),
-        );
-        if (daysSinceMonday >= 0 && daysSinceMonday < 7) {
-          if (!weekActivity[daysSinceMonday]) {
-            weekActivity[daysSinceMonday] = true;
-            weekCount++;
-          }
-        }
-      }
-    });
-
-    // Calculate current streak (consecutive days with activity, counting back from today or yesterday)
-    let currentStreak = 0;
-    const sortedDates = applications
-      .map((app) => {
-        const d = new Date(app.applied_date);
-        // Normalize to local midnight
-        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      })
-      .sort((a, b) => b.getTime() - a.getTime());
-
-    if (sortedDates.length > 0) {
-      // Start from today
-      let checkDate = new Date(today);
-
-      // Check if there's activity today, if not start from yesterday
-      const hasToday = sortedDates.some(
-        (d) => d.getTime() === checkDate.getTime(),
-      );
-      if (!hasToday) {
-        checkDate.setDate(checkDate.getDate() - 1);
-      }
-
-      // Count consecutive days backwards
-      while (true) {
-        const hasActivity = sortedDates.some(
-          (d) => d.getTime() === checkDate.getTime(),
-        );
-
-        if (hasActivity) {
-          currentStreak++;
-          checkDate.setDate(checkDate.getDate() - 1);
-        } else {
-          break;
-        }
-      }
-    }
-
-    // Calculate longest streak
-    let longestStreak = 0;
-    let tempStreak = 0;
-    const uniqueDays = new Set(
-      applications.map((app) => {
-        const d = new Date(app.applied_date);
-        // Normalize to local midnight
-        const localDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        return localDate.getTime();
-      }),
-    );
-    const sortedUniqueDays = Array.from(uniqueDays)
-      .map((timestamp) => new Date(timestamp))
-      .sort((a, b) => a.getTime() - b.getTime());
-
-    for (let i = 0; i < sortedUniqueDays.length; i++) {
-      if (i === 0) {
-        tempStreak = 1;
-      } else {
-        const prevDay = sortedUniqueDays[i - 1];
-        const currDay = sortedUniqueDays[i];
-        const diffDays = Math.round(
-          (currDay.getTime() - prevDay.getTime()) / (1000 * 60 * 60 * 24),
-        );
-        if (diffDays === 1) {
-          tempStreak++;
-        } else {
-          longestStreak = Math.max(longestStreak, tempStreak);
-          tempStreak = 1;
-        }
-      }
-    }
-    longestStreak = Math.max(longestStreak, tempStreak);
-
-    // Calculate completion rate (active days / total days since first application)
-    const completionRate =
-      sortedUniqueDays.length > 0
-        ? (uniqueDays.size / sortedUniqueDays.length) * 100
-        : 0;
-
+    const s = gamification.streak;
+    const weekCount = s.week_activity.filter(Boolean).length;
+    const completionRate = s.longest_streak > 0
+      ? (s.current_streak / s.longest_streak) * 100
+      : (s.current_streak > 0 ? 100 : 0);
     return {
-      currentStreak,
-      longestStreak,
+      currentStreak: s.current_streak,
+      longestStreak: s.longest_streak,
       weekProgress: weekCount,
       completionRate,
-      activeDays: weekActivity,
+      activeDays: s.week_activity,
     };
-  }, [applications]);
+  }, [gamification.streak]);
 
   // Product tour coach marks for overview dashboard
   useRegisterCoachMarks({
@@ -517,11 +417,10 @@ export const OverviewPage = (): JSX.Element => {
                           key={period}
                           onClick={() => setSelectedPeriod(period)}
                           title={`Show data for ${period}`}
-                          className={`text-xs px-3 py-1.5 rounded-md transition-all duration-300 font-medium ${
-                            selectedPeriod === period
+                          className={`text-xs px-3 py-1.5 rounded-md transition-all duration-300 font-medium ${selectedPeriod === period
                               ? "bg-brand text-black shadow-lg shadow-brand/20"
                               : "text-muted-foreground hover:text-foreground hover:bg-muted/10"
-                          }`}
+                            }`}
                         >
                           {period}
                         </button>
@@ -823,8 +722,91 @@ export const OverviewPage = (): JSX.Element => {
             </motion.div>
           </div>
 
-          {/* Right Column - Notifications and Match Scores */}
+          {/* Right Column - XP, Streaks, Achievements, Notifications */}
           <div className='space-y-4 sm:space-y-6'>
+            {/* XP Level Bar */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              whileHover={{ scale: 1.02 }}
+              className='relative overflow-hidden rounded-xl border border-foreground/10 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 backdrop-blur-xl p-4 sm:p-5 shadow-xl hover:shadow-2xl hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-500'
+            >
+              <div className='absolute -top-20 -right-20 w-56 h-56 rounded-full bg-[#1dff00]/5 blur-3xl' />
+              <div className='relative z-10'>
+                <div className='flex items-center justify-between mb-3'>
+                  <div className='flex items-center gap-2.5'>
+                    <div className='w-10 h-10 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 border border-[#1dff00]/30 flex items-center justify-center shadow-inner'>
+                      <Zap className='w-5 h-5 text-[#1dff00]' />
+                    </div>
+                    <div>
+                      <h3 className='text-sm sm:text-base font-semibold text-foreground tracking-tight'>Level {gamification.streak.level}</h3>
+                      <p className='text-[9px] sm:text-[10px] text-foreground/50 uppercase tracking-wider font-medium'>Experience Points</p>
+                    </div>
+                  </div>
+                  <div className='text-right'>
+                    <div className='text-lg sm:text-xl font-bold text-[#1dff00]'>{gamification.streak.total_xp} <span className='text-xs font-normal text-foreground/40'>XP</span></div>
+                  </div>
+                </div>
+                {/* XP Progress Bar */}
+                <div className='mb-2'>
+                  <div className='flex items-center justify-between mb-1.5'>
+                    <span className='text-[9px] sm:text-[10px] text-foreground/60 uppercase tracking-wider font-medium'>Next Level</span>
+                    <span className='text-xs font-semibold text-[#1dff00]'>{gamification.xpProgress}/{gamification.xpForNext}</span>
+                  </div>
+                  <div className='relative w-full h-2.5 rounded-full bg-foreground/[0.08] overflow-hidden'>
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, (gamification.xpProgress / gamification.xpForNext) * 100)}%` }}
+                      transition={{ duration: 1.2, ease: 'easeOut', delay: 0.2 }}
+                      className='absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-[#1dff00] to-[#0ea855] shadow-lg shadow-[#1dff00]/50'
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Achievements Grid */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.15 }}
+              className='relative overflow-hidden rounded-xl border border-foreground/10 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 backdrop-blur-xl p-4 sm:p-5 shadow-xl'
+            >
+              <div className='flex items-center gap-2.5 mb-3'>
+                <div className='w-9 h-9 rounded-xl bg-gradient-to-br from-yellow-500/20 to-yellow-500/5 border border-yellow-500/30 flex items-center justify-center shadow-inner'>
+                  <Trophy className='w-4 h-4 text-yellow-400' />
+                </div>
+                <div>
+                  <h3 className='text-sm sm:text-base font-semibold text-foreground tracking-tight'>Achievements</h3>
+                  <p className='text-[9px] sm:text-[10px] text-foreground/50 uppercase tracking-wider font-medium'>
+                    {gamification.allAchievements.filter(a => a.unlocked).length}/{gamification.allAchievements.length} Unlocked
+                  </p>
+                </div>
+              </div>
+              <div className='grid grid-cols-5 gap-2'>
+                {gamification.allAchievements.map((ach) => (
+                  <motion.div
+                    key={ach.key}
+                    whileHover={{ scale: 1.12 }}
+                    title={`${ach.title}: ${ach.description}`}
+                    className={`relative flex flex-col items-center justify-center p-2 rounded-lg border transition-all duration-300 cursor-default ${ach.unlocked
+                        ? 'bg-[#1dff00]/10 border-[#1dff00]/40 shadow-lg shadow-[#1dff00]/20'
+                        : 'bg-foreground/[0.03] border-foreground/[0.08] opacity-40'
+                      }`}
+                  >
+                    <span className='text-lg sm:text-xl'>{ach.icon}</span>
+                    <span className='text-[7px] sm:text-[8px] text-foreground/60 mt-0.5 font-medium text-center leading-tight truncate w-full'>
+                      {ach.title}
+                    </span>
+                    {!ach.unlocked && (
+                      <Lock className='absolute top-1 right-1 w-2.5 h-2.5 text-foreground/30' />
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+
             {/* Streak Card */}
             <StreakCard
               currentStreak={streakData.currentStreak}
