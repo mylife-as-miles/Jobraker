@@ -360,7 +360,7 @@ function ApplicationPage() {
   const initialLoading = appsLoading && applications.length === 0;
 
   return (
-    <div className='relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-8'>
+    <div className='relative p-4 lg:p-8  space-y-8'>
       {/* Ambient Background Glow */}
       <div className='fixed top-20 right-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10'></div>
       <div className='fixed bottom-0 left-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10'></div>
