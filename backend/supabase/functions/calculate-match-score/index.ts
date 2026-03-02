@@ -209,6 +209,25 @@ serve(async (req) => {
       });
     }
 
+    // SECURITY FIX: Prevent Memory Exhaustion (DoS)
+    if (jobs.length > 50) {
+      return new Response(JSON.stringify({ error: "Payload too large. Maximum 50 jobs allowed per request." }), { 
+        status: 413, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      });
+    }
+
+    // SECURITY FIX: Prevent Match Score Poisoning via Keyword Stuffing
+    if (context.searchQuery) context.searchQuery = context.searchQuery.substring(0, 500);
+    if (context.selectedLocation) context.selectedLocation = context.selectedLocation.substring(0, 500);
+    if (context.profile) {
+      if (context.profile.job_title) context.profile.job_title = context.profile.job_title.substring(0, 500);
+      if (context.profile.location) context.profile.location = context.profile.location.substring(0, 500);
+      if (Array.isArray(context.profile.goals)) {
+        context.profile.goals = context.profile.goals.filter(Boolean).map((g: string) => String(g).substring(0, 200)).slice(0, 20);
+      }
+    }
+
     // Process all jobs in memory (fast)
     const results = jobs.map((job: JobData) => {
       try {

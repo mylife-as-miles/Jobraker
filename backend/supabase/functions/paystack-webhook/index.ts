@@ -77,7 +77,7 @@ serve(async (req) => {
             Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
         );
 
-        // 1. Update Order
+        // 1. Update Order (Idempotency check: only update if currently false)
         const { data: order, error: orderError } = await supabaseAdmin
           .from("orders")
           .update({
@@ -85,12 +85,18 @@ serve(async (req) => {
             updated_at: new Date().toISOString()
           })
           .eq("tx_id", ref)
+          .eq("is_success", false)
           .select()
-          .single();
+          .maybeSingle();
 
-        if (orderError || !order) {
-          console.error("Order not found or update failed:", orderError);
+        if (orderError) {
+          console.error("Order update failed:", orderError);
           return new Response("Order update failed", { status: 500 });
+        }
+
+        if (!order) {
+          console.log(`Order ${ref} already processed or not found.`);
+          return new Response("ok", { status: 200 });
         }
 
         // 2. Grant Value (Credits or Plan)
@@ -104,42 +110,20 @@ serve(async (req) => {
             const totalCredits = creditsToAdd + bonus;
 
             if (totalCredits > 0) {
-                // Update User Credits
-
-                // Let's get current balance first to be safe
-                const { data: userCredits } = await supabaseAdmin
-                    .from("user_credits")
-                    .select("balance, total_earned")
-                    .eq("user_id", userId)
-                    .single();
-
-                const currentBalance = userCredits?.balance || 0;
-                const currentTotal = userCredits?.total_earned || 0;
-
-                const { error: creditError } = await supabaseAdmin
-                    .from("user_credits")
-                    .upsert({
-                        user_id: userId,
-                        balance: currentBalance + totalCredits,
-                        total_earned: currentTotal + totalCredits,
-                        updated_at: new Date().toISOString()
-                    });
+                // Atomic Update User Credits via RPC
+                const { data: rpcResult, error: creditError } = await supabaseAdmin.rpc('add_credits', {
+                    p_user_id: userId,
+                    p_amount: totalCredits,
+                    p_description: `Purchased Credit Pack (${creditsToAdd} + ${bonus} bonus)`,
+                    p_reference_type: 'order',
+                    p_reference_id: order.id,
+                    p_metadata: { order_id: order.id, paystack_ref: ref }
+                });
 
                 if (creditError) {
-                    console.error("Failed to update user credits:", creditError);
-                } else {
-                    // Log transaction
-                    await supabaseAdmin.from("credit_transactions").insert({
-                        user_id: userId,
-                        type: 'earned',
-                        amount: totalCredits,
-                        balance_before: currentBalance,
-                        balance_after: currentBalance + totalCredits,
-                        description: `Purchased Credit Pack (${creditsToAdd} + ${bonus} bonus)`,
-                        reference_type: 'order',
-                        reference_id: order.id,
-                        metadata: { order_id: order.id, paystack_ref: ref }
-                    });
+                    console.error("Failed to add user credits via RPC:", creditError);
+                } else if (!rpcResult?.success) {
+                    console.error("add_credits RPC failed:", rpcResult?.message);
                 }
             }
 
@@ -171,34 +155,17 @@ serve(async (req) => {
                      // Also grant monthly credits?
                      const monthlyCredits = metadata.credits_per_month;
                      if (monthlyCredits) {
-                        const { data: userCredits } = await supabaseAdmin
-                            .from("user_credits")
-                            .select("balance, total_earned")
-                            .eq("user_id", userId)
-                            .single();
+                         const { data: rpcResult, error: creditError } = await supabaseAdmin.rpc('add_credits', {
+                             p_user_id: userId,
+                             p_amount: monthlyCredits,
+                             p_description: `Monthly Subscription Credits`,
+                             p_reference_type: 'subscription',
+                             p_reference_id: order.id
+                         });
 
-                        const currentBalance = userCredits?.balance || 0;
-                        const currentTotal = userCredits?.total_earned || 0;
-
-                         await supabaseAdmin
-                            .from("user_credits")
-                            .upsert({
-                                user_id: userId,
-                                balance: currentBalance + monthlyCredits,
-                                total_earned: currentTotal + monthlyCredits,
-                                updated_at: new Date().toISOString()
-                            });
-
-                         await supabaseAdmin.from("credit_transactions").insert({
-                            user_id: userId,
-                            type: 'earned',
-                            amount: monthlyCredits,
-                            balance_before: currentBalance,
-                            balance_after: currentBalance + monthlyCredits,
-                            description: `Monthly Subscription Credits`,
-                            reference_type: 'subscription',
-                            reference_id: order.id // simplified
-                        });
+                         if (creditError || !rpcResult?.success) {
+                             console.error("Failed to add monthly subscription credits via RPC:", creditError || rpcResult?.message);
+                         }
                      }
                 }
             }

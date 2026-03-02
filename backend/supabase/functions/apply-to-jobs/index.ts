@@ -101,14 +101,42 @@ Deno.serve(async (req) => {
   const resume = typeof body?.resume === "string" ? body.resume : "";
   const cover_letter = typeof body?.cover_letter === "string" ? body.cover_letter : undefined;
   const proxy_location = typeof body?.proxy_location === "string" ? body.proxy_location : undefined;
-  // Allow override, else use our function URL if configured
-  let webhook_url = typeof body?.webhook_url === "string" ? body.webhook_url : undefined;
+  // SECURITY FIX: Never trust client-provided webhook URLs to prevent SSRF
+  let webhook_url: string | undefined = undefined;
   const title = typeof body?.title === "string" ? body.title : undefined;
   const user_input = typeof body?.user_input === "object" ? body.user_input : {};
   let email = typeof body?.email === "string" ? body.email : "";
 
+    // SECURITY FIX: Extract user_id securely from Auth header
+    let user_id = user_input?.id;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader) {
+      try {
+        const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        const sbAuth = createClient(Deno.env.get('SUPABASE_URL')!, anonKey!, { auth: { persistSession: false } });
+        const { data: { user }, error: authError } = await sbAuth.auth.getUser(authHeader.replace("Bearer ", ""));
+        if (!authError && user?.id) {
+            user_id = user.id;
+            // Also enforce email if not provided
+            if (!email) email = user.email || "";
+
+            // SECURITY FIX: Rate Limit check to prevent Application Budget Drain
+            const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+            const { count, error: rlError } = await sbAuth.from('applications')
+              .select('*', { count: 'exact', head: true })
+              .eq('user_id', user_id)
+              .gte('created_at', oneMinuteAgo);
+            
+            if (count && count >= 5) {
+              return new Response(JSON.stringify({ error: "Rate limit exceeded. Please wait a moment before heavily automating applications." }), { status: 429, headers: { ...corsHeaders, "content-type": "application/json" } });
+            }
+        }
+      } catch (err) {
+        console.error("Failed to authenticate user token:", err);
+      }
+    }
+
     // If email is not provided, fetch it from the user's profile using user_id.
-    const user_id = user_input?.id;
     if (!email && user_id) {
       try {
         const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
