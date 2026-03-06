@@ -1,189 +1,150 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
-  Edit2,
-  LayoutTemplate,
-  Sparkles,
-  Wand2,
-  Download,
-  User,
-  ChevronUp,
   ChevronDown,
-  Briefcase,
-  Plus,
-  GraduationCap,
-  BrainCircuit,
-  X,
+  ChevronUp,
+  Download,
   Eye,
-  PenLine,
+  FileText,
+  Plus,
+  Share2,
+  Sparkles,
+  User,
+  Wand2,
+  X,
+  LayoutTemplate,
+  Edit2,
+  Lock,
   ZoomIn,
   ZoomOut,
-  FileText,
-  FolderGit2,
-  Languages,
-  Heart,
-  Trophy,
-  Scroll,
-  BookOpen,
-  HandHeart,
-  Users,
-  Lock,
+  PenLine,
 } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { initialResumeState, useArtboardStore } from "../../../store/artboard";
-import { useResumeProfilePhoto } from "../../../hooks/useResumeProfilePhoto";
-import { createClient } from "../../../lib/supabaseClient";
-import { ResumeTemplateRenderer } from "../../../templates/render-resume-template";
-import { TemplateSelector } from "../components/TemplateSelector";
+import { useArtboardStore } from "@/store/artboard";
+import { useAuthStore } from "@/store/auth";
+import { useTierAccess } from "@/hooks/useTierAccess";
+import { useAiTools } from "@/hooks/useAiTools";
+import { useNotifications } from "@/hooks/useNotifications";
+import { useResumeProfilePhoto } from "@/hooks/useResumeProfilePhoto";
+import { useProfileSettings } from "@/hooks/useProfileSettings";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { TemplateSelector } from "../components/resume/TemplateSelector";
 import { AddSectionDialog } from "../components/resume/AddSectionDialog";
+import { ShareDialog } from "../components/resume/ShareDialog";
 import { SectionEditor } from "../components/resume/SectionEditor";
 import { ListEditor } from "../components/resume/ListEditor";
 import { PersonalDetailsEditor } from "../components/resume/PersonalDetailsEditor";
-import { ShareDialog } from "../components/resume/ShareDialog";
-import { Share2 } from "lucide-react";
-
-import { useProfileSettings } from "../../../hooks/useProfileSettings";
-import { Button } from "../../../components/ui/button";
-import Modal from "../../../components/ui/modal";
-import { downloadResumePDF } from "../../../utils/resume-download";
-import { useToast } from "../../../components/ui/toast";
-import { polishContent } from "../../../services/ai/polishContent";
-import { UpgradePrompt } from "../../../components/UpgradePrompt";
+import { ResumeTemplateRenderer } from "../components/resume/ResumeTemplateRenderer";
+import { UpgradePrompt } from "../components/UpgradePrompt";
 import {
-  getResumeDraftStorageKey,
-  loadResumeDraft,
-  removeResumeDraft,
-  saveResumeDraft,
-} from "@/lib/resumeDraftStorage";
-import { resolveResumePageLayout } from "@/lib/resumeLayout";
-import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
-import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
+  resolveResumePageLayout,
+  PREVIEW_BASE_WIDTH,
+  PREVIEW_BASE_HEIGHT,
+} from "@/lib/resume-layout-utils";
+import { downloadResumePDF } from "@/lib/pdf-utils";
+import { saveResumeDraft, getResumeDraft, removeResumeDraft } from "@/lib/resume-draft-utils";
 
 const SECTION_ICONS: Record<string, any> = {
-  experience: Briefcase,
-  education: GraduationCap,
-  skills: BrainCircuit,
-  projects: FolderGit2,
-  languages: Languages,
-  interests: Heart,
-  awards: Trophy,
-  certifications: Scroll,
-  publications: BookOpen,
-  volunteer: HandHeart,
-  references: Users,
-  custom: LayoutTemplate,
+  education: FileText,
+  experience: FileText,
+  projects: FileText,
+  skills: FileText,
+  languages: FileText,
+  certifications: FileText,
+  interests: FileText,
+  custom: FileText,
 };
 
-const PREVIEW_BASE_WIDTH = 794;
-const PREVIEW_BASE_HEIGHT = 1123;
-const DRAFT_AUTOSAVE_DELAY_MS = 450;
+const DRAFT_AUTOSAVE_DELAY_MS = 2000;
 
-export const ResumeBuilderPage = () => {
-  const location = useLocation();
+const ResumeBuilderPage = () => {
   const navigate = useNavigate();
-  const urlId = location.pathname.split("/")[4] || null;
-  const [zoom, setZoom] = useState(0.8);
-  const [mobileView, setMobileView] = useState<"editor" | "preview">("editor");
-  const [isMobile, setIsMobile] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
+  const { id: urlId } = useParams();
+  const { success, error: toastError, info } = useNotifications();
+  const { hasResumeAiAccess, loading: loadingTier } = useTierAccess();
+  const { polishContent } = useAiTools();
+
+  // Store actions/state
+  const resumeState = useArtboardStore();
+  const {
+    resume: resumeData,
+    setResume,
+    setResumeId,
+    setResumeData,
+    setResumeTitle,
+    updateBasics,
+    initialResumeState,
+  } = resumeState;
+
+  // Local UI State
   const [saving, setSaving] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [mobileView, setMobileView] = useState<"editor" | "preview">("editor");
+  const [isMobile, setIsMobile] = useState(false);
+  const [zoom, setZoom] = useState(0.85);
+  const [previewScale, setPreviewScale] = useState(1);
   const [lastDraftSavedAt, setLastDraftSavedAt] = useState<number | null>(null);
-  const [previewScale, setPreviewScale] = useState(0.8);
-  const { success, error: toastError, info } = useToast();
-  const supabase = createClient();
-  const { subscriptionTier, loadingTier } = useSubscriptionTier();
-  const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, "Basics");
-  const previewPanelRef = useRef<HTMLDivElement | null>(null);
-  const autosaveTimerRef = useRef<number | null>(null);
-  const latestResumeStateRef = useRef(useArtboardStore.getState().resume);
-  const lastDraftSignatureRef = useRef("");
-  const draftHydratedRef = useRef(false);
-  const restoredDraftNoticeRef = useRef(false);
-  const serverUpdatedAtRef = useRef<string | null>(null);
-  const draftStorageKey = React.useMemo(
-    () => getResumeDraftStorageKey(urlId),
-    [urlId],
-  );
 
+  const previewPanelRef = useRef<HTMLDivElement>(null);
+  const autosaveTimerRef = useRef<number | null>(null);
+  const draftHydratedRef = useRef(false);
+  const latestResumeStateRef = useRef(resumeState);
+  const lastDraftSignatureRef = useRef<string>("");
+  const serverUpdatedAtRef = useRef<string | null>(null);
+
+  const draftStorageKey = `resume_draft_${urlId || 'new'}`;
+
+  // Keep latest ref updated for autosave
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    latestResumeStateRef.current = resumeState;
+  }, [resumeState]);
+
+  // Responsive Check
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Store State & Actions
-  const resumeState = useArtboardStore((state) => state.resume);
-  const resumeId = useArtboardStore((state) => state.resume.id);
-  const resumeData = useArtboardStore((state) => state.resume.data);
-  const setResume = useArtboardStore((state) => state.setResume);
-  const setResumeId = useArtboardStore((state) => state.setResumeId);
-  const setResumeData = useArtboardStore((state) => state.setResumeData);
-  const setResumeTitle = useArtboardStore((state) => state.setResumeTitle);
-  const updateBasics = useArtboardStore((state) => state.updateBasics);
-
-  React.useEffect(() => {
-    latestResumeStateRef.current = resumeState;
-  }, [resumeState]);
-
-  // Fetch Resume and restore any newer local draft for this builder
-  React.useEffect(() => {
+  // Hydration and Initial Fetch
+  useEffect(() => {
     let cancelled = false;
-    restoredDraftNoticeRef.current = false;
-    draftHydratedRef.current = false;
-
     const hydrateResume = async () => {
-      let remoteResume: any = null;
-
-      if (urlId) {
-        try {
-          const { data, error } = await supabase
-            .from("resumes")
-            .select("*")
-            .eq("id", urlId)
-            .single();
-
-          if (error) throw error;
-          remoteResume = data;
-        } catch (error) {
-          console.error("Error loading resume:", error);
-        }
+      if (!urlId) {
+        setResume(initialResumeState);
+        draftHydratedRef.current = true;
+        return;
       }
 
-      let localDraft = null;
-      try {
-        localDraft = await loadResumeDraft(draftStorageKey);
-      } catch (draftError) {
-        console.error("Error loading local resume draft:", draftError);
-      }
+      const [remoteResumeResult, localDraft] = await Promise.all([
+        supabase.from("resumes").select("*").eq("id", urlId).single(),
+        getResumeDraft(draftStorageKey),
+      ]);
 
       if (cancelled) return;
 
-      const remoteUpdatedAtMs = remoteResume?.updated_at
-        ? Date.parse(remoteResume.updated_at)
-        : 0;
-      const shouldRestoreDraft = Boolean(
-        localDraft?.resume &&
-          (!remoteUpdatedAtMs || localDraft.updatedAt >= remoteUpdatedAtMs),
-      );
+      const remoteResume = remoteResumeResult.data;
 
-      if (shouldRestoreDraft && localDraft?.resume) {
-        serverUpdatedAtRef.current =
-          localDraft.sourceUpdatedAt ?? remoteResume?.updated_at ?? null;
-        lastDraftSignatureRef.current = JSON.stringify(localDraft.resume);
-        setResume({
-          ...localDraft.resume,
-          id: urlId || localDraft.resume.id,
-        });
-        setResumeId(urlId || localDraft.resume.id);
-        if (!restoredDraftNoticeRef.current) {
-          restoredDraftNoticeRef.current = true;
+      if (remoteResumeResult.error) {
+        if (localDraft?.resume) {
+          setResume(localDraft.resume);
+          setResumeId(localDraft.resume.id);
           info(
             "Draft restored",
-            "We restored your unsaved resume draft from this device.",
+            "We restored your local unsaved changes.",
+          );
+        } else {
+          toastError(
+            "Resume not found",
+            "We couldn't load this resume. You'll be using a fresh template.",
           );
         }
       } else if (remoteResume?.data) {
@@ -221,6 +182,8 @@ export const ResumeBuilderPage = () => {
     };
   }, [draftStorageKey, info, setResume, setResumeId, supabase, urlId]);
 
+  const restoredDraftNoticeRef = useRef(false);
+
   // Profile Data for Auto-population
   const {
     profile,
@@ -228,13 +191,13 @@ export const ResumeBuilderPage = () => {
   } = useProfileSettings();
   const [userEmail, setUserEmail] = useState("");
 
-  React.useEffect(() => {
+  useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user?.email) setUserEmail(data.user.email);
     });
   }, [supabase]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const updatePreviewScale = () => {
       const container = previewPanelRef.current;
       if (!container) return;
@@ -269,7 +232,7 @@ export const ResumeBuilderPage = () => {
     };
   }, [isMobile, zoom]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!draftHydratedRef.current) return;
 
     const signature = JSON.stringify(resumeState);
@@ -305,9 +268,9 @@ export const ResumeBuilderPage = () => {
         window.clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [draftStorageKey]);
+  }, [draftStorageKey, resumeState]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const flushDraft = () => {
       if (!draftHydratedRef.current) return;
 
@@ -358,9 +321,7 @@ export const ResumeBuilderPage = () => {
     return normalizedValue === normalizeFieldValue(fallback);
   };
 
-  // Auto-populate personal details from the user's profile whenever the resume
-  // still contains placeholder content or empty fields.
-  React.useEffect(() => {
+  useEffect(() => {
     const profileName = `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim();
     const profileHeadline =
       profile?.job_title?.trim() ||
@@ -439,11 +400,11 @@ export const ResumeBuilderPage = () => {
     updateBasics,
   });
 
-  const useProfileImage = React.useCallback(
+  const useProfileImage = useCallback(
     async () => Boolean(await syncProfilePicture(true)),
     [syncProfilePicture],
   );
-  const refreshProfileImage = React.useCallback(
+  const refreshProfileImage = useCallback(
     async () => Boolean(await syncProfilePicture(true)),
     [syncProfilePicture],
   );
@@ -453,7 +414,7 @@ export const ResumeBuilderPage = () => {
     setResumeData({ summary: { ...resumeData.summary, content: val } });
 
   const { basics, sections, summary, metadata } = resumeData;
-  const resolvedLayoutPage = React.useMemo(
+  const resolvedLayoutPage = useMemo(
     () => resolveResumePageLayout(resumeData, 0),
     [resumeData],
   );
@@ -495,9 +456,18 @@ export const ResumeBuilderPage = () => {
       const suggestions = await polishContent(source, instruction);
       const nextSummary = suggestions.find((item) => item.isRecommended)?.content || suggestions[0]?.content || "";
       if (!nextSummary) throw new Error("No AI suggestion was returned.");
-      setSummary(nextSummary); success(instruction.includes("fresh") ? "Summary generated" : "Summary polished", instruction.includes("fresh") ? "A new AI summary has been added to your resume." : "AI suggestions have been applied to your resume summary.");
-    } catch (e: any) { toastError(instruction.includes("fresh") ? "AI generation failed" : "AI rewrite failed", e?.message || "AI is temporarily unavailable."); } finally { setAiLoading(false); }
+      setSummary(nextSummary);
+      success(
+        instruction.includes("fresh") ? "Summary generated" : "Summary polished",
+        instruction.includes("fresh") ? "A new AI summary has been added to your resume." : "AI suggestions have been applied to your resume summary."
+      );
+    } catch (e: any) {
+      toastError(instruction.includes("fresh") ? "AI generation failed" : "AI rewrite failed", e?.message || "AI is temporarily unavailable.");
+    } finally {
+      setAiLoading(false);
+    }
   };
+
   const aiGenerateResume = async () => aiPolishSummary("Write a fresh professional resume summary in 3-4 concise sentences.");
   const [saveAlertOpen, setSaveAlertOpen] = useState(false);
   const effectivePreviewScale = isMobile ? previewScale : zoom;
@@ -617,13 +587,16 @@ export const ResumeBuilderPage = () => {
             </span>
             {!hasResumeAiAccess && <Lock className='w-3 h-3 opacity-60' />}
           </button>
+
           <button
             onClick={aiGenerateResume}
             disabled={aiLoading || loadingTier}
-            className='product-outline-button hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-[#ffd700]/60 hover:bg-[#fff2b3]'
+            className='product-outline-button hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-[#ffd700]/60 hover:bg-[#fff2b3] dark:hover:bg-white/10 dark:hover:border-white/20'
           >
             <Wand2 className={`w-4 h-4 ${aiLoading ? "animate-spin" : ""}`} />
-            {aiLoading ? "Generating..." : "AI Generate"}
+            <span className='hidden sm:inline'>
+              {aiLoading ? "Generating..." : "AI Generate"}
+            </span>
             {!hasResumeAiAccess && <Lock className='w-3 h-3 opacity-60' />}
           </button>
 
@@ -645,7 +618,7 @@ export const ResumeBuilderPage = () => {
             className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 text-xs md:text-sm font-medium whitespace-nowrap'
           >
             <Download className='w-4 h-4 shrink-0' />
-            <span className='hidden sm:inline'>PDF</span>
+            <span className='hidden sm:inline'>PDF export</span>
           </button>
         </div>
       </header>
@@ -823,24 +796,24 @@ export const ResumeBuilderPage = () => {
           className={`${isMobile && mobileView !== "preview" ? "hidden" : "flex"} flex-1 overflow-auto justify-center p-3 md:p-8 relative custom-scrollbar bg-[hsl(var(--product-surface-muted))] dark:bg-background ${isMobile ? "pb-24 pt-4" : ""}`}
         >
           {!isMobile && (
-          <div className='absolute right-4 top-4 z-10 flex flex-col gap-2 md:right-8 md:top-8'>
-            <button
-              onClick={() => setZoom((z) => Math.min(z + 0.1, 1.5))}
-              className='product-section-card flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#ffd700]'
-            >
-              <ZoomIn className='w-4 h-4 md:w-5 md:h-5' />
-            </button>
-            <button
-              onClick={() => setZoom((z) => Math.max(z - 0.1, 0.5))}
-              className='product-section-card flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#ffd700]'
-            >
-              <ZoomOut className='w-4 h-4 md:w-5 md:h-5' />
-            </button>
-          </div>
+            <div className='absolute right-4 top-4 z-10 flex flex-col gap-2 md:right-8 md:top-8'>
+              <button
+                onClick={() => setZoom((z) => Math.min(z + 0.1, 1.5))}
+                className='product-section-card flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#ffd700]'
+              >
+                <ZoomIn className='w-4 h-4 md:w-5 md:h-5' />
+              </button>
+              <button
+                onClick={() => setZoom((z) => Math.max(z - 0.1, 0.5))}
+                className='product-section-card flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#ffd700]'
+              >
+                <ZoomOut className='w-4 h-4 md:w-5 md:h-5' />
+              </button>
+            </div>
           )}
 
           <div
-            className='shrink-0 transition-[width,min-height] duration-200'
+            className='shrink-0 transition-[width,min-height] duration-200 bg-white shadow-2xl relative'
             style={{
               width: `${previewFrameWidth}px`,
               minHeight: `${previewFrameHeight}px`,
@@ -863,6 +836,7 @@ export const ResumeBuilderPage = () => {
         </div>
       </div>
 
+      {/* Mobile Bottom Tab Bar */}
       {isMobile && (
         <div className='fixed bottom-0 left-0 right-0 z-50 bg-background/95 border-t border-border/40 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex h-16 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]'>
           <button
