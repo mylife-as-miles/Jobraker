@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ArrowLeft,
   Edit2,
@@ -14,6 +14,8 @@ import {
   GraduationCap,
   BrainCircuit,
   X,
+  Eye,
+  PenLine,
   ZoomIn,
   ZoomOut,
   FileText,
@@ -70,6 +72,8 @@ export const ResumeBuilderPage = () => {
   const navigate = useNavigate();
   const urlId = location.pathname.split("/")[4] || null;
   const [zoom, setZoom] = useState(0.8);
+  const [mobileView, setMobileView] = useState<"editor" | "preview">("editor");
+  const [isMobile, setIsMobile] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
@@ -79,6 +83,14 @@ export const ResumeBuilderPage = () => {
   const supabase = createClient();
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, "Basics");
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   // Store State & Actions
   const resumeId = useArtboardStore((state) => state.resume.id);
   const resumeData = useArtboardStore((state) => state.resume.data);
@@ -277,7 +289,7 @@ export const ResumeBuilderPage = () => {
       </Modal>
 
       {/* Header toolbar */}
-      <header className='h-16 shrink-0 border-b border-border/40 bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex items-center justify-between z-10'>
+      <header className='h-14 md:h-16 shrink-0 border-b border-border/40 bg-background/95 px-3 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex items-center justify-between z-10'>
         <div className='flex items-center gap-4'>
           <button
             onClick={() => navigate("/dashboard/resume")}
@@ -297,36 +309,39 @@ export const ResumeBuilderPage = () => {
           </div>
         </div>
 
-        <div className='flex items-center gap-3'>
+        <div className='flex items-center gap-2 md:gap-3 overflow-x-auto no-scrollbar'>
           <button
             onClick={() => setIsTemplateSelectorOpen(true)}
-            className='product-outline-button flex items-center gap-2 px-3 py-2 text-sm font-medium'
+            className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-2 text-xs md:text-sm font-medium whitespace-nowrap'
           >
-            <LayoutTemplate className='w-4 h-4' />
-            Templates
-            <ChevronDown className='w-3 h-3 opacity-50' />
+            <LayoutTemplate className='w-4 h-4 shrink-0' />
+            <span className='hidden sm:inline'>Templates</span>
+            <ChevronDown className='w-3 h-3 opacity-50 hidden sm:block' />
           </button>
 
           <button
             onClick={() => setIsShareOpen(true)}
-            className='product-outline-button flex items-center gap-2 px-3 py-2 text-sm font-medium'
+            className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-2 text-xs md:text-sm font-medium whitespace-nowrap'
           >
-            <Share2 className='w-4 h-4' />
-            Share
+            <Share2 className='w-4 h-4 shrink-0' />
+            <span className='hidden sm:inline'>Share</span>
           </button>
 
           <button
             onClick={() => aiPolishSummary()}
             disabled={aiLoading || loadingTier}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)] disabled:opacity-60'>
-            <Sparkles className='w-4 h-4' />
-            {aiLoading ? "Polishing..." : "AI Polish"}
+            className='flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-xs md:text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)] whitespace-nowrap disabled:opacity-60'
+          >
+            <Sparkles className='w-4 h-4 shrink-0' />
+            <span className='hidden sm:inline'>
+              {aiLoading ? "Polishing..." : "AI Polish"}
+            </span>
             {!hasResumeAiAccess && <Lock className='w-3 h-3 opacity-60' />}
           </button>
           <button
             onClick={aiGenerateResume}
             disabled={aiLoading || loadingTier}
-            className='product-outline-button flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-[#ffd700]/60 hover:bg-[#fff2b3]' 
+            className='product-outline-button hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-[#ffd700]/60 hover:bg-[#fff2b3]'
           >
             <Wand2 className={`w-4 h-4 ${aiLoading ? "animate-spin" : ""}`} />
             {aiLoading ? "Generating..." : "AI Generate"}
@@ -336,18 +351,22 @@ export const ResumeBuilderPage = () => {
           <button
             onClick={handleSave}
             disabled={saving || !urlId}
-            className='product-outline-button flex items-center gap-2 px-4 py-2 text-sm font-bold disabled:opacity-50' 
+            className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 text-xs md:text-sm font-bold whitespace-nowrap disabled:opacity-50'
           >
-            <FileText className={`w-4 h-4 ${saving ? "animate-pulse" : ""}`} />
-            {saving ? "Saving..." : "Save Changes"}
+            <FileText
+              className={`w-4 h-4 shrink-0 ${saving ? "animate-pulse" : ""}`}
+            />
+            <span className='hidden sm:inline'>
+              {saving ? "Saving..." : "Save"}
+            </span>
           </button>
 
           <button
             onClick={downloadPDF}
-            className='product-outline-button flex items-center gap-2 px-4 py-2 text-sm font-medium'
+            className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 text-xs md:text-sm font-medium whitespace-nowrap'
           >
-            <Download className='w-4 h-4' />
-            Download PDF
+            <Download className='w-4 h-4 shrink-0' />
+            <span className='hidden sm:inline'>PDF</span>
           </button>
         </div>
       </header>
@@ -365,9 +384,11 @@ export const ResumeBuilderPage = () => {
       )}
 
       {/* Main Content Area */}
-      <div className='flex-1 flex overflow-hidden'>
+      <div className='flex-1 flex flex-col md:flex-row overflow-hidden'>
         {/* Editor Panel (Left) */}
-        <div className='product-section-card-muted w-[40%] min-w-[350px] max-w-[500px] flex flex-col overflow-y-auto custom-scrollbar rounded-none border-y-0 border-l-0 pb-20'>
+        <div
+          className={`${isMobile && mobileView !== "editor" ? "hidden" : "flex"} product-section-card-muted w-full md:w-[40%] md:min-w-[350px] md:max-w-[500px] flex-col overflow-y-auto custom-scrollbar rounded-none border-y-0 border-l-0 ${isMobile ? "pb-24" : "pb-20"} flex-1 md:flex-initial`}
+        >
           <div className='p-6 space-y-4'>
             {/* Content Header */}
             <div className='flex items-center justify-between mb-2'>
@@ -518,24 +539,26 @@ export const ResumeBuilderPage = () => {
         </div>
 
         {/* Preview Panel (Right) */}
-        <div className='flex-1 overflow-y-auto flex justify-center p-8 relative custom-scrollbar bg-[hsl(var(--product-surface-muted))] dark:bg-background'>
-          <div className='fixed top-24 right-8 z-10 flex flex-col gap-2'>
+        <div
+          className={`${isMobile && mobileView !== "preview" ? "hidden" : "flex"} flex-1 overflow-y-auto justify-center p-1 md:p-8 relative custom-scrollbar bg-[hsl(var(--product-surface-muted))] dark:bg-background ${isMobile ? "pb-24" : ""}`}
+        >
+          <div className='fixed top-20 md:top-24 right-4 md:right-8 z-10 flex flex-col gap-2'>
             <button
               onClick={() => setZoom((z) => Math.min(z + 0.1, 1.5))}
-              className='product-section-card flex h-10 w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#ffd700]'
+              className='product-section-card flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#ffd700]'
             >
-              <ZoomIn className='w-5 h-5' />
+              <ZoomIn className='w-4 h-4 md:w-5 md:h-5' />
             </button>
             <button
               onClick={() => setZoom((z) => Math.max(z - 0.1, 0.5))}
-              className='product-section-card flex h-10 w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#ffd700]'
+              className='product-section-card flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#ffd700]'
             >
-              <ZoomOut className='w-5 h-5' />
+              <ZoomOut className='w-4 h-4 md:w-5 md:h-5' />
             </button>
           </div>
 
           <div
-            className='bg-white shadow-2xl origin-top transition-transform duration-200 min-h-[1123px] w-[794px]'
+            className='bg-white shadow-2xl origin-top transition-transform duration-200 min-h-[1123px] xl:w-[794px] w-fit max-w-full'
             style={{
               transform: `scale(${zoom})`,
               marginBottom: `${(zoom - 1) * 1123}px`,
@@ -545,6 +568,34 @@ export const ResumeBuilderPage = () => {
           </div>
         </div>
       </div>
+
+      {isMobile && (
+        <div className='fixed bottom-0 left-0 right-0 z-50 bg-background/95 border-t border-border/40 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex h-16 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]'>
+          <button
+            onClick={() => setMobileView("editor")}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
+              mobileView === "editor"
+                ? "text-[#1dff00] bg-[#1dff00]/5"
+                : "text-muted-foreground"
+            }`}
+          >
+            <PenLine className='w-5 h-5' />
+            <span className='text-[11px] font-medium'>Editor</span>
+          </button>
+          <div className='w-px bg-border/40 my-3' />
+          <button
+            onClick={() => setMobileView("preview")}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
+              mobileView === "preview"
+                ? "text-[#1dff00] bg-[#1dff00]/5"
+                : "text-muted-foreground"
+            }`}
+          >
+            <Eye className='w-5 h-5' />
+            <span className='text-[11px] font-medium'>Preview</span>
+          </button>
+        </div>
+      )}
 
       <TemplateSelector
         isOpen={isTemplateSelectorOpen}
@@ -560,7 +611,6 @@ export const ResumeBuilderPage = () => {
 };
 
 export default ResumeBuilderPage;
-
 
 
 
