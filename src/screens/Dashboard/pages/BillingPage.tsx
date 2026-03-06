@@ -236,10 +236,10 @@ export const BillingPage = () => {
 
   const getTierTextColor = (_tier: string) => {
     return {
-      primary: 'text-white',
-      secondary: 'text-white/70',
-      tertiary: 'text-white/80',
-      muted: 'text-white/50'
+      primary: 'text-foreground',
+      secondary: 'text-foreground/70',
+      tertiary: 'text-foreground/80',
+      muted: 'text-foreground/50'
     };
   };
 
@@ -268,11 +268,11 @@ export const BillingPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black p-6 space-y-6">
-        <div className="h-8 w-48 bg-white/10 rounded-lg animate-pulse" />
+      <div className="min-h-screen bg-background p-6 space-y-6">
+        <div className="h-8 w-48 bg-foreground/10 rounded-lg animate-pulse" />
         <div className="grid gap-6 md:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-48 bg-white/5 rounded-2xl animate-pulse" />
+            <div key={i} className="h-48 bg-foreground/5 rounded-2xl animate-pulse" />
           ))}
         </div>
       </div>
@@ -280,9 +280,9 @@ export const BillingPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black selection:bg-[#1dff00]/30">
+    <div className="min-h-screen bg-background selection:bg-[#1dff00]/30">
       {/* Hero Section */}
-      <div className="relative overflow-hidden border-b border-white/10 bg-gradient-to-br from-black via-[#0a0a0a] to-black">
+      <div className="relative overflow-hidden border-b border-foreground/10 bg-gradient-to-br from-background to-background">
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#1dff00]/5 rounded-full blur-[120px] mix-blend-screen animate-pulse" />
@@ -298,7 +298,7 @@ export const BillingPage = () => {
             className="text-center mb-12"
           >
             <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold mb-6 tracking-tight">
-              <span className="bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">
                 Billing &
               </span>{' '}
               <span className="text-[#1dff00] drop-shadow-[0_0_15px_rgba(29,255,0,0.3)]">
@@ -318,7 +318,7 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="relative overflow-hidden border-white/10 bg-white/[0.03] backdrop-blur-xl group hover:border-[#1dff00]/30 transition-colors duration-300">
+              <Card className="relative overflow-hidden border-foreground/10 bg-foreground/[0.03] backdrop-blur-xl group hover:border-[#1dff00]/30 transition-colors duration-300">
                 <div className="absolute inset-0 bg-gradient-to-br from-[#1dff00]/5 to-transparent opacity-50" />
                 <CardContent className="relative p-6">
                   <div className="flex items-start justify-between mb-4">
@@ -331,7 +331,7 @@ export const BillingPage = () => {
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-gray-400 font-medium">Available Credits</p>
-                    <p className="text-4xl font-bold text-white tracking-tight">
+                    <p className="text-4xl font-bold text-foreground tracking-tight">
                       {currentCredits.toLocaleString()}
                     </p>
                   </div>
@@ -345,11 +345,11 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <Card className="relative overflow-hidden border-white/10 bg-white/[0.03] backdrop-blur-xl group hover:border-white/20 transition-colors duration-300">
+              <Card className="relative overflow-hidden border-foreground/10 bg-foreground/[0.03] backdrop-blur-xl group hover:border-foreground/20 transition-colors duration-300">
                 <div className={`absolute inset-0 bg-gradient-to-br ${getTierGradient(subscriptionTier)} opacity-5`} />
                 <CardContent className="relative p-6">
                   <div className="flex items-start justify-between mb-4">
-                    <div className={`p-3 rounded-xl bg-gradient-to-br ${getTierGradient(subscriptionTier)}/10 border border-white/10 group-hover:border-white/20 transition-colors`}>
+                    <div className={`p-3 rounded-xl bg-gradient-to-br ${getTierGradient(subscriptionTier)}/10 border border-foreground/10 group-hover:border-foreground/20 transition-colors`}>
                       {getTierIcon(subscriptionTier)}
                     </div>
                     <span className={`text-[10px] tracking-wider font-bold px-2.5 py-1 rounded-full border ${
@@ -362,7 +362,7 @@ export const BillingPage = () => {
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-gray-400 font-medium">Current Tier</p>
-                    <p className="text-4xl font-bold text-white tracking-tight">
+                    <p className="text-4xl font-bold text-foreground tracking-tight">
                       {subscriptionTier}
                     </p>
                     <p className="text-sm text-gray-500">
@@ -379,7 +379,7 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <Card className="relative overflow-hidden border-white/10 bg-white/[0.03] backdrop-blur-xl group hover:border-blue-400/30 transition-colors duration-300">
+              <Card className="relative overflow-hidden border-foreground/10 bg-foreground/[0.03] backdrop-blur-xl group hover:border-blue-400/30 transition-colors duration-300">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-50" />
                 <CardContent className="relative p-6">
                   <div className="flex items-start justify-between mb-4">
@@ -392,7 +392,7 @@ export const BillingPage = () => {
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-gray-400 font-medium">Next Refill</p>
-                    <p className="text-lg font-bold text-white tracking-tight pt-2">
+                    <p className="text-lg font-bold text-foreground tracking-tight pt-2">
                       {currentPeriodEnd ? new Date(currentPeriodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not scheduled'}
                     </p>
                     <p className="text-xs text-gray-500">
@@ -410,7 +410,7 @@ export const BillingPage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Custom Tab Navigation */}
         <div className="flex justify-center mb-12">
-          <div className="flex items-center p-1 bg-white/5 rounded-full border border-white/10 backdrop-blur-md">
+          <div className="flex items-center p-1 bg-foreground/5 rounded-full border border-foreground/10 backdrop-blur-md">
             {[
               { id: 'subscription', label: 'Plans', icon: <Star className="w-4 h-4" /> },
               { id: 'packs', label: 'Credit Packs', icon: <Package className="w-4 h-4" /> },
@@ -421,8 +421,8 @@ export const BillingPage = () => {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`relative flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-full transition-all duration-300 ${
                   activeTab === tab.id
-                    ? 'text-black shadow-lg'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    ? 'text-background shadow-lg'
+                    : 'text-gray-400 hover:text-foreground hover:bg-foreground/5'
                 }`}
               >
                 {activeTab === tab.id && (
@@ -469,8 +469,8 @@ export const BillingPage = () => {
                         <div className="absolute -top-3 left-0 right-0 flex justify-center z-20">
                           <span className={`text-[10px] font-bold px-3 py-1 rounded-full shadow-lg border ${
                             isUltimate
-                              ? 'bg-purple-500 text-white border-purple-400'
-                              : 'bg-[#1dff00] text-black border-[#1dff00]'
+                              ? 'bg-purple-500 text-foreground border-purple-400'
+                              : 'bg-[#1dff00] text-background border-[#1dff00]'
                           }`}>
                             {isUltimate ? 'MAXIMUM POWER' : 'MOST POPULAR'}
                           </span>
@@ -480,14 +480,14 @@ export const BillingPage = () => {
                       <Card className={`group relative h-full flex flex-col overflow-hidden transition-all duration-300 ${
                         isCurrentPlan 
                           ? 'border-[#1dff00]/50 bg-gradient-to-b from-[#1dff00]/10 to-transparent shadow-[0_0_40px_-10px_rgba(29,255,0,0.2)]'
-                          : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/20 hover:shadow-xl hover:shadow-[#1dff00]/5 hover:-translate-y-1'
+                          : 'border-foreground/10 bg-foreground/[0.02] hover:bg-foreground/[0.04] hover:border-foreground/20 hover:shadow-xl hover:shadow-[#1dff00]/5 hover:-translate-y-1'
                       }`}>
                         {/* Gradient accent top border */}
                         <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${getTierGradient(plan.name)} opacity-70`} />
 
                         {isCurrentPlan && (
                           <div className="absolute top-4 right-4 z-10">
-                            <span className="px-2.5 py-1 text-[10px] font-bold bg-[#1dff00] text-black border border-[#1dff00] rounded-full flex items-center gap-1 shadow-md">
+                            <span className="px-2.5 py-1 text-[10px] font-bold bg-[#1dff00] text-background border border-[#1dff00] rounded-full flex items-center gap-1 shadow-md">
                               <Check className="w-3 h-3" />
                               CURRENT
                             </span>
@@ -505,7 +505,7 @@ export const BillingPage = () => {
                                     plan.name === 'Pro' ? 'from-blue-500/20 to-transparent border-blue-500/20' :
                                     plan.name === 'Ultimate' ? 'from-purple-500/20 to-transparent border-purple-500/20' :
                                     'from-[#1dff00]/20 to-transparent border-[#1dff00]/20'
-                                  } border border-white/5`}>
+                                  } border border-foreground/5`}>
                                     {getTierIcon(plan.name)}
                                   </div>
                                   <h3 className={`text-2xl font-bold ${textColors.primary} tracking-tight`}>{plan.name}</h3>
@@ -513,7 +513,7 @@ export const BillingPage = () => {
                                 </div>
 
                                 {/* Price */}
-                                <div className="mb-6 pb-6 border-b border-white/10">
+                                <div className="mb-6 pb-6 border-b border-foreground/10">
                                   <div className="flex items-baseline gap-1">
                                     <span className={`text-4xl font-bold ${textColors.primary}`}>${plan.price}</span>
                                     {plan.price > 0 && (
@@ -523,8 +523,8 @@ export const BillingPage = () => {
                                 </div>
 
                                 {/* Credits */}
-                                <div className="flex items-center gap-3 p-3 rounded-xl mb-6 bg-white/5 border border-white/5 group-hover:bg-white/10 transition-colors">
-                                  <div className="p-1.5 rounded-lg bg-black/40">
+                                <div className="flex items-center gap-3 p-3 rounded-xl mb-6 bg-foreground/5 border border-foreground/5 group-hover:bg-foreground/10 transition-colors">
+                                  <div className="p-1.5 rounded-lg bg-background/40">
                                     <Zap className={`w-4 h-4 ${
                                       plan.name === 'Pro' ? 'text-blue-400' :
                                       plan.name === 'Ultimate' ? 'text-purple-400' : 'text-[#1dff00]'
@@ -553,7 +553,7 @@ export const BillingPage = () => {
                                         }`}>
                                           <Check className="w-2.5 h-2.5" />
                                         </div>
-                                        <span className={`text-sm ${textColors.tertiary} group-hover/item:text-white transition-colors`}>{featureName}</span>
+                                        <span className={`text-sm ${textColors.tertiary} group-hover/item:text-foreground transition-colors`}>{featureName}</span>
                                       </div>
                                     );
                                   })}
@@ -567,14 +567,14 @@ export const BillingPage = () => {
                             <Button
                               className={`w-full h-12 font-bold text-sm tracking-wide transition-all duration-300 ${
                                 isCurrentPlan
-                                  ? 'bg-white/5 text-white/50 cursor-default border border-white/5'
+                                  ? 'bg-foreground/5 text-foreground/50 cursor-default border border-foreground/5'
                                   : plan.name === 'Basics'
-                                  ? 'bg-[#1dff00] text-black hover:bg-[#1dff00] hover:brightness-110 hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] hover:scale-[1.02]'
+                                  ? 'bg-[#1dff00] text-background hover:bg-[#1dff00] hover:brightness-110 hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] hover:scale-[1.02]'
                                   : plan.name === 'Pro'
-                                  ? 'bg-blue-500 text-white hover:bg-blue-600 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-[1.02]'
+                                  ? 'bg-blue-500 text-foreground hover:bg-blue-600 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-[1.02]'
                                   : plan.name === 'Ultimate'
-                                  ? 'bg-purple-600 text-white hover:bg-purple-700 hover:shadow-[0_0_20px_rgba(147,51,234,0.4)] hover:scale-[1.02]'
-                                  : 'bg-white text-black hover:bg-gray-200'
+                                  ? 'bg-purple-600 text-foreground hover:bg-purple-700 hover:shadow-[0_0_20px_rgba(147,51,234,0.4)] hover:scale-[1.02]'
+                                  : 'bg-foreground text-background hover:bg-gray-200'
                               }`}
                               disabled={isCurrentPlan || processingPayment}
                               onClick={() => !isCurrentPlan && handlePayment('subscription', plan)}
@@ -606,7 +606,7 @@ export const BillingPage = () => {
               className="space-y-12"
             >
               <div className="text-center">
-                <h2 className="text-3xl font-bold text-white mb-3">One-Time Credit Packs</h2>
+                <h2 className="text-3xl font-bold text-foreground mb-3">One-Time Credit Packs</h2>
                 <p className="text-gray-400">Need a boost? Add credits that never expire.</p>
               </div>
 
@@ -621,7 +621,7 @@ export const BillingPage = () => {
                   >
                     {pack.popular && (
                       <div className="absolute -top-3 left-0 right-0 flex justify-center z-10">
-                        <span className="bg-[#1dff00] text-black text-[10px] font-bold px-3 py-1 rounded-full shadow-lg shadow-[#1dff00]/20">
+                        <span className="bg-[#1dff00] text-background text-[10px] font-bold px-3 py-1 rounded-full shadow-lg shadow-[#1dff00]/20">
                           BEST VALUE
                         </span>
                       </div>
@@ -630,11 +630,11 @@ export const BillingPage = () => {
                     <Card className={`relative overflow-hidden transition-all duration-300 group hover:scale-105 ${
                       pack.popular
                         ? 'border-[#1dff00]/30 bg-gradient-to-b from-[#1dff00]/5 to-transparent'
-                        : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04]'
+                        : 'border-foreground/10 bg-foreground/[0.02] hover:bg-foreground/[0.04]'
                     }`}>
                       <CardContent className="p-6 flex flex-col items-center text-center">
                         <div className={`p-3 rounded-2xl mb-4 ${
-                          pack.popular ? 'bg-[#1dff00]/10 text-[#1dff00]' : 'bg-white/5 text-gray-400 group-hover:text-white group-hover:bg-white/10'
+                          pack.popular ? 'bg-[#1dff00]/10 text-[#1dff00]' : 'bg-foreground/5 text-gray-400 group-hover:text-foreground group-hover:bg-foreground/10'
                         } transition-colors`}>
                           <Package className="w-8 h-8" />
                         </div>
@@ -647,14 +647,14 @@ export const BillingPage = () => {
                         )}
 
                         <div className="mb-6">
-                          <p className="text-4xl font-bold text-white mb-1">
+                          <p className="text-4xl font-bold text-foreground mb-1">
                             {(pack.credits + pack.bonus).toLocaleString()}
                           </p>
                           <p className="text-xs text-gray-400 uppercase tracking-widest font-medium">Credits</p>
                         </div>
 
-                        <div className="w-full pt-4 border-t border-white/5">
-                          <p className="text-3xl font-bold text-white mb-1">${pack.price}</p>
+                        <div className="w-full pt-4 border-t border-foreground/5">
+                          <p className="text-3xl font-bold text-foreground mb-1">${pack.price}</p>
                           <p className="text-xs text-gray-500 mb-4">
                             ${(pack.price / (pack.credits + pack.bonus)).toFixed(3)} per credit
                           </p>
@@ -662,8 +662,8 @@ export const BillingPage = () => {
                           <Button
                             className={`w-full font-bold transition-all duration-300 ${
                               pack.popular
-                                ? 'bg-[#1dff00] text-black hover:bg-[#1dff00] hover:brightness-110 shadow-[0_0_20px_rgba(29,255,0,0.3)]'
-                                : 'bg-white/10 text-white hover:bg-white/20'
+                                ? 'bg-[#1dff00] text-background hover:bg-[#1dff00] hover:brightness-110 shadow-[0_0_20px_rgba(29,255,0,0.3)]'
+                                : 'bg-foreground/10 text-foreground hover:bg-foreground/20'
                             }`}
                             disabled={processingPayment}
                             onClick={() => handlePayment('credit_pack', pack)}
@@ -681,17 +681,17 @@ export const BillingPage = () => {
               </div>
 
               {/* Benefits Section */}
-              <div className="grid gap-6 sm:grid-cols-3 max-w-4xl mx-auto pt-8 border-t border-white/10">
+              <div className="grid gap-6 sm:grid-cols-3 max-w-4xl mx-auto pt-8 border-t border-foreground/10">
                 {[
                   { icon: <Shield className="w-6 h-6" />, title: 'Secure Payment', desc: 'Encrypted & safe checkout' },
                   { icon: <Infinity className="w-6 h-6" />, title: 'Never Expire', desc: 'Credits last until you use them' },
                   { icon: <Target className="w-6 h-6" />, title: 'Instant Delivery', desc: 'Start applying in seconds' },
                 ].map((benefit, idx) => (
-                  <div key={idx} className="flex flex-col items-center text-center p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
+                  <div key={idx} className="flex flex-col items-center text-center p-6 rounded-2xl bg-foreground/[0.02] border border-foreground/5 hover:bg-foreground/[0.04] transition-colors">
                     <div className="p-3 rounded-full bg-[#1dff00]/10 text-[#1dff00] mb-3">
                       {benefit.icon}
                     </div>
-                    <p className="font-bold text-white mb-1">{benefit.title}</p>
+                    <p className="font-bold text-foreground mb-1">{benefit.title}</p>
                     <p className="text-sm text-gray-400">{benefit.desc}</p>
                   </div>
                 ))}
@@ -708,18 +708,18 @@ export const BillingPage = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <Card className="border-white/10 bg-white/[0.02] backdrop-blur-md overflow-hidden">
-                <CardHeader className="border-b border-white/10 bg-white/[0.02]">
+              <Card className="border-foreground/10 bg-foreground/[0.02] backdrop-blur-md overflow-hidden">
+                <CardHeader className="border-b border-foreground/10 bg-foreground/[0.02]">
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
+                      <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
                         Transaction History
                       </CardTitle>
                       <CardDescription className="text-gray-400 mt-1">
                         View all your credit transactions and usage history
                       </CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" className="gap-2 border-white/10 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white">
+                    <Button variant="outline" size="sm" className="gap-2 border-foreground/10 bg-foreground/5 hover:bg-foreground/10 text-gray-300 hover:text-foreground">
                       <Download className="w-4 h-4" />
                       Export CSV
                     </Button>
@@ -728,14 +728,14 @@ export const BillingPage = () => {
                 <CardContent className="p-0">
                   {transactions.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-24 text-center">
-                      <div className="p-4 rounded-full bg-white/5 mb-4 border border-white/10">
+                      <div className="p-4 rounded-full bg-foreground/5 mb-4 border border-foreground/10">
                         <History className="w-8 h-8 text-gray-400" />
                       </div>
-                      <p className="text-white font-medium text-lg mb-1">No transactions yet</p>
+                      <p className="text-foreground font-medium text-lg mb-1">No transactions yet</p>
                       <p className="text-gray-500 text-sm max-w-xs">Your credit purchases and usage will appear here once you start using JobRaker.</p>
                     </div>
                   ) : (
-                    <div className="divide-y divide-white/5">
+                    <div className="divide-y divide-foreground/5">
                       {transactions.map((transaction, index) => {
                         const iconData = getTransactionIcon(transaction.transaction_type);
                         return (
@@ -744,20 +744,20 @@ export const BillingPage = () => {
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: index * 0.05 }}
-                            className="p-4 sm:p-6 hover:bg-white/[0.02] transition-colors duration-200 flex items-center justify-between gap-4 group"
+                            className="p-4 sm:p-6 hover:bg-foreground/[0.02] transition-colors duration-200 flex items-center justify-between gap-4 group"
                           >
                             <div className="flex items-center gap-4 flex-1 min-w-0">
                               <div className={`p-2.5 rounded-xl border ${iconData.color} group-hover:scale-110 transition-transform`}>
                                 {iconData.icon}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-white font-medium truncate mb-0.5">{transaction.description}</p>
+                                <p className="text-foreground font-medium truncate mb-0.5">{transaction.description}</p>
                                 <p className="text-xs text-gray-500 font-mono">{formatDate(transaction.created_at)}</p>
                               </div>
                             </div>
                             <div className="text-right flex-shrink-0">
                               <p className={`text-lg font-bold font-mono ${
-                                transaction.amount > 0 ? 'text-[#1dff00]' : 'text-white'
+                                transaction.amount > 0 ? 'text-[#1dff00]' : 'text-foreground'
                               }`}>
                                 {transaction.amount > 0 ? '+' : ''}{transaction.amount}
                               </p>
