@@ -94,20 +94,19 @@ export function Toaster({ toasts, onClose }: { toasts: ToastItem[]; onClose: (id
             exit={{ opacity: 0, y: -10, scale: 0.98 }}
             transition={{ duration: 0.15 }}
             className={[
-              "rounded-lg border shadow-lg px-4 py-3 backdrop-blur-md",
-              "bg-[#0a0a0a]/90",
+              "rounded-lg border bg-card/95 px-4 py-3 text-card-foreground shadow-lg backdrop-blur-md",
               variantBorderClass(t.variant),
             ].join(" ")}
           >
             <div className="flex items-start gap-3">
               <div className={"mt-0.5 w-2 h-2 rounded-full " + variantDotClass(t.variant)} />
               <div className="flex-1 min-w-0">
-                {t.title && <div className="text-sm font-semibold text-white truncate">{t.title}</div>}
-                {t.description && <div className="text-xs text-[#bbb] mt-0.5 break-words">{t.description}</div>}
+                {t.title && <div className="text-sm font-semibold text-foreground truncate">{t.title}</div>}
+                {t.description && <div className="text-xs text-muted-foreground mt-0.5 break-words">{t.description}</div>}
               </div>
               <button
                 aria-label="Close"
-                className="text-[#888] hover:text-white transition-colors"
+                className="text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => onClose(t.id)}
               >
                 <X className="w-4 h-4" />
@@ -129,7 +128,7 @@ function variantBorderClass(v: ToastVariant) {
     case "warning":
       return "border-yellow-500/40";
     default:
-      return "border-white/10";
+      return "border-border";
   }
 }
 
@@ -142,6 +141,7 @@ function variantDotClass(v: ToastVariant) {
     case "warning":
       return "bg-yellow-400 shadow-[0_0_12px_#f59e0b]";
     default:
-      return "bg-[#888]";
+      return "bg-muted-foreground";
   }
 }
+

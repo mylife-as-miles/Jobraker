@@ -19,7 +19,7 @@ import {
     Check,
     Loader2
 } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -32,6 +32,8 @@ import { useArtboardStore } from '@/store/artboard';
 // Local PDF/Docx generation imports (assuming these pkgs exist or mocks handle them)
 import { jsPDF } from 'jspdf';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
+import { polishContent } from '@/services/ai/polishContent';
+import { generateCoverLetterViaEdge } from '@/services/ai/generateCoverLetter';
 
 const supabase = createClient();
 
@@ -48,10 +50,9 @@ const saveAs = (blob: Blob, name: string) => {
 };
 
 export const CoverLetterBuilderPage = () => {
+    const location = useLocation();
     const navigate = useNavigate();
     const { success, error: toastErrorFn } = useToast();
-
-    // Helper for toasts to match previous API slightly
     const toastError = (title: string, desc: string) => toastErrorFn(title, desc);
     const toastSuccess = (title: string, desc: string) => success(title, desc);
 
@@ -62,6 +63,7 @@ export const CoverLetterBuilderPage = () => {
     const setNested = useArtboardStore((state) => state.setCoverLetterNested);
     const setCoverLetterTitle = useArtboardStore((state) => state.setCoverLetterTitle);
     const setCoverLetterId = useArtboardStore((state) => state.setCoverLetterId);
+    const resetCoverLetter = useArtboardStore((state) => state.resetCoverLetter);
 
     // Destructure for easier access
     const {
@@ -115,10 +117,27 @@ export const CoverLetterBuilderPage = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-    const { id: routeId } = useParams();
+    const routeId = location.pathname.split("/")[4] || null;
+    const activeId = currentLibId || routeId || id;
 
     // Derived
     const finalBody = content.paragraphs.length ? content.paragraphs.join('\n\n') : content.rawBody;
+    const coverLetterPayload = {
+        ...coverLetter,
+        id: activeId || coverLetter.id || '',
+        title: coverLetter.title || 'Untitled Cover Letter'
+    };
+
+    const applyLetterRecord = (record: any) => {
+        const payload = record?.data || record?.content;
+        if (!payload) return;
+        const resolvedTitle = record?.name || payload.title || 'Untitled Cover Letter';
+        setCoverLetterId(record.id);
+        setCoverLetterTitle(resolvedTitle);
+        setCurrentLibId(record.id);
+        setLibName(resolvedTitle);
+        setCoverLetter({ ...payload, id: record.id, title: resolvedTitle });
+    };
 
     // --- Effects ---
 
@@ -136,14 +155,7 @@ export const CoverLetterBuilderPage = () => {
 
                 if (error) throw error;
                 if (data) {
-                    // Populate store
-                    setCoverLetterId(data.id);
-                    setCoverLetterTitle(data.name);
-
-                    if (data.data) {
-                        setCoverLetter(data.data);
-                    }
-                    // If no data column (legacy), we might need to map manual fields, but assume new structure for now
+                    applyLetterRecord(data);
                 }
             } catch (error) {
                 console.error('Error loading cover letter:', error);
@@ -152,36 +164,76 @@ export const CoverLetterBuilderPage = () => {
             }
         };
         loadData();
-    }, [routeId]);
+    }, [navigate, routeId]);
+
+    useEffect(() => {
+        const loadLibrary = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+
+                const { data, error } = await supabase
+                    .from('cover_letters')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .order('updated_at', { ascending: false });
+
+                if (error) throw error;
+                const nextLibrary = data || [];
+                setLibrary(nextLibrary);
+
+                if (activeId) {
+                    const activeLetter = nextLibrary.find((entry: any) => entry.id === activeId);
+                    if (activeLetter) {
+                        setCurrentLibId(activeLetter.id);
+                        setLibName(activeLetter.name || activeLetter?.data?.title || '');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading cover letter library:', error);
+            }
+        };
+        loadLibrary();
+    }, [activeId]);
 
     // Save Function
     const handleSave = async () => {
-        if (!id) return;
+        if (!activeId) {
+            await saveToLibrary();
+            return;
+        }
+
         setIsSaving(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+            if (!user) throw new Error('Please sign in to save your cover letter.');
 
-            const letterData = {
-                title: coverLetter.title,
-                role, company, jobDescription, tone, lengthPref,
-                sender, recipient, content, typography
-            };
-
+            const savedAt = new Date().toISOString();
+            const savedName = coverLetter.title || libName || 'Untitled Cover Letter';
             const { error } = await supabase
                 .from('cover_letters')
                 .update({
-                    name: coverLetter.title,
-                    data: letterData,
-                    updated_at: new Date().toISOString()
+                    name: savedName,
+                    slug: coverLetter.slug,
+                    tags: coverLetter.tags,
+                    data: coverLetterPayload,
+                    updated_at: savedAt
                 })
-                .eq('id', id);
+                .eq('id', activeId);
 
             if (error) throw error;
-            setLastSaved(new Date());
-        } catch (error) {
+            setCurrentLibId(activeId);
+            setLibName(savedName);
+            setLastSaved(new Date(savedAt));
+            setLibrary((prev) => prev.map((entry) =>
+                entry.id === activeId
+                    ? { ...entry, name: savedName, slug: coverLetter.slug, tags: coverLetter.tags, data: coverLetterPayload, updated_at: savedAt }
+                    : entry
+            ));
+            toastSuccess('Saved', 'Your cover letter changes have been saved.');
+        } catch (error: any) {
             console.error('Save failed:', error);
-            toastError('Save failed', 'Could not save changes');
+            toastError('Save failed', error?.message || 'Could not save changes');
         } finally {
             setIsSaving(false);
         }
@@ -189,14 +241,14 @@ export const CoverLetterBuilderPage = () => {
 
     // Auto-save
     useEffect(() => {
-        if (!id) return;
+        if (!activeId) return;
 
         const timeout = setTimeout(() => {
             handleSave();
         }, 2000);
 
         return () => clearTimeout(timeout);
-    }, [coverLetter, id]); // Deep dependency might trigger too often, strictly relying on debounce
+    }, [coverLetter, activeId]); // Deep dependency might trigger too often, strictly relying on debounce
 
     // Check subscription
     useEffect(() => {
@@ -264,6 +316,7 @@ export const CoverLetterBuilderPage = () => {
     // --- Actions ---
 
     const saveToLibrary = async (nameOverride?: string) => {
+        setIsSaving(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
@@ -271,53 +324,64 @@ export const CoverLetterBuilderPage = () => {
                 return;
             }
 
-            const nameToUse = nameOverride || libName || `Cover Letter - ${company || 'Untitled'}`;
+            const nameToUse = nameOverride || libName || coverLetter.title || `Cover Letter - ${company || 'Untitled'}`;
+            const savedAt = new Date().toISOString();
             const stateToSave = {
-                role, company, jobDescription, tone, lengthPref,
-                sender, recipient, content, typography,
-                localTitle: nameToUse
+                ...coverLetterPayload,
+                id: activeId || coverLetter.id || '',
+                title: nameToUse
             };
 
             if (currentLibId && !nameOverride) {
-                // Update
-                const { error } = await supabase
+                const { data, error } = await supabase
                     .from('cover_letters')
                     .update({
                         name: nameToUse,
-                        content: stateToSave,
-                        updated_at: new Date().toISOString()
+                        slug: coverLetter.slug,
+                        tags: coverLetter.tags,
+                        data: stateToSave,
+                        updated_at: savedAt
                     })
-                    .eq('id', currentLibId);
+                    .eq('id', currentLibId)
+                    .select()
+                    .single();
 
                 if (error) throw error;
+                setCoverLetterId(currentLibId);
+                setCurrentLibId(currentLibId);
+                setLibName(nameToUse);
+                setLastSaved(new Date(savedAt));
+                setLibrary(prev => prev.map((entry) => entry.id === currentLibId ? { ...entry, ...(data || {}), name: nameToUse, slug: coverLetter.slug, tags: coverLetter.tags, data: stateToSave, updated_at: savedAt } : entry));
                 toastSuccess('Updated', 'Cover letter saved.');
-                // setSavedAt(new Date().toISOString());
-                // Update local list
-                setLibrary(prev => prev.map(l => l.id === currentLibId ? { ...l, name: nameToUse, content: stateToSave, updated_at: new Date().toISOString() } : l));
             } else {
-                // Insert
                 const { data, error } = await supabase
                     .from('cover_letters')
                     .insert({
                         user_id: user.id,
                         name: nameToUse,
-                        content: stateToSave
+                        slug: coverLetter.slug,
+                        tags: coverLetter.tags,
+                        data: stateToSave
                     })
                     .select()
                     .single();
 
                 if (error) throw error;
                 if (data) {
+                    setCoverLetterId(data.id);
                     setCurrentLibId(data.id);
                     setLibName(nameToUse);
-                    setLibrary(prev => [data, ...prev]);
+                    setLibrary(prev => [data, ...prev.filter((entry) => entry.id !== data.id)]);
+                    setLastSaved(new Date(savedAt));
                     toastSuccess('Saved', 'New cover letter created.');
-                    // setSavedAt(new Date().toISOString());
+                    navigate('/dashboard/cover-letter/edit/' + data.id, { replace: true });
                 }
             }
         } catch (e: any) {
             console.error(e);
-            toastError('Save failed', e?.message);
+            toastError('Save failed', e?.message || 'Could not save your cover letter.');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -355,44 +419,72 @@ export const CoverLetterBuilderPage = () => {
         }
     };
 
+    const buildAiResumeContext = () => {
+        const parts = [
+            sender.name ? `Name: ${sender.name}` : '',
+            sender.email ? `Email: ${sender.email}` : '',
+            sender.phone ? `Phone: ${sender.phone}` : '',
+            sender.address ? `Location: ${sender.address}` : '',
+            role ? `Target Role: ${role}` : '',
+            company ? `Target Company: ${company}` : '',
+            finalBody ? `Draft Content:\n${finalBody}` : '',
+        ].filter(Boolean);
+        return parts.join('\n').trim();
+    };
+
     const aiPolish = async () => {
+        if (subscriptionTier === 'Free') {
+            toastError('Upgrade required', 'Cover letter AI is available on paid plans. Upgrade to use AI polish.');
+            return;
+        }
         if (!finalBody.trim()) return toastError('Empty content', 'Write something first.');
         setAiLoading(true);
         try {
-            const { data, error } = await supabase.functions.invoke('ai-polish-cover-letter', {
-                body: { content: finalBody, tone }
-            });
-            if (error) throw error;
-            if (data?.polished) {
-                setParagraphs([]);
-                setContentString(data.polished);
-                toastSuccess('Polished!', 'Your cover letter has been refined.');
-            }
+            const suggestions = await polishContent(finalBody, `Rewrite this cover letter in a ${tone} tone. Keep it concise, polished, and ready to send.`);
+            const polished = suggestions.find((item) => item.isRecommended)?.content || suggestions[0]?.content || '';
+            if (!polished) throw new Error('No AI suggestion was returned.');
+            setParagraphs([]);
+            setContentString(polished.trim());
+            toastSuccess('Polished!', 'Your cover letter has been refined.');
         } catch (e: any) {
             console.error(e);
-            toastError('AI failed', e?.message);
+            toastError('AI failed', e?.message || 'AI is temporarily unavailable.');
         } finally {
             setAiLoading(false);
         }
     };
 
     const aiWriteFull = async () => {
-        if (!role || !company) return toastError('Missing info', 'Role and Company are required.');
+        if (subscriptionTier === 'Free') {
+            toastError('Upgrade required', 'Cover letter AI is available on paid plans. Upgrade to generate tailored drafts.');
+            return;
+        }
+        if (!role || !company) return toastError('Missing info', 'Role and company are required.');
+        if (!jobDescription.trim()) return toastError('Missing job description', 'Paste the job description so AI can tailor the letter.');
+
+        const resumeText = buildAiResumeContext();
+        if (!resumeText) {
+            toastError('Missing context', 'Add your details or draft content first so AI has enough context.');
+            return;
+        }
+
         setAiLoading(true);
         try {
-            const { data, error } = await supabase.functions.invoke('ai-generate-cover-letter', {
-                body: { role, company, jobDescription, tone, lengthRef: lengthPref, senderName: sender.name }
+            const generated = await generateCoverLetterViaEdge({
+                jobDescription,
+                resumeText,
+                instructions: `Target role: ${role}\nCompany: ${company}\nTone: ${tone}\nPreferred length: ${lengthPref}\nReturn a complete ready-to-send cover letter in plain text.`
             });
-            if (error) throw error;
-            if (data?.content) {
-                const txt = data.content as string;
-                setParagraphs([]);
-                setContentString(txt);
-                toastSuccess('Generated!', 'Draft created.');
+            if (!generated.trim()) throw new Error('No cover letter was generated.');
+            setParagraphs([]);
+            setContentString(generated.trim());
+            if (!content.subject) {
+                setSubject(`Application for ${role}`);
             }
+            toastSuccess('Generated!', 'A tailored draft has been created.');
         } catch (e: any) {
             console.error(e);
-            toastError('AI failed', e?.message);
+            toastError('AI failed', e?.message || 'AI is temporarily unavailable.');
         } finally {
             setAiLoading(false);
         }
@@ -593,12 +685,12 @@ export const CoverLetterBuilderPage = () => {
                         <Pencil className="w-4 h-4 mr-2" />
                         {inlineEdit ? 'Live Edit: On' : 'Enable Live Edit'}
                     </Button>
-                    <Button variant="outline" onClick={aiPolish} disabled={aiLoading || subscriptionTier === 'Free'} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 transition-all">
+                    <Button variant="outline" onClick={aiPolish} disabled={aiLoading} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 transition-all">
                         <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
                         {aiLoading ? 'Polishing' : 'AI Polish'}
                         {subscriptionTier === 'Free' && <Lock className="ml-2 w-3 h-3 opacity-50" />}
                     </Button>
-                    <Button variant="outline" onClick={aiWriteFull} disabled={aiLoading || subscriptionTier === 'Free'} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 transition-all">
+                    <Button variant="outline" onClick={aiWriteFull} disabled={aiLoading} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 transition-all">
                         <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
                         {aiLoading ? 'Writing' : 'AI Generate'}
                         {subscriptionTier === 'Free' && <Lock className="ml-2 w-3 h-3 opacity-50" />}
@@ -620,7 +712,7 @@ export const CoverLetterBuilderPage = () => {
                         <div className="grid gap-3">
                             <div className="flex items-center justify-between">
                                 <label className="text-sm font-semibold text-white">Save Cover Letter</label>
-                                <Button variant="outline" size="sm" onClick={() => { setCurrentLibId(null); setLibName(''); }} className="h-8">New</Button>
+                                <Button variant="outline" size="sm" onClick={() => { resetCoverLetter(); setCurrentLibId(null); setLibName(''); setCoverLetterId(''); navigate('/dashboard/cover-letter/create'); }} className="h-8">New</Button>
                             </div>
                             <input value={libName} onChange={e => setLibName(e.target.value)} placeholder="Letter Name" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
                             <div className="grid grid-cols-2 gap-3">
@@ -632,11 +724,10 @@ export const CoverLetterBuilderPage = () => {
                                     className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-sm text-gray-400"
                                     onChange={(e) => {
                                         const lib = library.find(l => l.id === e.target.value);
-                                        if (lib && lib.content) {
-                                            setCoverLetter(lib.content);
-                                            setCurrentLibId(lib.id);
-                                            setLibName(lib.name);
-                                            // setSavedAt(lib.updated_at);
+                                        const payload = lib?.data || lib?.content;
+                                        if (lib && payload) {
+                                            applyLetterRecord(lib);
+                                            navigate('/dashboard/cover-letter/edit/' + lib.id, { replace: true });
                                             toastSuccess('Loaded', `Loaded ${lib.name}`);
                                         }
                                     }}

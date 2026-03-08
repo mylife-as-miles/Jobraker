@@ -952,27 +952,50 @@ export const JobPage = (): JSX.Element => {
     setQueueStatus("loading");
     setError(null);
     try {
-      const { data, error: fetchError } =
-        await supabase.functions.invoke("get-jobs");
-      if (fetchError) throw new Error(fetchError.message);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-      const jobList = (data.jobs || []).map(mapDbJobToUiJob);
+      if (!user) {
+        setJobs([]);
+        setSelectedJob(null);
+        setQueueStatus("empty");
+        return [];
+      }
+
+      const { data, error: fetchError } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (fetchError) throw fetchError;
+
+      const jobList = (data || []).map(mapDbJobToUiJob);
       const decorated = await decorateJobsRef.current(jobList);
       setJobs(decorated);
 
       if (decorated.length > 0) {
         setQueueStatus("ready");
-        setSelectedJob(decorated[0].id);
+        setSelectedJob((prev) =>
+          prev && decorated.some((job) => job.id === prev)
+            ? prev
+            : decorated[0].id,
+        );
       } else {
+        setSelectedJob(null);
         setQueueStatus("empty");
       }
-      return decorated; // Return the list for chaining
+
+      return decorated;
     } catch (e: any) {
-      setError({ message: e.message });
+      setJobs([]);
+      setSelectedJob(null);
+      setError({ message: e.message || "Failed to load jobs." });
       setQueueStatus("idle");
-      return []; // Return empty array on error
+      return [];
     }
-  }, [supabase]);
+  }, []);
 
   const executeClearAllJobs = useCallback(async () => {
     setConfirmDeleteOpen(false);
@@ -1074,7 +1097,7 @@ export const JobPage = (): JSX.Element => {
             });
             safeInfo(
               "Not enough credits",
-              `Upgrade or purchase credits to use job search.`,
+              "Upgrade or purchase credits to use job search.",
             );
             setQueueStatus("idle");
             setIncrementalMode(false);
@@ -1088,23 +1111,34 @@ export const JobPage = (): JSX.Element => {
         }
 
         // Use backend jobs-search to discover and save jobs directly
-        safeInfo("Searching the web for jobs…");
+        safeInfo("Searching the web for jobs...");
+        const searchPayload = {
+          searchQuery: query,
+          location: "Remote", // Always search for remote jobs for broader results
+          limit: maxResultsPerSearch, // Use tier-based result limit per search
+        };
         const attemptInvoke = async (): Promise<any> => {
-          const searchPayload = {
-            searchQuery: query,
-            location: "Remote", // Always search for remote jobs for broader results
-            limit: maxResultsPerSearch, // Use tier-based result limit per search
-          };
           if (debugMode)
             console.log("[debug] jobs-search request", searchPayload);
           setDbgSearchReq(searchPayload);
-          const { data, error: invokeErr } = await supabase.functions.invoke(
-            "jobs-search",
-            {
+
+          const result = (await Promise.race([
+            supabase.functions.invoke("jobs-search", {
               body: searchPayload,
-            },
-          );
-          if (invokeErr) throw new Error(invokeErr.message);
+            }),
+            new Promise<never>((_, reject) =>
+              setTimeout(
+                () => reject(new Error("Job search timed out. Please try again.")),
+                45000,
+              ),
+            ),
+          ])) as {
+            data: any;
+            error?: { message?: string } | null;
+          };
+
+          const { data, error: invokeErr } = result;
+          if (invokeErr) throw new Error(invokeErr.message || "Job search failed.");
           if (debugMode) console.log("[debug] jobs-search response", data);
           setDbgSearchRes(data);
           return data;
@@ -1138,12 +1172,15 @@ export const JobPage = (): JSX.Element => {
             setErrorDedup({ message: `Failed to search: ${detail}` });
           }
 
-          // Fallback to cached jobs
-          await fetchJobQueue();
-          safeInfo("Search Fallback", "Showing your recently saved jobs instead due to search failure.");
-
-          setQueueStatus("ready");
+          const cachedJobs = await fetchJobQueue();
+          safeInfo(
+            "Search fallback",
+            cachedJobs.length > 0
+              ? "Showing your recently saved jobs instead due to search failure."
+              : "Search failed and no saved jobs were available.",
+          );
           setIncrementalMode(false);
+          setCurrentSource(null);
           return;
         }
 
@@ -1197,8 +1234,12 @@ export const JobPage = (): JSX.Element => {
         );
         setCurrentSource(null);
       } catch (e: any) {
+        const fallbackJobs = await fetchJobQueue();
         setError({ message: `Failed to search jobs: ${e.message}` });
-        setQueueStatus("idle");
+        if (fallbackJobs.length === 0) {
+          setQueueStatus("idle");
+        }
+        setCurrentSource(null);
         setIncrementalMode(false);
       }
     },
@@ -1218,9 +1259,9 @@ export const JobPage = (): JSX.Element => {
 
   const cancelPopulation = useCallback(() => {
     setIncrementalMode(false);
-    setQueueStatus("ready");
+    setQueueStatus(jobs.length > 0 ? "ready" : "empty");
     setCurrentSource(null);
-  }, []);
+  }, [jobs.length]);
 
   const openAutoApplyFlow = useCallback(() => {
     setAutoApplyStep(1);
@@ -2158,7 +2199,7 @@ export const JobPage = (): JSX.Element => {
                 className='h-12 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#1dff00]/20 text-foreground placeholder:text-foreground/40 transition-all duration-300 rounded-xl'
               />
               <div className='absolute right-10 top-1/2 transform -translate-y-1/2'>
-                <span className='text-[10px] font-medium text-[#1dff00]/80 bg-gradient-to-br from-[#1dff00]/15 to-[#1dff00]/5 px-2.5 py-1 rounded-lg border border-[#1dff00]/30 foregroundspace-nowrap'>
+                <span className='text-[10px] font-medium text-[#1dff00]/80 bg-gradient-to-br from-[#1dff00]/15 to-[#1dff00]/5 px-2.5 py-1 rounded-lg border border-[#1dff00]/30 whitespace-nowrap'>
                   {subscriptionTier === "Ultimate"
                     ? "100"
                     : subscriptionTier === "Pro"
@@ -2441,7 +2482,7 @@ export const JobPage = (): JSX.Element => {
                 {error.link && (
                   <Link
                     to={error.link}
-                    className='underline font-bold ml-4 foregroundspace-nowrap'
+                    className='underline font-bold ml-4 whitespace-nowrap'
                   >
                     Go to Settings
                   </Link>
@@ -3214,13 +3255,13 @@ export const JobPage = (): JSX.Element => {
                                         ? job.title.slice(0, 30) + "..."
                                         : job.title}
                                     </h1>
-                                    <div className='flex items-center gap-2 text-sm text-[#ffffffc0] overflow-x-auto scrollbar-hide'>
-                                      <span className='font-medium text-foreground/90 foregroundspace-nowrap'>
+                                    <div className='flex items-center gap-2 text-sm text-foreground/70 overflow-x-auto scrollbar-hide'>
+                                      <span className='font-medium text-foreground/90 whitespace-nowrap'>
                                         {job.company}
                                       </span>
                                       {siteHost && (
                                         <span
-                                          className='inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full border border-foreground/10 bg-foreground/5 text-foreground/60 foregroundspace-nowrap flex-shrink-0'
+                                          className='inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full border border-foreground/10 bg-foreground/5 text-foreground/60 whitespace-nowrap flex-shrink-0'
                                           title={primaryHref || undefined}
                                         >
                                           {ico && (
@@ -3239,7 +3280,7 @@ export const JobPage = (): JSX.Element => {
                                         </span>
                                       )}
                                       {job.posted_at && (
-                                        <span className='text-[11px] px-2 py-1 rounded-full border border-foreground/10 text-foreground/50 bg-foreground/5 foregroundspace-nowrap flex-shrink-0'>
+                                        <span className='text-[11px] px-2 py-1 rounded-full border border-foreground/10 text-foreground/50 bg-foreground/5 whitespace-nowrap flex-shrink-0'>
                                           Posted {formatRelative(job.posted_at)}
                                         </span>
                                       )}
@@ -3295,7 +3336,7 @@ export const JobPage = (): JSX.Element => {
                         );
                       })()}
 
-                      <Card className='border border-foreground/12 bg-gradient-to-b from-[#0c0c0c] via-[#060606] to-[#020202] p-6'>
+                      <Card className='border border-border bg-card/80 p-6'>
                         <div className='flex items-center justify-between mb-4'>
                           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
                             <FileText className='w-4 h-4 text-[#1dff00]' />
@@ -3305,7 +3346,7 @@ export const JobPage = (): JSX.Element => {
                             Full brief
                           </span>
                         </div>
-                        <div className='max-w-none text-[#ffffffcc] leading-relaxed foregroundspace-pre-wrap'>
+                        <div className='max-w-none max-h-[32rem] overflow-y-auto pr-2 text-foreground/80 leading-relaxed whitespace-pre-wrap'>
                           {job.description || ""}
                         </div>
                       </Card>
@@ -4361,7 +4402,7 @@ export const JobPage = (): JSX.Element => {
                   );
                 })()}
 
-                <Card className='border border-foreground/12 bg-gradient-to-b from-[#0c0c0c] via-[#050505] to-[#020202] p-4'>
+                <Card className='border border-border bg-card/80 p-4'>
                   <div className='flex items-center justify-between mb-3'>
                     <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
                       <FileText className='w-4 h-4 text-[#1dff00]' />
@@ -4371,7 +4412,7 @@ export const JobPage = (): JSX.Element => {
                       Full brief
                     </span>
                   </div>
-                  <div className='max-w-none text-[#ffffffcc] leading-relaxed text-[13px] foregroundspace-pre-wrap'>
+                  <div className='max-w-none max-h-[45dvh] overflow-y-auto pr-1 text-foreground/80 leading-relaxed text-[13px] whitespace-pre-wrap'>
                     {j.description || ""}
                   </div>
                 </Card>
@@ -4540,3 +4581,5 @@ export const JobPage = (): JSX.Element => {
     </div>
   );
 };
+
+

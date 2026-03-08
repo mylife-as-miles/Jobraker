@@ -1,13 +1,13 @@
-import { Routes, Route } from 'react-router-dom';
+import { matchPath, useLocation } from 'react-router-dom';
 import { ResumeBuilderPage } from './ResumeBuilderPage';
 import { ResumeHomePage } from './ResumeHomePage';
 
 export const ResumePage = () => {
-    return (
-        <Routes>
-            <Route path="resume" element={<ResumeHomePage />} />
-            <Route path="resume/edit" element={<ResumeBuilderPage />} />
-            <Route path="resume/edit/:id" element={<ResumeBuilderPage />} />
-        </Routes>
+    const location = useLocation();
+    const isBuilderRoute = Boolean(
+        matchPath('/dashboard/resume/edit', location.pathname) ||
+        matchPath('/dashboard/resume/edit/:id', location.pathname)
     );
+
+    return isBuilderRoute ? <ResumeBuilderPage /> : <ResumeHomePage />;
 };

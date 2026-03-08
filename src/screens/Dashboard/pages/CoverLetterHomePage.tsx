@@ -56,16 +56,16 @@ export const CoverLetterHomePage = () => {
   const handleCreateNew = () => {
     setIsCreateModalOpen(true);
   };
-
   const handleEdit = (letter: any) => {
-    if (letter.content) {
-      setCoverLetter(letter.content);
-      // Also ensure the ID/Title matches if we stored them separately or need to sync
+    const payload = letter.data || letter.content;
+    if (payload) {
+      setCoverLetter({ ...payload, id: letter.id, title: letter.name || payload.title });
       if (letter.name) {
         useArtboardStore.getState().setCoverLetterTitle(letter.name);
       }
+      useArtboardStore.getState().setCoverLetterId(letter.id);
     }
-    navigate("/dashboard/cover-letter/edit");
+    navigate("/dashboard/cover-letter/edit/" + letter.id);
   };
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
@@ -222,7 +222,7 @@ export const CoverLetterHomePage = () => {
                   >
                     {/* Mini Cover Letter Preview */}
                     <CoverLetterPreviewCard
-                      data={letter.data}
+                      data={letter.data || letter.content}
                       name={letter.name}
                     />
 

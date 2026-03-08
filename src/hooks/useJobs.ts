@@ -37,14 +37,17 @@ export function useJobs() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const insertedCounterRef = useRef<{ date: string; count: number }>({
+    date: new Date().toISOString().slice(0, 10),
+    count: 0,
+  });
+  const dailySummarySentRef = useRef<string | null>(null);
 
   // Real-time subscription
   useEffect(() => {
     let subscription: any;
     let userId: string | null = null;
     const insertedJobIds = new Set<string>();
-    const insertedCounterRef = useRef<{ date: string; count: number }>({ date: new Date().toISOString().slice(0,10), count: 0 });
-    const dailySummarySentRef = useRef<string | null>(null);
 
     const fetchJobs = async () => {
       try {

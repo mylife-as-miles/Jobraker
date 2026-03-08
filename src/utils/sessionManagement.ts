@@ -31,15 +31,15 @@ function getDeviceInfo(): SessionInfo {
   else if (ua.includes('Opera')) browser = 'Opera';
 
   // Detect OS
-  if (ua.includes('Windows')) os = 'Windows';
+  if (ua.includes('Android')) os = 'Android';
+  else if (ua.includes('iPhone') || ua.includes('iPad') || ua.includes('iOS')) os = 'iOS';
+  else if (ua.includes('Windows')) os = 'Windows';
   else if (ua.includes('Mac')) os = 'macOS';
   else if (ua.includes('Linux')) os = 'Linux';
-  else if (ua.includes('Android')) os = 'Android';
-  else if (ua.includes('iOS') || ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
 
   // Detect device type
-  if (ua.includes('Mobile') || ua.includes('Android')) deviceType = 'mobile';
-  else if (ua.includes('Tablet') || ua.includes('iPad')) deviceType = 'tablet';
+  if (ua.includes('iPad') || ua.includes('Tablet')) deviceType = 'tablet';
+  else if (ua.includes('Mobile') || ua.includes('Android') || ua.includes('iPhone')) deviceType = 'mobile';
 
   // Generate device ID from browser fingerprint
   const deviceId = btoa(

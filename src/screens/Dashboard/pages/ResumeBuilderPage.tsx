@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ArrowLeft,
   Edit2,
@@ -27,7 +27,7 @@ import {
   HandHeart,
   Users,
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useArtboardStore } from "../../../store/artboard";
 import { createClient } from "../../../lib/supabaseClient";
 import jsPDF from "jspdf";
@@ -54,6 +54,8 @@ import { RhyhornTemplate } from "../../../templates/rhyhorn";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { Button } from "../../../components/ui/button";
 import { downloadResumePDF } from "../../../utils/resume-download";
+import { useToast } from "../../../components/ui/toast";
+import { polishContent } from "../../../services/ai/polishContent";
 
 const SECTION_ICONS: Record<string, any> = {
   experience: Briefcase,
@@ -71,16 +73,17 @@ const SECTION_ICONS: Record<string, any> = {
 };
 
 export const ResumeBuilderPage = () => {
+  const location = useLocation();
   const navigate = useNavigate();
-  const { id: urlId } = useParams();
+  const urlId = location.pathname.split("/")[4] || null;
   const [zoom, setZoom] = useState(0.8);
   const [aiLoading, setAiLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const { success, error: toastError } = useToast();
   const supabase = createClient();
-
   // Store State & Actions
   const resumeId = useArtboardStore((state) => state.resume.id);
   const resumeData = useArtboardStore((state) => state.resume.data);
@@ -198,20 +201,21 @@ export const ResumeBuilderPage = () => {
 
   // Keep existing downloadPDF logic or update it
   const downloadPDF = () => {
-    // ... (preserving existing download logic for now) ...
-    // Real implementation should probably use the renderer
-    const doc = new jsPDF({ format: "a4", unit: "pt" });
-    // ... (simplified placeholder for brevity)
-    doc.text(basics.name, 50, 50);
-    doc.save("resume.pdf");
+    downloadResumePDF(resumeData);
   };
 
-  const aiGenerateResume = async () => {
-    // ... (preserving AI logic) ...
+  const aiPolishSummary = async (instruction = "Polish this resume summary for clarity, confidence, and measurable impact.") => {
     setAiLoading(true);
-    setTimeout(() => setAiLoading(false), 1000); // Mock
+    try {
+      const source = (summary.content || basics.headline || basics.name || "").trim();
+      if (!source) throw new Error("Add a summary or headline first.");
+      const suggestions = await polishContent(source, instruction);
+      const nextSummary = suggestions.find((item) => item.isRecommended)?.content || suggestions[0]?.content || "";
+      if (!nextSummary) throw new Error("No AI suggestion was returned.");
+      setSummary(nextSummary); success(instruction.includes("fresh") ? "Summary generated" : "Summary polished", instruction.includes("fresh") ? "A new AI summary has been added to your resume." : "AI suggestions have been applied to your resume summary.");
+    } catch (e: any) { toastError(instruction.includes("fresh") ? "AI generation failed" : "AI rewrite failed", e?.message || "AI is temporarily unavailable."); } finally { setAiLoading(false); }
   };
-
+  const aiGenerateResume = async () => aiPolishSummary("Write a fresh professional resume summary in 3-4 concise sentences.");
   const handleSave = async () => {
     if (!urlId) return;
     setSaving(true);
@@ -227,13 +231,14 @@ export const ResumeBuilderPage = () => {
         })
         .eq("id", urlId);
       if (error) throw error;
-    } catch (e) {
-      console.error(e);
+      success("Resume saved", "Your latest resume changes have been saved.");
+      window.alert("Resume saved successfully.");
+    } catch (e: any) {
+      toastError("Save failed", e?.message || "Unable to save your resume right now.");
     } finally {
       setSaving(false);
     }
   };
-
   return (
     <div className='flex flex-col h-full relative overflow-hidden bg-white dark:bg-[#0A0A0A]'>
       {/* Header toolbar */}
@@ -275,11 +280,13 @@ export const ResumeBuilderPage = () => {
             Share
           </button>
 
-          <button className='flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)]'>
+          <button
+            onClick={() => aiPolishSummary()}
+            disabled={aiLoading}
+            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)] disabled:opacity-60'>
             <Sparkles className='w-4 h-4' />
-            AI Polish
+            {aiLoading ? "Polishing..." : "AI Polish"}
           </button>
-
           <button
             onClick={aiGenerateResume}
             disabled={aiLoading}

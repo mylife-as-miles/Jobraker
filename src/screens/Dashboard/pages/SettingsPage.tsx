@@ -711,7 +711,10 @@ export const SettingsPage = (): JSX.Element => {
           }
         }
       } catch (e: any) {
-        console.warn(e);
+        toastError(
+          "Failed to load job source settings",
+          e?.message || "Using default domain settings.",
+        );
       }
       setLoadingDomains(false);
     })();
@@ -3728,35 +3731,66 @@ export const SettingsPage = (): JSX.Element => {
             const { data: auth } = await supabase.auth.getUser();
             const uid = (auth as any)?.user?.id;
             if (!uid) {
+              toastError("Not signed in", "Please sign in again to save your job source settings.");
               setSavingDomains(false);
               return;
             }
 
-            // Prepare enabled default sources as array
-            const enabledDefaults = Array.from(enabledDefaultDomains);
+            const normalizeDomain = (value: string) => {
+              const trimmed = value.trim().toLowerCase();
+              if (!trimmed) return null;
+              const hostname = trimmed
+                .replace(/^https?:\/\//, "")
+                .replace(/^www\./, "")
+                .split(/[\/?#]/)[0]
+                ?.trim();
+              if (!hostname) return null;
+              if (!/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i.test(hostname)) {
+                return null;
+              }
+              return hostname;
+            };
 
-            // Prepare user custom domains
-            const customDomains = userCustomDomains
-              .split(",")
-              .map((s) => s.trim())
+            const enabledDefaults = Array.from(enabledDefaultDomains)
+              .map((domain) => normalizeDomain(domain))
+              .filter(Boolean) as string[];
+
+            const parsedCustomDomains = userCustomDomains
+              .split(/[\n,]+/)
+              .map((value) => value.trim())
               .filter(Boolean);
+            const invalidDomains = parsedCustomDomains.filter(
+              (value) => !normalizeDomain(value),
+            );
 
-            // Combine for allowed_domains (for backward compatibility and job search logic)
-            const allDomains = [...enabledDefaults, ...customDomains];
+            if (invalidDomains.length > 0) {
+              throw new Error(
+                `Invalid domains: ${invalidDomains.join(", ")}. Use domain names like careers.google.com.`,
+              );
+            }
+
+            const customDomains = [...new Set(
+              parsedCustomDomains
+                .map((value) => normalizeDomain(value))
+                .filter(Boolean) as string[],
+            )].filter((domain) => !enabledDefaults.includes(domain));
+
+            const allDomains = [...new Set([...enabledDefaults, ...customDomains])];
 
             const payload = {
               id: uid,
-              enabled_default_sources: enabledDefaults, // Save to dedicated column
-              allowed_domains: allDomains, // Also save combined list for backward compatibility
+              enabled_default_sources: enabledDefaults,
+              allowed_domains: allDomains,
               updated_at: new Date().toISOString(),
             };
             const { error } = await (supabase as any)
               .from("job_source_settings")
               .upsert(payload, { onConflict: "id" });
             if (error) throw error;
+            setUserCustomDomains(customDomains.join(", "));
             success(
               "Job source domains saved",
-              "Your allowed domains configuration has been updated successfully",
+              `Saved ${allDomains.length} enabled domains for job discovery.`,
             );
           } catch (e: any) {
             toastError(
@@ -3848,24 +3882,24 @@ export const SettingsPage = (): JSX.Element => {
                             }
                             disabled={loadingDomains}
                             className={`w-12 h-6 rounded-full transition-colors ${
-                              isEnabled ? "bg-[#1dff00]" : "bg-foreground/10"
+                              isEnabled ? 'bg-[#1dff00]' : 'bg-foreground/10'
                             }`}
                           >
                             <div
-                              className={`w-5 h-5 rounded-full bg-foreground transition-transform ${
-                                isEnabled ? "translate-x-6" : "translate-x-0.5"
+                              className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+                                isEnabled ? 'translate-x-6' : 'translate-x-0.5'
                               }`}
                             />
                           </button>
-                        </div>
-                        <div>
-                          <h4 className='text-foreground/95 font-semibold mb-1'>
-                            {source.name}
-                          </h4>
-                          <p className='text-xs text-foreground/50'>
-                            {source.description}
-                          </p>
-                        </div>
+                          <div>
+                            <h4 className='font-medium text-foreground/95'>
+                              {source.name}
+                            </h4>
+                            <p className='text-sm text-foreground/50'>
+                              {source.description}
+                            </p>
+                          </div>
+                      </div>
                       </div>
                     );
                   })}
@@ -3880,19 +3914,21 @@ export const SettingsPage = (): JSX.Element => {
                   User-Configurable Domains
                 </h3>
                 <p className='text-sm text-foreground/50 mb-4'>
-                  Add custom domains to include in job search (comma-separated).
-                  These will be combined with enabled default sources above.
+                  Add custom domains to include in job search. You can separate
+                  entries with commas or new lines. These will be combined with
+                  enabled default sources above.
                 </p>
-                <Input
+                <textarea
                   value={userCustomDomains}
                   onChange={(e) => setUserCustomDomains(e.target.value)}
                   placeholder='careers.google.com, amazon.jobs'
                   disabled={loadingDomains}
-                  className='bg-foreground/[0.05] border-foreground/[0.1] text-foreground placeholder-foreground/40'
+                  rows={4}
+                  className='w-full resize-y rounded-lg bg-foreground/[0.05] border border-foreground/[0.1] px-3 py-2 text-sm text-foreground placeholder-foreground/40 focus:outline-none focus:ring-2 focus:ring-[#1dff00]/30'
                 />
                 <p className='text-xs text-foreground/40 mt-2'>
-                  Format: comma-separated list (e.g., careers.google.com,
-                  amazon.jobs)
+                  Format: one domain per line or comma-separated (e.g.,
+                  careers.google.com, amazon.jobs)
                 </p>
               </CardContent>
             </Card>
