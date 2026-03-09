@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { isCurrentUserAdmin } from '../../lib/adminUtils';
 import { Button } from '../../components/ui/button';
 
 const navigation = [
@@ -42,7 +43,6 @@ export default function AdminLayout() {
   useEffect(() => {
     const checkAdminAccess = async () => {
       try {
-        const { isCurrentUserAdmin } = await import('@/lib/adminUtils');
         const admin = await isCurrentUserAdmin();
         setIsAdmin(admin);
 
@@ -167,8 +167,8 @@ export default function AdminLayout() {
                 whileHover={{ x: 4 }}
                 whileTap={{ scale: 0.98 }}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive
-                    ? 'bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/10 text-[#1dff00] shadow-lg shadow-[#1dff00]/10 border border-[#1dff00]/30'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-[#1dff00]/20'
+                  ? 'bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/10 text-[#1dff00] shadow-lg shadow-[#1dff00]/10 border border-[#1dff00]/30'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-[#1dff00]/20'
                   }`}
               >
                 <div className="flex items-center gap-3">

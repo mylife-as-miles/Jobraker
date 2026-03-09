@@ -28,6 +28,7 @@ import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { useProfileSettings } from "../../hooks/useProfileSettings";
 import { Skeleton } from "../../components/ui/skeleton";
 import { createClient } from "../../lib/supabaseClient";
+import { updateSessionActivity } from "../../utils/sessionManagement";
 import { isCurrentUserAdmin } from "@/lib/adminUtils";
 import { useNotifications } from "../../hooks/useNotifications";
 import { CreditDisplay } from "../../components/CreditDisplay";
@@ -117,8 +118,6 @@ export const Dashboard = (): JSX.Element => {
         navigate("/signIn");
       } else if (session.access_token) {
         // Update session activity periodically
-        const { updateSessionActivity } =
-          await import("../../utils/sessionManagement");
         updateSessionActivity(session.access_token);
       }
     };
@@ -131,8 +130,6 @@ export const Dashboard = (): JSX.Element => {
           data: { session },
         } = await supabase.auth.getSession();
         if (session?.access_token) {
-          const { updateSessionActivity } =
-            await import("../../utils/sessionManagement");
           updateSessionActivity(session.access_token);
         }
       },
