@@ -61,10 +61,10 @@ function isInQuietHours(settings: any): boolean {
   const currentTime = now.getHours() * 60 + now.getMinutes(); // minutes since midnight
   
   const startTime = settings.quiet_hours_start 
-    ? settings.quiet_hours_start.split(':').map(Number).reduce((h, m) => h * 60 + m, 0)
+    ? settings.quiet_hours_start.split(':').map(Number).reduce((h: number, m: number) => h * 60 + m, 0)
     : 22 * 60; // 22:00 default
   const endTime = settings.quiet_hours_end
-    ? settings.quiet_hours_end.split(':').map(Number).reduce((h, m) => h * 60 + m, 0)
+    ? settings.quiet_hours_end.split(':').map(Number).reduce((h: number, m: number) => h * 60 + m, 0)
     : 8 * 60; // 08:00 default
   
   // Handle overnight quiet hours (e.g., 22:00 to 08:00)
@@ -129,6 +129,14 @@ export async function createNotification(input: CreateNotificationInput) {
     // Optimistic local event so UI updates even if realtime channel is delayed/misconfigured
     if (typeof window !== 'undefined' && data) {
       window.dispatchEvent(new CustomEvent('notification:insert', { detail: data }));
+      
+      // Trigger native browser notification if enabled and permitted
+      if (settings.desktop_notifications && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification(data.title, {
+          body: data.message || '',
+          icon: '/favicon.ico', // Fallback icon path
+        });
+      }
     }
     return data;
   } catch (e: any) {
