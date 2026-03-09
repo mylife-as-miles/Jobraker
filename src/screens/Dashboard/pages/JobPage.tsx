@@ -3220,7 +3220,7 @@ export const JobPage = (): JSX.Element => {
                           >
                             <span className='pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60' />
                             <div className='relative flex flex-col gap-6'>
-                              <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5'>
+                              <div className='flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5'>
                                 <div className='flex items-start gap-3 sm:gap-4 flex-1 min-w-0'>
                                   {/* Logo - comes first */}
                                   {job.logoUrl && !logoError[job.id] ? (
@@ -3248,14 +3248,12 @@ export const JobPage = (): JSX.Element => {
                                       Featured Job
                                     </div>
                                     <h1
-                                      className='text-base sm:text-lg md:text-xl font-semibold text-foreground leading-tight line-clamp-3'
+                                      className='text-base sm:text-lg md:text-xl font-semibold text-foreground leading-tight line-clamp-2'
                                       title={job.title}
                                     >
-                                      {job.title.length > 30
-                                        ? job.title.slice(0, 30) + "..."
-                                        : job.title}
+                                      {job.title}
                                     </h1>
-                                    <div className='flex items-center gap-2 text-sm text-foreground/70 overflow-x-auto scrollbar-hide'>
+                                    <div className='flex flex-wrap items-center gap-2 text-sm text-foreground/70'>
                                       <span className='font-medium text-foreground/90 whitespace-nowrap'>
                                         {job.company}
                                       </span>
@@ -3287,13 +3285,13 @@ export const JobPage = (): JSX.Element => {
                                     </div>
                                   </div>
                                 </div>
-                                <div className='flex items-center gap-2'>
+                                <div className='flex flex-wrap items-center gap-2 lg:justify-end'>
                                   {primaryHref && (
                                     <a
                                       href={primaryHref}
                                       target='_blank'
                                       rel='noopener noreferrer'
-                                      className='inline-flex items-center gap-2 rounded-lg border border-[#1dff00]/50 bg-[#1dff00]/15 px-4 py-2 text-sm font-medium text-[#1dff00] transition hover:bg-[#1dff00]/25 hover:shadow-[0_10px_30px_rgba(29,255,0,0.2)]'
+                                      className='inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-[#1dff00]/50 bg-[#1dff00]/15 px-4 py-2 text-sm font-medium text-[#1dff00] transition hover:bg-[#1dff00]/25 hover:shadow-[0_10px_30px_rgba(29,255,0,0.2)]'
                                     >
                                       View Posting
                                     </a>
@@ -3304,7 +3302,7 @@ export const JobPage = (): JSX.Element => {
                                       setJobToAutoApply(job);
                                       openAutoApplyFlow();
                                     }}
-                                    className='inline-flex items-center gap-2 rounded-lg border border-foreground/20 bg-foreground/10 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/20'
+                                    className='inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-foreground/20 bg-foreground/10 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/20'
                                   >
                                     <Briefcase className='w-4 h-4' />
                                     Auto Apply
@@ -4581,5 +4579,4 @@ export const JobPage = (): JSX.Element => {
     </div>
   );
 };
-
 
