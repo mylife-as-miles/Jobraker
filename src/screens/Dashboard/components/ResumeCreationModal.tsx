@@ -161,15 +161,20 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                         <label htmlFor="slug" className="text-sm font-medium text-zinc-300">
                             Slug
                         </label>
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">
-                                jobraker.io/resume/
-                            </span>
+                        <div className="relative group">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
+                                <span className="text-zinc-500 text-sm font-medium">
+                                    jobraker.io/resume/
+                                </span>
+                            </div>
                             <Input
                                 id="slug"
                                 value={slug}
-                                onChange={(e) => { setManualSlug(true); setSlug(slugify(e.target.value)); }}
-                                className="bg-zinc-900 border-zinc-800 focus:border-brand text-white pl-[180px]"
+                                onChange={(e) => {
+                                    setManualSlug(true);
+                                    setSlug(slugify(e.target.value));
+                                }}
+                                className="bg-zinc-900 border-zinc-800 focus:border-brand text-white pl-[150px] transition-all"
                             />
                         </div>
                         {slugSuggestions.length > 0 && (
