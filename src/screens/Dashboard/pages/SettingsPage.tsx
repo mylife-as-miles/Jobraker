@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Button } from "../../../components/ui/button";
@@ -133,9 +134,46 @@ async function getQRCode() {
 }
 
 export const SettingsPage = (): JSX.Element => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError } = useToast();
-  const [activeTab, setActiveTab] = useState("profile");
+
+  const tabs = useMemo(() => [
+    { id: "profile", label: "Profile", icon: <User className='w-4 h-4' /> },
+    {
+      id: "notifications",
+      label: "Notifications",
+      icon: <Bell className='w-4 h-4' />,
+    },
+    { id: "security", label: "Security", icon: <Shield className='w-4 h-4' /> },
+    {
+      id: "appearance",
+      label: "Appearance",
+      icon: <Palette className='w-4 h-4' />,
+    },
+    { id: "privacy", label: "Privacy", icon: <Globe className='w-4 h-4' /> },
+    {
+      id: "job-sources",
+      label: "Job Sources",
+      icon: <SettingsIcon className='w-4 h-4' />,
+    },
+    {
+      id: "integrations",
+      label: "Integrations",
+      icon: <Link className='w-4 h-4' />,
+    },
+    {
+      id: "billing",
+      label: "Billing",
+      icon: <CreditCard className='w-4 h-4' />,
+    },
+  ], []);
+
+  const activeTab = useMemo(() => {
+    const segment = location.pathname.split("/")[3];
+    return tabs.some((t) => t.id === segment) ? segment : "profile";
+  }, [location.pathname, tabs]);
   const [showPassword, setShowPassword] = useState(false);
   const defaultJobSources = useMemo(
     () => [
@@ -699,37 +737,6 @@ export const SettingsPage = (): JSX.Element => {
     })();
   }, [activeTab, supabase]);
 
-  const tabs = [
-    { id: "profile", label: "Profile", icon: <User className='w-4 h-4' /> },
-    {
-      id: "notifications",
-      label: "Notifications",
-      icon: <Bell className='w-4 h-4' />,
-    },
-    { id: "security", label: "Security", icon: <Shield className='w-4 h-4' /> },
-    {
-      id: "appearance",
-      label: "Appearance",
-      icon: <Palette className='w-4 h-4' />,
-    },
-    { id: "privacy", label: "Privacy", icon: <Globe className='w-4 h-4' /> },
-
-    {
-      id: "job-sources",
-      label: "Job Sources",
-      icon: <SettingsIcon className='w-4 h-4' />,
-    },
-    {
-      id: "integrations",
-      label: "Integrations",
-      icon: <Link className='w-4 h-4' />,
-    },
-    {
-      id: "billing",
-      label: "Billing",
-      icon: <CreditCard className='w-4 h-4' />,
-    },
-  ];
 
   useRegisterCoachMarks({
     page: "settings",
@@ -3568,14 +3575,14 @@ export const SettingsPage = (): JSX.Element => {
                     return (
                       <div
                         key={source.id}
-                        className={`flex flex-col p-4 rounded-lg border transition-all ${isEnabled
-                          ? "bg-foreground/[0.05] border-foreground/[0.1] ring-1 ring-[#1dff00]/30"
-                          : "bg-gradient-to-br from-foreground/5 via-foreground/[0.02] to-transparent border-foreground/10"
+                        className={`p-4 rounded-xl border transition-all flex flex-col gap-4 ${isEnabled
+                          ? "bg-foreground/[0.05] border-[#1dff00]/30 shadow-[0_0_15px_rgba(29,255,0,0.05)]"
+                          : "bg-card/40 border-foreground/10 hover:border-foreground/20"
                           }`}
                       >
-                        <div className='flex items-center justify-between mb-3'>
+                        <div className='flex items-center justify-between'>
                           <div
-                            className={`w-12 h-12 rounded-lg bg-gradient-to-br ${source.color === "blue"
+                            className={`w-12 h-12 rounded-xl bg-gradient-to-br ${source.color === "blue"
                               ? "from-blue-500/20 to-blue-500/10 border-blue-500/30"
                               : source.color === "green"
                                 ? "from-green-500/20 to-green-500/10 border-green-500/30"
@@ -3584,16 +3591,14 @@ export const SettingsPage = (): JSX.Element => {
                                   : source.color === "orange"
                                     ? "from-orange-500/20 to-orange-500/10 border-orange-500/30"
                                     : "from-indigo-500/20 to-indigo-500/10 border-indigo-500/30"
-                              } border flex items-center justify-center overflow-hidden`}
+                              } border flex items-center justify-center overflow-hidden shrink-0 shadow-lg`}
                           >
                             <img
                               src={source.logo}
                               alt={source.name}
                               className='w-10 h-10 object-contain'
                               onError={(e) => {
-                                // Fallback to a simple icon if SVG fails to load
-                                const target =
-                                  e.currentTarget as HTMLImageElement;
+                                const target = e.currentTarget as HTMLImageElement;
                                 target.style.display = "none";
                                 const fallback = document.createElement("div");
                                 fallback.className = `w-8 h-8 rounded ${source.color === "blue"
@@ -3610,27 +3615,25 @@ export const SettingsPage = (): JSX.Element => {
                               }}
                             />
                           </div>
+
                           <button
-                            onClick={() =>
-                              handleToggleDefaultDomain(source.domain)
-                            }
+                            onClick={() => handleToggleDefaultDomain(source.domain)}
                             disabled={loadingDomains}
-                            className={`w-12 h-6 rounded-full transition-colors ${isEnabled ? 'bg-[#1dff00]' : 'bg-foreground/10'
-                              }`}
+                            className={`relative w-11 h-6 rounded-full transition-all duration-300 ${isEnabled ? 'bg-[#1dff00]' : 'bg-foreground/10'}`}
                           >
                             <div
-                              className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${isEnabled ? 'translate-x-6' : 'translate-x-0.5'
-                                }`}
+                              className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-300 ${isEnabled ? 'translate-x-5' : 'translate-x-0'}`}
                             />
                           </button>
-                          <div>
-                            <h4 className='font-medium text-foreground/95'>
-                              {source.name}
-                            </h4>
-                            <p className='text-sm text-foreground/50'>
-                              {source.description}
-                            </p>
-                          </div>
+                        </div>
+
+                        <div className='space-y-1.5'>
+                          <h4 className='font-semibold text-foreground/95 tracking-tight'>
+                            {source.name}
+                          </h4>
+                          <p className='text-xs text-foreground/50 leading-relaxed max-w-[200px]'>
+                            {source.description}
+                          </p>
                         </div>
                       </div>
                     );
@@ -4071,7 +4074,7 @@ export const SettingsPage = (): JSX.Element => {
                 <button
                   key={tab.id}
                   onClick={() => {
-                    setActiveTab(tab.id);
+                    navigate(`/dashboard/settings/${tab.id}`);
                     try {
                       window.dispatchEvent(
                         new CustomEvent("tour:event", {
