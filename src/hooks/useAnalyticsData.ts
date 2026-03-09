@@ -12,8 +12,9 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
   const [chartDataApps, setChartDataApps] = useState<DataPoint[]>([]);
   const [chartDataJobs, setChartDataJobs] = useState<DataPoint[]>([]);
   const [barData, setBarData] = useState<{ name: string; value: number; color: string }[]>([]);
-  const [donutData, setDonutData] = useState<{ name: string; value: number; color: string }[]>([]);
+  const [donutData, setDonutData] = useState<{ name: string; value: number; color: string; share?: number }[]>([]);
   const [matchBarData, setMatchBarData] = useState<Array<{ name: string; value: number; color: string; summary?: string | null; company?: string | null }>>([]);
+  const [sourceBreakdown, setSourceBreakdown] = useState<{ name: string; value: number; color: string }[]>([]);
   const [metrics, setMetrics] = useState({
     applications: 0,
     interviews: 0,
@@ -91,13 +92,14 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
         push([v.label, v.apps, v.jobs]);
       }
       rows.push("");
-      // Bar data
       push(["Bar Name","Value","Color"]);
       for (const b of barData) push([b.name, b.value, b.color]);
       rows.push("");
-      // Donut data
-      push(["Status","Percent","Color"]);
-      for (const d of donutData) push([d.name, d.value, d.color]);
+      push(["Source","Count","Color"]);
+      for (const source of sourceBreakdown) push([source.name, source.value, source.color]);
+      rows.push("");
+      push(["Status","Count","Share %","Color"]);
+      for (const d of donutData) push([d.name, d.value, d.share ?? 0, d.color]);
 
       if (matchBarData.length) {
         rows.push("");
@@ -135,6 +137,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
     comparisons,
     series: { applications: chartDataApps, jobs: chartDataJobs },
     barData,
+    sourceBreakdown,
     donutData,
     matchBarData,
     error,
@@ -174,6 +177,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
         setBarData([]);
         setDonutData([]);
         setMatchBarData([]);
+        setSourceBreakdown([]);
         setMetrics({ applications: 0, interviews: 0, sources: 0, jobsFound: 0, avgMatchScore: 0 });
         setComparisons({ applicationsDeltaPct: 0, interviewsDeltaPct: 0, jobsFoundDeltaPct: 0, avgMatchDelta: 0 });
         setLastUpdated(Date.now());
@@ -191,6 +195,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
           setBarData(cached.barData || []);
           setDonutData(cached.donutData || []);
           setMatchBarData(cached.matchBarData || []);
+          setSourceBreakdown(cached.sourceBreakdown || []);
           setMetrics(cached.metrics || metrics);
           setComparisons(cached.comparisons || comparisons);
           setLastUpdated(cached.lastUpdated || Date.now());
@@ -202,7 +207,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
       // Fetch applications (filter client-side to handle null applied_date)
       const { data: appsRaw, error: appsErr } = await supabase
         .from("applications")
-        .select("id, applied_date, created_at, status, updated_at, user_id")
+        .select("id, applied_date, created_at, status, updated_at, user_id, match_score, notes")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true });
       if (controller.signal.aborted) return;
@@ -211,7 +216,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
       // Fetch jobs
       const { data: jobsRaw, error: jobsErr } = await supabase
         .from("jobs")
-        .select("id, created_at, source_type, user_id, title, company, raw_data")
+        .select("id, created_at, source_type, apply_url, user_id, title, company, raw_data")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true });
       if (controller.signal.aborted) return;
@@ -237,15 +242,25 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
       const interviews = apps.filter((a: any) => String(a.status).toLowerCase() === "interview").length;
       const jobsFound = jobs.length;
       
-      // Filter sources by allowed job source domains only
-      const allowedDomains = ['remote.co', 'remotive.com', 'remoteok.com', 'jobicy.com', 'levels.fyi'];
-      const sourcesSet = new Set<string>();
-      for (const j of jobs) {
-        if (j.source_type && allowedDomains.includes(j.source_type.toLowerCase())) {
-          sourcesSet.add(j.source_type);
-        }
-      }
-      const sources = sourcesSet.size;
+      const sourcePalette = ['#1dff00', '#56c2ff', '#f59e0b', '#fb7185', '#a78bfa', '#14b8a6'];
+      const sourceCounts = groupCounts(
+        jobs.map((job: any) => {
+          const rawSource = String(job.source_type || '').trim();
+          return rawSource
+            ? rawSource.replace(/^www\./, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim()
+            : 'Unknown';
+        }),
+      );
+      const sourceBreakdownData = Array.from(sourceCounts.entries())
+        .filter(([name]) => Boolean(name))
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(([name, value], index) => ({
+          name,
+          value,
+          color: sourcePalette[index % sourcePalette.length],
+        }));
+      const sources = sourceCounts.size;
       const jobMatchEntries = jobs
         .map((j: any) => {
           const insights = j?.raw_data?.match_insights;
@@ -334,12 +349,15 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
       ];
 
       const statusCounts = groupCounts(apps.map((a: any) => a.status || 'Unknown'));
-      const totalStatus = Array.from(statusCounts.values()).reduce((s, v) => s + v, 0) || 1;
-      const donut = Array.from(statusCounts.entries()).map(([name, count]) => ({
-        name,
-        value: Math.round((count / totalStatus) * 100),
-        color: pickColor(name),
-      }));
+      const totalStatus = Array.from(statusCounts.values()).reduce((sum, count) => sum + count, 0) || 1;
+      const donut = Array.from(statusCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, count]) => ({
+          name,
+          value: count,
+          share: Math.round((count / totalStatus) * 100),
+          color: pickColor(name),
+        }));
 
       let matchBar: Array<{ name: string; value: number; color: string; summary?: string | null; company?: string | null }> = jobMatchEntries
         .slice()
@@ -378,6 +396,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
       setChartDataApps(appsSeries);
       setChartDataJobs(jobsSeries);
       setBarData(bar);
+      setSourceBreakdown(sourceBreakdownData);
       setDonutData(donut);
       setMatchBarData(matchBar);
       setLastUpdated(Date.now());
@@ -386,6 +405,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
         chartDataApps: appsSeries,
         chartDataJobs: jobsSeries,
         barData: bar,
+        sourceBreakdown: sourceBreakdownData,
         donutData: donut,
         matchBarData: matchBar,
         metrics: nextMetrics,
@@ -423,7 +443,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, range.start, range.end, granularity]);
 
-  return { chartDataApps, chartDataJobs, barData, donutData, matchBarData, metrics, comparisons, loading, error, lastUpdated, refresh, exportCSV, exportJSON, snapshot } as const;
+  return { chartDataApps, chartDataJobs, barData, sourceBreakdown, donutData, matchBarData, metrics, comparisons, loading, error, lastUpdated, refresh, exportCSV, exportJSON, snapshot } as const;
 }
 
 function computeRange(period: Period) {
