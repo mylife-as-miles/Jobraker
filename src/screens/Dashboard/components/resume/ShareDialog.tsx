@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../../../components/ui/dialog';
 import { Switch } from '../../../../components/ui/switch';
-import { Input } from '../../../../components/ui/input';
 import { Button } from '../../../../components/ui/button';
 import { useArtboardStore } from '../../../../store/artboard';
 import { createClient } from '../../../../lib/supabaseClient';
-import { Copy, Eye, Download, Globe, Share2 } from 'lucide-react';
+import { Copy, Eye, Download, Globe } from 'lucide-react';
 import { useToast } from '../../../../components/ui/toast-provider';
 
 interface ShareDialogProps {
