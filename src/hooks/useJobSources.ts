@@ -32,7 +32,6 @@ export interface JobSourceSettings {
   include_linkedin?: boolean;
   include_indeed?: boolean;
   include_search?: boolean;
-  allowed_domains?: string[];
   enabled_sources?: string[];
   created_at?: string;
   updated_at: string;

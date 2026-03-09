@@ -73,14 +73,7 @@ Deno.serve(async (req) => {
 
       if (!settingsError && settings) {
         if (Array.isArray(settings.enabled_default_sources) && settings.enabled_default_sources.length > 0) {
-          const enabledDefaults = settings.enabled_default_sources.map((d: string) => String(d).toLowerCase().trim());
-          const allDomains = Array.isArray(settings.allowed_domains) ? settings.allowed_domains : [];
-          const customDomains = allDomains
-            .map((d: string) => String(d).toLowerCase().trim())
-            .filter((d: string) => !defaultDomains.includes(d));
-          domainList = [...enabledDefaults, ...customDomains];
-        } else if (Array.isArray(settings.allowed_domains) && settings.allowed_domains.length > 0) {
-          domainList = settings.allowed_domains.map((d: string) => String(d).toLowerCase().trim());
+          domainList = settings.enabled_default_sources.map((d: string) => String(d).toLowerCase().trim());
         }
       }
     } catch (err) {

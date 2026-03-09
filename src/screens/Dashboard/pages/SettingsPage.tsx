@@ -270,7 +270,6 @@ export const SettingsPage = (): JSX.Element => {
   // Sign out dialog state
   const [signOutDialogOpen, setSignOutDialogOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
-  // Job sources domain state
   const [enabledDefaultDomains, setEnabledDefaultDomains] = useState<
     Set<string>
   >(
@@ -282,7 +281,6 @@ export const SettingsPage = (): JSX.Element => {
       "levels.fyi",
     ]),
   );
-  const [userCustomDomains, setUserCustomDomains] = useState<string>("");
   const [loadingDomains, setLoadingDomains] = useState(true);
   const [savingDomains, setSavingDomains] = useState(false);
   const passwordCheck = useMemo(
@@ -689,25 +687,6 @@ export const SettingsPage = (): JSX.Element => {
                 "levels.fyi",
               ]),
             );
-          }
-
-          // Load user custom domains from allowed_domains (excluding default sources)
-          if (Array.isArray(data.allowed_domains)) {
-            const savedDomains = data.allowed_domains.map((d: string) =>
-              d.toLowerCase().trim(),
-            );
-            const defaultJobSourceDomains = [
-              "remote.co",
-              "remotive.com",
-              "remoteok.com",
-              "jobicy.com",
-              "levels.fyi",
-            ];
-            // Extract user custom domains (not in default list)
-            const customDomains = savedDomains.filter(
-              (d: string) => !defaultJobSourceDomains.includes(d),
-            );
-            setUserCustomDomains(customDomains.join(", "));
           }
         }
       } catch (e: any) {
@@ -1490,16 +1469,14 @@ export const SettingsPage = (): JSX.Element => {
                         )
                       }
                       disabled={notifLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        (notif as any)?.[setting.key] ? "bg-brand" : "bg-muted"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${(notif as any)?.[setting.key] ? "bg-brand" : "bg-muted"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                          (notif as any)?.[setting.key]
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${(notif as any)?.[setting.key]
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -1559,18 +1536,16 @@ export const SettingsPage = (): JSX.Element => {
                         )
                       }
                       disabled={notifLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        ((notif as any)?.[setting.key] ?? true)
-                          ? "bg-brand"
-                          : "bg-muted"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${((notif as any)?.[setting.key] ?? true)
+                        ? "bg-brand"
+                        : "bg-muted"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                          ((notif as any)?.[setting.key] ?? true)
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${((notif as any)?.[setting.key] ?? true)
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -1652,20 +1627,18 @@ export const SettingsPage = (): JSX.Element => {
                       disabled={
                         notifLoading || !(notif as any)?.email_notifications
                       }
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        ((notif as any)?.[setting.key] ??
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${((notif as any)?.[setting.key] ??
                         (setting.key === "marketing_emails" ? false : true))
-                          ? "bg-brand"
-                          : "bg-muted"
-                      }`}
+                        ? "bg-brand"
+                        : "bg-muted"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                          ((notif as any)?.[setting.key] ??
+                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${((notif as any)?.[setting.key] ??
                           (setting.key === "marketing_emails" ? false : true))
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -1727,18 +1700,16 @@ export const SettingsPage = (): JSX.Element => {
                       disabled={
                         notifLoading || !(notif as any)?.push_notifications
                       }
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        ((notif as any)?.[setting.key] ?? true)
-                          ? "bg-brand"
-                          : "bg-muted"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${((notif as any)?.[setting.key] ?? true)
+                        ? "bg-brand"
+                        : "bg-muted"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                          ((notif as any)?.[setting.key] ?? true)
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${((notif as any)?.[setting.key] ?? true)
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -1772,18 +1743,16 @@ export const SettingsPage = (): JSX.Element => {
                       )
                     }
                     disabled={notifLoading}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                      ((notif as any)?.quiet_hours_enabled ?? false)
-                        ? "bg-[#1dff00]"
-                        : "bg-foreground/[0.1]"
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${((notif as any)?.quiet_hours_enabled ?? false)
+                      ? "bg-[#1dff00]"
+                      : "bg-foreground/[0.1]"
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                        ((notif as any)?.quiet_hours_enabled ?? false)
-                          ? "translate-x-6"
-                          : "translate-x-1"
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${((notif as any)?.quiet_hours_enabled ?? false)
+                        ? "translate-x-6"
+                        : "translate-x-1"
+                        }`}
                     />
                   </button>
                 </div>
@@ -2043,18 +2012,16 @@ export const SettingsPage = (): JSX.Element => {
                           });
                       }}
                       disabled={securityLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                        (sec?.require_2fa_for_login ?? false)
-                          ? "bg-brand"
-                          : "bg-muted"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${(sec?.require_2fa_for_login ?? false)
+                        ? "bg-brand"
+                        : "bg-muted"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                          (sec?.require_2fa_for_login ?? false)
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${(sec?.require_2fa_for_login ?? false)
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -2083,18 +2050,16 @@ export const SettingsPage = (): JSX.Element => {
                           });
                       }}
                       disabled={securityLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                        (sec?.backup_codes_required ?? true)
-                          ? "bg-brand"
-                          : "bg-muted"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${(sec?.backup_codes_required ?? true)
+                        ? "bg-brand"
+                        : "bg-muted"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                          (sec?.backup_codes_required ?? true)
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${(sec?.backup_codes_required ?? true)
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -2133,18 +2098,16 @@ export const SettingsPage = (): JSX.Element => {
                         });
                     }}
                     disabled={securityLoading}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                      (sec?.login_alerts_enabled ?? true)
-                        ? "bg-[#1dff00]"
-                        : "bg-foreground/[0.1]"
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${(sec?.login_alerts_enabled ?? true)
+                      ? "bg-[#1dff00]"
+                      : "bg-foreground/[0.1]"
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                        (sec?.login_alerts_enabled ?? true)
-                          ? "translate-x-6"
-                          : "translate-x-1"
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${(sec?.login_alerts_enabled ?? true)
+                        ? "translate-x-6"
+                        : "translate-x-1"
+                        }`}
                     />
                   </button>
                 </div>
@@ -2173,18 +2136,16 @@ export const SettingsPage = (): JSX.Element => {
                         });
                     }}
                     disabled={securityLoading}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                      (sec?.suspicious_login_alerts ?? true)
-                        ? "bg-[#1dff00]"
-                        : "bg-foreground/[0.1]"
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${(sec?.suspicious_login_alerts ?? true)
+                      ? "bg-[#1dff00]"
+                      : "bg-foreground/[0.1]"
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                        (sec?.suspicious_login_alerts ?? true)
-                          ? "translate-x-6"
-                          : "translate-x-1"
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${(sec?.suspicious_login_alerts ?? true)
+                        ? "translate-x-6"
+                        : "translate-x-1"
+                        }`}
                     />
                   </button>
                 </div>
@@ -2213,18 +2174,16 @@ export const SettingsPage = (): JSX.Element => {
                         });
                     }}
                     disabled={securityLoading}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                      (sec?.password_change_alerts ?? true)
-                        ? "bg-[#1dff00]"
-                        : "bg-foreground/[0.1]"
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${(sec?.password_change_alerts ?? true)
+                      ? "bg-[#1dff00]"
+                      : "bg-foreground/[0.1]"
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                        (sec?.password_change_alerts ?? true)
-                          ? "translate-x-6"
-                          : "translate-x-1"
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${(sec?.password_change_alerts ?? true)
+                        ? "translate-x-6"
+                        : "translate-x-1"
+                        }`}
                     />
                   </button>
                 </div>
@@ -2293,11 +2252,10 @@ export const SettingsPage = (): JSX.Element => {
                           </div>
                           <div>
                             <span
-                              className={`text-xs px-2 py-1 rounded ${
-                                bc.used
-                                  ? "bg-red-500/20 text-red-400"
-                                  : "bg-green-500/20 text-green-400"
-                              }`}
+                              className={`text-xs px-2 py-1 rounded ${bc.used
+                                ? "bg-red-500/20 text-red-400"
+                                : "bg-green-500/20 text-green-400"
+                                }`}
                             >
                               {bc.used ? "Used" : "Unused"}
                             </span>
@@ -2539,15 +2497,14 @@ export const SettingsPage = (): JSX.Element => {
                             {log.event_type}
                           </p>
                           <span
-                            className={`text-xs px-2 py-0.5 rounded ${
-                              log.risk_level === "critical"
-                                ? "bg-red-500/20 text-red-400"
-                                : log.risk_level === "high"
-                                  ? "bg-orange-500/20 text-orange-400"
-                                  : log.risk_level === "medium"
-                                    ? "bg-yellow-500/20 text-yellow-400"
-                                    : "bg-green-500/20 text-green-400"
-                            }`}
+                            className={`text-xs px-2 py-0.5 rounded ${log.risk_level === "critical"
+                              ? "bg-red-500/20 text-red-400"
+                              : log.risk_level === "high"
+                                ? "bg-orange-500/20 text-orange-400"
+                                : log.risk_level === "medium"
+                                  ? "bg-yellow-500/20 text-yellow-400"
+                                  : "bg-green-500/20 text-green-400"
+                              }`}
                           >
                             {log.risk_level}
                           </span>
@@ -2729,18 +2686,16 @@ export const SettingsPage = (): JSX.Element => {
                             });
                         }}
                         disabled={securityLoading}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                          (sec?.auto_logout_inactive ?? true)
-                            ? "bg-[#1dff00]"
-                            : "bg-foreground/[0.1]"
-                        }`}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${(sec?.auto_logout_inactive ?? true)
+                          ? "bg-[#1dff00]"
+                          : "bg-foreground/[0.1]"
+                          }`}
                       >
                         <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                            (sec?.auto_logout_inactive ?? true)
-                              ? "translate-x-6"
-                              : "translate-x-1"
-                          }`}
+                          className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${(sec?.auto_logout_inactive ?? true)
+                            ? "translate-x-6"
+                            : "translate-x-1"
+                            }`}
                         />
                       </button>
                     </div>
@@ -2817,18 +2772,16 @@ export const SettingsPage = (): JSX.Element => {
                           });
                       }}
                       disabled={securityLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                        (sec?.ip_foregroundlist_enabled ?? false)
-                          ? "bg-brand"
-                          : "bg-muted"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${(sec?.ip_foregroundlist_enabled ?? false)
+                        ? "bg-brand"
+                        : "bg-muted"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                          (sec?.ip_foregroundlist_enabled ?? false)
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${(sec?.ip_foregroundlist_enabled ?? false)
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -2920,18 +2873,16 @@ export const SettingsPage = (): JSX.Element => {
                             });
                         }}
                         disabled={securityLoading}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                          (sec?.api_keys_enabled ?? false)
-                            ? "bg-[#1dff00]"
-                            : "bg-foreground/[0.1]"
-                        }`}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${(sec?.api_keys_enabled ?? false)
+                          ? "bg-[#1dff00]"
+                          : "bg-foreground/[0.1]"
+                          }`}
                       >
                         <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                            (sec?.api_keys_enabled ?? false)
-                              ? "translate-x-6"
-                              : "translate-x-1"
-                          }`}
+                          className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${(sec?.api_keys_enabled ?? false)
+                            ? "translate-x-6"
+                            : "translate-x-1"
+                            }`}
                         />
                       </button>
                     </div>
@@ -2976,22 +2927,20 @@ export const SettingsPage = (): JSX.Element => {
                         toastError("Failed to set theme", e.message);
                       }
                     }}
-                    className={`p-4 rounded-lg border transition-all ${
-                      (appearanceSettings?.theme || "auto") ===
+                    className={`p-4 rounded-lg border transition-all ${(appearanceSettings?.theme || "auto") ===
                       theme.toLowerCase()
-                        ? "border-[#1dff00]/40 bg-[#1dff00]/[0.08]"
-                        : "border-foreground/[0.08] hover:border-foreground/[0.12] hover:bg-gradient-to-br from-foreground/5 via-foreground/[0.02] to-transparent"
-                    }`}
+                      ? "border-[#1dff00]/40 bg-[#1dff00]/[0.08]"
+                      : "border-foreground/[0.08] hover:border-foreground/[0.12] hover:bg-gradient-to-br from-foreground/5 via-foreground/[0.02] to-transparent"
+                      }`}
                   >
                     <div className='text-center'>
                       <div
-                        className={`w-10 h-10 rounded-lg mx-auto mb-3 border border-foreground/[0.1] ${
-                          theme === "Dark"
-                            ? "bg-zinc-900"
-                            : theme === "Light"
-                              ? "bg-zinc-100"
-                              : "bg-gradient-to-r from-zinc-900 to-zinc-100"
-                        }`}
+                        className={`w-10 h-10 rounded-lg mx-auto mb-3 border border-foreground/[0.1] ${theme === "Dark"
+                          ? "bg-zinc-900"
+                          : theme === "Light"
+                            ? "bg-zinc-100"
+                            : "bg-gradient-to-r from-zinc-900 to-zinc-100"
+                          }`}
                       ></div>
                       <p className='text-foreground/90 text-sm font-medium'>
                         {theme}
@@ -3032,13 +2981,12 @@ export const SettingsPage = (): JSX.Element => {
                         toastError("Failed to set accent", e.message);
                       }
                     }}
-                    className={`w-12 h-12 rounded-xl cursor-pointer border-2 transition-all hover:scale-110 ${
-                      (
-                        appearanceSettings?.accent_color || "#1dff00"
-                      ).toLowerCase() === color.toLowerCase()
-                        ? "border-foreground/50 ring-2 ring-foreground/20"
-                        : "border-transparent hover:border-foreground/20"
-                    }`}
+                    className={`w-12 h-12 rounded-xl cursor-pointer border-2 transition-all hover:scale-110 ${(
+                      appearanceSettings?.accent_color || "#1dff00"
+                    ).toLowerCase() === color.toLowerCase()
+                      ? "border-foreground/50 ring-2 ring-foreground/20"
+                      : "border-transparent hover:border-foreground/20"
+                      }`}
                     style={{ backgroundColor: color }}
                   ></button>
                 ))}
@@ -3079,18 +3027,16 @@ export const SettingsPage = (): JSX.Element => {
                       );
                     }
                   }}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    (appearanceSettings?.reduce_motion ?? false)
-                      ? "bg-[#1dff00]"
-                      : "bg-foreground/[0.1]"
-                  }`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${(appearanceSettings?.reduce_motion ?? false)
+                    ? "bg-[#1dff00]"
+                    : "bg-foreground/[0.1]"
+                    }`}
                 >
                   <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                      (appearanceSettings?.reduce_motion ?? false)
-                        ? "translate-x-6"
-                        : "translate-x-1"
-                    }`}
+                    className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${(appearanceSettings?.reduce_motion ?? false)
+                      ? "translate-x-6"
+                      : "translate-x-1"
+                      }`}
                   />
                 </button>
               </div>
@@ -3185,18 +3131,16 @@ export const SettingsPage = (): JSX.Element => {
                         }
                       }}
                       disabled={privacyLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                        ((privacy as any)?.[row.key] ?? false)
-                          ? "bg-brand"
-                          : "bg-muted"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${((privacy as any)?.[row.key] ?? false)
+                        ? "bg-brand"
+                        : "bg-muted"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                          ((privacy as any)?.[row.key] ?? false)
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${((privacy as any)?.[row.key] ?? false)
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -3278,18 +3222,16 @@ export const SettingsPage = (): JSX.Element => {
                         }
                       }}
                       disabled={privacyLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                        ((privacy as any)?.[row.key] ?? false)
-                          ? "bg-brand"
-                          : "bg-muted"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${((privacy as any)?.[row.key] ?? false)
+                        ? "bg-brand"
+                        : "bg-muted"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                          ((privacy as any)?.[row.key] ?? false)
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${((privacy as any)?.[row.key] ?? false)
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -3371,18 +3313,16 @@ export const SettingsPage = (): JSX.Element => {
                         }
                       }}
                       disabled={privacyLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                        ((privacy as any)?.[row.key] ?? false)
-                          ? "bg-brand"
-                          : "bg-muted"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${((privacy as any)?.[row.key] ?? false)
+                        ? "bg-brand"
+                        : "bg-muted"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                          ((privacy as any)?.[row.key] ?? false)
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${((privacy as any)?.[row.key] ?? false)
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -3474,18 +3414,16 @@ export const SettingsPage = (): JSX.Element => {
                         }
                       }}
                       disabled={privacyLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                        ((privacy as any)?.[row.key] ?? false)
-                          ? "bg-brand"
-                          : "bg-muted"
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${((privacy as any)?.[row.key] ?? false)
+                        ? "bg-brand"
+                        : "bg-muted"
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${
-                          ((privacy as any)?.[row.key] ?? false)
-                            ? "translate-x-6"
-                            : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform ${((privacy as any)?.[row.key] ?? false)
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -3628,13 +3566,12 @@ export const SettingsPage = (): JSX.Element => {
                             )}
                           </div>
                           <span
-                            className={`text-xs px-2 py-1 rounded ${
-                              req.status === "pending"
-                                ? "bg-yellow-500/20 text-yellow-400"
-                                : req.status === "processing"
-                                  ? "bg-blue-500/20 text-blue-400"
-                                  : "bg-gray-500/20 text-gray-400"
-                            }`}
+                            className={`text-xs px-2 py-1 rounded ${req.status === "pending"
+                              ? "bg-yellow-500/20 text-yellow-400"
+                              : req.status === "processing"
+                                ? "bg-blue-500/20 text-blue-400"
+                                : "bg-gray-500/20 text-gray-400"
+                              }`}
                           >
                             {req.status}
                           </span>
@@ -3755,42 +3692,19 @@ export const SettingsPage = (): JSX.Element => {
               .map((domain) => normalizeDomain(domain))
               .filter(Boolean) as string[];
 
-            const parsedCustomDomains = userCustomDomains
-              .split(/[\n,]+/)
-              .map((value) => value.trim())
-              .filter(Boolean);
-            const invalidDomains = parsedCustomDomains.filter(
-              (value) => !normalizeDomain(value),
-            );
-
-            if (invalidDomains.length > 0) {
-              throw new Error(
-                `Invalid domains: ${invalidDomains.join(", ")}. Use domain names like careers.google.com.`,
-              );
-            }
-
-            const customDomains = [...new Set(
-              parsedCustomDomains
-                .map((value) => normalizeDomain(value))
-                .filter(Boolean) as string[],
-            )].filter((domain) => !enabledDefaults.includes(domain));
-
-            const allDomains = [...new Set([...enabledDefaults, ...customDomains])];
-
             const payload = {
               id: uid,
               enabled_default_sources: enabledDefaults,
-              allowed_domains: allDomains,
+              allowed_domains: enabledDefaults, // Custom domains are now retired, only save defaults
               updated_at: new Date().toISOString(),
             };
             const { error } = await (supabase as any)
               .from("job_source_settings")
               .upsert(payload, { onConflict: "id" });
             if (error) throw error;
-            setUserCustomDomains(customDomains.join(", "));
             success(
               "Job source domains saved",
-              `Saved ${allDomains.length} enabled domains for job discovery.`,
+              `Saved ${enabledDefaults.length} enabled domains for job discovery.`,
             );
           } catch (e: any) {
             toastError(
@@ -3831,25 +3745,23 @@ export const SettingsPage = (): JSX.Element => {
                     return (
                       <div
                         key={source.id}
-                        className={`flex flex-col p-4 rounded-lg border transition-all ${
-                          isEnabled
-                            ? "bg-foreground/[0.05] border-foreground/[0.1] ring-1 ring-[#1dff00]/30"
-                            : "bg-gradient-to-br from-foreground/5 via-foreground/[0.02] to-transparent border-foreground/10"
-                        }`}
+                        className={`flex flex-col p-4 rounded-lg border transition-all ${isEnabled
+                          ? "bg-foreground/[0.05] border-foreground/[0.1] ring-1 ring-[#1dff00]/30"
+                          : "bg-gradient-to-br from-foreground/5 via-foreground/[0.02] to-transparent border-foreground/10"
+                          }`}
                       >
                         <div className='flex items-center justify-between mb-3'>
                           <div
-                            className={`w-12 h-12 rounded-lg bg-gradient-to-br ${
-                              source.color === "blue"
-                                ? "from-blue-500/20 to-blue-500/10 border-blue-500/30"
-                                : source.color === "green"
-                                  ? "from-green-500/20 to-green-500/10 border-green-500/30"
-                                  : source.color === "purple"
-                                    ? "from-purple-500/20 to-purple-500/10 border-purple-500/30"
-                                    : source.color === "orange"
-                                      ? "from-orange-500/20 to-orange-500/10 border-orange-500/30"
-                                      : "from-indigo-500/20 to-indigo-500/10 border-indigo-500/30"
-                            } border flex items-center justify-center overflow-hidden`}
+                            className={`w-12 h-12 rounded-lg bg-gradient-to-br ${source.color === "blue"
+                              ? "from-blue-500/20 to-blue-500/10 border-blue-500/30"
+                              : source.color === "green"
+                                ? "from-green-500/20 to-green-500/10 border-green-500/30"
+                                : source.color === "purple"
+                                  ? "from-purple-500/20 to-purple-500/10 border-purple-500/30"
+                                  : source.color === "orange"
+                                    ? "from-orange-500/20 to-orange-500/10 border-orange-500/30"
+                                    : "from-indigo-500/20 to-indigo-500/10 border-indigo-500/30"
+                              } border flex items-center justify-center overflow-hidden`}
                           >
                             <img
                               src={source.logo}
@@ -3861,17 +3773,16 @@ export const SettingsPage = (): JSX.Element => {
                                   e.currentTarget as HTMLImageElement;
                                 target.style.display = "none";
                                 const fallback = document.createElement("div");
-                                fallback.className = `w-8 h-8 rounded ${
-                                  source.color === "blue"
-                                    ? "bg-blue-500/30"
-                                    : source.color === "green"
-                                      ? "bg-green-500/30"
-                                      : source.color === "purple"
-                                        ? "bg-purple-500/30"
-                                        : source.color === "orange"
-                                          ? "bg-orange-500/30"
-                                          : "bg-indigo-500/30"
-                                }`;
+                                fallback.className = `w-8 h-8 rounded ${source.color === "blue"
+                                  ? "bg-blue-500/30"
+                                  : source.color === "green"
+                                    ? "bg-green-500/30"
+                                    : source.color === "purple"
+                                      ? "bg-purple-500/30"
+                                      : source.color === "orange"
+                                        ? "bg-orange-500/30"
+                                        : "bg-indigo-500/30"
+                                  }`;
                                 target.parentElement?.appendChild(fallback);
                               }}
                             />
@@ -3881,14 +3792,12 @@ export const SettingsPage = (): JSX.Element => {
                               handleToggleDefaultDomain(source.domain)
                             }
                             disabled={loadingDomains}
-                            className={`w-12 h-6 rounded-full transition-colors ${
-                              isEnabled ? 'bg-[#1dff00]' : 'bg-foreground/10'
-                            }`}
+                            className={`w-12 h-6 rounded-full transition-colors ${isEnabled ? 'bg-[#1dff00]' : 'bg-foreground/10'
+                              }`}
                           >
                             <div
-                              className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
-                                isEnabled ? 'translate-x-6' : 'translate-x-0.5'
-                              }`}
+                              className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${isEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                                }`}
                             />
                           </button>
                           <div>
@@ -3899,37 +3808,11 @@ export const SettingsPage = (): JSX.Element => {
                               {source.description}
                             </p>
                           </div>
-                      </div>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* User-Configurable Domains */}
-            <Card className='bg-gradient-to-br from-foreground/5 via-foreground/[0.02] to-transparent border-foreground/10 hover:border-foreground/20 transition-all'>
-              <CardContent className='p-6'>
-                <h3 className='text-lg font-semibold text-foreground/95 mb-2'>
-                  User-Configurable Domains
-                </h3>
-                <p className='text-sm text-foreground/50 mb-4'>
-                  Add custom domains to include in job search. You can separate
-                  entries with commas or new lines. These will be combined with
-                  enabled default sources above.
-                </p>
-                <textarea
-                  value={userCustomDomains}
-                  onChange={(e) => setUserCustomDomains(e.target.value)}
-                  placeholder='careers.google.com, amazon.jobs'
-                  disabled={loadingDomains}
-                  rows={4}
-                  className='w-full resize-y rounded-lg bg-foreground/[0.05] border border-foreground/[0.1] px-3 py-2 text-sm text-foreground placeholder-foreground/40 focus:outline-none focus:ring-2 focus:ring-[#1dff00]/30'
-                />
-                <p className='text-xs text-foreground/40 mt-2'>
-                  Format: one domain per line or comma-separated (e.g.,
-                  careers.google.com, amazon.jobs)
-                </p>
               </CardContent>
             </Card>
 
@@ -3980,11 +3863,10 @@ export const SettingsPage = (): JSX.Element => {
                 </div>
                 <Button
                   variant='outline'
-                  className={`border-foreground/[0.08] transition-all ${
-                    isGmailConnected
-                      ? "text-[#1dff00] border-[#1dff00]/30 bg-[#1dff00]/[0.05]"
-                      : "text-foreground/70 hover:text-foreground/90 hover:bg-foreground/5"
-                  }`}
+                  className={`border-foreground/[0.08] transition-all ${isGmailConnected
+                    ? "text-[#1dff00] border-[#1dff00]/30 bg-[#1dff00]/[0.05]"
+                    : "text-foreground/70 hover:text-foreground/90 hover:bg-foreground/5"
+                    }`}
                   onClick={handleConnectGmail}
                   disabled={isGmailConnected}
                 >
@@ -4082,13 +3964,12 @@ export const SettingsPage = (): JSX.Element => {
                     {getTierIcon(billingSubscriptionTier)}
                   </div>
                   <span
-                    className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                      billingSubscriptionTier === "Pro"
-                        ? "bg-blue-500/20 text-blue-300"
-                        : billingSubscriptionTier === "Ultimate"
-                          ? "bg-purple-500/20 text-purple-300"
-                          : "bg-[#1dff00]/20 text-[#0008ff]"
-                    }`}
+                    className={`text-xs font-semibold px-2 py-1 rounded-full ${billingSubscriptionTier === "Pro"
+                      ? "bg-blue-500/20 text-blue-300"
+                      : billingSubscriptionTier === "Ultimate"
+                        ? "bg-purple-500/20 text-purple-300"
+                        : "bg-[#1dff00]/20 text-[#0008ff]"
+                      }`}
                   >
                     {billingSubscriptionTier.toUpperCase()}
                   </span>
@@ -4126,10 +4007,10 @@ export const SettingsPage = (): JSX.Element => {
                   <p className='text-sm font-semibold text-foreground'>
                     {currentPeriodEnd
                       ? new Date(currentPeriodEnd).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
                       : "Not scheduled"}
                   </p>
                 </div>
@@ -4165,11 +4046,10 @@ export const SettingsPage = (): JSX.Element => {
                   return (
                     <div
                       key={plan.id}
-                      className={`group relative p-5 rounded-xl border transition-all hover:shadow-lg hover:shadow-[#1dff00]/5 hover:-translate-y-0.5 ${
-                        isCurrentPlan
-                          ? "border-[#1dff00]/40 bg-gradient-to-br from-[#1dff00]/[0.08] to-transparent shadow-[0_0_20px_rgba(29,255,0,0.1)]"
-                          : "border-foreground/[0.08] bg-gradient-to-br from-foreground/[0.02] to-transparent"
-                      }`}
+                      className={`group relative p-5 rounded-xl border transition-all hover:shadow-lg hover:shadow-[#1dff00]/5 hover:-translate-y-0.5 ${isCurrentPlan
+                        ? "border-[#1dff00]/40 bg-gradient-to-br from-[#1dff00]/[0.08] to-transparent shadow-[0_0_20px_rgba(29,255,0,0.1)]"
+                        : "border-foreground/[0.08] bg-gradient-to-br from-foreground/[0.02] to-transparent"
+                        }`}
                     >
                       {/* Header */}
                       <div className='flex items-start justify-between mb-4'>
@@ -4256,13 +4136,12 @@ export const SettingsPage = (): JSX.Element => {
                       {/* CTA */}
                       {!isCurrentPlan && (
                         <Button
-                          className={`w-full h-9 font-medium text-xs transition-all ${
-                            plan.name === "Pro"
-                              ? "bg-gradient-to-r from-blue-500 to-blue-600 text-foreground hover:opacity-90 hover:scale-105"
-                              : plan.name === "Ultimate"
-                                ? "bg-gradient-to-r from-purple-500 to-purple-600 text-foreground hover:opacity-90 hover:scale-105"
-                                : "bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black hover:opacity-90 hover:scale-105"
-                          }`}
+                          className={`w-full h-9 font-medium text-xs transition-all ${plan.name === "Pro"
+                            ? "bg-gradient-to-r from-blue-500 to-blue-600 text-foreground hover:opacity-90 hover:scale-105"
+                            : plan.name === "Ultimate"
+                              ? "bg-gradient-to-r from-purple-500 to-purple-600 text-foreground hover:opacity-90 hover:scale-105"
+                              : "bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black hover:opacity-90 hover:scale-105"
+                            }`}
                           onClick={() => {
                             window.location.href = "/dashboard/billing";
                           }}
@@ -4376,15 +4255,14 @@ export const SettingsPage = (): JSX.Element => {
                           detail: { type: "settings_tab_switch", tab: tab.id },
                         }),
                       );
-                    } catch {}
+                    } catch { }
                   }}
                   id={`settings-tab-btn-${tab.id}`}
                   data-tour={`settings-tab-btn-${tab.id}`}
-                  className={`w-full flex items-center gap-3 text-in px-4 py-2.5 rounded-lg text-sm transition-all ${
-                    activeTab === tab.id
-                      ? "text-foreground/95 bg-gradient-to-r from-foreground/[0.08] to-transparent border-l-2 border-[#1dff00]"
-                      : "text-foreground/70 hover:text-foreground/80 hover:bg-foreground/5 border-l-2 border-transparent"
-                  }`}
+                  className={`w-full flex items-center gap-3 text-in px-4 py-2.5 rounded-lg text-sm transition-all ${activeTab === tab.id
+                    ? "text-foreground/95 bg-gradient-to-r from-foreground/[0.08] to-transparent border-l-2 border-[#1dff00]"
+                    : "text-foreground/70 hover:text-foreground/80 hover:bg-foreground/5 border-l-2 border-transparent"
+                    }`}
                 >
                   <span
                     className={
@@ -4748,7 +4626,7 @@ export const SettingsPage = (): JSX.Element => {
             />
             {accountDeletionEmail &&
               accountDeletionEmail.toLowerCase().trim() !==
-                userEmail.toLowerCase().trim() && (
+              userEmail.toLowerCase().trim() && (
                 <p className='text-xs text-red-400 mt-1 flex items-center gap-1'>
                   <X className='w-3 h-3' />
                   Email does not match
@@ -4923,14 +4801,14 @@ export const SettingsPage = (): JSX.Element => {
                   toastError(
                     "Deletion failed",
                     e.message ||
-                      "An error occurred while deleting your account. Please try again or contact support.",
+                    "An error occurred while deleting your account. Please try again or contact support.",
                   );
                 }
               }}
               disabled={
                 isDeleting ||
                 accountDeletionEmail.toLowerCase().trim() !==
-                  userEmail.toLowerCase().trim()
+                userEmail.toLowerCase().trim()
               }
               className='flex-1 bg-red-600 text-foreground hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed'
             >
