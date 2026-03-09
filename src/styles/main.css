@@ -4,19 +4,22 @@
 
 @layer base {
   :root {
-    --chart-1: hsl(120 100% 50%);
-    --chart-2: hsl(120 100% 45%);
-    --chart-3: hsl(120 100% 40%);
-    --chart-4: hsl(120 100% 35%);
-    --chart-5: hsl(120 100% 30%);
+    --brand: 120 100% 50%;
+    /* Default fallback: #1dff00 */
+    --chart-1: hsl(var(--brand));
+    --chart-2: hsl(var(--brand) / 0.9);
+    --chart-3: hsl(var(--brand) / 0.8);
+    --chart-4: hsl(var(--brand) / 0.7);
+    --chart-5: hsl(var(--brand) / 0.6);
   }
 
   .dark {
-    --chart-1: hsl(120 100% 50%);
-    --chart-2: hsl(120 100% 45%);
-    --chart-3: hsl(120 100% 40%);
-    --chart-4: hsl(120 100% 35%);
-    --chart-5: hsl(120 100% 30%);
+    --brand: 120 100% 50%;
+    --chart-1: hsl(var(--brand));
+    --chart-2: hsl(var(--brand) / 0.9);
+    --chart-3: hsl(var(--brand) / 0.8);
+    --chart-4: hsl(var(--brand) / 0.7);
+    --chart-5: hsl(var(--brand) / 0.6);
   }
 }
 
@@ -56,4 +59,22 @@ body {
   100% {
     transform: translateX(100%);
   }
+}
+
+/* Global Reduced Motion Overrides */
+.rm,
+.rm * {
+  transition-duration: 0.1ms !important;
+  animation-duration: 0.1ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+}
+
+/* Framer Motion / CSS Variable for specific components */
+:root {
+  --reduce-motion: 0;
+}
+
+.rm {
+  --reduce-motion: 1;
 }
