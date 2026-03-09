@@ -54,6 +54,7 @@ import { useNotificationSettings } from "../../../hooks/useNotificationSettings"
 import { usePrivacySettings } from "../../../hooks/usePrivacySettings";
 import { useSecuritySettings } from "../../../hooks/useSecuritySettings";
 import { createClient } from "../../../lib/supabaseClient";
+import { isCurrentUserAdmin } from "../../../lib/adminUtils";
 import { useAppearance } from "../../../providers/AppearanceProvider";
 import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
@@ -138,42 +139,70 @@ export const SettingsPage = (): JSX.Element => {
   const navigate = useNavigate();
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError } = useToast();
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isAdminChecking, setIsAdminChecking] = useState(true);
 
-  const tabs = useMemo(() => [
-    { id: "profile", label: "Profile", icon: <User className='w-4 h-4' /> },
-    {
-      id: "notifications",
-      label: "Notifications",
-      icon: <Bell className='w-4 h-4' />,
-    },
-    { id: "security", label: "Security", icon: <Shield className='w-4 h-4' /> },
-    {
-      id: "appearance",
-      label: "Appearance",
-      icon: <Palette className='w-4 h-4' />,
-    },
-    { id: "privacy", label: "Privacy", icon: <Globe className='w-4 h-4' /> },
-    {
-      id: "job-sources",
-      label: "Job Sources",
-      icon: <SettingsIcon className='w-4 h-4' />,
-    },
-    {
-      id: "integrations",
-      label: "Integrations",
-      icon: <Link className='w-4 h-4' />,
-    },
-    {
-      id: "billing",
-      label: "Billing",
-      icon: <CreditCard className='w-4 h-4' />,
-    },
-  ], []);
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const admin = await isCurrentUserAdmin();
+      setIsAdmin(admin);
+      setIsAdminChecking(false);
+    };
+    checkAdmin();
+  }, []);
+
+  const tabs = useMemo(() => {
+    const baseTabs = [
+      { id: "profile", label: "Profile", icon: <User className='w-4 h-4' /> },
+      {
+        id: "notifications",
+        label: "Notifications",
+        icon: <Bell className='w-4 h-4' />,
+      },
+      { id: "security", label: "Security", icon: <Shield className='w-4 h-4' /> },
+      {
+        id: "appearance",
+        label: "Appearance",
+        icon: <Palette className='w-4 h-4' />,
+      },
+      { id: "privacy", label: "Privacy", icon: <Globe className='w-4 h-4' /> },
+      {
+        id: "job-sources",
+        label: "Job Sources",
+        icon: <SettingsIcon className='w-4 h-4' />,
+      },
+      {
+        id: "billing",
+        label: "Billing",
+        icon: <CreditCard className='w-4 h-4' />,
+      },
+    ];
+
+    if (isAdmin) {
+      // Insert Integrations tab before billing
+      const billingIndex = baseTabs.findIndex(t => t.id === "billing");
+      baseTabs.splice(billingIndex, 0, {
+        id: "integrations",
+        label: "Integrations",
+        icon: <Link className='w-4 h-4' />,
+      });
+    }
+
+    return baseTabs;
+  }, [isAdmin]);
 
   const activeTab = useMemo(() => {
     const segment = location.pathname.split("/")[3];
-    return tabs.some((t) => t.id === segment) ? segment : "profile";
-  }, [location.pathname, tabs]);
+    const requestedTab = tabs.find((t) => t.id === segment);
+
+    // If tab is not found (e.g., hidden Integrations) or invalid, default to profile
+    if (!requestedTab && !isAdminChecking && segment === "integrations" && !isAdmin) {
+      navigate("/dashboard/settings/profile", { replace: true });
+      return "profile";
+    }
+
+    return requestedTab ? requestedTab.id : "profile";
+  }, [location.pathname, tabs, isAdmin, isAdminChecking, navigate]);
   const [showPassword, setShowPassword] = useState(false);
   const defaultJobSources = useMemo(
     () => [
