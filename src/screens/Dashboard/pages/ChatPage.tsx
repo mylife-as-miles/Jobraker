@@ -21,6 +21,7 @@ import {
   BookOpen,
   Paperclip,
   ArrowUp,
+  ArrowDown,
   PanelLeft,
   X,
 } from "lucide-react";
@@ -661,6 +662,26 @@ export const ChatPage = () => {
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
+  const updateScrollState = useCallback(() => {
+    const container = chatScrollRef.current;
+    if (!container) return;
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    setShowScrollToBottom(distanceFromBottom > 160);
+  }, []);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  }, []);
+
+  useEffect(() => {
+    updateScrollState();
+  }, [messages.length, updateScrollState]);
+
   // Filtered sessions based on search
   const filteredSessions = useMemo(() => {
     if (!searchQuery.trim()) return sessions;
@@ -864,7 +885,11 @@ export const ChatPage = () => {
               </header>
 
               {/* Chat Content */}
-              <div className='flex-1 overflow-y-auto flex flex-col relative custom-scrollbar'>
+              <div
+                ref={chatScrollRef}
+                onScroll={updateScrollState}
+                className='flex-1 overflow-y-auto flex flex-col relative custom-scrollbar'
+              >
                 {messages.length === 0 ? (
                   /* Empty State / Start Screen */
                   <div className='flex-1 flex flex-col items-center justify-center p-6 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700'>
@@ -1122,11 +1147,23 @@ export const ChatPage = () => {
                       </div>
                     ))}
                     <div
-                      ref={(el) => el?.scrollIntoView({ behavior: "smooth" })}
+                      ref={messagesEndRef}
                     />
                   </div>
                 )}
               </div>
+
+              {messages.length > 0 && showScrollToBottom && (
+                <div className='pointer-events-none absolute bottom-28 right-6 z-20 md:right-10'>
+                  <button
+                    onClick={() => scrollToBottom()}
+                    className='pointer-events-auto inline-flex items-center gap-2 rounded-full border border-brand/30 bg-card/95 px-4 py-2 text-sm font-medium text-brand shadow-lg shadow-black/20 backdrop-blur transition hover:bg-card'
+                  >
+                    <ArrowDown size={16} />
+                    Latest
+                  </button>
+                </div>
+              )}
 
               {/* Input Area */}
               <div className='p-4 md:p-6 pt-0 w-full max-w-4xl mx-auto z-10 shrink-0'>
@@ -1258,5 +1295,3 @@ export const ChatPage = () => {
 };
 
 export default ChatPage;
-
-

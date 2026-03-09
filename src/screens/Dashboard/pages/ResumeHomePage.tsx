@@ -139,7 +139,7 @@ export const ResumeHomePage = () => {
       />
 
       {/* Header */}
-      <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8'>
+      <div className='flex items-center justify-between mb-8'>
         <div>
           <h1 className='text-2xl font-bold'>Resumes</h1>
           <p className='text-foreground/60 text-sm mt-1'>
@@ -176,7 +176,7 @@ export const ResumeHomePage = () => {
 
       {/* Loading Skeleton */}
       {loading && (
-        <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6'>
+        <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6'>
           {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
@@ -207,7 +207,7 @@ export const ResumeHomePage = () => {
                 </div>
               </div>
               {/* Meta skeleton */}
-              <div className='p-4 bg-[#0a0a0a] border-t border-[#ffffff10] min-w-0'>
+              <div className='p-4 bg-[#0a0a0a] border-t border-[#ffffff10]'>
                 <div className='h-3 bg-[#ffffff10] rounded-full w-3/4 mb-2' />
                 <div className='h-2 bg-[#ffffff06] rounded-full w-1/2' />
               </div>
@@ -217,56 +217,13 @@ export const ResumeHomePage = () => {
       )}
 
       {!loading && viewMode === "grid" && (
-        <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6'>
-          {/* Resume Cards */}
-          {resumes.map((resume) => (
-            <motion.div
-              key={resume.id}
-              whileHover={{ y: -5 }}
-              className='aspect-[3/4] min-h-[28rem] rounded-xl bg-foreground/10 border overflow-hidden group hover:shadow-xl transition-all relative flex flex-col'
-            >
-              {/* Preview Area (Top 2/3) */}
-              <div
-                onClick={() => handleEdit(resume.id, resume.name)}
-                className='flex-1 bg-white relative cursor-pointer overflow-hidden'
-              >
-                {/* Mini Resume Preview */}
-                <ResumePreviewCard data={resume.data} />
-
-                {/* Overlay on hover */}
-                <div className='absolute inset-0 bg-foreground/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
-                  <Button size='sm' variant='secondary' className='gap-2'>
-                    <Edit2 className='w-3 h-3' /> Edit
-                  </Button>
-                </div>
-              </div>
-
-              {/* Meta Info (Bottom) */}
-              <div className='p-4 border-t border-[#ffffff10] min-w-0'>
-                <div className='flex items-start justify-between gap-3 min-w-0'>
-                  <div className='min-w-0 flex-1'>
-                    <h3 className='font-semibold text-foreground line-clamp-2 break-words'>
-                      {resume.name}
-                    </h3>
-                    <p className='text-xs text-foreground/60 mt-1 flex items-center gap-1'>
-                      <Calendar className='w-3 h-3' />
-                      Last edited{" "}
-                      {new Date(resume.updated_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  {/* <button className='text-foreground/60 hover:text-foreground/60 p-1 rounded hover:bg-[#ffffff10]'>
-                    <MoreVertical className='w-4 h-4' />
-                  </button> */}
-                </div>
-              </div>
-            </motion.div>
-          ))}
+        <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6'>
           {/* Create New Card */}
           <motion.div
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleCreateNew}
-            className='aspect-[3/4] min-h-[28rem] rounded-xl border border-dashed border-[#ffffff20] bg-foreground/5 hover:bg-[#ffffff0a] hover:border-[#1dff00]/30 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
+            className='aspect-[3/4] rounded-xl border border-dashed border-[#ffffff20] bg-foreground/5 hover:bg-[#ffffff0a] hover:border-[#1dff00]/30 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
           >
             <div className='w-16 h-16 rounded-full bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00] group-hover:scale-110 transition-transform'>
               <Plus className='w-8 h-8' />
@@ -281,7 +238,7 @@ export const ResumeHomePage = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleImportClick}
-            className='aspect-[3/4] min-h-[28rem] rounded-xl border border-dashed border-[#ffffff20] bg-foreground/5 hover:bg-[#ffffff0a] hover:border-[#ffffff40] cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group relative'
+            className='aspect-[3/4] rounded-xl border border-dashed border-[#ffffff20] bg-foreground/5 hover:bg-[#ffffff0a] hover:border-[#ffffff40] cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group relative'
           >
             {isImporting ? (
               <div className='flex flex-col items-center gap-3'>
@@ -301,6 +258,50 @@ export const ResumeHomePage = () => {
               </>
             )}
           </motion.div>
+
+          {/* Resume Cards */}
+          {resumes.map((resume) => (
+            <motion.div
+              key={resume.id}
+              whileHover={{ y: -5 }}
+              className='aspect-[3/4] rounded-xl bg-foreground/10 border overflow-hidden group hover:shadow-xl transition-all relative flex flex-col'
+            >
+              {/* Preview Area (Top 2/3) */}
+              <div
+                onClick={() => handleEdit(resume.id, resume.name)}
+                className='flex-1 bg-white relative cursor-pointer overflow-hidden'
+              >
+                {/* Mini Resume Preview */}
+                <ResumePreviewCard data={resume.data} />
+
+                {/* Overlay on hover */}
+                <div className='absolute inset-0 bg-foreground/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
+                  <Button size='sm' variant='secondary' className='gap-2'>
+                    <Edit2 className='w-3 h-3' /> Edit
+                  </Button>
+                </div>
+              </div>
+
+              {/* Meta Info (Bottom) */}
+              <div className='p-4 border-t border-[#ffffff10]'>
+                <div className='flex items-start justify-between'>
+                  <div>
+                    <h3 className='font-semibold text-foreground truncate pr-2'>
+                      {resume.name}
+                    </h3>
+                    <p className='text-xs text-foreground/60 mt-1 flex items-center gap-1'>
+                      <Calendar className='w-3 h-3' />
+                      Last edited{' '}
+                      {new Date(resume.updated_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  {/* <button className='text-foreground/60 hover:text-foreground/60 p-1 rounded hover:bg-[#ffffff10]'>
+                    <MoreVertical className='w-4 h-4' />
+                  </button> */}
+                </div>
+              </div>
+            </motion.div>
+          ))}
         </div>
       )}
 
