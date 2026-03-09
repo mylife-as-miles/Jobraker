@@ -1,7 +1,0 @@
-const fs = require("fs");
-let text = fs.readFileSync("src/hooks/useAnalyticsData.ts", "utf8");
-text = text.replace(
-  "      const sourceCounts = groupCounts(jobs.map((job: any) => normalizeSourceLabel(job)));\n      const sourceBreakdownData = Array.from(sourceCounts.entries())\n        .filter(([name]) => Boolean(name))\n        .sort((a, b) => b[1] - a[1])\n        .slice(0, 6)\n        .map(([name, value], index) => ({\n          name,\n          value,\n          color: indexedColor(index),\n        }));\n      const sources = sourceCounts.size;",
-  "      const sourcePalette = ['#1dff00', '#56c2ff', '#f59e0b', '#fb7185', '#a78bfa', '#14b8a6'];\n      const sourceCounts = groupCounts(\n        jobs.map((job: any) => {\n          const rawSource = String(job.source_type || '').trim();\n          return rawSource\n            ? rawSource.replace(/^www\\./, '').replace(/[-_]+/g, ' ').replace(/\\s+/g, ' ').trim()\n            : 'Unknown';\n        }),\n      );\n      const sourceBreakdownData = Array.from(sourceCounts.entries())\n        .filter(([name]) => Boolean(name))\n        .sort((a, b) => b[1] - a[1])\n        .slice(0, 6)\n        .map(([name, value], index) => ({\n          name,\n          value,\n          color: sourcePalette[index % sourcePalette.length],\n        }));\n      const sources = sourceCounts.size;"
-);
-fs.writeFileSync("src/hooks/useAnalyticsData.ts", text);
