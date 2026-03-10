@@ -67,7 +67,7 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(148, 163, 184, 0.08)" />
-                  <XAxis type="number" domain={xDomain} hide />
+                  <XAxis type="number" domain={xDomain} axisLine={false} tickLine={false} tick={false} height={0} />
                   <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "rgba(148, 163, 184, 0.8)", fontSize: 11, fontWeight: 500 }} width={100} />
                   <Tooltip
                     cursor={{ fill: "rgba(16, 185, 129, 0.04)" }}
