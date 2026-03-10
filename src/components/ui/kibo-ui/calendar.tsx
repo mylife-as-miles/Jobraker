@@ -468,7 +468,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                 {monthLabel}
               </h3>
               <div className='mt-1 flex items-center gap-1 opacity-70 text-[9px]'>
-                <span className='px-1.5 py-0.5 rounded bg-white/5 border border-white/10'>
+                <span className='px-1.5 py-0.5 rounded bg-foreground/5 border border-foreground/10'>
                   {addMonths(viewMonth, -1).toLocaleString(undefined, {
                     month: "short",
                   })}
@@ -476,7 +476,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                 <span className='px-1.5 py-0.5 rounded bg-[#1dff00]/10 border border-[#1dff00]/30 text-[#1dff00]'>
                   {viewMonth.toLocaleString(undefined, { month: "short" })}
                 </span>
-                <span className='px-1.5 py-0.5 rounded bg-white/5 border border-white/10'>
+                <span className='px-1.5 py-0.5 rounded bg-foreground/5 border border-foreground/10'>
                   {addMonths(viewMonth, 1).toLocaleString(undefined, {
                     month: "short",
                   })}
@@ -743,7 +743,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                 "focus:outline-none focus-visible:ring-2 ring-[#1dff00]/60",
                 "bg-foreground/10 text-for", // Base dark background for all cells
                 cell.inCurrent ? "cursor-pointer" : "cursor-pointer opacity-40",
-                isWeekend && !isToday ? "bg-[#0c0c0c]" : "", // Slightly lighter for weekends
+                isWeekend && !isToday ? "bg-muted" : "", // Slightly lighter for weekends
                 isToday
                   ? "!bg-gradient-to-br from-[#1dff00] to-[#15c944] text-foreground font-bold shadow-lg ring-1 ring-[#1dff00]/60"
                   : "",
@@ -878,7 +878,7 @@ export const KiboCalendar: React.FC<CalendarProps> = ({
                   </button>
                 )}
                 {quickCreate && quickCreate.key === dayKey && (
-                  <div className='mt-1 p-1.5 rounded-md border border-[#1dff00]/30 bg-black/60 flex items-center gap-1'>
+                  <div className='mt-1 p-1.5 rounded-md border border-[#1dff00]/30 bg-background/60 flex items-center gap-1'>
                     <input
                       autoFocus
                       value={quickCreate.title}

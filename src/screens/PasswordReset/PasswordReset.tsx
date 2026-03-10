@@ -65,7 +65,7 @@ const PasswordReset = () => {
       <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg">
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/20 via-transparent to-[#1dff00]/20 opacity-50 rounded-xl sm:rounded-2xl" />
-          <Card className="relative bg-[#ffffff0d] border border-[#ffffff15] rounded-xl sm:rounded-2xl shadow-2xl backdrop-blur-[18px]">
+          <Card className="relative bg-foreground/5 border border-foreground/10 rounded-xl sm:rounded-2xl shadow-2xl backdrop-blur-[18px]">
             <CardContent className="p-4 sm:p-6 lg:p-8">
               {loading ? (
                 <p className="text-foreground/80 text-center">Preparing reset…</p>
@@ -73,7 +73,7 @@ const PasswordReset = () => {
                 <form onSubmit={handleUpdate} className="space-y-4">
                   <h2 className="text-foreground font-bold text-lg sm:text-xl">Set a new password</h2>
                   <div className="space-y-3">
-                    <div className="border border-white/20 rounded-xl px-4 py-3">
+                    <div className="border border-foreground/20 rounded-xl px-4 py-3">
                       <Input
                         type="password"
                         placeholder="New password"
@@ -84,7 +84,7 @@ const PasswordReset = () => {
                         onChange={(e) => setPassword(e.target.value)}
                       />
                     </div>
-                    <div className="border border-white/20 rounded-xl px-4 py-3">
+                    <div className="border border-foreground/20 rounded-xl px-4 py-3">
                       <Input
                         type="password"
                         placeholder="Confirm new password"
@@ -135,7 +135,7 @@ const PasswordReset = () => {
                 <div className="space-y-4 text-center">
                   <h2 className="text-foreground font-bold text-lg sm:text-xl">Reset link expired or invalid</h2>
                   <p className="text-foreground/70">Request a new reset link and try again.</p>
-                  <Button onClick={() => navigate('/login')} className="bg-white/15 hover:bg-white/25 text-foreground rounded-xl">Go to Login</Button>
+                  <Button onClick={() => navigate('/login')} className="bg-foreground/15 hover:bg-foreground/25 text-foreground rounded-xl">Go to Login</Button>
                 </div>
               )}
             </CardContent>

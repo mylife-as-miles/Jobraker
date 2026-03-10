@@ -62,12 +62,12 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
         </div>
 
         <div className="relative z-10 text-center">
-          <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1dff00]/20 to-purple-500/20 border border-white/10">
+          <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1dff00]/20 to-purple-500/20 border border-foreground/10">
             <Lock className="h-8 w-8 text-[#1dff00]" />
           </div>
           
           <h3 className="mb-2 text-xl font-semibold text-white">{title}</h3>
-          <p className="mb-6 text-sm text-white/60">{description}</p>
+          <p className="mb-6 text-sm text-foreground/60">{description}</p>
 
           <Link to="/dashboard/billing">
             <Button className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] hover:from-[#1dff00]/90 hover:to-[#0a8246]/90 text-black font-semibold">
@@ -85,7 +85,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
       initial='hidden'
       animate='visible'
       variants={containerVariants}
-      className={`relative overflow-hidden rounded-3xl border border-white/10bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  ${className}`}
+      className={`relative overflow-hidden rounded-3xl border border-foreground/10bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  ${className}`}
     >
       {/* Ambient background effects */}
       <div className='pointer-events-none absolute inset-0'>

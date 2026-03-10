@@ -83,7 +83,7 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
     return (
         <div className="fixed inset-0 z-[120] bg-[#102213] flex animate-in fade-in duration-300">
             {/* Sidebar customization panel */}
-            <aside className="w-80 border-r border-[#28392b] bg-[#111812] flex flex-col shrink-0">
+            <aside className="w-80 border-r border-[#28392b] bg-foreground flex flex-col shrink-0">
                 <div className="p-6 border-b border-[#28392b]">
                     <button
                         onClick={onBack}
@@ -137,8 +137,8 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                                     className={cn(
                                         "h-10 rounded border text-sm font-medium transition-all flex items-center justify-center",
                                         fontFamily === font.family
-                                            ? "bg-[#28392b] border-[#1dff00] text-foreground shadow-[0_0_10px_rgba(29,255,0,0.1)]"
-                                            : "bg-[#1a261c] border-transparent text-[#9cbaa1] hover:border-[#28392b] hover:text-foreground"
+                                            ? "bg-border border-[#1dff00] text-foreground shadow-[0_0_10px_rgba(29,255,0,0.1)]"
+                                            : "bg-background border-transparent text-[#9cbaa1] hover:border-[#28392b] hover:text-foreground"
                                     )}
                                 >
                                     {font.name}
@@ -156,7 +156,7 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                             <Edit3 className="w-5 h-5" />
                             Use This Template
                         </button>
-                        <button className="w-full flex items-center justify-center gap-2 h-12 bg-[#28392b] hover:bg-[#344a38] text-foreground rounded-lg font-semibold text-base transition-colors opacity-50 cursor-not-allowed">
+                        <button className="w-full flex items-center justify-center gap-2 h-12 bg-border hover:bg-[#344a38] text-foreground rounded-lg font-semibold text-base transition-colors opacity-50 cursor-not-allowed">
                             <Download className="w-5 h-5" />
                             Download PDF
                         </button>
@@ -165,13 +165,13 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
             </aside>
 
             {/* Preview Canvas Area */}
-            <div className="flex-1 flex flex-col relative overflow-hidden bg-[#0A0A0A]">
+            <div className="flex-1 flex flex-col relative overflow-hidden bg-background">
                 {/* Toolbar */}
-                <div className="h-14 border-b border-[#28392b] bg-[#111812]/50 backdrop-blur-sm flex items-center justify-between px-6 shrink-0">
+                <div className="h-14 border-b border-[#28392b] bg-foreground/50 backdrop-blur-sm flex items-center justify-between px-6 shrink-0">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => setZoom(prev => Math.min(prev + 0.1, 2))}
-                            className="p-1.5 hover:bg-[#28392b] rounded-lg text-[#9cbaa1] hover:text-foreground transition-colors"
+                            className="p-1.5 hover:bg-border rounded-lg text-[#9cbaa1] hover:text-foreground transition-colors"
                         >
                             <ZoomIn className="w-5 h-5" />
                         </button>
@@ -180,14 +180,14 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                         </span>
                         <button
                             onClick={() => setZoom(prev => Math.max(prev - 0.1, 0.5))}
-                            className="p-1.5 hover:bg-[#28392b] rounded-lg text-[#9cbaa1] hover:text-foreground transition-colors"
+                            className="p-1.5 hover:bg-border rounded-lg text-[#9cbaa1] hover:text-foreground transition-colors"
                         >
                             <ZoomOut className="w-5 h-5" />
                         </button>
-                        <div className="h-6 w-px bg-[#28392b]" />
+                        <div className="h-6 w-px bg-border" />
                         <button
                             onClick={() => setZoom(1)}
-                            className="p-1.5 hover:bg-[#28392b] rounded-lg text-[#9cbaa1] hover:text-foreground transition-colors"
+                            className="p-1.5 hover:bg-border rounded-lg text-[#9cbaa1] hover:text-foreground transition-colors"
                             title="Reset Zoom"
                         >
                             <Maximize className="w-5 h-5" />

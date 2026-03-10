@@ -52,10 +52,10 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
       {section.items.map((item) => (
         <div
           key={item.id}
-          className='bg-gray-100 dark:bg-muted/50 rounded-lg border border-gray-200 dark:border-white/5 overflow-hidden transition-all hover:border-[#1dff00]/30'
+          className='bg-gray-100 dark:bg-muted/50 rounded-lg border border-gray-200 dark:border-foreground/5 overflow-hidden transition-all hover:border-[#1dff00]/30'
         >
           <div
-            className='p-3 flex items-center gap-3 cursor-pointer bg-white/50 dark:bg-muted/50 hover:bg-gray-50 dark:hover:bg-muted'
+            className='p-3 flex items-center gap-3 cursor-pointer bg-foreground/50 dark:bg-muted/50 hover:bg-gray-50 dark:hover:bg-muted'
             onClick={() =>
               setExpandedItem(expandedItem === item.id ? null : item.id)
             }
@@ -93,7 +93,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
           </div>
 
           {expandedItem === item.id && (
-            <div className='p-4 space-y-3 bg-white dark:bg-[#0A0A0A] border-t border-gray-200 dark:border-white/5'>
+            <div className='p-4 space-y-3 bg-white dark:bg-background border-t border-gray-200 dark:border-foreground/5'>
               <div className='grid grid-cols-2 gap-3'>
                 <div className='col-span-2'>
                   <label className='text-xs font-medium text-gray-500 mb-1 block'>
@@ -219,7 +219,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
 
       <Button
         variant='outline'
-        className='w-full border-dashed border-gray-300 dark:border-white/20 hover:border-[#1dff00] hover:text-[#1dff00]'
+        className='w-full border-dashed border-gray-300 dark:border-foreground/20 hover:border-[#1dff00] hover:text-[#1dff00]'
         onClick={handleAddItem}
       >
         <Plus className='w-4 h-4 mr-2' />

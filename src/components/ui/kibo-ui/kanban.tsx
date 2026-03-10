@@ -56,7 +56,7 @@ export function KanbanBoard({ id, children }: { id: string; children: React.Reac
   return (
     <div
       data-column-id={id}
-      className="relative rounded-xl border border-white/10 bg-gradient-to-br from-[#0a0a0a] via-[#0f0f0f] to-[#0a0a0a] backdrop-blur-xl p-4 md:p-5 min-w-[85vw] sm:min-w-[420px] md:min-w-0 snap-start shadow-lg hover:shadow-xl hover:border-white/15 transition-all duration-300"
+      className="relative rounded-xl border border-foreground/10 bg-gradient-to-br from-[#0a0a0a] via-[#0f0f0f] to-[#0a0a0a] backdrop-blur-xl p-4 md:p-5 min-w-[85vw] sm:min-w-[420px] md:min-w-0 snap-start shadow-lg hover:shadow-xl hover:border-foreground/15 transition-all duration-300"
       role="list"
       aria-roledescription="Kanban column"
     >
@@ -70,7 +70,7 @@ export function KanbanBoard({ id, children }: { id: string; children: React.Reac
 
 export function KanbanHeader({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative mb-4 md:mb-5 flex items-center justify-between pb-3 border-b border-white/8">
+    <div className="relative mb-4 md:mb-5 flex items-center justify-between pb-3 border-b border-foreground/8">
       {children}
     </div>
   );
@@ -83,7 +83,7 @@ export function KanbanCards<T extends Item>({ id, children }: { id: string; chil
   
   return (
     <div
-      className={`space-y-3 min-h-[120px] rounded-lg transition-all duration-300 ${isDragOver ? 'bg-white/5 ring-2 ring-white/20 ring-inset border-2 border-dashed border-white/20' : ''}`}
+      className={`space-y-3 min-h-[120px] rounded-lg transition-all duration-300 ${isDragOver ? 'bg-foreground/5 ring-2 ring-white/20 ring-inset border-2 border-dashed border-foreground/20' : ''}`}
       onDragOver={(e) => {
         if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
         e.preventDefault();
@@ -99,11 +99,11 @@ export function KanbanCards<T extends Item>({ id, children }: { id: string; chil
     >
       {items.length === 0 && (
         <div className="flex flex-col items-center justify-center py-10 text-center">
-          <div className="h-10 w-10 rounded-lg bg-white/5 border border-white/8 flex items-center justify-center mb-3">
-            <div className="h-5 w-5 rounded bg-white/10" />
+          <div className="h-10 w-10 rounded-lg bg-foreground/5 border border-foreground/8 flex items-center justify-center mb-3">
+            <div className="h-5 w-5 rounded bg-foreground/10" />
           </div>
-          <p className="text-xs font-medium text-white/45">No items yet</p>
-          <p className="text-[10px] text-white/30 mt-1">Drag cards here</p>
+          <p className="text-xs font-medium text-foreground/45">No items yet</p>
+          <p className="text-[10px] text-foreground/30 mt-1">Drag cards here</p>
         </div>
       )}
       <AnimatePresence initial={false}>
@@ -141,10 +141,10 @@ export function KanbanCard({ id, children }: { id?: string; name?: string; colum
   return (
     <motion.div
       layout
-      className={`group relative rounded-lg border bg-gradient-to-br from-[#0f0f0f] to-[#0a0a0a] p-4 transition-all duration-200 cursor-grab active:cursor-grabbing ${
+      className={`group relative rounded-lg border bg-gradient-to-br from-background to-background/95 p-4 transition-all duration-200 cursor-grab active:cursor-grabbing ${
         isDragging 
           ? 'border-[#1dff00]/50 shadow-[0_0_30px_rgba(29,255,0,0.3)] scale-105 opacity-50' 
-          : 'border-white/8 hover:border-white/15 bg-[#0f0f0f] shadow-sm hover:shadow-md'
+          : 'border-foreground/8 hover:border-foreground/15 bg-[#0f0f0f] shadow-sm hover:shadow-md'
       }`}
       draggable
       onDragStart={handleDragStart as any}

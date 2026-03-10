@@ -58,7 +58,7 @@ export const OverviewPage = (): JSX.Element => {
         className = `${baseSize} ${shared} bg-[#0d4d66]/40 ring-[#56c2ff]/30 text-[#56c2ff] group-hover:ring-[#56c2ff]/60`;
         inner = <Building2 className='w-4 h-4 sm:w-5 sm:h-5' />;
       } else if (n.type === "company") {
-        className = `${baseSize} ${shared} bg-[#1e1e1e] ring-foreground/10 text-foreground group-hover:ring-[#1dff00]/50`;
+        className = `${baseSize} ${shared} bg-background ring-foreground/10 text-foreground group-hover:ring-[#1dff00]/50`;
         inner = (n.company || "C").charAt(0).toUpperCase();
       } else {
         // system / fallback

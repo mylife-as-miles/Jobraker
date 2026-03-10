@@ -714,7 +714,7 @@ export const CoverLetterBuilderPage = () => {
                                 <label className="text-sm font-semibold text-foreground">Save Cover Letter</label>
                                 <Button variant="outline" size="sm" onClick={() => { resetCoverLetter(); setCurrentLibId(null); setLibName(''); setCoverLetterId(''); navigate('/dashboard/cover-letter/create'); }} className="h-8">New</Button>
                             </div>
-                            <input value={libName} onChange={e => setLibName(e.target.value)} placeholder="Letter Name" className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                            <input value={libName} onChange={e => setLibName(e.target.value)} placeholder="Letter Name" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
                             <div className="grid grid-cols-2 gap-3">
                                 <Button onClick={() => saveToLibrary()} variant="outline" className="border-[#1dff00]/30">{currentLibId ? 'Update' : 'Save'}</Button>
                                 <Button onClick={() => saveToLibrary(libName)} variant="outline">Save As New</Button>
@@ -748,24 +748,24 @@ export const CoverLetterBuilderPage = () => {
                                     <Button size="sm" variant="outline" onClick={() => { setSenderName(''); setSenderEmail(''); setSenderPhone(''); setSenderAddress(''); }} className="h-7 text-xs">Clear</Button>
                                 </div>
                             </div>
-                            <input value={sender.name} onChange={e => setSenderName(e.target.value)} placeholder="Name" className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                            <input value={sender.name} onChange={e => setSenderName(e.target.value)} placeholder="Name" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
                             <div className="grid grid-cols-2 gap-3">
-                                <input value={sender.email} onChange={e => setSenderEmail(e.target.value)} placeholder="Email" className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
-                                <input value={sender.phone} onChange={e => setSenderPhone(e.target.value)} placeholder="Phone" className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                                <input value={sender.email} onChange={e => setSenderEmail(e.target.value)} placeholder="Email" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                                <input value={sender.phone} onChange={e => setSenderPhone(e.target.value)} placeholder="Phone" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
                             </div>
-                            <input value={sender.address} onChange={e => setSenderAddress(e.target.value)} placeholder="Address" className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                            <input value={sender.address} onChange={e => setSenderAddress(e.target.value)} placeholder="Address" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
                         </div>
 
                         {/* Recipient */}
                         <div className="grid gap-3">
                             <label className="text-sm font-semibold text-foreground">Recipient Info</label>
                             <div className="grid grid-cols-2 gap-3">
-                                <input value={recipient.name} onChange={e => setRecipientName(e.target.value)} placeholder="Name" className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
-                                <input value={recipient.title} onChange={e => setRecipientTitle(e.target.value)} placeholder="Title" className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                                <input value={recipient.name} onChange={e => setRecipientName(e.target.value)} placeholder="Name" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                                <input value={recipient.title} onChange={e => setRecipientTitle(e.target.value)} placeholder="Title" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <input value={company} onChange={e => setCompany(e.target.value)} placeholder="Company" className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
-                                <input value={recipient.address} onChange={e => setRecipientAddress(e.target.value)} placeholder="Address" className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                                <input value={company} onChange={e => setCompany(e.target.value)} placeholder="Company" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                                <input value={recipient.address} onChange={e => setRecipientAddress(e.target.value)} placeholder="Address" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
                             </div>
                         </div>
 
@@ -773,17 +773,17 @@ export const CoverLetterBuilderPage = () => {
                         <div className="grid gap-3">
                             <label className="text-sm font-semibold text-foreground">Details</label>
                             <div className="grid grid-cols-2 gap-3">
-                                <input type="date" value={content.date} onChange={e => setDate(e.target.value)} className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
-                                <input value={content.subject} onChange={e => setSubject(e.target.value)} placeholder="Subject" className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                                <input type="date" value={content.date} onChange={e => setDate(e.target.value)} className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                                <input value={content.subject} onChange={e => setSubject(e.target.value)} placeholder="Subject" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
                             </div>
-                            <input value={content.salutation} onChange={e => setSalutation(e.target.value)} placeholder="Salutation" className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                            <input value={content.salutation} onChange={e => setSalutation(e.target.value)} placeholder="Salutation" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
                             <div className="grid grid-cols-2 gap-3">
-                                <select value={tone} onChange={e => setTone(e.target.value)} className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none">
+                                <select value={tone} onChange={e => setTone(e.target.value)} className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none">
                                     <option value="professional">Professional</option>
                                     <option value="friendly">Friendly</option>
                                     <option value="enthusiastic">Enthusiastic</option>
                                 </select>
-                                <select value={lengthPref} onChange={e => setLengthPref(e.target.value)} className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none">
+                                <select value={lengthPref} onChange={e => setLengthPref(e.target.value)} className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none">
                                     <option value="short">Short</option>
                                     <option value="medium">Medium</option>
                                     <option value="long">Long</option>
@@ -802,7 +802,7 @@ export const CoverLetterBuilderPage = () => {
                                 value={content.rawBody}
                                 onChange={e => setContentString(e.target.value)}
                                 rows={6}
-                                className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none"
+                                className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none"
                                 placeholder="Raw content..."
                             />
 
@@ -818,7 +818,7 @@ export const CoverLetterBuilderPage = () => {
                                             value={p}
                                             onChange={e => updateParagraph(idx, e.target.value)}
                                             rows={3}
-                                            className="w-full bg-muted/50 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] outline-none"
+                                            className="w-full bg-muted/50 border border-foreground/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] outline-none"
                                         />
                                         <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 flex gap-1 bg-muted/50 rounded">
                                             <button onClick={() => moveParagraphUp(idx)} className="p-1 hover:text-[#1dff00]"><ArrowUp className="w-3 h-3" /></button>
@@ -832,14 +832,14 @@ export const CoverLetterBuilderPage = () => {
                                 value={jobDescription}
                                 onChange={e => setJobDescription(e.target.value)}
                                 placeholder="Paste Job Description for AI context..."
-                                className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none mt-2"
+                                className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none mt-2"
                             />
                         </div>
 
                         {/* Closing */}
                         <div className="grid grid-cols-2 gap-3">
-                            <input value={content.closing} onChange={e => setClosing(e.target.value)} placeholder="Closing" className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
-                            <input value={content.signature} onChange={e => setSignatureName(e.target.value)} placeholder="Signature" className="w-full bg-muted/50 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                            <input value={content.closing} onChange={e => setClosing(e.target.value)} placeholder="Closing" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                            <input value={content.signature} onChange={e => setSignatureName(e.target.value)} placeholder="Signature" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
                         </div>
                     </div>
                 </Card>
@@ -891,18 +891,18 @@ export const CoverLetterBuilderPage = () => {
             </div>
 
             {/* Config Toolbar */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[#0a0a0a]/90 backdrop-blur border border-[#1dff00]/30 p-2 rounded-2xl shadow-xl z-50">
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-background/90 backdrop-blur border border-[#1dff00]/30 p-2 rounded-2xl shadow-xl z-50">
                 <Button size="icon" variant="ghost" onClick={zoomOut} className="hover:text-[#1dff00]"><Minus className="w-4 h-4" /></Button>
                 <span className="text-xs font-mono w-12 text-center">{typography.fontSize}px</span>
                 <Button size="icon" variant="ghost" onClick={zoomIn} className="hover:text-[#1dff00]"><Plus className="w-4 h-4" /></Button>
-                <div className="w-px h-4 bg-white/20 mx-2" />
+                <div className="w-px h-4 bg-foreground/20 mx-2" />
                 <Button size="sm" variant="ghost" onClick={clearDraft} className="text-red-400 hover:text-red-500 hover:bg-red-500/10">Clear</Button>
             </div>
 
             {/* Export Modal */}
             {exportOpen && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-                    <div className="relative w-full max-w-md bg-[#0a0a0a] border border-[#1dff00]/30 rounded-2xl p-6 shadow-2xl">
+                    <div className="relative w-full max-w-md bg-background border border-[#1dff00]/30 rounded-2xl p-6 shadow-2xl">
                         <button onClick={() => setExportOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-foreground"><X className="w-5 h-5" /></button>
                         <h2 className="text-xl font-bold text-foreground mb-2">Export Cover Letter</h2>
                         <p className="text-sm text-gray-400 mb-6">Choose a format to download your letter.</p>
@@ -921,7 +921,7 @@ export const CoverLetterBuilderPage = () => {
                             </Button>
                         </div>
 
-                        <div className="mt-6 pt-4 border-t border-white/10 flex gap-3">
+                        <div className="mt-6 pt-4 border-t border-foreground/10 flex gap-3">
                             <Button onClick={printLetter} className="flex-1" variant="ghost"><Printer className="w-4 h-4 mr-2" /> Print</Button>
                             <Button onClick={copyPlain} className="flex-1" variant="ghost"><Share2 className="w-4 h-4 mr-2" /> Copy</Button>
                             <Button onClick={share} className="flex-1" variant="ghost"><Share2 className="w-4 h-4 mr-2" /> Share</Button>

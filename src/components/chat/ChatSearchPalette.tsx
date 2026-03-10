@@ -33,7 +33,7 @@ export const ChatSearchPalette = ({ open, onClose }: Props) => {
   return (
     <AnimatePresence>
       {open && (
-        <motion.div className="fixed inset-0 z-[200] flex items-start justify-center pt-24 backdrop-blur-sm bg-black/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div className="fixed inset-0 z-[200] flex items-start justify-center pt-24 backdrop-blur-sm bg-background/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y:0, opacity:1 }} exit={{ y: 20, opacity: 0 }} transition={{ type:'spring', stiffness: 240, damping: 24 }} className="w-full max-w-2xl rounded-2xl border border-[#1dff00]/30 bg-[#060806] shadow-xl overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-[#1dff00]/20 bg-[#0b0f0b]">
               <Search className="w-4 h-4 text-[#1dff00]" />

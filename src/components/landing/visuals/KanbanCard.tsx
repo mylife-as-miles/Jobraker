@@ -46,7 +46,7 @@ export const KanbanCard = () => {
           <div className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold mb-1">
             {col.title}
           </div>
-          <div className="flex-1 bg-white/5 rounded-lg p-2 flex flex-col gap-2">
+          <div className="flex-1 bg-foreground/5 rounded-lg p-2 flex flex-col gap-2">
             {col.cards.map((card: any) => (
               <motion.div
                 layoutId={`card-${card}`}

@@ -52,7 +52,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, fo
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] overflow-y-auto">
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 bg-background/60 backdrop-blur-sm" onClick={onClose} />
       {side === "center" ? (
         <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
           <div className={cn("relative z-10 w-full pointer-events-auto", sizes[size])}>

@@ -35,7 +35,7 @@ export interface RoadmapColumnDef {
 export type RoadmapStatus = 'planned' | 'in-progress' | 'done' | 'blocked';
 
 const STATUS_META: Record<RoadmapStatus, { label: string; color: string; dot: string; ring: string } > = {
-  planned: { label: 'Planned', color: 'text-white/70', dot: 'bg-zinc-400', ring: 'ring-zinc-400/30' },
+  planned: { label: 'Planned', color: 'text-foreground/70', dot: 'bg-zinc-400', ring: 'ring-zinc-400/30' },
   'in-progress': { label: 'In Progress', color: 'text-amber-200', dot: 'bg-amber-400 animate-pulse', ring: 'ring-amber-400/40' },
   done: { label: 'Done', color: 'text-emerald-200', dot: 'bg-emerald-400', ring: 'ring-emerald-400/40' },
   blocked: { label: 'Blocked', color: 'text-rose-200', dot: 'bg-rose-500', ring: 'ring-rose-500/40' },
@@ -79,9 +79,9 @@ export const RoadmapColumn = React.forwardRef<HTMLDivElement, RoadmapColumnProps
       >
         <div className='flex flex-col'>
           <div className={cn('text-sm font-medium tracking-wide inline-flex items-center gap-2', accentClass || 'text-white')}> 
-            <span className='relative px-2 py-1 rounded-lg bg-white/5 border border-white/10 backdrop-blur-sm text-[11px] uppercase'>{label}</span>
+            <span className='relative px-2 py-1 rounded-lg bg-foreground/5 border border-foreground/10 backdrop-blur-sm text-[11px] uppercase'>{label}</span>
           </div>
-          {description && <p className='mt-1 text-[11px] text-white/50 leading-snug'>{description}</p>}
+          {description && <p className='mt-1 text-[11px] text-foreground/50 leading-snug'>{description}</p>}
         </div>
         {headerExtra && <div className='ml-2'>{headerExtra}</div>}
       </div>
@@ -103,7 +103,7 @@ export const RoadmapGroup: React.FC<RoadmapGroupProps> = ({ label, collapsible, 
   const [open, setOpen] = React.useState(defaultOpen);
   const Wrapper: any = 'div';
   return (
-    <Wrapper className={cn('rounded-xl border border-white/10 bg-white/[0.03] p-3 backdrop-blur-sm', className)} {...rest}>
+    <Wrapper className={cn('rounded-xl border border-foreground/10 bg-white/[0.03] p-3 backdrop-blur-sm', className)} {...rest}>
       {(label || collapsible) && (
         <button
           type='button'
@@ -111,9 +111,9 @@ export const RoadmapGroup: React.FC<RoadmapGroupProps> = ({ label, collapsible, 
           className='group mb-2 flex w-full items-center justify-between text-left'
           aria-expanded={open}
         >
-          <span className='text-[11px] font-semibold tracking-wide text-white/60 group-hover:text-white/80 transition-colors'>{label}</span>
+          <span className='text-[11px] font-semibold tracking-wide text-foreground/60 group-hover:text-foreground/80 transition-colors'>{label}</span>
           {collapsible && (
-            <span className={cn('h-4 w-4 rounded-md grid place-items-center text-white/50 text-[10px] border border-white/10', open ? 'rotate-0' : '-rotate-90 transition-transform')}>⌃</span>
+            <span className={cn('h-4 w-4 rounded-md grid place-items-center text-foreground/50 text-[10px] border border-foreground/10', open ? 'rotate-0' : '-rotate-90 transition-transform')}>⌃</span>
           )}
         </button>
       )}
@@ -143,7 +143,7 @@ export const RoadmapItem = React.forwardRef<HTMLDivElement, RoadmapItemProps>(fu
   return (
     <div
       ref={ref}
-      className={cn('group relative rounded-xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-white/[0.02] p-3 shadow-sm hover:border-[#1dff00]/40 transition-colors',
+      className={cn('group relative rounded-xl border border-foreground/10 bg-gradient-to-br from-white/[0.05] to-white/[0.02] p-3 shadow-sm hover:border-[#1dff00]/40 transition-colors',
         'hover:shadow-[0_0_0_1px_rgba(29,255,0,0.25),0_4px_18px_-6px_rgba(29,255,0,0.45)]',
         className
       )}
@@ -155,7 +155,7 @@ export const RoadmapItem = React.forwardRef<HTMLDivElement, RoadmapItemProps>(fu
         <div className='mt-0.5 flex flex-col items-center'>
           <span className={cn('h-2 w-2 rounded-full', s.dot)} aria-hidden />
           {pct != null && (
-            <span className='relative mt-2 block h-8 w-1 rounded-full bg-white/10 overflow-hidden'>
+            <span className='relative mt-2 block h-8 w-1 rounded-full bg-foreground/10 overflow-hidden'>
               <span className='absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#1dff00] to-emerald-400' style={{ height: pct + '%' }} />
             </span>
           )}
@@ -164,15 +164,15 @@ export const RoadmapItem = React.forwardRef<HTMLDivElement, RoadmapItemProps>(fu
           <div className='flex items-start gap-2'>
             {icon && <div className='mt-0.5 h-5 w-5 text-[#1dff00]'>{icon}</div>}
             <h4 className='text-sm font-medium text-white leading-tight truncate'>{title}</h4>
-            {meta && <div className='ml-auto text-[11px] text-white/50 flex-shrink-0'>{meta}</div>}
+            {meta && <div className='ml-auto text-[11px] text-foreground/50 flex-shrink-0'>{meta}</div>}
           </div>
-          {description && <p className='mt-1 text-[11px] leading-snug text-white/55 line-clamp-3'>{description}</p>}
+          {description && <p className='mt-1 text-[11px] leading-snug text-foreground/55 line-clamp-3'>{description}</p>}
           {tags && tags.length > 0 && (
             <div className='mt-2 flex flex-wrap gap-1.5'>
               {tags.map(t => (
                 <span
                   key={t}
-                  className='inline-flex items-center rounded-full bg-white/5 border border-white/10 px-2 py-0.5 text-[10px] font-medium text-white/60 hover:text-white/80 hover:border-white/25 transition-colors'
+                  className='inline-flex items-center rounded-full bg-foreground/5 border border-foreground/10 px-2 py-0.5 text-[10px] font-medium text-foreground/60 hover:text-foreground/80 hover:border-foreground/25 transition-colors'
                 >
                   {t}
                 </span>
@@ -180,9 +180,9 @@ export const RoadmapItem = React.forwardRef<HTMLDivElement, RoadmapItemProps>(fu
             </div>
           )}
           <div className='mt-2 flex items-center gap-2 text-[10px]'>
-            <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 border text-[10px] font-medium backdrop-blur-sm', s.color, s.ring, 'border-white/10')}>{s.label}</span>
+            <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 border text-[10px] font-medium backdrop-blur-sm', s.color, s.ring, 'border-foreground/10')}>{s.label}</span>
             {pct != null && (
-              <span className='text-white/40'>{pct.toFixed(0)}%</span>
+              <span className='text-foreground/40'>{pct.toFixed(0)}%</span>
             )}
           </div>
         </div>

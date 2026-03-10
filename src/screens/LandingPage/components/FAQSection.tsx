@@ -36,7 +36,7 @@ export const FAQSection = () => {
 
       <div className="space-y-4">
         {faqs.map((faq, i) => (
-          <div key={i} className="border border-white/10 rounded-lg bg-muted/50 overflow-hidden">
+          <div key={i} className="border border-foreground/10 rounded-lg bg-muted/50 overflow-hidden">
             <button
               onClick={() => setOpenIndex(openIndex === i ? null : i)}
               className="w-full flex items-center justify-between p-6 text-left hover:bg-muted/50 transition-colors"
@@ -52,7 +52,7 @@ export const FAQSection = () => {
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div className="p-6 pt-0 text-gray-400 font-mono text-sm leading-relaxed border-t border-white/5">
+                  <div className="p-6 pt-0 text-gray-400 font-mono text-sm leading-relaxed border-t border-foreground/5">
                     {faq.answer}
                   </div>
                 </motion.div>

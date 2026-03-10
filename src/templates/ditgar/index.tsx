@@ -92,14 +92,14 @@ function Header() {
 
 	return (
 		<div className="page-header space-y-4 bg-[color:var(--page-primary-color)] px-[var(--page-margin-x)] py-[var(--page-margin-y)] text-white">
-			<PagePicture className="w-20 h-20 rounded-full border-2 border-white/30 shadow-lg" />
+			<PagePicture className="w-20 h-20 rounded-full border-2 border-foreground/30 shadow-lg" />
 
 			<div>
 				<h2 className="font-extrabold text-xl tracking-tight">{basics.name}</h2>
 				<p className="text-sm opacity-80 mt-0.5">{basics.headline}</p>
 			</div>
 
-			<div className="flex flex-col items-start gap-y-1.5 text-[0.7rem] text-white/80">
+			<div className="flex flex-col items-start gap-y-1.5 text-[0.7rem] text-foreground/80">
 				{basics.location && (
 					<div className="flex items-center gap-x-1.5">
 						<PageIcon name="MapPin" />

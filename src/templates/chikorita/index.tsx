@@ -12,8 +12,8 @@ const sectionClassName = cn(
 	"[&>h6]:border-b [&>h6]:border-[color:var(--page-primary-color)]/30 [&>h6]:pb-1.5",
 
 	// Light headings in sidebar
-	"group-data-[layout=sidebar]:[&>h6]:text-white/90",
-	"group-data-[layout=sidebar]:[&>h6]:border-white/20",
+	"group-data-[layout=sidebar]:[&>h6]:text-foreground/90",
+	"group-data-[layout=sidebar]:[&>h6]:border-foreground/20",
 
 	// Section Item Header in Sidebar Layout
 	"group-data-[layout=sidebar]:[&_.section-item-header>div]:flex-col",

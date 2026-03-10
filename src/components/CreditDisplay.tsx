@@ -130,9 +130,9 @@ export const CreditDisplay = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white/5 border border-white/10 animate-pulse">
-        <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-white/10" />
-        <div className="w-12 h-3 sm:h-4 bg-white/10 rounded" />
+      <div className="flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-foreground/5 border border-foreground/10 animate-pulse">
+        <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-foreground/10" />
+        <div className="w-12 h-3 sm:h-4 bg-foreground/10 rounded" />
       </div>
     );
   }
@@ -148,7 +148,7 @@ export const CreditDisplay = () => {
         {credits.toLocaleString()}
       </span>
       {getTierIcon()}
-      <span className="hidden lg:inline text-black/80 text-xs font-semibold ml-0.5">
+      <span className="hidden lg:inline text-background/80 text-xs font-semibold ml-0.5">
         {subscriptionTier}
       </span>
     </button>

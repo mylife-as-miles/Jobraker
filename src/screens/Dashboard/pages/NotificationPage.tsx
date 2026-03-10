@@ -163,7 +163,7 @@ export const NotificationPage = (): JSX.Element => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-2">Notifications</h1>
-            <p className="text-[#ffffff80] text-sm sm:text-base">Stay updated with your job search progress</p>
+            <p className="text-foreground/50 text-sm sm:text-base">Stay updated with your job search progress</p>
           </div>
           <div className="flex gap-2 sm:gap-3">
             <Button
@@ -173,7 +173,7 @@ export const NotificationPage = (): JSX.Element => {
                 else await markAllRead();
                 setSelectedIds([]);
               }}
-              className="border-[#ffffff33] text-foreground hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+              className="border-foreground/20 text-foreground hover:bg-foreground/10 hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
             >
               Mark All Read
             </Button>
@@ -185,14 +185,14 @@ export const NotificationPage = (): JSX.Element => {
                 await bulkRemove(selectedIds);
                 setSelectedIds([]);
               }}
-              className="border-[#ffffff33] text-red-400 hover:text-foreground hover:bg-red-500/20 hover:border-red-400/50 hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="border-foreground/20 text-red-400 hover:text-foreground hover:bg-red-500/20 hover:border-red-400/50 hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Delete Selected
             </Button>
             <Button
               variant="outline"
-              className="border-[#ffffff33] text-foreground hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+              className="border-foreground/20 text-foreground hover:bg-foreground/10 hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
             >
               <Archive className="w-4 h-4 mr-2" />
               Archive
@@ -202,18 +202,18 @@ export const NotificationPage = (): JSX.Element => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
           {/* Left Sidebar - Notifications List */}
-          <div className="lg:col-span-1 bg-[#0a0a0a] border border-[#ffffff1a] rounded-2xl flex flex-col max-h-[80vh]">
+          <div className="lg:col-span-1 bg-background border border-foreground/10 rounded-2xl flex flex-col max-h-[80vh]">
             {/* Search Header */}
-            <div className="p-4 sm:p-6 border-b border-[#ffffff1a]">
+            <div className="p-4 sm:p-6 border-b border-foreground/10">
               <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#ffffff60]" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-foreground/40" />
                 <Input
                   id="notifications-search"
                   data-tour="notifications-search"
                   placeholder="Search Messages"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-foreground placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] rounded-lg transition-all duration-300"
+                  className="pl-10 bg-foreground/10 border-foreground/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00] hover:border-foreground/30 rounded-lg transition-all duration-300"
                 />
               </div>
 
@@ -231,7 +231,7 @@ export const NotificationPage = (): JSX.Element => {
                     onClick={() => { setFilter(filterOption.key); try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notifications_filter', filter: filterOption.key } })); } catch { } }}
                     className={`text-xs transition-all duration-300 hover:scale-105 ${filter === filterOption.key
                         ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-                        : "text-[#ffffff80] hover:text-foreground hover:bg-[#ffffff1a]"
+                        : "text-foreground/50 hover:text-foreground hover:bg-foreground/10"
                       }`}
                   >
                     {filterOption.label}
@@ -240,7 +240,7 @@ export const NotificationPage = (): JSX.Element => {
                 <select
                   value={typeFilter}
                   onChange={(e) => { setTypeFilter(e.target.value); try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notifications_type_filter', value: e.target.value } })); } catch { } }}
-                  className="text-xs bg-[#ffffff1a] border border-[#ffffff33] rounded px-2 py-1 text-foreground focus:border-[#1dff00]"
+                  className="text-xs bg-foreground/10 border border-foreground/20 rounded px-2 py-1 text-foreground focus:border-[#1dff00]"
                 >
                   <option value="all">All Types</option>
                   <option value="application">Application</option>
@@ -250,7 +250,7 @@ export const NotificationPage = (): JSX.Element => {
                   <option value="job_search">Job Search</option>
                   <option value="credit">Credit</option>
                 </select>
-                <label className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-[#ffffff80] cursor-pointer select-none">
+                <label className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-foreground/50 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     className="accent-[#1dff00] w-3 h-3"
@@ -286,9 +286,9 @@ export const NotificationPage = (): JSX.Element => {
                     if (!notification.seen_at) markSeen(notification.id);
                     try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notification_open', id: notification.id, ntype: notification.type, priority: notification.priority, starred: notification.isStarred, read: notification.isRead } })); } catch { }
                   }}
-                  className={`notification-card p-4 sm:p-5 border-b border-[#ffffff0d] cursor-pointer transition-all duration-300 border-l-4 ${getPriorityColor(notification.priority)} ${selectedNotification === notification.id
-                      ? "bg-white/15 border-r-2 border-r-white"
-                      : "hover:bg-[#ffffff0a]"
+                  className={`notification-card p-4 sm:p-5 border-b border-foreground/5 cursor-pointer transition-all duration-300 border-l-4 ${getPriorityColor(notification.priority)} ${selectedNotification === notification.id
+                      ? "bg-foreground/15 border-r-2 border-r-white"
+                      : "hover:bg-foreground/5"
                     }`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -314,7 +314,7 @@ export const NotificationPage = (): JSX.Element => {
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between mb-1">
-                        <p className={`text-sm leading-relaxed font-medium mb-1 ${notification.isRead ? "text-[#ffffff80]" : "text-foreground"}`}>
+                        <p className={`text-sm leading-relaxed font-medium mb-1 ${notification.isRead ? "text-foreground/50" : "text-foreground"}`}>
                           {notification.title}
                         </p>
                         <div className="flex items-center space-x-1 flex-shrink-0 ml-2">
@@ -323,7 +323,7 @@ export const NotificationPage = (): JSX.Element => {
                             size="sm"
                             disabled={!supportsStar}
                             title={supportsStar ? '' : 'Starring requires a DB migration. Please update.'}
-                            className={`text-[#ffffff60] hover:text-yellow-400 hover:scale-110 transition-all duration-300 p-1 ${!supportsStar ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`text-foreground/40 hover:text-yellow-400 hover:scale-110 transition-all duration-300 p-1 ${!supportsStar ? 'opacity-50 cursor-not-allowed' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (supportsStar) { toggleStar(notification.id); try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notification_star_toggle', id: notification.id, active: !notification.isStarred } })); } catch { } }
@@ -334,7 +334,7 @@ export const NotificationPage = (): JSX.Element => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-[#ffffff60] hover:text-foreground hover:scale-110 transition-all duration-300 p-1"
+                            className="text-foreground/40 hover:text-foreground hover:scale-110 transition-all duration-300 p-1"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <MoreVertical className="w-3 h-3" />
@@ -342,7 +342,7 @@ export const NotificationPage = (): JSX.Element => {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <p className="text-xs text-[#ffffff60] flex items-center gap-1">
+                        <p className="text-xs text-foreground/40 flex items-center gap-1">
                           {notification.timestamp}
                           {!notification.seen_at && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#1dff00]/15 text-[#1dff00] text-[10px] font-semibold tracking-wide animate-pulse">
@@ -378,7 +378,7 @@ export const NotificationPage = (): JSX.Element => {
             {selectedNotificationData ? (
               <>
                 {/* Header */}
-                <div className="p-6 border-b border-[#ffffff1a] bg-[#0a0a0a] rounded-t-2xl">
+                <div className="p-6 border-b border-foreground/10 bg-background rounded-t-2xl">
                   <div className="flex items-start space-x-4">
                     <div className="flex-shrink-0">
                       {selectedNotificationData.icon}
@@ -387,18 +387,18 @@ export const NotificationPage = (): JSX.Element => {
                       <h1 className="text-xl font-medium text-foreground mb-2">
                         {selectedNotificationData.title}
                       </h1>
-                      <p className="text-sm text-[#ffffff60]">
+                      <p className="text-sm text-foreground/40">
                         {selectedNotificationData.timestamp}
                       </p>
                       {selectedNotificationData.priority && (
-                        <p className="mt-1 text-xs text-[#ffffff80]">Priority: <span className={`font-semibold ${selectedNotificationData.priority === 'high' ? 'text-red-400' : selectedNotificationData.priority === 'medium' ? 'text-yellow-400' : 'text-green-400'}`}>{selectedNotificationData.priority}</span></p>
+                        <p className="mt-1 text-xs text-foreground/50">Priority: <span className={`font-semibold ${selectedNotificationData.priority === 'high' ? 'text-red-400' : selectedNotificationData.priority === 'medium' ? 'text-yellow-400' : 'text-green-400'}`}>{selectedNotificationData.priority}</span></p>
                       )}
                     </div>
                     <div className="flex items-center space-x-2">
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-[#ffffff60] hover:text-foreground hover:scale-110 transition-all duration-300"
+                        className="text-foreground/40 hover:text-foreground hover:scale-110 transition-all duration-300"
                         onClick={() => selectedNotification && markRead(selectedNotification, true)}
                       >
                         <Archive className="w-4 h-4" />
@@ -406,7 +406,7 @@ export const NotificationPage = (): JSX.Element => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-[#ffffff60] hover:text-red-400 hover:scale-110 transition-all duration-300"
+                        className="text-foreground/40 hover:text-red-400 hover:scale-110 transition-all duration-300"
                         onClick={() => {
                           if (!selectedNotification) return;
                           remove(selectedNotification);
@@ -420,11 +420,11 @@ export const NotificationPage = (): JSX.Element => {
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 p-6 bg-[#0a0a0a] rounded-b-2xl overflow-y-auto">
+                <div className="flex-1 p-6 bg-background rounded-b-2xl overflow-y-auto">
                   {selectedNotificationData.hasDetailedContent ? (
                     <div className="space-y-6">
                       <motion.p
-                        className="text-[#ffffff80] leading-relaxed"
+                        className="text-foreground/50 leading-relaxed"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.5 }}
@@ -433,7 +433,7 @@ export const NotificationPage = (): JSX.Element => {
                       </motion.p>
 
                       {/* Action buttons */}
-                      <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-[#ffffff1a]">
+                      <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-foreground/10">
                         {selectedNotificationData.action_url && (
                           <Button
                             className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
@@ -456,9 +456,9 @@ export const NotificationPage = (): JSX.Element => {
                   ) : (
                     <div className="flex items-center justify-center h-full">
                       <div className="text-center">
-                        <Bell className="w-16 h-16 text-[#ffffff40] mx-auto mb-4" />
+                        <Bell className="w-16 h-16 text-foreground/20 mx-auto mb-4" />
                         <h3 className="text-xl font-medium text-foreground mb-2">Notification Details</h3>
-                        <p className="text-[#ffffff60]">
+                        <p className="text-foreground/40">
                           {selectedNotificationData.title}
                         </p>
                       </div>
@@ -467,11 +467,11 @@ export const NotificationPage = (): JSX.Element => {
                 </div>
               </>
             ) : (
-              <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-8 text-center h-full flex items-center justify-center">
+              <Card className="bg-gradient-to-br from-foreground/5 via-foreground/5 to-foreground/5 border border-foreground/10 backdrop-blur-[25px] p-8 text-center h-full flex items-center justify-center">
                 <div>
-                  <Bell className="w-16 h-16 text-[#ffffff40] mx-auto mb-4" />
+                  <Bell className="w-16 h-16 text-foreground/20 mx-auto mb-4" />
                   <h3 className="text-xl font-medium text-foreground mb-2">Select a notification</h3>
-                  <p className="text-[#ffffff60]">Choose a notification from the list to view details</p>
+                  <p className="text-foreground/40">Choose a notification from the list to view details</p>
                 </div>
               </Card>
             )}

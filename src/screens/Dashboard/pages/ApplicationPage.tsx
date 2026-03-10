@@ -756,7 +756,7 @@ function ApplicationPage() {
                         <ListHeader
                           name={status}
                           color={color}
-                          className='sticky top-0 z-10 backdrop-blur-xl bg-[#0a0a0a]/95 border-b border-[#1dff00]/10'
+                          className='sticky top-0 z-10 backdrop-blur-xl bg-background/95 border-b border-[#1dff00]/10'
                         >
                           <div className='flex items-center gap-3 px-4 py-3'>
                             <div
@@ -2132,7 +2132,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
               <div className='flex items-center gap-2'>
                 {info.row.original.logo_url && (
                   <div className='relative w-4 h-4 rounded overflow-hidden flex-shrink-0 bg-gradient-to-br from-[#1dff00] via-[#0a8246] to-[#1dff00] p-[1px]'>
-                    <div className='w-full h-full bg-[#0a0a0a] rounded flex items-center justify-center'>
+                    <div className='w-full h-full bg-background rounded flex items-center justify-center'>
                       <img
                         src={info.row.original.logo_url}
                         alt=''
@@ -2399,7 +2399,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
           </KTableBody>
         </TableProvider>
       </div>
-      <div className='px-6 py-3 text-xs text-foreground/40 flex items-center justify-between border-t border-[#1dff00]/20 bg-[#0a0a0a]/50 backdrop-blur'>
+      <div className='px-6 py-3 text-xs text-foreground/40 flex items-center justify-between border-t border-[#1dff00]/20 bg-background/50 backdrop-blur'>
         <div className='flex items-center gap-2'>
           <svg
             className='w-3.5 h-3.5'

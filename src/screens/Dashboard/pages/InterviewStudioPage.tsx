@@ -496,7 +496,7 @@ export const InterviewStudioPage: React.FC = () => {
                 className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-red-500 hover:bg-red-600 shadow-red-900/20" : "bg-[#1dff00] hover:bg-[#1dff00]/90 shadow-[#1dff00]/20"} shadow-lg hover:scale-105 active:scale-95`}
               >
                 {isConnecting ? (
-                  <div className='w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin' />
+                  <div className='w-5 h-5 border-2 border-background/30 border-t-black rounded-full animate-spin' />
                 ) : isRecording ? (
                   <Square
                     fill='currentColor'

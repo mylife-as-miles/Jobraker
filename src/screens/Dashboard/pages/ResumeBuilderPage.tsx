@@ -240,9 +240,9 @@ export const ResumeBuilderPage = () => {
     }
   };
   return (
-    <div className='flex flex-col h-full relative overflow-hidden bg-white dark:bg-[#0A0A0A]'>
+    <div className='flex flex-col h-full relative overflow-hidden bg-white dark:bg-background'>
       {/* Header toolbar */}
-      <header className='h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-white/10 bg-white dark:bg-[#0A0A0A] z-10 shrink-0'>
+      <header className='h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-foreground/10 bg-white dark:bg-background z-10 shrink-0'>
         <div className='flex items-center gap-4'>
           <button
             onClick={() => navigate("/dashboard/resume")}
@@ -307,7 +307,7 @@ export const ResumeBuilderPage = () => {
 
           <button
             onClick={downloadPDF}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-muted border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/20 text-sm font-medium transition-all text-gray-700 dark:text-foreground'
+            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-muted border border-gray-200 dark:border-foreground/10 hover:bg-gray-50 dark:hover:bg-foreground/20 text-sm font-medium transition-all text-gray-700 dark:text-foreground'
           >
             <Download className='w-4 h-4' />
             Download PDF
@@ -318,7 +318,7 @@ export const ResumeBuilderPage = () => {
       {/* Main Content Area */}
       <div className='flex-1 flex overflow-hidden'>
         {/* Editor Panel (Left) */}
-        <div className='w-[40%] min-w-[350px] max-w-[500px] bg-gray-50 dark:bg-[#0A0A0A] border-r border-gray-200 dark:border-white/10 flex flex-col overflow-y-auto custom-scrollbar pb-20'>
+        <div className='w-[40%] min-w-[350px] max-w-[500px] bg-gray-50 dark:bg-background border-r border-gray-200 dark:border-foreground/10 flex flex-col overflow-y-auto custom-scrollbar pb-20'>
           <div className='p-6 space-y-4'>
             {/* Content Header */}
             <div className='flex items-center justify-between mb-2'>
@@ -335,7 +335,7 @@ export const ResumeBuilderPage = () => {
 
             {/* Personal Info Section */}
             <div
-              className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === "personal" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
+              className={`bg-foreground/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-foreground/10 rounded-xl overflow-hidden transition-all ${expandedSection === "personal" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
             >
               <div
                 className='p-5 flex items-center justify-between cursor-pointer'
@@ -359,7 +359,7 @@ export const ResumeBuilderPage = () => {
             {/* Summary Section */}
             {!summary.hidden && (
               <div
-                className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === "summary" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
+                className={`bg-foreground/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-foreground/10 rounded-xl overflow-hidden transition-all ${expandedSection === "summary" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
               >
                 <div
                   className='p-5 flex items-center justify-between cursor-pointer'
@@ -384,7 +384,7 @@ export const ResumeBuilderPage = () => {
                       value={summary.content || ""}
                       onChange={(e) => setSummary(e.target.value)}
                       rows={4}
-                      className='w-full bg-gray-100 dark:bg-muted/50 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100'
+                      className='w-full bg-gray-100 dark:bg-muted/50 border border-gray-200 dark:border-foreground/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100'
                       placeholder='Brief professional summary...'
                     />
                   </div>
@@ -402,7 +402,7 @@ export const ResumeBuilderPage = () => {
               return (
                 <div
                   key={sectionId}
-                  className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === sectionId ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
+                  className={`bg-foreground/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-foreground/10 rounded-xl overflow-hidden transition-all ${expandedSection === sectionId ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
                 >
                   <div
                     className='p-5 flex items-center justify-between cursor-pointer'
@@ -450,7 +450,7 @@ export const ResumeBuilderPage = () => {
             <div className='pt-4 pb-20'>
               <Button
                 variant='outline'
-                className='w-full py-6 border-dashed border-gray-300 dark:border-white/20 hover:border-[#1dff00] hover:text-[#1dff00] hover:bg-[#1dff00]/5'
+                className='w-full py-6 border-dashed border-gray-300 dark:border-foreground/20 hover:border-[#1dff00] hover:text-[#1dff00] hover:bg-[#1dff00]/5'
                 onClick={() => setIsAddSectionOpen(true)}
               >
                 <Plus className='w-5 h-5 mr-2' />
@@ -461,17 +461,17 @@ export const ResumeBuilderPage = () => {
         </div>
 
         {/* Preview Panel (Right) */}
-        <div className='flex-1 bg-gray-200 dark:bg-[#0A0A0A] overflow-y-auto flex justify-center p-8 relative custom-scrollbar'>
+        <div className='flex-1 bg-gray-200 dark:bg-background overflow-y-auto flex justify-center p-8 relative custom-scrollbar'>
           <div className='fixed top-24 right-8 z-10 flex flex-col gap-2'>
             <button
               onClick={() => setZoom((z) => Math.min(z + 0.1, 1.5))}
-              className='w-10 h-10 bg-white dark:bg-[#121212] rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-white/10'
+              className='w-10 h-10 bg-white dark:bg-background rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-foreground/10'
             >
               <ZoomIn className='w-5 h-5' />
             </button>
             <button
               onClick={() => setZoom((z) => Math.max(z - 0.1, 0.5))}
-              className='w-10 h-10 bg-white dark:bg-[#121212] rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-white/10'
+              className='w-10 h-10 bg-white dark:bg-background rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-foreground/10'
             >
               <ZoomOut className='w-5 h-5' />
             </button>

@@ -547,7 +547,7 @@ export default function AdminSubscriptions() {
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-background/30 flex items-center justify-center">
                       {getTierIcon(plan.name)}
                     </div>
                     <div>
@@ -572,7 +572,7 @@ export default function AdminSubscriptions() {
                 </div>
 
                 {/* Credits */}
-                <div className="flex items-center gap-2 p-3 bg-black/30 rounded-lg mb-4">
+                <div className="flex items-center gap-2 p-3 bg-background/30 rounded-lg mb-4">
                   <Zap className="w-4 h-4 text-[#1dff00]" />
                   <span className="text-sm text-white font-medium">{plan.credits_per_month} credits</span>
                   <span className="text-xs text-gray-500">per cycle</span>
@@ -926,7 +926,7 @@ function ViewPlanDialog({
                 whileHover={{ scale: 1.1, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={onClose}
-                className="p-2.5 hover:bg-white/5 rounded-xl transition-all duration-200 border border-transparent hover:border-[#1dff00]/30 group"
+                className="p-2.5 hover:bg-foreground/5 rounded-xl transition-all duration-200 border border-transparent hover:border-[#1dff00]/30 group"
               >
                 <X className="w-5 h-5 group-hover:text-[#1dff00] transition-colors" />
               </motion.button>
@@ -1165,7 +1165,7 @@ function PlanFormDialog({
                 whileHover={{ scale: 1.1, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={onClose}
-                className="p-2.5 hover:bg-white/5 rounded-xl transition-all duration-200 border border-transparent hover:border-blue-500/30 group"
+                className="p-2.5 hover:bg-foreground/5 rounded-xl transition-all duration-200 border border-transparent hover:border-blue-500/30 group"
               >
                 <X className="w-5 h-5 group-hover:text-blue-400 transition-colors" />
               </motion.button>
@@ -1472,7 +1472,7 @@ function SubscriberRowActions({ onChangePlan, onCancel, isActive }: { onChangePl
     <div className="relative">
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+        className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-foreground/5 transition-all"
       >
         <MoreVertical className="w-4 h-4" />
       </button>
@@ -1484,9 +1484,9 @@ function SubscriberRowActions({ onChangePlan, onCancel, isActive }: { onChangePl
               initial={{ opacity: 0, scale: 0.95, y: -5 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -5 }}
-              className="absolute right-0 top-full mt-1 w-48 bg-[#111111] border border-[#1dff00]/20 rounded-xl shadow-2xl z-50 overflow-hidden"
+              className="absolute right-0 top-full mt-1 w-48 bg-background border border-[#1dff00]/20 rounded-xl shadow-2xl z-50 overflow-hidden"
             >
-              <button onClick={() => { setOpen(false); onChangePlan(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+              <button onClick={() => { setOpen(false); onChangePlan(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all">
                 <ArrowRightLeft className="w-4 h-4 text-yellow-400" /> Change Plan
               </button>
               {isActive && (
@@ -1540,7 +1540,7 @@ function SubscriberChangePlanDialog({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+        className="fixed inset-0 bg-background/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -1638,7 +1638,7 @@ function SubscriberCancelDialog({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+        className="fixed inset-0 bg-background/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div

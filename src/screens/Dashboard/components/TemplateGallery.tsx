@@ -65,7 +65,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
     return (
         <div className="fixed inset-0 z-[100] bg-[#102213] flex flex-col overflow-hidden animate-in fade-in duration-300">
             {/* Main Header / Top Bar */}
-            <div className="h-16 border-b border-[#28392b] bg-[#111812]/50 backdrop-blur-sm flex items-center justify-between px-8 shrink-0">
+            <div className="h-16 border-b border-[#28392b] bg-foreground/50 backdrop-blur-sm flex items-center justify-between px-8 shrink-0">
                 <div className="flex items-center gap-2 text-sm">
                     <span className="text-[#9cbaa1]">Templates</span>
                     <span className="text-[#5c6e60]">/</span>
@@ -80,12 +80,12 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                             placeholder="Search templates..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="bg-[#1a261c] border border-[#28392b] text-foreground text-sm rounded-lg pl-10 pr-4 py-2 w-64 focus:ring-1 focus:ring-[#1dff00] focus:border-[#1dff00] outline-none placeholder-[#5c6e60]"
+                            className="bg-background border border-[#28392b] text-foreground text-sm rounded-lg pl-10 pr-4 py-2 w-64 focus:ring-1 focus:ring-[#1dff00] focus:border-[#1dff00] outline-none placeholder-[#5c6e60]"
                         />
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 hover:bg-[#28392b] rounded-full text-[#9cbaa1] hover:text-foreground transition-colors"
+                        className="p-2 hover:bg-border rounded-full text-[#9cbaa1] hover:text-foreground transition-colors"
                     >
                         <X className="w-6 h-6" />
                     </button>
@@ -112,7 +112,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                                         "px-4 py-1.5 rounded-full text-xs font-bold transition-all border",
                                         filter === cat
                                             ? "bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/30 shadow-[0_0_15px_rgba(29,255,0,0.1)]"
-                                            : "bg-[#1a261c] text-[#9cbaa1] border-[#28392b] hover:border-[#5c6e60]"
+                                            : "bg-background text-[#9cbaa1] border-[#28392b] hover:border-[#5c6e60]"
                                     )}
                                 >
                                     {cat}
@@ -150,7 +150,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                                     {/* Hover Overlay */}
                                     <div className={cn(
                                         "absolute inset-0 bg-transparent group-hover:bg-foreground/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100",
-                                        currentTemplate === template.id && "bg-[#111812]/5 group-hover:bg-[#111812]/10"
+                                        currentTemplate === template.id && "bg-foreground/5 group-hover:bg-foreground/10"
                                     )}>
                                         <div className="bg-white text-black font-bold py-2.5 px-8 rounded-full shadow-2xl transform translate-y-4 group-hover:translate-y-0 transition-transform">
                                             {currentTemplate === template.id ? 'Active' : 'Select'}
@@ -180,7 +180,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
             </div>
 
             {/* Sticky Bottom Action Bar */}
-            <div className="fixed bottom-0 right-0 left-0 bg-[#111812]/95 backdrop-blur-md border-t border-[#28392b] p-5 z-[110]">
+            <div className="fixed bottom-0 right-0 left-0 bg-foreground/95 backdrop-blur-md border-t border-[#28392b] p-5 z-[110]">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
                     <div className="hidden md:block">
                         <p className="text-foreground font-medium text-base">
@@ -193,7 +193,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                     <div className="flex gap-4 ml-auto">
                         <button
                             onClick={onClose}
-                            className="px-6 py-3 rounded-lg text-foreground font-bold hover:bg-[#28392b] transition-all text-sm border border-[#28392b]"
+                            className="px-6 py-3 rounded-lg text-foreground font-bold hover:bg-border transition-all text-sm border border-[#28392b]"
                         >
                             Cancel
                         </button>

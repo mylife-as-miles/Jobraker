@@ -99,7 +99,7 @@ export const StyledInputExample: React.FC = () => {
         </div>
 
         {/* Example 2: Transparent variant (dark theme) */}
-        <div className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 rounded-lg">
+        <div className="bg-gradient-to-br from-foreground/5 via-foreground/5 to-foreground/5 border border-foreground/10 backdrop-blur-[25px] p-6 rounded-lg">
           <h2 className="text-xl font-bold text-white mb-6">Transparent Input Style</h2>
           <InputGroup 
             fields={signupFields} 

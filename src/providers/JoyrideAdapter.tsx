@@ -30,9 +30,9 @@ const BrandedTooltip: React.FC<TooltipRenderProps & { waiting?: boolean; interna
     const lines = raw.split(/\n+/).map(l => l.trim()).filter(Boolean);
     const allBullets = lines.every(l => l.startsWith('- '));
     if (allBullets) {
-      formatted = <ul className="list-disc ml-5 space-y-1 text-white/75 text-sm">{lines.map((l,i)=><li key={i}>{l.replace(/^-\s+/, '')}</li>)}</ul>;
+      formatted = <ul className="list-disc ml-5 space-y-1 text-foreground/75 text-sm">{lines.map((l,i)=><li key={i}>{l.replace(/^-\s+/, '')}</li>)}</ul>;
     } else {
-      formatted = <div className="space-y-2 text-white/75 text-sm">{lines.map((l,i)=><p key={i}>{l}</p>)}</div>;
+      formatted = <div className="space-y-2 text-foreground/75 text-sm">{lines.map((l,i)=><p key={i}>{l}</p>)}</div>;
     }
   }
   return (

@@ -127,13 +127,13 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
               <p className="text-sm text-gray-600">{access.description}</p>
             )}
             
-            <div className="flex items-center justify-between p-3 bg-[#0a0a0a] border border-white/10 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-background border border-foreground/10 rounded-lg">
               <div>
-                <p className="text-sm font-medium text-white/80">Current Balance</p>
+                <p className="text-sm font-medium text-foreground/80">Current Balance</p>
                 <p className="text-lg font-bold text-[#1dff00]">{access.currentBalance}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-white/80">Cost</p>
+                <p className="text-sm font-medium text-foreground/80">Cost</p>
                 <p className="text-lg font-bold text-[#56c2ff]">{access.creditsRequired}</p>
               </div>
             </div>
@@ -143,8 +143,8 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
                 <div className="opacity-50 pointer-events-none">
                   {children}
                 </div>
-                <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center">
-                  <Lock className="w-8 h-8 text-white/40" />
+                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+                  <Lock className="w-8 h-8 text-foreground/40" />
                 </div>
               </div>
             )}
@@ -195,13 +195,13 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
         )}
 
         <div className="grid grid-cols-2 gap-4 text-center">
-          <div className="p-3 bg-[#0a0a0a] border border-white/10 rounded-lg">
-            <p className="text-sm text-white/60">Required</p>
+          <div className="p-3 bg-background border border-foreground/10 rounded-lg">
+            <p className="text-sm text-foreground/60">Required</p>
             <p className="text-lg font-bold text-red-400">{access.creditsRequired}</p>
           </div>
-          <div className="p-3 bg-[#0a0a0a] border border-white/10 rounded-lg">
-            <p className="text-sm text-white/60">Available</p>
-            <p className="text-lg font-bold text-white/80">{access.currentBalance}</p>
+          <div className="p-3 bg-background border border-foreground/10 rounded-lg">
+            <p className="text-sm text-foreground/60">Available</p>
+            <p className="text-lg font-bold text-foreground/80">{access.currentBalance}</p>
           </div>
         </div>
 
@@ -210,10 +210,10 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
             <div className="opacity-30 pointer-events-none">
               {children}
             </div>
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center">
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center">
               <div className="text-center">
-                <Lock className="w-12 h-12 text-white/40 mx-auto mb-2" />
-                <p className="text-sm text-white/60">Locked Feature</p>
+                <Lock className="w-12 h-12 text-foreground/40 mx-auto mb-2" />
+                <p className="text-sm text-foreground/60">Locked Feature</p>
               </div>
             </div>
           </div>

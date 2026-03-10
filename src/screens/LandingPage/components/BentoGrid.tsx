@@ -45,7 +45,7 @@ export const BentoGrid = () => {
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="inline-flex items-center px-3 py-1 rounded-full border border-white/10 bg-muted/50 text-gray-300 text-xs font-mono tracking-widest uppercase mb-6 backdrop-blur-sm"
+            className="inline-flex items-center px-3 py-1 rounded-full border border-foreground/10 bg-muted/50 text-gray-300 text-xs font-mono tracking-widest uppercase mb-6 backdrop-blur-sm"
           >
              <Bot className="w-3 h-3 mr-2 text-[#1dff00]" />
              Platform Capabilities
@@ -85,7 +85,7 @@ export const BentoGrid = () => {
           {/* Card 1: Kanban (Large) */}
           <motion.div
             variants={itemVariants}
-            className="col-span-1 md:col-span-2 row-span-2 relative group overflow-hidden rounded-3xl bg-[#0B0C0E] border border-white/10"
+            className="col-span-1 md:col-span-2 row-span-2 relative group overflow-hidden rounded-3xl bg-[#0B0C0E] border border-foreground/10"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
@@ -98,7 +98,7 @@ export const BentoGrid = () => {
                 <p className="text-gray-400 max-w-md">Our AI agents navigate job boards, fill out forms, and submit applications while you sleep. Watch your 'Applied' column grow automatically.</p>
               </div>
 
-              <div className="flex-1 w-full relative min-h-[250px] bg-[#15171A] rounded-xl border border-white/5 overflow-hidden">
+              <div className="flex-1 w-full relative min-h-[250px] bg-[#15171A] rounded-xl border border-foreground/5 overflow-hidden">
                 <KanbanCard />
               </div>
             </div>
@@ -107,7 +107,7 @@ export const BentoGrid = () => {
           {/* Card 2: Resume Intelligence (Small) */}
           <motion.div
              variants={itemVariants}
-             className="col-span-1 md:col-span-1 row-span-1 relative group overflow-hidden rounded-3xl bg-[#0B0C0E] border border-white/10"
+             className="col-span-1 md:col-span-1 row-span-1 relative group overflow-hidden rounded-3xl bg-[#0B0C0E] border border-foreground/10"
           >
              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
              <div className="p-6 h-full flex flex-col">
@@ -118,7 +118,7 @@ export const BentoGrid = () => {
                </div>
                <h3 className="text-lg font-semibold text-foreground mb-1">Resume Intelligence</h3>
                <p className="text-gray-400 text-sm mb-4">Dynamic tailoring for every application.</p>
-               <div className="flex-1 w-full bg-[#15171A] rounded-lg border border-white/5 overflow-hidden relative">
+               <div className="flex-1 w-full bg-[#15171A] rounded-lg border border-foreground/5 overflow-hidden relative">
                  <ScanningVisual />
                </div>
              </div>
@@ -127,7 +127,7 @@ export const BentoGrid = () => {
           {/* Card 3: Chat with AI (Small - was Analytics) */}
           <motion.div
              variants={itemVariants}
-             className="col-span-1 md:col-span-1 row-span-1 relative group overflow-hidden rounded-3xl bg-[#0B0C0E] border border-white/10"
+             className="col-span-1 md:col-span-1 row-span-1 relative group overflow-hidden rounded-3xl bg-[#0B0C0E] border border-foreground/10"
           >
              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
              <div className="p-6 h-full flex flex-col">
@@ -138,7 +138,7 @@ export const BentoGrid = () => {
                </div>
                <h3 className="text-lg font-semibold text-foreground mb-1">AI Assistant</h3>
                <p className="text-gray-400 text-sm mb-4">Chat with your agent. Gmail integrated.</p>
-               <div className="flex-1 w-full bg-[#15171A] rounded-lg border border-white/5 overflow-hidden flex flex-col">
+               <div className="flex-1 w-full bg-[#15171A] rounded-lg border border-foreground/5 overflow-hidden flex flex-col">
                  <ChatVisual />
                </div>
              </div>
@@ -147,7 +147,7 @@ export const BentoGrid = () => {
           {/* Card 4: Interview Coach (Wide - Updated Visual) */}
           <motion.div
              variants={itemVariants}
-             className="col-span-1 md:col-span-3 relative group overflow-hidden rounded-3xl bg-[#0B0C0E] border border-white/10 p-8 flex flex-col md:flex-row items-center gap-8"
+             className="col-span-1 md:col-span-3 relative group overflow-hidden rounded-3xl bg-[#0B0C0E] border border-foreground/10 p-8 flex flex-col md:flex-row items-center gap-8"
           >
              <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
@@ -166,7 +166,7 @@ export const BentoGrid = () => {
              </div>
 
              {/* New Visual Component */}
-             <div className="flex-1 w-full h-full min-h-[200px] bg-[#15171A] rounded-xl border border-white/5 flex items-center justify-center relative overflow-hidden">
+             <div className="flex-1 w-full h-full min-h-[200px] bg-[#15171A] rounded-xl border border-foreground/5 flex items-center justify-center relative overflow-hidden">
                 <VoiceInteractionVisual />
              </div>
           </motion.div>

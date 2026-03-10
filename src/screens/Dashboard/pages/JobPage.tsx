@@ -696,7 +696,7 @@ export const JobPage = (): JSX.Element => {
                 ? "border-[#1dff00] bg-[#1dff00]/10 shadow-[0_0_15px_rgba(29,255,0,0.2)]"
                 : isCompleted
                   ? "border-[#1dff00]/50 bg-[#1dff00]/5"
-                  : "border-[#ffffff18] bg-[#ffffff08]"
+                  : "border-foreground/10 bg-foreground/5"
                 }`}
             >
               <div className='relative flex-shrink-0'>
@@ -732,11 +732,11 @@ export const JobPage = (): JSX.Element => {
                     }}
                   />
                 ) : (
-                  <div className='w-4 h-4 rounded-full border-2 border-[#ffffff40]' />
+                  <div className='w-4 h-4 rounded-full border-2 border-foreground/20' />
                 )}
               </div>
               <div
-                className={`text-[11px] sm:text-xs truncate font-medium ${isActive ? "text-[#eaffea]" : isCompleted ? "text-[#1dff00]/80" : "text-[#ffffff90]"}`}
+                className={`text-[11px] sm:text-xs truncate font-medium ${isActive ? "text-[#eaffea]" : isCompleted ? "text-[#1dff00]/80" : "text-foreground/60"}`}
               >
                 {label}
               </div>
@@ -2026,7 +2026,7 @@ export const JobPage = (): JSX.Element => {
               {/* Target selector removed: fixed to 10 to minimize API usage and keep runs bounded */}
               <div className='w-full sm:w-auto flex flex-wrap items-center gap-2 sm:gap-3'>
                 {isAdmin && (
-                  <div className='flex items-center gap-2 text-xs text-[#ffffff70] select-none'>
+                  <div className='flex items-center gap-2 text-xs text-foreground/40 select-none'>
                     <button
                       type='button'
                       onClick={() => setDebugMode((v) => !v)}
@@ -2335,7 +2335,7 @@ export const JobPage = (): JSX.Element => {
             )}
             {queueStatus === "populating" && (
               <div className='space-y-5'>
-                <Card className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#041206] via-[#050a08] to-[#020403] p-6 sm:p-7'>
+                <Card className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-background via-background/98 to-background/95 p-6 sm:p-7'>
                   <motion.div
                     className='pointer-events-none absolute inset-[-40%] bg-[radial-gradient(circle_at_top,rgba(29,255,0,0.28),rgba(29,255,0,0)_60%)] opacity-60'
                     animate={{ rotate: [0, 360] }}
@@ -2384,7 +2384,7 @@ export const JobPage = (): JSX.Element => {
                       )}
                     </div>
                     <div className='grid gap-3 sm:grid-cols-2'>
-                      <div className='rounded-xl border border-foreground/10 bg-[#0c0c0c] p-4'>
+                      <div className='rounded-xl border border-foreground/10 bg-muted p-4'>
                         <div className='h-3 w-20 rounded bg-foreground/12' />
                         <div className='mt-3 space-y-2'>
                           <div className='h-4 rounded bg-foreground/10' />
@@ -2392,7 +2392,7 @@ export const JobPage = (): JSX.Element => {
                           <div className='h-4 w-2/3 rounded bg-foreground/6' />
                         </div>
                       </div>
-                      <div className='rounded-xl border border-foreground/10 bg-[#0c0c0c] p-4'>
+                      <div className='rounded-xl border border-foreground/10 bg-muted p-4'>
                         <div className='h-3 w-24 rounded bg-foreground/12' />
                         <div className='mt-3 grid grid-cols-3 gap-3 text-[10px] text-foreground/50'>
                           {Array.from({ length: 3 }).map((_, metricIdx) => (
@@ -2400,8 +2400,8 @@ export const JobPage = (): JSX.Element => {
                               key={metricIdx}
                               className='space-y-2 rounded-lg border border-foreground/10 bg-foreground/5 p-3'
                             >
-                              <div className='h-3 rounded bg-[#ffffff1a]' />
-                              <div className='h-4 rounded bg-[#ffffff14]' />
+                              <div className='h-3 rounded bg-foreground/10' />
+                              <div className='h-4 rounded bg-foreground/10' />
                             </div>
                           ))}
                         </div>
@@ -2414,7 +2414,7 @@ export const JobPage = (): JSX.Element => {
                   {Array.from({ length: pageSize }).map((_, i) => (
                     <Card
                       key={i}
-                      className='relative overflow-hidden border border-[#1dff00]/25 bg-gradient-to-br from-[#020202] via-[#050708] to-[#090b0c] p-5 sm:p-6'
+                      className='relative overflow-hidden border border-[#1dff00]/25 bg-gradient-to-br from-background via-background/98 to-background/95 p-5 sm:p-6'
                     >
                       <motion.div
                         className='absolute inset-0 bg-[linear-gradient(120deg,rgba(29,255,0,0.12)_0%,rgba(29,255,0,0.02)_38%,rgba(29,255,0,0.15)_72%,rgba(29,255,0,0.02)_100%)]'
@@ -2430,7 +2430,7 @@ export const JobPage = (): JSX.Element => {
                       />
                       <div className='relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
                         <div className='flex flex-1 items-start gap-4'>
-                          <div className='relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-[#1dff00]/25 bg-[#0a1a0f]'>
+                          <div className='relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-[#1dff00]/25 bg-card border border-foreground/10'>
                             <motion.span
                               className='absolute h-10 w-10 rounded-full bg-[#1dff00]/20'
                               animate={{
@@ -2446,13 +2446,13 @@ export const JobPage = (): JSX.Element => {
                             <span className='relative h-8 w-8 rounded-full border border-[#1dff00]/40' />
                           </div>
                           <div className='flex-1 space-y-3'>
-                            <div className='h-4 w-3/5 rounded bg-[#ffffff24]' />
-                            <div className='h-3 w-1/2 rounded bg-[#ffffff1a]' />
+                            <div className='h-4 w-3/5 rounded bg-foreground/10' />
+                            <div className='h-3 w-1/2 rounded bg-foreground/10' />
                             <div className='flex flex-wrap items-center gap-2'>
                               {Array.from({ length: 4 }).map((__, chipIdx) => (
                                 <span
                                   key={chipIdx}
-                                  className='inline-flex h-5 w-16 rounded-full border border-foreground/12 bg-[#ffffff14]'
+                                  className='inline-flex h-5 w-16 rounded-full border border-foreground/12 bg-foreground/10'
                                 />
                               ))}
                             </div>
@@ -2464,8 +2464,8 @@ export const JobPage = (): JSX.Element => {
                               key={metricIdx}
                               className='rounded-lg border border-foreground/10 bg-foreground/5 p-3'
                             >
-                              <div className='h-3 rounded bg-[#ffffff1a]' />
-                              <div className='mt-2 h-4 rounded bg-[#ffffff14]' />
+                              <div className='h-3 rounded bg-foreground/10' />
+                              <div className='mt-2 h-4 rounded bg-foreground/10' />
                             </div>
                           ))}
                         </div>
@@ -2490,7 +2490,7 @@ export const JobPage = (): JSX.Element => {
               </Card>
             )}
             {applyingAll && (
-              <Card className='relative overflow-hidden border border-[#1dff00]/30 bg-gradient-to-br from-[#082514] via-[#04140b] to-[#010503] text-foreground p-4 sm:p-5'>
+              <Card className='relative overflow-hidden border border-[#1dff00]/30 bg-gradient-to-br from-background via-background/98 to-background/95 text-foreground p-4 sm:p-5'>
                 <div className='pointer-events-none absolute -inset-32 bg-[#1dff00]/10 blur-3xl opacity-40' />
                 <div className='relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3'>
                   <div className='flex items-center gap-3'>
@@ -2544,7 +2544,7 @@ export const JobPage = (): JSX.Element => {
                 </div>
 
                 {/* Main Content */}
-                <Card className='relative z-10 max-w-2xl mx-auto bg-gradient-to-br from-[#0a0a0a] via-[#0d0d0d] to-[#000000] border border-[#1dff00]/20 backdrop-blur-xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_0_1px_rgba(29,255,0,0.1)]'>
+                <Card className='relative z-10 max-w-2xl mx-auto bg-gradient-to-br from-background via-background/95 to-background/90 border border-[#1dff00]/20 backdrop-blur-xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_0_1px_rgba(29,255,0,0.1)]'>
                   <div className='p-8 sm:p-12 text-center space-y-8'>
                     {/* Icon Container with Animation */}
                     <motion.div
@@ -2575,7 +2575,7 @@ export const JobPage = (): JSX.Element => {
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.2, duration: 0.5 }}
-                        className='text-3xl sm:text-4xl font-bold bg-gradient-to-r from-foreground via-[#ffffff] to-[#ffffff99] bg-clip-text text-transparent'
+                        className='text-3xl sm:text-4xl font-bold bg-gradient-to-r from-foreground via-[#ffffff] to-foreground/60 bg-clip-text text-transparent'
                       >
                         No Jobs Yet
                       </motion.h2>
@@ -2584,7 +2584,7 @@ export const JobPage = (): JSX.Element => {
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.3, duration: 0.5 }}
-                        className='text-base sm:text-lg text-[#ffffff99] max-w-md mx-auto leading-relaxed'
+                        className='text-base sm:text-lg text-foreground/60 max-w-md mx-auto leading-relaxed'
                       >
                         Your personalized job feed is empty. Start discovering
                         opportunities tailored to your profile and career goals.
@@ -2635,7 +2635,7 @@ export const JobPage = (): JSX.Element => {
                       <Button
                         onClick={() => navigate("/dashboard/profile")}
                         variant='ghost'
-                        className='px-6 py-6 rounded-xl border border-[#ffffff20] text-foreground hover:bg-foreground/5 hover:border-[#1dff00]/40 transition-all duration-300'
+                        className='px-6 py-6 rounded-xl border border-foreground/10 text-foreground hover:bg-foreground/5 hover:border-[#1dff00]/40 transition-all duration-300'
                       >
                         <span className='flex items-center gap-2'>
                           <User className='w-4 h-4' />
@@ -2649,7 +2649,7 @@ export const JobPage = (): JSX.Element => {
                       initial={{ y: 20, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
                       transition={{ delay: 0.6, duration: 0.5 }}
-                      className='grid grid-cols-1 sm:grid-cols-3 gap-4 pt-8 border-t border-[#ffffff10]'
+                      className='grid grid-cols-1 sm:grid-cols-3 gap-4 pt-8 border-t border-foreground/5'
                     >
                       {[
                         {
@@ -2670,14 +2670,14 @@ export const JobPage = (): JSX.Element => {
                       ].map((feature) => (
                         <div
                           key={feature.label}
-                          className='flex flex-col items-center gap-2 p-4 rounded-lg bg-[#ffffff05] border border-[#ffffff08] hover:border-[#1dff00]/20 transition-colors'
+                          className='flex flex-col items-center gap-2 p-4 rounded-lg bg-foreground/5 border border-foreground/5 hover:border-[#1dff00]/20 transition-colors'
                         >
                           <feature.icon className='w-5 h-5 text-[#1dff00]' />
                           <div className='text-center'>
                             <div className='text-sm font-medium text-foreground'>
                               {feature.label}
                             </div>
-                            <div className='text-xs text-[#ffffff60]'>
+                            <div className='text-xs text-foreground/40'>
                               {feature.desc}
                             </div>
                           </div>
@@ -2725,8 +2725,8 @@ export const JobPage = (): JSX.Element => {
                 >
                   <div
                     className={`relative overflow-hidden rounded-2xl border transition-all duration-300 p-5 sm:p-6 ${selectedJob === job.id
-                      ? "bg-[#0a0a0a] border-[#1dff00] shadow-[0_0_30px_rgba(29,255,0,0.15)]"
-                      : "bg-gradient-to-br from-[#0f0f0f] to-[#0a0a0a] border-foreground/5 hover:border-[#1dff00]/30 hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+                      ? "bg-background border-[#1dff00] shadow-[0_0_30px_rgba(29,255,0,0.15)]"
+                      : "bg-gradient-to-br from-background to-background/95 border-foreground/5 hover:border-[#1dff00]/30 hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
                       }`}
                   >
                     {/* Selection Indicator Line */}
@@ -3084,8 +3084,8 @@ export const JobPage = (): JSX.Element => {
             )}
 
             {debugMode && (
-              <Card className='bg-[#0b0b0b] border border-[#ffffff20] p-4'>
-                <div className='text-xs text-[#ffffff90] mb-2'>
+              <Card className='bg-[#0b0b0b] border border-foreground/10 p-4'>
+                <div className='text-xs text-foreground/60 mb-2'>
                   Debug Panel - Simplified Flow
                 </div>
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] text-[#d1d5db]'>
@@ -3417,7 +3417,7 @@ export const JobPage = (): JSX.Element => {
                                   const parent = target.parentElement;
                                   if (parent) {
                                     parent.innerHTML =
-                                      '<div class="p-6 text-center text-[#ffffff60] text-sm">Screenshot unavailable</div>';
+                                      '<div class="p-6 text-center text-foreground/40 text-sm">Screenshot unavailable</div>';
                                   }
                                 }}
                               />
@@ -3503,35 +3503,35 @@ export const JobPage = (): JSX.Element => {
             {(queueStatus === "loading" || queueStatus === "populating") &&
               !selectedJob && (
                 <div className='animate-pulse'>
-                  <Card className='relative overflow-hidden bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-6 mb-6'>
+                  <Card className='relative overflow-hidden bg-gradient-to-br from-foreground/5 to-foreground/5 border border-foreground/10 p-6 mb-6'>
                     <div className='flex items-start gap-4 mb-6'>
-                      <div className='w-16 h-16 bg-[#ffffff1a] rounded-xl' />
+                      <div className='w-16 h-16 bg-foreground/10 rounded-xl' />
                       <div className='flex-1 min-w-0'>
-                        <div className='h-5 bg-[#ffffff1a] rounded w-1/2 mb-2' />
-                        <div className='h-4 bg-[#ffffff12] rounded w-1/3 mb-3' />
+                        <div className='h-5 bg-foreground/10 rounded w-1/2 mb-2' />
+                        <div className='h-4 bg-foreground/5 rounded w-1/3 mb-3' />
                         <div className='flex items-center gap-2'>
-                          <span className='inline-block h-4 w-20 rounded-full bg-[#ffffff12]' />
-                          <span className='inline-block h-4 w-16 rounded-full bg-[#ffffff12]' />
-                          <span className='inline-block h-4 w-24 rounded-full bg-[#ffffff12]' />
+                          <span className='inline-block h-4 w-20 rounded-full bg-foreground/5' />
+                          <span className='inline-block h-4 w-16 rounded-full bg-foreground/5' />
+                          <span className='inline-block h-4 w-24 rounded-full bg-foreground/5' />
                         </div>
                       </div>
                     </div>
                     <div className='space-y-2'>
-                      <div className='h-4 bg-[#ffffff12] rounded w-full' />
-                      <div className='h-4 bg-[#ffffff0f] rounded w-11/12' />
-                      <div className='h-4 bg-[#ffffff0a] rounded w-10/12' />
-                      <div className='h-4 bg-[#ffffff08] rounded w-9/12' />
+                      <div className='h-4 bg-foreground/5 rounded w-full' />
+                      <div className='h-4 bg-foreground/5 rounded w-11/12' />
+                      <div className='h-4 bg-foreground/5 rounded w-10/12' />
+                      <div className='h-4 bg-foreground/5 rounded w-9/12' />
                     </div>
                   </Card>
                 </div>
               )}
             {!selectedJob && queueStatus === "ready" && (
-              <Card className='bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-8 text-center'>
-                <Briefcase className='w-16 h-16 text-[#ffffff40] mx-auto mb-4' />
+              <Card className='bg-gradient-to-br from-foreground/5 to-foreground/5 border border-foreground/10 p-8 text-center'>
+                <Briefcase className='w-16 h-16 text-foreground/20 mx-auto mb-4' />
                 <h3 className='text-xl font-medium text-foreground mb-2'>
                   Select a job
                 </h3>
-                <p className='text-[#ffffff60]'>
+                <p className='text-foreground/40'>
                   Choose a job from the list to view details
                 </p>
               </Card>
@@ -4476,7 +4476,7 @@ export const JobPage = (): JSX.Element => {
                             const parent = target.parentElement;
                             if (parent)
                               parent.innerHTML =
-                                '<div class="p-4 text-center text-[#ffffff60] text-sm">Screenshot unavailable</div>';
+                                '<div class="p-4 text-center text-foreground/40 text-sm">Screenshot unavailable</div>';
                           }}
                         />
                         <span className='pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50' />

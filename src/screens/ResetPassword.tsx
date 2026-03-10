@@ -45,7 +45,7 @@ export const ResetPassword: React.FC = () => {
 
   return (
     <div className="min-h-screen grid place-items-center bg-background px-4">
-      <Card className="w-full max-w-md bg-[#ffffff0d] border border-[#ffffff15] backdrop-blur-md rounded-xl">
+      <Card className="w-full max-w-md bg-foreground/5 border border-foreground/10 backdrop-blur-md rounded-xl">
         <CardContent className="p-6 space-y-4">
           <h1 className="text-foreground text-xl font-semibold">Reset password</h1>
           <p className="text-foreground/70 text-sm">Enter and confirm your new password.</p>

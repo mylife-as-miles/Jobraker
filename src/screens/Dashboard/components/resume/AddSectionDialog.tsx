@@ -146,7 +146,7 @@ export const AddSectionDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-[600px] bg-white dark:bg-[#0A0A0A] border-gray-200 dark:border-white/10 text-gray-900 dark:text-foreground'>
+      <DialogContent className='sm:max-w-[600px] bg-white dark:bg-background border-gray-200 dark:border-foreground/10 text-gray-900 dark:text-foreground'>
         <DialogHeader>
           <DialogTitle>Add Section</DialogTitle>
           <DialogDescription>
@@ -159,7 +159,7 @@ export const AddSectionDialog = ({
             <button
               key={section.id}
               onClick={() => handleAddStandard(section.id)}
-              className='flex flex-col items-start p-4 rounded-xl border border-gray-200 dark:border-white/10 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 transition-all text-left group'
+              className='flex flex-col items-start p-4 rounded-xl border border-gray-200 dark:border-foreground/10 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 transition-all text-left group'
             >
               <div className='flex items-center gap-2 mb-2'>
                 <section.icon className='w-4 h-4 text-gray-500 group-hover:text-[#1dff00] transition-colors' />
@@ -172,7 +172,7 @@ export const AddSectionDialog = ({
           ))}
         </div>
 
-        <div className='border-t border-gray-200 dark:border-white/10 pt-4 mt-2'>
+        <div className='border-t border-gray-200 dark:border-foreground/10 pt-4 mt-2'>
           <h4 className='text-sm font-medium mb-3'>Custom Section</h4>
           <div className='flex gap-2'>
             <Input

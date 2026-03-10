@@ -100,7 +100,7 @@ export const PersonalDetailsEditor = () => {
                 </div>
             </div>
 
-            <div className="border-t border-gray-200 dark:border-white/10 pt-4">
+            <div className="border-t border-gray-200 dark:border-foreground/10 pt-4">
                 <label className="block text-xs font-medium text-gray-500 mb-3">Social Profiles</label>
                 <div className="space-y-3">
                     {basics.profiles?.map((profile, index) => (
@@ -138,7 +138,7 @@ export const PersonalDetailsEditor = () => {
                 </div>
                 <Button
                     variant="outline"
-                    className="w-full mt-3 border-dashed border-gray-300 dark:border-white/20 hover:border-[#1dff00] hover:text-[#1dff00]"
+                    className="w-full mt-3 border-dashed border-gray-300 dark:border-foreground/20 hover:border-[#1dff00] hover:text-[#1dff00]"
                     onClick={handleAddProfile}
                 >
                     <Plus className="w-4 h-4 mr-2" />

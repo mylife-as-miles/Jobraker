@@ -58,7 +58,7 @@ function DropdownMenuContent({
     <DropdownMenuContentPrimitive
       sideOffset={sideOffset}
       className={cn(
-        'relative z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[10rem] origin-(--radix-dropdown-menu-content-transform-origin)  overflow-y-auto rounded-xl border border-white/12 bg-black/90 px-1 py-1 backdrop-blur-xl shadow-[0_18px_42px_rgba(11,189,104,0.28)]',
+        'relative z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[10rem] origin-(--radix-dropdown-menu-content-transform-origin)  overflow-y-auto rounded-xl border border-foreground/12 bg-background/90 px-1 py-1 backdrop-blur-xl shadow-[0_18px_42px_rgba(11,189,104,0.28)]',
         'data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2',
         className,
       )}
@@ -101,7 +101,7 @@ function DropdownMenuItem({
           "data-[variant=destructive]:text-[#ff8b8b] data-[variant=destructive]:data-[highlighted=true]:bg-[#ff8b8b]/10",
           "data-[disabled=true]:opacity-40 data-[disabled=true]:pointer-events-none",
           "data-[inset=true]:pl-8",
-          "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg]:text-white/70",
+          "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg]:text-foreground/70",
           className,
         )}
         {...props}
@@ -127,7 +127,7 @@ function DropdownMenuCheckboxItem({
           "relative z-10 flex cursor-default select-none items-center gap-2 rounded-lg py-2 pr-3 pl-9 text-sm text-white outline-none transition-colors",
           "data-[highlighted=true]:text-[#1dff00]",
           "data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-40",
-          "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg]:text-white/70",
+          "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg]:text-foreground/70",
           className,
         )}
         checked={checked}
@@ -169,7 +169,7 @@ function DropdownMenuRadioItem({
           "relative z-10 flex cursor-default select-none items-center gap-2 rounded-lg py-2 pr-3 pl-9 text-sm text-white outline-none transition-colors",
           "data-[highlighted=true]:text-[#1dff00]",
           "data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-40",
-          "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg]:text-white/70",
+          "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg]:text-foreground/70",
           className,
         )}
         {...props}
@@ -198,7 +198,7 @@ function DropdownMenuLabel({
     <DropdownMenuLabelPrimitive
       data-inset={inset}
       className={cn(
-        'px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-white/50 data-[inset]:pl-8',
+        'px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-foreground/50 data-[inset]:pl-8',
         className,
       )}
       {...props}
@@ -214,7 +214,7 @@ function DropdownMenuSeparator({
 }: DropdownMenuSeparatorProps) {
   return (
     <DropdownMenuSeparatorPrimitive
-      className={cn('bg-white/10 -mx-1 my-1 h-px', className)}
+      className={cn('bg-foreground/10 -mx-1 my-1 h-px', className)}
       {...props}
     />
   );
@@ -229,7 +229,7 @@ function DropdownMenuShortcut({
   return (
     <DropdownMenuShortcutPrimitive
       className={cn(
-        'ml-auto text-xs uppercase tracking-[0.3em] text-white/40',
+        'ml-auto text-xs uppercase tracking-[0.3em] text-foreground/40',
         className,
       )}
       {...props}
@@ -281,7 +281,7 @@ function DropdownMenuSubContent({
   return (
     <DropdownMenuSubContentPrimitive
       className={cn(
-        'relative z-50 min-w-[10rem] origin-(--radix-dropdown-menu-content-transform-origin)  rounded-xl border border-white/12 bg-black/92 px-1 py-1 backdrop-blur-xl shadow-[0_18px_42px_rgba(11,189,104,0.28)]',
+        'relative z-50 min-w-[10rem] origin-(--radix-dropdown-menu-content-transform-origin)  rounded-xl border border-foreground/12 bg-background/92 px-1 py-1 backdrop-blur-xl shadow-[0_18px_42px_rgba(11,189,104,0.28)]',
         'data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2',
         className,
       )}

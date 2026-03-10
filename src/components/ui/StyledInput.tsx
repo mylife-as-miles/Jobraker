@@ -27,15 +27,15 @@ export const StyledInput = forwardRef<HTMLInputElement, StyledInputProps>(
       `,
       transparent: `
         bg-transparent 
-        border border-[#ffffff33] 
+        border border-foreground/20 
         rounded-lg 
         px-4 py-3 
         text-white 
-        placeholder:text-[#ffffff60] 
+        placeholder:text-foreground/40 
         text-base
-        hover:border-[#ffffff4d] 
+        hover:border-foreground/30 
         focus:border-[#1dff00] 
-        focus:bg-[#ffffff1a]
+        focus:bg-foreground/10
         backdrop-blur-[8px]
       `,
       outlined: `

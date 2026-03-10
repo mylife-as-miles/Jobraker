@@ -349,7 +349,7 @@ const FloatingTourMenu: React.FC<{ registry: React.MutableRefObject<Map<string, 
                 onClick={() => { start(p); setOpen(false); }}
                 className={`w-full text-left px-2 py-1.5 rounded-md text-xs flex items-center justify-between group transition ${page === p && isRunning ? 'bg-[#1dff00]/15' : 'hover:bg-[#1dff00]/10'}`}
               >
-                <span className="truncate text-white/80 group-hover:text-white">{pageLabels[p] || p}</span>
+                <span className="truncate text-foreground/80 group-hover:text-white">{pageLabels[p] || p}</span>
                 {completion(p) ? (
                   <span className="text-[10px] text-[#1dff00] font-medium">Done</span>
                 ) : (
@@ -358,7 +358,7 @@ const FloatingTourMenu: React.FC<{ registry: React.MutableRefObject<Map<string, 
               </button>
             ))}
             {pages.length === 0 && (
-              <div className="text-[11px] text-white/40 italic py-4 text-center">No tours registered</div>
+              <div className="text-[11px] text-foreground/40 italic py-4 text-center">No tours registered</div>
             )}
           </div>
           <div className="flex justify-end">

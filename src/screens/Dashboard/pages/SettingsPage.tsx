@@ -2845,7 +2845,7 @@ export const SettingsPage = (): JSX.Element => {
                     }}
                     className={`w-12 h-12 rounded-full cursor-pointer border-2 transition-all hover:scale-110 shadow-lg ${(appearanceSettings?.accent_color || "#ffd700").toLowerCase() === color.toLowerCase()
                       ? "border-white ring-4 ring-white/20 scale-110"
-                      : "border-black/50 hover:border-white/50"
+                      : "border-background/50 hover:border-foreground/50"
                       }`}
                     style={{ backgroundColor: color }}
                   ></button>

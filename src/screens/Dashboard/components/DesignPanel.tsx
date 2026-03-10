@@ -41,9 +41,9 @@ export const DesignPanel = () => {
     ];
 
     return (
-        <div className="w-full h-full bg-gray-50 dark:bg-[#0A0A0A] border-r border-gray-200 dark:border-white/10 flex flex-col">
+        <div className="w-full h-full bg-gray-50 dark:bg-background border-r border-gray-200 dark:border-foreground/10 flex flex-col">
             {/* Tabs Header */}
-            <div className="flex items-center justify-between p-2 border-b border-gray-200 dark:border-white/10 overflow-x-auto no-scrollbar">
+            <div className="flex items-center justify-between p-2 border-b border-gray-200 dark:border-foreground/10 overflow-x-auto no-scrollbar">
                 <TabButton
                     isActive={activeTab === 'typography'}
                     onClick={() => setActiveTab('typography')}
@@ -82,7 +82,7 @@ export const DesignPanel = () => {
                                 value={typography.family}
                                 onValueChange={(value) => updateTypography({ family: value })}
                             >
-                                <SelectTrigger className="w-full bg-white dark:bg-muted/50 border-gray-200 dark:border-white/10 text-gray-900 dark:text-foreground">
+                                <SelectTrigger className="w-full bg-white dark:bg-muted/50 border-gray-200 dark:border-foreground/10 text-gray-900 dark:text-foreground">
                                     <SelectValue placeholder="Select a font" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -162,7 +162,7 @@ export const DesignPanel = () => {
                                 value={page.format}
                                 onValueChange={(value: 'a4' | 'letter') => updatePage({ format: value })}
                             >
-                                <SelectTrigger className="w-full bg-white dark:bg-muted/50 border-gray-200 dark:border-white/10 text-gray-900 dark:text-foreground">
+                                <SelectTrigger className="w-full bg-white dark:bg-muted/50 border-gray-200 dark:border-foreground/10 text-gray-900 dark:text-foreground">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -233,7 +233,7 @@ const ColorPicker = ({ label, value, onChange }: { label: string; value: string;
     <div className="space-y-3">
         <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</label>
         <div className="flex items-center gap-3">
-            <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 shadow-sm shrink-0">
+            <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-gray-200 dark:border-foreground/10 shadow-sm shrink-0">
                 <input
                     type="color"
                     value={value}

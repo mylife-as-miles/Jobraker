@@ -38,7 +38,7 @@ export const FooterSection = () => {
           </div>
         </div>
 
-        <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center">
+        <div className="border-t border-foreground/5 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-600 text-xs font-mono mb-4 md:mb-0">
             © {new Date().getFullYear()} JobRaker Inc. All systems operational.
           </p>

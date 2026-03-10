@@ -564,19 +564,19 @@ export default function AdminRevenue() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsDetailOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-background/60 backdrop-blur-sm z-40"
             />
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: "spring", damping: 20 }}
-              className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-[#0a0a0a] border-l border-[#1dff00]/20 z-50 overflow-y-auto"
+              className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-background border-l border-[#1dff00]/20 z-50 overflow-y-auto"
             >
               <div className="p-6">
                 <div className="flex items-center justify-between mb-8">
                   <h2 className="text-xl font-bold text-white">Transaction Details</h2>
-                  <button onClick={() => setIsDetailOpen(false)} className="p-2 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white transition-colors">
+                  <button onClick={() => setIsDetailOpen(false)} className="p-2 hover:bg-foreground/5 rounded-lg text-gray-400 hover:text-white transition-colors">
                     <X className="w-5 h-5" />
                   </button>
                 </div>

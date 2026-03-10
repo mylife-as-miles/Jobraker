@@ -5,7 +5,7 @@ export const ScanningVisual = () => {
   return (
     <div className="w-full h-full flex items-center justify-center p-8 relative overflow-hidden">
       {/* Document */}
-      <div className="w-32 h-44 bg-white/10 border border-white/20 rounded-md p-3 relative">
+      <div className="w-32 h-44 bg-foreground/10 border border-foreground/20 rounded-md p-3 relative">
          <div className="w-12 h-12 bg-gray-700/50 rounded-full mb-3" />
          <div className="w-full h-2 bg-gray-700/50 rounded mb-2" />
          <div className="w-2/3 h-2 bg-gray-700/50 rounded mb-4" />

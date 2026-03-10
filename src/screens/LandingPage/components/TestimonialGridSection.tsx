@@ -48,7 +48,7 @@ export const TestimonialGridSection = () => {
             <motion.div
               key={i}
               whileHover={{ y: -5 }}
-              className="p-8 bg-muted/50 border border-white/10 rounded-xl hover:border-[#1dff00]/30 transition-all"
+              className="p-8 bg-muted/50 border border-foreground/10 rounded-xl hover:border-[#1dff00]/30 transition-all"
             >
               <div className="flex text-[#1dff00] mb-4">
                 {[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 fill-current" />)}

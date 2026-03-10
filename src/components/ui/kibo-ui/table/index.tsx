@@ -31,9 +31,9 @@ const TableRaw: React.FC<React.HTMLAttributes<HTMLTableElement>> = ({ className 
 );
 const TableHeaderRaw: React.FC<React.HTMLAttributes<HTMLTableSectionElement>> = ({ className='', ...rest }) => <thead className={cn('[&_tr]:border-b', className)} {...rest} />;
 const TableBodyRaw: React.FC<React.HTMLAttributes<HTMLTableSectionElement>> = ({ className='', ...rest }) => <tbody className={cn('[&_tr:last-child]:border-0', className)} {...rest} />;
-const TableRowRaw: React.FC<React.HTMLAttributes<HTMLTableRowElement>> = ({ className='', ...rest }) => <tr className={cn('border-b transition-colors hover:bg-white/5 data-[state=selected]:bg-white/10', className)} {...rest} />;
-const TableHeadRaw: React.FC<React.ThHTMLAttributes<HTMLTableCellElement>> = ({ className='', ...rest }) => <th className={cn('h-10 px-3 text-left align-middle font-medium text-xs text-white/60', className)} {...rest} />;
-const TableCellRaw: React.FC<React.TdHTMLAttributes<HTMLTableCellElement>> = ({ className='', ...rest }) => <td className={cn('p-3 align-middle text-[13px] text-white/80', className)} {...rest} />;
+const TableRowRaw: React.FC<React.HTMLAttributes<HTMLTableRowElement>> = ({ className='', ...rest }) => <tr className={cn('border-b transition-colors hover:bg-foreground/5 data-[state=selected]:bg-foreground/10', className)} {...rest} />;
+const TableHeadRaw: React.FC<React.ThHTMLAttributes<HTMLTableCellElement>> = ({ className='', ...rest }) => <th className={cn('h-10 px-3 text-left align-middle font-medium text-xs text-foreground/60', className)} {...rest} />;
+const TableCellRaw: React.FC<React.TdHTMLAttributes<HTMLTableCellElement>> = ({ className='', ...rest }) => <td className={cn('p-3 align-middle text-[13px] text-foreground/80', className)} {...rest} />;
 // Local cn helper
 function cn(...classes: Array<any>) { return classes.filter(Boolean).join(' '); }
 

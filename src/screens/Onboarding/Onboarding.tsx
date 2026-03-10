@@ -66,13 +66,13 @@ export const Onboarding = (): JSX.Element => {
             placeholder="First Name"
             value={formData.firstName}
             onChange={(e) => updateFormData("firstName", e.target.value)}
-            className="w-full bg-[#ffffff1a] border-[#ffffff33] text-foreground placeholder:text-[#ffffff60] focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
+            className="w-full bg-foreground/10 border-foreground/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
           />
           <Input
             placeholder="Last Name"
             value={formData.lastName}
             onChange={(e) => updateFormData("lastName", e.target.value)}
-            className="w-full bg-[#ffffff1a] border-[#ffffff33] text-foreground placeholder:text-[#ffffff60] focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
+            className="w-full bg-foreground/10 border-foreground/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
           />
         </div>
       ),
@@ -87,14 +87,14 @@ export const Onboarding = (): JSX.Element => {
             placeholder="Current Job Title"
             value={formData.jobTitle}
             onChange={(e) => updateFormData("jobTitle", e.target.value)}
-            className="w-full bg-[#ffffff1a] border-[#ffffff33] text-foreground placeholder:text-[#ffffff60] focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
+            className="w-full bg-foreground/10 border-foreground/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
           />
           <Input
             placeholder="Years of Experience"
             type="number"
             value={formData.experience}
             onChange={(e) => updateFormData("experience", e.target.value)}
-            className="w-full bg-[#ffffff1a] border-[#ffffff33] text-foreground placeholder:text-[#ffffff60] focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
+            className="w-full bg-foreground/10 border-foreground/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
           />
         </div>
       ),
@@ -108,7 +108,7 @@ export const Onboarding = (): JSX.Element => {
           placeholder="City, State, Country"
           value={formData.location}
           onChange={(e) => updateFormData("location", e.target.value)}
-          className="w-full bg-[#ffffff1a] border-[#ffffff33] text-foreground placeholder:text-[#ffffff60] focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
+          className="w-full bg-foreground/10 border-foreground/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
         />
       ),
     },
@@ -125,7 +125,7 @@ export const Onboarding = (): JSX.Element => {
               onClick={() => toggleGoal(goal)}
               className={`h-10 sm:h-12 text-xs sm:text-sm transition-all duration-200 ${formData.goals.includes(goal)
                 ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90'
-                : 'border-[#ffffff33] text-foreground hover:bg-[#ffffff1a] hover:border-[#1dff00]'
+                : 'border-foreground/20 text-foreground hover:bg-foreground/10 hover:border-[#1dff00]'
                 }`}
             >
               {goal}
@@ -144,7 +144,7 @@ export const Onboarding = (): JSX.Element => {
             placeholder="e.g. Full-stack engineer with 5+ years building scalable SaaS platforms..."
             value={formData.about}
             onChange={(e) => updateFormData("about", e.target.value)}
-            className="w-full min-h-[120px] bg-[#ffffff1a] border-[#ffffff33] text-foreground placeholder:text-[#ffffff60] focus:border-[#1dff00] text-sm p-3 rounded-md"
+            className="w-full min-h-[120px] bg-foreground/10 border-foreground/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00] text-sm p-3 rounded-md"
           />
         </div>
       ),
@@ -193,14 +193,14 @@ export const Onboarding = (): JSX.Element => {
             You are all set to track your applications!
           </motion.p>
           <motion.div
-            className="flex flex-wrap justify-center gap-2 text-xs sm:text-sm text-[#ffffff80]"
+            className="flex flex-wrap justify-center gap-2 text-xs sm:text-sm text-foreground/50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
           >
-            <span className="bg-[#ffffff1a] px-2 py-1 rounded">✓ Profile Complete</span>
-            <span className="bg-[#ffffff1a] px-2 py-1 rounded">✓ Goals Set</span>
-            <span className="bg-[#ffffff1a] px-2 py-1 rounded">✓ Ready to Go</span>
+            <span className="bg-foreground/10 px-2 py-1 rounded">✓ Profile Complete</span>
+            <span className="bg-foreground/10 px-2 py-1 rounded">✓ Goals Set</span>
+            <span className="bg-foreground/10 px-2 py-1 rounded">✓ Ready to Go</span>
           </motion.div>
         </div>
       )
@@ -526,10 +526,10 @@ export const Onboarding = (): JSX.Element => {
             </ul>
             <div className="mt-6 inline-flex items-center gap-2 text-[#1dff00] text-sm font-medium">Upload Resume <ChevronRight className="w-4 h-4" /></div>
           </button>
-          <button onClick={() => setMode('manual')} className="group relative overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-[#0d0d0d] via-[#060606] to-black p-8 text-left shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.25),0_25px_50px_-12px_rgba(0,0,0,0.5)] transition">
+          <button onClick={() => setMode('manual')} className="group relative overflow-hidden rounded-2xl border border-foreground/15 bg-gradient-to-br from-[#0d0d0d] via-[#060606] to-black p-8 text-left shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.25),0_25px_50px_-12px_rgba(0,0,0,0.5)] transition">
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-white/5 to-transparent transition" />
             <div className="flex items-center gap-3 mb-6">
-              <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center border border-white/20"><FileText className="w-6 h-6 text-foreground" /></div>
+              <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center border border-foreground/20"><FileText className="w-6 h-6 text-foreground" /></div>
               <h2 className="text-xl font-semibold text-foreground">Manual Setup</h2>
             </div>
             <ul className="space-y-2 text-sm text-foreground/60">
@@ -605,12 +605,12 @@ export const Onboarding = (): JSX.Element => {
                   </div>
                 )}
                 <div className="flex flex-wrap gap-3">
-                  <button onClick={() => setMode(null)} disabled={uploading || parsing} className="px-4 py-2 rounded-md border border-white/20 text-foreground/70 hover:text-foreground hover:border-white/40 text-sm disabled:opacity-50 disabled:cursor-not-allowed">Back</button>
+                  <button onClick={() => setMode(null)} disabled={uploading || parsing} className="px-4 py-2 rounded-md border border-foreground/20 text-foreground/70 hover:text-foreground hover:border-foreground/40 text-sm disabled:opacity-50 disabled:cursor-not-allowed">Back</button>
                   {parseError && <button onClick={() => setParseError(null)} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium">Try Again</button>}
                 </div>
               </div>
               {/* Preview / Extraction Panel */}
-              <div className="flex-1 rounded-xl border border-white/10 bg-white/[0.03] p-5 flex flex-col gap-4 min-h-[320px]">
+              <div className="flex-1 rounded-xl border border-foreground/10 bg-white/[0.03] p-5 flex flex-col gap-4 min-h-[320px]">
                 {!parsed && !(uploading || parsing) && (
                   <div className="text-foreground/50 text-sm leading-relaxed">
                     <p className="font-medium mb-2 text-foreground/70">Automatic Profile Setup</p>
@@ -824,7 +824,7 @@ export const Onboarding = (): JSX.Element => {
           initial="hidden"
           animate="visible"
         >
-          <Card className="w-full bg-[#ffffff0d] backdrop-blur-[18px] border border-[#ffffff15] relative overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl">
+          <Card className="w-full bg-foreground/5 backdrop-blur-[18px] border border-foreground/10 relative overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl">
             {/* Animated border glow */}
             <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/20 via-transparent to-[#1dff00]/20 opacity-50 animate-pulse rounded-xl sm:rounded-2xl" />
 
@@ -853,7 +853,7 @@ export const Onboarding = (): JSX.Element => {
                     <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-2 sm:mb-3">
                       {steps[currentStep].title}
                     </h2>
-                    <p className="text-[#ffffff80] text-sm sm:text-base lg:text-lg">
+                    <p className="text-foreground/50 text-sm sm:text-base lg:text-lg">
                       {steps[currentStep].subtitle}
                     </p>
                   </div>
@@ -871,7 +871,7 @@ export const Onboarding = (): JSX.Element => {
                   onClick={prevStep}
                   disabled={currentStep === 0}
                   variant="ghost"
-                  className="w-full sm:w-auto text-foreground hover:bg-[#ffffff1a] disabled:opacity-50 disabled:cursor-not-allowed h-10 sm:h-12 text-sm sm:text-base order-2 sm:order-1"
+                  className="w-full sm:w-auto text-foreground hover:bg-foreground/10 disabled:opacity-50 disabled:cursor-not-allowed h-10 sm:h-12 text-sm sm:text-base order-2 sm:order-1"
                 >
                   <ChevronLeft className="mr-1 sm:mr-2 w-4 h-4 sm:w-5 sm:h-5" />
                   Back
@@ -887,7 +887,7 @@ export const Onboarding = (): JSX.Element => {
               </div>
 
               {/* Progress bar */}
-              <div className="w-full bg-[#ffffff20] rounded-full h-2 sm:h-3 mt-4 sm:mt-6 overflow-hidden">
+              <div className="w-full bg-foreground/10 rounded-full h-2 sm:h-3 mt-4 sm:mt-6 overflow-hidden">
                 <motion.div
                   className="bg-gradient-to-r from-white to-[#f0f0f0] h-full rounded-full"
                   initial={{ width: 0 }}
@@ -901,7 +901,7 @@ export const Onboarding = (): JSX.Element => {
                 {steps.map((_, index) => (
                   <div
                     key={index}
-                    className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all duration-300 ${index <= currentStep ? "bg-[#1dff00]" : "bg-[#ffffff30]"
+                    className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all duration-300 ${index <= currentStep ? "bg-[#1dff00]" : "bg-foreground/20"
                       }`}
                   />
                 ))}
@@ -909,7 +909,7 @@ export const Onboarding = (): JSX.Element => {
 
               {/* Step counter */}
               <div className="text-center mt-2 sm:mt-3">
-                <span className="text-xs sm:text-sm text-[#ffffff60]">
+                <span className="text-xs sm:text-sm text-foreground/40">
                   Step {currentStep + 1} of {steps.length}
                 </span>
               </div>
@@ -937,7 +937,7 @@ const SkillInput = ({ values, onChange }: { values: string[]; onChange: (v: stri
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
           placeholder="Type a skill and press Enter"
-          className="flex-1 rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-sm text-foreground placeholder:text-foreground/50 focus:border-[#1dff00] outline-none"
+          className="flex-1 rounded-md bg-foreground/10 border border-foreground/20 px-3 py-2 text-sm text-foreground placeholder:text-foreground/50 focus:border-[#1dff00] outline-none"
         />
         <button onClick={add} disabled={!draft.trim()} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium disabled:opacity-50">Add</button>
       </div>
@@ -971,11 +971,11 @@ const EducationEditor = ({ values, onChange }: { values: EduItem[]; onChange: (v
     <div className="space-y-4">
       {(values || []).map((e, i) => (
         <div key={i} className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-start">
-          <input value={e.school || ''} onChange={ev => update(i, { school: ev.target.value })} placeholder="School" className="rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-xs sm:text-sm text-foreground placeholder:text-foreground/50 focus:border-[#1dff00] outline-none" />
-          <input value={e.degree || ''} onChange={ev => update(i, { degree: ev.target.value })} placeholder="Degree" className="rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-xs sm:text-sm text-foreground placeholder:text-foreground/50 focus:border-[#1dff00] outline-none" />
-          <input value={e.start || ''} onChange={ev => update(i, { start: ev.target.value })} placeholder="Start" className="rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-xs sm:text-sm text-foreground placeholder:text-foreground/50 focus:border-[#1dff00] outline-none" />
+          <input value={e.school || ''} onChange={ev => update(i, { school: ev.target.value })} placeholder="School" className="rounded-md bg-foreground/10 border border-foreground/20 px-3 py-2 text-xs sm:text-sm text-foreground placeholder:text-foreground/50 focus:border-[#1dff00] outline-none" />
+          <input value={e.degree || ''} onChange={ev => update(i, { degree: ev.target.value })} placeholder="Degree" className="rounded-md bg-foreground/10 border border-foreground/20 px-3 py-2 text-xs sm:text-sm text-foreground placeholder:text-foreground/50 focus:border-[#1dff00] outline-none" />
+          <input value={e.start || ''} onChange={ev => update(i, { start: ev.target.value })} placeholder="Start" className="rounded-md bg-foreground/10 border border-foreground/20 px-3 py-2 text-xs sm:text-sm text-foreground placeholder:text-foreground/50 focus:border-[#1dff00] outline-none" />
           <div className="flex gap-2">
-            <input value={e.end || ''} onChange={ev => update(i, { end: ev.target.value })} placeholder="End" className="flex-1 rounded-md bg-[#ffffff1a] border border-[#ffffff33] px-3 py-2 text-xs sm:text-sm text-foreground placeholder:text-foreground/50 focus:border-[#1dff00] outline-none" />
+            <input value={e.end || ''} onChange={ev => update(i, { end: ev.target.value })} placeholder="End" className="flex-1 rounded-md bg-foreground/10 border border-foreground/20 px-3 py-2 text-xs sm:text-sm text-foreground placeholder:text-foreground/50 focus:border-[#1dff00] outline-none" />
             <button onClick={() => remove(i)} className="px-2 rounded-md bg-red-500/20 text-red-300 text-xs hover:bg-red-500/30">✕</button>
           </div>
         </div>

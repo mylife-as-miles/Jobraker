@@ -52,7 +52,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   };
 
   const toneStyles: Record<string, { ring: string; glow: string; accent: string; icon: string; pill: string }> = {
-    neutral: { ring: 'ring-[#ffffff22]', glow: 'from-[#ffffff10] to-[#ffffff05]', accent: 'text-white', icon: 'text-white', pill: 'bg-[#ffffff12] text-[#ffffff99]' },
+    neutral: { ring: 'ring-foreground/10', glow: 'from-foreground/5 to-foreground/5', accent: 'text-white', icon: 'text-white', pill: 'bg-foreground/5 text-foreground/60' },
     info: { ring: 'ring-sky-400/30', glow: 'from-sky-500/10 to-sky-500/0', accent: 'text-sky-300', icon: 'text-sky-300', pill: 'bg-sky-500/15 text-sky-300' },
     primary: { ring: 'ring-[#1dff00]/40', glow: 'from-[#1dff00]/15 to-transparent', accent: 'text-[#1dff00]', icon: 'text-[#1dff00]', pill: 'bg-[#1dff00]/20 text-[#1dff00]' },
     success: { ring: 'ring-emerald-400/30', glow: 'from-emerald-500/15 to-transparent', accent: 'text-emerald-300', icon: 'text-emerald-300', pill: 'bg-emerald-500/15 text-emerald-300' },
@@ -62,7 +62,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   const s = toneStyles[tone] || toneStyles.neutral;
 
   return (
-    <div className={["relative overflow-hidden rounded-xl border border-[#ffffff18] bg-gradient-to-b", s.glow, "p-6 ring-1", s.ring, "backdrop-blur-xl group transition-all duration-500", className].join(" ")}
+    <div className={["relative overflow-hidden rounded-xl border border-foreground/10 bg-gradient-to-b", s.glow, "p-6 ring-1", s.ring, "backdrop-blur-xl group transition-all duration-500", className].join(" ")}
       role="status"
       aria-live="polite"
     >
@@ -72,18 +72,18 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 relative">
         <div className="flex gap-4">
           {Icon && (
-            <div className={`relative w-14 h-14 rounded-xl flex items-center justify-center bg-[#ffffff08] ring-1 ${s.ring} ${s.icon} shadow-inner`}> 
+            <div className={`relative w-14 h-14 rounded-xl flex items-center justify-center bg-foreground/5 ring-1 ${s.ring} ${s.icon} shadow-inner`}> 
               <Icon className="w-7 h-7 drop-shadow" />
               <div className={`absolute inset-0 rounded-xl bg-gradient-to-br ${s.glow} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
             </div>
           )}
           <div className="space-y-2 max-w-xl">
             <h3 className={`text-lg font-semibold tracking-tight ${s.accent}`}>{title}</h3>
-            {description && <p className="text-sm text-[#ffffff99] leading-relaxed">{description}</p>}
+            {description && <p className="text-sm text-foreground/60 leading-relaxed">{description}</p>}
             {secondaryChips.length > 0 && (
               <div className="flex flex-wrap gap-2 pt-1">
                 {secondaryChips.slice(0, 8).map(ch => (
-                  <span key={ch} className={`text-[10px] uppercase tracking-wide px-2 py-1 rounded-full font-medium ${s.pill} border border-white/5 backdrop-blur-sm`}>
+                  <span key={ch} className={`text-[10px] uppercase tracking-wide px-2 py-1 rounded-full font-medium ${s.pill} border border-foreground/5 backdrop-blur-sm`}>
                     {ch}
                   </span>
                 ))}

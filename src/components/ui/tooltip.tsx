@@ -7,7 +7,7 @@ export const TooltipContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 	<div
 		role="tooltip"
 		className={
-			"z-50 rounded-xl border border-white/15 bg-black/80 px-2.5 py-1.5 text-xs text-white shadow-[0_10px_30px_-10px_rgba(29,255,0,0.25)] backdrop-blur-md " +
+			"z-50 rounded-xl border border-foreground/15 bg-background/80 px-2.5 py-1.5 text-xs text-white shadow-[0_10px_30px_-10px_rgba(29,255,0,0.25)] backdrop-blur-md " +
 			"data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 " +
 			className
 		}

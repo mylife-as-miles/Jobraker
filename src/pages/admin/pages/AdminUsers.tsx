@@ -66,7 +66,7 @@ function UserDetailPanel({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-background/60 backdrop-blur-sm z-50"
             onClick={onClose}
           />
           {/* Panel */}
@@ -78,9 +78,9 @@ function UserDetailPanel({
             className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-gradient-to-b from-[#0a0a0a] via-[#0d0d0d] to-[#0a0a0a] border-l border-[#1dff00]/20 z-50 overflow-y-auto"
           >
             {/* Header */}
-            <div className="sticky top-0 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-[#1dff00]/20 px-6 py-4 flex items-center justify-between z-10">
+            <div className="sticky top-0 bg-background/95 backdrop-blur-xl border-b border-[#1dff00]/20 px-6 py-4 flex items-center justify-between z-10">
               <h2 className="text-xl font-bold text-white">User Details</h2>
-              <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-lg">
+              <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-foreground/5 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -243,7 +243,7 @@ function TopUpDialog({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+        className="fixed inset-0 bg-background/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -394,7 +394,7 @@ function ChangePlanDialog({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+        className="fixed inset-0 bg-background/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -515,7 +515,7 @@ function DeleteUserDialog({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+        className="fixed inset-0 bg-background/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -614,7 +614,7 @@ function RowActions({
     <div className="relative">
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+        className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-foreground/5 transition-all"
       >
         <MoreVertical className="w-4 h-4" />
       </button>
@@ -626,19 +626,19 @@ function RowActions({
               initial={{ opacity: 0, scale: 0.95, y: -5 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -5 }}
-              className="absolute right-0 top-full mt-1 w-48 bg-[#111111] border border-[#1dff00]/20 rounded-xl shadow-2xl z-50 overflow-hidden"
+              className="absolute right-0 top-full mt-1 w-48 bg-background border border-[#1dff00]/20 rounded-xl shadow-2xl z-50 overflow-hidden"
             >
-              <button onClick={() => { setOpen(false); onView(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+              <button onClick={() => { setOpen(false); onView(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all">
                 <Eye className="w-4 h-4 text-blue-400" /> View Details
               </button>
-              <button onClick={() => { setOpen(false); onTopUp(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+              <button onClick={() => { setOpen(false); onTopUp(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all">
                 <Plus className="w-4 h-4 text-[#1dff00]" /> Top Up Credits
               </button>
-              <button onClick={() => { setOpen(false); onChangePlan(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+              <button onClick={() => { setOpen(false); onChangePlan(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all">
                 <Crown className="w-4 h-4 text-yellow-400" /> Change Plan
               </button>
 
-              <button onClick={() => { setOpen(false); onToggleAdmin(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+              <button onClick={() => { setOpen(false); onToggleAdmin(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all">
                 <Shield className={`w-4 h-4 ${isAdmin ? 'text-[#1dff00]' : 'text-gray-400'}`} />
                 {isAdmin ? 'Remove Admin' : 'Make Admin'}
               </button>

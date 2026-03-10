@@ -19,9 +19,9 @@ const SelectTrigger = React.forwardRef<
       // Base layout
       "group flex h-10 w-full items-center justify-between rounded-xl px-3 py-2 text-sm [&>span]:line-clamp-1",
       // Theme surface
-      "border border-white/15 bg-white/10 text-white placeholder:text-white/50 backdrop-blur-sm",
+      "border border-foreground/15 bg-foreground/10 text-white placeholder:text-foreground/50 backdrop-blur-sm",
       // Hover / focus / open accents
-      "transition-all duration-300 hover:border-white/30 focus:outline-none focus:ring-2 focus:ring-[#1dff00]/40 focus:border-[#1dff00]/60",
+      "transition-all duration-300 hover:border-foreground/30 focus:outline-none focus:ring-2 focus:ring-[#1dff00]/40 focus:border-[#1dff00]/60",
       "data-[state=open]:border-[#1dff00]/60 data-[state=open]:ring-2 data-[state=open]:ring-[#1dff00]/30",
       // Disabled
       "disabled:cursor-not-allowed disabled:opacity-50",
@@ -80,8 +80,8 @@ const SelectContent = React.forwardRef<
       ref={ref}
       className={cn(
         // Container and surface
-        "z-50 max-h-96 min-w-[8rem] overflow-y-auto rounded-xl border bg-black/80 text-white backdrop-blur-md",
-        "border-white/15 shadow-[0_10px_30px_-10px_rgba(29,255,0,0.25)]",
+        "z-50 max-h-96 min-w-[8rem] overflow-y-auto rounded-xl border bg-background/80 text-white backdrop-blur-md",
+        "border-foreground/15 shadow-[0_10px_30px_-10px_rgba(29,255,0,0.25)]",
         // Animations
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
@@ -119,7 +119,7 @@ const SelectLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Label
     ref={ref}
-    className={cn("py-1.5 pl-8 pr-2 text-[11px] uppercase tracking-wide text-white/60", className)}
+    className={cn("py-1.5 pl-8 pr-2 text-[11px] uppercase tracking-wide text-foreground/60", className)}
     {...props}
   />
 ))
@@ -136,7 +136,7 @@ const SelectItem = React.forwardRef<
       // Base colors
       "text-white",
       // Interactions
-      "transition-colors duration-150 hover:bg-white/10 focus:bg-white/10",
+      "transition-colors duration-150 hover:bg-foreground/10 focus:bg-foreground/10",
       // Disabled
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className

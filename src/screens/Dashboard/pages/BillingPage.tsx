@@ -282,7 +282,7 @@ export const BillingPage = () => {
   return (
     <div className="min-h-screen bg-background selection:bg-brand/30">
       {/* Hero Section */}
-      <div className="relative overflow-hidden border-b border-white/10 bg-gradient-to-br from-black via-[#0a0a0a] to-black">
+      <div className="relative overflow-hidden border-b border-foreground/10 bg-gradient-to-br from-black via-[#0a0a0a] to-black">
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#1dff00]/5 rounded-full blur-[120px] mix-blend-screen animate-pulse" />
@@ -318,7 +318,7 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="relative overflow-hidden border-white/10 bg-white/[0.03] backdrop-blur-xl group hover:border-[#1dff00]/30 transition-colors duration-300">
+              <Card className="relative overflow-hidden border-foreground/10 bg-white/[0.03] backdrop-blur-xl group hover:border-[#1dff00]/30 transition-colors duration-300">
                 <div className="absolute inset-0 bg-gradient-to-br from-[#1dff00]/5 to-transparent opacity-50" />
                 <CardContent className="relative p-6">
                   <div className="flex items-start justify-between mb-4">
@@ -345,11 +345,11 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <Card className="relative overflow-hidden border-white/10 bg-white/[0.03] backdrop-blur-xl group hover:border-white/20 transition-colors duration-300">
+              <Card className="relative overflow-hidden border-foreground/10 bg-white/[0.03] backdrop-blur-xl group hover:border-foreground/20 transition-colors duration-300">
                 <div className={`absolute inset-0 bg-gradient-to-br ${getTierGradient(subscriptionTier)} opacity-5`} />
                 <CardContent className="relative p-6">
                   <div className="flex items-start justify-between mb-4">
-                    <div className={`p-3 rounded-xl bg-gradient-to-br ${getTierGradient(subscriptionTier)}/10 border border-white/10 group-hover:border-white/20 transition-colors`}>
+                    <div className={`p-3 rounded-xl bg-gradient-to-br ${getTierGradient(subscriptionTier)}/10 border border-foreground/10 group-hover:border-foreground/20 transition-colors`}>
                       {getTierIcon(subscriptionTier)}
                     </div>
                     <span className={`text-[10px] tracking-wider font-bold px-2.5 py-1 rounded-full border ${subscriptionTier === 'Pro' ? 'bg-blue-500/10 text-blue-300 border-blue-500/20' :
@@ -378,7 +378,7 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <Card className="relative overflow-hidden border-white/10 bg-white/[0.03] backdrop-blur-xl group hover:border-blue-400/30 transition-colors duration-300">
+              <Card className="relative overflow-hidden border-foreground/10 bg-white/[0.03] backdrop-blur-xl group hover:border-blue-400/30 transition-colors duration-300">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-50" />
                 <CardContent className="relative p-6">
                   <div className="flex items-start justify-between mb-4">
@@ -409,7 +409,7 @@ export const BillingPage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Custom Tab Navigation */}
         <div className="flex justify-center mb-12">
-          <div className="flex items-center p-1 bg-muted/50 rounded-full border border-white/10 backdrop-blur-md">
+          <div className="flex items-center p-1 bg-muted/50 rounded-full border border-foreground/10 backdrop-blur-md">
             {[
               { id: 'subscription', label: 'Plans', icon: <Star className="w-4 h-4" /> },
               { id: 'packs', label: 'Credit Packs', icon: <Package className="w-4 h-4" /> },
@@ -476,7 +476,7 @@ export const BillingPage = () => {
 
                       <Card className={`group relative h-full flex flex-col overflow-hidden transition-all duration-300 ${isCurrentPlan
                         ? 'border-[#1dff00]/50 bg-gradient-to-b from-[#1dff00]/10 to-transparent shadow-[0_0_40px_-10px_rgba(29,255,0,0.2)]'
-                        : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/20 hover:shadow-xl hover:shadow-[#1dff00]/5 hover:-translate-y-1'
+                        : 'border-foreground/10 bg-white/[0.02] hover:bg-white/[0.04] hover:border-foreground/20 hover:shadow-xl hover:shadow-[#1dff00]/5 hover:-translate-y-1'
                         }`}>
                         {/* Gradient accent top border */}
                         <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${getTierGradient(plan.name)} opacity-70`} />
@@ -500,7 +500,7 @@ export const BillingPage = () => {
                                   <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-gradient-to-br ${plan.name === 'Pro' ? 'from-blue-500/20 to-transparent border-blue-500/20' :
                                     plan.name === 'Ultimate' ? 'from-purple-500/20 to-transparent border-purple-500/20' :
                                       'from-[#1dff00]/20 to-transparent border-[#1dff00]/20'
-                                    } border border-white/5`}>
+                                    } border border-foreground/5`}>
                                     {getTierIcon(plan.name)}
                                   </div>
                                   <h3 className={`text-2xl font-bold ${textColors.primary} tracking-tight`}>{plan.name}</h3>
@@ -508,7 +508,7 @@ export const BillingPage = () => {
                                 </div>
 
                                 {/* Price */}
-                                <div className="mb-6 pb-6 border-b border-white/10">
+                                <div className="mb-6 pb-6 border-b border-foreground/10">
                                   <div className="flex items-baseline gap-1">
                                     <span className={`text-4xl font-bold ${textColors.primary}`}>${plan.price}</span>
                                     {plan.price > 0 && (
@@ -518,7 +518,7 @@ export const BillingPage = () => {
                                 </div>
 
                                 {/* Credits */}
-                                <div className="flex items-center gap-3 p-3 rounded-xl mb-6 bg-muted/50 border border-white/5 group-hover:bg-muted transition-colors">
+                                <div className="flex items-center gap-3 p-3 rounded-xl mb-6 bg-muted/50 border border-foreground/5 group-hover:bg-muted transition-colors">
                                   <div className="p-1.5 rounded-lg bg-muted/40">
                                     <Zap className={`w-4 h-4 ${plan.name === 'Pro' ? 'text-blue-400' :
                                       plan.name === 'Ultimate' ? 'text-purple-400' : 'text-[#1dff00]'
@@ -559,7 +559,7 @@ export const BillingPage = () => {
                           <div className="mt-auto">
                             <Button
                               className={`w-full h-12 font-bold text-sm tracking-wide transition-all duration-300 ${isCurrentPlan
-                                ? 'bg-muted/50 text-foreground/50 cursor-default border border-white/5'
+                                ? 'bg-muted/50 text-foreground/50 cursor-default border border-foreground/5'
                                 : plan.name === 'Basics'
                                   ? 'bg-[#1dff00] text-black hover:bg-[#1dff00] hover:brightness-110 hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] hover:scale-[1.02]'
                                   : plan.name === 'Pro'
@@ -621,7 +621,7 @@ export const BillingPage = () => {
 
                     <Card className={`relative overflow-hidden transition-all duration-300 group hover:scale-105 ${pack.popular
                       ? 'border-[#1dff00]/30 bg-gradient-to-b from-[#1dff00]/5 to-transparent'
-                      : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04]'
+                      : 'border-foreground/10 bg-white/[0.02] hover:bg-white/[0.04]'
                       }`}>
                       <CardContent className="p-6 flex flex-col items-center text-center">
                         <div className={`p-3 rounded-2xl mb-4 ${pack.popular ? 'bg-[#1dff00]/10 text-[#1dff00]' : 'bg-muted/50 text-gray-400 group-hover:text-foreground group-hover:bg-muted'
@@ -643,7 +643,7 @@ export const BillingPage = () => {
                           <p className="text-xs text-gray-400 uppercase tracking-widest font-medium">Credits</p>
                         </div>
 
-                        <div className="w-full pt-4 border-t border-white/5">
+                        <div className="w-full pt-4 border-t border-foreground/5">
                           <p className="text-3xl font-bold text-foreground mb-1">${pack.price}</p>
                           <p className="text-xs text-gray-500 mb-4">
                             ${(pack.price / (pack.credits + pack.bonus)).toFixed(3)} per credit
@@ -652,7 +652,7 @@ export const BillingPage = () => {
                           <Button
                             className={`w-full font-bold transition-all duration-300 ${pack.popular
                               ? 'bg-[#1dff00] text-black hover:bg-[#1dff00] hover:brightness-110 shadow-[0_0_20px_rgba(29,255,0,0.3)]'
-                              : 'bg-muted text-foreground hover:bg-white/20'
+                              : 'bg-muted text-foreground hover:bg-foreground/20'
                               }`}
                             disabled={processingPayment}
                             onClick={() => handlePayment('credit_pack', pack)}
@@ -670,13 +670,13 @@ export const BillingPage = () => {
               </div>
 
               {/* Benefits Section */}
-              <div className="grid gap-6 sm:grid-cols-3 max-w-4xl mx-auto pt-8 border-t border-white/10">
+              <div className="grid gap-6 sm:grid-cols-3 max-w-4xl mx-auto pt-8 border-t border-foreground/10">
                 {[
                   { icon: <Shield className="w-6 h-6" />, title: 'Secure Payment', desc: 'Encrypted & safe checkout' },
                   { icon: <Infinity className="w-6 h-6" />, title: 'Never Expire', desc: 'Credits last until you use them' },
                   { icon: <Target className="w-6 h-6" />, title: 'Instant Delivery', desc: 'Start applying in seconds' },
                 ].map((benefit, idx) => (
-                  <div key={idx} className="flex flex-col items-center text-center p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
+                  <div key={idx} className="flex flex-col items-center text-center p-6 rounded-2xl bg-white/[0.02] border border-foreground/5 hover:bg-white/[0.04] transition-colors">
                     <div className="p-3 rounded-full bg-[#1dff00]/10 text-[#1dff00] mb-3">
                       {benefit.icon}
                     </div>
@@ -697,8 +697,8 @@ export const BillingPage = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <Card className="border-white/10 bg-white/[0.02] backdrop-blur-md overflow-hidden">
-                <CardHeader className="border-b border-white/10 bg-white/[0.02]">
+              <Card className="border-foreground/10 bg-white/[0.02] backdrop-blur-md overflow-hidden">
+                <CardHeader className="border-b border-foreground/10 bg-white/[0.02]">
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
@@ -708,7 +708,7 @@ export const BillingPage = () => {
                         View all your credit transactions and usage history
                       </CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" className="gap-2 border-white/10 bg-muted/50 hover:bg-muted text-gray-300 hover:text-foreground">
+                    <Button variant="outline" size="sm" className="gap-2 border-foreground/10 bg-muted/50 hover:bg-muted text-gray-300 hover:text-foreground">
                       <Download className="w-4 h-4" />
                       Export CSV
                     </Button>
@@ -717,7 +717,7 @@ export const BillingPage = () => {
                 <CardContent className="p-0">
                   {transactions.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-24 text-center">
-                      <div className="p-4 rounded-full bg-muted/50 mb-4 border border-white/10">
+                      <div className="p-4 rounded-full bg-muted/50 mb-4 border border-foreground/10">
                         <History className="w-8 h-8 text-gray-400" />
                       </div>
                       <p className="text-foreground font-medium text-lg mb-1">No transactions yet</p>
