@@ -87,7 +87,7 @@ export const BillingPage = () => {
   const [activeTab, setActiveTab] = useState<'subscription' | 'packs' | 'history'>('subscription');
   const [processingPayment, setProcessingPayment] = useState(false);
   const supabase = useMemo(() => createClient(), []);
-  const { toast } = useToast();
+  const { notify } = useToast();
 
   useEffect(() => {
     fetchBillingData();
@@ -171,10 +171,10 @@ export const BillingPage = () => {
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast({
+        notify({
           title: "Authentication Required",
           description: "Please sign in to make a purchase.",
-          variant: "destructive"
+          variant: "error"
         });
         return;
       }
@@ -202,10 +202,10 @@ export const BillingPage = () => {
 
     } catch (error: any) {
       console.error('Payment initialization failed:', error);
-      toast({
+      notify({
         title: "Payment Error",
         description: error.message || "Failed to initialize payment. Please try again.",
-        variant: "destructive"
+        variant: "error"
       });
     } finally {
       setProcessingPayment(false);
@@ -353,8 +353,8 @@ export const BillingPage = () => {
                       {getTierIcon(subscriptionTier)}
                     </div>
                     <span className={`text-[10px] tracking-wider font-bold px-2.5 py-1 rounded-full border ${subscriptionTier === 'Pro' ? 'bg-blue-500/10 text-blue-300 border-blue-500/20' :
-                        subscriptionTier === 'Ultimate' ? 'bg-purple-500/10 text-purple-300 border-purple-500/20' :
-                          'bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/20'
+                      subscriptionTier === 'Ultimate' ? 'bg-purple-500/10 text-purple-300 border-purple-500/20' :
+                        'bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/20'
                       }`}>
                       ACTIVE PLAN
                     </span>
@@ -419,8 +419,8 @@ export const BillingPage = () => {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`relative flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-full transition-all duration-300 ${activeTab === tab.id
-                    ? 'text-black shadow-lg'
-                    : 'text-gray-400 hover:text-foreground hover:bg-muted/50'
+                  ? 'text-black shadow-lg'
+                  : 'text-gray-400 hover:text-foreground hover:bg-muted/50'
                   }`}
               >
                 {activeTab === tab.id && (
@@ -466,8 +466,8 @@ export const BillingPage = () => {
                       {(isPro || isUltimate) && (
                         <div className="absolute -top-3 left-0 right-0 flex justify-center z-20">
                           <span className={`text-[10px] font-bold px-3 py-1 rounded-full shadow-lg border ${isUltimate
-                              ? 'bg-purple-500 text-foreground border-purple-400'
-                              : 'bg-[#1dff00] text-black border-[#1dff00]'
+                            ? 'bg-purple-500 text-foreground border-purple-400'
+                            : 'bg-[#1dff00] text-black border-[#1dff00]'
                             }`}>
                             {isUltimate ? 'MAXIMUM POWER' : 'MOST POPULAR'}
                           </span>
@@ -475,8 +475,8 @@ export const BillingPage = () => {
                       )}
 
                       <Card className={`group relative h-full flex flex-col overflow-hidden transition-all duration-300 ${isCurrentPlan
-                          ? 'border-[#1dff00]/50 bg-gradient-to-b from-[#1dff00]/10 to-transparent shadow-[0_0_40px_-10px_rgba(29,255,0,0.2)]'
-                          : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/20 hover:shadow-xl hover:shadow-[#1dff00]/5 hover:-translate-y-1'
+                        ? 'border-[#1dff00]/50 bg-gradient-to-b from-[#1dff00]/10 to-transparent shadow-[0_0_40px_-10px_rgba(29,255,0,0.2)]'
+                        : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/20 hover:shadow-xl hover:shadow-[#1dff00]/5 hover:-translate-y-1'
                         }`}>
                         {/* Gradient accent top border */}
                         <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${getTierGradient(plan.name)} opacity-70`} />
@@ -498,8 +498,8 @@ export const BillingPage = () => {
                                 {/* Header */}
                                 <div className="mb-6">
                                   <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-gradient-to-br ${plan.name === 'Pro' ? 'from-blue-500/20 to-transparent border-blue-500/20' :
-                                      plan.name === 'Ultimate' ? 'from-purple-500/20 to-transparent border-purple-500/20' :
-                                        'from-[#1dff00]/20 to-transparent border-[#1dff00]/20'
+                                    plan.name === 'Ultimate' ? 'from-purple-500/20 to-transparent border-purple-500/20' :
+                                      'from-[#1dff00]/20 to-transparent border-[#1dff00]/20'
                                     } border border-white/5`}>
                                     {getTierIcon(plan.name)}
                                   </div>
@@ -521,7 +521,7 @@ export const BillingPage = () => {
                                 <div className="flex items-center gap-3 p-3 rounded-xl mb-6 bg-muted/50 border border-white/5 group-hover:bg-muted transition-colors">
                                   <div className="p-1.5 rounded-lg bg-muted/40">
                                     <Zap className={`w-4 h-4 ${plan.name === 'Pro' ? 'text-blue-400' :
-                                        plan.name === 'Ultimate' ? 'text-purple-400' : 'text-[#1dff00]'
+                                      plan.name === 'Ultimate' ? 'text-purple-400' : 'text-[#1dff00]'
                                       }`} />
                                   </div>
                                   <div>
@@ -541,8 +541,8 @@ export const BillingPage = () => {
                                     return (
                                       <div key={idx} className="flex items-start gap-3 group/item">
                                         <div className={`mt-0.5 w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${plan.name === 'Pro' ? 'bg-blue-500/20 text-blue-400' :
-                                            plan.name === 'Ultimate' ? 'bg-purple-500/20 text-purple-400' :
-                                              'bg-[#1dff00]/20 text-[#1dff00]'
+                                          plan.name === 'Ultimate' ? 'bg-purple-500/20 text-purple-400' :
+                                            'bg-[#1dff00]/20 text-[#1dff00]'
                                           }`}>
                                           <Check className="w-2.5 h-2.5" />
                                         </div>
@@ -559,14 +559,14 @@ export const BillingPage = () => {
                           <div className="mt-auto">
                             <Button
                               className={`w-full h-12 font-bold text-sm tracking-wide transition-all duration-300 ${isCurrentPlan
-                                  ? 'bg-muted/50 text-foreground/50 cursor-default border border-white/5'
-                                  : plan.name === 'Basics'
-                                    ? 'bg-[#1dff00] text-black hover:bg-[#1dff00] hover:brightness-110 hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] hover:scale-[1.02]'
-                                    : plan.name === 'Pro'
-                                      ? 'bg-blue-500 text-foreground hover:bg-blue-600 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-[1.02]'
-                                      : plan.name === 'Ultimate'
-                                        ? 'bg-purple-600 text-foreground hover:bg-purple-700 hover:shadow-[0_0_20px_rgba(147,51,234,0.4)] hover:scale-[1.02]'
-                                        : 'bg-white text-black hover:bg-gray-200'
+                                ? 'bg-muted/50 text-foreground/50 cursor-default border border-white/5'
+                                : plan.name === 'Basics'
+                                  ? 'bg-[#1dff00] text-black hover:bg-[#1dff00] hover:brightness-110 hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] hover:scale-[1.02]'
+                                  : plan.name === 'Pro'
+                                    ? 'bg-blue-500 text-foreground hover:bg-blue-600 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-[1.02]'
+                                    : plan.name === 'Ultimate'
+                                      ? 'bg-purple-600 text-foreground hover:bg-purple-700 hover:shadow-[0_0_20px_rgba(147,51,234,0.4)] hover:scale-[1.02]'
+                                      : 'bg-white text-black hover:bg-gray-200'
                                 }`}
                               disabled={isCurrentPlan || processingPayment}
                               onClick={() => !isCurrentPlan && handlePayment('subscription', plan)}
@@ -620,8 +620,8 @@ export const BillingPage = () => {
                     )}
 
                     <Card className={`relative overflow-hidden transition-all duration-300 group hover:scale-105 ${pack.popular
-                        ? 'border-[#1dff00]/30 bg-gradient-to-b from-[#1dff00]/5 to-transparent'
-                        : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04]'
+                      ? 'border-[#1dff00]/30 bg-gradient-to-b from-[#1dff00]/5 to-transparent'
+                      : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04]'
                       }`}>
                       <CardContent className="p-6 flex flex-col items-center text-center">
                         <div className={`p-3 rounded-2xl mb-4 ${pack.popular ? 'bg-[#1dff00]/10 text-[#1dff00]' : 'bg-muted/50 text-gray-400 group-hover:text-foreground group-hover:bg-muted'
@@ -651,8 +651,8 @@ export const BillingPage = () => {
 
                           <Button
                             className={`w-full font-bold transition-all duration-300 ${pack.popular
-                                ? 'bg-[#1dff00] text-black hover:bg-[#1dff00] hover:brightness-110 shadow-[0_0_20px_rgba(29,255,0,0.3)]'
-                                : 'bg-muted text-foreground hover:bg-white/20'
+                              ? 'bg-[#1dff00] text-black hover:bg-[#1dff00] hover:brightness-110 shadow-[0_0_20px_rgba(29,255,0,0.3)]'
+                              : 'bg-muted text-foreground hover:bg-white/20'
                               }`}
                             disabled={processingPayment}
                             onClick={() => handlePayment('credit_pack', pack)}
