@@ -73,17 +73,17 @@ export const NotificationPage = (): JSX.Element => {
         case "company":
           return {
             bgColor: "#000000",
-            icon: <span className="text-white font-bold text-sm">{(company || "N").charAt(0).toUpperCase()}</span>,
+            icon: <span className="text-foreground font-bold text-sm">{(company || "N").charAt(0).toUpperCase()}</span>,
           };
         case "application":
           return {
             bgColor: "#4285f4",
-            icon: <span className="text-white font-bold text-sm">{(company || "N").charAt(0).toUpperCase()}</span>,
+            icon: <span className="text-foreground font-bold text-sm">{(company || "N").charAt(0).toUpperCase()}</span>,
           };
         case "job_search":
           return {
             bgColor: "#9333ea", // Purple
-            icon: <Search className="w-4 h-4 text-white" />,
+            icon: <Search className="w-4 h-4 text-foreground" />,
           };
         case "credit":
           return {
@@ -98,7 +98,7 @@ export const NotificationPage = (): JSX.Element => {
       }
     };
 
-  const { bgColor, icon } = getNotificationAppearance(n.type, n.company || undefined);
+    const { bgColor, icon } = getNotificationAppearance(n.type, n.company || undefined);
 
     return {
       id: n.id,
@@ -122,10 +122,10 @@ export const NotificationPage = (): JSX.Element => {
 
   const filteredNotifications = notifications.filter((notification: any) => {
     const matchesSearch = notification.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         notification.message.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = filter === "all" || 
-                         (filter === "unread" && !notification.isRead) ||
-                         (filter === "starred" && notification.isStarred);
+      notification.message.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = filter === "all" ||
+      (filter === "unread" && !notification.isRead) ||
+      (filter === "starred" && notification.isStarred);
     const matchesType = typeFilter === 'all' || notification.type === typeFilter;
     return matchesSearch && matchesFilter && matchesType;
   });
@@ -157,27 +157,27 @@ export const NotificationPage = (): JSX.Element => {
   });
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-background">
       <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
           <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Notifications</h1>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-2">Notifications</h1>
             <p className="text-[#ffffff80] text-sm sm:text-base">Stay updated with your job search progress</p>
           </div>
           <div className="flex gap-2 sm:gap-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={async () => {
                 if (selectedIds.length) await bulkMarkRead(selectedIds, true);
                 else await markAllRead();
                 setSelectedIds([]);
               }}
-              className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+              className="border-[#ffffff33] text-foreground hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
             >
               Mark All Read
             </Button>
-            <Button 
+            <Button
               variant="outline"
               disabled={!selectedIds.length}
               onClick={async () => {
@@ -185,14 +185,14 @@ export const NotificationPage = (): JSX.Element => {
                 await bulkRemove(selectedIds);
                 setSelectedIds([]);
               }}
-              className="border-[#ffffff33] text-red-400 hover:text-white hover:bg-red-500/20 hover:border-red-400/50 hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="border-[#ffffff33] text-red-400 hover:text-foreground hover:bg-red-500/20 hover:border-red-400/50 hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Delete Selected
             </Button>
-            <Button 
-              variant="outline" 
-              className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+            <Button
+              variant="outline"
+              className="border-[#ffffff33] text-foreground hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
             >
               <Archive className="w-4 h-4 mr-2" />
               Archive
@@ -213,10 +213,10 @@ export const NotificationPage = (): JSX.Element => {
                   placeholder="Search Messages"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] rounded-lg transition-all duration-300"
+                  className="pl-10 bg-[#ffffff1a] border-[#ffffff33] text-foreground placeholder:text-[#ffffff60] focus:border-[#1dff00] hover:border-[#ffffff4d] rounded-lg transition-all duration-300"
                 />
               </div>
-              
+
               {/* Filter buttons */}
               <div id="notifications-filters" data-tour="notifications-filters" className="flex gap-2 flex-wrap items-center">
                 {[
@@ -228,20 +228,19 @@ export const NotificationPage = (): JSX.Element => {
                     key={filterOption.key}
                     variant="ghost"
                     size="sm"
-                    onClick={() => { setFilter(filterOption.key); try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notifications_filter', filter: filterOption.key } })); } catch {} }}
-                    className={`text-xs transition-all duration-300 hover:scale-105 ${
-                      filter === filterOption.key
+                    onClick={() => { setFilter(filterOption.key); try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notifications_filter', filter: filterOption.key } })); } catch { } }}
+                    className={`text-xs transition-all duration-300 hover:scale-105 ${filter === filterOption.key
                         ? "bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
-                        : "text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a]"
-                    }`}
+                        : "text-[#ffffff80] hover:text-foreground hover:bg-[#ffffff1a]"
+                      }`}
                   >
                     {filterOption.label}
                   </Button>
                 ))}
                 <select
                   value={typeFilter}
-                  onChange={(e) => { setTypeFilter(e.target.value); try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notifications_type_filter', value: e.target.value } })); } catch {} }}
-                  className="text-xs bg-[#ffffff1a] border border-[#ffffff33] rounded px-2 py-1 text-white focus:border-[#1dff00]"
+                  onChange={(e) => { setTypeFilter(e.target.value); try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notifications_type_filter', value: e.target.value } })); } catch { } }}
+                  className="text-xs bg-[#ffffff1a] border border-[#ffffff33] rounded px-2 py-1 text-foreground focus:border-[#1dff00]"
                 >
                   <option value="all">All Types</option>
                   <option value="application">Application</option>
@@ -257,7 +256,7 @@ export const NotificationPage = (): JSX.Element => {
                     className="accent-[#1dff00] w-3 h-3"
                     checked={autoMarkSeen}
                     onChange={(e) => {
-                      const v = e.target.checked; setAutoMarkSeen(v); try { localStorage.setItem('notifications:autoMarkSeen', v ? 'true' : 'false'); window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notifications_auto_seen_toggle', value: v } })); } catch {}
+                      const v = e.target.checked; setAutoMarkSeen(v); try { localStorage.setItem('notifications:autoMarkSeen', v ? 'true' : 'false'); window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notifications_auto_seen_toggle', value: v } })); } catch { }
                     }}
                   />
                   Auto-Seen
@@ -273,7 +272,7 @@ export const NotificationPage = (): JSX.Element => {
                     <div className="mx-auto w-14 h-14 rounded-full bg-[#1dff00]/10 flex items-center justify-center mb-3">
                       <Inbox className="w-7 h-7 text-[#1dff00]" />
                     </div>
-                    <p className="text-white font-medium">No notifications</p>
+                    <p className="text-foreground font-medium">No notifications</p>
                     <p className="text-xs text-[#888]">You’ll see updates from your job search here.</p>
                   </div>
                 </div>
@@ -285,13 +284,12 @@ export const NotificationPage = (): JSX.Element => {
                   onClick={() => {
                     setSelectedNotification(notification.id);
                     if (!notification.seen_at) markSeen(notification.id);
-                    try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notification_open', id: notification.id, ntype: notification.type, priority: notification.priority, starred: notification.isStarred, read: notification.isRead } })); } catch {}
+                    try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notification_open', id: notification.id, ntype: notification.type, priority: notification.priority, starred: notification.isStarred, read: notification.isRead } })); } catch { }
                   }}
-                  className={`notification-card p-4 sm:p-5 border-b border-[#ffffff0d] cursor-pointer transition-all duration-300 border-l-4 ${getPriorityColor(notification.priority)} ${
-                    selectedNotification === notification.id
+                  className={`notification-card p-4 sm:p-5 border-b border-[#ffffff0d] cursor-pointer transition-all duration-300 border-l-4 ${getPriorityColor(notification.priority)} ${selectedNotification === notification.id
                       ? "bg-white/15 border-r-2 border-r-white"
                       : "hover:bg-[#ffffff0a]"
-                  }`}
+                    }`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: index * 0.05 }}
@@ -312,11 +310,11 @@ export const NotificationPage = (): JSX.Element => {
                     <div className="flex-shrink-0">
                       {notification.icon}
                     </div>
-                    
+
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between mb-1">
-                        <p className={`text-sm leading-relaxed font-medium mb-1 ${notification.isRead ? "text-[#ffffff80]" : "text-white"}`}>
+                        <p className={`text-sm leading-relaxed font-medium mb-1 ${notification.isRead ? "text-[#ffffff80]" : "text-foreground"}`}>
                           {notification.title}
                         </p>
                         <div className="flex items-center space-x-1 flex-shrink-0 ml-2">
@@ -328,7 +326,7 @@ export const NotificationPage = (): JSX.Element => {
                             className={`text-[#ffffff60] hover:text-yellow-400 hover:scale-110 transition-all duration-300 p-1 ${!supportsStar ? 'opacity-50 cursor-not-allowed' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (supportsStar) { toggleStar(notification.id); try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notification_star_toggle', id: notification.id, active: !notification.isStarred } })); } catch {} }
+                              if (supportsStar) { toggleStar(notification.id); try { window.dispatchEvent(new CustomEvent('tour:event', { detail: { type: 'notification_star_toggle', id: notification.id, active: !notification.isStarred } })); } catch { } }
                             }}
                           >
                             <Star className={`w-3 h-3 ${notification.isStarred ? "fill-current text-yellow-400" : ""}`} />
@@ -336,7 +334,7 @@ export const NotificationPage = (): JSX.Element => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300 p-1"
+                            className="text-[#ffffff60] hover:text-foreground hover:scale-110 transition-all duration-300 p-1"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <MoreVertical className="w-3 h-3" />
@@ -353,7 +351,7 @@ export const NotificationPage = (): JSX.Element => {
                           )}
                         </p>
                         {notification.priority && (
-                          <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/5 border ${notification.priority === 'high' ? 'border-red-500 text-red-400' : notification.priority === 'medium' ? 'border-yellow-500 text-yellow-400' : 'border-green-500 text-green-400'}`}>{notification.priority}</span>
+                          <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted/50 border ${notification.priority === 'high' ? 'border-red-500 text-red-400' : notification.priority === 'medium' ? 'border-yellow-500 text-yellow-400' : 'border-green-500 text-green-400'}`}>{notification.priority}</span>
                         )}
                       </div>
                       {!notification.isRead && (
@@ -376,7 +374,7 @@ export const NotificationPage = (): JSX.Element => {
           </div>
 
           {/* Right Content Area */}
-          <div id="notifications-detail" data-tour="notifications-detail" className="lg:col-span-2 flex flex-col bg-black">
+          <div id="notifications-detail" data-tour="notifications-detail" className="lg:col-span-2 flex flex-col bg-background">
             {selectedNotificationData ? (
               <>
                 {/* Header */}
@@ -386,7 +384,7 @@ export const NotificationPage = (): JSX.Element => {
                       {selectedNotificationData.icon}
                     </div>
                     <div className="flex-1">
-                      <h1 className="text-xl font-medium text-white mb-2">
+                      <h1 className="text-xl font-medium text-foreground mb-2">
                         {selectedNotificationData.title}
                       </h1>
                       <p className="text-sm text-[#ffffff60]">
@@ -400,7 +398,7 @@ export const NotificationPage = (): JSX.Element => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300"
+                        className="text-[#ffffff60] hover:text-foreground hover:scale-110 transition-all duration-300"
                         onClick={() => selectedNotification && markRead(selectedNotification, true)}
                       >
                         <Archive className="w-4 h-4" />
@@ -425,7 +423,7 @@ export const NotificationPage = (): JSX.Element => {
                 <div className="flex-1 p-6 bg-[#0a0a0a] rounded-b-2xl overflow-y-auto">
                   {selectedNotificationData.hasDetailedContent ? (
                     <div className="space-y-6">
-                      <motion.p 
+                      <motion.p
                         className="text-[#ffffff80] leading-relaxed"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -437,7 +435,7 @@ export const NotificationPage = (): JSX.Element => {
                       {/* Action buttons */}
                       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-[#ffffff1a]">
                         {selectedNotificationData.action_url && (
-                          <Button 
+                          <Button
                             className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90 hover:scale-105 transition-all duration-300"
                             onClick={() => {
                               const item = items.find(i => i.id === selectedNotification);
@@ -447,7 +445,7 @@ export const NotificationPage = (): JSX.Element => {
                             Open Link
                           </Button>
                         )}
-                        <Button 
+                        <Button
                           variant="outline"
                           onClick={() => selectedNotification && markRead(selectedNotification, true)}
                         >
@@ -459,7 +457,7 @@ export const NotificationPage = (): JSX.Element => {
                     <div className="flex items-center justify-center h-full">
                       <div className="text-center">
                         <Bell className="w-16 h-16 text-[#ffffff40] mx-auto mb-4" />
-                        <h3 className="text-xl font-medium text-white mb-2">Notification Details</h3>
+                        <h3 className="text-xl font-medium text-foreground mb-2">Notification Details</h3>
                         <p className="text-[#ffffff60]">
                           {selectedNotificationData.title}
                         </p>
@@ -472,7 +470,7 @@ export const NotificationPage = (): JSX.Element => {
               <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-8 text-center h-full flex items-center justify-center">
                 <div>
                   <Bell className="w-16 h-16 text-[#ffffff40] mx-auto mb-4" />
-                  <h3 className="text-xl font-medium text-white mb-2">Select a notification</h3>
+                  <h3 className="text-xl font-medium text-foreground mb-2">Select a notification</h3>
                   <p className="text-[#ffffff60]">Choose a notification from the list to view details</p>
                 </div>
               </Card>

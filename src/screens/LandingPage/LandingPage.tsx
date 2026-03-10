@@ -21,17 +21,17 @@ export const LandingPage = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-black text-white font-mono selection:bg-[#1dff00] selection:text-black overflow-x-hidden">
+    <div className="min-h-screen bg-background text-foreground font-mono selection:bg-[#1dff00] selection:text-black overflow-x-hidden">
 
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-[#1dff00]/20">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-[#1dff00]/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
             <div className="flex items-center space-x-2 cursor-pointer" onClick={() => window.scrollTo(0,0)}>
               <div className="w-8 h-8 bg-[#1dff00] rounded flex items-center justify-center">
                 <Bot className="w-5 h-5 text-black" />
               </div>
-              <span className="text-white font-bold text-xl tracking-tighter">JOBRAKER</span>
+              <span className="text-foreground font-bold text-xl tracking-tighter">JOBRAKER</span>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -78,7 +78,7 @@ export const LandingPage = () => {
 
         {/* 4. Dashboard Preview - "Everything in your control" - Moved after Bento */}
         <AnimatedSection
-          className="relative z-20 w-full bg-black/50 mt-12 sm:mt-16 md:mt-20"
+          className="relative z-20 w-full bg-background/50 mt-12 sm:mt-16 md:mt-20"
           delay={0.1}
         >
              <DashboardPreview />

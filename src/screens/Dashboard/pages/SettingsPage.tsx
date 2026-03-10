@@ -3991,9 +3991,9 @@ export const SettingsPage = (): JSX.Element => {
                       {!isCurrentPlan && (
                         <Button
                           className={`w-full h-9 font-medium text-xs transition-all ${plan.name === "Pro"
-                            ? "bg-blue-600 hover:bg-blue-700 text-white hover:scale-105"
+                            ? "bg-blue-600 hover:bg-blue-700 text-foreground hover:scale-105"
                             : plan.name === "Ultimate"
-                              ? "bg-purple-600 hover:bg-purple-700 text-white hover:scale-105"
+                              ? "bg-purple-600 hover:bg-purple-700 text-foreground hover:scale-105"
                               : "bg-[#ffd700] text-black hover:bg-[#ffd700]/90 hover:scale-105"
                             }`}
                           onClick={() => {

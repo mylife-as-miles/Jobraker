@@ -69,7 +69,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                 <div className="flex items-center gap-2 text-sm">
                     <span className="text-[#9cbaa1]">Templates</span>
                     <span className="text-[#5c6e60]">/</span>
-                    <span className="text-white font-medium">Gallery</span>
+                    <span className="text-foreground font-medium">Gallery</span>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -80,12 +80,12 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                             placeholder="Search templates..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="bg-[#1a261c] border border-[#28392b] text-white text-sm rounded-lg pl-10 pr-4 py-2 w-64 focus:ring-1 focus:ring-[#1dff00] focus:border-[#1dff00] outline-none placeholder-[#5c6e60]"
+                            className="bg-[#1a261c] border border-[#28392b] text-foreground text-sm rounded-lg pl-10 pr-4 py-2 w-64 focus:ring-1 focus:ring-[#1dff00] focus:border-[#1dff00] outline-none placeholder-[#5c6e60]"
                         />
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 hover:bg-[#28392b] rounded-full text-[#9cbaa1] hover:text-white transition-colors"
+                        className="p-2 hover:bg-[#28392b] rounded-full text-[#9cbaa1] hover:text-foreground transition-colors"
                     >
                         <X className="w-6 h-6" />
                     </button>
@@ -98,7 +98,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                     {/* Hero Section of Modal */}
                     <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
                         <div>
-                            <h1 className="text-4xl font-bold text-white mb-3">Select a Template</h1>
+                            <h1 className="text-4xl font-bold text-foreground mb-3">Select a Template</h1>
                             <p className="text-[#9cbaa1] text-lg max-w-2xl">
                                 Choose from our selection of performance-optimized, ATS-friendly designs.
                             </p>
@@ -149,7 +149,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
 
                                     {/* Hover Overlay */}
                                     <div className={cn(
-                                        "absolute inset-0 bg-black/0 group-hover:bg-[#111812]/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100",
+                                        "absolute inset-0 bg-transparent group-hover:bg-foreground/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100",
                                         currentTemplate === template.id && "bg-[#111812]/5 group-hover:bg-[#111812]/10"
                                     )}>
                                         <div className="bg-white text-black font-bold py-2.5 px-8 rounded-full shadow-2xl transform translate-y-4 group-hover:translate-y-0 transition-transform">
@@ -163,7 +163,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                                     <div>
                                         <h3 className={cn(
                                             "font-bold text-xl transition-colors",
-                                            currentTemplate === template.id ? "text-[#1dff00]" : "text-white"
+                                            currentTemplate === template.id ? "text-[#1dff00]" : "text-foreground"
                                         )}>
                                             {template.name}
                                             {currentTemplate === template.id && (
@@ -183,7 +183,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
             <div className="fixed bottom-0 right-0 left-0 bg-[#111812]/95 backdrop-blur-md border-t border-[#28392b] p-5 z-[110]">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
                     <div className="hidden md:block">
-                        <p className="text-white font-medium text-base">
+                        <p className="text-foreground font-medium text-base">
                             Selection: <span className="text-[#1dff00]">{activeTemplateInfo?.name || 'None'}</span>
                         </p>
                         <p className="text-[#9cbaa1] text-xs mt-0.5 flex items-center gap-1.5">
@@ -193,7 +193,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                     <div className="flex gap-4 ml-auto">
                         <button
                             onClick={onClose}
-                            className="px-6 py-3 rounded-lg text-white font-bold hover:bg-[#28392b] transition-all text-sm border border-[#28392b]"
+                            className="px-6 py-3 rounded-lg text-foreground font-bold hover:bg-[#28392b] transition-all text-sm border border-[#28392b]"
                         >
                             Cancel
                         </button>

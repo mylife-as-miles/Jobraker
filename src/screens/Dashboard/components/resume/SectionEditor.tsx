@@ -52,16 +52,16 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
       {section.items.map((item) => (
         <div
           key={item.id}
-          className='bg-gray-100 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/5 overflow-hidden transition-all hover:border-[#1dff00]/30'
+          className='bg-gray-100 dark:bg-muted/50 rounded-lg border border-gray-200 dark:border-white/5 overflow-hidden transition-all hover:border-[#1dff00]/30'
         >
           <div
-            className='p-3 flex items-center gap-3 cursor-pointer bg-white/50 dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10'
+            className='p-3 flex items-center gap-3 cursor-pointer bg-white/50 dark:bg-muted/50 hover:bg-gray-50 dark:hover:bg-muted'
             onClick={() =>
               setExpandedItem(expandedItem === item.id ? null : item.id)
             }
           >
             <div className='flex-1 min-w-0'>
-              <h5 className='text-sm font-medium text-gray-900 dark:text-white truncate'>
+              <h5 className='text-sm font-medium text-gray-900 dark:text-foreground truncate'>
                 {item.title || item.name || item.degree || "(Untitled)"}
               </h5>
               <p className='text-xs text-gray-500 dark:text-gray-400 truncate'>

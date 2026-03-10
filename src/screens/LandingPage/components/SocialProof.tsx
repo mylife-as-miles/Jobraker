@@ -7,7 +7,7 @@ const companies = [
 
 export const SocialProof = () => {
   return (
-    <div className="w-full py-12 bg-black overflow-hidden relative border-y border-[#1dff00]/10">
+    <div className="w-full py-12 bg-background overflow-hidden relative border-y border-[#1dff00]/10">
       <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-black z-10 pointer-events-none" />
 
       <div className="text-center mb-8">
@@ -24,7 +24,7 @@ export const SocialProof = () => {
         >
           {[...companies, ...companies].map((company, i) => (
             <div key={i} className="flex items-center space-x-2 opacity-50 hover:opacity-100 transition-opacity">
-               <span className="text-xl md:text-2xl font-bold font-mono text-white/80">{company}</span>
+               <span className="text-xl md:text-2xl font-bold font-mono text-foreground/80">{company}</span>
             </div>
           ))}
         </motion.div>

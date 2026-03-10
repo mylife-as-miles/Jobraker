@@ -71,7 +71,7 @@ export const AIPolishDialog = ({ open, onClose, originalText, suggestions, onApp
                                 <Sparkles className="w-5 h-5" />
                                 <span>AI Polish Suggestions</span>
                             </div>
-                            <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+                            <button onClick={onClose} className="text-slate-400 hover:text-foreground transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
@@ -111,11 +111,11 @@ export const AIPolishDialog = ({ open, onClose, originalText, suggestions, onApp
 
                                                 <div className={`p-4 rounded-lg border transition-colors group cursor-pointer ${selectedSuggestion === suggestion.id
                                                     ? 'bg-[#1dff00]/10 border-[#1dff00]/50'
-                                                    : 'bg-white/5 border-white/10 hover:bg-[#1dff00]/5 hover:border-[#1dff00]/30'
+                                                    : 'bg-muted/50 border-white/10 hover:bg-[#1dff00]/5 hover:border-[#1dff00]/30'
                                                     }`}
                                                     onClick={() => setSelectedSuggestion(suggestion.id)}
                                                 >
-                                                    <p className="text-white text-sm leading-relaxed">
+                                                    <p className="text-foreground text-sm leading-relaxed">
                                                         {suggestion.content}
                                                     </p>
 
@@ -134,7 +134,7 @@ export const AIPolishDialog = ({ open, onClose, originalText, suggestions, onApp
                                                                 e.stopPropagation();
                                                                 setSelectedSuggestion(null);
                                                             }}
-                                                            className="px-3 py-2 rounded-lg border border-white/10 hover:bg-white/5 text-slate-400 text-xs font-medium transition-colors"
+                                                            className="px-3 py-2 rounded-lg border border-white/10 hover:bg-muted/50 text-slate-400 text-xs font-medium transition-colors"
                                                         >
                                                             Dismiss
                                                         </button>
@@ -148,7 +148,7 @@ export const AIPolishDialog = ({ open, onClose, originalText, suggestions, onApp
                         </div>
 
                         {/* Footer */}
-                        <div className="p-3 bg-black/20 text-center border-t border-white/5 text-[10px] text-slate-500">
+                        <div className="p-3 bg-muted text-center border-t border-border text-[10px] text-slate-500">
                             AI can make mistakes. Please review suggestions.
                         </div>
                     </div>

@@ -37,9 +37,9 @@ const testimonials = [
 
 export const TestimonialGridSection = () => {
   return (
-    <section className="py-24 bg-black">
+    <section className="py-24 bg-background">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl md:text-5xl font-bold font-mono text-center text-white mb-16">
+        <h2 className="text-3xl md:text-5xl font-bold font-mono text-center text-foreground mb-16">
           COMMUNITY <span className="text-[#1dff00]">FEEDBACK</span>
         </h2>
 
@@ -48,18 +48,18 @@ export const TestimonialGridSection = () => {
             <motion.div
               key={i}
               whileHover={{ y: -5 }}
-              className="p-8 bg-white/5 border border-white/10 rounded-xl hover:border-[#1dff00]/30 transition-all"
+              className="p-8 bg-muted/50 border border-white/10 rounded-xl hover:border-[#1dff00]/30 transition-all"
             >
               <div className="flex text-[#1dff00] mb-4">
                 {[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 fill-current" />)}
               </div>
               <p className="text-gray-300 font-mono mb-6 leading-relaxed">"{t.text}"</p>
               <div className="flex items-center">
-                <div className="w-10 h-10 bg-white/10 rounded-full mr-3 flex items-center justify-center font-bold text-white">
+                <div className="w-10 h-10 bg-muted rounded-full mr-3 flex items-center justify-center font-bold text-foreground">
                   {t.author[0]}
                 </div>
                 <div>
-                  <div className="text-white font-bold font-mono text-sm">{t.author}</div>
+                  <div className="text-foreground font-bold font-mono text-sm">{t.author}</div>
                   <div className="text-gray-500 font-mono text-xs">{t.role}</div>
                 </div>
               </div>

@@ -246,17 +246,17 @@ export const ResumeBuilderPage = () => {
         <div className='flex items-center gap-4'>
           <button
             onClick={() => navigate("/dashboard/resume")}
-            className='flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-900 dark:hover:text-white transition-colors'
+            className='flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-900 dark:hover:text-foreground transition-colors'
           >
             <ArrowLeft className='w-4 h-4' />
             <span>Back</span>
           </button>
-          <div className='h-6 w-px bg-gray-200 dark:bg-white/10' />
+          <div className='h-6 w-px bg-gray-200 dark:bg-muted' />
           <div className='flex items-center gap-2 group'>
             <input
               value={resumeData.title || "Untitled Resume"}
               onChange={(e) => setResumeTitle(e.target.value)}
-              className='font-semibold text-gray-900 dark:text-white bg-transparent border-none outline-none focus:ring-1 focus:ring-[#1dff00] rounded px-1 min-w-[200px]'
+              className='font-semibold text-gray-900 dark:text-foreground bg-transparent border-none outline-none focus:ring-1 focus:ring-[#1dff00] rounded px-1 min-w-[200px]'
             />
             <Edit2 className='w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity' />
           </div>
@@ -265,7 +265,7 @@ export const ResumeBuilderPage = () => {
         <div className='flex items-center gap-3'>
           <button
             onClick={() => setIsTemplateSelectorOpen(true)}
-            className='flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300'
+            className='flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-muted/50 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300'
           >
             <LayoutTemplate className='w-4 h-4' />
             Templates
@@ -274,7 +274,7 @@ export const ResumeBuilderPage = () => {
 
           <button
             onClick={() => setIsShareOpen(true)}
-            className='flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300'
+            className='flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-muted/50 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300'
           >
             <Share2 className='w-4 h-4' />
             Share
@@ -290,7 +290,7 @@ export const ResumeBuilderPage = () => {
           <button
             onClick={aiGenerateResume}
             disabled={aiLoading}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-gray-700 dark:text-white text-sm font-bold transition-all'
+            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-muted border border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-gray-700 dark:text-foreground text-sm font-bold transition-all'
           >
             <Wand2 className={`w-4 h-4 ${aiLoading ? "animate-spin" : ""}`} />
             {aiLoading ? "Generating..." : "AI Generate"}
@@ -299,7 +299,7 @@ export const ResumeBuilderPage = () => {
           <button
             onClick={handleSave}
             disabled={saving || !urlId}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-brand/50 hover:bg-brand/10 text-gray-700 dark:text-white text-sm font-bold transition-all disabled:opacity-50'
+            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-muted border border-brand/50 hover:bg-brand/10 text-gray-700 dark:text-foreground text-sm font-bold transition-all disabled:opacity-50'
           >
             <FileText className={`w-4 h-4 ${saving ? "animate-pulse" : ""}`} />
             {saving ? "Saving..." : "Save Changes"}
@@ -307,7 +307,7 @@ export const ResumeBuilderPage = () => {
 
           <button
             onClick={downloadPDF}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/20 text-sm font-medium transition-all text-gray-700 dark:text-white'
+            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-muted border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/20 text-sm font-medium transition-all text-gray-700 dark:text-foreground'
           >
             <Download className='w-4 h-4' />
             Download PDF
@@ -343,7 +343,7 @@ export const ResumeBuilderPage = () => {
               >
                 <div className='flex items-center gap-3'>
                   <User className='w-5 h-5 text-[#1dff00]' />
-                  <h4 className='font-semibold text-gray-900 dark:text-white'>
+                  <h4 className='font-semibold text-gray-900 dark:text-foreground'>
                     Personal Info
                   </h4>
                 </div>
@@ -367,7 +367,7 @@ export const ResumeBuilderPage = () => {
                 >
                   <div className='flex items-center gap-3'>
                     <FileText className='w-5 h-5 text-[#1dff00]' />
-                    <h4 className='font-semibold text-gray-900 dark:text-white'>
+                    <h4 className='font-semibold text-gray-900 dark:text-foreground'>
                       Summary
                     </h4>
                   </div>
@@ -384,7 +384,7 @@ export const ResumeBuilderPage = () => {
                       value={summary.content || ""}
                       onChange={(e) => setSummary(e.target.value)}
                       rows={4}
-                      className='w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100'
+                      className='w-full bg-gray-100 dark:bg-muted/50 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100'
                       placeholder='Brief professional summary...'
                     />
                   </div>
@@ -410,13 +410,13 @@ export const ResumeBuilderPage = () => {
                   >
                     <div className='flex items-center gap-3'>
                       <Icon className='w-5 h-5 text-[#1dff00]' />
-                      <h4 className='font-semibold text-gray-900 dark:text-white'>
+                      <h4 className='font-semibold text-gray-900 dark:text-foreground'>
                         {section.title}
                       </h4>
                     </div>
                     <div className='flex items-center gap-2'>
                       <button
-                        className='p-1 hover:bg-white/10 rounded text-gray-500 hover:text-red-500 transition-colors'
+                        className='p-1 hover:bg-muted rounded text-gray-500 hover:text-red-500 transition-colors'
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleSectionVisibility(sectionId);

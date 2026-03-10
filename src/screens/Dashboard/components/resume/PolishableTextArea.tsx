@@ -53,7 +53,7 @@ export const PolishableTextArea = ({ className, onPolish, isPolishing, value, ..
                             "p-1.5 rounded-lg transition-all duration-300",
                             isPolishing
                                 ? "bg-[#1dff00] text-black shadow-[0_0_10px_rgba(29,255,0,0.5)]"
-                                : "bg-gray-100 dark:bg-white/10 text-gray-400 hover:text-[#1dff00] hover:bg-[#1dff00]/10"
+                                : "bg-gray-100 dark:bg-muted text-gray-400 hover:text-[#1dff00] hover:bg-[#1dff00]/10"
                         )}
                         title="AI Polish"
                     >

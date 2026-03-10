@@ -1504,8 +1504,8 @@ function ApplicationPage() {
                         className='absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-80'
                       />
                       <div className='absolute bottom-0 left-0 right-0 p-3 z-20 flex items-center justify-between'>
-                        <span className='text-xs font-medium text-white'>View Form Data</span>
-                        <svg className='w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                        <span className='text-xs font-medium text-foreground'>View Form Data</span>
+                        <svg className='w-4 h-4 text-foreground opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
                           <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14' />
                         </svg>
                       </div>
@@ -1525,8 +1525,8 @@ function ApplicationPage() {
                         className='absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-80'
                       />
                       <div className='absolute bottom-0 left-0 right-0 p-3 z-20 flex items-center justify-between'>
-                        <span className='text-xs font-medium focus:text-white text-[#1dff00]'>Success Screenshot</span>
-                        <svg className='w-4 h-4 focus:text-white text-[#1dff00] opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                        <span className='text-xs font-medium focus:text-foreground text-[#1dff00]'>Success Screenshot</span>
+                        <svg className='w-4 h-4 focus:text-foreground text-[#1dff00] opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
                           <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' />
                         </svg>
                       </div>
@@ -1786,7 +1786,7 @@ function ApplicationPage() {
                     }
                   }}
                   disabled={interviewAgentLoading || !interviewEmailText.trim()}
-                  className='bg-gradient-to-r from-[#b347ff] to-[#8000ff] text-white font-semibold hover:shadow-[0_0_20px_rgba(179,71,255,0.4)] transition-all'
+                  className='bg-gradient-to-r from-[#b347ff] to-[#8000ff] text-foreground font-semibold hover:shadow-[0_0_20px_rgba(179,71,255,0.4)] transition-all'
                 >
                   {interviewAgentLoading ? (
                     <span className='flex items-center gap-2'>

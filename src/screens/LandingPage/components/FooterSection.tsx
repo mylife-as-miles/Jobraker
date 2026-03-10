@@ -11,7 +11,7 @@ export const FooterSection = () => {
               <div className="w-8 h-8 bg-[#1dff00] rounded flex items-center justify-center">
                 <Bot className="w-5 h-5 text-black" />
               </div>
-              <span className="text-white font-bold text-xl tracking-tighter">JOBRAKER</span>
+              <span className="text-foreground font-bold text-xl tracking-tighter">JOBRAKER</span>
             </div>
             <p className="text-gray-500 font-mono text-sm max-w-sm">
               Autonomous AI agents for career acceleration. We build the future of work, one application at a time.
@@ -19,7 +19,7 @@ export const FooterSection = () => {
           </div>
 
           <div>
-            <h4 className="text-white font-bold font-mono mb-6 uppercase tracking-wider text-sm">Product</h4>
+            <h4 className="text-foreground font-bold font-mono mb-6 uppercase tracking-wider text-sm">Product</h4>
             <ul className="space-y-4 text-sm text-gray-500 font-mono">
               <li><a href="#" className="hover:text-[#1dff00] transition-colors">Features</a></li>
               <li><a href="#" className="hover:text-[#1dff00] transition-colors">Pricing</a></li>
@@ -29,7 +29,7 @@ export const FooterSection = () => {
           </div>
 
           <div>
-            <h4 className="text-white font-bold font-mono mb-6 uppercase tracking-wider text-sm">Legal</h4>
+            <h4 className="text-foreground font-bold font-mono mb-6 uppercase tracking-wider text-sm">Legal</h4>
             <ul className="space-y-4 text-sm text-gray-500 font-mono">
               <li><a href="#" className="hover:text-[#1dff00] transition-colors">Privacy</a></li>
               <li><a href="#" className="hover:text-[#1dff00] transition-colors">Terms</a></li>

@@ -67,15 +67,15 @@ export const Analytics = (): JSX.Element => {
   };
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-background">
       {/* Header Bar */}
       <div className="sticky top-0 z-10 border-b border-white/10 bg-gradient-to-b from-[#0a0a0a] to-transparent">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
               <span className="bg-gradient-to-r from-white to-[#1dff00] bg-clip-text text-transparent">Analytics</span>
             </h1>
-            <span className="hidden sm:inline text-xs text-white/60">{periodLabel}</span>
+            <span className="hidden sm:inline text-xs text-foreground/60">{periodLabel}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="inline-flex rounded-lg border border-white/20 overflow-hidden mr-2">
@@ -83,7 +83,7 @@ export const Analytics = (): JSX.Element => {
                 <button
                   key={g}
                   onClick={() => setGranularityAndUrl(g)}
-                  className={`px-2.5 py-1.5 text-xs sm:text-sm text-white/80 hover:text-white transition ${granularity===g ? 'bg-white/15' : ''} ${g!== 'day' ? 'border-l border-white/15' : ''}`}
+                  className={`px-2.5 py-1.5 text-xs sm:text-sm text-foreground/80 hover:text-foreground transition ${granularity===g ? 'bg-white/15' : ''} ${g!== 'day' ? 'border-l border-white/15' : ''}`}
                   aria-pressed={granularity===g}
                   title={`Group by ${g}`}
                 >
@@ -96,7 +96,7 @@ export const Analytics = (): JSX.Element => {
                 <button
                   key={p}
                   onClick={() => setPeriodAndUrl(p)}
-                  className={`px-3 py-1.5 text-xs sm:text-sm text-white/80 hover:text-white transition ${period===p ? 'bg-white/15' : ''} ${p!=="7d" ? 'border-l border-white/15' : ''}`}
+                  className={`px-3 py-1.5 text-xs sm:text-sm text-foreground/80 hover:text-foreground transition ${period===p ? 'bg-white/15' : ''} ${p!=="7d" ? 'border-l border-white/15' : ''}`}
                   aria-pressed={period===p}
                 >
                   {p.toUpperCase()}
@@ -105,7 +105,7 @@ export const Analytics = (): JSX.Element => {
             </div>
             <Button
               variant="outline"
-              className="border-white/30 text-white hover:bg-white/10"
+              className="border-white/30 text-foreground hover:bg-muted"
               onClick={() => analytics.refresh?.({ bypassCache: true })}
               title="Refresh"
             >
@@ -113,7 +113,7 @@ export const Analytics = (): JSX.Element => {
             </Button>
             <Button
               variant="outline"
-              className="border-white/30 text-white hover:bg-white/10"
+              className="border-white/30 text-foreground hover:bg-muted"
               onClick={() => analytics.exportCSV?.()}
               title="Export CSV"
               disabled={!hasData}
@@ -122,7 +122,7 @@ export const Analytics = (): JSX.Element => {
             </Button>
             <Button
               variant="outline"
-              className="border-white/30 text-white hover:bg-white/10"
+              className="border-white/30 text-foreground hover:bg-muted"
               onClick={() => analytics.exportJSON?.()}
               title="Export JSON"
               disabled={!hasData}
@@ -131,7 +131,7 @@ export const Analytics = (): JSX.Element => {
             </Button>
             <Button
               variant="outline"
-              className="border-white/30 text-white hover:bg-white/10"
+              className="border-white/30 text-foreground hover:bg-muted"
               onClick={exportPDF}
               title="Export PDF (Print)"
             >
@@ -139,7 +139,7 @@ export const Analytics = (): JSX.Element => {
             </Button>
             <Button
               variant="outline"
-              className="border-white/30 text-white hover:bg-white/10"
+              className="border-white/30 text-foreground hover:bg-muted"
               onClick={copyLink}
               title="Copy link"
             >
@@ -152,7 +152,7 @@ export const Analytics = (): JSX.Element => {
             {analytics.error ? (
               <p className="text-[11px] sm:text-xs text-red-400">{analytics.error}</p>
             ) : (
-              <p className="text-[11px] sm:text-xs text-white/50">Last updated {new Date(analytics.lastUpdated!).toLocaleString()}</p>
+              <p className="text-[11px] sm:text-xs text-foreground/50">Last updated {new Date(analytics.lastUpdated!).toLocaleString()}</p>
             )}
           </div>
         )}

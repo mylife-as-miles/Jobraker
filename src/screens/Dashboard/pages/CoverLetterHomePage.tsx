@@ -197,7 +197,7 @@ export const CoverLetterHomePage = () => {
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => {}} // Placeholder
+                onClick={() => { }} // Placeholder
                 className='aspect-[3/4] rounded-xl border border-dashed border-[#ffffff20] bg-[#ffffff05] hover:bg-[#ffffff0a] hover:border-[#ffffff40] cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
               >
                 <div className='w-16 h-16 rounded-full bg-[#ffffff10] flex items-center justify-center text-foreground group-hover:scale-110 transition-transform'>
@@ -227,7 +227,7 @@ export const CoverLetterHomePage = () => {
                     />
 
                     {/* Overlay */}
-                    <div className='absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
+                    <div className='absolute inset-0 bg-background/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2'>
                       <Button size='sm' variant='secondary' className='gap-2'>
                         <Edit2 className='w-3 h-3' /> Edit
                       </Button>

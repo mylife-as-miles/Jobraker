@@ -20,12 +20,12 @@ const outerOrbitIcons = [
 
 export const IntegrationsSection = () => {
   return (
-    <section className="py-24 bg-black relative overflow-hidden min-h-[800px] flex flex-col justify-center">
+    <section className="py-24 bg-background relative overflow-hidden min-h-[800px] flex flex-col justify-center">
       {/* Background Gradients */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#1dff00]/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="container mx-auto px-4 text-center relative z-10 mb-12">
-        <h2 className="text-4xl md:text-6xl font-bold font-mono text-white mb-6 tracking-tight">
+        <h2 className="text-4xl md:text-6xl font-bold font-mono text-foreground mb-6 tracking-tight">
           CONNECTED <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1dff00] to-emerald-500">ECOSYSTEM</span>
         </h2>
         <p className="text-gray-400 max-w-2xl mx-auto font-mono text-lg">
@@ -45,7 +45,7 @@ export const IntegrationsSection = () => {
                     transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                     className="absolute w-32 h-32 bg-[#1dff00]/20 rounded-full blur-xl"
                 />
-                <div className="w-20 h-20 bg-black rounded-full border border-[#1dff00]/50 flex items-center justify-center shadow-[0_0_30px_rgba(29,255,0,0.3)] relative z-20 backdrop-blur-sm">
+                <div className="w-20 h-20 bg-background rounded-full border border-[#1dff00]/50 flex items-center justify-center shadow-[0_0_30px_rgba(29,255,0,0.3)] relative z-20 backdrop-blur-sm">
                     <Bot className="w-10 h-10 text-[#1dff00]" />
                 </div>
                 {/* Scanning Ring */}
@@ -83,11 +83,11 @@ export const IntegrationsSection = () => {
                                         transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
                                         className="w-12 h-12 bg-[#0a0a0a] border border-white/10 rounded-xl flex items-center justify-center shadow-lg hover:border-[#1dff00] hover:scale-110 transition-all duration-300 group"
                                     >
-                                        <div className="text-gray-300 group-hover:text-white transition-colors">
+                                        <div className="text-gray-300 group-hover:text-foreground transition-colors">
                                             {item.icon}
                                         </div>
                                         {/* Tooltip */}
-                                        <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black border border-white/10 px-2 py-1 rounded text-xs whitespace-nowrap text-[#1dff00]">
+                                        <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity bg-background border border-white/10 px-2 py-1 rounded text-xs whitespace-nowrap text-[#1dff00]">
                                             {item.name}
                                         </div>
                                     </motion.div>
@@ -130,10 +130,10 @@ export const IntegrationsSection = () => {
                                         transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
                                         className="w-14 h-14 bg-[#0a0a0a] border border-white/10 rounded-2xl flex items-center justify-center shadow-xl hover:border-[#1dff00] hover:scale-110 transition-all duration-300 group backdrop-blur-md"
                                     >
-                                        <div className="text-gray-300 group-hover:text-white transition-colors">
+                                        <div className="text-gray-300 group-hover:text-foreground transition-colors">
                                             {item.icon}
                                         </div>
-                                        <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black border border-white/10 px-2 py-1 rounded text-xs whitespace-nowrap text-[#1dff00]">
+                                        <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity bg-background border border-white/10 px-2 py-1 rounded text-xs whitespace-nowrap text-[#1dff00]">
                                             {item.name}
                                         </div>
                                     </motion.div>

@@ -69,15 +69,15 @@ export const PublicResumePage = () => {
         downloadResumePDF(resumeData);
     };
 
-    if (loading) return <div className="flex items-center justify-center h-screen bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white"><Loader2 className="animate-spin w-8 h-8" /></div>;
-    if (error) return <div className="flex flex-col items-center justify-center h-screen gap-4 bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white"><AlertCircle className="w-10 h-10 text-red-500" /><p className="text-lg">{error}</p></div>;
+    if (loading) return <div className="flex items-center justify-center h-screen bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-foreground"><Loader2 className="animate-spin w-8 h-8" /></div>;
+    if (error) return <div className="flex flex-col items-center justify-center h-screen gap-4 bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-foreground"><AlertCircle className="w-10 h-10 text-red-500" /><p className="text-lg">{error}</p></div>;
 
     const selectedTemplate = resumeData.metadata.template;
 
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-[#0A0A0A] flex flex-col">
             <header className="h-16 bg-white dark:bg-[#121212] border-b border-gray-200 dark:border-white/10 flex items-center justify-between px-8 sticky top-0 z-50">
-                <span className="font-bold text-xl text-gray-900 dark:text-white">{resumeData.basics.name}</span>
+                <span className="font-bold text-xl text-gray-900 dark:text-foreground">{resumeData.basics.name}</span>
                 <Button onClick={handleDownload} className="bg-[#1dff00] text-black hover:bg-[#15bd00]">
                     <Download className="w-4 h-4 mr-2" />
                     Download PDF

@@ -237,7 +237,7 @@ const ProfilePage = (): JSX.Element => {
   });
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-background">
       <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
           {/* Profile Sidebar */}
@@ -274,7 +274,7 @@ const ProfilePage = (): JSX.Element => {
                     )}
                   </div>
 
-                  <h2 className="text-xl font-bold text-white mb-1">
+                  <h2 className="text-xl font-bold text-foreground mb-1">
                     {(profile?.first_name || '').trim() || 'Your'} {(profile?.last_name || '').trim() || 'Name'}
                   </h2>
                   <p className="text-[#ffffff80] mb-2">{profile?.job_title || 'Add a job title'}</p>
@@ -286,8 +286,8 @@ const ProfilePage = (): JSX.Element => {
                     const TierIcon = tierBadge.icon;
                     return (
                       <div className="inline-flex items-center gap-1.5 px-3 py-1.5 mb-3 rounded-full bg-gradient-to-r shadow-lg border border-white/20" style={{ backgroundImage: `linear-gradient(to right, var(--tw-gradient-stops))`, '--tw-gradient-from': tierBadge.color.split(' ')[0].replace('from-', ''), '--tw-gradient-to': tierBadge.color.split(' ')[1].replace('to-', '') } as any}>
-                        <TierIcon className="w-4 h-4 text-white" />
-                        <span className="text-sm font-semibold text-white">{tierBadge.label}</span>
+                        <TierIcon className="w-4 h-4 text-foreground" />
+                        <span className="text-sm font-semibold text-foreground">{tierBadge.label}</span>
                       </div>
                     );
                   })()}
@@ -298,11 +298,11 @@ const ProfilePage = (): JSX.Element => {
                   </p>
 
                   <div className="space-y-2 text-sm">
-                    <div className="flex items-center justify-center text-[#ffffff80] hover:text-white transition-colors duration-300">
+                    <div className="flex items-center justify-center text-[#ffffff80] hover:text-foreground transition-colors duration-300">
                       <Mail className="w-4 h-4 mr-2" />
                       <span>{email || 'your@email'}</span>
                     </div>
-                    <div className="flex items-center justify-center text-[#ffffff80] hover:text-white transition-colors duration-300">
+                    <div className="flex items-center justify-center text-[#ffffff80] hover:text-foreground transition-colors duration-300">
                       <Phone className="w-4 h-4 mr-2" />
                       <span>{(profile as any)?.phone || 'Add phone'}</span>
                     </div>
@@ -312,7 +312,7 @@ const ProfilePage = (): JSX.Element => {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                      className="border-[#ffffff33] text-foreground hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
                     >
                       <ExternalLink className="w-4 h-4 mr-1" />
                       LinkedIn
@@ -320,7 +320,7 @@ const ProfilePage = (): JSX.Element => {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                      className="border-[#ffffff33] text-foreground hover:bg-[#ffffff1a] hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
                     >
                       <ExternalLink className="w-4 h-4 mr-1" />
                       GitHub
@@ -339,7 +339,7 @@ const ProfilePage = (): JSX.Element => {
               className="transition-transform duration-300"
             >
               <Card id="profile-quick-stats" data-tour="profile-quick-stats" className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
-                <h3 className="text-lg font-semibold text-white mb-4">Quick Stats</h3>
+                <h3 className="text-lg font-semibold text-foreground mb-4">Quick Stats</h3>
                 {appsLoading ? (
                   <div className="space-y-3">
                     <Skeleton className="h-4 w-32" />
@@ -424,7 +424,7 @@ const ProfilePage = (): JSX.Element => {
                         <Zap className='w-5 h-5 text-[#1dff00]' />
                       </div>
                       <div>
-                        <h3 className='text-sm sm:text-base font-semibold text-white tracking-tight'>Level {gamification.streak.level}</h3>
+                        <h3 className='text-sm sm:text-base font-semibold text-foreground tracking-tight'>Level {gamification.streak.level}</h3>
                         <p className='text-[9px] sm:text-[10px] text-[#ffffff50] uppercase tracking-wider font-medium'>Experience Points</p>
                       </div>
                     </div>
@@ -463,7 +463,7 @@ const ProfilePage = (): JSX.Element => {
                     <Trophy className='w-4 h-4 text-yellow-400' />
                   </div>
                   <div>
-                    <h3 className='text-sm sm:text-base font-semibold text-white tracking-tight'>Achievements</h3>
+                    <h3 className='text-sm sm:text-base font-semibold text-foreground tracking-tight'>Achievements</h3>
                     <p className='text-[9px] sm:text-[10px] text-[#ffffff50] uppercase tracking-wider font-medium'>
                       {gamification.allAchievements.filter(a => a.unlocked).length}/{gamification.allAchievements.length} Unlocked
                     </p>
@@ -476,8 +476,8 @@ const ProfilePage = (): JSX.Element => {
                       whileHover={{ scale: 1.12 }}
                       title={`${ach.title}: ${ach.description}`}
                       className={`relative flex flex-col items-center justify-center p-2 rounded-lg border transition-all duration-300 cursor-default ${ach.unlocked
-                          ? 'bg-[#1dff00]/10 border-[#1dff00]/40 shadow-lg shadow-[#1dff00]/20'
-                          : 'bg-[#ffffff03] border-[#ffffff08] opacity-40'
+                        ? 'bg-[#1dff00]/10 border-[#1dff00]/40 shadow-lg shadow-[#1dff00]/20'
+                        : 'bg-[#ffffff03] border-[#ffffff08] opacity-40'
                         }`}
                     >
                       <span className='text-lg sm:text-xl'>{ach.icon}</span>
@@ -506,11 +506,11 @@ const ProfilePage = (): JSX.Element => {
             >
               <Card id="profile-about" data-tour="profile-about" className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white">About</h3>
+                  <h3 className="text-lg font-semibold text-foreground">About</h3>
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="text-[#ffffff80] hover:text-white hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300"
+                    className="text-[#ffffff80] hover:text-foreground hover:bg-[#ffffff1a] hover:scale-110 transition-all duration-300"
                     onClick={() => setIsEditing(!isEditing)}
                   >
                     <Edit className="w-4 h-4" />
@@ -548,12 +548,12 @@ const ProfilePage = (): JSX.Element => {
                       />
                     ) : (
                       <p className="text-[#ffffff80] leading-relaxed">
-                        Working as <span className="text-white font-medium">{profile?.job_title}</span>
+                        Working as <span className="text-foreground font-medium">{profile?.job_title}</span>
                         {profile?.experience_years ? (
-                          <> with <span className="text-white font-medium">{profile.experience_years}</span> years experience</>
+                          <> with <span className="text-foreground font-medium">{profile.experience_years}</span> years experience</>
                         ) : null}
                         {profile?.location ? (
-                          <> in <span className="text-white font-medium">{profile.location}</span></>
+                          <> in <span className="text-foreground font-medium">{profile.location}</span></>
                         ) : null}
                         .
                       </p>
@@ -573,8 +573,8 @@ const ProfilePage = (): JSX.Element => {
             >
               <Card id="profile-experience" data-tour="profile-experience" className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white flex items-center">
-                    <Briefcase className="w-5 h-5 mr-2 text-white" />
+                  <h3 className="text-lg font-semibold text-foreground flex items-center">
+                    <Briefcase className="w-5 h-5 mr-2 text-foreground" />
                     Experience
                   </h3>
                   <Button
@@ -589,20 +589,20 @@ const ProfilePage = (): JSX.Element => {
                 {showAddExperience && (
                   <div className="mb-4 space-y-2 p-4 bg-[#ffffff0a] rounded-lg">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <input placeholder="Title" id="exp-title" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
-                      <input placeholder="Company" id="exp-company" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
-                      <input placeholder="Location" id="exp-location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                      <input placeholder="Title" id="exp-title" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
+                      <input placeholder="Company" id="exp-company" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
+                      <input placeholder="Location" id="exp-location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
                       <div className="flex gap-2">
-                        <input type="month" placeholder="Start" id="exp-start" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
-                        <input type="month" placeholder="End" id="exp-end" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
+                        <input type="month" placeholder="Start" id="exp-start" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground flex-1 placeholder:text-[#ffffff60]" />
+                        <input type="month" placeholder="End" id="exp-end" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground flex-1 placeholder:text-[#ffffff60]" />
                       </div>
                       <label className="flex items-center gap-2 text-xs text-[#ffffff80]">
                         <input type="checkbox" id="exp-current" className="accent-[#1dff00]" /> Current Role
                       </label>
-                      <textarea placeholder="Description" id="exp-desc" rows={2} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60] col-span-full resize-none" />
+                      <textarea placeholder="Description" id="exp-desc" rows={2} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60] col-span-full resize-none" />
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
+                      <Button size="sm" variant="outline" className="border-[#ffffff33] text-foreground hover:bg-[#ffffff1a]"
                         onClick={() => setShowAddExperience(false)}>Cancel</Button>
                       <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90"
                         onClick={() => {
@@ -663,8 +663,8 @@ const ProfilePage = (): JSX.Element => {
                       <div className="absolute -left-2 top-3 w-4 h-4 bg-[#1dff00] rounded-full"></div>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h4 className="text-white font-semibold">{exp.title}</h4>
-                          <p className="text-white font-medium">{exp.company}</p>
+                          <h4 className="text-foreground font-semibold">{exp.title}</h4>
+                          <p className="text-foreground font-medium">{exp.company}</p>
                           <p className="text-[#ffffff60] text-sm flex items-center">
                             <MapPin className="w-3 h-3 mr-1" />
                             {exp.location}
@@ -680,7 +680,7 @@ const ProfilePage = (): JSX.Element => {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300 p-1"
+                              className="text-[#ffffff60] hover:text-foreground hover:scale-110 transition-all duration-300 p-1"
                               onClick={() => setEditingExpId(exp.id)}
                             >
                               <Edit className="w-3 h-3" />
@@ -700,20 +700,20 @@ const ProfilePage = (): JSX.Element => {
                       {editingExpId === exp.id && (
                         <div className="mt-3 p-3 bg-[#ffffff10] rounded-lg space-y-2">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <input defaultValue={exp.title} id={`exp-edit-title-${exp.id}`} placeholder="Title" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
-                            <input defaultValue={exp.company} id={`exp-edit-company-${exp.id}`} placeholder="Company" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
-                            <input defaultValue={exp.location} id={`exp-edit-location-${exp.id}`} placeholder="Location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                            <input defaultValue={exp.title} id={`exp-edit-title-${exp.id}`} placeholder="Title" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
+                            <input defaultValue={exp.company} id={`exp-edit-company-${exp.id}`} placeholder="Company" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
+                            <input defaultValue={exp.location} id={`exp-edit-location-${exp.id}`} placeholder="Location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
                             <div className="flex gap-2">
-                              <input type="month" defaultValue={(exp.start_date || '').slice(0, 7)} id={`exp-edit-start-${exp.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
-                              <input type="month" defaultValue={exp.end_date ? exp.end_date.slice(0, 7) : ''} id={`exp-edit-end-${exp.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
+                              <input type="month" defaultValue={(exp.start_date || '').slice(0, 7)} id={`exp-edit-start-${exp.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground flex-1 placeholder:text-[#ffffff60]" />
+                              <input type="month" defaultValue={exp.end_date ? exp.end_date.slice(0, 7) : ''} id={`exp-edit-end-${exp.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground flex-1 placeholder:text-[#ffffff60]" />
                             </div>
                             <label className="flex items-center gap-2 text-xs text-[#ffffff80]">
                               <input type="checkbox" defaultChecked={!!exp.is_current} id={`exp-edit-current-${exp.id}`} className="accent-[#1dff00]" /> Current Role
                             </label>
-                            <textarea defaultValue={exp.description || ''} id={`exp-edit-desc-${exp.id}`} rows={2} placeholder="Description" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60] col-span-full resize-none" />
+                            <textarea defaultValue={exp.description || ''} id={`exp-edit-desc-${exp.id}`} rows={2} placeholder="Description" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60] col-span-full resize-none" />
                           </div>
                           <div className="flex justify-end gap-2">
-                            <Button size="sm" variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={() => setEditingExpId(null)}>Cancel</Button>
+                            <Button size="sm" variant="outline" className="border-[#ffffff33] text-foreground hover:bg-[#ffffff1a]" onClick={() => setEditingExpId(null)}>Cancel</Button>
                             <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={async () => {
                               await updateExperience(exp.id, {
                                 title: (document.getElementById(`exp-edit-title-${exp.id}`) as HTMLInputElement)?.value.trim(),
@@ -745,8 +745,8 @@ const ProfilePage = (): JSX.Element => {
             >
               <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white flex items-center">
-                    <GraduationCap className="w-5 h-5 mr-2 text-white" />
+                  <h3 className="text-lg font-semibold text-foreground flex items-center">
+                    <GraduationCap className="w-5 h-5 mr-2 text-foreground" />
                     Education
                   </h3>
                   <Button
@@ -761,17 +761,17 @@ const ProfilePage = (): JSX.Element => {
                 {showAddEducation && (
                   <div className="mb-4 space-y-2 p-4 bg-[#ffffff0a] rounded-lg">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <input placeholder="Degree" id="edu-degree" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
-                      <input placeholder="School" id="edu-school" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
-                      <input placeholder="Location" id="edu-location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                      <input placeholder="Degree" id="edu-degree" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
+                      <input placeholder="School" id="edu-school" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
+                      <input placeholder="Location" id="edu-location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
                       <div className="flex gap-2">
-                        <input type="month" placeholder="Start" id="edu-start" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
-                        <input type="month" placeholder="End" id="edu-end" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
+                        <input type="month" placeholder="Start" id="edu-start" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground flex-1 placeholder:text-[#ffffff60]" />
+                        <input type="month" placeholder="End" id="edu-end" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground flex-1 placeholder:text-[#ffffff60]" />
                       </div>
-                      <input placeholder="GPA" id="edu-gpa" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                      <input placeholder="GPA" id="edu-gpa" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={() => setShowAddEducation(false)}>Cancel</Button>
+                      <Button size="sm" variant="outline" className="border-[#ffffff33] text-foreground hover:bg-[#ffffff1a]" onClick={() => setShowAddEducation(false)}>Cancel</Button>
                       <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => {
                         const degree = (document.getElementById('edu-degree') as HTMLInputElement)?.value.trim();
                         const school = (document.getElementById('edu-school') as HTMLInputElement)?.value.trim();
@@ -830,8 +830,8 @@ const ProfilePage = (): JSX.Element => {
                       <div className="absolute -left-2 top-3 w-4 h-4 bg-[#1dff00] rounded-full"></div>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h4 className="text-white font-semibold">{edu.degree}</h4>
-                          <p className="text-white font-medium">{edu.school}</p>
+                          <h4 className="text-foreground font-semibold">{edu.degree}</h4>
+                          <p className="text-foreground font-medium">{edu.school}</p>
                           <p className="text-[#ffffff60] text-sm flex items-center">
                             <MapPin className="w-3 h-3 mr-1" />
                             {edu.location}
@@ -849,7 +849,7 @@ const ProfilePage = (): JSX.Element => {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-[#ffffff60] hover:text-white hover:scale-110 transition-all duration-300 p-1"
+                              className="text-[#ffffff60] hover:text-foreground hover:scale-110 transition-all duration-300 p-1"
                               onClick={() => setEditingEduId(edu.id)}
                             >
                               <Edit className="w-3 h-3" />
@@ -868,17 +868,17 @@ const ProfilePage = (): JSX.Element => {
                       {editingEduId === edu.id && (
                         <div className="mt-3 p-3 bg-[#ffffff10] rounded-lg space-y-2">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <input defaultValue={edu.degree} id={`edu-edit-degree-${edu.id}`} placeholder="Degree" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
-                            <input defaultValue={edu.school} id={`edu-edit-school-${edu.id}`} placeholder="School" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
-                            <input defaultValue={edu.location} id={`edu-edit-location-${edu.id}`} placeholder="Location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                            <input defaultValue={edu.degree} id={`edu-edit-degree-${edu.id}`} placeholder="Degree" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
+                            <input defaultValue={edu.school} id={`edu-edit-school-${edu.id}`} placeholder="School" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
+                            <input defaultValue={edu.location} id={`edu-edit-location-${edu.id}`} placeholder="Location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
                             <div className="flex gap-2">
-                              <input type="month" defaultValue={(edu.start_date || '').slice(0, 7)} id={`edu-edit-start-${edu.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
-                              <input type="month" defaultValue={edu.end_date ? edu.end_date.slice(0, 7) : ''} id={`edu-edit-end-${edu.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white flex-1 placeholder:text-[#ffffff60]" />
+                              <input type="month" defaultValue={(edu.start_date || '').slice(0, 7)} id={`edu-edit-start-${edu.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground flex-1 placeholder:text-[#ffffff60]" />
+                              <input type="month" defaultValue={edu.end_date ? edu.end_date.slice(0, 7) : ''} id={`edu-edit-end-${edu.id}`} className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground flex-1 placeholder:text-[#ffffff60]" />
                             </div>
-                            <input defaultValue={edu.gpa || ''} id={`edu-edit-gpa-${edu.id}`} placeholder="GPA" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+                            <input defaultValue={edu.gpa || ''} id={`edu-edit-gpa-${edu.id}`} placeholder="GPA" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
                           </div>
                           <div className="flex justify-end gap-2">
-                            <Button size="sm" variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={() => setEditingEduId(null)}>Cancel</Button>
+                            <Button size="sm" variant="outline" className="border-[#ffffff33] text-foreground hover:bg-[#ffffff1a]" onClick={() => setEditingEduId(null)}>Cancel</Button>
                             <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={async () => {
                               await updateEducation(edu.id, {
                                 degree: (document.getElementById(`edu-edit-degree-${edu.id}`) as HTMLInputElement)?.value.trim(),
@@ -909,8 +909,8 @@ const ProfilePage = (): JSX.Element => {
             >
               <Card className="bg-gradient-to-br from-[#ffffff08] via-[#ffffff0d] to-[#ffffff05] border border-[#ffffff15] backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white flex items-center">
-                    <Award className="w-5 h-5 mr-2 text-white" />
+                  <h3 className="text-lg font-semibold text-foreground flex items-center">
+                    <Award className="w-5 h-5 mr-2 text-foreground" />
                     Skills
                   </h3>
                   <Button
@@ -925,18 +925,18 @@ const ProfilePage = (): JSX.Element => {
                 {showAddSkill && (
                   <div className="mb-4 space-y-2 p-4 bg-[#ffffff0a] rounded-lg">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                      <input placeholder="Name" id="skill-name" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60] md:col-span-2" />
-                      <select id="skill-level" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white md:col-span-1">
+                      <input placeholder="Name" id="skill-name" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60] md:col-span-2" />
+                      <select id="skill-level" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground md:col-span-1">
                         <option value="">Level</option>
                         <option value="Beginner">Beginner</option>
                         <option value="Intermediate">Intermediate</option>
                         <option value="Advanced">Advanced</option>
                         <option value="Expert">Expert</option>
                       </select>
-                      <input placeholder="Category" id="skill-category" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60] md:col-span-1" />
+                      <input placeholder="Category" id="skill-category" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60] md:col-span-1" />
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]" onClick={() => setShowAddSkill(false)}>Cancel</Button>
+                      <Button size="sm" variant="outline" className="border-[#ffffff33] text-foreground hover:bg-[#ffffff1a]" onClick={() => setShowAddSkill(false)}>Cancel</Button>
                       <Button size="sm" className="bg-[#1dff00] text-black hover:bg-[#1dff00]/90" onClick={() => {
                         const name = (document.getElementById('skill-name') as HTMLInputElement)?.value.trim();
                         if (!name) return;
@@ -987,23 +987,23 @@ const ProfilePage = (): JSX.Element => {
                       <div className="flex items-center justify-between">
                         {editingSkillId === skill.id ? (
                           <div className="w-full grid grid-cols-1 md:grid-cols-4 gap-2">
-                            <input defaultValue={skill.name} id={`skill-edit-name-${skill.id}`} placeholder="Name" className="bg-[#ffffff1a] px-2 py-1 rounded text-xs text-white placeholder:text-[#ffffff60] md:col-span-2" />
-                            <select defaultValue={skill.level || ''} id={`skill-edit-level-${skill.id}`} className="bg-[#ffffff1a] px-2 py-1 rounded text-xs text-white md:col-span-1">
+                            <input defaultValue={skill.name} id={`skill-edit-name-${skill.id}`} placeholder="Name" className="bg-[#ffffff1a] px-2 py-1 rounded text-xs text-foreground placeholder:text-[#ffffff60] md:col-span-2" />
+                            <select defaultValue={skill.level || ''} id={`skill-edit-level-${skill.id}`} className="bg-[#ffffff1a] px-2 py-1 rounded text-xs text-foreground md:col-span-1">
                               <option value="">Level</option>
                               <option value="Beginner">Beginner</option>
                               <option value="Intermediate">Intermediate</option>
                               <option value="Advanced">Advanced</option>
                               <option value="Expert">Expert</option>
                             </select>
-                            <input defaultValue={skill.category} id={`skill-edit-category-${skill.id}`} placeholder="Category" className="bg-[#ffffff1a] px-2 py-1 rounded text-xs text-white placeholder:text-[#ffffff60] md:col-span-1" />
+                            <input defaultValue={skill.category} id={`skill-edit-category-${skill.id}`} placeholder="Category" className="bg-[#ffffff1a] px-2 py-1 rounded text-xs text-foreground placeholder:text-[#ffffff60] md:col-span-1" />
                           </div>
                         ) : (
                           <>
-                            <span className="text-white font-medium text-sm">{skill.name}</span>
+                            <span className="text-foreground font-medium text-sm">{skill.name}</span>
                             <div className="flex items-center gap-2">
                               <span className="text-[#ffffff60] text-xs">{skill.level}</span>
                               <button
-                                className="text-[#ffffff60] hover:text-white transition-colors text-xs"
+                                className="text-[#ffffff60] hover:text-foreground transition-colors text-xs"
                                 onClick={() => setEditingSkillId(skill.id)}
                                 aria-label="Edit skill"
                                 title="Edit"
@@ -1024,7 +1024,7 @@ const ProfilePage = (): JSX.Element => {
                       </div>
                       {editingSkillId === skill.id ? (
                         <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="outline" className="border-[#ffffff33] text-white hover:bg-[#ffffff1a]"
+                          <Button size="sm" variant="outline" className="border-[#ffffff33] text-foreground hover:bg-[#ffffff1a]"
                             onClick={() => setEditingSkillId(null)}>
                             Cancel
                           </Button>
@@ -1067,9 +1067,9 @@ function AboutEditor({ profile, onSave, onCancel }: { profile: { job_title: stri
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="Job title" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
-        <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
-        <input value={years} onChange={(e) => setYears(e.target.value)} placeholder="Years experience" inputMode="numeric" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-white placeholder:text-[#ffffff60]" />
+        <input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="Job title" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
+        <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
+        <input value={years} onChange={(e) => setYears(e.target.value)} placeholder="Years experience" inputMode="numeric" className="bg-[#ffffff1a] px-3 py-2 rounded text-sm text-foreground placeholder:text-[#ffffff60]" />
       </div>
       <div className="flex space-x-2">
         <Button
@@ -1082,7 +1082,7 @@ function AboutEditor({ profile, onSave, onCancel }: { profile: { job_title: stri
         <Button
           size="sm"
           variant="outline"
-          className="border-[#ffffff33] text-white hover:bg-[#ffffff1a] hover:scale-105 transition-all duration-300"
+          className="border-[#ffffff33] text-foreground hover:bg-[#ffffff1a] hover:scale-105 transition-all duration-300"
           onClick={onCancel}
         >
           Cancel

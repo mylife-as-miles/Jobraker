@@ -87,12 +87,12 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                 <div className="p-6 border-b border-[#28392b]">
                     <button
                         onClick={onBack}
-                        className="flex items-center gap-2 text-[#9cbaa1] text-xs hover:text-white transition-colors mb-6"
+                        className="flex items-center gap-2 text-[#9cbaa1] text-xs hover:text-foreground transition-colors mb-6"
                     >
                         <ChevronLeft className="w-3 h-3" />
                         Templates / {templateInfo.name}
                     </button>
-                    <h1 className="text-2xl font-bold text-white mb-2">{templateInfo.name}</h1>
+                    <h1 className="text-2xl font-bold text-foreground mb-2">{templateInfo.name}</h1>
                     <p className="text-[#9cbaa1] text-sm leading-relaxed">
                         {templateInfo.description}
                     </p>
@@ -103,7 +103,7 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                     <div>
                         <div className="flex items-center gap-2 mb-4">
                             <Palette className="w-4 h-4 text-[#1dff00]" />
-                            <h3 className="text-white text-xs font-semibold uppercase tracking-wider">Theme Colors</h3>
+                            <h3 className="text-foreground text-xs font-semibold uppercase tracking-wider">Theme Colors</h3>
                         </div>
                         <div className="flex flex-wrap gap-3">
                             {themeColors.map((color) => (
@@ -127,7 +127,7 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                     <div>
                         <div className="flex items-center gap-2 mb-4">
                             <TypeIcon className="w-4 h-4 text-[#1dff00]" />
-                            <h3 className="text-white text-xs font-semibold uppercase tracking-wider">Typography</h3>
+                            <h3 className="text-foreground text-xs font-semibold uppercase tracking-wider">Typography</h3>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             {typographyOptions.map((font) => (
@@ -137,8 +137,8 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                                     className={cn(
                                         "h-10 rounded border text-sm font-medium transition-all flex items-center justify-center",
                                         fontFamily === font.family
-                                            ? "bg-[#28392b] border-[#1dff00] text-white shadow-[0_0_10px_rgba(29,255,0,0.1)]"
-                                            : "bg-[#1a261c] border-transparent text-[#9cbaa1] hover:border-[#28392b] hover:text-white"
+                                            ? "bg-[#28392b] border-[#1dff00] text-foreground shadow-[0_0_10px_rgba(29,255,0,0.1)]"
+                                            : "bg-[#1a261c] border-transparent text-[#9cbaa1] hover:border-[#28392b] hover:text-foreground"
                                     )}
                                 >
                                     {font.name}
@@ -156,7 +156,7 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                             <Edit3 className="w-5 h-5" />
                             Use This Template
                         </button>
-                        <button className="w-full flex items-center justify-center gap-2 h-12 bg-[#28392b] hover:bg-[#344a38] text-white rounded-lg font-semibold text-base transition-colors opacity-50 cursor-not-allowed">
+                        <button className="w-full flex items-center justify-center gap-2 h-12 bg-[#28392b] hover:bg-[#344a38] text-foreground rounded-lg font-semibold text-base transition-colors opacity-50 cursor-not-allowed">
                             <Download className="w-5 h-5" />
                             Download PDF
                         </button>
@@ -171,7 +171,7 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => setZoom(prev => Math.min(prev + 0.1, 2))}
-                            className="p-1.5 hover:bg-[#28392b] rounded-lg text-[#9cbaa1] hover:text-white transition-colors"
+                            className="p-1.5 hover:bg-[#28392b] rounded-lg text-[#9cbaa1] hover:text-foreground transition-colors"
                         >
                             <ZoomIn className="w-5 h-5" />
                         </button>
@@ -180,14 +180,14 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                         </span>
                         <button
                             onClick={() => setZoom(prev => Math.max(prev - 0.1, 0.5))}
-                            className="p-1.5 hover:bg-[#28392b] rounded-lg text-[#9cbaa1] hover:text-white transition-colors"
+                            className="p-1.5 hover:bg-[#28392b] rounded-lg text-[#9cbaa1] hover:text-foreground transition-colors"
                         >
                             <ZoomOut className="w-5 h-5" />
                         </button>
                         <div className="h-6 w-px bg-[#28392b]" />
                         <button
                             onClick={() => setZoom(1)}
-                            className="p-1.5 hover:bg-[#28392b] rounded-lg text-[#9cbaa1] hover:text-white transition-colors"
+                            className="p-1.5 hover:bg-[#28392b] rounded-lg text-[#9cbaa1] hover:text-foreground transition-colors"
                             title="Reset Zoom"
                         >
                             <Maximize className="w-5 h-5" />

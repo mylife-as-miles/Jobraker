@@ -46,8 +46,8 @@ const AudioVisualizer = ({ isActive }: { isActive: boolean }) => {
           animate={
             isActive
               ? {
-                  height: [4, Math.random() * 24 + 4, 4],
-                }
+                height: [4, Math.random() * 24 + 4, 4],
+              }
               : { height: 4 }
           }
           transition={{
@@ -504,7 +504,7 @@ export const InterviewStudioPage: React.FC = () => {
                     className='text-foreground'
                   />
                 ) : (
-                  <div className='w-5 h-5 bg-black rounded md:rounded-sm' />
+                  <div className='w-5 h-5 bg-foreground rounded md:rounded-sm' />
                 )}
               </Button>
             </div>

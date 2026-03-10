@@ -82,7 +82,7 @@ export const DesignPanel = () => {
                                 value={typography.family}
                                 onValueChange={(value) => updateTypography({ family: value })}
                             >
-                                <SelectTrigger className="w-full bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white">
+                                <SelectTrigger className="w-full bg-white dark:bg-muted/50 border-gray-200 dark:border-white/10 text-gray-900 dark:text-foreground">
                                     <SelectValue placeholder="Select a font" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -162,7 +162,7 @@ export const DesignPanel = () => {
                                 value={page.format}
                                 onValueChange={(value: 'a4' | 'letter') => updatePage({ format: value })}
                             >
-                                <SelectTrigger className="w-full bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white">
+                                <SelectTrigger className="w-full bg-white dark:bg-muted/50 border-gray-200 dark:border-white/10 text-gray-900 dark:text-foreground">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -220,8 +220,8 @@ const TabButton = ({ isActive, onClick, icon, label }: { isActive: boolean; onCl
         className={`
             flex flex-col items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all min-w-[70px]
             ${isActive
-                ? 'bg-white dark:bg-white/10 text-[#1dff00] shadow-sm'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5'}
+                ? 'bg-white dark:bg-muted text-[#1dff00] shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-foreground hover:bg-gray-100 dark:hover:bg-muted/50'}
         `}
     >
         {icon}

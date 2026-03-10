@@ -146,7 +146,7 @@ export const AddSectionDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-[600px] bg-white dark:bg-[#0A0A0A] border-gray-200 dark:border-white/10 text-gray-900 dark:text-white'>
+      <DialogContent className='sm:max-w-[600px] bg-white dark:bg-[#0A0A0A] border-gray-200 dark:border-white/10 text-gray-900 dark:text-foreground'>
         <DialogHeader>
           <DialogTitle>Add Section</DialogTitle>
           <DialogDescription>

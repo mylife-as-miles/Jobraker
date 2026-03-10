@@ -152,13 +152,13 @@ export const ResumeHomePage = () => {
           <div className='bg-foreground p-1 rounded-lg flex items-center border border-foreground'>
             <button
               onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-md transition-all ${viewMode === "grid" ? "bg-foreground/60 text-white shadow-sm" : "text-foreground/60 hover:text-foreground/60"}`}
+              className={`p-2 rounded-md transition-all ${viewMode === "grid" ? "bg-foreground/60 text-foreground shadow-sm" : "text-foreground/60 hover:text-foreground/60"}`}
             >
               <Grid className='w-4 h-4' />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={`p-2 rounded-md transition-all ${viewMode === "list" ? "bg-foreground/60 text-white shadow-sm" : "text-foreground/60 hover:text-foreground/60"}`}
+              className={`p-2 rounded-md transition-all ${viewMode === "list" ? "bg-foreground/60 text-foreground shadow-sm" : "text-foreground/60 hover:text-foreground/60"}`}
             >
               <List className='w-4 h-4' />
             </button>
@@ -323,7 +323,7 @@ export const ResumeHomePage = () => {
                   <FileText className='w-5 h-5 text-foreground/60' />
                 </div>
                 <div>
-                  <h3 className='font-semibold text-white'>{resume.name}</h3>
+                  <h3 className='font-semibold text-foreground'>{resume.name}</h3>
                   <p className='text-xs text-foreground/60'>A4 • PDF</p>
                 </div>
               </div>
@@ -362,7 +362,7 @@ export const ResumeHomePage = () => {
               <div className='w-10 h-10 rounded-lg bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00]'>
                 <Plus className='w-5 h-5' />
               </div>
-              <span className='font-medium text-gray-300 group-hover:text-white'>
+              <span className='font-medium text-gray-300 group-hover:text-foreground'>
                 Create New Resume
               </span>
             </div>

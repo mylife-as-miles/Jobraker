@@ -29,19 +29,19 @@ export const FAQSection = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section className="py-24 bg-black max-w-3xl mx-auto px-4">
-      <h2 className="text-3xl md:text-5xl font-bold font-mono text-center text-white mb-12">
+    <section className="py-24 bg-background max-w-3xl mx-auto px-4">
+      <h2 className="text-3xl md:text-5xl font-bold font-mono text-center text-foreground mb-12">
         SYSTEM <span className="text-[#1dff00]">FAQ</span>
       </h2>
 
       <div className="space-y-4">
         {faqs.map((faq, i) => (
-          <div key={i} className="border border-white/10 rounded-lg bg-white/5 overflow-hidden">
+          <div key={i} className="border border-white/10 rounded-lg bg-muted/50 overflow-hidden">
             <button
               onClick={() => setOpenIndex(openIndex === i ? null : i)}
-              className="w-full flex items-center justify-between p-6 text-left hover:bg-white/5 transition-colors"
+              className="w-full flex items-center justify-between p-6 text-left hover:bg-muted/50 transition-colors"
             >
-              <span className="text-white font-mono font-bold">{faq.question}</span>
+              <span className="text-foreground font-mono font-bold">{faq.question}</span>
               <ChevronDown className={`w-5 h-5 text-[#1dff00] transition-transform ${openIndex === i ? 'rotate-180' : ''}`} />
             </button>
             <AnimatePresence>

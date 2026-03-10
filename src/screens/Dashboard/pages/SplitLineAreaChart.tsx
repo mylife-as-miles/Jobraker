@@ -108,7 +108,7 @@ export function SplitLineAreaChart({
                   })
                 }}
                 className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs transition-colors ${
-                  active ? "border-white/20 text-white" : "border-white/10 text-white/50"
+                  active ? "border-white/20 text-foreground" : "border-white/10 text-foreground/50"
                 }`}
                 title={`${active ? 'Hide' : 'Show'} series: ${s.label ?? s.key}`}
                 aria-label={`${active ? 'Hide' : 'Show'} series ${s.label ?? s.key}`}
@@ -214,7 +214,7 @@ export function SplitLineAreaChart({
         </ResponsiveContainer>
       </ChartContainer>
       {effectiveStacked && (
-        <div className="absolute bottom-1 right-2 text-[10px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/60 tracking-wide uppercase">Stacked %</div>
+        <div className="absolute bottom-1 right-2 text-[10px] px-1.5 py-0.5 rounded bg-muted/50 border border-white/10 text-foreground/60 tracking-wide uppercase">Stacked %</div>
       )}
     </div>
   )

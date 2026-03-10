@@ -35,18 +35,18 @@ export const TemplateSelector = ({ isOpen, onClose }: TemplateSelectorProps) => 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white dark:bg-[#121212] rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-white/10 animate-in zoom-in-95 duration-200">
 
                 {/* Header */}
                 <div className="p-6 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Choose a Template</h2>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-foreground">Choose a Template</h2>
                         <p className="text-gray-500 dark:text-gray-400 mt-1">Select a design that best fits your professional story.</p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full text-gray-500 dark:text-gray-400 transition-colors"
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-muted/50 rounded-full text-gray-500 dark:text-gray-400 transition-colors"
                     >
                         <X className="w-6 h-6" />
                     </button>
@@ -80,7 +80,7 @@ export const TemplateSelector = ({ isOpen, onClose }: TemplateSelectorProps) => 
                                     </div>
 
                                     {/* Overlay on Hover */}
-                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 dark:group-hover:bg-white/5 transition-colors z-10" />
+                                    <div className="absolute inset-0 bg-transparent group-hover:bg-foreground/5 transition-colors z-10" />
 
                                     {/* Selected Badge */}
                                     {currentTemplate === template.id && (
@@ -92,7 +92,7 @@ export const TemplateSelector = ({ isOpen, onClose }: TemplateSelectorProps) => 
 
                                 {/* Info */}
                                 <div className="p-4 border-t border-gray-100 dark:border-white/5">
-                                    <h3 className="font-bold text-gray-900 dark:text-white">{template.name}</h3>
+                                    <h3 className="font-bold text-gray-900 dark:text-foreground">{template.name}</h3>
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{template.description}</p>
                                 </div>
                             </div>

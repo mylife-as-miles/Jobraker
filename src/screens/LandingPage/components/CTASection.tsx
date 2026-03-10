@@ -7,10 +7,10 @@ export const CTASection = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="py-24 bg-black relative overflow-hidden">
+    <section className="py-24 bg-background relative overflow-hidden">
       <div className="absolute inset-0 bg-[#1dff00]/5 z-0" />
       <div className="container mx-auto px-4 relative z-10 text-center">
-        <h2 className="text-4xl md:text-7xl font-bold font-mono text-white mb-8 tracking-tighter">
+        <h2 className="text-4xl md:text-7xl font-bold font-mono text-foreground mb-8 tracking-tighter">
           STOP SEARCHING.<br />
           START <span className="text-[#1dff00]">WORKING.</span>
         </h2>

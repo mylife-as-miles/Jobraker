@@ -210,15 +210,15 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                       prev.map((msg) =>
                         msg.id === assistantId
                           ? {
-                              ...msg,
-                              content: msg.content + data.delta,
-                              parts: [
-                                {
-                                  type: "text",
-                                  text: msg.content + data.delta,
-                                },
-                              ],
-                            }
+                            ...msg,
+                            content: msg.content + data.delta,
+                            parts: [
+                              {
+                                type: "text",
+                                text: msg.content + data.delta,
+                              },
+                            ],
+                          }
                           : msg,
                       ),
                     );
@@ -233,11 +233,11 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                     prev.map((msg) =>
                       msg.id === assistantId
                         ? {
-                            ...msg,
-                            content: errorText,
-                            parts: [{ type: "text", text: errorText }],
-                            streaming: false,
-                          }
+                          ...msg,
+                          content: errorText,
+                          parts: [{ type: "text", text: errorText }],
+                          streaming: false,
+                        }
                         : msg,
                     ),
                   );
@@ -275,11 +275,11 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
           prev.map((msg) =>
             msg.id === assistantId
               ? {
-                  ...msg,
-                  content: errorText,
-                  parts: [{ type: "text", text: errorText }],
-                  streaming: false,
-                }
+                ...msg,
+                content: errorText,
+                parts: [{ type: "text", text: errorText }],
+                streaming: false,
+              }
               : msg,
           ),
         );
@@ -469,11 +469,11 @@ export const ChatPage = () => {
             prev.map((s) =>
               s.id === activeSessionId
                 ? {
-                    ...s,
-                    messages: currentMessages,
-                    responseId: currentResponseId,
-                    updated_at: new Date().toISOString(),
-                  }
+                  ...s,
+                  messages: currentMessages,
+                  responseId: currentResponseId,
+                  updated_at: new Date().toISOString(),
+                }
                 : s,
             ),
           );
@@ -798,11 +798,10 @@ export const ChatPage = () => {
                         <button
                           key={s.id}
                           onClick={() => setActiveSessionId(s.id)}
-                          className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-colors group text-left ${
-                            s.id === activeSessionId
+                          className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-colors group text-left ${s.id === activeSessionId
                               ? "bg-accent/50 border border-border"
                               : "hover:bg-accent/30 border border-transparent"
-                          }`}
+                            }`}
                         >
                           <MessageSquare
                             className={`w-5 h-5 ${s.id === activeSessionId ? "text-brand" : "text-muted-foreground group-hover:text-brand"} transition-colors`}
@@ -977,11 +976,10 @@ export const ChatPage = () => {
                           </div>
                         )}
                         <div
-                          className={`max-w-[85%] rounded-2xl p-4 shadow-sm ${
-                            m.role === "user"
+                          className={`max-w-[85%] rounded-2xl p-4 shadow-sm ${m.role === "user"
                               ? "bg-brand text-primary-foreground font-medium rounded-tr-sm"
                               : "glass-panel text-card-foreground rounded-tl-sm"
-                          }`}
+                            }`}
                         >
                           {m.role === "user" ? (
                             <div className='text-sm break-words foregroundspace-pre-wrap'>
@@ -1038,7 +1036,7 @@ export const ChatPage = () => {
                                       className || "",
                                     );
                                     return !inline && match ? (
-                                      <div className='my-4 rounded-xl border border-border bg-black/40 overflow-hidden'>
+                                      <div className='my-4 rounded-xl border border-border bg-muted/40 overflow-hidden'>
                                         <div className='flex items-center justify-between px-3 py-1.5 bg-accent/40 border-b border-border'>
                                           <span className='text-[10px] font-medium text-foreground/50 uppercase'>
                                             {match[1]}
@@ -1168,11 +1166,10 @@ export const ChatPage = () => {
               {/* Input Area */}
               <div className='p-4 md:p-6 pt-0 w-full max-w-4xl mx-auto z-10 shrink-0'>
                 <div
-                  className={`relative rounded-[24px] border border-border shadow-2xl overflow-hidden transition-all duration-300 ${
-                    text.trim()
+                  className={`relative rounded-[24px] border border-border shadow-2xl overflow-hidden transition-all duration-300 ${text.trim()
                       ? "bg-card ring-1 ring-brand/50 border-brand/50"
                       : "bg-card/85 backdrop-blur-xl"
-                  }`}
+                    }`}
                 >
                   <div className='flex flex-col'>
                     {/* Textarea */}
@@ -1203,11 +1200,10 @@ export const ChatPage = () => {
                           text.trim() && handleSubmit({ text } as any)
                         }
                         disabled={!text.trim() || status === "in_progress"}
-                        className={`mb-1.5 mr-1.5 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                          text.trim()
+                        className={`mb-1.5 mr-1.5 w-8 h-8 rounded-full flex items-center justify-center transition-all ${text.trim()
                             ? "bg-brand hover:bg-brand/90 text-primary-foreground shadow-[0_0_15px_hsl(var(--brand)/0.3)]"
                             : "bg-muted text-muted-foreground/60 cursor-not-allowed"
-                        }`}
+                          }`}
                       >
                         <ArrowUp size={16} className='font-bold' />
                       </button>
@@ -1218,22 +1214,20 @@ export const ChatPage = () => {
                       <div className='flex gap-2'>
                         <button
                           onClick={() => setPersona("concise")}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors ${
-                            persona === "concise"
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors ${persona === "concise"
                               ? "bg-brand/10 text-brand border-brand/20"
                               : "text-muted-foreground border-transparent hover:bg-accent/40"
-                          }`}
+                            }`}
                         >
                           <Bolt size={12} />
                           Ask
                         </button>
                         <button
                           onClick={() => setPersona("analyst")}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors ${
-                            persona === "analyst"
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors ${persona === "analyst"
                               ? "bg-brand/10 text-brand border-brand/20"
                               : "text-muted-foreground border-transparent hover:bg-accent/40"
-                          }`}
+                            }`}
                         >
                           <BookOpen size={12} />
                           Agent

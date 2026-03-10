@@ -61,7 +61,7 @@ export const PricingSection = () => {
   ];
 
   return (
-    <div className="bg-black text-white py-12">
+    <div className="bg-background text-foreground py-12">
       <Pricing
         plans={plans}
         title="Choose Your Automation Level"

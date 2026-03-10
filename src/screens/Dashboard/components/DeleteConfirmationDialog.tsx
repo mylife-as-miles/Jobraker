@@ -29,7 +29,7 @@ export const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> =
 }) => {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-zinc-950 border-zinc-800 text-white sm:max-w-[425px]">
+            <DialogContent className="bg-zinc-950 border-zinc-800 text-foreground sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-xl text-red-500">
                         <Trash2 className="w-5 h-5" />
@@ -45,14 +45,14 @@ export const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> =
                         variant="ghost"
                         onClick={() => onOpenChange(false)}
                         disabled={loading}
-                        className="hover:bg-zinc-900 text-zinc-300 hover:text-white"
+                        className="hover:bg-zinc-900 text-zinc-300 hover:text-foreground"
                     >
                         Cancel
                     </Button>
                     <Button
                         onClick={onConfirm}
                         disabled={loading}
-                        className="bg-red-600 text-white hover:bg-red-700 font-semibold"
+                        className="bg-red-600 text-foreground hover:bg-red-700 font-semibold"
                     >
                         {loading ? 'Deleting...' : 'Delete'}
                     </Button>
