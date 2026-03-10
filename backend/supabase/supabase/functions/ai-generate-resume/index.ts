@@ -301,7 +301,7 @@ ${targetRole ? `- Tailor the resume for the target role: ${targetRole}` : ""}
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
     });
 
-    const text = response.text()?.trim() || "";
+    const text = (typeof response.text === 'function' ? response.text() : response.text)?.trim() || "";
 
     // Parse and validate the JSON
     let resumeData;

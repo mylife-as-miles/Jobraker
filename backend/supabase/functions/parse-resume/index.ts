@@ -97,7 +97,7 @@ serve(async (req) => {
         contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
 
-    const text = result.text();
+    const text = (typeof result.text === 'function' ? result.text() : result.text);
     if (!text) throw new Error("Empty response from AI");
     
     const parsed = JSON.parse(text);

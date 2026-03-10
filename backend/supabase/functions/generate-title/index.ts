@@ -42,7 +42,7 @@ serve(async (req) => {
       contents: [{ role: 'user', parts: [{ text: message }] }]
     });
 
-    const title = response.text()?.trim() || "New Chat";
+    const title = (typeof response.text === 'function' ? response.text() : response.text)?.trim() || "New Chat";
     
     // Ensure title isn't too long
     const cleanTitle = title.length > 50 ? title.substring(0, 47) + "..." : title;

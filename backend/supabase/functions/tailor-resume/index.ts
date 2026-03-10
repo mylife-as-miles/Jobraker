@@ -54,7 +54,7 @@ serve(async (req) => {
         contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
 
-    const text = result.text();
+    const text = (typeof result.text === 'function' ? result.text() : result.text);
     if (!text) throw new Error("Empty response from AI");
     
     return new Response(JSON.stringify({ tailored_resume: text.trim() }), { 
