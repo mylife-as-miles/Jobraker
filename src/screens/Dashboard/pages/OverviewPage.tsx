@@ -834,22 +834,15 @@ export const OverviewPage = (): JSX.Element => {
               </Card>
             </motion.div>
 
-            {/* Match Score Analytics Card (moved below notifications) */}
+            {/* Match Score Analytics (Refined layout) */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ scale: 1.01 }}
               className='transition-transform duration-300'
             >
-              <Card className='bg-card/50 border border-border/40 backdrop-blur-xl p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-brand/50 hover:shadow-brand/20 transition-all duration-500'>
-                <div className='flex items-center justify-between mb-4'>
-                  <h2 className='text-lg sm:text-xl lg:text-2xl font-bold text-foreground'>
-                    Recent Match Scores
-                  </h2>
-                </div>
-                <MatchScoreAnalytics period='30d' data={matchAnalytics} />
-              </Card>
+              <MatchScoreAnalytics period='30d' data={matchAnalytics} />
             </motion.div>
           </div>
         </div>
