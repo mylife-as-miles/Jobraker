@@ -19,27 +19,28 @@ function getDeviceInfo(): SessionInfo {
   }
 
   const ua = navigator.userAgent;
+  const uaLower = ua.toLowerCase();
   let browser = 'Unknown';
   let os = 'Unknown';
   let deviceType = 'desktop';
 
   // Detect browser
-  if (ua.includes('Chrome') && !ua.includes('Edg')) browser = 'Chrome';
-  else if (ua.includes('Firefox')) browser = 'Firefox';
-  else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
-  else if (ua.includes('Edg')) browser = 'Edge';
-  else if (ua.includes('Opera')) browser = 'Opera';
+  if (uaLower.includes('chrome') && !uaLower.includes('edg')) browser = 'Chrome';
+  else if (uaLower.includes('firefox')) browser = 'Firefox';
+  else if (uaLower.includes('safari') && !uaLower.includes('chrome')) browser = 'Safari';
+  else if (uaLower.includes('edg')) browser = 'Edge';
+  else if (uaLower.includes('opera') || uaLower.includes('opr')) browser = 'Opera';
 
   // Detect OS
-  if (ua.includes('Android')) os = 'Android';
-  else if (ua.includes('iPhone') || ua.includes('iPad') || ua.includes('iOS')) os = 'iOS';
-  else if (ua.includes('Windows')) os = 'Windows';
-  else if (ua.includes('Mac')) os = 'macOS';
-  else if (ua.includes('Linux')) os = 'Linux';
+  if (uaLower.includes('android')) os = 'Android';
+  else if (uaLower.includes('iphone') || uaLower.includes('ipad') || uaLower.includes('ios')) os = 'iOS';
+  else if (uaLower.includes('windows')) os = 'Windows';
+  else if (uaLower.includes('mac')) os = 'macOS';
+  else if (uaLower.includes('linux')) os = 'Linux';
 
   // Detect device type
-  if (ua.includes('iPad') || ua.includes('Tablet')) deviceType = 'tablet';
-  else if (ua.includes('Mobile') || ua.includes('Android') || ua.includes('iPhone')) deviceType = 'mobile';
+  if (uaLower.includes('ipad') || uaLower.includes('tablet')) deviceType = 'tablet';
+  else if (uaLower.includes('mobile') || uaLower.includes('android') || uaLower.includes('iphone')) deviceType = 'mobile';
 
   // Generate device ID from browser fingerprint
   const deviceId = btoa(
