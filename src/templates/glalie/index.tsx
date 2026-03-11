@@ -89,7 +89,7 @@ function Header() {
 	return (
 		<div className="page-header relative flex">
 			<div className="flex w-full shrink-0 flex-col items-center justify-center gap-y-3">
-				<PagePicture className="w-24 h-24 rounded-xl border-2 border-[color:var(--page-primary-color)]/20 shadow-sm" />
+				<PagePicture className="w-28 h-28 rounded-[1.75rem] border-[3px] border-[color:var(--page-primary-color)]/25 bg-white p-1 shadow-lg" />
 
 				<div className="text-center">
 					<h2 className="basics-name text-xl font-extrabold tracking-tight text-gray-900">{basics.name}</h2>

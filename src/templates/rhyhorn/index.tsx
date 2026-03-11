@@ -105,7 +105,7 @@ function Header() {
 				</div>
 			</div>
 
-			<PagePicture className="w-20 h-20 rounded-lg border border-gray-200 shadow-sm shrink-0" />
+			<PagePicture className="w-24 h-24 rounded-2xl border-[3px] border-gray-200 bg-white p-1 shadow-lg shrink-0" />
 		</div>
 	);
 }

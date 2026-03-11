@@ -69,7 +69,7 @@ function Header() {
 
 	return (
 		<div className="page-header flex flex-col items-center gap-y-3 pb-6 border-b-2 border-gray-900">
-			<PagePicture className="w-20 h-20 rounded-full border border-gray-200" />
+			<PagePicture className="w-24 h-24 rounded-full border-[3px] border-gray-200 bg-white p-1 shadow-lg" />
 
 			<div className="page-basics space-y-2.5 text-center">
 				<div className="basics-header">

@@ -12,6 +12,7 @@ export interface Profile {
   goals: string[];
   updated_at: string;
   phone?: string; // Added to interface
+  avatar_url?: string | null;
   // Walkthrough completion flags (added via migration 20251001100000)
   walkthrough_overview?: boolean;
   walkthrough_application?: boolean; // singular version for ApplicationPage

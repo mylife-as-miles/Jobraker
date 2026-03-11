@@ -52,7 +52,7 @@ export function PikachuTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 					>
 						{isFirstPage && (
 							<div className="flex max-w-[var(--page-sidebar-width)] items-center justify-start">
-								<PagePicture className="w-full aspect-square rounded-xl object-cover" />
+								<PagePicture className="w-full aspect-square rounded-[1.75rem] border-[3px] border-[color:var(--page-primary-color)]/20 bg-white p-1 shadow-xl object-cover" />
 							</div>
 						)}
 
@@ -70,7 +70,7 @@ export function PikachuTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 				<main data-layout="main" className="group page-main flex-1 space-y-[var(--page-gap-y)]">
 					{isFirstPage && (
 						<div className="flex items-center gap-x-6">
-							{fullWidth && <PagePicture className="w-20 h-20 rounded-xl" />}
+							{fullWidth && <PagePicture className="w-24 h-24 rounded-[1.5rem] border-[3px] border-[color:var(--page-primary-color)]/20 bg-white p-1 shadow-lg" />}
 							<Header />
 						</div>
 					)}

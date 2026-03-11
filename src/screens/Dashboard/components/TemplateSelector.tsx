@@ -13,6 +13,7 @@ const availableTemplates = [
     { id: 'glalie', name: 'Glalie', description: 'A cool, blue-accented layout with a boxed contact info section.' },
     { id: 'kakuna', name: 'Kakuna', description: 'A centered, single-column layout with a focus on simplicity.' },
     { id: 'lapras', name: 'Lapras', description: 'A clean, card-based layout with rounded corners and distinct headers.' },
+    { id: 'eevee', name: 'Eevee', description: 'A boxed editorial layout with elegant spacing and a portrait-forward header.' },
     { id: 'pikachu', name: 'Pikachu', description: 'A vibrant, yellow-accented layout with a bold header.' },
     { id: 'rhyhorn', name: 'Rhyhorn', description: 'A sturdy, professional layout with a right-aligned photo.' }
 ];

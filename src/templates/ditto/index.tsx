@@ -75,7 +75,7 @@ function Header() {
 				<div className="basics-header flex items-center">
 					<div className="flex w-[var(--page-sidebar-width)] shrink-0 justify-center ps-[var(--page-margin-x)] relative">
 						<div className="absolute top-6 left-[var(--page-margin-x)] z-10">
-							<PagePicture className="w-28 h-28 rounded-full border-4 border-white shadow-lg object-cover bg-white" />
+							<PagePicture className="w-32 h-32 rounded-full border-4 border-white shadow-xl object-cover bg-white p-1" />
 						</div>
 					</div>
 

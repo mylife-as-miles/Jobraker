@@ -91,7 +91,7 @@ function Header() {
 				"rounded-lg border border-gray-100 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
 			)}
 		>
-			<PagePicture className="w-20 h-20 rounded-lg border border-gray-100 shadow-sm shrink-0" />
+			<PagePicture className="w-24 h-24 rounded-[1.5rem] border-[3px] border-[color:var(--page-primary-color)]/15 bg-white p-1 shadow-lg shrink-0" />
 
 			<div className="page-basics space-y-2 min-w-0">
 				<div>

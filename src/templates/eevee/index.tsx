@@ -2,6 +2,7 @@ import React from 'react';
 import { useArtboardStore } from "../../store/artboard";
 import { cn } from "../../lib/utils";
 import { getSectionComponent } from "../shared/get-section-component";
+import { PagePicture } from "../shared/page-picture";
 import type { TemplateProps } from "../azurill/types";
 
 const sectionClassName = cn(
@@ -12,7 +13,7 @@ const sectionClassName = cn(
 );
 
 /**
- * Template: Eevee — Boxed Header & Clean Layout
+ * Template: Eevee â€” Boxed Header & Clean Layout
  * A professional template with a distinctive boxed header and organized sidebar.
  */
 export function EeveeTemplate({ pageIndex = 0, pageLayout, metadataOverride }: TemplateProps) {
@@ -55,13 +56,18 @@ export function EeveeTemplate({ pageIndex = 0, pageLayout, metadataOverride }: T
                 {/* Header Section */}
                 {isFirstPage && (
                     <header className="mb-12 flex justify-end">
-                        <div className="w-[65%] border-[3px] border-gray-900 p-8 text-center bg-white">
-                            <h1 className="text-3xl font-black tracking-widest uppercase text-gray-900 mb-2">
-                                {basics.name}
-                            </h1>
-                            <p className="text-sm font-medium tracking-[0.2em] uppercase text-gray-500">
-                                {basics.headline}
-                            </p>
+                        <div className="w-[72%] border-[3px] border-gray-900 bg-white p-6">
+                            <div className="flex items-center gap-6">
+                                <PagePicture className="w-24 h-24 rounded-[1.75rem] border-[3px] border-gray-900/10 bg-white p-1 shadow-xl shrink-0" />
+                                <div className="min-w-0 flex-1 text-left">
+                                    <h1 className="text-3xl font-black tracking-widest uppercase text-gray-900 mb-2">
+                                        {basics.name}
+                                    </h1>
+                                    <p className="text-sm font-medium tracking-[0.2em] uppercase text-gray-500">
+                                        {basics.headline}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </header>
                 )}

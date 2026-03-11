@@ -128,7 +128,7 @@ function Header() {
 
   return (
     <div className='page-header flex items-start gap-x-6 pb-6 border-b border-gray-100'>
-      <PagePicture className='w-24 h-24 rounded-full border-2 border-[var(--page-primary-color)]/20 shadow-sm shrink-0' />
+      <PagePicture className='w-28 h-28 rounded-full border-[3px] border-[var(--page-primary-color)] bg-white p-1 shadow-lg shrink-0' />
 
       <div className='page-basics space-y-2.5 min-w-0'>
         <div className='basics-header'>

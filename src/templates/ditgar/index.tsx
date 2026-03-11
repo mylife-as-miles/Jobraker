@@ -92,7 +92,7 @@ function Header() {
 
 	return (
 		<div className="page-header space-y-4 bg-[color:var(--page-primary-color)] px-[var(--page-margin-x)] py-[var(--page-margin-y)] text-white">
-			<PagePicture className="w-20 h-20 rounded-full border-2 border-foreground/30 shadow-lg" />
+			<PagePicture className="w-24 h-24 rounded-full border-[4px] border-white/90 bg-white/10 p-1 shadow-2xl" />
 
 			<div>
 				<h2 className="font-extrabold text-xl tracking-tight">{basics.name}</h2>

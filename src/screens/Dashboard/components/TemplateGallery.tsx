@@ -11,8 +11,11 @@ const availableTemplates = [
     { id: 'chikorita', name: 'Chikorita', description: 'Modern sidebar layout with teal accents.', category: 'Creative' },
     { id: 'onyx', name: 'Onyx', description: 'Classic single-column professional layout.', category: 'Simple' },
     { id: 'ditgar', name: 'Ditgar', description: 'Bold purple-accented layout with prominent sidebar.', category: 'Tech' },
+    { id: 'ditto', name: 'Ditto', description: 'Playful split-header layout with a floating portrait.', category: 'Creative' },
     { id: 'gengar', name: 'Gengar', description: 'Sleek, dark purple modern sidebar.', category: 'Tech' },
-    { id: 'eevee', name: 'Eevee', description: 'Soft, minimalist design with elegant spacing.', category: 'Simple' },
+    { id: 'glalie', name: 'Glalie', description: 'Cool blue accents with a boxed contact panel.', category: 'Professional' },
+    { id: 'kakuna', name: 'Kakuna', description: 'Centered, minimalist layout with clean balance.', category: 'Simple' },
+    { id: 'eevee', name: 'Eevee', description: 'Soft boxed header with editorial portrait framing.', category: 'Simple' },
     { id: 'lapras', name: 'Lapras', description: 'Clean card-based layout with rounded corners.', category: 'Creative' },
     { id: 'pikachu', name: 'Pikachu', description: 'Vibrant bold header with modern look.', category: 'Creative' },
     { id: 'rhyhorn', name: 'Rhyhorn', description: 'Sturdy professional layout with right photo.', category: 'Professional' },
@@ -187,7 +190,7 @@ export const TemplateGallery = ({ isOpen, onClose }: TemplateGalleryProps) => {
                             Selection: <span className="text-[#1dff00]">{activeTemplateInfo?.name || 'None'}</span>
                         </p>
                         <p className="text-[#9cbaa1] text-xs mt-0.5 flex items-center gap-1.5">
-                            <LayoutTemplate className="w-3 h-3" /> A4 Format • ATS-Ready • High Performance
+                            <LayoutTemplate className="w-3 h-3" /> A4 Format â€¢ ATS-Ready â€¢ High Performance
                         </p>
                     </div>
                     <div className="flex gap-4 ml-auto">

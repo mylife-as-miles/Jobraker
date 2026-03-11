@@ -28,8 +28,9 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useArtboardStore } from "../../../store/artboard";
+import { useResumeProfilePhoto } from "../../../hooks/useResumeProfilePhoto";
 import { createClient } from "../../../lib/supabaseClient";
-import { AzurillTemplate } from "../../../templates/azurill/index";
+import { ResumeTemplateRenderer } from "../../../templates/render-resume-template";
 import { TemplateSelector } from "../components/TemplateSelector";
 import { AddSectionDialog } from "../components/resume/AddSectionDialog";
 import { SectionEditor } from "../components/resume/SectionEditor";
@@ -38,17 +39,6 @@ import { PersonalDetailsEditor } from "../components/resume/PersonalDetailsEdito
 import { ShareDialog } from "../components/resume/ShareDialog";
 import { Share2 } from "lucide-react";
 
-// ... templates imports ...
-import { OnyxTemplate } from "../../../templates/onyx";
-import { BronzorTemplate } from "../../../templates/bronzor";
-import { ChikoritaTemplate } from "../../../templates/chikorita";
-import { DitgarTemplate } from "../../../templates/ditgar";
-import { DittoTemplate } from "../../../templates/ditto";
-import { GengarTemplate } from "../../../templates/gengar";
-import { GlalieTemplate } from "../../../templates/glalie";
-import { KakunaTemplate } from "../../../templates/kakuna";
-import { PikachuTemplate } from "../../../templates/pikachu";
-import { RhyhornTemplate } from "../../../templates/rhyhorn";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { Button } from "../../../components/ui/button";
 import Modal from "../../../components/ui/modal";
@@ -163,6 +153,25 @@ export const ResumeBuilderPage = () => {
   const toggleSectionVisibility = useArtboardStore(
     (state) => state.toggleSectionVisibility,
   );
+  const {
+    profileAvatarUrl,
+    syncingProfilePhoto,
+    syncProfilePicture,
+  } = useResumeProfilePhoto({
+    picture: resumeData.basics.picture,
+    profileAvatarPath: profile?.avatar_url || null,
+    supabase,
+    updateBasics,
+  });
+
+  const useProfileImage = React.useCallback(
+    async () => Boolean(await syncProfilePicture(true)),
+    [syncProfilePicture],
+  );
+  const refreshProfileImage = React.useCallback(
+    async () => Boolean(await syncProfilePicture(true)),
+    [syncProfilePicture],
+  );
 
   // Helper for summary
   const setSummary = (val: string) =>
@@ -211,13 +220,20 @@ export const ResumeBuilderPage = () => {
     if (!urlId) return;
     setSaving(true);
     try {
+      const pictureSnapshot = await syncProfilePicture(false);
+      const dataToSave = pictureSnapshot
+        ? {
+            ...resumeData,
+            basics: { ...resumeData.basics, picture: pictureSnapshot },
+          }
+        : resumeData;
       const { error } = await supabase
         .from("resumes")
         .update({
-          data: resumeData,
-          name: resumeData.title,
-          slug: resumeData.slug,
-          tags: resumeData.tags,
+          data: dataToSave,
+          name: dataToSave.title,
+          slug: dataToSave.slug,
+          tags: dataToSave.tags,
           updated_at: new Date().toISOString(),
         })
         .eq("id", urlId);
@@ -362,7 +378,15 @@ export const ResumeBuilderPage = () => {
                   <ChevronDown className='w-4 h-4 product-helper-text' />
                 )}
               </div>
-              {expandedSection === "personal" && <PersonalDetailsEditor />}
+              {expandedSection === "personal" && (
+                <PersonalDetailsEditor
+                  hasProfileAvatar={Boolean(profile?.avatar_url)}
+                  profileAvatarUrl={profileAvatarUrl}
+                  syncingProfilePhoto={syncingProfilePhoto}
+                  onUseProfileImage={useProfileImage}
+                  onRefreshProfileImage={refreshProfileImage}
+                />
+              )}
             </div>
 
             {/* Summary Section */}
@@ -493,17 +517,7 @@ export const ResumeBuilderPage = () => {
               marginBottom: `${(zoom - 1) * 1123}px`,
             }}
           >
-            {selectedTemplate === "azurill" && <AzurillTemplate />}
-            {selectedTemplate === "onyx" && <OnyxTemplate />}
-            {selectedTemplate === "bronzor" && <BronzorTemplate />}
-            {selectedTemplate === "chikorita" && <ChikoritaTemplate />}
-            {selectedTemplate === "ditgar" && <DitgarTemplate />}
-            {selectedTemplate === "ditto" && <DittoTemplate />}
-            {selectedTemplate === "gengar" && <GengarTemplate />}
-            {selectedTemplate === "glalie" && <GlalieTemplate />}
-            {selectedTemplate === "kakuna" && <KakunaTemplate />}
-            {selectedTemplate === "pikachu" && <PikachuTemplate />}
-            {selectedTemplate === "rhyhorn" && <RhyhornTemplate />}
+            <ResumeTemplateRenderer templateId={selectedTemplate} />
           </div>
         </div>
       </div>

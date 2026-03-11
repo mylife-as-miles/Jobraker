@@ -104,7 +104,7 @@ function Header() {
 	return (
 		<div className="page-header relative flex">
 			<div className="flex w-full shrink-0 flex-col justify-center gap-y-3 bg-[color:var(--page-primary-color)] px-[var(--page-margin-x)] py-[var(--page-margin-y)] text-white">
-				<PagePicture className="w-20 h-20 rounded-full border-2 border-foreground/30 shadow-lg" />
+				<PagePicture className="w-24 h-24 rounded-[1.75rem] border-[3px] border-white/80 bg-white/10 p-1 shadow-2xl" />
 
 				<div>
 					<h2 className="basics-name text-xl font-extrabold tracking-tight">{basics.name}</h2>

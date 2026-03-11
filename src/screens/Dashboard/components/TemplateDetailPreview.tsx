@@ -73,8 +73,11 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
         chikorita: { name: 'Chikorita', description: 'Modern sidebar layout with vibrant accents, perfect for creative professionals.' },
         onyx: { name: 'Onyx', description: 'Classic single-column professional layout with a focus on core experiences.' },
         ditgar: { name: 'Ditgar', description: 'Bold purple-accented layout with a prominent sidebar for skills and contact info.' },
+        ditto: { name: 'Ditto', description: 'Playful split-header layout with a floating portrait and balanced sidebar.' },
         gengar: { name: 'Gengar', description: 'Sleek, dark modern sidebar with purple highlights and geometric sections.' },
-        eevee: { name: 'Eevee', description: 'Soft, minimalist design with elegant spacing and a delicate touch.' },
+        glalie: { name: 'Glalie', description: 'Cool blue-accented layout with a polished boxed contact panel.' },
+        kakuna: { name: 'Kakuna', description: 'Centered minimalist layout with strong symmetry and subtle portrait framing.' },
+        eevee: { name: 'Eevee', description: 'Soft boxed header with editorial portrait framing and elegant spacing.' },
         lapras: { name: 'Lapras', description: 'Clean card-based layout with rounded corners and a very modern feel.' },
         pikachu: { name: 'Pikachu', description: 'Vibrant bold header with a modern look that stands out instantly.' },
         rhyhorn: { name: 'Rhyhorn', description: 'Sturdy professional layout with a right-aligned photo for a balanced look.' },
@@ -195,7 +198,7 @@ export const TemplateDetailPreview = ({ templateId, onClose, onBack }: TemplateD
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <span className="text-xs font-semibold text-[#5c6e60] uppercase tracking-widest hidden sm:block">A4 Format • 100% ATS-Ready</span>
+                        <span className="text-xs font-semibold text-[#5c6e60] uppercase tracking-widest hidden sm:block">A4 Format â€¢ 100% ATS-Ready</span>
                         <button
                             onClick={onClose}
                             className="p-1.5 hover:bg-red-500/20 hover:text-red-400 rounded-lg text-[#9cbaa1] transition-colors"

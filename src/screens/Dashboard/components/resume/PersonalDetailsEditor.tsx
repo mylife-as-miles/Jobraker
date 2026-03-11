@@ -1,21 +1,24 @@
-import React, { useState } from 'react';
 import { useArtboardStore } from '../../../../store/artboard';
 import { Input } from '../../../../components/ui/input';
 import { Button } from '../../../../components/ui/button';
-import { Plus, Trash2, Globe, Github, Linkedin, Twitter, Facebook, Instagram, Youtube } from 'lucide-react';
-import { cn } from '../../../../lib/utils';
+import { Plus, Trash2 } from 'lucide-react';
+import { ResumePhotoEditor } from './ResumePhotoEditor';
 
-const NETWORK_ICONS: Record<string, any> = {
-    website: Globe,
-    github: Github,
-    linkedin: Linkedin,
-    twitter: Twitter,
-    facebook: Facebook,
-    instagram: Instagram,
-    youtube: Youtube
-};
+interface PersonalDetailsEditorProps {
+    hasProfileAvatar: boolean;
+    profileAvatarUrl: string | null;
+    syncingProfilePhoto: boolean;
+    onUseProfileImage: () => Promise<boolean>;
+    onRefreshProfileImage: () => Promise<boolean>;
+}
 
-export const PersonalDetailsEditor = () => {
+export const PersonalDetailsEditor = ({
+    hasProfileAvatar,
+    profileAvatarUrl,
+    syncingProfilePhoto,
+    onUseProfileImage,
+    onRefreshProfileImage,
+}: PersonalDetailsEditorProps) => {
     const basics = useArtboardStore((state) => state.resume.data.basics);
     const updateBasics = useArtboardStore((state) => state.updateBasics);
 
@@ -40,7 +43,6 @@ export const PersonalDetailsEditor = () => {
         newProfiles[index] = { ...newProfiles[index], [field]: value };
         updateBasics({ profiles: newProfiles });
     };
-
     const removeProfile = (index: number) => {
         const newProfiles = [...(basics.profiles || [])];
         newProfiles.splice(index, 1);
@@ -98,6 +100,14 @@ export const PersonalDetailsEditor = () => {
                         placeholder="https://johndoe.dev"
                     />
                 </div>
+
+                <ResumePhotoEditor
+                    hasProfileAvatar={hasProfileAvatar}
+                    profileAvatarUrl={profileAvatarUrl}
+                    syncingProfilePhoto={syncingProfilePhoto}
+                    onUseProfileImage={onUseProfileImage}
+                    onRefreshProfileImage={onRefreshProfileImage}
+                />
             </div>
 
             <div className="border-t border-border/40 pt-4">
@@ -148,4 +158,3 @@ export const PersonalDetailsEditor = () => {
         </div>
     );
 };
-

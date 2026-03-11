@@ -37,7 +37,7 @@ export function OnyxTemplate({ pageIndex = 0 }: TemplateProps) {
                         <p className="text-sm font-medium text-gray-500 mt-1.5 tracking-wide">{basics.headline}</p>
                     </div>
                     {basics.picture && !basics.picture.effects?.hidden && (
-                        <PagePicture className="w-20 h-20 rounded-full border border-gray-200 shadow-sm" />
+                        <PagePicture className="w-24 h-24 rounded-full border-[3px] border-gray-200 bg-white p-1 shadow-md" />
                     )}
                 </div>
 
