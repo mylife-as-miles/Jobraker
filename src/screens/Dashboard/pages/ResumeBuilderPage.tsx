@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
   ArrowLeft,
   Edit2,
@@ -11,7 +11,6 @@ import {
   ChevronDown,
   Briefcase,
   Plus,
-  Trash2,
   GraduationCap,
   BrainCircuit,
   X,
@@ -30,7 +29,6 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { useArtboardStore } from "../../../store/artboard";
 import { createClient } from "../../../lib/supabaseClient";
-import jsPDF from "jspdf";
 import { AzurillTemplate } from "../../../templates/azurill/index";
 import { TemplateSelector } from "../components/TemplateSelector";
 import { AddSectionDialog } from "../components/resume/AddSectionDialog";
@@ -53,6 +51,7 @@ import { PikachuTemplate } from "../../../templates/pikachu";
 import { RhyhornTemplate } from "../../../templates/rhyhorn";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
 import { Button } from "../../../components/ui/button";
+import Modal from "../../../components/ui/modal";
 import { downloadResumePDF } from "../../../utils/resume-download";
 import { useToast } from "../../../components/ui/toast";
 import { polishContent } from "../../../services/ai/polishContent";
@@ -170,364 +169,390 @@ export const ResumeBuilderPage = () => {
     (state) => state.toggleSectionVisibility,
   );
 
-  // Helper for summary
-  const setSummary = (val: string) =>
-    setResumeData({ summary: { ...resumeData.summary, content: val } });
+  // Helper for    };
+};
 
-  const { basics, sections, summary, metadata } = resumeData;
+const updateSection = (key: string, items: any[]) => {
+  setResumeData((prev) => ({
+    ...prev,
+    [key]: {
+      ...prev[key as keyof Resume],
+      items,
+    },
+  }));
+};
 
-  // Get active sections from layout order
-  const layoutPage = metadata.layout.pages[0];
-  const orderedSectionIds = [...layoutPage.main, ...layoutPage.sidebar];
-  // Filter for unique IDs and ensure they exist in sections and are not hidden.
-  // Exclude 'summary' because it is rendered explicitly above.
-  const visibleSections = orderedSectionIds.filter(
-    (id) => id !== "summary" && sections[id] && !sections[id].hidden,
-  );
+const handleUpdateContact = (updates: any) => {
+  const nextSummaryContent = summary.content;
 
-  const selectedTemplate = metadata?.template || "azurill";
-
-  const [expandedSection, setExpandedSection] = useState<string | null>(
-    "personal",
-  );
-
-  const toggleSection = (section: string) => {
-    setExpandedSection(expandedSection === section ? null : section);
-  };
-
-  const updatePersonalInfo = (field: keyof typeof basics, value: any) => {
-    updateBasics({ [field]: value });
-  };
-
-  // Keep existing downloadPDF logic or update it
-  const downloadPDF = () => {
-    downloadResumePDF(resumeData);
-  };
-
-  const aiPolishSummary = async (instruction = "Polish this resume summary for clarity, confidence, and measurable impact.") => {
-    setAiLoading(true);
-    try {
-      const source = (summary.content || basics.headline || basics.name || "").trim();
-      if (!source) throw new Error("Add a summary or headline first.");
-      const suggestions = await polishContent(source, instruction);
-      const nextSummary = suggestions.find((item) => item.isRecommended)?.content || suggestions[0]?.content || "";
-      if (!nextSummary) throw new Error("No AI suggestion was returned.");
-      setSummary(nextSummary); success(instruction.includes("fresh") ? "Summary generated" : "Summary polished", instruction.includes("fresh") ? "A new AI summary has been added to your resume." : "AI suggestions have been applied to your resume summary.");
-    } catch (e: any) { toastError(instruction.includes("fresh") ? "AI generation failed" : "AI rewrite failed", e?.message || "AI is temporarily unavailable."); } finally { setAiLoading(false); }
-  };
-  const aiGenerateResume = async () => aiPolishSummary("Write a fresh professional resume summary in 3-4 concise sentences.");
-  const [saveAlertOpen, setSaveAlertOpen] = useState(false);
-
-  const handleSave = async () => {
-    if (!urlId) return;
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from("resumes")
-        .update({
-          data: resumeData,
-          name: resumeData.title,
-          slug: resumeData.slug,
-          tags: resumeData.tags,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", urlId);
-      if (error) throw error;
-      success("Resume saved", "Your latest resume changes have been saved.");
-      setSaveAlertOpen(true);
-    } catch (e: any) {
-      toastError("Save failed", e?.message || "Unable to save your resume right now.");
-    } finally {
-      setSaving(false);
+  setResumeData((prev) => ({
+    ...prev,
+    basics: {
+      ...prev.basics,
+      ...updates
+    },
+    summary: {
+      ...prev.summary,
+      content: nextSummaryContent
     }
-  };
+  }));
+};
 
-  return (
-    <div className='flex flex-col h-full relative overflow-hidden bg-white dark:bg-background'>
-      {/* Save Alert Modal */}
-      <Modal
-        open={saveAlertOpen}
-        onClose={() => setSaveAlertOpen(false)}
-        title="Resume Saved"
-        size="sm"
-        footer={
-          <div className="flex justify-end">
-            <Button onClick={() => setSaveAlertOpen(false)}>Close</Button>
-          </div>
-        }
-      >
-        <div className="text-foreground/80 py-4">
-          Your resume has been saved successfully.
+const moveSection = (key: string, direction: "up" | "down") => {
+  const currentIndex = sections.indexOf(key);
+  if (
+    (direction === "up" && currentIndex === 0) ||
+    (direction === "down" && currentIndex === sections.length - 1)
+  )
+    return;
+
+  const newSections = [...sections];
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+  [newSections[currentIndex], newSections[targetIndex]] = [
+    newSections[targetIndex],
+    newSections[currentIndex],
+  ];
+  setResumeData((prev) => ({ ...prev, sections: newSections }));
+};
+
+const removeSection = (key: string) => {
+  setResumeData((prev) => ({
+    ...prev,
+    sections: prev.sections.filter((s) => s !== key),
+  }));
+};
+
+// Keep existing downloadPDF logic or update it
+const downloadPDF = () => {
+  downloadResumePDF(resumeData);
+};
+
+const aiPolishSummary = async (instruction = "Polish this resume summary for clarity, confidence, and measurable impact.") => {
+  setAiLoading(true);
+  try {
+    const source = (summary.content || basics.headline || basics.name || "").trim();
+    if (!source) throw new Error("Add a summary or headline first.");
+    const suggestions = await polishContent(source, instruction);
+    const nextSummary = suggestions.find((item) => item.isRecommended)?.content || suggestions[0]?.content || "";
+    if (!nextSummary) throw new Error("No AI suggestion was returned.");
+    setSummary(nextSummary); success(instruction.includes("fresh") ? "Summary generated" : "Summary polished", instruction.includes("fresh") ? "A new AI summary has been added to your resume." : "AI suggestions have been applied to your resume summary.");
+  } catch (e: any) { toastError(instruction.includes("fresh") ? "AI generation failed" : "AI rewrite failed", e?.message || "AI is temporarily unavailable."); } finally { setAiLoading(false); }
+};
+const aiGenerateResume = async () => aiPolishSummary("Write a fresh professional resume summary in 3-4 concise sentences.");
+const [saveAlertOpen, setSaveAlertOpen] = useState(false);
+
+const handleSave = async () => {
+  if (!urlId) return;
+  setSaving(true);
+  try {
+    const { error } = await supabase
+      .from("resumes")
+      .update({
+        data: resumeData,
+        name: resumeData.title,
+        slug: resumeData.slug,
+        tags: resumeData.tags,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", urlId);
+    if (error) throw error;
+    success("Resume saved", "Your latest resume changes have been saved.");
+    setSaveAlertOpen(true);
+  } catch (e: any) {
+    toastError("Save failed", e?.message || "Unable to save your resume right now.");
+  } finally {
+    setSaving(false);
+  }
+};
+
+return (
+  <div className='flex flex-col h-full relative overflow-hidden bg-white dark:bg-background'>
+    {/* Save Alert Modal */}
+    <Modal
+      open={saveAlertOpen}
+      onClose={() => setSaveAlertOpen(false)}
+      title="Resume Saved"
+      size="sm"
+      footer={
+        <div className="flex justify-end">
+          <Button onClick={() => setSaveAlertOpen(false)}>Close</Button>
         </div>
-      </Modal>
+      }
+    >
+      <div className="text-foreground/80 py-4">
+        Your resume has been saved successfully.
+      </div>
+    </Modal>
 
-      {/* Header toolbar */}
-      <header className='h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-foreground/10 bg-white dark:bg-background z-10 shrink-0'>
-        <div className='flex items-center gap-4'>
-          <button
-            onClick={() => navigate("/dashboard/resume")}
-            className='flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-900 dark:hover:text-foreground transition-colors'
-          >
-            <ArrowLeft className='w-4 h-4' />
-            <span>Back</span>
-          </button>
-          <div className='h-6 w-px bg-gray-200 dark:bg-muted' />
-          <div className='flex items-center gap-2 group'>
-            <input
-              value={resumeData.title || "Untitled Resume"}
-              onChange={(e) => setResumeTitle(e.target.value)}
-              className='font-semibold text-gray-900 dark:text-foreground bg-transparent border-none outline-none focus:ring-1 focus:ring-[#1dff00] rounded px-1 min-w-[200px]'
-            />
-            <Edit2 className='w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity' />
-          </div>
+    {/* Header toolbar */}
+    <header className='h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-foreground/10 bg-white dark:bg-background z-10 shrink-0'>
+      <div className='flex items-center gap-4'>
+        <button
+          onClick={() => navigate("/dashboard/resume")}
+          className='flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-900 dark:hover:text-foreground transition-colors'
+        >
+          <ArrowLeft className='w-4 h-4' />
+          <span>Back</span>
+        </button>
+        <div className='h-6 w-px bg-gray-200 dark:bg-muted' />
+        <div className='flex items-center gap-2 group'>
+          <input
+            value={resumeData.title || "Untitled Resume"}
+            onChange={(e) => setResumeTitle(e.target.value)}
+            className='font-semibold text-gray-900 dark:text-foreground bg-transparent border-none outline-none focus:ring-1 focus:ring-[#1dff00] rounded px-1 min-w-[200px]'
+          />
+          <Edit2 className='w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity' />
         </div>
+      </div>
 
-        <div className='flex items-center gap-3'>
-          <button
-            onClick={() => setIsTemplateSelectorOpen(true)}
-            className='flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-muted/50 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300'
-          >
-            <LayoutTemplate className='w-4 h-4' />
-            Templates
-            <ChevronDown className='w-3 h-3 opacity-50' />
-          </button>
+      <div className='flex items-center gap-3'>
+        <button
+          onClick={() => setIsTemplateSelectorOpen(true)}
+          className='flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-muted/50 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300'
+        >
+          <LayoutTemplate className='w-4 h-4' />
+          Templates
+          <ChevronDown className='w-3 h-3 opacity-50' />
+        </button>
 
-          <button
-            onClick={() => setIsShareOpen(true)}
-            className='flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-muted/50 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300'
-          >
-            <Share2 className='w-4 h-4' />
-            Share
-          </button>
+        <button
+          onClick={() => setIsShareOpen(true)}
+          className='flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-muted/50 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300'
+        >
+          <Share2 className='w-4 h-4' />
+          Share
+        </button>
 
-          <button
-            onClick={() => aiPolishSummary()}
-            disabled={aiLoading}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)] disabled:opacity-60'>
-            <Sparkles className='w-4 h-4' />
-            {aiLoading ? "Polishing..." : "AI Polish"}
-          </button>
-          <button
-            onClick={aiGenerateResume}
-            disabled={aiLoading}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-muted border border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-gray-700 dark:text-foreground text-sm font-bold transition-all'
-          >
-            <Wand2 className={`w-4 h-4 ${aiLoading ? "animate-spin" : ""}`} />
-            {aiLoading ? "Generating..." : "AI Generate"}
-          </button>
+        <button
+          onClick={() => aiPolishSummary()}
+          disabled={aiLoading}
+          className='flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)] disabled:opacity-60'>
+          <Sparkles className='w-4 h-4' />
+          {aiLoading ? "Polishing..." : "AI Polish"}
+        </button>
+        <button
+          onClick={aiGenerateResume}
+          disabled={aiLoading}
+          className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-muted border border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-gray-700 dark:text-foreground text-sm font-bold transition-all'
+        >
+          <Wand2 className={`w-4 h-4 ${aiLoading ? "animate-spin" : ""}`} />
+          {aiLoading ? "Generating..." : "AI Generate"}
+        </button>
 
-          <button
-            onClick={handleSave}
-            disabled={saving || !urlId}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-muted border border-brand/50 hover:bg-brand/10 text-gray-700 dark:text-foreground text-sm font-bold transition-all disabled:opacity-50'
-          >
-            <FileText className={`w-4 h-4 ${saving ? "animate-pulse" : ""}`} />
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
+        <button
+          onClick={handleSave}
+          disabled={saving || !urlId}
+          className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-muted border border-brand/50 hover:bg-brand/10 text-gray-700 dark:text-foreground text-sm font-bold transition-all disabled:opacity-50'
+        >
+          <FileText className={`w-4 h-4 ${saving ? "animate-pulse" : ""}`} />
+          {saving ? "Saving..." : "Save Changes"}
+        </button>
 
-          <button
-            onClick={downloadPDF}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-muted border border-gray-200 dark:border-foreground/10 hover:bg-gray-50 dark:hover:bg-foreground/20 text-sm font-medium transition-all text-gray-700 dark:text-foreground'
-          >
-            <Download className='w-4 h-4' />
-            Download PDF
-          </button>
-        </div>
-      </header>
+        <button
+          onClick={downloadPDF}
+          className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-muted border border-gray-200 dark:border-foreground/10 hover:bg-gray-50 dark:hover:bg-foreground/20 text-sm font-medium transition-all text-gray-700 dark:text-foreground'
+        >
+          <Download className='w-4 h-4' />
+          Download PDF
+        </button>
+      </div>
+    </header>
 
-      {/* Main Content Area */}
-      <div className='flex-1 flex overflow-hidden'>
-        {/* Editor Panel (Left) */}
-        <div className='w-[40%] min-w-[350px] max-w-[500px] bg-gray-50 dark:bg-background border-r border-gray-200 dark:border-foreground/10 flex flex-col overflow-y-auto custom-scrollbar pb-20'>
-          <div className='p-6 space-y-4'>
-            {/* Content Header */}
-            <div className='flex items-center justify-between mb-2'>
-              <h3 className='text-xs font-bold uppercase tracking-wider text-gray-500'>
-                Content
-              </h3>
-              <div className='text-[10px] text-[#1dff00] flex items-center gap-1 font-medium'>
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${saving ? "bg-yellow-500 animate-pulse" : "bg-[#1dff00]"}`}
-                />
-                {saving ? "Saving..." : "Ready"}
-              </div>
+    {/* Main Content Area */}
+    <div className='flex-1 flex overflow-hidden'>
+      {/* Editor Panel (Left) */}
+      <div className='w-[40%] min-w-[350px] max-w-[500px] bg-gray-50 dark:bg-background border-r border-gray-200 dark:border-foreground/10 flex flex-col overflow-y-auto custom-scrollbar pb-20'>
+        <div className='p-6 space-y-4'>
+          {/* Content Header */}
+          <div className='flex items-center justify-between mb-2'>
+            <h3 className='text-xs font-bold uppercase tracking-wider text-gray-500'>
+              Content
+            </h3>
+            <div className='text-[10px] text-[#1dff00] flex items-center gap-1 font-medium'>
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${saving ? "bg-yellow-500 animate-pulse" : "bg-[#1dff00]"}`}
+              />
+              {saving ? "Saving..." : "Ready"}
             </div>
+          </div>
 
-            {/* Personal Info Section */}
+          {/* Personal Info Section */}
+          <div
+            className={`bg-foreground/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-foreground/10 rounded-xl overflow-hidden transition-all ${expandedSection === "personal" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
+          >
             <div
-              className={`bg-foreground/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-foreground/10 rounded-xl overflow-hidden transition-all ${expandedSection === "personal" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
+              className='p-5 flex items-center justify-between cursor-pointer'
+              onClick={() => toggleSection("personal")}
+            >
+              <div className='flex items-center gap-3'>
+                <User className='w-5 h-5 text-[#1dff00]' />
+                <h4 className='font-semibold text-gray-900 dark:text-foreground'>
+                  Personal Info
+                </h4>
+              </div>
+              {expandedSection === "personal" ? (
+                <ChevronUp className='w-4 h-4 text-gray-500' />
+              ) : (
+                <ChevronDown className='w-4 h-4 text-gray-500' />
+              )}
+            </div>
+            {expandedSection === "personal" && <PersonalDetailsEditor />}
+          </div>
+
+          {/* Summary Section */}
+          {!summary.hidden && (
+            <div
+              className={`bg-foreground/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-foreground/10 rounded-xl overflow-hidden transition-all ${expandedSection === "summary" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
             >
               <div
                 className='p-5 flex items-center justify-between cursor-pointer'
-                onClick={() => toggleSection("personal")}
+                onClick={() => toggleSection("summary")}
               >
                 <div className='flex items-center gap-3'>
-                  <User className='w-5 h-5 text-[#1dff00]' />
+                  <FileText className='w-5 h-5 text-[#1dff00]' />
                   <h4 className='font-semibold text-gray-900 dark:text-foreground'>
-                    Personal Info
+                    Summary
                   </h4>
                 </div>
-                {expandedSection === "personal" ? (
+                {expandedSection === "summary" ? (
                   <ChevronUp className='w-4 h-4 text-gray-500' />
                 ) : (
                   <ChevronDown className='w-4 h-4 text-gray-500' />
                 )}
               </div>
-              {expandedSection === "personal" && <PersonalDetailsEditor />}
-            </div>
 
-            {/* Summary Section */}
-            {!summary.hidden && (
+              {expandedSection === "summary" && (
+                <div className='p-5 pt-0 animate-in slide-in-from-top-2 duration-200'>
+                  <textarea
+                    value={summary.content || ""}
+                    onChange={(e) => setSummary(e.target.value)}
+                    rows={4}
+                    className='w-full bg-gray-100 dark:bg-muted/50 border border-gray-200 dark:border-foreground/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100'
+                    placeholder='Brief professional summary...'
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Dynamic Sections */}
+          {visibleSections.map((sectionId) => {
+            const section = sections[sectionId];
+            if (!section || section.hidden) return null;
+
+            const Icon = SECTION_ICONS[sectionId] || SECTION_ICONS.custom;
+
+            return (
               <div
-                className={`bg-foreground/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-foreground/10 rounded-xl overflow-hidden transition-all ${expandedSection === "summary" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
+                key={sectionId}
+                className={`bg-foreground/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-foreground/10 rounded-xl overflow-hidden transition-all ${expandedSection === sectionId ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
               >
                 <div
                   className='p-5 flex items-center justify-between cursor-pointer'
-                  onClick={() => toggleSection("summary")}
+                  onClick={() => toggleSection(sectionId)}
                 >
                   <div className='flex items-center gap-3'>
-                    <FileText className='w-5 h-5 text-[#1dff00]' />
+                    <Icon className='w-5 h-5 text-[#1dff00]' />
                     <h4 className='font-semibold text-gray-900 dark:text-foreground'>
-                      Summary
+                      {section.title}
                     </h4>
                   </div>
-                  {expandedSection === "summary" ? (
-                    <ChevronUp className='w-4 h-4 text-gray-500' />
-                  ) : (
-                    <ChevronDown className='w-4 h-4 text-gray-500' />
-                  )}
+                  <div className='flex items-center gap-2'>
+                    <button
+                      className='p-1 hover:bg-muted rounded text-gray-500 hover:text-red-500 transition-colors'
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSectionVisibility(sectionId);
+                      }}
+                      title='Hide Section'
+                    >
+                      <X className='w-4 h-4' />
+                    </button>
+                    {expandedSection === sectionId ? (
+                      <ChevronUp className='w-4 h-4 text-gray-500' />
+                    ) : (
+                      <ChevronDown className='w-4 h-4 text-gray-500' />
+                    )}
+                  </div>
                 </div>
 
-                {expandedSection === "summary" && (
-                  <div className='p-5 pt-0 animate-in slide-in-from-top-2 duration-200'>
-                    <textarea
-                      value={summary.content || ""}
-                      onChange={(e) => setSummary(e.target.value)}
-                      rows={4}
-                      className='w-full bg-gray-100 dark:bg-muted/50 border border-gray-200 dark:border-foreground/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100'
-                      placeholder='Brief professional summary...'
-                    />
+                {expandedSection === sectionId && (
+                  <div className='p-5 pt-0'>
+                    {section.type === "list" ? (
+                      <ListEditor sectionId={sectionId} />
+                    ) : (
+                      <SectionEditor sectionId={sectionId} />
+                    )}
                   </div>
                 )}
               </div>
-            )}
+            );
+          })}
 
-            {/* Dynamic Sections */}
-            {visibleSections.map((sectionId) => {
-              const section = sections[sectionId];
-              if (!section || section.hidden) return null;
-
-              const Icon = SECTION_ICONS[sectionId] || SECTION_ICONS.custom;
-
-              return (
-                <div
-                  key={sectionId}
-                  className={`bg-foreground/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-foreground/10 rounded-xl overflow-hidden transition-all ${expandedSection === sectionId ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
-                >
-                  <div
-                    className='p-5 flex items-center justify-between cursor-pointer'
-                    onClick={() => toggleSection(sectionId)}
-                  >
-                    <div className='flex items-center gap-3'>
-                      <Icon className='w-5 h-5 text-[#1dff00]' />
-                      <h4 className='font-semibold text-gray-900 dark:text-foreground'>
-                        {section.title}
-                      </h4>
-                    </div>
-                    <div className='flex items-center gap-2'>
-                      <button
-                        className='p-1 hover:bg-muted rounded text-gray-500 hover:text-red-500 transition-colors'
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleSectionVisibility(sectionId);
-                        }}
-                        title='Hide Section'
-                      >
-                        <X className='w-4 h-4' />
-                      </button>
-                      {expandedSection === sectionId ? (
-                        <ChevronUp className='w-4 h-4 text-gray-500' />
-                      ) : (
-                        <ChevronDown className='w-4 h-4 text-gray-500' />
-                      )}
-                    </div>
-                  </div>
-
-                  {expandedSection === sectionId && (
-                    <div className='p-5 pt-0'>
-                      {section.type === "list" ? (
-                        <ListEditor sectionId={sectionId} />
-                      ) : (
-                        <SectionEditor sectionId={sectionId} />
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Add Section Button */}
-            <div className='pt-4 pb-20'>
-              <Button
-                variant='outline'
-                className='w-full py-6 border-dashed border-gray-300 dark:border-foreground/20 hover:border-[#1dff00] hover:text-[#1dff00] hover:bg-[#1dff00]/5'
-                onClick={() => setIsAddSectionOpen(true)}
-              >
-                <Plus className='w-5 h-5 mr-2' />
-                Add Section
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Preview Panel (Right) */}
-        <div className='flex-1 bg-gray-200 dark:bg-background overflow-y-auto flex justify-center p-8 relative custom-scrollbar'>
-          <div className='fixed top-24 right-8 z-10 flex flex-col gap-2'>
-            <button
-              onClick={() => setZoom((z) => Math.min(z + 0.1, 1.5))}
-              className='w-10 h-10 bg-white dark:bg-background rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-foreground/10'
+          {/* Add Section Button */}
+          <div className='pt-4 pb-20'>
+            <Button
+              variant='outline'
+              className='w-full py-6 border-dashed border-gray-300 dark:border-foreground/20 hover:border-[#1dff00] hover:text-[#1dff00] hover:bg-[#1dff00]/5'
+              onClick={() => setIsAddSectionOpen(true)}
             >
-              <ZoomIn className='w-5 h-5' />
-            </button>
-            <button
-              onClick={() => setZoom((z) => Math.max(z - 0.1, 0.5))}
-              className='w-10 h-10 bg-white dark:bg-background rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-foreground/10'
-            >
-              <ZoomOut className='w-5 h-5' />
-            </button>
-          </div>
-
-          <div
-            className='bg-white shadow-2xl origin-top transition-transform duration-200 min-h-[1123px] w-[794px]'
-            style={{
-              transform: `scale(${zoom})`,
-              marginBottom: `${(zoom - 1) * 1123}px`,
-            }}
-          >
-            {selectedTemplate === "azurill" && <AzurillTemplate />}
-            {selectedTemplate === "onyx" && <OnyxTemplate />}
-            {selectedTemplate === "bronzor" && <BronzorTemplate />}
-            {selectedTemplate === "chikorita" && <ChikoritaTemplate />}
-            {selectedTemplate === "ditgar" && <DitgarTemplate />}
-            {selectedTemplate === "ditto" && <DittoTemplate />}
-            {selectedTemplate === "gengar" && <GengarTemplate />}
-            {selectedTemplate === "glalie" && <GlalieTemplate />}
-            {selectedTemplate === "kakuna" && <KakunaTemplate />}
-            {selectedTemplate === "pikachu" && <PikachuTemplate />}
-            {selectedTemplate === "rhyhorn" && <RhyhornTemplate />}
+              <Plus className='w-5 h-5 mr-2' />
+              Add Section
+            </Button>
           </div>
         </div>
       </div>
 
-      <TemplateSelector
-        isOpen={isTemplateSelectorOpen}
-        onClose={() => setIsTemplateSelectorOpen(false)}
-      />
-      <AddSectionDialog
-        open={isAddSectionOpen}
-        onOpenChange={setIsAddSectionOpen}
-      />
-      <ShareDialog open={isShareOpen} onOpenChange={setIsShareOpen} />
+      {/* Preview Panel (Right) */}
+      <div className='flex-1 bg-gray-200 dark:bg-background overflow-y-auto flex justify-center p-8 relative custom-scrollbar'>
+        <div className='fixed top-24 right-8 z-10 flex flex-col gap-2'>
+          <button
+            onClick={() => setZoom((z) => Math.min(z + 0.1, 1.5))}
+            className='w-10 h-10 bg-white dark:bg-background rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-foreground/10'
+          >
+            <ZoomIn className='w-5 h-5' />
+          </button>
+          <button
+            onClick={() => setZoom((z) => Math.max(z - 0.1, 0.5))}
+            className='w-10 h-10 bg-white dark:bg-background rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-foreground/10'
+          >
+            <ZoomOut className='w-5 h-5' />
+          </button>
+        </div>
+
+        <div
+          className='bg-white shadow-2xl origin-top transition-transform duration-200 min-h-[1123px] w-[794px]'
+          style={{
+            transform: `scale(${zoom})`,
+            marginBottom: `${(zoom - 1) * 1123}px`,
+          }}
+        >
+          {selectedTemplate === "azurill" && <AzurillTemplate />}
+          {selectedTemplate === "onyx" && <OnyxTemplate />}
+          {selectedTemplate === "bronzor" && <BronzorTemplate />}
+          {selectedTemplate === "chikorita" && <ChikoritaTemplate />}
+          {selectedTemplate === "ditgar" && <DitgarTemplate />}
+          {selectedTemplate === "ditto" && <DittoTemplate />}
+          {selectedTemplate === "gengar" && <GengarTemplate />}
+          {selectedTemplate === "glalie" && <GlalieTemplate />}
+          {selectedTemplate === "kakuna" && <KakunaTemplate />}
+          {selectedTemplate === "pikachu" && <PikachuTemplate />}
+          {selectedTemplate === "rhyhorn" && <RhyhornTemplate />}
+        </div>
+      </div>
     </div>
-  );
+
+    <TemplateSelector
+      isOpen={isTemplateSelectorOpen}
+      onClose={() => setIsTemplateSelectorOpen(false)}
+    />
+    <AddSectionDialog
+      open={isAddSectionOpen}
+      onOpenChange={setIsAddSectionOpen}
+    />
+    <ShareDialog open={isShareOpen} onOpenChange={setIsShareOpen} />
+  </div>
+);
 };
+
+export default ResumeBuilderPage;
