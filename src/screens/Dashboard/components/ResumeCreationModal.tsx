@@ -127,7 +127,7 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-zinc-950 border-zinc-800 text-foreground sm:max-w-[600px]">
+            <DialogContent className="bg-zinc-950 border-zinc-800 text-foreground sm:max-w-[600px] w-[95vw] mx-auto max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-xl">
                         <span className="text-brand">+</span> Create a new resume
@@ -161,11 +161,9 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                         <label htmlFor="slug" className="text-sm font-medium text-zinc-300">
                             Slug
                         </label>
-                        <div className="relative group">
-                            <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
-                                <span className="text-zinc-500 text-sm font-medium">
-                                    jobraker.io/resume/
-                                </span>
+                        <div className="flex items-stretch rounded-md border border-zinc-800 bg-zinc-900 focus-within:border-brand overflow-hidden transition-all">
+                            <div className="flex items-center px-3 bg-zinc-800/30 text-zinc-500 text-sm border-r border-zinc-800 whitespace-nowrap truncate">
+                                jobraker.io/resume/
                             </div>
                             <Input
                                 id="slug"
@@ -174,7 +172,7 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                                     setManualSlug(true);
                                     setSlug(slugify(e.target.value));
                                 }}
-                                className="bg-zinc-900 border-zinc-800 focus:border-brand text-foreground pl-[150px] transition-all"
+                                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent flex-1 shadow-none rounded-none text-foreground"
                             />
                         </div>
                         {slugSuggestions.length > 0 && (

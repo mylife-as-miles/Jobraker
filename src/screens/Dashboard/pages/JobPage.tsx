@@ -4216,6 +4216,15 @@ export const JobPage = (): JSX.Element => {
               title={j.title}
               size='xl'
               side='right'
+              footer={
+                <Button
+                  variant='ghost'
+                  className='w-full rounded-lg border border-foreground/15 bg-foreground/5 text-foreground/70 hover:text-foreground hover:bg-foreground/10'
+                  onClick={() => setSelectedJob(null)}
+                >
+                  Cancel
+                </Button>
+              }
             >
               <div className='-mx-1 space-y-3 pb-2'>
                 {(() => {
@@ -4554,15 +4563,6 @@ export const JobPage = (): JSX.Element => {
                     </Card>
                   );
                 })()}
-                <div className='px-1 pt-1'>
-                  <Button
-                    variant='ghost'
-                    className='w-full rounded-lg border border-foreground/15 bg-foreground/5 text-foreground/70 hover:text-foreground hover:bg-foreground/10'
-                    onClick={() => setSelectedJob(null)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
               </div>
             </Modal>
           );
