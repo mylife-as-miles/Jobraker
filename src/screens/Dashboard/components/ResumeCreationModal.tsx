@@ -167,13 +167,20 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                             </div>
                             <Input
                                 id="slug"
+                                list="slug-suggestions"
                                 value={slug}
                                 onChange={(e) => {
                                     setManualSlug(true);
                                     setSlug(slugify(e.target.value));
                                 }}
                                 className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent flex-1 shadow-none rounded-none text-foreground"
+                                autoComplete="off"
                             />
+                            <datalist id="slug-suggestions">
+                                {slugSuggestions.map((suggestion) => (
+                                    <option key={suggestion} value={suggestion} />
+                                ))}
+                            </datalist>
                         </div>
                         {slugSuggestions.length > 0 && (
                             <div className="flex flex-wrap gap-2">

@@ -635,13 +635,13 @@ export const CoverLetterBuilderPage = () => {
             <div className="fixed bottom-20 left-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10" />
 
             {/* Header */}
-            <div id="cover-header" className="relative flex items-center justify-between sticky top-0 z-10 bg-gradient-to-br from-background/98 to-background/98 backdrop-blur-xl border border-[#1dff00]/30 rounded-2xl shadow-[0_0_40px_rgba(29,255,0,0.15)] px-4 sm:px-6 py-5 overflow-hidden group">
+            <div id="cover-header" className="relative flex flex-col xl:flex-row xl:items-center justify-between gap-4 sticky top-0 z-10 bg-gradient-to-br from-background/98 to-background/98 backdrop-blur-xl border border-[#1dff00]/30 rounded-2xl shadow-[0_0_40px_rgba(29,255,0,0.15)] px-4 sm:px-6 py-5 overflow-hidden group">
                 {/* Animated gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/0 via-[#1dff00]/5 to-[#1dff00]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
-                <div className="relative flex items-center gap-4">
-                    <Button variant="ghost" size="sm" className="h-12 w-12 p-0 rounded-xl border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:text-[#1dff00] hover:scale-110 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)] transition-all duration-200 group/btn" onClick={() => navigate('/dashboard/cover-letter')}>
-                        <ArrowLeft className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+                <div className="relative flex items-center gap-3 sm:gap-4 w-full xl:w-auto">
+                    <Button variant="ghost" size="sm" className="h-10 w-10 sm:h-12 sm:w-12 p-0 rounded-xl border border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:bg-gradient-to-br hover:from-[#1dff00]/15 hover:to-[#1dff00]/5 hover:text-[#1dff00] hover:scale-110 hover:shadow-[0_0_25px_rgba(29,255,0,0.2)] transition-all duration-200 group/btn shrink-0" onClick={() => navigate('/dashboard/cover-letter')}>
+                        <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover/btn:scale-110 transition-transform" />
                     </Button>
                     <div className="h-12 w-px bg-gradient-to-b from-transparent via-[#1dff00]/40 to-transparent shadow-[0_0_10px_rgba(29,255,0,0.3)]" />
                     <div>
@@ -672,16 +672,16 @@ export const CoverLetterBuilderPage = () => {
                     </div>
                 </div>
 
-                <div className="relative flex items-center gap-2.5 overflow-x-auto">
+                <div className="relative flex flex-wrap xl:flex-nowrap items-center gap-2.5 overflow-x-auto w-full xl:w-auto pb-2 xl:pb-0">
                     <Button
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="rounded-xl h-11 border-[#1dff00]/30 bg-[#1dff00]/10 text-[#1dff00] hover:bg-[#1dff00]/20 gap-2"
+                        className="rounded-xl h-11 border-[#1dff00]/30 bg-[#1dff00]/10 text-[#1dff00] hover:bg-[#1dff00]/20 gap-2 shrink-0"
                     >
                         {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                        {isSaving ? 'Saving...' : 'Save Changes'}
+                        {isSaving ? 'Saving...' : 'Save'}
                     </Button>
-                    <Button variant="outline" onClick={() => setInlineEdit(!inlineEdit)} className={`rounded-xl whitespace-nowrap h-11 px-4 font-semibold transition-all duration-300 group/btn ${inlineEdit ? 'bg-[#1dff00]/10 border-[#1dff00] text-[#1dff00]' : 'border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:text-[#1dff00] hover:bg-[#1dff00]/5'}`}>
+                    <Button variant="outline" onClick={() => setInlineEdit(!inlineEdit)} className={`rounded-xl shrink-0 whitespace-nowrap h-11 px-4 font-semibold transition-all duration-300 group/btn ${inlineEdit ? 'bg-[#1dff00]/10 border-[#1dff00] text-[#1dff00]' : 'border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:text-[#1dff00] hover:bg-[#1dff00]/5'}`}>
                         <Pencil className="w-4 h-4 mr-2" />
                         {inlineEdit ? 'Live Edit: On' : 'Enable Live Edit'}
                     </Button>
