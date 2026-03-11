@@ -146,7 +146,7 @@ export const AddSectionDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-[600px] bg-white dark:bg-background border-gray-200 dark:border-foreground/10 text-gray-900 dark:text-foreground'>
+      <DialogContent className='product-section-card sm:max-w-[600px] text-foreground'>
         <DialogHeader>
           <DialogTitle>Add Section</DialogTitle>
           <DialogDescription>
@@ -159,20 +159,20 @@ export const AddSectionDialog = ({
             <button
               key={section.id}
               onClick={() => handleAddStandard(section.id)}
-              className='flex flex-col items-start p-4 rounded-xl border border-gray-200 dark:border-foreground/10 hover:border-[#1dff00]/50 hover:bg-[#1dff00]/5 transition-all text-left group'
+              className='product-section-card-muted group flex flex-col items-start p-4 text-left transition-all hover:border-[#ffd700]/60 hover:bg-[#fff2b3]'
             >
               <div className='flex items-center gap-2 mb-2'>
-                <section.icon className='w-4 h-4 text-gray-500 group-hover:text-[#1dff00] transition-colors' />
+                <section.icon className='product-helper-text h-4 w-4 transition-colors group-hover:text-[#ffd700]' />
                 <span className='font-semibold text-sm'>{section.label}</span>
               </div>
-              <p className='text-xs text-gray-500 dark:text-gray-400'>
+              <p className='product-helper-text text-xs'>
                 {section.desc}
               </p>
             </button>
           ))}
         </div>
 
-        <div className='border-t border-gray-200 dark:border-foreground/10 pt-4 mt-2'>
+        <div className='mt-2 border-t border-border/40 pt-4'>
           <h4 className='text-sm font-medium mb-3'>Custom Section</h4>
           <div className='flex gap-2'>
             <Input
@@ -195,3 +195,4 @@ export const AddSectionDialog = ({
     </Dialog>
   );
 };
+

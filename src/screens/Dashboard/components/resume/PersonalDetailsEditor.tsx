@@ -51,7 +51,7 @@ export const PersonalDetailsEditor = () => {
         <div className="p-5 pt-0 space-y-4 animate-in slide-in-from-top-2 duration-200">
             <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Full Name</label>
+                    <label className="block text-xs font-medium product-helper-text mb-1.5">Full Name</label>
                     <Input
                         value={basics.name}
                         onChange={(e) => updateField('name', e.target.value)}
@@ -59,7 +59,7 @@ export const PersonalDetailsEditor = () => {
                     />
                 </div>
                 <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Job Title</label>
+                    <label className="block text-xs font-medium product-helper-text mb-1.5">Job Title</label>
                     <Input
                         value={basics.headline}
                         onChange={(e) => updateField('headline', e.target.value)}
@@ -67,7 +67,7 @@ export const PersonalDetailsEditor = () => {
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Email</label>
+                    <label className="block text-xs font-medium product-helper-text mb-1.5">Email</label>
                     <Input
                         value={basics.email}
                         onChange={(e) => updateField('email', e.target.value)}
@@ -75,7 +75,7 @@ export const PersonalDetailsEditor = () => {
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Phone</label>
+                    <label className="block text-xs font-medium product-helper-text mb-1.5">Phone</label>
                     <Input
                         value={basics.phone}
                         onChange={(e) => updateField('phone', e.target.value)}
@@ -83,7 +83,7 @@ export const PersonalDetailsEditor = () => {
                     />
                 </div>
                 <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Location</label>
+                    <label className="block text-xs font-medium product-helper-text mb-1.5">Location</label>
                     <Input
                         value={basics.location}
                         onChange={(e) => updateField('location', e.target.value)}
@@ -91,7 +91,7 @@ export const PersonalDetailsEditor = () => {
                     />
                 </div>
                 <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Personal Website</label>
+                    <label className="block text-xs font-medium product-helper-text mb-1.5">Personal Website</label>
                     <Input
                         value={basics.website?.url || ''}
                         onChange={(e) => updateField('website', { ...basics.website, url: e.target.value })}
@@ -100,8 +100,8 @@ export const PersonalDetailsEditor = () => {
                 </div>
             </div>
 
-            <div className="border-t border-gray-200 dark:border-foreground/10 pt-4">
-                <label className="block text-xs font-medium text-gray-500 mb-3">Social Profiles</label>
+            <div className="border-t border-border/40 pt-4">
+                <label className="block text-xs font-medium product-helper-text mb-3">Social Profiles</label>
                 <div className="space-y-3">
                     {basics.profiles?.map((profile, index) => (
                         <div key={index} className="flex gap-2 items-start group">
@@ -129,7 +129,7 @@ export const PersonalDetailsEditor = () => {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => removeProfile(index)}
-                                className="text-gray-400 hover:text-red-500 hover:bg-red-500/10"
+                                className="product-helper-text hover:bg-red-500/10 hover:text-red-500"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </Button>
@@ -138,7 +138,7 @@ export const PersonalDetailsEditor = () => {
                 </div>
                 <Button
                     variant="outline"
-                    className="w-full mt-3 border-dashed border-gray-300 dark:border-foreground/20 hover:border-[#1dff00] hover:text-[#1dff00]"
+                    className="product-outline-button mt-3 w-full border-dashed hover:border-[#ffd700] hover:text-[#ffd700]"
                     onClick={handleAddProfile}
                 >
                     <Plus className="w-4 h-4 mr-2" />
@@ -148,3 +148,4 @@ export const PersonalDetailsEditor = () => {
         </div>
     );
 };
+

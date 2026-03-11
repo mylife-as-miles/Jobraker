@@ -362,17 +362,17 @@ function ApplicationPage() {
       {/* Header Section */}
       <div className='flex flex-col gap-6 md:flex-row md:items-center md:justify-between'>
         <div className='space-y-1'>
-          <h1 className='text-3xl font-bold text-foreground bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text'>
+          <h1 className='product-page-title text-3xl font-bold'>
             Applications
           </h1>
-          <p className='text-sm text-foreground/50'>
+          <p className='product-page-subtitle text-sm'>
             Track and manage your job applications in one place
           </p>
         </div>
         <div className='flex items-center gap-3'>
           <Button
             variant='outline'
-            className='border-[#1dff00]/30 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  text-foreground/ hover:border-[#1dff00]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
+            className='product-outline-button transition-all duration-200 hover:border-[#ffd700]/60 hover:bg-[#fff2b3]'
             onClick={exportCSV}
           >
             <svg
@@ -2420,3 +2420,4 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
     </div>
   );
 }
+

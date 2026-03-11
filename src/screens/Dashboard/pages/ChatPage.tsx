@@ -901,7 +901,7 @@ export const ChatPage = () => {
                           </div>
                         </div>
                       </div>
-                      <h2 className='text-4xl md:text-5xl font-bold tracking-tight text-foreground'>
+                      <h2 className='product-page-title text-4xl font-bold tracking-tight md:text-5xl'>
                         How can <span className='text-brand'>JobRaker</span>{" "}
                         help you today?
                       </h2>
@@ -1289,3 +1289,4 @@ export const ChatPage = () => {
 };
 
 export default ChatPage;
+

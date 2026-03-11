@@ -47,7 +47,7 @@ export const ListEditor = ({ sectionId }: ListEditorProps) => {
         {section.items.map((item) => (
           <div
             key={item.id}
-            className='group flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-muted border border-gray-200 dark:border-foreground/5 rounded-full text-sm font-medium text-gray-700 dark:text-gray-200 transition-all hover:border-[#1dff00]/30 hover:bg-[#1dff00]/5'
+            className='product-section-card-muted group flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-foreground transition-all hover:border-[#ffd700]/60 hover:bg-[#fff2b3]'
           >
             <span>{item.name}</span>
             <button
@@ -79,3 +79,4 @@ export const ListEditor = ({ sectionId }: ListEditorProps) => {
     </div>
   );
 };
+

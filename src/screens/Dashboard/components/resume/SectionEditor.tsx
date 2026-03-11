@@ -52,19 +52,19 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
       {section.items.map((item) => (
         <div
           key={item.id}
-          className='bg-gray-100 dark:bg-muted/50 rounded-lg border border-gray-200 dark:border-foreground/5 overflow-hidden transition-all hover:border-[#1dff00]/30'
+          className='product-section-card-muted overflow-hidden rounded-lg transition-all hover:border-[#ffd700]/60'
         >
           <div
-            className='p-3 flex items-center gap-3 cursor-pointer bg-foreground/50 dark:bg-muted/50 hover:bg-gray-50 dark:hover:bg-muted'
+            className='product-section-card flex cursor-pointer items-center gap-3 p-3 hover:bg-[#fff2b3]'
             onClick={() =>
               setExpandedItem(expandedItem === item.id ? null : item.id)
             }
           >
             <div className='flex-1 min-w-0'>
-              <h5 className='text-sm font-medium text-gray-900 dark:text-foreground truncate'>
+              <h5 className='product-page-title truncate text-sm font-medium'>
                 {item.title || item.name || item.degree || "(Untitled)"}
               </h5>
-              <p className='text-xs text-gray-500 dark:text-gray-400 truncate'>
+              <p className='product-helper-text truncate text-xs'>
                 {item.company ||
                   item.school ||
                   item.institution ||
@@ -76,7 +76,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
               <Button
                 variant='ghost'
                 size='icon'
-                className='h-7 w-7 text-gray-400 hover:text-red-500 hover:bg-red-500/10'
+                className='product-helper-text h-7 w-7 hover:bg-red-500/10 hover:text-red-500'
                 onClick={(e) => {
                   e.stopPropagation();
                   removeSectionItem(sectionId, item.id);
@@ -85,18 +85,18 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
                 <Trash2 className='w-3.5 h-3.5' />
               </Button>
               {expandedItem === item.id ? (
-                <ChevronUp className='w-4 h-4 text-gray-400' />
+                <ChevronUp className='product-helper-text h-4 w-4' />
               ) : (
-                <ChevronDown className='w-4 h-4 text-gray-400' />
+                <ChevronDown className='product-helper-text h-4 w-4' />
               )}
             </div>
           </div>
 
           {expandedItem === item.id && (
-            <div className='p-4 space-y-3 bg-white dark:bg-background border-t border-gray-200 dark:border-foreground/5'>
+            <div className='border-t border-border/40 bg-background p-4 space-y-3'>
               <div className='grid grid-cols-2 gap-3'>
                 <div className='col-span-2'>
-                  <label className='text-xs font-medium text-gray-500 mb-1 block'>
+                  <label className='product-helper-text mb-1 block text-xs font-medium'>
                     {sectionId === "education"
                       ? "School / University"
                       : sectionId === "awards"
@@ -124,7 +124,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
                 </div>
 
                 <div className='col-span-2 sm:col-span-1'>
-                  <label className='text-xs font-medium text-gray-500 mb-1 block'>
+                  <label className='product-helper-text mb-1 block text-xs font-medium'>
                     {sectionId === "education"
                       ? "Degree"
                       : sectionId === "awards"
@@ -159,7 +159,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
                 </div>
 
                 <div className='col-span-2 sm:col-span-1'>
-                  <label className='text-xs font-medium text-gray-500 mb-1 block'>
+                  <label className='product-helper-text mb-1 block text-xs font-medium'>
                     {sectionId === "awards"
                       ? "Date"
                       : sectionId === "projects"
@@ -180,7 +180,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
 
                 {sectionId === "references" && (
                   <div className='col-span-2 sm:col-span-1'>
-                    <label className='text-xs font-medium text-gray-500 mb-1 block'>
+                    <label className='product-helper-text mb-1 block text-xs font-medium'>
                       Referee Contact (Email / Phone)
                     </label>
                     <Input
@@ -196,7 +196,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
                 )}
 
                 <div className='col-span-2'>
-                  <label className='text-xs font-medium text-gray-500 mb-1 block'>
+                  <label className='product-helper-text mb-1 block text-xs font-medium'>
                     Description
                   </label>
                   <Textarea
@@ -208,7 +208,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
                     }
                     placeholder='Description...'
                     rows={3}
-                    className='text-xs bg-transparent border-foreground/10'
+                    className='product-input-surface border-border/40 bg-transparent text-xs'
                   />
                 </div>
               </div>
@@ -219,7 +219,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
 
       <Button
         variant='outline'
-        className='w-full border-dashed border-gray-300 dark:border-foreground/20 hover:border-[#1dff00] hover:text-[#1dff00]'
+        className='product-outline-button w-full border-dashed hover:border-[#ffd700] hover:text-[#ffd700]'
         onClick={handleAddItem}
       >
         <Plus className='w-4 h-4 mr-2' />
@@ -228,3 +228,4 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
     </div>
   );
 };
+

@@ -384,7 +384,7 @@ export const OverviewPage = (): JSX.Element => {
   });
 
   return (
-    <div className='min-h-screen bg-background'>
+    <div className='product-page-shell min-h-screen'>
       <div className='w-full max-w-7xl mx-auto p-3 sm:p-4 lg:p-6 xl:p-8'>
         {/* Responsive overview layout */}
         <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 items-start'>
@@ -411,15 +411,15 @@ export const OverviewPage = (): JSX.Element => {
 
                   {/* Period Selector + Stacked Toggle */}
                   <div className='flex flex-wrap items-center gap-2'>
-                    <div className='bg-foreground/5 p-1 rounded-lg flex items-center gap-1 border border-foreground/10'>
+                    <div className='product-control-surface p-1'>
                       {["Today", "1 Week", "1 Month"].map((period) => (
                         <button
                           key={period}
                           onClick={() => setSelectedPeriod(period)}
                           title={`Show data for ${period}`}
                           className={`text-xs px-3 py-1.5 rounded-md transition-all duration-300 font-medium ${selectedPeriod === period
-                            ? "bg-brand text-black shadow-lg shadow-brand/20"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted/10"
+                            ? "product-control-button-active text-black shadow-sm"
+                            : "product-control-button"
                             }`}
                         >
                           {period}
@@ -850,3 +850,4 @@ export const OverviewPage = (): JSX.Element => {
     </div>
   );
 };
+

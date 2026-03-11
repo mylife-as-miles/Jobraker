@@ -1928,16 +1928,16 @@ export const JobPage = (): JSX.Element => {
         <div className='mb-6 sm:mb-8'>
           <div className='flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6'>
             <div className='space-y-1 mt-2'>
-              <h1 className='text-3xl sm:text-4xl font-bold text-foreground bg-gradient-to-r from-foreground/5 to-foreground/10 bg-clip-text'>
+              <h1 className='product-page-title text-3xl font-bold sm:text-4xl'>
                 Job Search
               </h1>
-              <p className='text-sm sm:text-base text-foreground/50'>
+              <p className='product-page-subtitle text-sm sm:text-base'>
                 Discover opportunities matched to your profile and goals
               </p>
             </div>
 
             <div className='flex flex-col items-start lg:items-end gap-4 w-full lg:w-auto'>
-              <div className='relative flex w-full sm:w-auto flex-col gap-3 rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#1dff00]/10 to-[#1dff00]/5 px-4 py-3 shadow-[0_0_30px_rgba(29,255,0,0.15)] backdrop-blur-sm sm:flex-row sm:items-center sm:gap-4'>
+              <div className='product-section-card-muted relative flex w-full flex-col gap-3 rounded-2xl px-4 py-3 shadow-sm sm:w-auto sm:flex-row sm:items-center sm:gap-4'>
                 {/* Subtle gradient overlay */}
                 <div className='absolute inset-0 rounded-2xl bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none'></div>
 
@@ -4588,4 +4588,5 @@ export const JobPage = (): JSX.Element => {
     </div>
   );
 };
+
 
