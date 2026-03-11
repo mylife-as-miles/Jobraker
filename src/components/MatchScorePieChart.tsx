@@ -76,7 +76,7 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
   const hasBreakdown = chartData.length > 0;
 
   return (
-    <Card className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a]">
+    <Card className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background">
       <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
       
       <CardHeader className="relative items-center pb-2">

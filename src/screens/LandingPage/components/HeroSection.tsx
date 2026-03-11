@@ -26,7 +26,7 @@ export const HeroSection = () => {
 
           <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold font-mono tracking-tight text-foreground leading-[0.9] lg:leading-[0.9]">
             Your AI Job Hunter <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1dff00] via-[#80ff72] to-[#00b300]">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1dff00] via-[#80ff72] to-background">
               Never Sleeps
             </span>
           </h1>

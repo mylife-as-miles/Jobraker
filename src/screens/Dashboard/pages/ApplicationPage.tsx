@@ -584,7 +584,7 @@ function ApplicationPage() {
             </div>
           </div>
         ) : filtered.length === 0 ? (
-          <div className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] to-[#0f0f0f] rounded-2xl p-12 text-center shadow-[0_0_30px_rgba(29,255,0,0.1)]'>
+          <div className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-background to-background rounded-2xl p-12 text-center shadow-[0_0_30px_rgba(29,255,0,0.1)]'>
             {/* Ambient glow */}
             <div className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 bg-yellow-400/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
 
@@ -617,7 +617,7 @@ function ApplicationPage() {
                     <span className='font-medium'>Pending</span>
                   </span>
                   <span className='inline-flex items-center gap-2'>
-                    <span className='h-3 w-8 rounded-md bg-gradient-to-r from-[#1dff00] to-[#0a8246] shadow-lg shadow-[#1dff00]/20' />
+                    <span className='h-3 w-8 rounded-md bg-gradient-to-r from-[#1dff00] to-background shadow-lg shadow-[#1dff00]/20' />
                     <span className='font-medium'>Applied</span>
                   </span>
                   <span className='inline-flex items-center gap-2'>
@@ -702,7 +702,7 @@ function ApplicationPage() {
               </div>
             )}
             {viewMode === "list" && (
-              <div className='border border-[#1dff00]/20 rounded-2xl bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] overflow-hidden'>
+              <div className='border border-[#1dff00]/20 rounded-2xl bg-gradient-to-br from-background via-background to-background backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] overflow-hidden'>
                 {/* Ambient glow */}
                 <div className='pointer-events-none absolute -top-20 left-0 h-64 w-64 rounded-full bg-[#1dff00]/10 blur-3xl opacity-40' />
 
@@ -795,11 +795,11 @@ function ApplicationPage() {
                               className='group relative'
                             >
                               <div
-                                className='flex items-center gap-4 w-full p-4 rounded-xl border border-foreground/10 bg-gradient-to-br from-[#0a0a0a] to-[#0f0f0f] hover:border-[#1dff00]/40 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)] transition-all duration-200 cursor-pointer'
+                                className='flex items-center gap-4 w-full p-4 rounded-xl border border-foreground/10 bg-gradient-to-br from-background to-background hover:border-[#1dff00]/40 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)] transition-all duration-200 cursor-pointer'
                                 onClick={() => setDetailId(a.id)}
                               >
                                 {/* Company Logo/Initial */}
-                                <div className='w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-[#1dff00] via-[#0a8246] to-[#1dff00] rounded-xl flex items-center justify-center text-foreground font-bold text-sm sm:text-base flex-shrink-0 shadow-lg group-hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] transition-shadow'>
+                                <div className='w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-[#1dff00] via-background to-[#1dff00] rounded-xl flex items-center justify-center text-foreground font-bold text-sm sm:text-base flex-shrink-0 shadow-lg group-hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] transition-shadow'>
                                   {a.logo && a.logo.length > 1
                                     ? a.logo
                                     : (
@@ -951,7 +951,7 @@ function ApplicationPage() {
               </div>
             )}
             {viewMode === "calendar" && (
-              <div className='relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] p-6 shadow-[0_0_30px_rgba(29,255,0,0.1)] overflow-hidden'>
+              <div className='relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background p-6 shadow-[0_0_30px_rgba(29,255,0,0.1)] overflow-hidden'>
                 {/* Ambient Glow Effect */}
                 <div className='absolute -top-20 -left-20 h-64 w-64 bg-[#1dff00]/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
 
@@ -979,7 +979,7 @@ function ApplicationPage() {
                       setSelectedRange(r);
                       if (r) setSelectedDate(null);
                     }}
-                    className='border border-[#1dff00]/20 rounded-xl bg-gradient-to-br from-[#0a0a0a]/50 to-[#0f0f0f]/50 backdrop-blur-sm'
+                    className='border border-[#1dff00]/20 rounded-xl bg-gradient-to-br from-background/50 to-background/50 backdrop-blur-sm'
                   />
                 </div>
                 <CalendarDayDetail
@@ -1060,7 +1060,7 @@ function ApplicationPage() {
                       {(a: any) => (
                         <KanbanCard key={a.id} id={a.id}>
                           <div className='flex items-start gap-3'>
-                            <div className='w-10 h-10 bg-gradient-to-br from-[#1dff00]/90 to-[#0a8246] rounded-lg flex items-center justify-center text-foreground font-bold text-xs flex-shrink-0 shadow-sm'>
+                            <div className='w-10 h-10 bg-gradient-to-br from-[#1dff00]/90 to-background rounded-lg flex items-center justify-center text-foreground font-bold text-xs flex-shrink-0 shadow-sm'>
                               {a.logo || (a.company?.[0] ?? "")}
                             </div>
                             <div className='min-w-0 flex-1 space-y-1'>
@@ -1413,7 +1413,7 @@ function ApplicationPage() {
                     </Button>
                     <Button
                       size='sm'
-                      className='bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-foreground font-semibold hover:shadow-[0_0_20px_rgba(29,255,0,0.3)]'
+                      className='bg-gradient-to-r from-[#1dff00] to-background text-foreground font-semibold hover:shadow-[0_0_20px_rgba(29,255,0,0.3)]'
                       onClick={async () => {
                         if (!detailApp) return;
                         try {
@@ -1681,7 +1681,7 @@ function ApplicationPage() {
               </Button>
               <Button
                 size='sm'
-                className='flex-1 bg-gradient-to-r from-[#1dff00] to-[#0a8246] hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] text-foreground font-semibold transition-all'
+                className='flex-1 bg-gradient-to-r from-[#1dff00] to-background hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] text-foreground font-semibold transition-all'
                 onClick={() => {
                   // Edit functionality can be added here
                   console.log("Edit application:", detailApp.id);
@@ -1718,7 +1718,7 @@ function ApplicationPage() {
               Cancel
             </Button>
             <Button
-              className='bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-foreground font-semibold hover:shadow-[0_0_20px_rgba(29,255,0,0.3)]'
+              className='bg-gradient-to-r from-[#1dff00] to-background text-foreground font-semibold hover:shadow-[0_0_20px_rgba(29,255,0,0.3)]'
               onClick={async () => {
                 if (!detailApp) {
                   setNextStepOpen(false);
@@ -2131,7 +2131,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
             {info.row.original.company && (
               <div className='flex items-center gap-2'>
                 {info.row.original.logo_url && (
-                  <div className='relative w-4 h-4 rounded overflow-hidden flex-shrink-0 bg-gradient-to-br from-[#1dff00] via-[#0a8246] to-[#1dff00] p-[1px]'>
+                  <div className='relative w-4 h-4 rounded overflow-hidden flex-shrink-0 bg-gradient-to-br from-[#1dff00] via-background to-[#1dff00] p-[1px]'>
                     <div className='w-full h-full bg-background rounded flex items-center justify-center'>
                       <img
                         src={info.row.original.logo_url}
@@ -2215,7 +2215,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
                 </button>
               )}
               {isEditing && (
-                <div className='absolute z-30 top-0 left-0 min-w-[140px] rounded-xl border border-[#1dff00]/30 bg-gradient-to-br from-[#0a0a0a] to-[#0f0f0f] backdrop-blur-xl p-2 shadow-[0_0_30px_rgba(29,255,0,0.2)] flex flex-col gap-1'>
+                <div className='absolute z-30 top-0 left-0 min-w-[140px] rounded-xl border border-[#1dff00]/30 bg-gradient-to-br from-background to-background backdrop-blur-xl p-2 shadow-[0_0_30px_rgba(29,255,0,0.2)] flex flex-col gap-1'>
                   {selectableStatuses.map((s) => {
                     const sColor = statusColors[s] || "#6B7280";
                     return (
@@ -2356,7 +2356,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
   return (
     <div
       ref={(n) => (tableRef.current = n)}
-      className='relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] overflow-hidden shadow-[0_0_30px_rgba(29,255,0,0.1)]'
+      className='relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background overflow-hidden shadow-[0_0_30px_rgba(29,255,0,0.1)]'
     >
       {/* Ambient Glow Effect */}
       <div className='absolute -top-20 -right-20 h-64 w-64 bg-[#1dff00]/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
@@ -2367,7 +2367,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
           columns={columns}
           className='min-w-full'
         >
-          <KTableHeader className='sticky top-0 z-20 backdrop-blur-xl bg-gradient-to-r from-[#0a0a0a]/95 to-[#0f0f0f]/95 border-b border-[#1dff00]/20'>
+          <KTableHeader className='sticky top-0 z-20 backdrop-blur-xl bg-gradient-to-r from-background/95 to-background/95 border-b border-[#1dff00]/20'>
             {(headerGroup) => (
               <TableHeaderGroup headerGroup={headerGroup.headerGroup}>
                 {({ header }) => (

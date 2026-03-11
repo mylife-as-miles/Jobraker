@@ -10,7 +10,7 @@ export const LargeTestimonial = () => {
           "I was skeptical at first, but JobRaker applied to 200 jobs in 3 days. I got 15 interviews and signed an offer with a 40% raise. It literally paid for itself in the first hour."
         </h3>
         <div className="flex flex-col items-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-[#1dff00] to-[#0a8246] rounded-full mb-4" />
+          <div className="w-16 h-16 bg-gradient-to-br from-[#1dff00] to-background rounded-full mb-4" />
           <div className="text-foreground font-bold font-mono text-lg">Alex V.</div>
           <div className="text-[#1dff00] font-mono text-sm">Senior Frontend Engineer @ TechGiant</div>
         </div>

@@ -16,7 +16,7 @@ export default function AdminSettings() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl p-6"
+          className="bg-gradient-to-br from-background via-[#111111] to-background border border-[#1dff00]/20 rounded-2xl p-6"
         >
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-[#1dff00]/20 flex items-center justify-center">
@@ -58,7 +58,7 @@ export default function AdminSettings() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl p-6"
+          className="bg-gradient-to-br from-background via-[#111111] to-background border border-[#1dff00]/20 rounded-2xl p-6"
         >
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-[#1dff00]/20 flex items-center justify-center">
@@ -95,7 +95,7 @@ export default function AdminSettings() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl p-6"
+          className="bg-gradient-to-br from-background via-[#111111] to-background border border-[#1dff00]/20 rounded-2xl p-6"
         >
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">

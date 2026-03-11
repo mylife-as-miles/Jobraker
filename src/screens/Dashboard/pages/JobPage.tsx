@@ -2367,7 +2367,7 @@ export const JobPage = (): JSX.Element => {
                             </div>
                             <div className='mt-3 h-2 rounded-full bg-foreground/10 overflow-hidden'>
                               <motion.div
-                                className='h-full bg-gradient-to-r from-[#0aff7b] via-[#1dff00] to-[#7bffb2]'
+                                className='h-full bg-gradient-to-r from-background via-[#1dff00] to-[#7bffb2]'
                                 animate={{
                                   width: ["15%", "85%", "35%", "70%"],
                                 }}
@@ -2540,7 +2540,7 @@ export const JobPage = (): JSX.Element => {
                 {/* Ambient Background Effects */}
                 <div className='absolute inset-0 overflow-hidden rounded-3xl'>
                   <div className='absolute top-1/4 left-1/4 w-96 h-96 bg-[#1dff00]/5 rounded-full blur-3xl animate-pulse' />
-                  <div className='absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#0a8246]/5 rounded-full blur-3xl animate-pulse delay-1000' />
+                  <div className='absolute bottom-1/4 right-1/4 w-80 h-80 bg-background/5 rounded-full blur-3xl animate-pulse delay-1000' />
                 </div>
 
                 {/* Main Content */}
@@ -2554,10 +2554,10 @@ export const JobPage = (): JSX.Element => {
                       className='relative mx-auto w-32 h-32'
                     >
                       {/* Glowing Ring */}
-                      <div className='absolute inset-0 rounded-full bg-gradient-to-br from-[#1dff00]/20 to-[#0a8246]/10 blur-xl animate-pulse' />
+                      <div className='absolute inset-0 rounded-full bg-gradient-to-br from-[#1dff00]/20 to-background/10 blur-xl animate-pulse' />
 
                       {/* Icon Background */}
-                      <div className='relative w-full h-full rounded-full bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/5 border border-[#1dff00]/30 flex items-center justify-center shadow-[0_0_40px_rgba(29,255,0,0.15)]'>
+                      <div className='relative w-full h-full rounded-full bg-gradient-to-br from-[#1dff00]/10 to-background/5 border border-[#1dff00]/30 flex items-center justify-center shadow-[0_0_40px_rgba(29,255,0,0.15)]'>
                         <Briefcase
                           className='w-16 h-16 text-[#1dff00] drop-shadow-[0_0_20px_rgba(29,255,0,0.6)]'
                           strokeWidth={1.5}
@@ -2566,7 +2566,7 @@ export const JobPage = (): JSX.Element => {
 
                       {/* Floating Particles */}
                       <div className='absolute -top-2 -right-2 w-3 h-3 rounded-full bg-[#1dff00] animate-ping opacity-40' />
-                      <div className='absolute -bottom-2 -left-2 w-2 h-2 rounded-full bg-[#0a8246] animate-ping opacity-40 delay-500' />
+                      <div className='absolute -bottom-2 -left-2 w-2 h-2 rounded-full bg-background animate-ping opacity-40 delay-500' />
                     </motion.div>
 
                     {/* Text Content */}
@@ -2623,7 +2623,7 @@ export const JobPage = (): JSX.Element => {
                           )
                         }
                         disabled={incrementalMode}
-                        className='group relative overflow-hidden px-8 py-6 rounded-xl bg-gradient-to-r from-[#1dff00] to-[#0a8246] text- font-semibold text-base shadow-[0_0_0_1px_#1dff00,0_8px_32px_rgba(29,255,0,0.4)] hover:shadow-[0_0_0_1px_#1dff00,0_12px_48px_rgba(29,255,0,0.6)] transition-all duration-300 hover:scale-105 active:scale-95'
+                        className='group relative overflow-hidden px-8 py-6 rounded-xl bg-gradient-to-r from-[#1dff00] to-background text- font-semibold text-base shadow-[0_0_0_1px_#1dff00,0_8px_32px_rgba(29,255,0,0.4)] hover:shadow-[0_0_0_1px_#1dff00,0_12px_48px_rgba(29,255,0,0.6)] transition-all duration-300 hover:scale-105 active:scale-95'
                       >
                         <span className='relative z-10 flex items-center gap-3'>
                           <Search className='w-5 h-5' />
@@ -2755,7 +2755,7 @@ export const JobPage = (): JSX.Element => {
                             />
                           </div>
                         ) : (
-                          <div className='w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[#1dff00] to-[#0a8246] flex items-center justify-center text- font-bold text-xl shadow-[0_0_15px_rgba(29,255,0,0.2)]'>
+                          <div className='w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[#1dff00] to-background flex items-center justify-center text- font-bold text-xl shadow-[0_0_15px_rgba(29,255,0,0.2)]'>
                             {job.logo}
                           </div>
                         )}
@@ -3084,7 +3084,7 @@ export const JobPage = (): JSX.Element => {
             )}
 
             {debugMode && (
-              <Card className='bg-[#0b0b0b] border border-foreground/10 p-4'>
+              <Card className='bg-background border border-foreground/10 p-4'>
                 <div className='text-xs text-foreground/60 mb-2'>
                   Debug Panel - Simplified Flow
                 </div>
@@ -3216,7 +3216,7 @@ export const JobPage = (): JSX.Element => {
                           <Card
                             id='jobs-ai-match'
                             data-tour='jobs-ai-match'
-                            className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] p-6'
+                            className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background p-6'
                           >
                             <span className='pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60' />
                             <div className='relative flex flex-col gap-6'>
@@ -3236,7 +3236,7 @@ export const JobPage = (): JSX.Element => {
                                       }
                                     />
                                   ) : (
-                                    <div className='w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text- font-bold text-xl sm:text-2xl md:text-3xl flex-shrink-0'>
+                                    <div className='w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-r from-[#1dff00] to-background rounded-xl flex items-center justify-center text- font-bold text-xl sm:text-2xl md:text-3xl flex-shrink-0'>
                                       {job.logo}
                                     </div>
                                   )}
@@ -3396,7 +3396,7 @@ export const JobPage = (): JSX.Element => {
                         const screenshot = (job as any)?.raw_data?.screenshot;
                         if (!screenshot) return null;
                         return (
-                          <Card className='relative overflow-hidden border border-foreground/12 bg-[#020202] p-0'>
+                          <Card className='relative overflow-hidden border border-foreground/12 bg-background p-0'>
                             <div className='flex items-center justify-between px-4 py-3 border-b border-foreground/10 bg-foreground/5'>
                               <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/75'>
                                 <Sparkles className='w-4 h-4 text-[#1dff00]' />
@@ -3406,7 +3406,7 @@ export const JobPage = (): JSX.Element => {
                                 Visual preview
                               </span>
                             </div>
-                            <div className='relative bg-[#050505]'>
+                            <div className='relative bg-background'>
                               <img
                                 src={screenshot}
                                 alt='Job page screenshot'
@@ -3438,7 +3438,7 @@ export const JobPage = (): JSX.Element => {
                           ? sources
                           : [sources];
                         return (
-                          <Card className='border border-foreground/12 bg-gradient-to-br from-[#050505] via-[#040404] to-[#010101] p-6'>
+                          <Card className='border border-foreground/12 bg-gradient-to-br from-background via-background to-background p-6'>
                             <div className='flex items-center justify-between mb-3'>
                               <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/75'>
                                 <ShieldCheck className='w-4 h-4 text-[#1dff00]' />
@@ -3549,7 +3549,7 @@ export const JobPage = (): JSX.Element => {
           size='lg'
           side='center'
         >
-          <div className='relative overflow-hidden rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#040404] via-[#060606] to-[#0a0a0a] text-foreground'>
+          <div className='relative overflow-hidden rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background text-foreground'>
             <div className='pointer-events-none absolute -top-32 right-0 h-72 w-72 rounded-full bg-[#1dff00]/20 blur-3xl opacity-40' />
             <div className='relative p-6 sm:p-8 space-y-6'>
               <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6'>
@@ -4295,7 +4295,7 @@ export const JobPage = (): JSX.Element => {
                   }[];
 
                   return (
-                    <Card className='relative overflow-hidden border border-[#1dff00]/25 bg-gradient-to-br from-[#020202] via-[#040404] to-[#0a0a0a] p-5'>
+                    <Card className='relative overflow-hidden border border-[#1dff00]/25 bg-gradient-to-br from-background via-background to-background p-5'>
                       <span className='pointer-events-none absolute -top-20 -right-10 h-40 w-40 rounded-full bg-[#1dff00]/20 blur-3xl opacity-50' />
                       <div className='relative space-y-4'>
                         <div className='flex items-start gap-3'>
@@ -4309,7 +4309,7 @@ export const JobPage = (): JSX.Element => {
                               }
                             />
                           ) : (
-                            <div className='w-12 h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text- font-bold text-lg'>
+                            <div className='w-12 h-12 bg-gradient-to-r from-[#1dff00] to-background rounded-xl flex items-center justify-center text- font-bold text-lg'>
                               {j.logo}
                             </div>
                           )}
@@ -4455,7 +4455,7 @@ export const JobPage = (): JSX.Element => {
                   const screenshot = (j as any)?.raw_data?.screenshot;
                   if (!screenshot) return null;
                   return (
-                    <Card className='border border-foreground/12 bg-[#020202] p-0 overflow-hidden'>
+                    <Card className='border border-foreground/12 bg-background p-0 overflow-hidden'>
                       <div className='flex items-center justify-between px-3 py-2 border-b border-foreground/10 bg-foreground/5'>
                         <div className='inline-flex items-center gap-2 text-xs font-medium text-foreground/70'>
                           <Sparkles className='w-3 h-3 text-[#1dff00]' />
@@ -4465,7 +4465,7 @@ export const JobPage = (): JSX.Element => {
                           Preview
                         </span>
                       </div>
-                      <div className='relative bg-[#050505]'>
+                      <div className='relative bg-background'>
                         <img
                           src={screenshot}
                           alt='Job page screenshot'
@@ -4496,7 +4496,7 @@ export const JobPage = (): JSX.Element => {
                     ? sources
                     : [sources];
                   return (
-                    <Card className='border border-foreground/12 bg-gradient-to-br from-[#040404] via-[#030303] to-[#010101] p-4'>
+                    <Card className='border border-foreground/12 bg-gradient-to-br from-background via-background to-background p-4'>
                       <div className='flex items-center justify-between mb-2'>
                         <div className='inline-flex items-center gap-2 text-xs font-medium text-foreground/70'>
                           <ShieldCheck className='w-3 h-3 text-[#1dff00]' />

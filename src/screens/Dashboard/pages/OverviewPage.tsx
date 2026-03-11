@@ -55,7 +55,7 @@ export const OverviewPage = (): JSX.Element => {
         className = `${baseSize} ${shared} bg-[#1dff00]/15 ring-[#1dff00]/40 text-[#b6ffb6] group-hover:ring-[#1dff00]/60`;
         inner = (n.company || "A").charAt(0).toUpperCase();
       } else if (n.type === "interview") {
-        className = `${baseSize} ${shared} bg-[#0d4d66]/40 ring-[#56c2ff]/30 text-[#56c2ff] group-hover:ring-[#56c2ff]/60`;
+        className = `${baseSize} ${shared} bg-background/40 ring-[#56c2ff]/30 text-[#56c2ff] group-hover:ring-[#56c2ff]/60`;
         inner = <Building2 className='w-4 h-4 sm:w-5 sm:h-5' />;
       } else if (n.type === "company") {
         className = `${baseSize} ${shared} bg-background ring-foreground/10 text-foreground group-hover:ring-[#1dff00]/50`;
@@ -464,7 +464,7 @@ export const OverviewPage = (): JSX.Element => {
                         Applied:
                           "bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/30 hover:bg-[#1dff00]/20",
                         Interview:
-                          "bg-[#00b2ff]/10 text-[#56c2ff] border-[#00b2ff]/30 hover:bg-[#00b2ff]/20",
+                          "bg-background/10 text-[#56c2ff] border-[#00b2ff]/30 hover:bg-background/20",
                         Offer:
                           "bg-[#ffd700]/10 text-[#ffd700] border-[#ffd700]/30 hover:bg-[#ffd700]/20",
                         Rejected:
@@ -520,7 +520,7 @@ export const OverviewPage = (): JSX.Element => {
                   </motion.div>
                   <motion.div
                     whileHover={{ y: -2 }}
-                    className='p-4 rounded-xl bg-gradient-to-br from-[#00b2ff]/10 to-transparent border border-[#00b2ff]/10'
+                    className='p-4 rounded-xl bg-gradient-to-br from-background/10 to-transparent border border-[#00b2ff]/10'
                   >
                     <div className='text-2xl lg:text-3xl font-bold text-[#56c2ff] mb-1'>
                       {interviewCount}

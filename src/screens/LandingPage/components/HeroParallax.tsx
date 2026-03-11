@@ -98,7 +98,7 @@ const Header = () => {
       </div>
       <h1 className="text-4xl md:text-7xl font-bold dark:text-foreground font-mono">
         Your Job Search <br />
-        <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1dff00] to-[#00b300]">
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1dff00] to-background">
           On Autopilot
         </span>
       </h1>

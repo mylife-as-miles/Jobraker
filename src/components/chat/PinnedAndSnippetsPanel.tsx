@@ -23,7 +23,7 @@ export const PinnedAndSnippetsPanel = ({ open, onClose }: Props) => {
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 380, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 260, damping: 30 }}
-          className="fixed top-0 right-0 h-full w-[360px] z-[160] bg-[#060806]/95 backdrop-blur-xl border-l border-[#1dff00]/20 flex flex-col"
+          className="fixed top-0 right-0 h-full w-[360px] z-[160] bg-background/95 backdrop-blur-xl border-l border-[#1dff00]/20 flex flex-col"
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#1dff00]/20">
             <div className="flex items-center gap-3 text-sm font-semibold tracking-wide text-[#1dff00]">
@@ -40,7 +40,7 @@ export const PinnedAndSnippetsPanel = ({ open, onClose }: Props) => {
               <div className="space-y-2">
                 {pinnedMessages.length === 0 && <div className="text-[11px] text-neutral-500 text-center pt-6">No pinned messages yet.</div>}
                 {pinnedMessages.map(pm => (
-                  <div key={pm.id} className="group border border-[#1dff00]/25 rounded-xl p-3 bg-[#0f150f]/60 hover:bg-[#141f14]/70 transition">
+                  <div key={pm.id} className="group border border-[#1dff00]/25 rounded-xl p-3 bg-background/60 hover:bg-[#141f14]/70 transition">
                     <div className="flex items-start gap-2">
                       <Pin className="w-4 h-4 text-[#1dff00] mt-0.5" />
                       <div className="flex-1 text-[12px] leading-relaxed text-neutral-200 whitespace-pre-wrap">{pm.content.slice(0, 800)}</div>

@@ -512,7 +512,7 @@ export const Onboarding = (): JSX.Element => {
           <p className="text-foreground/70 max-w-2xl mx-auto text-sm md:text-base">Upload your resume for instant AI-powered profile creation, or manually enter your information step by step.</p>
         </div>
         <div className="grid gap-6 md:grid-cols-2">
-          <button onClick={() => setMode('resume')} className="group relative overflow-hidden rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#101910] via-[#060a06] to-black p-8 text-left shadow-[0_0_0_1px_rgba(29,255,0,0.15),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(29,255,0,0.4),0_25px_50px_-12px_rgba(29,255,0,0.15)] transition">
+          <button onClick={() => setMode('resume')} className="group relative overflow-hidden rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#101910] via-background to-black p-8 text-left shadow-[0_0_0_1px_rgba(29,255,0,0.15),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(29,255,0,0.4),0_25px_50px_-12px_rgba(29,255,0,0.15)] transition">
             <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-[#1dff00]/20 border border-[#1dff00]/40 text-[#1dff00] text-[10px] font-semibold uppercase tracking-wide">Recommended</div>
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-[#1dff00]/10 to-transparent transition" />
             <div className="flex items-center gap-3 mb-6">
@@ -526,7 +526,7 @@ export const Onboarding = (): JSX.Element => {
             </ul>
             <div className="mt-6 inline-flex items-center gap-2 text-[#1dff00] text-sm font-medium">Upload Resume <ChevronRight className="w-4 h-4" /></div>
           </button>
-          <button onClick={() => setMode('manual')} className="group relative overflow-hidden rounded-2xl border border-foreground/15 bg-gradient-to-br from-[#0d0d0d] via-[#060606] to-black p-8 text-left shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.25),0_25px_50px_-12px_rgba(0,0,0,0.5)] transition">
+          <button onClick={() => setMode('manual')} className="group relative overflow-hidden rounded-2xl border border-foreground/15 bg-gradient-to-br from-background via-background to-black p-8 text-left shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.25),0_25px_50px_-12px_rgba(0,0,0,0.5)] transition">
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-white/5 to-transparent transition" />
             <div className="flex items-center gap-3 mb-6">
               <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center border border-foreground/20"><FileText className="w-6 h-6 text-foreground" /></div>
@@ -555,7 +555,7 @@ export const Onboarding = (): JSX.Element => {
           <h1 id="uploadHeading" className="text-3xl font-bold tracking-tight text-foreground">Upload Your Resume</h1>
           <p className="text-foreground/70 text-sm md:text-base max-w-xl mx-auto">We'll use AI to parse your profile information and automatically set up your account. You'll be redirected to your dashboard once complete.</p>
         </div>
-        <div className="rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#081108] via-[#050805] to-black p-10 relative overflow-hidden" aria-live="polite">
+        <div className="rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-background via-background to-black p-10 relative overflow-hidden" aria-live="polite">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(29,255,0,0.15),transparent_70%)] opacity-70" />
           <div className="relative z-10 flex flex-col gap-8">
             <div className="flex flex-col lg:flex-row gap-8">
@@ -610,7 +610,7 @@ export const Onboarding = (): JSX.Element => {
                 </div>
               </div>
               {/* Preview / Extraction Panel */}
-              <div className="flex-1 rounded-xl border border-foreground/10 bg-white/[0.03] p-5 flex flex-col gap-4 min-h-[320px]">
+              <div className="flex-1 rounded-xl border border-foreground/10 bg-foreground/[0.03] p-5 flex flex-col gap-4 min-h-[320px]">
                 {!parsed && !(uploading || parsing) && (
                   <div className="text-foreground/50 text-sm leading-relaxed">
                     <p className="font-medium mb-2 text-foreground/70">Automatic Profile Setup</p>
@@ -808,12 +808,12 @@ export const Onboarding = (): JSX.Element => {
       <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl">
         {/* Floating background elements */}
         <motion.div
-          className="absolute top-4 sm:top-8 left-2 sm:left-4 lg:left-8 bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/20 rounded-full blur-xl w-8 h-8 sm:w-12 sm:h-12 lg:w-16 lg:h-16"
+          className="absolute top-4 sm:top-8 left-2 sm:left-4 lg:left-8 bg-gradient-to-r from-[#1dff00]/20 to-background/20 rounded-full blur-xl w-8 h-8 sm:w-12 sm:h-12 lg:w-16 lg:h-16"
           animate={{ y: [-10, 10, -10] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute bottom-4 sm:bottom-8 right-2 sm:right-4 lg:right-8 bg-gradient-to-r from-[#1dff00]/10 to-[#0a8246]/10 rounded-full blur-xl w-10 h-10 sm:w-16 sm:h-16 lg:w-20 lg:h-20"
+          className="absolute bottom-4 sm:bottom-8 right-2 sm:right-4 lg:right-8 bg-gradient-to-r from-[#1dff00]/10 to-background/10 rounded-full blur-xl w-10 h-10 sm:w-16 sm:h-16 lg:w-20 lg:h-20"
           animate={{ y: [10, -10, 10] }}
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
         />
@@ -832,7 +832,7 @@ export const Onboarding = (): JSX.Element => {
               {/* Header with logo */}
               <div className="flex items-center justify-center mb-6 sm:mb-8">
                 <div className="flex items-center space-x-2 sm:space-x-3">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full flex items-center justify-center">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-r from-[#1dff00] to-background rounded-full flex items-center justify-center">
                     <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-foreground" />
                   </div>
                   <span className="text-foreground font-bold text-lg sm:text-xl lg:text-2xl">JobRaker</span>

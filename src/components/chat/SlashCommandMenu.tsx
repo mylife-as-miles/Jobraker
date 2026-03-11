@@ -67,7 +67,7 @@ export function SlashCommandMenu({ open, query, onSelect, anchorRef }: Props) {
           style={style}
           ref={containerRef}
         >
-          <div className="rounded-xl overflow-hidden border border-[#1dff00]/30 bg-[#081008]/95 backdrop-blur-xl shadow-xl">
+          <div className="rounded-xl overflow-hidden border border-[#1dff00]/30 bg-background/95 backdrop-blur-xl shadow-xl">
             <ul className="divide-y divide-[#1dff00]/10">
               {list.map(item => (
                 <li key={item.cmd}>

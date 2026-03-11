@@ -69,7 +69,7 @@ export const Analytics = (): JSX.Element => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header Bar */}
-      <div className="sticky top-0 z-10 border-b border-foreground/10 bg-gradient-to-b from-[#0a0a0a] to-transparent">
+      <div className="sticky top-0 z-10 border-b border-foreground/10 bg-gradient-to-b from-background to-transparent">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">

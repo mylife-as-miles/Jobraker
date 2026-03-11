@@ -64,7 +64,7 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[480px] bg-white dark:bg-[#09090b] border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-50 rounded-2xl shadow-2xl p-0 overflow-hidden">
+            <DialogContent className="sm:max-w-[480px] bg-white dark:bg-background border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-50 rounded-2xl shadow-2xl p-0 overflow-hidden">
                 <div className="p-6">
                     <DialogHeader className="mb-6">
                         <DialogTitle className="text-xl font-bold tracking-tight">Share Resume</DialogTitle>

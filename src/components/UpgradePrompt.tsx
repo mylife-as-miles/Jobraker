@@ -53,7 +53,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
         initial="hidden"
         animate="visible"
         variants={containerVariants}
-        className={`relative overflow-hidden rounded-2xl border border-foreground/10 bg-gradient-to-br from-[#0a0a0a] via-[#0f0f0f] to-[#0a0a0a] p-8 ${className}`}
+        className={`relative overflow-hidden rounded-2xl border border-foreground/10 bg-gradient-to-br from-background via-background to-background p-8 ${className}`}
       >
         {/* Ambient background effects */}
         <div className="pointer-events-none absolute inset-0">
@@ -70,7 +70,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
           <p className="mb-6 text-sm text-foreground/60">{description}</p>
 
           <Link to="/dashboard/billing">
-            <Button className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] hover:from-[#1dff00]/90 hover:to-[#0a8246]/90 text-black font-semibold">
+            <Button className="bg-gradient-to-r from-[#1dff00] to-background hover:from-[#1dff00]/90 hover:to-background/90 text-black font-semibold">
               Upgrade Now
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

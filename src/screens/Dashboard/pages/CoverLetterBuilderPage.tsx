@@ -635,7 +635,7 @@ export const CoverLetterBuilderPage = () => {
             <div className="fixed bottom-20 left-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10" />
 
             {/* Header */}
-            <div id="cover-header" className="relative flex items-center justify-between sticky top-0 z-10 bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 backdrop-blur-xl border border-[#1dff00]/30 rounded-2xl shadow-[0_0_40px_rgba(29,255,0,0.15)] px-4 sm:px-6 py-5 overflow-hidden group">
+            <div id="cover-header" className="relative flex items-center justify-between sticky top-0 z-10 bg-gradient-to-br from-background/98 to-background/98 backdrop-blur-xl border border-[#1dff00]/30 rounded-2xl shadow-[0_0_40px_rgba(29,255,0,0.15)] px-4 sm:px-6 py-5 overflow-hidden group">
                 {/* Animated gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/0 via-[#1dff00]/5 to-[#1dff00]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
@@ -706,7 +706,7 @@ export const CoverLetterBuilderPage = () => {
             <div id="cover-main-layout" className="grid gap-6 grid-cols-1 xl:grid-cols-[460px_minmax(0,1fr)] max-w-[1800px] mx-auto w-full">
 
                 {/* CONFIG PANEL (LEFT) */}
-                <Card className="p-6 rounded-2xl bg-gradient-to-br from-[#0a0a0a]/98 to-[#0f0f0f]/98 border border-[#1dff00]/30 backdrop-blur-xl">
+                <Card className="p-6 rounded-2xl bg-gradient-to-br from-background/98 to-background/98 border border-[#1dff00]/30 backdrop-blur-xl">
                     <div className="grid gap-6">
                         {/* Library */}
                         <div className="grid gap-3">

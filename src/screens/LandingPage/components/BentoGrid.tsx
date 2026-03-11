@@ -85,7 +85,7 @@ export const BentoGrid = () => {
           {/* Card 1: Kanban (Large) */}
           <motion.div
             variants={itemVariants}
-            className="col-span-1 md:col-span-2 row-span-2 relative group overflow-hidden rounded-3xl bg-[#0B0C0E] border border-foreground/10"
+            className="col-span-1 md:col-span-2 row-span-2 relative group overflow-hidden rounded-3xl bg-background border border-foreground/10"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
@@ -107,7 +107,7 @@ export const BentoGrid = () => {
           {/* Card 2: Resume Intelligence (Small) */}
           <motion.div
              variants={itemVariants}
-             className="col-span-1 md:col-span-1 row-span-1 relative group overflow-hidden rounded-3xl bg-[#0B0C0E] border border-foreground/10"
+             className="col-span-1 md:col-span-1 row-span-1 relative group overflow-hidden rounded-3xl bg-background border border-foreground/10"
           >
              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
              <div className="p-6 h-full flex flex-col">
@@ -127,7 +127,7 @@ export const BentoGrid = () => {
           {/* Card 3: Chat with AI (Small - was Analytics) */}
           <motion.div
              variants={itemVariants}
-             className="col-span-1 md:col-span-1 row-span-1 relative group overflow-hidden rounded-3xl bg-[#0B0C0E] border border-foreground/10"
+             className="col-span-1 md:col-span-1 row-span-1 relative group overflow-hidden rounded-3xl bg-background border border-foreground/10"
           >
              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
              <div className="p-6 h-full flex flex-col">
@@ -147,7 +147,7 @@ export const BentoGrid = () => {
           {/* Card 4: Interview Coach (Wide - Updated Visual) */}
           <motion.div
              variants={itemVariants}
-             className="col-span-1 md:col-span-3 relative group overflow-hidden rounded-3xl bg-[#0B0C0E] border border-foreground/10 p-8 flex flex-col md:flex-row items-center gap-8"
+             className="col-span-1 md:col-span-3 relative group overflow-hidden rounded-3xl bg-background border border-foreground/10 p-8 flex flex-col md:flex-row items-center gap-8"
           >
              <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 

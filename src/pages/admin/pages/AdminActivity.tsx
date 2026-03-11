@@ -247,7 +247,7 @@ export default function AdminActivity() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border border-[#1dff00]/30 rounded-2xl p-6"
+          className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border border-[#1dff00]/30 rounded-2xl p-6"
         >
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center">
@@ -267,7 +267,7 @@ export default function AdminActivity() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border border-[#1dff00]/30 rounded-2xl p-6"
+          className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border border-[#1dff00]/30 rounded-2xl p-6"
         >
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center">

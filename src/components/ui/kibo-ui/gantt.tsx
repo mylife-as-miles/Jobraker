@@ -90,7 +90,7 @@ export const Gantt: React.FC<GanttProps> = ({
   const showTodayMarker = showToday && todayPercent != null && todayPercent >= 0 && todayPercent <= 1;
 
   return (
-    <div className={"relative w-full overflow-auto rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] " + className} style={{ WebkitOverflowScrolling: 'touch' }}>
+    <div className={"relative w-full overflow-auto rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] " + className} style={{ WebkitOverflowScrolling: 'touch' }}>
       {/* Ambient glow effect */}
       <div className="pointer-events-none absolute -top-20 right-0 h-64 w-64 rounded-full bg-[#1dff00]/10 blur-3xl opacity-40" />
       
@@ -191,7 +191,7 @@ export const Gantt: React.FC<GanttProps> = ({
           {valid.length > 0 && groups.map(g => (
             <div key={g.key} className="relative">
               {groups.length > 1 && (
-                <div className="sticky left-0 z-10 w-64 bg-gradient-to-r from-[#0a0a0a] to-[#0a0a0a]/80 backdrop-blur-sm border-r border-[#1dff00]/20 py-2 px-4">
+                <div className="sticky left-0 z-10 w-64 bg-gradient-to-r from-background to-background/80 backdrop-blur-sm border-r border-[#1dff00]/20 py-2 px-4">
                   <div className="flex items-center gap-2">
                     <div className="h-1.5 w-1.5 rounded-full bg-[#1dff00]/60" />
                     <span className="text-xs font-semibold text-foreground/80">{g.label}</span>
@@ -234,7 +234,7 @@ export const Gantt: React.FC<GanttProps> = ({
                                 {renderBarContent ? renderBarContent(item) : (item.status || '')}
                               </div>
                               {/* Enhanced Tooltip */}
-                              <div className="absolute z-30 hidden group-hover:flex -top-3 left-1/2 -translate-y-full -translate-x-1/2 min-w-[220px] max-w-[280px] flex-col rounded-xl border border-[#1dff00]/30 bg-gradient-to-br from-[#0a0a0a] to-[#0f0f0f] backdrop-blur-xl p-3 shadow-[0_0_30px_rgba(29,255,0,0.2)]">
+                              <div className="absolute z-30 hidden group-hover:flex -top-3 left-1/2 -translate-y-full -translate-x-1/2 min-w-[220px] max-w-[280px] flex-col rounded-xl border border-[#1dff00]/30 bg-gradient-to-br from-background to-background backdrop-blur-xl p-3 shadow-[0_0_30px_rgba(29,255,0,0.2)]">
                                 <div className="flex items-center gap-2 mb-2 pb-2 border-b border-foreground/10">
                                   <div className={`h-2 w-2 rounded-full ${item.status === 'Applied' ? 'bg-[#1dff00]' : item.status === 'Interview' ? 'bg-amber-400' : item.status === 'Offer' ? 'bg-lime-400' : item.status === 'Rejected' ? 'bg-rose-400' : 'bg-gray-400'}`} />
                                   <div className="font-semibold text-white text-sm truncate">{item.label}</div>
@@ -264,7 +264,7 @@ export const Gantt: React.FC<GanttProps> = ({
       </div>
       
       {/* Sidebar gradient overlay */}
-      <div className="absolute top-0 left-0 w-64 h-full pointer-events-none bg-gradient-to-r from-[#0a0a0a]/60 via-[#0a0a0a]/30 to-transparent" />
+      <div className="absolute top-0 left-0 w-64 h-full pointer-events-none bg-gradient-to-r from-background/60 via-background/30 to-transparent" />
     </div>
   );
 };

@@ -400,7 +400,7 @@ export const Dashboard = (): JSX.Element => {
           <div
             className={`flex items-center gap-3 relative z-10 w-full ${isCollapsed ? "justify-center" : ""}`}
           >
-            <div className='w-9 h-9 bg-gradient-to-br from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(29,255,0,0.3)] shrink-0'>
+            <div className='w-9 h-9 bg-gradient-to-br from-[#1dff00] to-background rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(29,255,0,0.3)] shrink-0'>
               <span className='text-fore font-extrabold text-sm tracking-tighter'>
                 JR
               </span>
@@ -703,7 +703,7 @@ export const Dashboard = (): JSX.Element => {
                   title='Profile'
                   aria-label='Open profile'
                 >
-                  <div className='w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300'>
+                  <div className='w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-background rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300'>
                     {avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -738,7 +738,7 @@ export const Dashboard = (): JSX.Element => {
                 title='Profile'
                 aria-label='Open profile'
               >
-                <div className='w-6 h-6 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center'>
+                <div className='w-6 h-6 bg-gradient-to-r from-[#1dff00] to-background rounded-full overflow-hidden flex items-center justify-center'>
                   {avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img

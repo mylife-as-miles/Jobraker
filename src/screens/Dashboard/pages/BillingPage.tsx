@@ -230,7 +230,7 @@ export const BillingPage = () => {
       case 'Ultimate':
         return 'from-purple-500 via-purple-600 to-purple-700';
       default:
-        return 'from-[#1dff00] via-[#0fc74f] to-[#0a8246]';
+        return 'from-[#1dff00] via-background to-background';
     }
   };
 
@@ -282,7 +282,7 @@ export const BillingPage = () => {
   return (
     <div className="min-h-screen bg-background selection:bg-brand/30">
       {/* Hero Section */}
-      <div className="relative overflow-hidden border-b border-foreground/10 bg-gradient-to-br from-black via-[#0a0a0a] to-black">
+      <div className="relative overflow-hidden border-b border-foreground/10 bg-gradient-to-br from-background via-background to-black">
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#1dff00]/5 rounded-full blur-[120px] mix-blend-screen animate-pulse" />
@@ -298,7 +298,7 @@ export const BillingPage = () => {
             className="text-center mb-12"
           >
             <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold mb-6 tracking-tight">
-              <span className="bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-foreground via-foreground to-white/60 bg-clip-text text-transparent">
                 Billing &
               </span>{' '}
               <span className="text-[#1dff00] drop-shadow-[0_0_15px_rgba(29,255,0,0.3)]">
@@ -318,7 +318,7 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="relative overflow-hidden border-foreground/10 bg-white/[0.03] backdrop-blur-xl group hover:border-[#1dff00]/30 transition-colors duration-300">
+              <Card className="relative overflow-hidden border-foreground/10 bg-background/[0.03] backdrop-blur-xl group hover:border-[#1dff00]/30 transition-colors duration-300">
                 <div className="absolute inset-0 bg-gradient-to-br from-[#1dff00]/5 to-transparent opacity-50" />
                 <CardContent className="relative p-6">
                   <div className="flex items-start justify-between mb-4">
@@ -345,7 +345,7 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <Card className="relative overflow-hidden border-foreground/10 bg-white/[0.03] backdrop-blur-xl group hover:border-foreground/20 transition-colors duration-300">
+              <Card className="relative overflow-hidden border-foreground/10 bg-background/[0.03] backdrop-blur-xl group hover:border-foreground/20 transition-colors duration-300">
                 <div className={`absolute inset-0 bg-gradient-to-br ${getTierGradient(subscriptionTier)} opacity-5`} />
                 <CardContent className="relative p-6">
                   <div className="flex items-start justify-between mb-4">
@@ -378,7 +378,7 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <Card className="relative overflow-hidden border-foreground/10 bg-white/[0.03] backdrop-blur-xl group hover:border-blue-400/30 transition-colors duration-300">
+              <Card className="relative overflow-hidden border-foreground/10 bg-background/[0.03] backdrop-blur-xl group hover:border-blue-400/30 transition-colors duration-300">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-50" />
                 <CardContent className="relative p-6">
                   <div className="flex items-start justify-between mb-4">
@@ -476,7 +476,7 @@ export const BillingPage = () => {
 
                       <Card className={`group relative h-full flex flex-col overflow-hidden transition-all duration-300 ${isCurrentPlan
                         ? 'border-[#1dff00]/50 bg-gradient-to-b from-[#1dff00]/10 to-transparent shadow-[0_0_40px_-10px_rgba(29,255,0,0.2)]'
-                        : 'border-foreground/10 bg-white/[0.02] hover:bg-white/[0.04] hover:border-foreground/20 hover:shadow-xl hover:shadow-[#1dff00]/5 hover:-translate-y-1'
+                        : 'border-foreground/10 bg-background/[0.02] hover:bg-background/[0.04] hover:border-foreground/20 hover:shadow-xl hover:shadow-[#1dff00]/5 hover:-translate-y-1'
                         }`}>
                         {/* Gradient accent top border */}
                         <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${getTierGradient(plan.name)} opacity-70`} />
@@ -566,7 +566,7 @@ export const BillingPage = () => {
                                     ? 'bg-blue-500 text-foreground hover:bg-blue-600 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-[1.02]'
                                     : plan.name === 'Ultimate'
                                       ? 'bg-purple-600 text-foreground hover:bg-purple-700 hover:shadow-[0_0_20px_rgba(147,51,234,0.4)] hover:scale-[1.02]'
-                                      : 'bg-white text-black hover:bg-gray-200'
+                                      : 'bg-background text-black hover:bg-gray-200'
                                 }`}
                               disabled={isCurrentPlan || processingPayment}
                               onClick={() => !isCurrentPlan && handlePayment('subscription', plan)}
@@ -621,7 +621,7 @@ export const BillingPage = () => {
 
                     <Card className={`relative overflow-hidden transition-all duration-300 group hover:scale-105 ${pack.popular
                       ? 'border-[#1dff00]/30 bg-gradient-to-b from-[#1dff00]/5 to-transparent'
-                      : 'border-foreground/10 bg-white/[0.02] hover:bg-white/[0.04]'
+                      : 'border-foreground/10 bg-background/[0.02] hover:bg-background/[0.04]'
                       }`}>
                       <CardContent className="p-6 flex flex-col items-center text-center">
                         <div className={`p-3 rounded-2xl mb-4 ${pack.popular ? 'bg-[#1dff00]/10 text-[#1dff00]' : 'bg-muted/50 text-gray-400 group-hover:text-foreground group-hover:bg-muted'
@@ -676,7 +676,7 @@ export const BillingPage = () => {
                   { icon: <Infinity className="w-6 h-6" />, title: 'Never Expire', desc: 'Credits last until you use them' },
                   { icon: <Target className="w-6 h-6" />, title: 'Instant Delivery', desc: 'Start applying in seconds' },
                 ].map((benefit, idx) => (
-                  <div key={idx} className="flex flex-col items-center text-center p-6 rounded-2xl bg-white/[0.02] border border-foreground/5 hover:bg-white/[0.04] transition-colors">
+                  <div key={idx} className="flex flex-col items-center text-center p-6 rounded-2xl bg-background/[0.02] border border-foreground/5 hover:bg-background/[0.04] transition-colors">
                     <div className="p-3 rounded-full bg-[#1dff00]/10 text-[#1dff00] mb-3">
                       {benefit.icon}
                     </div>
@@ -697,8 +697,8 @@ export const BillingPage = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <Card className="border-foreground/10 bg-white/[0.02] backdrop-blur-md overflow-hidden">
-                <CardHeader className="border-b border-foreground/10 bg-white/[0.02]">
+              <Card className="border-foreground/10 bg-background/[0.02] backdrop-blur-md overflow-hidden">
+                <CardHeader className="border-b border-foreground/10 bg-background/[0.02]">
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
@@ -733,7 +733,7 @@ export const BillingPage = () => {
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: index * 0.05 }}
-                            className="p-4 sm:p-6 hover:bg-white/[0.02] transition-colors duration-200 flex items-center justify-between gap-4 group"
+                            className="p-4 sm:p-6 hover:bg-background/[0.02] transition-colors duration-200 flex items-center justify-between gap-4 group"
                           >
                             <div className="flex items-center gap-4 flex-1 min-w-0">
                               <div className={`p-2.5 rounded-xl border ${iconData.color} group-hover:scale-110 transition-transform`}>

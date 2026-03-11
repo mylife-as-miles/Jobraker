@@ -547,7 +547,7 @@ export const JobrackerSignup = (): JSX.Element => {
       </div>
 
       {/* RIGHT SIDE: Immersive Visual */}
-      <div className='hidden lg:block lg:w-1/2 relative bg-[#050505] overflow-hidden h-full'>
+      <div className='hidden lg:block lg:w-1/2 relative bg-background overflow-hidden h-full'>
         {/* Background Grid */}
         <div className='absolute inset-0 bg-[linear-gradient(rgba(29,255,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(29,255,0,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,background_40%,transparent_80%)]' />
 

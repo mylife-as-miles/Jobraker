@@ -56,7 +56,7 @@ export function KanbanBoard({ id, children }: { id: string; children: React.Reac
   return (
     <div
       data-column-id={id}
-      className="relative rounded-xl border border-foreground/10 bg-gradient-to-br from-[#0a0a0a] via-[#0f0f0f] to-[#0a0a0a] backdrop-blur-xl p-4 md:p-5 min-w-[85vw] sm:min-w-[420px] md:min-w-0 snap-start shadow-lg hover:shadow-xl hover:border-foreground/15 transition-all duration-300"
+      className="relative rounded-xl border border-foreground/10 bg-gradient-to-br from-background via-background to-background backdrop-blur-xl p-4 md:p-5 min-w-[85vw] sm:min-w-[420px] md:min-w-0 snap-start shadow-lg hover:shadow-xl hover:border-foreground/15 transition-all duration-300"
       role="list"
       aria-roledescription="Kanban column"
     >
@@ -144,7 +144,7 @@ export function KanbanCard({ id, children }: { id?: string; name?: string; colum
       className={`group relative rounded-lg border bg-gradient-to-br from-background to-background/95 p-4 transition-all duration-200 cursor-grab active:cursor-grabbing ${
         isDragging 
           ? 'border-[#1dff00]/50 shadow-[0_0_30px_rgba(29,255,0,0.3)] scale-105 opacity-50' 
-          : 'border-foreground/8 hover:border-foreground/15 bg-[#0f0f0f] shadow-sm hover:shadow-md'
+          : 'border-foreground/8 hover:border-foreground/15 bg-background shadow-sm hover:shadow-md'
       }`}
       draggable
       onDragStart={handleDragStart as any}

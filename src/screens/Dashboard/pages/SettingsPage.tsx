@@ -1309,7 +1309,7 @@ export const SettingsPage = (): JSX.Element => {
       case "Ultimate":
         return "from-purple-500 via-purple-600 to-purple-700";
       default:
-        return "from-[#1dff00] via-[#0fc74f] to-[#0a8246]";
+        return "from-[#1dff00] via-background to-background";
     }
   };
 

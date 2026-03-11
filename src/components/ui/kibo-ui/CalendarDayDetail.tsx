@@ -438,7 +438,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
                       <div key={label} className="flex flex-col gap-1">
                         <div className="text-[10px] text-foreground/60">{label}</div>
                         <div className="h-6 rounded bg-foreground/5 border border-foreground/10 overflow-hidden relative">
-                          <div style={{ width: pct+'%' }} className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#1dff00] to-[#0a8246]" />
+                          <div style={{ width: pct+'%' }} className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#1dff00] to-background" />
                           <div className="absolute inset-0 flex items-center justify-center text-[10px] text-foreground/80 font-medium">{count}</div>
                         </div>
                       </div>
@@ -471,7 +471,7 @@ export const CalendarDayDetail: React.FC<CalendarDayDetailProps> = ({ date, rang
             Cancel
           </Button>
           <Button
-            className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black font-semibold hover:shadow-[0_0_20px_rgba(29,255,0,0.3)]"
+            className="bg-gradient-to-r from-[#1dff00] to-background text-black font-semibold hover:shadow-[0_0_20px_rgba(29,255,0,0.3)]"
             onClick={async () => {
               if (!onUpdateApplication || !followUpAppId) {
                 setFollowUpOpen(false);

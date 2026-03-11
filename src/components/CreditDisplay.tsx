@@ -111,7 +111,7 @@ export const CreditDisplay = () => {
         return 'from-purple-500 to-purple-600';
       default:
         // Match the exact green gradient from match score cards
-        return 'from-[#1dff00] to-[#0a8246]';
+        return 'from-[#1dff00] to-background';
     }
   };
 

@@ -258,7 +258,7 @@ const ProfilePage = (): JSX.Element => {
                     )}
                     {profile !== null && (
                       <>
-                        <div className="w-24 h-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full flex items-center justify-center text-black font-bold text-2xl overflow-hidden">
+                        <div className="w-24 h-24 bg-gradient-to-r from-[#1dff00] to-background rounded-full flex items-center justify-center text-black font-bold text-2xl overflow-hidden">
                           {avatarUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -442,7 +442,7 @@ const ProfilePage = (): JSX.Element => {
                         initial={{ width: 0 }}
                         animate={{ width: `${Math.min(100, (gamification.xpProgress / gamification.xpForNext) * 100)}%` }}
                         transition={{ duration: 1.2, ease: 'easeOut', delay: 0.2 }}
-                        className='absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-[#1dff00] to-[#0ea855] shadow-lg shadow-[#1dff00]/50'
+                        className='absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-[#1dff00] to-background shadow-lg shadow-[#1dff00]/50'
                       />
                     </div>
                   </div>

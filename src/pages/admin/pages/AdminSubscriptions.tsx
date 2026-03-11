@@ -447,7 +447,7 @@ export default function AdminSubscriptions() {
             resetForm();
             setIsCreateDialogOpen(true);
           }}
-          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all"
+          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#1dff00] to-background text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all"
         >
           <Plus className="w-5 h-5" />
           Create Plan
@@ -456,7 +456,7 @@ export default function AdminSubscriptions() {
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-gray-400">Total Plans</p>
@@ -469,7 +469,7 @@ export default function AdminSubscriptions() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-gray-400">Avg. Price</p>
@@ -484,7 +484,7 @@ export default function AdminSubscriptions() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-gray-400">Avg. Credits</p>
@@ -499,7 +499,7 @@ export default function AdminSubscriptions() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-gray-400">Total Subscribers</p>
@@ -514,7 +514,7 @@ export default function AdminSubscriptions() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-gray-400">MRR</p>
@@ -653,7 +653,7 @@ export default function AdminSubscriptions() {
               resetForm();
               setIsCreateDialogOpen(true);
             }}
-            className="px-6 py-3 bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black font-semibold rounded-xl"
+            className="px-6 py-3 bg-gradient-to-r from-[#1dff00] to-background text-black font-semibold rounded-xl"
           >
             Create Your First Plan
           </motion.button>
@@ -679,7 +679,7 @@ export default function AdminSubscriptions() {
         </div>
 
         {/* Subscriber Filters */}
-        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardContent className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="relative">
@@ -715,7 +715,7 @@ export default function AdminSubscriptions() {
         </Card>
 
         {/* Subscribers Table */}
-        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20 overflow-hidden">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 overflow-hidden">
           {loadingSubscribers ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 text-[#1dff00] animate-spin" />
@@ -901,9 +901,9 @@ function ViewPlanDialog({
         {/* Animated gradient border glow */}
         <div className="absolute -inset-1 bg-gradient-to-r from-[#1dff00]/20 via-cyan-500/20 to-purple-500/20 rounded-3xl blur-2xl animate-pulse" />
 
-        <div className="relative bg-gradient-to-br from-[#0a0a0a]/95 via-[#111111]/95 to-[#0a0a0a]/95 backdrop-blur-xl border border-[#1dff00]/20 rounded-3xl overflow-y-auto max-h-[90vh] shadow-2xl">
+        <div className="relative bg-gradient-to-br from-background/95 via-[#111111]/95 to-background/95 backdrop-blur-xl border border-[#1dff00]/20 rounded-3xl overflow-y-auto max-h-[90vh] shadow-2xl">
           {/* Sticky Header with glass effect */}
-          <div className="sticky top-0 z-10 bg-gradient-to-br from-[#0a0a0a]/98 via-[#111111]/98 to-[#0a0a0a]/98 backdrop-blur-xl border-b border-[#1dff00]/20 p-6">
+          <div className="sticky top-0 z-10 bg-gradient-to-br from-background/98 via-[#111111]/98 to-background/98 backdrop-blur-xl border-b border-[#1dff00]/20 p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <motion.div
@@ -1139,9 +1139,9 @@ function PlanFormDialog({
         {/* Animated gradient border glow */}
         <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/30 via-[#1dff00]/30 to-purple-500/30 rounded-3xl blur-2xl animate-pulse" />
 
-        <div className="relative bg-gradient-to-br from-[#0a0a0a]/95 via-[#111111]/95 to-[#0a0a0a]/95 backdrop-blur-xl border border-blue-500/20 rounded-3xl overflow-y-auto max-h-[90vh] shadow-2xl">
+        <div className="relative bg-gradient-to-br from-background/95 via-[#111111]/95 to-background/95 backdrop-blur-xl border border-blue-500/20 rounded-3xl overflow-y-auto max-h-[90vh] shadow-2xl">
           {/* Enhanced Sticky Header */}
-          <div className="sticky top-0 z-10 bg-gradient-to-br from-[#0a0a0a]/98 via-[#111111]/98 to-[#0a0a0a]/98 backdrop-blur-xl border-b border-blue-500/20 p-6">
+          <div className="sticky top-0 z-10 bg-gradient-to-br from-background/98 via-[#111111]/98 to-background/98 backdrop-blur-xl border-b border-blue-500/20 p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <motion.div
@@ -1331,7 +1331,7 @@ function PlanFormDialog({
                 whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(29, 255, 0, 0.3)" }}
                 whileTap={{ scale: 0.98 }}
                 onClick={onSave}
-                className="flex-1 px-8 py-3.5 bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black rounded-xl font-bold hover:shadow-2xl hover:shadow-[#1dff00]/30 transition-all duration-200 border border-[#1dff00]/50"
+                className="flex-1 px-8 py-3.5 bg-gradient-to-r from-[#1dff00] to-background text-black rounded-xl font-bold hover:shadow-2xl hover:shadow-[#1dff00]/30 transition-all duration-200 border border-[#1dff00]/50"
               >
                 {isEdit ? 'Save Changes' : 'Create Plan'}
               </motion.button>
@@ -1382,7 +1382,7 @@ function DeleteConfirmDialog({
         {/* Pulsing red border glow */}
         <div className="absolute -inset-1 bg-gradient-to-r from-red-500/40 via-orange-500/40 to-red-500/40 rounded-3xl blur-2xl animate-pulse" />
 
-        <div className="relative bg-gradient-to-br from-[#0a0a0a]/95 via-[#1a0a0a]/95 to-[#0a0a0a]/95 backdrop-blur-xl border border-red-500/30 rounded-3xl shadow-2xl">
+        <div className="relative bg-gradient-to-br from-background/95 via-[#1a0a0a]/95 to-background/95 backdrop-blur-xl border border-red-500/30 rounded-3xl shadow-2xl">
           <div className="p-8">
             {/* Warning Header */}
             <div className="flex items-center gap-4 mb-6">
@@ -1548,7 +1548,7 @@ function SubscriberChangePlanDialog({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-yellow-500/30 rounded-2xl w-full max-w-md shadow-2xl shadow-yellow-500/10"
+          className="bg-gradient-to-br from-background via-[#111111] to-background border border-yellow-500/30 rounded-2xl w-full max-w-md shadow-2xl shadow-yellow-500/10"
         >
           <div className="px-6 pt-6 pb-4 border-b border-yellow-500/20">
             <div className="flex items-center gap-3 mb-2">
@@ -1646,7 +1646,7 @@ function SubscriberCancelDialog({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-red-500/30 rounded-2xl w-full max-w-md shadow-2xl shadow-red-500/10"
+          className="bg-gradient-to-br from-background via-[#111111] to-background border border-red-500/30 rounded-2xl w-full max-w-md shadow-2xl shadow-red-500/10"
         >
           <div className="px-6 pt-6 pb-4 border-b border-red-500/20">
             <div className="flex items-center gap-3">

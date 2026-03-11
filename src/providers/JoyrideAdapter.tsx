@@ -38,7 +38,7 @@ const BrandedTooltip: React.FC<TooltipRenderProps & { waiting?: boolean; interna
   return (
     <div
       {...tooltipProps}
-      className="relative max-w-sm w-[min(380px,90vw)] rounded-2xl border border-[#1dff00]/35 bg-gradient-to-br from-[#132313] via-[#060a06] to-black p-5 shadow-[0_4px_28px_-6px_rgba(0,0,0,0.7),0_0_0_1px_rgba(29,255,0,0.25)] text-white font-sans"
+      className="relative max-w-sm w-[min(380px,90vw)] rounded-2xl border border-[#1dff00]/35 bg-gradient-to-br from-[#132313] via-background to-black p-5 shadow-[0_4px_28px_-6px_rgba(0,0,0,0.7),0_0_0_1px_rgba(29,255,0,0.25)] text-white font-sans"
     >
       <button
         {...closeProps}
