@@ -1,12 +1,13 @@
 import React from "react";
 import { Pricing } from "../../components/blocks/pricing";
+import { ProductPageHeader } from "../../components/ui/ProductPageHeader";
 
 export const PricingPage = (): JSX.Element => {
   const plans = [
     {
       name: "Starter",
       price: "29",
-      yearlyPrice: "278", // 20% off
+      yearlyPrice: "278",
       period: "month",
       features: [
         "Up to 50 applications/week",
@@ -61,16 +62,15 @@ export const PricingPage = (): JSX.Element => {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="product-page-shell min-h-screen bg-background text-foreground">
       <div className="max-w-6xl mx-auto px-4 pt-16 sm:pt-24">
-        <div className="text-center mb-8 sm:mb-12">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1dff00]">
-            Choose Your Plan
-          </h1>
-          <p className="text-[#888888] mt-3">
-            Go Premium to unlock autonomous applications, analytics, and more.
-          </p>
-        </div>
+        <ProductPageHeader
+          className="mb-8 sm:mb-12"
+          contentClassName="mx-auto max-w-2xl text-center"
+          titleClassName="text-3xl sm:text-4xl lg:text-5xl"
+          title="Choose Your Plan"
+          subtitle="Go Premium to unlock autonomous applications, analytics, and more."
+        />
         <Pricing plans={plans} />
       </div>
     </div>

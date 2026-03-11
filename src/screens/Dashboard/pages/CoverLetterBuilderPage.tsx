@@ -629,13 +629,13 @@ export const CoverLetterBuilderPage = () => {
 
     // --- Render ---
     return (
-        <div id="cover-page-root" className="relative flex min-h-[calc(100vh-4rem)] flex-col gap-6 px-4 sm:px-6 lg:px-8 py-6">
+        <div id="cover-page-root" className="product-page-shell relative flex min-h-[calc(100vh-4rem)] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
             {/* Ambient Background Glows */}
             <div className="fixed top-20 right-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-30 pointer-events-none -z-10" />
             <div className="fixed bottom-20 left-0 h-96 w-96 bg-[#1dff00]/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10" />
 
             {/* Header */}
-            <div id="cover-header" className="relative flex flex-col xl:flex-row xl:items-center justify-between gap-4 sticky top-0 z-10 bg-gradient-to-br from-background/98 to-background/98 backdrop-blur-xl border border-[#1dff00]/30 rounded-2xl shadow-[0_0_40px_rgba(29,255,0,0.15)] px-4 sm:px-6 py-5 overflow-hidden group">
+            <div id="cover-header" className="product-section-card sticky top-0 z-10 group relative flex flex-col justify-between gap-4 overflow-hidden rounded-2xl px-4 py-5 shadow-lg sm:px-6 xl:flex-row xl:items-center">
                 {/* Animated gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/0 via-[#1dff00]/5 to-[#1dff00]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
@@ -650,13 +650,13 @@ export const CoverLetterBuilderPage = () => {
                             <input
                                 value={coverLetter.title || 'Untitled Cover Letter'}
                                 onChange={(e) => setCoverLetterTitle(e.target.value)}
-                                className="text-3xl sm:text-4xl font-black tracking-tight bg-transparent border-none outline-none focus:ring-0 text-foreground placeholder-gray-500 min-w-[300px]"
+                                className="product-page-title min-w-[300px] border-none bg-transparent text-3xl font-black tracking-tight outline-none focus:ring-0 sm:text-4xl placeholder:text-muted-foreground"
                                 placeholder="Untitled Cover Letter"
                             />
-                            <Edit2 className="w-5 h-5 text-gray-500 opacity-0 group-hover/title:opacity-100 transition-opacity" />
+                            <Edit2 className="w-5 h-5 product-helper-text opacity-0 group-hover/title:opacity-100 transition-opacity" />
                         </div>
                         <div className="flex items-center gap-3 mt-1.5">
-                            <p className="text-xs sm:text-sm text-gray-400 flex items-center gap-2.5">
+                            <p className="text-xs sm:text-sm product-helper-text flex items-center gap-2.5">
                                 <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-[#1dff00]/20 border border-[#1dff00]/40">
                                     <span className="inline-block w-2 h-2 bg-[#1dff00] rounded-full animate-pulse shadow-[0_0_8px_rgba(29,255,0,0.8)]" />
                                 </span>
@@ -685,17 +685,17 @@ export const CoverLetterBuilderPage = () => {
                         <Pencil className="w-4 h-4 mr-2" />
                         {inlineEdit ? 'Live Edit: On' : 'Enable Live Edit'}
                     </Button>
-                    <Button variant="outline" onClick={aiPolish} disabled={aiLoading} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 transition-all">
+                    <Button variant="outline" onClick={aiPolish} disabled={aiLoading} className="product-outline-button h-11 rounded-xl transition-all hover:border-[#ffd700]/60 hover:bg-[#fff2b3]">
                         <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
                         {aiLoading ? 'Polishing' : 'AI Polish'}
                         {subscriptionTier === 'Free' && <Lock className="ml-2 w-3 h-3 opacity-50" />}
                     </Button>
-                    <Button variant="outline" onClick={aiWriteFull} disabled={aiLoading} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 transition-all">
+                    <Button variant="outline" onClick={aiWriteFull} disabled={aiLoading} className="product-outline-button h-11 rounded-xl transition-all hover:border-[#ffd700]/60 hover:bg-[#fff2b3]">
                         <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
                         {aiLoading ? 'Writing' : 'AI Generate'}
                         {subscriptionTier === 'Free' && <Lock className="ml-2 w-3 h-3 opacity-50" />}
                     </Button>
-                    <Button variant="outline" onClick={() => setExportOpen(true)} className="rounded-xl h-11 border-[#1dff00]/30 hover:bg-[#1dff00]/10 hover:border-[#1dff00]/60 hover:text-[#1dff00] text-gray-300 transition-all">
+                    <Button variant="outline" onClick={() => setExportOpen(true)} className="product-outline-button h-11 rounded-xl transition-all hover:border-[#ffd700]/60 hover:bg-[#fff2b3]">
                         <Download className="w-4 h-4 mr-2" />
                         Export
                     </Button>
@@ -706,7 +706,7 @@ export const CoverLetterBuilderPage = () => {
             <div id="cover-main-layout" className="grid gap-6 grid-cols-1 xl:grid-cols-[460px_minmax(0,1fr)] max-w-[1800px] mx-auto w-full">
 
                 {/* CONFIG PANEL (LEFT) */}
-                <Card className="p-6 rounded-2xl bg-gradient-to-br from-background/98 to-background/98 border border-[#1dff00]/30 backdrop-blur-xl">
+                <Card className="product-section-card p-6 rounded-2xl">
                     <div className="grid gap-6">
                         {/* Library */}
                         <div className="grid gap-3">
@@ -714,14 +714,14 @@ export const CoverLetterBuilderPage = () => {
                                 <label className="text-sm font-semibold text-foreground">Save Cover Letter</label>
                                 <Button variant="outline" size="sm" onClick={() => { resetCoverLetter(); setCurrentLibId(null); setLibName(''); setCoverLetterId(''); navigate('/dashboard/cover-letter/create'); }} className="h-8">New</Button>
                             </div>
-                            <input value={libName} onChange={e => setLibName(e.target.value)} placeholder="Letter Name" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                            <input value={libName} onChange={e => setLibName(e.target.value)} placeholder="Letter Name" className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none" />
                             <div className="grid grid-cols-2 gap-3">
                                 <Button onClick={() => saveToLibrary()} variant="outline" className="border-[#1dff00]/30">{currentLibId ? 'Update' : 'Save'}</Button>
                                 <Button onClick={() => saveToLibrary(libName)} variant="outline">Save As New</Button>
                             </div>
                             {library.length > 0 && (
                                 <select
-                                    className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2 text-sm text-gray-400"
+                                    className="w-full product-input-surface rounded-xl px-3 py-2 text-sm"
                                     onChange={(e) => {
                                         const lib = library.find(l => l.id === e.target.value);
                                         const payload = lib?.data || lib?.content;
@@ -748,24 +748,24 @@ export const CoverLetterBuilderPage = () => {
                                     <Button size="sm" variant="outline" onClick={() => { setSenderName(''); setSenderEmail(''); setSenderPhone(''); setSenderAddress(''); }} className="h-7 text-xs">Clear</Button>
                                 </div>
                             </div>
-                            <input value={sender.name} onChange={e => setSenderName(e.target.value)} placeholder="Name" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                            <input value={sender.name} onChange={e => setSenderName(e.target.value)} placeholder="Name" className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none" />
                             <div className="grid grid-cols-2 gap-3">
-                                <input value={sender.email} onChange={e => setSenderEmail(e.target.value)} placeholder="Email" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
-                                <input value={sender.phone} onChange={e => setSenderPhone(e.target.value)} placeholder="Phone" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                                <input value={sender.email} onChange={e => setSenderEmail(e.target.value)} placeholder="Email" className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none" />
+                                <input value={sender.phone} onChange={e => setSenderPhone(e.target.value)} placeholder="Phone" className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none" />
                             </div>
-                            <input value={sender.address} onChange={e => setSenderAddress(e.target.value)} placeholder="Address" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                            <input value={sender.address} onChange={e => setSenderAddress(e.target.value)} placeholder="Address" className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none" />
                         </div>
 
                         {/* Recipient */}
                         <div className="grid gap-3">
                             <label className="text-sm font-semibold text-foreground">Recipient Info</label>
                             <div className="grid grid-cols-2 gap-3">
-                                <input value={recipient.name} onChange={e => setRecipientName(e.target.value)} placeholder="Name" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
-                                <input value={recipient.title} onChange={e => setRecipientTitle(e.target.value)} placeholder="Title" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                                <input value={recipient.name} onChange={e => setRecipientName(e.target.value)} placeholder="Name" className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none" />
+                                <input value={recipient.title} onChange={e => setRecipientTitle(e.target.value)} placeholder="Title" className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none" />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <input value={company} onChange={e => setCompany(e.target.value)} placeholder="Company" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
-                                <input value={recipient.address} onChange={e => setRecipientAddress(e.target.value)} placeholder="Address" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                                <input value={company} onChange={e => setCompany(e.target.value)} placeholder="Company" className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none" />
+                                <input value={recipient.address} onChange={e => setRecipientAddress(e.target.value)} placeholder="Address" className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none" />
                             </div>
                         </div>
 
@@ -773,17 +773,17 @@ export const CoverLetterBuilderPage = () => {
                         <div className="grid gap-3">
                             <label className="text-sm font-semibold text-foreground">Details</label>
                             <div className="grid grid-cols-2 gap-3">
-                                <input type="date" value={content.date} onChange={e => setDate(e.target.value)} className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
-                                <input value={content.subject} onChange={e => setSubject(e.target.value)} placeholder="Subject" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                                <input type="date" value={content.date} onChange={e => setDate(e.target.value)} className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none" />
+                                <input value={content.subject} onChange={e => setSubject(e.target.value)} placeholder="Subject" className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none" />
                             </div>
-                            <input value={content.salutation} onChange={e => setSalutation(e.target.value)} placeholder="Salutation" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                            <input value={content.salutation} onChange={e => setSalutation(e.target.value)} placeholder="Salutation" className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none" />
                             <div className="grid grid-cols-2 gap-3">
-                                <select value={tone} onChange={e => setTone(e.target.value)} className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none">
+                                <select value={tone} onChange={e => setTone(e.target.value)} className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none">
                                     <option value="professional">Professional</option>
                                     <option value="friendly">Friendly</option>
                                     <option value="enthusiastic">Enthusiastic</option>
                                 </select>
-                                <select value={lengthPref} onChange={e => setLengthPref(e.target.value)} className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none">
+                                <select value={lengthPref} onChange={e => setLengthPref(e.target.value)} className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none">
                                     <option value="short">Short</option>
                                     <option value="medium">Medium</option>
                                     <option value="long">Long</option>
@@ -802,14 +802,14 @@ export const CoverLetterBuilderPage = () => {
                                 value={content.rawBody}
                                 onChange={e => setContentString(e.target.value)}
                                 rows={6}
-                                className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none"
+                                className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none"
                                 placeholder="Raw content..."
                             />
 
                             {/* Paragraphs Editor */}
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-xs text-gray-400">Paragraphs ({content.paragraphs.length})</span>
+                                    <span className="text-xs product-helper-text">Paragraphs ({content.paragraphs.length})</span>
                                     <Button size="sm" variant="ghost" onClick={addParagraph} className="h-6 text-xs"><Plus className="w-3 h-3" /></Button>
                                 </div>
                                 {content.paragraphs.map((p, idx) => (
@@ -818,7 +818,7 @@ export const CoverLetterBuilderPage = () => {
                                             value={p}
                                             onChange={e => updateParagraph(idx, e.target.value)}
                                             rows={3}
-                                            className="w-full bg-muted/50 border border-foreground/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] outline-none"
+                                            className="w-full product-input-surface rounded-lg px-3 py-2 text-sm outline-none"
                                         />
                                         <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 flex gap-1 bg-muted/50 rounded">
                                             <button onClick={() => moveParagraphUp(idx)} className="p-1 hover:text-[#1dff00]"><ArrowUp className="w-3 h-3" /></button>
@@ -832,14 +832,14 @@ export const CoverLetterBuilderPage = () => {
                                 value={jobDescription}
                                 onChange={e => setJobDescription(e.target.value)}
                                 placeholder="Paste Job Description for AI context..."
-                                className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none mt-2"
+                                className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none mt-2"
                             />
                         </div>
 
                         {/* Closing */}
                         <div className="grid grid-cols-2 gap-3">
-                            <input value={content.closing} onChange={e => setClosing(e.target.value)} placeholder="Closing" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
-                            <input value={content.signature} onChange={e => setSignatureName(e.target.value)} placeholder="Signature" className="w-full bg-muted/50 border border-foreground/10 rounded-xl px-3 py-2 text-sm focus:border-[#1dff00] outline-none" />
+                            <input value={content.closing} onChange={e => setClosing(e.target.value)} placeholder="Closing" className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none" />
+                            <input value={content.signature} onChange={e => setSignatureName(e.target.value)} placeholder="Signature" className="w-full product-input-surface rounded-xl px-3 py-2 text-sm outline-none" />
                         </div>
                     </div>
                 </Card>
@@ -891,7 +891,7 @@ export const CoverLetterBuilderPage = () => {
             </div>
 
             {/* Config Toolbar */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-background/90 backdrop-blur border border-[#1dff00]/30 p-2 rounded-2xl shadow-xl z-50">
+            <div className="product-section-card fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-2xl p-2 shadow-xl">
                 <Button size="icon" variant="ghost" onClick={zoomOut} className="hover:text-[#1dff00]"><Minus className="w-4 h-4" /></Button>
                 <span className="text-xs font-mono w-12 text-center">{typography.fontSize}px</span>
                 <Button size="icon" variant="ghost" onClick={zoomIn} className="hover:text-[#1dff00]"><Plus className="w-4 h-4" /></Button>
@@ -902,10 +902,10 @@ export const CoverLetterBuilderPage = () => {
             {/* Export Modal */}
             {exportOpen && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-                    <div className="relative w-full max-w-md bg-background border border-[#1dff00]/30 rounded-2xl p-6 shadow-2xl">
-                        <button onClick={() => setExportOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-foreground"><X className="w-5 h-5" /></button>
+                    <div className="product-section-card relative w-full max-w-md rounded-2xl p-6 shadow-2xl">
+                        <button onClick={() => setExportOpen(false)} className="absolute top-4 right-4 product-helper-text hover:text-foreground"><X className="w-5 h-5" /></button>
                         <h2 className="text-xl font-bold text-foreground mb-2">Export Cover Letter</h2>
-                        <p className="text-sm text-gray-400 mb-6">Choose a format to download your letter.</p>
+                        <p className="text-sm product-helper-text mb-6">Choose a format to download your letter.</p>
 
                         <div className="space-y-3">
                             <Button onClick={exportPdf} disabled={!!exportBusy} className="w-full justify-start h-12 border-[#1dff00]/30 hover:bg-[#1dff00]/10" variant="outline">
@@ -917,7 +917,7 @@ export const CoverLetterBuilderPage = () => {
                                 {exportBusy === 'docx' && <span className="ml-auto animate-pulse">Processing...</span>}
                             </Button>
                             <Button onClick={exportTxt} className="w-full justify-start h-12 border-[#1dff00]/30 hover:bg-[#1dff00]/10" variant="outline">
-                                <FileText className="w-5 h-5 mr-3 text-gray-400" /> Plain Text
+                                <FileText className="w-5 h-5 mr-3 product-helper-text" /> Plain Text
                             </Button>
                         </div>
 
@@ -933,3 +933,8 @@ export const CoverLetterBuilderPage = () => {
         </div>
     );
 };
+
+
+
+
+

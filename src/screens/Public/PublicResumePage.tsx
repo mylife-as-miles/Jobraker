@@ -69,21 +69,21 @@ export const PublicResumePage = () => {
         downloadResumePDF(resumeData);
     };
 
-    if (loading) return <div className="flex items-center justify-center h-screen bg-white dark:bg-background text-gray-900 dark:text-foreground"><Loader2 className="animate-spin w-8 h-8" /></div>;
-    if (error) return <div className="flex flex-col items-center justify-center h-screen gap-4 bg-white dark:bg-background text-gray-900 dark:text-foreground"><AlertCircle className="w-10 h-10 text-red-500" /><p className="text-lg">{error}</p></div>;
+    if (loading) return <div className="flex items-center justify-center h-screen product-page-shell text-foreground"><Loader2 className="animate-spin w-8 h-8" /></div>;
+    if (error) return <div className="flex flex-col items-center justify-center h-screen gap-4 product-page-shell text-foreground"><AlertCircle className="w-10 h-10 text-red-500" /><p className="text-lg">{error}</p></div>;
 
     const selectedTemplate = resumeData.metadata.template;
 
     return (
-        <div className="min-h-screen bg-gray-100 dark:bg-background flex flex-col">
-            <header className="h-16 bg-white dark:bg-background border-b border-gray-200 dark:border-foreground/10 flex items-center justify-between px-8 sticky top-0 z-50">
-                <span className="font-bold text-xl text-gray-900 dark:text-foreground">{resumeData.basics.name}</span>
+        <div className="product-page-shell min-h-screen flex flex-col">
+            <header className="sticky top-0 z-50 flex items-center justify-between border-b border-border/40 bg-background/95 px-8 backdrop-blur supports-[backdrop-filter]:bg-background/85 h-16">
+                <span className="product-page-title text-xl font-bold">{resumeData.basics.name}</span>
                 <Button onClick={handleDownload} className="bg-[#1dff00] text-black hover:bg-[#15bd00]">
                     <Download className="w-4 h-4 mr-2" />
                     Download PDF
                 </Button>
             </header>
-            <div className="flex-1 flex justify-center p-8 overflow-y-auto">
+            <div className="flex-1 flex justify-center overflow-y-auto p-8">
                  <div className="bg-white shadow-2xl min-h-[1123px] w-[794px] origin-top scale-100 sm:scale-100 md:scale-100">
                     {selectedTemplate === 'azurill' && <AzurillTemplate />}
                     {selectedTemplate === 'onyx' && <OnyxTemplate />}
@@ -101,3 +101,8 @@ export const PublicResumePage = () => {
         </div>
     );
 };
+
+
+
+
+

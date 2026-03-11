@@ -232,7 +232,7 @@ export const ResumeBuilderPage = () => {
   };
 
   return (
-    <div className='flex flex-col h-full relative overflow-hidden bg-white dark:bg-background'>
+    <div className='product-page-shell flex flex-col h-full relative overflow-hidden'>
       {/* Save Alert Modal */}
       <Modal
         open={saveAlertOpen}
@@ -251,30 +251,30 @@ export const ResumeBuilderPage = () => {
       </Modal>
 
       {/* Header toolbar */}
-      <header className='h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-foreground/10 bg-white dark:bg-background z-10 shrink-0'>
+      <header className='h-16 shrink-0 border-b border-border/40 bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex items-center justify-between z-10'>
         <div className='flex items-center gap-4'>
           <button
             onClick={() => navigate("/dashboard/resume")}
-            className='flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-900 dark:hover:text-foreground transition-colors'
+            className='product-helper-text flex items-center gap-2 text-sm transition-colors hover:text-foreground'
           >
             <ArrowLeft className='w-4 h-4' />
             <span>Back</span>
           </button>
-          <div className='h-6 w-px bg-gray-200 dark:bg-muted' />
+          <div className='h-6 w-px bg-border/60' />
           <div className='flex items-center gap-2 group'>
             <input
               value={resumeData.title || "Untitled Resume"}
               onChange={(e) => setResumeTitle(e.target.value)}
-              className='font-semibold text-gray-900 dark:text-foreground bg-transparent border-none outline-none focus:ring-1 focus:ring-[#1dff00] rounded px-1 min-w-[200px]'
+              className='product-page-title min-w-[200px] rounded bg-transparent px-1 font-semibold outline-none focus:ring-1 focus:ring-[#ffd700]' 
             />
-            <Edit2 className='w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity' />
+            <Edit2 className='product-helper-text w-3.5 h-3.5 opacity-0 transition-opacity group-hover:opacity-100' />
           </div>
         </div>
 
         <div className='flex items-center gap-3'>
           <button
             onClick={() => setIsTemplateSelectorOpen(true)}
-            className='flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-muted/50 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300'
+            className='product-outline-button flex items-center gap-2 px-3 py-2 text-sm font-medium'
           >
             <LayoutTemplate className='w-4 h-4' />
             Templates
@@ -283,7 +283,7 @@ export const ResumeBuilderPage = () => {
 
           <button
             onClick={() => setIsShareOpen(true)}
-            className='flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-muted/50 text-sm font-medium transition-colors text-gray-700 dark:text-gray-300'
+            className='product-outline-button flex items-center gap-2 px-3 py-2 text-sm font-medium'
           >
             <Share2 className='w-4 h-4' />
             Share
@@ -299,7 +299,7 @@ export const ResumeBuilderPage = () => {
           <button
             onClick={aiGenerateResume}
             disabled={aiLoading}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-muted border border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-gray-700 dark:text-foreground text-sm font-bold transition-all'
+            className='product-outline-button flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-[#ffd700]/60 hover:bg-[#fff2b3]' 
           >
             <Wand2 className={`w-4 h-4 ${aiLoading ? "animate-spin" : ""}`} />
             {aiLoading ? "Generating..." : "AI Generate"}
@@ -308,7 +308,7 @@ export const ResumeBuilderPage = () => {
           <button
             onClick={handleSave}
             disabled={saving || !urlId}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-muted border border-brand/50 hover:bg-brand/10 text-gray-700 dark:text-foreground text-sm font-bold transition-all disabled:opacity-50'
+            className='product-outline-button flex items-center gap-2 px-4 py-2 text-sm font-bold disabled:opacity-50' 
           >
             <FileText className={`w-4 h-4 ${saving ? "animate-pulse" : ""}`} />
             {saving ? "Saving..." : "Save Changes"}
@@ -316,7 +316,7 @@ export const ResumeBuilderPage = () => {
 
           <button
             onClick={downloadPDF}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-muted border border-gray-200 dark:border-foreground/10 hover:bg-gray-50 dark:hover:bg-foreground/20 text-sm font-medium transition-all text-gray-700 dark:text-foreground'
+            className='product-outline-button flex items-center gap-2 px-4 py-2 text-sm font-medium'
           >
             <Download className='w-4 h-4' />
             Download PDF
@@ -327,11 +327,11 @@ export const ResumeBuilderPage = () => {
       {/* Main Content Area */}
       <div className='flex-1 flex overflow-hidden'>
         {/* Editor Panel (Left) */}
-        <div className='w-[40%] min-w-[350px] max-w-[500px] bg-gray-50 dark:bg-background border-r border-gray-200 dark:border-foreground/10 flex flex-col overflow-y-auto custom-scrollbar pb-20'>
+        <div className='product-section-card-muted w-[40%] min-w-[350px] max-w-[500px] flex flex-col overflow-y-auto custom-scrollbar rounded-none border-y-0 border-l-0 pb-20'>
           <div className='p-6 space-y-4'>
             {/* Content Header */}
             <div className='flex items-center justify-between mb-2'>
-              <h3 className='text-xs font-bold uppercase tracking-wider text-gray-500'>
+              <h3 className='product-helper-text text-xs font-bold uppercase tracking-wider'>
                 Content
               </h3>
               <div className='text-[10px] text-[#1dff00] flex items-center gap-1 font-medium'>
@@ -344,7 +344,7 @@ export const ResumeBuilderPage = () => {
 
             {/* Personal Info Section */}
             <div
-              className={`bg-foreground/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-foreground/10 rounded-xl overflow-hidden transition-all ${expandedSection === "personal" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
+              className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === "personal" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
             >
               <div
                 className='p-5 flex items-center justify-between cursor-pointer'
@@ -352,14 +352,14 @@ export const ResumeBuilderPage = () => {
               >
                 <div className='flex items-center gap-3'>
                   <User className='w-5 h-5 text-[#1dff00]' />
-                  <h4 className='font-semibold text-gray-900 dark:text-foreground'>
+                  <h4 className='font-semibold product-page-title'>
                     Personal Info
                   </h4>
                 </div>
                 {expandedSection === "personal" ? (
-                  <ChevronUp className='w-4 h-4 text-gray-500' />
+                  <ChevronUp className='w-4 h-4 product-helper-text' />
                 ) : (
-                  <ChevronDown className='w-4 h-4 text-gray-500' />
+                  <ChevronDown className='w-4 h-4 product-helper-text' />
                 )}
               </div>
               {expandedSection === "personal" && <PersonalDetailsEditor />}
@@ -368,7 +368,7 @@ export const ResumeBuilderPage = () => {
             {/* Summary Section */}
             {!summary.hidden && (
               <div
-                className={`bg-foreground/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-foreground/10 rounded-xl overflow-hidden transition-all ${expandedSection === "summary" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
+                className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === "summary" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
               >
                 <div
                   className='p-5 flex items-center justify-between cursor-pointer'
@@ -376,14 +376,14 @@ export const ResumeBuilderPage = () => {
                 >
                   <div className='flex items-center gap-3'>
                     <FileText className='w-5 h-5 text-[#1dff00]' />
-                    <h4 className='font-semibold text-gray-900 dark:text-foreground'>
+                    <h4 className='font-semibold product-page-title'>
                       Summary
                     </h4>
                   </div>
                   {expandedSection === "summary" ? (
-                    <ChevronUp className='w-4 h-4 text-gray-500' />
+                    <ChevronUp className='w-4 h-4 product-helper-text' />
                   ) : (
-                    <ChevronDown className='w-4 h-4 text-gray-500' />
+                    <ChevronDown className='w-4 h-4 product-helper-text' />
                   )}
                 </div>
 
@@ -393,7 +393,7 @@ export const ResumeBuilderPage = () => {
                       value={summary.content || ""}
                       onChange={(e) => setSummary(e.target.value)}
                       rows={4}
-                      className='w-full bg-gray-100 dark:bg-muted/50 border border-gray-200 dark:border-foreground/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100'
+                      className='product-input-surface w-full rounded-lg px-3 py-2 text-sm outline-none transition-all focus:border-[#ffd700] focus:ring-1 focus:ring-[#ffd700]'
                       placeholder='Brief professional summary...'
                     />
                   </div>
@@ -411,7 +411,7 @@ export const ResumeBuilderPage = () => {
               return (
                 <div
                   key={sectionId}
-                  className={`bg-foreground/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-foreground/10 rounded-xl overflow-hidden transition-all ${expandedSection === sectionId ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
+                  className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === sectionId ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
                 >
                   <div
                     className='p-5 flex items-center justify-between cursor-pointer'
@@ -419,13 +419,13 @@ export const ResumeBuilderPage = () => {
                   >
                     <div className='flex items-center gap-3'>
                       <Icon className='w-5 h-5 text-[#1dff00]' />
-                      <h4 className='font-semibold text-gray-900 dark:text-foreground'>
+                      <h4 className='font-semibold product-page-title'>
                         {section.title}
                       </h4>
                     </div>
                     <div className='flex items-center gap-2'>
                       <button
-                        className='p-1 hover:bg-muted rounded text-gray-500 hover:text-red-500 transition-colors'
+                        className='p-1 hover:bg-muted rounded product-helper-text hover:text-red-500 transition-colors'
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleSectionVisibility(sectionId);
@@ -435,9 +435,9 @@ export const ResumeBuilderPage = () => {
                         <X className='w-4 h-4' />
                       </button>
                       {expandedSection === sectionId ? (
-                        <ChevronUp className='w-4 h-4 text-gray-500' />
+                        <ChevronUp className='w-4 h-4 product-helper-text' />
                       ) : (
-                        <ChevronDown className='w-4 h-4 text-gray-500' />
+                        <ChevronDown className='w-4 h-4 product-helper-text' />
                       )}
                     </div>
                   </div>
@@ -470,17 +470,17 @@ export const ResumeBuilderPage = () => {
         </div>
 
         {/* Preview Panel (Right) */}
-        <div className='flex-1 bg-gray-200 dark:bg-background overflow-y-auto flex justify-center p-8 relative custom-scrollbar'>
+        <div className='flex-1 overflow-y-auto flex justify-center p-8 relative custom-scrollbar bg-[hsl(var(--product-surface-muted))] dark:bg-background'>
           <div className='fixed top-24 right-8 z-10 flex flex-col gap-2'>
             <button
               onClick={() => setZoom((z) => Math.min(z + 0.1, 1.5))}
-              className='w-10 h-10 bg-white dark:bg-background rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-foreground/10'
+              className='product-section-card flex h-10 w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#ffd700]'
             >
               <ZoomIn className='w-5 h-5' />
             </button>
             <button
               onClick={() => setZoom((z) => Math.max(z - 0.1, 0.5))}
-              className='w-10 h-10 bg-white dark:bg-background rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-foreground/10'
+              className='product-section-card flex h-10 w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#ffd700]'
             >
               <ZoomOut className='w-5 h-5' />
             </button>
@@ -522,3 +522,10 @@ export const ResumeBuilderPage = () => {
 };
 
 export default ResumeBuilderPage;
+
+
+
+
+
+
+

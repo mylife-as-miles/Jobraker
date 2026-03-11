@@ -86,28 +86,28 @@ export const CoverLetterHomePage = () => {
   };
 
   return (
-    <div className='flex flex-col h-full bg-background text-foreground p-8 overflow-y-auto'>
+    <div className='product-page-shell flex flex-col h-full bg-background text-foreground p-8 overflow-y-auto'>
       {/* Header */}
       <div className='flex items-center justify-between mb-8'>
         <div>
-          <h1 className='text-2xl font-bold'>Cover Letters</h1>
-          <p className='text-gray-400 text-sm mt-1'>
+          <h1 className='product-page-title text-2xl font-bold'>Cover Letters</h1>
+          <p className='product-page-subtitle text-sm mt-1'>
             Manage and create your tailored cover letters
           </p>
         </div>
 
         <div className='flex items-center gap-3'>
           {/* View Toggle */}
-          <div className='bg-foreground/5 p-1 rounded-lg flex items-center border border-foreground/5'>
+          <div className='product-control-surface'>
             <button
               onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-md transition-all ${viewMode === "grid" ? "bg-foreground/5 text-foreground shadow-sm" : "text-gray-400 hover:text-foreground"}`}
+              className={viewMode === "grid" ? "product-control-button-active" : "product-control-button"}
             >
               <Grid className='w-4 h-4' />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={`p-2 rounded-md transition-all ${viewMode === "list" ? "bg-foreground/5 text-foreground shadow-sm" : "text-gray-400 hover:text-foreground"}`}
+              className={viewMode === "list" ? "product-control-button-active" : "product-control-button"}
             >
               <List className='w-4 h-4' />
             </button>
@@ -183,12 +183,12 @@ export const CoverLetterHomePage = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleCreateNew}
-                className='aspect-[3/4] rounded-xl border border-dashed border-foreground/10 bg-foreground/5 hover:bg-foreground/5 hover:border-[#1dff00]/30 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
+                className='product-section-card-muted aspect-[3/4] border-dashed hover:border-[#ffd700]/60 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
               >
                 <div className='w-16 h-16 rounded-full bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00] group-hover:scale-110 transition-transform'>
                   <Plus className='w-8 h-8' />
                 </div>
-                <span className='font-medium text-gray-400 group-hover:text-foreground transition-colors'>
+                <span className='product-page-subtitle font-medium group-hover:text-foreground transition-colors'>
                   Create New Letter
                 </span>
               </motion.div>
@@ -198,12 +198,12 @@ export const CoverLetterHomePage = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => { }} // Placeholder
-                className='aspect-[3/4] rounded-xl border border-dashed border-foreground/10 bg-foreground/5 hover:bg-foreground/5 hover:border-foreground/20 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
+                className='product-section-card-muted aspect-[3/4] border-dashed hover:border-[#ffd700]/60 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
               >
                 <div className='w-16 h-16 rounded-full bg-foreground/5 flex items-center justify-center text-foreground group-hover:scale-110 transition-transform'>
                   <Upload className='w-8 h-8' />
                 </div>
-                <span className='font-medium text-gray-400 group-hover:text-foreground transition-colors'>
+                <span className='product-page-subtitle font-medium group-hover:text-foreground transition-colors'>
                   Import Existing
                 </span>
               </motion.div>
@@ -213,7 +213,7 @@ export const CoverLetterHomePage = () => {
                 <motion.div
                   key={letter.id}
                   whileHover={{ y: -5 }}
-                  className='aspect-[3/4] rounded-xl bg-foreground/5 border border-foreground/5 overflow-hidden group hover:border-foreground/10 hover:shadow-xl transition-all relative flex flex-col'
+                  className='product-section-card aspect-[3/4] overflow-hidden group hover:shadow-xl transition-all relative flex flex-col p-0'
                 >
                   {/* Preview Area (Top 2/3) */}
                   <div
@@ -244,14 +244,14 @@ export const CoverLetterHomePage = () => {
                         >
                           {letter.name || "Untitled"}
                         </h3>
-                        <p className='text-xs text-gray-500 mt-1 flex items-center gap-1'>
+                        <p className='product-helper-text text-xs mt-1 flex items-center gap-1'>
                           <Calendar className='w-3 h-3' />
                           {new Date(letter.updated_at).toLocaleDateString()}
                         </p>
                       </div>
                       <button
                         onClick={(e) => handleDelete(e, letter.id)}
-                        className='text-gray-500 hover:text-red-400 p-1 rounded hover:bg-foreground/5'
+                        className='product-helper-text hover:text-red-400 p-1 rounded hover:bg-[#ffd700]/10 transition-colors'
                       >
                         <Trash2 className='w-4 h-4' />
                       </button>
@@ -265,7 +265,7 @@ export const CoverLetterHomePage = () => {
           {/* List View */}
           {viewMode === "list" && (
             <div className='space-y-4'>
-              <div className='grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider'>
+              <div className='grid grid-cols-12 gap-4 px-4 py-2 product-helper-text text-xs font-medium uppercase tracking-wider'>
                 <div className='col-span-6'>Name</div>
                 <div className='col-span-3'>Last Modified</div>
                 <div className='col-span-3 text-right'>Actions</div>
@@ -273,13 +273,13 @@ export const CoverLetterHomePage = () => {
 
               <div
                 onClick={handleCreateNew}
-                className='grid grid-cols-12 gap-4 px-4 py-4 rounded-xl border border-dashed border-foreground/10 bg-foreground/5 hover:bg-foreground/5 cursor-pointer items-center group transition-all'
+                className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 border-dashed hover:border-[#ffd700]/60 cursor-pointer items-center group transition-all'
               >
                 <div className='col-span-6 flex items-center gap-3'>
                   <div className='w-10 h-10 rounded-lg bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00]'>
                     <Plus className='w-5 h-5' />
                   </div>
-                  <span className='font-medium text-gray-300 group-hover:text-foreground'>
+                  <span className='product-page-subtitle font-medium group-hover:text-foreground transition-colors'>
                     Create New Letter
                   </span>
                 </div>
@@ -289,20 +289,20 @@ export const CoverLetterHomePage = () => {
                 <div
                   key={letter.id}
                   onClick={() => handleEdit(letter)}
-                  className='grid grid-cols-12 gap-4 px-4 py-4 rounded-xl bg-foreground/5 border border-foreground/5 hover:bg-foreground/5 items-center transition-all group cursor-pointer'
+                  className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 hover:border-[#ffd700]/45 items-center transition-all group cursor-pointer'
                 >
                   <div className='col-span-6 flex items-center gap-4'>
                     <div className='w-10 h-10 rounded-lg bg-foreground flex items-center justify-center'>
-                      <Mail className='w-5 h-5 text-gray-400' />
+                      <Mail className='w-5 h-5 product-helper-text' />
                     </div>
                     <div className='min-w-0'>
                       <h3 className='font-semibold text-foreground truncate'>
                         {letter.name || "Untitled"}
                       </h3>
-                      <p className='text-xs text-gray-500'>Cover Letter</p>
+                      <p className='product-helper-text text-xs'>Cover Letter</p>
                     </div>
                   </div>
-                  <div className='col-span-3 text-sm text-gray-400'>
+                  <div className='col-span-3 product-helper-text text-sm'>
                     {new Date(letter.updated_at).toLocaleDateString()}
                   </div>
                   <div className='col-span-3 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity'>
@@ -311,7 +311,7 @@ export const CoverLetterHomePage = () => {
                         e.stopPropagation();
                         handleDelete(e, letter.id);
                       }}
-                      className='p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg'
+                      className='p-2 product-helper-text hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors'
                       title='Delete'
                     >
                       <Trash2 className='w-4 h-4' />

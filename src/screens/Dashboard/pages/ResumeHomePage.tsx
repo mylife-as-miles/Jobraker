@@ -129,7 +129,7 @@ export const ResumeHomePage = () => {
   };
 
   return (
-    <div className='flex flex-col h-full bg-background text-foreground p-8 overflow-y-auto'>
+    <div className='product-page-shell flex flex-col h-full bg-background text-foreground p-8 overflow-y-auto'>
       <input
         type='file'
         ref={fileInputRef}
@@ -141,24 +141,24 @@ export const ResumeHomePage = () => {
       {/* Header */}
       <div className='flex items-center justify-between mb-8'>
         <div>
-          <h1 className='text-2xl font-bold'>Resumes</h1>
-          <p className='text-foreground/60 text-sm mt-1'>
+          <h1 className='product-page-title text-2xl font-bold'>Resumes</h1>
+          <p className='product-page-subtitle text-sm mt-1'>
             Manage and create your professional resumes
           </p>
         </div>
 
         <div className='flex items-center gap-3'>
           {/* View Toggle */}
-          <div className='bg-foreground p-1 rounded-lg flex items-center border border-foreground'>
+          <div className='product-control-surface'>
             <button
               onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-md transition-all ${viewMode === "grid" ? "bg-foreground/60 text-foreground shadow-sm" : "text-foreground/60 hover:text-foreground/60"}`}
+              className={viewMode === "grid" ? "product-control-button-active" : "product-control-button"}
             >
               <Grid className='w-4 h-4' />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={`p-2 rounded-md transition-all ${viewMode === "list" ? "bg-foreground/60 text-foreground shadow-sm" : "text-foreground/60 hover:text-foreground/60"}`}
+              className={viewMode === "list" ? "product-control-button-active" : "product-control-button"}
             >
               <List className='w-4 h-4' />
             </button>
@@ -166,7 +166,7 @@ export const ResumeHomePage = () => {
 
           <Button
             onClick={handleCreateNew}
-            className='bg-[#1dff00] text-foreground hover:bg-[#1dff00]/90 gap-2 font-semibold'
+            className='bg-[#1dff00] text-black hover:bg-[#1dff00]/90 gap-2 font-semibold'
           >
             <Plus className='w-4 h-4' />
             Create New
@@ -223,7 +223,7 @@ export const ResumeHomePage = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleCreateNew}
-            className='aspect-[3/4] rounded-xl border border-dashed border-foreground/10 bg-foreground/5 hover:bg-foreground/5 hover:border-[#1dff00]/30 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
+            className='product-section-card-muted aspect-[3/4] border-dashed hover:border-[#ffd700]/60 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
           >
             <div className='w-16 h-16 rounded-full bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00] group-hover:scale-110 transition-transform'>
               <Plus className='w-8 h-8' />
@@ -238,7 +238,7 @@ export const ResumeHomePage = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleImportClick}
-            className='aspect-[3/4] rounded-xl border border-dashed border-foreground/10 bg-foreground/5 hover:bg-foreground/5 hover:border-foreground/20 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group relative'
+            className='product-section-card-muted aspect-[3/4] border-dashed hover:border-[#ffd700]/60 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group relative'
           >
             {isImporting ? (
               <div className='flex flex-col items-center gap-3'>
@@ -264,7 +264,7 @@ export const ResumeHomePage = () => {
             <motion.div
               key={resume.id}
               whileHover={{ y: -5 }}
-              className='aspect-[3/4] rounded-xl bg-foreground/10 border overflow-hidden group hover:shadow-xl transition-all relative flex flex-col'
+              className='product-section-card aspect-[3/4] overflow-hidden group hover:shadow-xl transition-all relative flex flex-col p-0'
             >
               {/* Preview Area (Top 2/3) */}
               <div
@@ -289,7 +289,7 @@ export const ResumeHomePage = () => {
                     <h3 className='font-semibold text-foreground truncate pr-2'>
                       {resume.name}
                     </h3>
-                    <p className='text-xs text-foreground/60 mt-1 flex items-center gap-1'>
+                    <p className='product-helper-text text-xs mt-1 flex items-center gap-1'>
                       <Calendar className='w-3 h-3' />
                       Last edited{' '}
                       {new Date(resume.updated_at).toLocaleDateString()}
@@ -308,7 +308,7 @@ export const ResumeHomePage = () => {
       {/* List View */}
       {!loading && viewMode === "list" && (
         <div className='space-y-4'>
-          <div className='grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-foreground/60 uppercase tracking-wider'>
+          <div className='grid grid-cols-12 gap-4 px-4 py-2 product-helper-text text-xs font-medium uppercase tracking-wider'>
             <div className='col-span-6'>Name</div>
             <div className='col-span-3'>Last Modified</div>
             <div className='col-span-3 text-right'>Actions</div>
@@ -316,30 +316,30 @@ export const ResumeHomePage = () => {
           {resumes.map((resume) => (
             <div
               key={resume.id}
-              className='grid grid-cols-12 gap-4 px-4 py-4 rounded-xl bg-foreground/40 border border-foreground/5 hover:bg-foreground/5 items-center transition-all group'
+              className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 hover:border-[#ffd700]/45 items-center transition-all group'
             >
               <div className='col-span-6 flex items-center gap-4'>
-                <div className='w-10 h-10 rounded-lg bg-white flex items-center justify-center'>
+                <div className='product-muted-icon-chip w-10 h-10 rounded-lg flex items-center justify-center'>
                   <FileText className='w-5 h-5 text-foreground/60' />
                 </div>
                 <div>
                   <h3 className='font-semibold text-foreground'>{resume.name}</h3>
-                  <p className='text-xs text-foreground/60'>A4 • PDF</p>
+                  <p className='product-helper-text text-xs'>A4 - PDF</p>
                 </div>
               </div>
-              <div className='col-span-3 text-sm text-foreground/60'>
+              <div className='col-span-3 product-helper-text text-sm'>
                 {new Date(resume.updated_at).toLocaleDateString()}
               </div>
               <div className='col-span-3 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity'>
                 <button
                   onClick={() => handleEdit(resume.id, resume.name)}
-                  className='p-2 text-foreground/60 hover:text-foreground/60 hover:bg-foreground/5 rounded-lg'
+                  className='p-2 product-helper-text hover:text-foreground hover:bg-[#ffd700]/10 rounded-lg transition-colors'
                   title='Edit'
                 >
                   <Edit2 className='w-4 h-4' />
                 </button>
                 <button
-                  className='p-2 text-foreground/60 hover:text-foreground/60 hover:bg-foreground/5 rounded-lg'
+                  className='p-2 product-helper-text hover:text-foreground hover:bg-[#ffd700]/10 rounded-lg transition-colors'
                   title='Download'
                 >
                   <Download className='w-4 h-4' />
@@ -356,13 +356,13 @@ export const ResumeHomePage = () => {
 
           <div
             onClick={handleCreateNew}
-            className='grid grid-cols-12 gap-4 px-4 py-4 rounded-xl border border-dashed border-foreground/10 bg-foreground/5 hover:bg-foreground/5 cursor-pointer items-center group transition-all'
+            className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 border-dashed hover:border-[#ffd700]/60 cursor-pointer items-center group transition-all'
           >
             <div className='col-span-6 flex items-center gap-3'>
               <div className='w-10 h-10 rounded-lg bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00]'>
                 <Plus className='w-5 h-5' />
               </div>
-              <span className='font-medium text-gray-300 group-hover:text-foreground'>
+              <span className='product-page-subtitle font-medium group-hover:text-foreground transition-colors'>
                 Create New Resume
               </span>
             </div>

@@ -66,13 +66,13 @@ export const Onboarding = (): JSX.Element => {
             placeholder="First Name"
             value={formData.firstName}
             onChange={(e) => updateFormData("firstName", e.target.value)}
-            className="w-full bg-foreground/10 border-foreground/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
+            className="w-full product-input-surface h-10 sm:h-12 text-sm sm:text-base"
           />
           <Input
             placeholder="Last Name"
             value={formData.lastName}
             onChange={(e) => updateFormData("lastName", e.target.value)}
-            className="w-full bg-foreground/10 border-foreground/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
+            className="w-full product-input-surface h-10 sm:h-12 text-sm sm:text-base"
           />
         </div>
       ),
@@ -87,14 +87,14 @@ export const Onboarding = (): JSX.Element => {
             placeholder="Current Job Title"
             value={formData.jobTitle}
             onChange={(e) => updateFormData("jobTitle", e.target.value)}
-            className="w-full bg-foreground/10 border-foreground/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
+            className="w-full product-input-surface h-10 sm:h-12 text-sm sm:text-base"
           />
           <Input
             placeholder="Years of Experience"
             type="number"
             value={formData.experience}
             onChange={(e) => updateFormData("experience", e.target.value)}
-            className="w-full bg-foreground/10 border-foreground/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
+            className="w-full product-input-surface h-10 sm:h-12 text-sm sm:text-base"
           />
         </div>
       ),
@@ -108,7 +108,7 @@ export const Onboarding = (): JSX.Element => {
           placeholder="City, State, Country"
           value={formData.location}
           onChange={(e) => updateFormData("location", e.target.value)}
-          className="w-full bg-foreground/10 border-foreground/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00] h-10 sm:h-12 text-sm sm:text-base"
+          className="w-full product-input-surface h-10 sm:h-12 text-sm sm:text-base"
         />
       ),
     },
@@ -125,7 +125,7 @@ export const Onboarding = (): JSX.Element => {
               onClick={() => toggleGoal(goal)}
               className={`h-10 sm:h-12 text-xs sm:text-sm transition-all duration-200 ${formData.goals.includes(goal)
                 ? 'bg-[#1dff00] text-black hover:bg-[#1dff00]/90'
-                : 'border-foreground/20 text-foreground hover:bg-foreground/10 hover:border-[#1dff00]'
+                : 'product-outline-button'
                 }`}
             >
               {goal}
@@ -144,7 +144,7 @@ export const Onboarding = (): JSX.Element => {
             placeholder="e.g. Full-stack engineer with 5+ years building scalable SaaS platforms..."
             value={formData.about}
             onChange={(e) => updateFormData("about", e.target.value)}
-            className="w-full min-h-[120px] bg-foreground/10 border-foreground/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00] text-sm p-3 rounded-md"
+            className="w-full min-h-[120px] product-input-surface text-sm p-3 rounded-md"
           />
         </div>
       ),
@@ -193,14 +193,14 @@ export const Onboarding = (): JSX.Element => {
             You are all set to track your applications!
           </motion.p>
           <motion.div
-            className="flex flex-wrap justify-center gap-2 text-xs sm:text-sm text-foreground/50"
+            className="flex flex-wrap justify-center gap-2 text-xs sm:text-sm product-helper-text"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
           >
-            <span className="bg-foreground/10 px-2 py-1 rounded">✓ Profile Complete</span>
-            <span className="bg-foreground/10 px-2 py-1 rounded">✓ Goals Set</span>
-            <span className="bg-foreground/10 px-2 py-1 rounded">✓ Ready to Go</span>
+            <span className="product-section-card-muted px-2 py-1 rounded">✓ Profile Complete</span>
+            <span className="product-section-card-muted px-2 py-1 rounded">✓ Goals Set</span>
+            <span className="product-section-card-muted px-2 py-1 rounded">✓ Ready to Go</span>
           </motion.div>
         </div>
       )
@@ -501,7 +501,7 @@ export const Onboarding = (): JSX.Element => {
   }, [supabase, navigate]);
 
   const resumeModeScreen = (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-10 bg-background relative overflow-hidden">
+    <div className="product-page-shell min-h-screen flex flex-col items-center justify-center px-6 py-10 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-32 -left-24 h-72 w-72 rounded-full bg-[#1dff00]/10 blur-3xl" />
         <div className="absolute -bottom-40 -right-32 h-96 w-96 rounded-full bg-[#1dff00]/5 blur-3xl" />
@@ -509,7 +509,7 @@ export const Onboarding = (): JSX.Element => {
       <div className="relative max-w-4xl w-full space-y-10">
         <div className="text-center space-y-4">
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-white via-white to-[#1dff00] bg-clip-text text-transparent">Welcome – let's set up your profile</h1>
-          <p className="text-foreground/70 max-w-2xl mx-auto text-sm md:text-base">Upload your resume for instant AI-powered profile creation, or manually enter your information step by step.</p>
+          <p className="product-helper-text max-w-2xl mx-auto text-sm md:text-base">Upload your resume for instant AI-powered profile creation, or manually enter your information step by step.</p>
         </div>
         <div className="grid gap-6 md:grid-cols-2">
           <button onClick={() => setMode('resume')} className="group relative overflow-hidden rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#101910] via-background to-black p-8 text-left shadow-[0_0_0_1px_rgba(29,255,0,0.15),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(29,255,0,0.4),0_25px_50px_-12px_rgba(29,255,0,0.15)] transition">
@@ -519,17 +519,17 @@ export const Onboarding = (): JSX.Element => {
               <div className="h-12 w-12 rounded-xl bg-[#1dff00]/15 flex items-center justify-center border border-[#1dff00]/30"><UploadCloud className="w-6 h-6 text-[#1dff00]" /></div>
               <h2 className="text-xl font-semibold text-foreground">AI-Powered Setup</h2>
             </div>
-            <ul className="space-y-2 text-sm text-foreground/70">
+            <ul className="space-y-2 text-sm product-helper-text">
               <li className="flex items-start gap-2"><Wand2 className="w-4 h-4 text-[#1dff00] mt-0.5" /> AI extracts all profile information automatically</li>
               <li className="flex items-start gap-2"><FileText className="w-4 h-4 text-[#1dff00] mt-0.5" /> Saves directly to your account - no manual entry</li>
               <li className="flex items-start gap-2"><ShieldCheck className="w-4 h-4 text-[#1dff00] mt-0.5" /> Fast, accurate & editable anytime</li>
             </ul>
             <div className="mt-6 inline-flex items-center gap-2 text-[#1dff00] text-sm font-medium">Upload Resume <ChevronRight className="w-4 h-4" /></div>
           </button>
-          <button onClick={() => setMode('manual')} className="group relative overflow-hidden rounded-2xl border border-foreground/15 bg-gradient-to-br from-background via-background to-black p-8 text-left shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_20px_40px_-10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.25),0_25px_50px_-12px_rgba(0,0,0,0.5)] transition">
+          <button onClick={() => setMode('manual')} className="group relative overflow-hidden product-section-card p-8 text-left transition hover:border-[#ffd700]/60 hover:shadow-lg">
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-tr from-white/5 to-transparent transition" />
             <div className="flex items-center gap-3 mb-6">
-              <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center border border-foreground/20"><FileText className="w-6 h-6 text-foreground" /></div>
+              <div className="product-muted-icon-chip h-12 w-12 rounded-xl"><FileText className="w-6 h-6 text-foreground" /></div>
               <h2 className="text-xl font-semibold text-foreground">Manual Setup</h2>
             </div>
             <ul className="space-y-2 text-sm text-foreground/60">
@@ -545,7 +545,7 @@ export const Onboarding = (): JSX.Element => {
   );
 
   const resumeUploadScreen = (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-10 bg-background relative overflow-hidden" role="main" aria-labelledby="uploadHeading">
+    <div className="product-page-shell min-h-screen flex flex-col items-center justify-center px-6 py-10 relative overflow-hidden" role="main" aria-labelledby="uploadHeading">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-32 -left-24 h-72 w-72 rounded-full bg-[#1dff00]/10 blur-3xl" />
         <div className="absolute -bottom-40 -right-32 h-96 w-96 rounded-full bg-[#1dff00]/5 blur-3xl" />
@@ -553,9 +553,9 @@ export const Onboarding = (): JSX.Element => {
       <div className="relative max-w-2xl w-full space-y-10">
         <div className="text-center space-y-4">
           <h1 id="uploadHeading" className="text-3xl font-bold tracking-tight text-foreground">Upload Your Resume</h1>
-          <p className="text-foreground/70 text-sm md:text-base max-w-xl mx-auto">We'll use AI to parse your profile information and automatically set up your account. You'll be redirected to your dashboard once complete.</p>
+          <p className="product-helper-text text-sm md:text-base max-w-xl mx-auto">We'll use AI to parse your profile information and automatically set up your account. You'll be redirected to your dashboard once complete.</p>
         </div>
-        <div className="rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-background via-background to-black p-10 relative overflow-hidden" aria-live="polite">
+        <div className="product-section-card p-10 relative overflow-hidden" aria-live="polite">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(29,255,0,0.15),transparent_70%)] opacity-70" />
           <div className="relative z-10 flex flex-col gap-8">
             <div className="flex flex-col lg:flex-row gap-8">
@@ -605,15 +605,15 @@ export const Onboarding = (): JSX.Element => {
                   </div>
                 )}
                 <div className="flex flex-wrap gap-3">
-                  <button onClick={() => setMode(null)} disabled={uploading || parsing} className="px-4 py-2 rounded-md border border-foreground/20 text-foreground/70 hover:text-foreground hover:border-foreground/40 text-sm disabled:opacity-50 disabled:cursor-not-allowed">Back</button>
+                  <button onClick={() => setMode(null)} disabled={uploading || parsing} className="px-4 py-2 rounded-md border border-foreground/20 product-helper-text hover:text-foreground hover:border-foreground/40 text-sm disabled:opacity-50 disabled:cursor-not-allowed">Back</button>
                   {parseError && <button onClick={() => setParseError(null)} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium">Try Again</button>}
                 </div>
               </div>
               {/* Preview / Extraction Panel */}
               <div className="flex-1 rounded-xl border border-foreground/10 bg-foreground/[0.03] p-5 flex flex-col gap-4 min-h-[320px]">
                 {!parsed && !(uploading || parsing) && (
-                  <div className="text-foreground/50 text-sm leading-relaxed">
-                    <p className="font-medium mb-2 text-foreground/70">Automatic Profile Setup</p>
+                  <div className="product-helper-text text-sm leading-relaxed">
+                    <p className="font-medium mb-2 product-helper-text">Automatic Profile Setup</p>
                     <ul className="list-disc list-inside space-y-1 text-xs">
                       <li>AI extracts name, email, phone & location</li>
                       <li>Parses professional summary & job title</li>
@@ -644,7 +644,7 @@ export const Onboarding = (): JSX.Element => {
                       <CheckCircle className="w-5 h-5" />
                       <span className="font-semibold">Profile Created Successfully!</span>
                     </div>
-                    <div className="text-xs text-foreground/70 space-y-2">
+                    <div className="text-xs product-helper-text space-y-2">
                       <p>Your profile has been automatically created with:</p>
                       <ul className="list-disc list-inside space-y-1 text-[11px] text-foreground/60 ml-2">
                         <li>Personal information</li>
@@ -804,7 +804,7 @@ export const Onboarding = (): JSX.Element => {
   if (mode === 'resume' && !parsed) return resumeUploadScreen;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8">
+    <div className="product-page-shell min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl">
         {/* Floating background elements */}
         <motion.div
@@ -824,7 +824,7 @@ export const Onboarding = (): JSX.Element => {
           initial="hidden"
           animate="visible"
         >
-          <Card className="w-full bg-foreground/5 backdrop-blur-[18px] border border-foreground/10 relative overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl">
+          <Card className="product-section-card w-full relative overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl">
             {/* Animated border glow */}
             <div className="absolute inset-0 bg-gradient-to-r from-[#1dff00]/20 via-transparent to-[#1dff00]/20 opacity-50 animate-pulse rounded-xl sm:rounded-2xl" />
 
@@ -853,7 +853,7 @@ export const Onboarding = (): JSX.Element => {
                     <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-2 sm:mb-3">
                       {steps[currentStep].title}
                     </h2>
-                    <p className="text-foreground/50 text-sm sm:text-base lg:text-lg">
+                    <p className="product-helper-text text-sm sm:text-base lg:text-lg">
                       {steps[currentStep].subtitle}
                     </p>
                   </div>
@@ -871,7 +871,7 @@ export const Onboarding = (): JSX.Element => {
                   onClick={prevStep}
                   disabled={currentStep === 0}
                   variant="ghost"
-                  className="w-full sm:w-auto text-foreground hover:bg-foreground/10 disabled:opacity-50 disabled:cursor-not-allowed h-10 sm:h-12 text-sm sm:text-base order-2 sm:order-1"
+                  className="product-outline-button h-10 w-full text-sm order-2 disabled:opacity-50 disabled:cursor-not-allowed sm:h-12 sm:w-auto sm:text-base sm:order-1"
                 >
                   <ChevronLeft className="mr-1 sm:mr-2 w-4 h-4 sm:w-5 sm:h-5" />
                   Back
@@ -937,7 +937,7 @@ const SkillInput = ({ values, onChange }: { values: string[]; onChange: (v: stri
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
           placeholder="Type a skill and press Enter"
-          className="flex-1 rounded-md bg-foreground/10 border border-foreground/20 px-3 py-2 text-sm text-foreground placeholder:text-foreground/50 focus:border-[#1dff00] outline-none"
+          className="product-input-surface flex-1 rounded-md px-3 py-2 text-sm outline-none"
         />
         <button onClick={add} disabled={!draft.trim()} className="px-4 py-2 rounded-md bg-[#1dff00] text-black text-sm font-medium disabled:opacity-50">Add</button>
       </div>
@@ -971,11 +971,11 @@ const EducationEditor = ({ values, onChange }: { values: EduItem[]; onChange: (v
     <div className="space-y-4">
       {(values || []).map((e, i) => (
         <div key={i} className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-start">
-          <input value={e.school || ''} onChange={ev => update(i, { school: ev.target.value })} placeholder="School" className="rounded-md bg-foreground/10 border border-foreground/20 px-3 py-2 text-xs sm:text-sm text-foreground placeholder:text-foreground/50 focus:border-[#1dff00] outline-none" />
-          <input value={e.degree || ''} onChange={ev => update(i, { degree: ev.target.value })} placeholder="Degree" className="rounded-md bg-foreground/10 border border-foreground/20 px-3 py-2 text-xs sm:text-sm text-foreground placeholder:text-foreground/50 focus:border-[#1dff00] outline-none" />
-          <input value={e.start || ''} onChange={ev => update(i, { start: ev.target.value })} placeholder="Start" className="rounded-md bg-foreground/10 border border-foreground/20 px-3 py-2 text-xs sm:text-sm text-foreground placeholder:text-foreground/50 focus:border-[#1dff00] outline-none" />
+          <input value={e.school || ''} onChange={ev => update(i, { school: ev.target.value })} placeholder="School" className="product-input-surface rounded-md px-3 py-2 text-xs sm:text-sm outline-none" />
+          <input value={e.degree || ''} onChange={ev => update(i, { degree: ev.target.value })} placeholder="Degree" className="product-input-surface rounded-md px-3 py-2 text-xs sm:text-sm outline-none" />
+          <input value={e.start || ''} onChange={ev => update(i, { start: ev.target.value })} placeholder="Start" className="product-input-surface rounded-md px-3 py-2 text-xs sm:text-sm outline-none" />
           <div className="flex gap-2">
-            <input value={e.end || ''} onChange={ev => update(i, { end: ev.target.value })} placeholder="End" className="flex-1 rounded-md bg-foreground/10 border border-foreground/20 px-3 py-2 text-xs sm:text-sm text-foreground placeholder:text-foreground/50 focus:border-[#1dff00] outline-none" />
+            <input value={e.end || ''} onChange={ev => update(i, { end: ev.target.value })} placeholder="End" className="product-input-surface flex-1 rounded-md px-3 py-2 text-xs sm:text-sm outline-none" />
             <button onClick={() => remove(i)} className="px-2 rounded-md bg-red-500/20 text-red-300 text-xs hover:bg-red-500/30">✕</button>
           </div>
         </div>
@@ -985,3 +985,13 @@ const EducationEditor = ({ values, onChange }: { values: EduItem[]; onChange: (v
     </div>
   );
 };
+
+
+
+
+
+
+
+
+
+

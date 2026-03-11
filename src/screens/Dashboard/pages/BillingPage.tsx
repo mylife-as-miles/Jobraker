@@ -268,7 +268,7 @@ export const BillingPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-6 space-y-6">
+      <div className="product-page-shell min-h-screen p-6 space-y-6">
         <div className="h-8 w-48 bg-muted rounded-lg animate-pulse" />
         <div className="grid gap-6 md:grid-cols-3">
           {[1, 2, 3].map((i) => (
@@ -280,9 +280,9 @@ export const BillingPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background selection:bg-brand/30">
+    <div className="product-page-shell min-h-screen selection:bg-brand/30">
       {/* Hero Section */}
-      <div className="relative overflow-hidden border-b border-foreground/10 bg-gradient-to-br from-background via-background to-black">
+      <div className="relative overflow-hidden border-b border-border/40 bg-gradient-to-br from-background via-background to-muted/20">
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#1dff00]/5 rounded-full blur-[120px] mix-blend-screen animate-pulse" />
@@ -297,7 +297,7 @@ export const BillingPage = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-12"
           >
-            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold mb-6 tracking-tight">
+            <h1 className="product-page-title mb-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-7xl">
               <span className="bg-gradient-to-r from-foreground via-foreground to-white/60 bg-clip-text text-transparent">
                 Billing &
               </span>{' '}
@@ -305,7 +305,7 @@ export const BillingPage = () => {
                 Credits
               </span>
             </h1>
-            <p className="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
+            <p className="product-page-subtitle mx-auto max-w-2xl text-lg leading-relaxed">
               Supercharge your job search with AI credits. Choose a plan that fits your ambition or top up anytime.
             </p>
           </motion.div>
@@ -318,7 +318,7 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="relative overflow-hidden border-foreground/10 bg-background/[0.03] backdrop-blur-xl group hover:border-[#1dff00]/30 transition-colors duration-300">
+              <Card className="product-section-card group relative overflow-hidden transition-colors duration-300 hover:border-[#ffd700]/60">
                 <div className="absolute inset-0 bg-gradient-to-br from-[#1dff00]/5 to-transparent opacity-50" />
                 <CardContent className="relative p-6">
                   <div className="flex items-start justify-between mb-4">
@@ -345,7 +345,7 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <Card className="relative overflow-hidden border-foreground/10 bg-background/[0.03] backdrop-blur-xl group hover:border-foreground/20 transition-colors duration-300">
+              <Card className="product-section-card group relative overflow-hidden transition-colors duration-300 hover:border-[#ffd700]/60">
                 <div className={`absolute inset-0 bg-gradient-to-br ${getTierGradient(subscriptionTier)} opacity-5`} />
                 <CardContent className="relative p-6">
                   <div className="flex items-start justify-between mb-4">
@@ -378,7 +378,7 @@ export const BillingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <Card className="relative overflow-hidden border-foreground/10 bg-background/[0.03] backdrop-blur-xl group hover:border-blue-400/30 transition-colors duration-300">
+              <Card className="product-section-card group relative overflow-hidden transition-colors duration-300 hover:border-blue-400/30">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-50" />
                 <CardContent className="relative p-6">
                   <div className="flex items-start justify-between mb-4">
@@ -409,7 +409,7 @@ export const BillingPage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Custom Tab Navigation */}
         <div className="flex justify-center mb-12">
-          <div className="flex items-center p-1 bg-muted/50 rounded-full border border-foreground/10 backdrop-blur-md">
+          <div className="product-control-surface rounded-full">
             {[
               { id: 'subscription', label: 'Plans', icon: <Star className="w-4 h-4" /> },
               { id: 'packs', label: 'Credit Packs', icon: <Package className="w-4 h-4" /> },
@@ -419,14 +419,14 @@ export const BillingPage = () => {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`relative flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-full transition-all duration-300 ${activeTab === tab.id
-                  ? 'text-black shadow-lg'
-                  : 'text-gray-400 hover:text-foreground hover:bg-muted/50'
+                  ? 'product-control-button-active text-black shadow-sm'
+                  : 'product-control-button'
                   }`}
               >
                 {activeTab === tab.id && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute inset-0 bg-[#1dff00] rounded-full"
+                    className="absolute inset-0 rounded-full bg-[#ffd700]"
                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                   />
                 )}
@@ -767,3 +767,7 @@ export const BillingPage = () => {
     </div>
   );
 };
+
+
+
+

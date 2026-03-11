@@ -237,7 +237,7 @@ const ProfilePage = (): JSX.Element => {
   });
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="product-page-shell min-h-screen">
       <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
           {/* Profile Sidebar */}
@@ -250,7 +250,7 @@ const ProfilePage = (): JSX.Element => {
               whileHover={{ scale: 1.02 }}
               className="transition-transform duration-300"
             >
-              <Card id="profile-avatar" data-tour="profile-avatar" className="bg-gradient-to-br from-foreground/5 via-foreground/5 to-foreground/5 border border-foreground/10 backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
+              <Card id="profile-avatar" data-tour="profile-avatar" className="product-section-card p-6 hover:border-[#ffd700]/60 hover:shadow-lg transition-all duration-300">
                 <div className="text-center">
                   <div className="relative inline-block mb-4">
                     {profile === null && (
@@ -277,7 +277,7 @@ const ProfilePage = (): JSX.Element => {
                   <h2 className="text-xl font-bold text-foreground mb-1">
                     {(profile?.first_name || '').trim() || 'Your'} {(profile?.last_name || '').trim() || 'Name'}
                   </h2>
-                  <p className="text-foreground/50 mb-2">{profile?.job_title || 'Add a job title'}</p>
+                  <p className="product-helper-text mb-2">{profile?.job_title || 'Add a job title'}</p>
 
                   {/* Subscription Tier Badge */}
                   {(() => {
@@ -292,17 +292,17 @@ const ProfilePage = (): JSX.Element => {
                     );
                   })()}
 
-                  <p className="text-foreground/40 text-sm mb-4 flex items-center justify-center">
+                  <p className="product-helper-text text-sm mb-4 flex items-center justify-center">
                     <MapPin className="w-4 h-4 mr-1" />
                     {profile?.location || 'Add location'}
                   </p>
 
                   <div className="space-y-2 text-sm">
-                    <div className="flex items-center justify-center text-foreground/50 hover:text-foreground transition-colors duration-300">
+                    <div className="flex items-center justify-center product-helper-text hover:text-foreground transition-colors duration-300">
                       <Mail className="w-4 h-4 mr-2" />
                       <span>{email || 'your@email'}</span>
                     </div>
-                    <div className="flex items-center justify-center text-foreground/50 hover:text-foreground transition-colors duration-300">
+                    <div className="flex items-center justify-center product-helper-text hover:text-foreground transition-colors duration-300">
                       <Phone className="w-4 h-4 mr-2" />
                       <span>{(profile as any)?.phone || 'Add phone'}</span>
                     </div>
@@ -312,7 +312,7 @@ const ProfilePage = (): JSX.Element => {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="border-foreground/20 text-foreground hover:bg-foreground/10 hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                      className="product-outline-button hover:scale-105 transition-all duration-300"
                     >
                       <ExternalLink className="w-4 h-4 mr-1" />
                       LinkedIn
@@ -320,7 +320,7 @@ const ProfilePage = (): JSX.Element => {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="border-foreground/20 text-foreground hover:bg-foreground/10 hover:border-[#1dff00]/50 hover:scale-105 transition-all duration-300"
+                      className="product-outline-button hover:scale-105 transition-all duration-300"
                     >
                       <ExternalLink className="w-4 h-4 mr-1" />
                       GitHub
@@ -338,7 +338,7 @@ const ProfilePage = (): JSX.Element => {
               whileHover={{ scale: 1.02 }}
               className="transition-transform duration-300"
             >
-              <Card id="profile-quick-stats" data-tour="profile-quick-stats" className="bg-gradient-to-br from-foreground/5 via-foreground/5 to-foreground/5 border border-foreground/10 backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
+              <Card id="profile-quick-stats" data-tour="profile-quick-stats" className="product-section-card p-6 hover:border-[#ffd700]/60 hover:shadow-lg transition-all duration-300">
                 <h3 className="text-lg font-semibold text-foreground mb-4">Quick Stats</h3>
                 {appsLoading ? (
                   <div className="space-y-3">
@@ -352,19 +352,19 @@ const ProfilePage = (): JSX.Element => {
                 ) : (
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-foreground/50">Applications</span>
+                      <span className="product-helper-text">Applications</span>
                       <span className="text-[#1dff00] font-semibold">{totalApps}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-foreground/50">Interviews</span>
+                      <span className="product-helper-text">Interviews</span>
                       <span className="text-[#1dff00] font-semibold">{interviews}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-foreground/50">Offers</span>
+                      <span className="product-helper-text">Offers</span>
                       <span className="text-[#1dff00] font-semibold">{offers}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-foreground/50">Success Rate</span>
+                      <span className="product-helper-text">Success Rate</span>
                       <span className="text-[#1dff00] font-semibold">{successRate}%</span>
                     </div>
 
@@ -373,28 +373,28 @@ const ProfilePage = (): JSX.Element => {
                       <p className="text-[10px] uppercase tracking-widest text-foreground/30 mb-3">Key Metrics</p>
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
-                          <span className="text-foreground/50 flex items-center gap-1.5">
+                          <span className="product-helper-text flex items-center gap-1.5">
                             <svg className="w-3.5 h-3.5 text-[#1dff00]/60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                             Apps This Week
                           </span>
                           <span className="text-[#1dff00] font-semibold">{appsThisWeek}</span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-foreground/50 flex items-center gap-1.5">
+                          <span className="product-helper-text flex items-center gap-1.5">
                             <svg className="w-3.5 h-3.5 text-cyan-400/60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                             Interview Rate
                           </span>
                           <span className="text-cyan-400 font-semibold">{interviewConversion}%</span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-foreground/50 flex items-center gap-1.5">
+                          <span className="product-helper-text flex items-center gap-1.5">
                             <svg className="w-3.5 h-3.5 text-amber-400/60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             Time Saved
                           </span>
                           <span className="text-amber-400 font-semibold">{timeSavedDisplay}</span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-foreground/50 flex items-center gap-1.5">
+                          <span className="product-helper-text flex items-center gap-1.5">
                             <svg className="w-3.5 h-3.5 text-purple-400/60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
                             Automation Rate
                           </span>
@@ -415,7 +415,7 @@ const ProfilePage = (): JSX.Element => {
               whileHover={{ scale: 1.02 }}
               className='transition-transform duration-300'
             >
-              <Card className='relative overflow-hidden bg-gradient-to-br from-foreground/5 via-foreground/5 to-foreground/5 border border-foreground/10 backdrop-blur-[25px] p-5 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300'>
+              <Card className='product-section-card relative overflow-hidden p-5 hover:border-[#ffd700]/60 hover:shadow-lg transition-all duration-300'>
                 <div className='absolute -top-20 -right-20 w-56 h-56 rounded-full bg-[#1dff00]/5 blur-3xl' />
                 <div className='relative z-10'>
                   <div className='flex items-center justify-between mb-3'>
@@ -434,7 +434,7 @@ const ProfilePage = (): JSX.Element => {
                   </div>
                   <div className='mb-1'>
                     <div className='flex items-center justify-between mb-1.5'>
-                      <span className='text-[9px] sm:text-[10px] text-foreground/40 uppercase tracking-wider font-medium'>Next Level</span>
+                      <span className='text-[9px] sm:text-[10px] product-helper-text uppercase tracking-wider font-medium'>Next Level</span>
                       <span className='text-xs font-semibold text-[#1dff00]'>{gamification.xpProgress}/{gamification.xpForNext}</span>
                     </div>
                     <div className='relative w-full h-2.5 rounded-full bg-foreground/5 overflow-hidden'>
@@ -457,7 +457,7 @@ const ProfilePage = (): JSX.Element => {
               transition={{ duration: 0.6, delay: 0.25 }}
               className='transition-transform duration-300'
             >
-              <Card className='relative overflow-hidden bg-gradient-to-br from-foreground/5 via-foreground/5 to-foreground/5 border border-foreground/10 backdrop-blur-[25px] p-5 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300'>
+              <Card className='product-section-card relative overflow-hidden p-5 hover:border-[#ffd700]/60 hover:shadow-lg transition-all duration-300'>
                 <div className='flex items-center gap-2.5 mb-3'>
                   <div className='w-9 h-9 rounded-xl bg-gradient-to-br from-yellow-500/20 to-yellow-500/5 border border-yellow-500/30 flex items-center justify-center shadow-inner'>
                     <Trophy className='w-4 h-4 text-yellow-400' />
@@ -481,7 +481,7 @@ const ProfilePage = (): JSX.Element => {
                         }`}
                     >
                       <span className='text-lg sm:text-xl'>{ach.icon}</span>
-                      <span className='text-[7px] sm:text-[8px] text-foreground/40 mt-0.5 font-medium text-center leading-tight truncate w-full'>
+                      <span className='text-[7px] sm:text-[8px] product-helper-text mt-0.5 font-medium text-center leading-tight truncate w-full'>
                         {ach.title}
                       </span>
                       {!ach.unlocked && (
@@ -504,13 +504,13 @@ const ProfilePage = (): JSX.Element => {
               whileHover={{ scale: 1.01 }}
               className="transition-transform duration-300"
             >
-              <Card id="profile-about" data-tour="profile-about" className="bg-gradient-to-br from-foreground/5 via-foreground/5 to-foreground/5 border border-foreground/10 backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
+              <Card id="profile-about" data-tour="profile-about" className="product-section-card p-6 hover:border-[#ffd700]/60 hover:shadow-lg transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-foreground">About</h3>
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="text-foreground/50 hover:text-foreground hover:bg-foreground/10 hover:scale-110 transition-all duration-300"
+                    className="product-helper-text hover:text-foreground hover:bg-foreground/10 hover:scale-110 transition-all duration-300"
                     onClick={() => setIsEditing(!isEditing)}
                   >
                     <Edit className="w-4 h-4" />
@@ -547,7 +547,7 @@ const ProfilePage = (): JSX.Element => {
                         tone="info"
                       />
                     ) : (
-                      <p className="text-foreground/50 leading-relaxed">
+                      <p className="product-helper-text leading-relaxed">
                         Working as <span className="text-foreground font-medium">{profile?.job_title}</span>
                         {profile?.experience_years ? (
                           <> with <span className="text-foreground font-medium">{profile.experience_years}</span> years experience</>
@@ -571,7 +571,7 @@ const ProfilePage = (): JSX.Element => {
               whileHover={{ scale: 1.01 }}
               className="transition-transform duration-300"
             >
-              <Card id="profile-experience" data-tour="profile-experience" className="bg-gradient-to-br from-foreground/5 via-foreground/5 to-foreground/5 border border-foreground/10 backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
+              <Card id="profile-experience" data-tour="profile-experience" className="product-section-card p-6 hover:border-[#ffd700]/60 hover:shadow-lg transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-foreground flex items-center">
                     <Briefcase className="w-5 h-5 mr-2 text-foreground" />
@@ -589,17 +589,17 @@ const ProfilePage = (): JSX.Element => {
                 {showAddExperience && (
                   <div className="mb-4 space-y-2 p-4 bg-foreground/5 rounded-lg">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <input placeholder="Title" id="exp-title" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
-                      <input placeholder="Company" id="exp-company" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
-                      <input placeholder="Location" id="exp-location" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
+                      <input placeholder="Title" id="exp-title" className="product-input-surface rounded px-3 py-2 text-sm" />
+                      <input placeholder="Company" id="exp-company" className="product-input-surface rounded px-3 py-2 text-sm" />
+                      <input placeholder="Location" id="exp-location" className="product-input-surface rounded px-3 py-2 text-sm" />
                       <div className="flex gap-2">
-                        <input type="month" placeholder="Start" id="exp-start" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground flex-1 placeholder:text-foreground/40" />
-                        <input type="month" placeholder="End" id="exp-end" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground flex-1 placeholder:text-foreground/40" />
+                        <input type="month" placeholder="Start" id="exp-start" className="product-input-surface flex-1 rounded px-3 py-2 text-sm" />
+                        <input type="month" placeholder="End" id="exp-end" className="product-input-surface flex-1 rounded px-3 py-2 text-sm" />
                       </div>
-                      <label className="flex items-center gap-2 text-xs text-foreground/50">
+                      <label className="flex items-center gap-2 text-xs product-helper-text">
                         <input type="checkbox" id="exp-current" className="accent-[#1dff00]" /> Current Role
                       </label>
-                      <textarea placeholder="Description" id="exp-desc" rows={2} className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40 col-span-full resize-none" />
+                      <textarea placeholder="Description" id="exp-desc" rows={2} className="product-input-surface col-span-full rounded px-3 py-2 text-sm resize-none" />
                     </div>
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="outline" className="border-foreground/20 text-foreground hover:bg-foreground/10"
@@ -665,22 +665,22 @@ const ProfilePage = (): JSX.Element => {
                         <div className="flex-1">
                           <h4 className="text-foreground font-semibold">{exp.title}</h4>
                           <p className="text-foreground font-medium">{exp.company}</p>
-                          <p className="text-foreground/40 text-sm flex items-center">
+                          <p className="product-helper-text text-sm flex items-center">
                             <MapPin className="w-3 h-3 mr-1" />
                             {exp.location}
                           </p>
-                          <p className="text-foreground/40 text-sm flex items-center mt-1">
+                          <p className="product-helper-text text-sm flex items-center mt-1">
                             <Calendar className="w-3 h-3 mr-1" />
                             {exp.start_date?.slice(0, 7)} - {exp.is_current ? "Present" : (exp.end_date ? exp.end_date.slice(0, 7) : '')}
                           </p>
-                          <p className="text-foreground/50 text-sm mt-2 leading-relaxed">{exp.description}</p>
+                          <p className="product-helper-text text-sm mt-2 leading-relaxed">{exp.description}</p>
                         </div>
                         <div className="flex space-x-1 ml-4">
                           {editingExpId === exp.id ? null : (
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-foreground/40 hover:text-foreground hover:scale-110 transition-all duration-300 p-1"
+                              className="product-helper-text hover:text-foreground hover:scale-110 transition-all duration-300 p-1"
                               onClick={() => setEditingExpId(exp.id)}
                             >
                               <Edit className="w-3 h-3" />
@@ -689,7 +689,7 @@ const ProfilePage = (): JSX.Element => {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="text-foreground/40 hover:text-red-400 hover:scale-110 transition-all duration-300 p-1"
+                            className="product-helper-text hover:text-red-400 hover:scale-110 transition-all duration-300 p-1"
                             onClick={() => deleteExperience(exp.id)}
                           >
                             <Trash2 className="w-3 h-3" />
@@ -700,17 +700,17 @@ const ProfilePage = (): JSX.Element => {
                       {editingExpId === exp.id && (
                         <div className="mt-3 p-3 bg-foreground/5 rounded-lg space-y-2">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <input defaultValue={exp.title} id={`exp-edit-title-${exp.id}`} placeholder="Title" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
-                            <input defaultValue={exp.company} id={`exp-edit-company-${exp.id}`} placeholder="Company" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
-                            <input defaultValue={exp.location} id={`exp-edit-location-${exp.id}`} placeholder="Location" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
+                            <input defaultValue={exp.title} id={`exp-edit-title-${exp.id}`} placeholder="Title" className="product-input-surface rounded px-3 py-2 text-sm" />
+                            <input defaultValue={exp.company} id={`exp-edit-company-${exp.id}`} placeholder="Company" className="product-input-surface rounded px-3 py-2 text-sm" />
+                            <input defaultValue={exp.location} id={`exp-edit-location-${exp.id}`} placeholder="Location" className="product-input-surface rounded px-3 py-2 text-sm" />
                             <div className="flex gap-2">
-                              <input type="month" defaultValue={(exp.start_date || '').slice(0, 7)} id={`exp-edit-start-${exp.id}`} className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground flex-1 placeholder:text-foreground/40" />
-                              <input type="month" defaultValue={exp.end_date ? exp.end_date.slice(0, 7) : ''} id={`exp-edit-end-${exp.id}`} className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground flex-1 placeholder:text-foreground/40" />
+                              <input type="month" defaultValue={(exp.start_date || '').slice(0, 7)} id={`exp-edit-start-${exp.id}`} className="product-input-surface flex-1 rounded px-3 py-2 text-sm" />
+                              <input type="month" defaultValue={exp.end_date ? exp.end_date.slice(0, 7) : ''} id={`exp-edit-end-${exp.id}`} className="product-input-surface flex-1 rounded px-3 py-2 text-sm" />
                             </div>
-                            <label className="flex items-center gap-2 text-xs text-foreground/50">
+                            <label className="flex items-center gap-2 text-xs product-helper-text">
                               <input type="checkbox" defaultChecked={!!exp.is_current} id={`exp-edit-current-${exp.id}`} className="accent-[#1dff00]" /> Current Role
                             </label>
-                            <textarea defaultValue={exp.description || ''} id={`exp-edit-desc-${exp.id}`} rows={2} placeholder="Description" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40 col-span-full resize-none" />
+                            <textarea defaultValue={exp.description || ''} id={`exp-edit-desc-${exp.id}`} rows={2} placeholder="Description" className="product-input-surface col-span-full rounded px-3 py-2 text-sm resize-none" />
                           </div>
                           <div className="flex justify-end gap-2">
                             <Button size="sm" variant="outline" className="border-foreground/20 text-foreground hover:bg-foreground/10" onClick={() => setEditingExpId(null)}>Cancel</Button>
@@ -743,7 +743,7 @@ const ProfilePage = (): JSX.Element => {
               whileHover={{ scale: 1.01 }}
               className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-foreground/5 via-foreground/5 to-foreground/5 border border-foreground/10 backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
+              <Card className="product-section-card p-6 hover:border-[#ffd700]/60 hover:shadow-lg transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-foreground flex items-center">
                     <GraduationCap className="w-5 h-5 mr-2 text-foreground" />
@@ -761,14 +761,14 @@ const ProfilePage = (): JSX.Element => {
                 {showAddEducation && (
                   <div className="mb-4 space-y-2 p-4 bg-foreground/5 rounded-lg">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <input placeholder="Degree" id="edu-degree" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
-                      <input placeholder="School" id="edu-school" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
-                      <input placeholder="Location" id="edu-location" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
+                      <input placeholder="Degree" id="edu-degree" className="product-input-surface rounded px-3 py-2 text-sm" />
+                      <input placeholder="School" id="edu-school" className="product-input-surface rounded px-3 py-2 text-sm" />
+                      <input placeholder="Location" id="edu-location" className="product-input-surface rounded px-3 py-2 text-sm" />
                       <div className="flex gap-2">
-                        <input type="month" placeholder="Start" id="edu-start" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground flex-1 placeholder:text-foreground/40" />
-                        <input type="month" placeholder="End" id="edu-end" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground flex-1 placeholder:text-foreground/40" />
+                        <input type="month" placeholder="Start" id="edu-start" className="product-input-surface flex-1 rounded px-3 py-2 text-sm" />
+                        <input type="month" placeholder="End" id="edu-end" className="product-input-surface flex-1 rounded px-3 py-2 text-sm" />
                       </div>
-                      <input placeholder="GPA" id="edu-gpa" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
+                      <input placeholder="GPA" id="edu-gpa" className="product-input-surface rounded px-3 py-2 text-sm" />
                     </div>
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="outline" className="border-foreground/20 text-foreground hover:bg-foreground/10" onClick={() => setShowAddEducation(false)}>Cancel</Button>
@@ -832,16 +832,16 @@ const ProfilePage = (): JSX.Element => {
                         <div className="flex-1">
                           <h4 className="text-foreground font-semibold">{edu.degree}</h4>
                           <p className="text-foreground font-medium">{edu.school}</p>
-                          <p className="text-foreground/40 text-sm flex items-center">
+                          <p className="product-helper-text text-sm flex items-center">
                             <MapPin className="w-3 h-3 mr-1" />
                             {edu.location}
                           </p>
-                          <p className="text-foreground/40 text-sm flex items-center mt-1">
+                          <p className="product-helper-text text-sm flex items-center mt-1">
                             <Calendar className="w-3 h-3 mr-1" />
                             {edu.start_date?.slice(0, 7)} - {edu.end_date?.slice(0, 7)}
                           </p>
                           {edu.gpa && (
-                            <p className="text-foreground/50 text-sm mt-1">GPA: {edu.gpa}</p>
+                            <p className="product-helper-text text-sm mt-1">GPA: {edu.gpa}</p>
                           )}
                         </div>
                         <div className="flex space-x-1 ml-4">
@@ -849,7 +849,7 @@ const ProfilePage = (): JSX.Element => {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-foreground/40 hover:text-foreground hover:scale-110 transition-all duration-300 p-1"
+                              className="product-helper-text hover:text-foreground hover:scale-110 transition-all duration-300 p-1"
                               onClick={() => setEditingEduId(edu.id)}
                             >
                               <Edit className="w-3 h-3" />
@@ -858,7 +858,7 @@ const ProfilePage = (): JSX.Element => {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="text-foreground/40 hover:text-red-400 hover:scale-110 transition-all duration-300 p-1"
+                            className="product-helper-text hover:text-red-400 hover:scale-110 transition-all duration-300 p-1"
                             onClick={() => deleteEducation(edu.id)}
                           >
                             <Trash2 className="w-3 h-3" />
@@ -868,14 +868,14 @@ const ProfilePage = (): JSX.Element => {
                       {editingEduId === edu.id && (
                         <div className="mt-3 p-3 bg-foreground/5 rounded-lg space-y-2">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <input defaultValue={edu.degree} id={`edu-edit-degree-${edu.id}`} placeholder="Degree" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
-                            <input defaultValue={edu.school} id={`edu-edit-school-${edu.id}`} placeholder="School" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
-                            <input defaultValue={edu.location} id={`edu-edit-location-${edu.id}`} placeholder="Location" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
+                            <input defaultValue={edu.degree} id={`edu-edit-degree-${edu.id}`} placeholder="Degree" className="product-input-surface rounded px-3 py-2 text-sm" />
+                            <input defaultValue={edu.school} id={`edu-edit-school-${edu.id}`} placeholder="School" className="product-input-surface rounded px-3 py-2 text-sm" />
+                            <input defaultValue={edu.location} id={`edu-edit-location-${edu.id}`} placeholder="Location" className="product-input-surface rounded px-3 py-2 text-sm" />
                             <div className="flex gap-2">
-                              <input type="month" defaultValue={(edu.start_date || '').slice(0, 7)} id={`edu-edit-start-${edu.id}`} className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground flex-1 placeholder:text-foreground/40" />
-                              <input type="month" defaultValue={edu.end_date ? edu.end_date.slice(0, 7) : ''} id={`edu-edit-end-${edu.id}`} className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground flex-1 placeholder:text-foreground/40" />
+                              <input type="month" defaultValue={(edu.start_date || '').slice(0, 7)} id={`edu-edit-start-${edu.id}`} className="product-input-surface flex-1 rounded px-3 py-2 text-sm" />
+                              <input type="month" defaultValue={edu.end_date ? edu.end_date.slice(0, 7) : ''} id={`edu-edit-end-${edu.id}`} className="product-input-surface flex-1 rounded px-3 py-2 text-sm" />
                             </div>
-                            <input defaultValue={edu.gpa || ''} id={`edu-edit-gpa-${edu.id}`} placeholder="GPA" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
+                            <input defaultValue={edu.gpa || ''} id={`edu-edit-gpa-${edu.id}`} placeholder="GPA" className="product-input-surface rounded px-3 py-2 text-sm" />
                           </div>
                           <div className="flex justify-end gap-2">
                             <Button size="sm" variant="outline" className="border-foreground/20 text-foreground hover:bg-foreground/10" onClick={() => setEditingEduId(null)}>Cancel</Button>
@@ -907,7 +907,7 @@ const ProfilePage = (): JSX.Element => {
               whileHover={{ scale: 1.01 }}
               className="transition-transform duration-300"
             >
-              <Card className="bg-gradient-to-br from-foreground/5 via-foreground/5 to-foreground/5 border border-foreground/10 backdrop-blur-[25px] p-6 hover:shadow-lg hover:border-[#1dff00]/30 transition-all duration-300">
+              <Card className="product-section-card p-6 hover:border-[#ffd700]/60 hover:shadow-lg transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-foreground flex items-center">
                     <Award className="w-5 h-5 mr-2 text-foreground" />
@@ -925,15 +925,15 @@ const ProfilePage = (): JSX.Element => {
                 {showAddSkill && (
                   <div className="mb-4 space-y-2 p-4 bg-foreground/5 rounded-lg">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                      <input placeholder="Name" id="skill-name" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40 md:col-span-2" />
-                      <select id="skill-level" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground md:col-span-1">
+                      <input placeholder="Name" id="skill-name" className="product-input-surface rounded px-3 py-2 text-sm md:col-span-2" />
+                      <select id="skill-level" className="product-input-surface rounded px-3 py-2 text-sm md:col-span-1">
                         <option value="">Level</option>
                         <option value="Beginner">Beginner</option>
                         <option value="Intermediate">Intermediate</option>
                         <option value="Advanced">Advanced</option>
                         <option value="Expert">Expert</option>
                       </select>
-                      <input placeholder="Category" id="skill-category" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40 md:col-span-1" />
+                      <input placeholder="Category" id="skill-category" className="product-input-surface rounded px-3 py-2 text-sm md:col-span-1" />
                     </div>
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="outline" className="border-foreground/20 text-foreground hover:bg-foreground/10" onClick={() => setShowAddSkill(false)}>Cancel</Button>
@@ -987,23 +987,23 @@ const ProfilePage = (): JSX.Element => {
                       <div className="flex items-center justify-between">
                         {editingSkillId === skill.id ? (
                           <div className="w-full grid grid-cols-1 md:grid-cols-4 gap-2">
-                            <input defaultValue={skill.name} id={`skill-edit-name-${skill.id}`} placeholder="Name" className="bg-foreground/10 px-2 py-1 rounded text-xs text-foreground placeholder:text-foreground/40 md:col-span-2" />
-                            <select defaultValue={skill.level || ''} id={`skill-edit-level-${skill.id}`} className="bg-foreground/10 px-2 py-1 rounded text-xs text-foreground md:col-span-1">
+                            <input defaultValue={skill.name} id={`skill-edit-name-${skill.id}`} placeholder="Name" className="product-input-surface rounded px-2 py-1 text-xs md:col-span-2" />
+                            <select defaultValue={skill.level || ''} id={`skill-edit-level-${skill.id}`} className="product-input-surface rounded px-2 py-1 text-xs md:col-span-1">
                               <option value="">Level</option>
                               <option value="Beginner">Beginner</option>
                               <option value="Intermediate">Intermediate</option>
                               <option value="Advanced">Advanced</option>
                               <option value="Expert">Expert</option>
                             </select>
-                            <input defaultValue={skill.category} id={`skill-edit-category-${skill.id}`} placeholder="Category" className="bg-foreground/10 px-2 py-1 rounded text-xs text-foreground placeholder:text-foreground/40 md:col-span-1" />
+                            <input defaultValue={skill.category} id={`skill-edit-category-${skill.id}`} placeholder="Category" className="product-input-surface rounded px-2 py-1 text-xs md:col-span-1" />
                           </div>
                         ) : (
                           <>
                             <span className="text-foreground font-medium text-sm">{skill.name}</span>
                             <div className="flex items-center gap-2">
-                              <span className="text-foreground/40 text-xs">{skill.level}</span>
+                              <span className="product-helper-text text-xs">{skill.level}</span>
                               <button
-                                className="text-foreground/40 hover:text-foreground transition-colors text-xs"
+                                className="product-helper-text hover:text-foreground transition-colors text-xs"
                                 onClick={() => setEditingSkillId(skill.id)}
                                 aria-label="Edit skill"
                                 title="Edit"
@@ -1011,7 +1011,7 @@ const ProfilePage = (): JSX.Element => {
                                 <Edit className="w-3 h-3" />
                               </button>
                               <button
-                                className="text-foreground/40 hover:text-red-400 transition-colors text-xs"
+                                className="product-helper-text hover:text-red-400 transition-colors text-xs"
                                 onClick={() => deleteSkill(skill.id)}
                                 aria-label="Delete skill"
                                 title="Delete"
@@ -1044,7 +1044,7 @@ const ProfilePage = (): JSX.Element => {
                               className={`h-2 rounded-full transition-all duration-500 ${getSkillLevelColor(skill.level || '')} ${getSkillLevelWidth(skill.level || '')}`}
                             ></div>
                           </div>
-                          <span className="text-foreground/40 text-xs">{skill.category}</span>
+                          <span className="product-helper-text text-xs">{skill.category}</span>
                         </>
                       )}
                     </motion.div>
@@ -1067,9 +1067,9 @@ function AboutEditor({ profile, onSave, onCancel }: { profile: { job_title: stri
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="Job title" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
-        <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
-        <input value={years} onChange={(e) => setYears(e.target.value)} placeholder="Years experience" inputMode="numeric" className="bg-foreground/10 px-3 py-2 rounded text-sm text-foreground placeholder:text-foreground/40" />
+        <input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="Job title" className="product-input-surface rounded px-3 py-2 text-sm" />
+        <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" className="product-input-surface rounded px-3 py-2 text-sm" />
+        <input value={years} onChange={(e) => setYears(e.target.value)} placeholder="Years experience" inputMode="numeric" className="product-input-surface rounded px-3 py-2 text-sm" />
       </div>
       <div className="flex space-x-2">
         <Button
@@ -1093,3 +1093,6 @@ function AboutEditor({ profile, onSave, onCancel }: { profile: { job_title: stri
 }
 
 export default ProfilePage;
+
+
+
