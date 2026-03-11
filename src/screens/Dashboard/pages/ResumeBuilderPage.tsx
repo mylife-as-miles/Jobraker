@@ -216,6 +216,8 @@ export const ResumeBuilderPage = () => {
     } catch (e: any) { toastError(instruction.includes("fresh") ? "AI generation failed" : "AI rewrite failed", e?.message || "AI is temporarily unavailable."); } finally { setAiLoading(false); }
   };
   const aiGenerateResume = async () => aiPolishSummary("Write a fresh professional resume summary in 3-4 concise sentences.");
+  const [saveAlertOpen, setSaveAlertOpen] = useState(false);
+
   const handleSave = async () => {
     if (!urlId) return;
     setSaving(true);
@@ -232,15 +234,33 @@ export const ResumeBuilderPage = () => {
         .eq("id", urlId);
       if (error) throw error;
       success("Resume saved", "Your latest resume changes have been saved.");
-      window.alert("Resume saved successfully.");
+      setSaveAlertOpen(true);
     } catch (e: any) {
       toastError("Save failed", e?.message || "Unable to save your resume right now.");
     } finally {
       setSaving(false);
     }
   };
+
   return (
     <div className='flex flex-col h-full relative overflow-hidden bg-white dark:bg-background'>
+      {/* Save Alert Modal */}
+      <Modal
+        open={saveAlertOpen}
+        onClose={() => setSaveAlertOpen(false)}
+        title="Resume Saved"
+        size="sm"
+        footer={
+          <div className="flex justify-end">
+            <Button onClick={() => setSaveAlertOpen(false)}>Close</Button>
+          </div>
+        }
+      >
+        <div className="text-foreground/80 py-4">
+          Your resume has been saved successfully.
+        </div>
+      </Modal>
+
       {/* Header toolbar */}
       <header className='h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-foreground/10 bg-white dark:bg-background z-10 shrink-0'>
         <div className='flex items-center gap-4'>
