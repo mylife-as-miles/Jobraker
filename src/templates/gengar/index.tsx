@@ -20,7 +20,7 @@ const sectionClassName = cn(
 );
 
 /**
- * Template: Gengar — Dark Sidebar
+ * Template: Gengar Ã¢â‚¬â€ Dark Sidebar
  * A dramatic template with a deep purple sidebar and white-on-dark header.
  */
 export function GengarTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
@@ -104,14 +104,14 @@ function Header() {
 	return (
 		<div className="page-header relative flex">
 			<div className="flex w-full shrink-0 flex-col justify-center gap-y-3 bg-[color:var(--page-primary-color)] px-[var(--page-margin-x)] py-[var(--page-margin-y)] text-white">
-				<PagePicture className="w-24 h-24 rounded-[1.75rem] border-[3px] border-white/80 bg-white/10 p-1 shadow-2xl" />
+				<PagePicture className="w-28 h-28 rounded-[2rem] border-[4px] border-white/85 bg-white/10 p-1.5 shadow-[0_20px_36px_rgba(15,23,42,0.22)]" />
 
 				<div>
 					<h2 className="basics-name text-xl font-extrabold tracking-tight">{basics.name}</h2>
 					<p className="basics-headline text-sm opacity-80 mt-0.5">{basics.headline}</p>
 				</div>
 
-				<div className="basics-items flex flex-col gap-y-1.5 *:flex *:items-center *:gap-x-1.5 text-[0.7rem] text-foreground/80">
+				<div className="basics-items flex flex-col gap-y-2 text-[0.68rem] text-white/85 *:flex *:items-center *:gap-x-1.5 *:rounded-full *:border *:border-white/10 *:bg-white/10 *:px-3 *:py-1.5">
 					{basics.email && (
 						<div className="basics-item-email">
 							<PageIcon name="Envelope" />

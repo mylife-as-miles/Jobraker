@@ -21,7 +21,7 @@ const sectionClassName = cn(
 );
 
 /**
- * Template: Chikorita — Right Sidebar Accent
+ * Template: Chikorita ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Right Sidebar Accent
  * A modern template with main content on the left and a teal-colored right sidebar.
  */
 export function ChikoritaTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
@@ -85,9 +85,9 @@ function Header() {
 	const basics = useArtboardStore((state) => state.resume.data.basics);
 
 	return (
-		<div className="page-header relative flex mb-5 pb-5 border-b border-gray-100">
+		<div className="page-header relative mb-6 rounded-[2rem] border border-gray-100/80 bg-white/90 px-6 py-6 shadow-[0_16px_28px_rgba(15,23,42,0.06)]">
 			<div className="flex flex-1 items-start gap-x-5">
-				<PagePicture className="w-24 h-24 rounded-2xl border-[3px] border-[var(--page-primary-color)]/30 bg-white p-1 shadow-lg shrink-0" />
+				<PagePicture className="w-28 h-28 rounded-[1.75rem] border-[4px] border-[var(--page-primary-color)]/35 bg-white p-1.5 shadow-[0_18px_28px_rgba(15,23,42,0.12)] shrink-0" />
 
 				<div className="page-basics space-y-2 min-w-0">
 					<div>
@@ -95,7 +95,7 @@ function Header() {
 						<p className="basics-headline text-sm text-[var(--page-primary-color)] font-semibold mt-0.5">{basics.headline}</p>
 					</div>
 
-					<div className="basics-items flex flex-wrap gap-x-4 gap-y-1 text-[0.7rem] text-gray-500 *:flex *:items-center *:gap-x-1.5">
+					<div className="basics-items flex flex-wrap gap-2 text-[0.72rem] text-gray-500 [&_svg]:text-[color:var(--page-primary-color)] *:flex *:items-center *:gap-x-1.5 *:rounded-full *:border *:border-[color:var(--page-primary-color)]/12 *:bg-[color:var(--page-primary-color)]/6 *:px-3 *:py-1.5 *:shadow-[0_6px_16px_rgba(15,23,42,0.05)]">
 						{basics.email && (
 							<div className="basics-item-email">
 								<Envelope />

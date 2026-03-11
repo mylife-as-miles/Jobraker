@@ -13,7 +13,7 @@ const sectionClassName = cn(
 );
 
 /**
- * Template: Onyx — Elegant Minimalism
+ * Template: Onyx ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Elegant Minimalism
  * A clean, minimal single-column template with strong typographic hierarchy.
  */
 export function OnyxTemplate({ pageIndex = 0 }: TemplateProps) {
@@ -27,7 +27,7 @@ export function OnyxTemplate({ pageIndex = 0 }: TemplateProps) {
     return (
         <div style={{ '--page-primary-color': themePrimary } as React.CSSProperties} className="template-onyx page-content p-12 h-full bg-white text-gray-800">
             {/* Header */}
-            <header className="mb-8">
+            <header className="mb-8 rounded-[2rem] border border-gray-100/80 bg-slate-50/70 px-7 py-7 shadow-[0_16px_30px_rgba(15,23,42,0.06)]">
                 {/* Top accent line */}
                 <div className="w-full h-1 bg-gray-900 mb-6" />
 
@@ -37,11 +37,11 @@ export function OnyxTemplate({ pageIndex = 0 }: TemplateProps) {
                         <p className="text-sm font-medium text-gray-500 mt-1.5 tracking-wide">{basics.headline}</p>
                     </div>
                     {basics.picture && !basics.picture.effects?.hidden && (
-                        <PagePicture className="w-24 h-24 rounded-full border-[3px] border-gray-200 bg-white p-1 shadow-md" />
+                        <PagePicture className="w-28 h-28 rounded-[1.75rem] border-[4px] border-gray-200 bg-white p-1.5 shadow-[0_18px_30px_rgba(15,23,42,0.12)]" />
                     )}
                 </div>
 
-                <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-[0.7rem] text-gray-500 mt-4 pt-4 border-t border-gray-100">
+                <div className="mt-4 flex flex-wrap gap-2 border-t border-gray-200/80 pt-4 text-[0.72rem] text-gray-500 [&_svg]:text-[color:var(--page-primary-color)] *:flex *:items-center *:gap-x-1.5 *:rounded-full *:border *:border-gray-200/80 *:bg-white/90 *:px-3 *:py-1.5 *:shadow-[0_6px_16px_rgba(15,23,42,0.05)]">
                     {basics.email && (
                         <div className="flex items-center gap-1.5">
                             <PageIcon name="Envelope" size={12} />

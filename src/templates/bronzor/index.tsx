@@ -15,7 +15,7 @@ const sectionClassName = cn(
 );
 
 /**
- * Template: Bronzor — Structured Grid
+ * Template: Bronzor ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Structured Grid
  * A professional grid-based template with section headings aligned to a left column.
  */
 export function BronzorTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
@@ -68,8 +68,8 @@ function Header() {
 	const basics = useArtboardStore((state) => state.resume.data.basics);
 
 	return (
-		<div className="page-header flex flex-col items-center gap-y-3 pb-6 border-b-2 border-gray-900">
-			<PagePicture className="w-24 h-24 rounded-full border-[3px] border-gray-200 bg-white p-1 shadow-lg" />
+		<div className="page-header flex flex-col items-center gap-y-4 rounded-[2rem] border border-gray-200/80 bg-slate-50/80 px-8 py-7 shadow-[0_16px_30px_rgba(15,23,42,0.06)]">
+			<PagePicture className="w-28 h-28 rounded-full border-[4px] border-gray-200 bg-white p-1.5 shadow-[0_18px_28px_rgba(15,23,42,0.12)]" />
 
 			<div className="page-basics space-y-2.5 text-center">
 				<div className="basics-header">
@@ -77,7 +77,7 @@ function Header() {
 					<p className="basics-headline text-sm text-gray-500 font-medium mt-0.5">{basics.headline}</p>
 				</div>
 
-				<div className="basics-items flex flex-wrap justify-center gap-x-4 gap-y-1 text-[0.7rem] text-gray-500 *:flex *:items-center *:gap-x-1.5">
+				<div className="basics-items flex flex-wrap justify-center gap-2 text-[0.72rem] text-gray-500 [&_svg]:text-[color:var(--page-primary-color)] *:flex *:items-center *:gap-x-1.5 *:rounded-full *:border *:border-gray-200/80 *:bg-white/90 *:px-3 *:py-1.5 *:shadow-[0_6px_16px_rgba(15,23,42,0.05)]">
 					{basics.email && (
 						<div className="basics-item-email">
 							<Envelope />

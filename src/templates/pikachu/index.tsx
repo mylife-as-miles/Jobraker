@@ -17,7 +17,7 @@ const sectionClassName = cn(
 );
 
 /**
- * Template: Pikachu — Bold Accent Banner
+ * Template: Pikachu ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Bold Accent Banner
  * A vibrant template with a colored header banner and sidebar layout.
  */
 export function PikachuTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
@@ -52,7 +52,7 @@ export function PikachuTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
 					>
 						{isFirstPage && (
 							<div className="flex max-w-[var(--page-sidebar-width)] items-center justify-start">
-								<PagePicture className="w-full aspect-square rounded-[1.75rem] border-[3px] border-[color:var(--page-primary-color)]/20 bg-white p-1 shadow-xl object-cover" />
+								<PagePicture className="w-full aspect-square rounded-[2rem] border-[4px] border-[color:var(--page-primary-color)]/22 bg-white p-1.5 shadow-[0_18px_32px_rgba(15,23,42,0.16)] object-cover" />
 							</div>
 						)}
 
@@ -91,14 +91,14 @@ function Header() {
 	const basics = useArtboardStore((state) => state.resume.data.basics);
 
 	return (
-		<div className="page-header w-full space-y-3 rounded-xl bg-[color:var(--page-primary-color)] px-[var(--page-margin-x)] py-6 text-gray-900">
+		<div className="page-header w-full space-y-4 rounded-[2rem] bg-[color:var(--page-primary-color)] px-[var(--page-margin-x)] py-7 text-gray-900 shadow-[0_18px_32px_rgba(15,23,42,0.12)]">
 			<div className="border-[var(--page-background-color)]/30 border-b pb-2">
 				<h2 className="basics-name text-2xl font-extrabold tracking-tight">{basics.name}</h2>
 				<p className="basics-headline text-sm font-medium opacity-80 mt-0.5">{basics.headline}</p>
 			</div>
 
 			<div
-				className="basics-items flex flex-wrap gap-x-4 gap-y-1 *:flex *:items-center *:gap-x-1.5 text-[0.7rem] font-medium"
+				className="basics-items flex flex-wrap gap-2 text-[0.72rem] font-semibold [&_svg]:text-gray-900 *:flex *:items-center *:gap-x-1.5 *:rounded-full *:border *:border-black/10 *:bg-white/30 *:px-3 *:py-1.5"
 			>
 				{basics.email && (
 					<div className="basics-item-email">

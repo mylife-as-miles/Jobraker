@@ -11,7 +11,7 @@ const sectionClassName = cn(
 	// Section Heading
 	"[&>h6]:border-b [&>h6]:border-[color:var(--page-primary-color)]/30 [&>h6]:pb-1.5",
 
-	// Sidebar headings — light on dark
+	// Sidebar headings Ã¢â‚¬â€ light on dark
 	"group-data-[layout=sidebar]:[&>h6]:text-[color:var(--page-primary-color)]",
 
 	// Section Item Header in Sidebar Layout
@@ -20,7 +20,7 @@ const sectionClassName = cn(
 );
 
 /**
- * Template: Glalie — Left Sidebar with Card Contact
+ * Template: Glalie Ã¢â‚¬â€ Left Sidebar with Card Contact
  * A modern template with a light left sidebar, centered profile, and contact info in a bordered card.
  */
 export function GlalieTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
@@ -89,14 +89,14 @@ function Header() {
 	return (
 		<div className="page-header relative flex">
 			<div className="flex w-full shrink-0 flex-col items-center justify-center gap-y-3">
-				<PagePicture className="w-28 h-28 rounded-[1.75rem] border-[3px] border-[color:var(--page-primary-color)]/25 bg-white p-1 shadow-lg" />
+				<PagePicture className="w-32 h-32 rounded-[2rem] border-[4px] border-[color:var(--page-primary-color)]/30 bg-white p-1.5 shadow-[0_18px_30px_rgba(15,23,42,0.12)]" />
 
 				<div className="text-center">
 					<h2 className="basics-name text-xl font-extrabold tracking-tight text-gray-900">{basics.name}</h2>
 					<p className="basics-headline text-sm text-[color:var(--page-primary-color)] font-medium mt-0.5">{basics.headline}</p>
 				</div>
 
-				<div className="basics-items flex w-full flex-col gap-y-1.5 border border-[color:var(--page-primary-color)]/20 rounded-lg p-3 *:flex *:items-center *:gap-x-1.5 text-[0.65rem] text-gray-500 bg-white">
+				<div className="basics-items flex w-full flex-col gap-y-2 rounded-[1.5rem] border border-[color:var(--page-primary-color)]/20 bg-white/95 p-4 text-[0.66rem] text-gray-500 shadow-[0_12px_24px_rgba(15,23,42,0.08)] *:flex *:items-center *:gap-x-1.5 *:rounded-xl *:border *:border-[color:var(--page-primary-color)]/10 *:bg-[color:var(--page-primary-color)]/5 *:px-3 *:py-2">
 					{basics.email && (
 						<div className="basics-item-email">
 							<Envelope />

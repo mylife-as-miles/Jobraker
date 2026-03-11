@@ -139,6 +139,7 @@ const fetchJobMatchInsights = async (jobs: Job[], context: MatchContext, onError
   } catch (err) {
     console.error("fetchJobMatchInsights error:", err);
     if (onError) onError(err);
+    if (onError) onError(err);
     return jobs; // Fallback to raw jobs if scoring fails
   }
 };
@@ -1208,6 +1209,7 @@ export const JobPage = (): JSX.Element => {
           if (deductError) {
             console.error("Failed to deduct job search credits:", deductError);
             toastError("Credit Deduction Failed", deductError.message);
+            toastError("Credit Deduction Failed", deductError.message);
             safeInfo(
               "Credit deduction failed",
               "There was an issue processing your credits.",
@@ -1350,6 +1352,7 @@ export const JobPage = (): JSX.Element => {
         if (checkError) {
           console.error("Failed to check credits:", checkError);
           toastError("Credit Check Failed", "Unable to verify credits.");
+          toastError("Credit Check Failed", "Unable to verify credits.");
           setError({
             message: "Failed to verify credits. Please try again.",
             link: "/dashboard/billing",
@@ -1395,6 +1398,7 @@ export const JobPage = (): JSX.Element => {
         } catch (evalErr) {
           console.error("Failed to evaluate job fit", evalErr);
           toastError("Job Evaluation Failed", "The AI model encountered an error evaluating this job.");
+          toastError("Job Evaluation Failed", "The AI model encountered an error evaluating this job.");
           // If the AI evaluation fails completely, deciding whether to block or proceed is tricky.
           // For now, we'll log it and proceed to let them apply anyway so we don't completely break the flow if Gemini is down.
           safeInfo("AI Evaluation Failed", "Could not complete confidence check, proceeding with submission.");
@@ -1419,6 +1423,7 @@ export const JobPage = (): JSX.Element => {
           return; // Pause auto-apply to wait for user to review Draft step
         } catch (draftErr) {
           console.error("Draft generation failed", draftErr);
+          toastError("Draft Generation Failed", "Failed to generate custom resume/cover letter.");
           toastError("Draft Generation Failed", "Failed to generate custom resume/cover letter.");
           safeInfo("Draft Generation Failed", "Skipping draft mode and falling back to base materials.");
         }
@@ -1586,6 +1591,7 @@ export const JobPage = (): JSX.Element => {
         } catch (appErr) {
           console.error("Failed to insert application records", appErr);
           toastError("Database Error", "Failed to record your application in the history.");
+          toastError("Database Error", "Failed to record your application in the history.");
         }
       } else if (!userId) {
         console.warn(
@@ -1621,6 +1627,7 @@ export const JobPage = (): JSX.Element => {
           }
         } catch (creditErr) {
           console.error("Error deducting auto apply credits:", creditErr);
+          toastError("Credit Error", "Failed to deduct credits after auto-applying.");
           toastError("Credit Error", "Failed to deduct credits after auto-applying.");
         }
       }

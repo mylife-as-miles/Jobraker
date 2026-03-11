@@ -8,12 +8,12 @@ import { useArtboardStore } from "../../store/artboard";
 import type { TemplateProps } from "../azurill/types";
 
 const sectionClassName = cn(
-	// Section Heading — centered with accent underline
+	// Section Heading ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â centered with accent underline
 	"[&>h6]:border-[color:var(--page-primary-color)] [&>h6]:border-b-2 [&>h6]:pb-1.5 [&>h6]:text-center [&>h6]:mx-auto [&>h6]:max-w-fit [&>h6]:px-4",
 );
 
 /**
- * Template: Kakuna — Centered Elegance
+ * Template: Kakuna ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Centered Elegance
  * A refined centered template with an amber accent and symmetrical headings.
  */
 export function KakunaTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
@@ -63,8 +63,8 @@ function Header() {
 	const basics = useArtboardStore((state) => state.resume.data.basics);
 
 	return (
-		<div className="page-header flex flex-col items-center gap-y-3 pb-5 border-b-2 border-[color:var(--page-primary-color)]/20">
-			<PagePicture className="w-28 h-28 rounded-full border-[3px] border-[color:var(--page-primary-color)]/25 bg-white p-1 shadow-lg" />
+		<div className="page-header flex flex-col items-center gap-y-4 rounded-[2rem] border border-[color:var(--page-primary-color)]/15 bg-white/95 px-8 py-7 shadow-[0_16px_30px_rgba(15,23,42,0.06)]">
+			<PagePicture className="w-32 h-32 rounded-full border-[4px] border-[color:var(--page-primary-color)]/30 bg-white p-1.5 shadow-[0_18px_30px_rgba(15,23,42,0.12)]" />
 
 			<div className="page-basics space-y-2.5 text-center">
 				<div>
@@ -72,7 +72,7 @@ function Header() {
 					<p className="basics-headline text-sm text-[color:var(--page-primary-color)] font-medium mt-0.5">{basics.headline}</p>
 				</div>
 
-				<div className="basics-items flex flex-wrap justify-center gap-x-4 gap-y-1 text-[0.7rem] text-gray-500 *:flex *:items-center *:gap-x-1.5">
+				<div className="basics-items flex flex-wrap justify-center gap-2 text-[0.72rem] text-gray-500 [&_svg]:text-[color:var(--page-primary-color)] *:flex *:items-center *:gap-x-1.5 *:rounded-full *:border *:border-[color:var(--page-primary-color)]/12 *:bg-[color:var(--page-primary-color)]/6 *:px-3 *:py-1.5 *:shadow-[0_6px_16px_rgba(15,23,42,0.05)]">
 					{basics.email && (
 						<div className="basics-item-email">
 							<Envelope />

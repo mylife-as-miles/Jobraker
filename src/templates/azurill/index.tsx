@@ -29,7 +29,7 @@ const sectionClassName = cn(
   "group-data-[layout=sidebar]:[&_.section-item-header>div]:flex-col",
   "group-data-[layout=sidebar]:[&_.section-item-header>div]:items-start",
 
-  // Section in Main Layout — Timeline
+  // Section in Main Layout ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Timeline
   "group-data-[layout=main]:[&>.section-content]:relative",
   "group-data-[layout=main]:[&>.section-content]:ml-3",
   "group-data-[layout=main]:[&>.section-content]:pl-4",
@@ -49,7 +49,7 @@ const sectionClassName = cn(
 );
 
 /**
- * Template: Azurill — Clean Timeline
+ * Template: Azurill ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Clean Timeline
  * A professional template with a timeline-style main column and clean sidebar.
  */
 export function AzurillTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
@@ -127,8 +127,8 @@ function Header() {
   // Since we set CSS variable in parent, we can use it here.
 
   return (
-    <div className='page-header flex items-start gap-x-6 pb-6 border-b border-gray-100'>
-      <PagePicture className='w-28 h-28 rounded-full border-[3px] border-[var(--page-primary-color)] bg-white p-1 shadow-lg shrink-0' />
+    <div className='page-header flex items-start gap-x-6 rounded-[2rem] border border-gray-100/80 bg-slate-50/80 px-6 py-6 shadow-[0_18px_32px_rgba(15,23,42,0.06)]'>
+      <PagePicture className='w-32 h-32 rounded-full border-[4px] border-[var(--page-primary-color)] bg-white p-1.5 shadow-[0_18px_28px_rgba(15,23,42,0.14)] shrink-0' />
 
       <div className='page-basics space-y-2.5 min-w-0'>
         <div className='basics-header'>
@@ -140,7 +140,7 @@ function Header() {
           </p>
         </div>
 
-        <div className='basics-items flex flex-wrap gap-x-4 gap-y-1.5 text-[0.7rem] text-gray-500 *:flex *:items-center *:gap-x-1.5'>
+        <div className='basics-items flex flex-wrap gap-2 text-[0.72rem] text-gray-500 [&_svg]:text-[var(--page-primary-color)] *:flex *:items-center *:gap-x-1.5 *:rounded-full *:border *:border-gray-200/80 *:bg-white/90 *:px-3 *:py-1.5 *:shadow-[0_6px_16px_rgba(15,23,42,0.05)]'>
           {basics.email && (
             <div className='basics-item-email'>
               <PageIcon name='Envelope' />

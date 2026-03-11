@@ -13,7 +13,7 @@ const sectionClassName = cn(
 );
 
 /**
- * Template: Rhyhorn — Horizontal Professional
+ * Template: Rhyhorn ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Horizontal Professional
  * A clean professional template with a horizontal header layout and pipe-separated contact details.
  */
 export function RhyhornTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
@@ -64,14 +64,14 @@ function Header() {
 	const basics = useArtboardStore((state) => state.resume.data.basics);
 
 	return (
-		<div className="page-header flex items-start gap-x-5 pb-5 border-b-2 border-[color:var(--page-primary-color)]/20">
+		<div className="page-header flex items-start gap-x-5 rounded-[2rem] border border-[color:var(--page-primary-color)]/15 bg-white/95 px-6 py-6 shadow-[0_16px_30px_rgba(15,23,42,0.06)]">
 			<div className="page-basics grow space-y-2">
 				<div>
 					<h2 className="basics-name text-2xl font-extrabold tracking-tight text-gray-900">{basics.name}</h2>
 					<p className="basics-headline text-sm text-[color:var(--page-primary-color)] font-medium mt-0.5">{basics.headline}</p>
 				</div>
 
-				<div className="basics-items flex flex-wrap gap-x-3 gap-y-1 text-[0.7rem] text-gray-500 *:flex *:items-center *:gap-x-1.5 *:border-r *:border-[color:var(--page-primary-color)]/20 *:pr-3 *:last:border-r-0 *:last:pr-0">
+				<div className="basics-items flex flex-wrap gap-2 text-[0.72rem] text-gray-500 [&_svg]:text-[color:var(--page-primary-color)] *:flex *:items-center *:gap-x-1.5 *:rounded-full *:border *:border-[color:var(--page-primary-color)]/12 *:bg-[color:var(--page-primary-color)]/6 *:px-3 *:py-1.5 *:shadow-[0_6px_16px_rgba(15,23,42,0.05)]">
 					{basics.email && (
 						<div className="basics-item-email">
 							<Envelope />
@@ -105,7 +105,7 @@ function Header() {
 				</div>
 			</div>
 
-			<PagePicture className="w-24 h-24 rounded-2xl border-[3px] border-gray-200 bg-white p-1 shadow-lg shrink-0" />
+			<PagePicture className="w-28 h-28 rounded-[1.75rem] border-[4px] border-gray-200 bg-white p-1.5 shadow-[0_18px_30px_rgba(15,23,42,0.12)] shrink-0" />
 		</div>
 	);
 }
