@@ -36,10 +36,10 @@ export const FAQSection = () => {
 
       <div className="space-y-4">
         {faqs.map((faq, i) => (
-          <div key={i} className="border border-white/10 rounded-lg bg-white/5 overflow-hidden">
+          <div key={i} className="border border-white/10 rounded-lg overflow-hidden">
             <button
               onClick={() => setOpenIndex(openIndex === i ? null : i)}
-              className="w-full flex items-center justify-between p-6 text-left hover:bg-white/5 transition-colors"
+              className="w-full flex items-center justify-between p-6 text-left bg-black hover:bg-white/5 transition-colors"
             >
               <span className="text-white font-mono font-bold">{faq.question}</span>
               <ChevronDown className={`w-5 h-5 text-[#1dff00] transition-transform ${openIndex === i ? 'rotate-180' : ''}`} />

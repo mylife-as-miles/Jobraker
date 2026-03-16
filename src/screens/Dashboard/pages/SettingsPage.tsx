@@ -3000,7 +3000,7 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Accent Color */}
-            <div className='bg-card border border-border rounded-xl p-6'>
+            {/* <div className='bg-card border border-border rounded-xl p-6'>
               <h3 className='text-base font-medium text-foreground mb-6'>
                 Accent Color
               </h3>
@@ -3040,7 +3040,7 @@ export const SettingsPage = (): JSX.Element => {
                   ></button>
                 ))}
               </div>
-            </div>
+            </div> */}
 
             {/* Preferences */}
             <div className='bg-card border border-border rounded-xl p-6'>
