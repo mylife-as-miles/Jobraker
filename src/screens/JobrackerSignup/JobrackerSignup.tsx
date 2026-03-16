@@ -488,7 +488,7 @@ export const JobrackerSignup = (): JSX.Element => {
 
               <Button
                 type='submit'
-                disabled={submitting || !passwordCheck.valid || formData.password !== formData.confirmPassword}
+                disabled={submitting}
                 className='w-full h-9 bg-[#1dff00] hover:bg-[#1dff00]/90 text-background font-semibold rounded-lg text-xs transition-all shadow-[0_0_15px_rgba(29,255,0,0.2)] hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] mt-1'
               >
                 {submitting ? (
@@ -541,7 +541,7 @@ export const JobrackerSignup = (): JSX.Element => {
           </div>
 
           <div className='mt-8 text-center text-gray-600 text-[10px]'>
-            © 2024 JobRaker AI. All rights reserved.
+            © 2026 JobRaker AI. All rights reserved.
           </div>
         </div>
       </div>

@@ -2846,8 +2846,8 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Accent Color */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
-              <h3 className='text-base font-medium text-foreground/95 mb-6'>
+            {/* <div className='bg-card border border-border rounded-xl p-6'>
+              <h3 className='text-base font-medium text-foreground mb-6'>
                 Accent Color
               </h3>
               <div className='flex flex-wrap gap-4'>
@@ -2883,7 +2883,7 @@ export const SettingsPage = (): JSX.Element => {
                   ></button>
                 ))}
               </div>
-            </div>
+            </div> */}
 
             {/* Preferences */}
             <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>

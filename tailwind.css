@@ -4,11 +4,16 @@
 @tailwind components;
 @tailwind utilities;
 
-
 @layer components {
   .all-\[unset\] {
     all: unset;
   }
+}
+
+* {
+  font-family: "Questrial", sans-serif;
+  font-weight: 400;
+  font-style: normal;
 }
 
 @layer base {
@@ -18,7 +23,9 @@
 
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 
   /* Ensure consistent theming on mobile/tablet and avoid white flashes */
@@ -94,7 +101,9 @@
   html {
     /* Force UA widgets (scrollbars, form controls) to match current theme */
     color-scheme: light dark;
-    background-color: hsl(var(--background, var(--surface-background-fallback)) / 1);
+    background-color: hsl(
+      var(--background, var(--surface-background-fallback)) / 1
+    );
     color: hsl(var(--foreground, var(--surface-foreground-fallback)) / 1);
     min-height: 100%;
   }
@@ -112,7 +121,9 @@
   #app,
   #root {
     min-height: 100%;
-    background-color: hsl(var(--background, var(--surface-background-fallback)) / 1);
+    background-color: hsl(
+      var(--background, var(--surface-background-fallback)) / 1
+    );
     color: hsl(var(--foreground, var(--surface-foreground-fallback)) / 1);
   }
 
@@ -122,7 +133,9 @@
   textarea,
   button {
     color: hsl(var(--foreground, var(--surface-foreground-fallback)) / 1);
-    background-color: hsl(var(--background, var(--surface-background-fallback)) / 1);
+    background-color: hsl(
+      var(--background, var(--surface-background-fallback)) / 1
+    );
     border-color: hsl(var(--border) / 1);
   }
 
@@ -145,7 +158,6 @@
 }
 
 @layer components {
-
   /* Glassy card surface with subtle border and blur */
   .card-surface {
     @apply backdrop-blur-sm rounded-xl shadow-sm;
@@ -160,13 +172,17 @@
   }
 
   .brand-glow {
-    box-shadow: 0 0 14px hsla(var(--brand) / 0.22), 0 0 32px hsla(var(--brand) / 0.10);
+    box-shadow:
+      0 0 14px hsla(var(--brand) / 0.22),
+      0 0 32px hsla(var(--brand) / 0.1);
   }
 
   .glass-black {
-    background: linear-gradient(180deg,
-        hsla(0, 0%, 100%, 0.04) 0%,
-        hsla(0, 0%, 100%, 0.02) 100%);
+    background: linear-gradient(
+      180deg,
+      hsla(0, 0%, 100%, 0.04) 0%,
+      hsla(0, 0%, 100%, 0.02) 100%
+    );
     border: 1px solid hsl(var(--border));
     @apply rounded-xl backdrop-blur-sm;
   }
