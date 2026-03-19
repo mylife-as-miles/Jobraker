@@ -8,7 +8,14 @@ export interface SubscriptionPlan {
   billingCycle: 'monthly' | 'quarterly' | 'yearly' | 'lifetime';
   creditsPerCycle: number;
   maxUsers: number | null;
-  features: string[];
+  features: Array<
+    | string
+    | {
+        name: string;
+        value?: string;
+        included?: boolean;
+      }
+  >;
   isActive: boolean;
   sortOrder: number;
   createdAt: string;

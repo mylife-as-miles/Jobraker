@@ -15,7 +15,11 @@
 // Returns the Skyvern run response.
 
 import { getCorsHeaders } from "../_shared/types.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  SubscriptionAccessError,
+  requireSubscriptionTier,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 
@@ -90,6 +94,11 @@ Deno.serve(async (req) => {
 
   try {
   const body = await req.json().catch(() => ({}));
+    const { user, serviceClient } = await requireSubscriptionTier(
+      req,
+      "Basics",
+      "Auto apply",
+    );
     // Accept flexible inputs
     // 1) job_urls directly (string[] or JSON string)
     // 2) jobs array with objects that contain sourceUrl/url
@@ -104,53 +113,24 @@ Deno.serve(async (req) => {
   // SECURITY FIX: Never trust client-provided webhook URLs to prevent SSRF
   let webhook_url: string | undefined = undefined;
   const title = typeof body?.title === "string" ? body.title : undefined;
+  const user_id = user.id;
+  let email = typeof body?.email === "string" ? body.email : user.email || "";
   const user_input = typeof body?.user_input === "object" ? body.user_input : {};
-  let email = typeof body?.email === "string" ? body.email : "";
+  const safeUserInput = {
+    ...user_input,
+    id: user_id,
+    ...(email ? { email } : {}),
+  };
 
-    // SECURITY FIX: Extract user_id securely from Auth header
-    let user_id = user_input?.id;
-    const authHeader = req.headers.get("Authorization");
-    if (authHeader) {
-      try {
-        const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-        const sbAuth = createClient(Deno.env.get('SUPABASE_URL')!, anonKey!, { auth: { persistSession: false } });
-        const { data: { user }, error: authError } = await sbAuth.auth.getUser(authHeader.replace("Bearer ", ""));
-        if (!authError && user?.id) {
-            user_id = user.id;
-            // Also enforce email if not provided
-            if (!email) email = user.email || "";
+    const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+    const { count } = await serviceClient
+      .from('applications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user_id)
+      .gte('created_at', oneMinuteAgo);
 
-            // SECURITY FIX: Rate Limit check to prevent Application Budget Drain
-            const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
-            const { count, error: rlError } = await sbAuth.from('applications')
-              .select('*', { count: 'exact', head: true })
-              .eq('user_id', user_id)
-              .gte('created_at', oneMinuteAgo);
-            
-            if (count && count >= 5) {
-              return new Response(JSON.stringify({ error: "Rate limit exceeded. Please wait a moment before heavily automating applications." }), { status: 429, headers: { ...corsHeaders, "content-type": "application/json" } });
-            }
-        }
-      } catch (err) {
-        console.error("Failed to authenticate user token:", err);
-      }
-    }
-
-    // If email is not provided, fetch it from the user's profile using user_id.
-    if (!email && user_id) {
-      try {
-        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-        const sb = createClient(Deno.env.get('SUPABASE_URL')!, serviceKey, { auth: { persistSession: false } });
-        const { data: user, error: userError } = await sb.from('users').select('email').eq('id', user_id).single();
-        if (userError) throw userError;
-        if (user?.email) {
-          email = user.email;
-        } else {
-          console.warn(`User email not found for user_id: ${user_id}`);
-        }
-      } catch (e) {
-        console.error(`Failed to fetch user email for user_id: ${user_id}`, e.message);
-      }
+    if (count && count >= 5) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please wait a moment before heavily automating applications." }), { status: 429, headers: { ...corsHeaders, "content-type": "application/json" } });
     }
 
     // Secrets: prefer environment over header to avoid client override
@@ -171,15 +151,15 @@ Deno.serve(async (req) => {
     }
 
     // Construct additional_information from user_input if not provided
-    if (!additional_information && user_input && typeof user_input === 'object') {
+    if (!additional_information && safeUserInput && typeof safeUserInput === 'object') {
       const parts: string[] = [];
-      const fullName = [user_input.first_name, user_input.last_name].filter(Boolean).join(' ').trim();
+      const fullName = [safeUserInput.first_name, safeUserInput.last_name].filter(Boolean).join(' ').trim();
       if (fullName) parts.push(`Name: ${fullName}`);
       if (email) parts.push(`Email: ${email}`);
-      if (user_input.job_title) parts.push(`Current Title: ${user_input.job_title}`);
-      if (user_input.experience_years != null) parts.push(`Experience: ${user_input.experience_years} years`);
-      if (user_input.location) parts.push(`Location: ${user_input.location}`);
-      if (Array.isArray(user_input.goals) && user_input.goals.length) parts.push(`Goals: ${user_input.goals.join(', ')}`);
+      if (safeUserInput.job_title) parts.push(`Current Title: ${safeUserInput.job_title}`);
+      if (safeUserInput.experience_years != null) parts.push(`Experience: ${safeUserInput.experience_years} years`);
+      if (safeUserInput.location) parts.push(`Location: ${safeUserInput.location}`);
+      if (Array.isArray(safeUserInput.goals) && safeUserInput.goals.length) parts.push(`Goals: ${safeUserInput.goals.join(', ')}`);
       if (parts.length) additional_information = parts.join('\n');
     }
 
@@ -188,7 +168,7 @@ Deno.serve(async (req) => {
       job_urls: stringifyArrayForSkyvern(job_urls),
       additional_information,
       resume,
-      user_input: JSON.stringify(user_input),
+      user_input: JSON.stringify(safeUserInput),
       email,
     };
 
@@ -196,7 +176,7 @@ Deno.serve(async (req) => {
       parameters.cover_letter = cover_letter;
     } else {
       // @ts-ignore
-      const fullName = [user_input.first_name, user_input.last_name].filter(Boolean).join(' ').trim() || "the candidate";
+      const fullName = [safeUserInput.first_name, safeUserInput.last_name].filter(Boolean).join(' ').trim() || "the candidate";
       parameters.cover_letter = `Dear Hiring Manager,\n\nI am writing to express my interest in this position. I am a highly motivated individual with a strong passion for this field. My resume, which is attached, provides further detail on my qualifications.\n\nThank you for your time and consideration.\n\nSincerely,\n${fullName}`;
     }
   const skyvernRun: Record<string, any> = { workflow_id, parameters };
@@ -238,29 +218,20 @@ Deno.serve(async (req) => {
     // After successful run, create an application record in our DB for tracking.
     const run_id = data?.run_id || data?.id;
     if (run_id) {
-      const user_id = user_input?.id;
-      if (user_id) {
-        try {
-          const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-          const sb = createClient(Deno.env.get('SUPABASE_URL')!, serviceKey, { auth: { persistSession: false } });
-          const { error: dbError } = await sb.from('applications').insert({
-            run_id: run_id,
-            user_id: user_id,
-            provider_status: 'pending',
-            status: 'Submitted',
-            // Per webhook: Source: https://...
-            notes: `Source: ${job_urls.join('|')}`,
-            // Add user's email to the `reply_to` field, fixing the missing email issue.
-            reply_to: email,
-          });
-          if (dbError) {
-            console.error('Failed to insert application record', { run_id, user_id, error: dbError.message });
-          }
-        } catch (dbE) {
-          console.error('Exception during DB insert for application', { run_id, user_id, error: dbE.message });
+      try {
+        const { error: dbError } = await serviceClient.from('applications').insert({
+          run_id: run_id,
+          user_id: user_id,
+          provider_status: 'pending',
+          status: 'Submitted',
+          notes: `Source: ${job_urls.join('|')}`,
+          reply_to: email,
+        });
+        if (dbError) {
+          console.error('Failed to insert application record', { run_id, user_id, error: dbError.message });
         }
-      } else {
-        console.warn('Cannot save application record: user_id missing from user_input', { run_id });
+      } catch (dbE) {
+        console.error('Exception during DB insert for application', { run_id, user_id, error: dbE.message });
       }
     }
 
@@ -271,6 +242,9 @@ Deno.serve(async (req) => {
       submitted: { workflow_id, count: job_urls.length },
     }), { headers: { ...corsHeaders, "content-type": "application/json" }, status: 200 });
   } catch (e) {
+    if (e instanceof SubscriptionAccessError) {
+      return subscriptionErrorResponse(e, corsHeaders);
+    }
     const msg = (e && e.message) ? String(e.message) : "Unknown error";
     try { console.error("apply-to-jobs error", msg); } catch {}
     return new Response(JSON.stringify({ error: msg }), { status: 500, headers: { ...corsHeaders, "content-type": "application/json" } });

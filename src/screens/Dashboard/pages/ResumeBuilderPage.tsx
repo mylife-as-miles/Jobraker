@@ -25,6 +25,7 @@ import {
   BookOpen,
   HandHeart,
   Users,
+  Lock,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useArtboardStore } from "../../../store/artboard";
@@ -45,6 +46,9 @@ import Modal from "../../../components/ui/modal";
 import { downloadResumePDF } from "../../../utils/resume-download";
 import { useToast } from "../../../components/ui/toast";
 import { polishContent } from "../../../services/ai/polishContent";
+import { UpgradePrompt } from "../../../components/UpgradePrompt";
+import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
+import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 
 const SECTION_ICONS: Record<string, any> = {
   experience: Briefcase,
@@ -73,6 +77,8 @@ export const ResumeBuilderPage = () => {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const { success, error: toastError } = useToast();
   const supabase = createClient();
+  const { subscriptionTier, loadingTier } = useSubscriptionTier();
+  const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, "Basics");
   // Store State & Actions
   const resumeId = useArtboardStore((state) => state.resume.id);
   const resumeData = useArtboardStore((state) => state.resume.data);
@@ -203,6 +209,10 @@ export const ResumeBuilderPage = () => {
   };
 
   const aiPolishSummary = async (instruction = "Polish this resume summary for clarity, confidence, and measurable impact.") => {
+    if (!hasResumeAiAccess) {
+      toastError("Upgrade required", "Resume AI tools are available on Basics and above.");
+      return;
+    }
     setAiLoading(true);
     try {
       const source = (summary.content || basics.headline || basics.name || "").trim();
@@ -307,18 +317,20 @@ export const ResumeBuilderPage = () => {
 
           <button
             onClick={() => aiPolishSummary()}
-            disabled={aiLoading}
+            disabled={aiLoading || loadingTier}
             className='flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)] disabled:opacity-60'>
             <Sparkles className='w-4 h-4' />
             {aiLoading ? "Polishing..." : "AI Polish"}
+            {!hasResumeAiAccess && <Lock className='w-3 h-3 opacity-60' />}
           </button>
           <button
             onClick={aiGenerateResume}
-            disabled={aiLoading}
+            disabled={aiLoading || loadingTier}
             className='product-outline-button flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-[#ffd700]/60 hover:bg-[#fff2b3]' 
           >
             <Wand2 className={`w-4 h-4 ${aiLoading ? "animate-spin" : ""}`} />
             {aiLoading ? "Generating..." : "AI Generate"}
+            {!hasResumeAiAccess && <Lock className='w-3 h-3 opacity-60' />}
           </button>
 
           <button
@@ -339,6 +351,18 @@ export const ResumeBuilderPage = () => {
           </button>
         </div>
       </header>
+
+      {!loadingTier && !hasResumeAiAccess && (
+        <div className='px-6 pt-6'>
+          <UpgradePrompt
+            compact
+            requiredTier='Basics'
+            showPricing={false}
+            title='Resume AI Optimization'
+            description='Unlock AI polish and AI-generated summaries while keeping manual editing and exports on Free.'
+          />
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div className='flex-1 flex overflow-hidden'>

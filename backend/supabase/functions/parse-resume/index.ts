@@ -2,6 +2,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createGeminiClient, GEMINI_MODEL, createGeminiConfig } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import {
+  SubscriptionAccessError,
+  requireAuthenticatedUser,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
 
 interface ParseResumeRequest {
   resumeText: string;
@@ -78,10 +83,7 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing authorization header" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    await requireAuthenticatedUser(req);
 
     const { resumeText } = await req.json();
     if (!resumeText) {
@@ -104,6 +106,9 @@ serve(async (req) => {
     return new Response(JSON.stringify(parsed), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error: any) {
+    if (error instanceof SubscriptionAccessError) {
+      return subscriptionErrorResponse(error, corsHeaders);
+    }
     console.error("Error in parse-resume:", error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }

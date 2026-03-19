@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createGeminiClient, GEMINI_MODEL, createGeminiConfig } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import {
+  SubscriptionAccessError,
+  requireSubscriptionTier,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
 
 function sanitizeInput(text: string, maxLength: number): string {
   if (!text) return "";
@@ -50,6 +55,7 @@ serve(async (req) => {
   }
 
   try {
+    await requireSubscriptionTier(req, "Basics", "AI cover letter generation");
     const { jobDescription, resumeText, instructions } = await req.json();
 
     if (!jobDescription || !resumeText) {
@@ -83,6 +89,9 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
+    if (error instanceof SubscriptionAccessError) {
+      return subscriptionErrorResponse(error, corsHeaders);
+    }
     console.error("Error in generate-cover-letter:", error);
     return new Response(JSON.stringify({ error: error.message }), { 
       status: 500, 

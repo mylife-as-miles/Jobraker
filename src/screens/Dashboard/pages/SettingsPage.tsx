@@ -59,6 +59,9 @@ import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
 import { validatePassword } from "../../../utils/password";
 import { CheckCircle2, XCircle, Linkedin, Github } from "lucide-react";
+import { UpgradePrompt } from "../../../components/UpgradePrompt";
+import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
+import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 
 const SignOutDialog = ({
   open,
@@ -138,6 +141,11 @@ export const SettingsPage = (): JSX.Element => {
   const navigate = useNavigate();
   const supabase = useMemo(() => createClient(), []);
   const { success, error: toastError } = useToast();
+  const { subscriptionTier, loadingTier } = useSubscriptionTier();
+  const hasGmailIntegrationAccess = hasSubscriptionAccess(
+    subscriptionTier,
+    "Ultimate",
+  );
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isAdminChecking, setIsAdminChecking] = useState(true);
 
@@ -370,6 +378,13 @@ export const SettingsPage = (): JSX.Element => {
 
   const handleConnectGmail = async () => {
     try {
+      if (!hasGmailIntegrationAccess) {
+        toastError(
+          "Upgrade required",
+          "Gmail integration is available on the Ultimate plan.",
+        );
+        return;
+      }
       const composioConfigId = import.meta.env.VITE_COMPOSIO_GMAIL_CONFIG_ID;
       if (!composioConfigId) {
         toastError(
@@ -416,6 +431,11 @@ export const SettingsPage = (): JSX.Element => {
   useEffect(() => {
     const checkGmailConnection = async () => {
       try {
+        if (loadingTier || !hasGmailIntegrationAccess) {
+          setIsGmailConnected(false);
+          return;
+        }
+
         const composioConfigId = import.meta.env.VITE_COMPOSIO_GMAIL_CONFIG_ID;
         if (!composioConfigId) {
           // Gmail integration not configured - silently skip
@@ -469,7 +489,7 @@ export const SettingsPage = (): JSX.Element => {
     };
 
     checkGmailConnection();
-  }, [supabase]);
+  }, [hasGmailIntegrationAccess, loadingTier, supabase]);
 
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
@@ -478,6 +498,14 @@ export const SettingsPage = (): JSX.Element => {
       }
 
       if (event.data === "gmail-auth-success") {
+        if (!hasGmailIntegrationAccess) {
+          toastError(
+            "Upgrade required",
+            "Gmail integration is available on the Ultimate plan.",
+          );
+          return;
+        }
+
         const connectionId = localStorage.getItem("composio-connection-id");
         if (connectionId) {
           try {
@@ -526,7 +554,7 @@ export const SettingsPage = (): JSX.Element => {
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, [supabase, success, toastError]);
+  }, [hasGmailIntegrationAccess, supabase, success, toastError]);
 
   const initials = useMemo(() => {
     const a = (formData.firstName || "").trim();
@@ -1293,6 +1321,8 @@ export const SettingsPage = (): JSX.Element => {
 
   const getTierIcon = (tier: string) => {
     switch (tier) {
+      case "Basics":
+        return <Sparkles className='w-5 h-5' />;
       case "Pro":
         return <Zap className='w-5 h-5' />;
       case "Ultimate":
@@ -1304,6 +1334,8 @@ export const SettingsPage = (): JSX.Element => {
 
   const getTierGradient = (tier: string) => {
     switch (tier) {
+      case "Basics":
+        return "from-[#1dff00] via-[#5fff4a] to-[#b8ffb0]";
       case "Pro":
         return "from-blue-500 via-blue-600 to-blue-700";
       case "Ultimate":
@@ -3722,13 +3754,22 @@ export const SettingsPage = (): JSX.Element => {
                     : "text-muted-foreground hover:text-foreground hover:bg-[#ffd700]/10 hover:border-[#ffd700]/30"
                     }`}
                   onClick={handleConnectGmail}
-                  disabled={isGmailConnected}
+                  disabled={loadingTier || isGmailConnected}
                 >
                   <Link className='w-4 h-4 mr-2' />
                   {isGmailConnected ? "Connected" : "Connect"}
                 </Button>
               </div>
             </div>
+            {!loadingTier && !hasGmailIntegrationAccess && (
+              <UpgradePrompt
+                compact
+                requiredTier='Ultimate'
+                showPricing={false}
+                title='Gmail Integration'
+                description='Unlock Gmail connect, status checks, and verification flows with the Ultimate plan.'
+              />
+            )}
             <div className='bg-card border border-border/40 rounded-xl p-6 hover:border-[#ffd700]/30 hover:bg-muted/50 transition-all shadow-sm ring-1 ring-foreground/5'>
               <div className='flex items-center justify-between'>
                 <div className='flex items-center gap-4'>
@@ -3820,6 +3861,8 @@ export const SettingsPage = (): JSX.Element => {
                   <span
                     className={`text-xs font-semibold px-2 py-1 rounded-full ${billingSubscriptionTier === "Pro"
                       ? "bg-blue-500/20 text-blue-400"
+                      : billingSubscriptionTier === "Basics"
+                        ? "bg-[#1dff00]/20 text-[#1dff00]"
                       : billingSubscriptionTier === "Ultimate"
                         ? "bg-purple-500/20 text-purple-400"
                         : "bg-[#ffd700]/20 text-[#ffd700]"

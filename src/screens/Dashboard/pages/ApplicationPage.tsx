@@ -26,7 +26,8 @@ import {
   Calendar as CalendarIcon,
   Table as TableIcon,
   Bot,
-  ClipboardList
+  ClipboardList,
+  Lock,
 } from "lucide-react";
 import {
   KanbanProvider,
@@ -60,6 +61,9 @@ import KiboCalendar, {
 } from "../../../components/ui/kibo-ui/calendar";
 import CalendarDayDetail from "../../../components/ui/kibo-ui/CalendarDayDetail";
 import Modal from "../../../components/ui/modal";
+import { UpgradePrompt } from "../../../components/UpgradePrompt";
+import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
+import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 
 type SortOption = "score" | "recent" | "company" | "status";
 
@@ -99,6 +103,8 @@ function ApplicationPage() {
   const [interviewEmailText, setInterviewEmailText] = useState("");
   const [interviewAgentLoading, setInterviewAgentLoading] = useState(false);
   const [interviewAgentResult, setInterviewAgentResult] = useState<ScheduleInterviewResponse | null>(null);
+  const { subscriptionTier, loadingTier } = useSubscriptionTier();
+  const hasInterviewAssistantAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
   const detailApp = useMemo(
     () => applications.find((a) => a.id === detailId) || null,
     [detailId, applications],
@@ -1576,6 +1582,9 @@ function ApplicationPage() {
                   >
                     <Bot className='w-4 h-4' />
                     Schedule Interview
+                    {!hasInterviewAssistantAccess && (
+                      <Lock className='w-3 h-3 opacity-60' />
+                    )}
                   </button>
                 )}
                 {detailApp.recording_url && (
@@ -1749,7 +1758,20 @@ function ApplicationPage() {
         title="Interview Scheduling Agent"
       >
         <div className='space-y-4'>
-          {!interviewAgentResult ? (
+          {loadingTier ? (
+            <div className='py-10 text-center'>
+              <div className='mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-[#b347ff]' />
+              <p className='text-sm text-foreground/70'>Checking interview assistant access...</p>
+            </div>
+          ) : !hasInterviewAssistantAccess ? (
+            <UpgradePrompt
+              compact
+              requiredTier='Pro'
+              showPricing={false}
+              title='Interview Scheduling Assistant'
+              description='Unlock recruiter-email analysis, booking-link detection, and drafted scheduling replies with Pro.'
+            />
+          ) : !interviewAgentResult ? (
             <>
               <p className='text-sm text-foreground/70'>
                 Paste the email from the recruiter below. The AI will extract booking links or draft a professional reply offering your availability.
@@ -1770,6 +1792,7 @@ function ApplicationPage() {
                 </Button>
                 <Button
                   onClick={async () => {
+                    if (!hasInterviewAssistantAccess) return;
                     if (!interviewEmailText.trim()) return;
                     setInterviewAgentLoading(true);
                     try {

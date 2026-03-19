@@ -1,7 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Composio } from "npm:@composio/core@0.2.2";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.6";
 import { corsHeaders } from "../_shared/cors.ts";
+import {
+  SubscriptionAccessError,
+  requireSubscriptionTier,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
 
 // Initialize with explicit API key in edge runtime
 const composio = new Composio({ apiKey: Deno.env.get("COMPOSIO_API_KEY") });
@@ -12,20 +16,11 @@ serve(async (req) => {
   }
 
   try {
-    // 1. Authenticate the user making the request
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
+    const { user } = await requireSubscriptionTier(
+      req,
+      "Ultimate",
+      "Gmail integration",
     );
-
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
 
     const userId = user.id;
 
@@ -126,6 +121,9 @@ serve(async (req) => {
       });
     }
   } catch (error) {
+    if (error instanceof SubscriptionAccessError) {
+      return subscriptionErrorResponse(error, corsHeaders);
+    }
     console.error("Error during Composio authentication:", error);
     return new Response(
       JSON.stringify({

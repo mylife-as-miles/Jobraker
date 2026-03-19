@@ -34,6 +34,9 @@ import { jsPDF } from 'jspdf';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { polishContent } from '@/services/ai/polishContent';
 import { generateCoverLetterViaEdge } from '@/services/ai/generateCoverLetter';
+import { UpgradePrompt } from '@/components/UpgradePrompt';
+import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
+import { hasSubscriptionAccess } from '@/lib/subscriptionAccess';
 
 const supabase = createClient();
 
@@ -106,7 +109,8 @@ export const CoverLetterBuilderPage = () => {
     const [aiLoading, setAiLoading] = useState(false);
     // Remove unused savedAt if not used, or use it 
     // const [savedAt, setSavedAt] = useState<string | null>(null); 
-    const [subscriptionTier, setSubscriptionTier] = useState<string>('Free');
+    const { subscriptionTier, loadingTier } = useSubscriptionTier();
+    const hasCoverLetterAiAccess = hasSubscriptionAccess(subscriptionTier, 'Basics');
     const [exportOpen, setExportOpen] = useState(false);
     const [exportBusy, setExportBusy] = useState<string | null>(null);
     // Remove unused lastExport
@@ -249,22 +253,6 @@ export const CoverLetterBuilderPage = () => {
 
         return () => clearTimeout(timeout);
     }, [coverLetter, activeId]); // Deep dependency might trigger too often, strictly relying on debounce
-
-    // Check subscription
-    useEffect(() => {
-        const checkSub = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                const { data } = await supabase
-                    .from('profiles')
-                    .select('subscription_tier')
-                    .eq('id', user.id)
-                    .single();
-                if (data) setSubscriptionTier(data.subscription_tier || 'Free');
-            }
-        };
-        checkSub();
-    }, []);
 
     // Helper: Serialize for export/copy
     const serializeLetter = () => {
@@ -433,8 +421,8 @@ export const CoverLetterBuilderPage = () => {
     };
 
     const aiPolish = async () => {
-        if (subscriptionTier === 'Free') {
-            toastError('Upgrade required', 'Cover letter AI is available on paid plans. Upgrade to use AI polish.');
+        if (!hasCoverLetterAiAccess) {
+            toastError('Upgrade required', 'Cover letter AI is available on Basics and above.');
             return;
         }
         if (!finalBody.trim()) return toastError('Empty content', 'Write something first.');
@@ -455,8 +443,8 @@ export const CoverLetterBuilderPage = () => {
     };
 
     const aiWriteFull = async () => {
-        if (subscriptionTier === 'Free') {
-            toastError('Upgrade required', 'Cover letter AI is available on paid plans. Upgrade to generate tailored drafts.');
+        if (!hasCoverLetterAiAccess) {
+            toastError('Upgrade required', 'Cover letter AI is available on Basics and above.');
             return;
         }
         if (!role || !company) return toastError('Missing info', 'Role and company are required.');
@@ -685,15 +673,15 @@ export const CoverLetterBuilderPage = () => {
                         <Pencil className="w-4 h-4 mr-2" />
                         {inlineEdit ? 'Live Edit: On' : 'Enable Live Edit'}
                     </Button>
-                    <Button variant="outline" onClick={aiPolish} disabled={aiLoading} className="product-outline-button h-11 rounded-xl transition-all hover:border-[#ffd700]/60 hover:bg-[#fff2b3]">
+                    <Button variant="outline" onClick={aiPolish} disabled={aiLoading || loadingTier} className="product-outline-button h-11 rounded-xl transition-all hover:border-[#ffd700]/60 hover:bg-[#fff2b3]">
                         <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
                         {aiLoading ? 'Polishing' : 'AI Polish'}
-                        {subscriptionTier === 'Free' && <Lock className="ml-2 w-3 h-3 opacity-50" />}
+                        {!hasCoverLetterAiAccess && <Lock className="ml-2 w-3 h-3 opacity-50" />}
                     </Button>
-                    <Button variant="outline" onClick={aiWriteFull} disabled={aiLoading} className="product-outline-button h-11 rounded-xl transition-all hover:border-[#ffd700]/60 hover:bg-[#fff2b3]">
+                    <Button variant="outline" onClick={aiWriteFull} disabled={aiLoading || loadingTier} className="product-outline-button h-11 rounded-xl transition-all hover:border-[#ffd700]/60 hover:bg-[#fff2b3]">
                         <Wand2 className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
                         {aiLoading ? 'Writing' : 'AI Generate'}
-                        {subscriptionTier === 'Free' && <Lock className="ml-2 w-3 h-3 opacity-50" />}
+                        {!hasCoverLetterAiAccess && <Lock className="ml-2 w-3 h-3 opacity-50" />}
                     </Button>
                     <Button variant="outline" onClick={() => setExportOpen(true)} className="product-outline-button h-11 rounded-xl transition-all hover:border-[#ffd700]/60 hover:bg-[#fff2b3]">
                         <Download className="w-4 h-4 mr-2" />
@@ -701,6 +689,16 @@ export const CoverLetterBuilderPage = () => {
                     </Button>
                 </div>
             </div>
+
+            {!loadingTier && !hasCoverLetterAiAccess && (
+                <UpgradePrompt
+                    compact
+                    requiredTier='Basics'
+                    showPricing={false}
+                    title='Cover Letter AI'
+                    description='Unlock AI polish and full tailored generation while keeping manual editing and exports on Free.'
+                />
+            )}
 
             {/* Main Layout */}
             <div id="cover-main-layout" className="grid gap-6 grid-cols-1 xl:grid-cols-[460px_minmax(0,1fr)] max-w-[1800px] mx-auto w-full">

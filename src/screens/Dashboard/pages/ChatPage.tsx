@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useToast } from "../../../components/ui/toast-provider";
+import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
+import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 
 // Custom styles for the new design
 const customStyles = `
@@ -336,56 +338,11 @@ export const ChatPage = () => {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [subscriptionTier, setSubscriptionTier] = useState<
-    "Free" | "Basics" | "Pro" | "Ultimate" | null
-  >(null);
-  const [loadingTier, setLoadingTier] = useState(true);
   const supabase = useMemo(() => createClient(), []);
+  const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const [attachment, setAttachment] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Check subscription tier access
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data: userData } = await supabase.auth.getUser();
-        const userId = userData?.user?.id;
-        if (!userId) {
-          setSubscriptionTier("Free");
-          setLoadingTier(false);
-          return;
-        }
-
-        // Try to get from active subscription first
-        const { data: subscription } = await supabase
-          .from("user_subscriptions")
-          .select("subscription_plans(name)")
-          .eq("user_id", userId)
-          .eq("status", "active")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
-
-        if (subscription && (subscription as any).subscription_plans?.name) {
-          setSubscriptionTier((subscription as any).subscription_plans.name);
-        } else {
-          // Fallback to profile subscription_tier
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("subscription_tier")
-            .eq("id", userId)
-            .single();
-
-          setSubscriptionTier(profileData?.subscription_tier || "Free");
-        }
-      } catch (error) {
-        console.error("Error fetching subscription tier:", error);
-        setSubscriptionTier("Free");
-      } finally {
-        setLoadingTier(false);
-      }
-    })();
-  }, [supabase]);
+  const hasChatAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
 
   // Chat logic
   const chat = useChat({ api: "/api/ai-chat" });
@@ -708,8 +665,7 @@ export const ChatPage = () => {
       )}
 
       {/* Access Gate */}
-      {!loadingTier &&
-        (subscriptionTier === "Free" || subscriptionTier === "Basics") && (
+      {!loadingTier && !hasChatAccess && (
           <div className='flex items-center justify-center h-full w-full p-4 sm:p-6 z-40'>
             <UpgradePrompt
               title='AI Chat Assistant'
@@ -750,15 +706,14 @@ export const ChatPage = () => {
                   description: "Get faster responses and dedicated assistance",
                 },
               ]}
-              requiredTier='Pro/Ultimate'
+              requiredTier='Pro'
               icon={<MessageSquare className='h-12 w-12 text-brand' />}
             />
           </div>
         )}
 
       {/* Main Chat Interface */}
-      {!loadingTier &&
-        (subscriptionTier === "Pro" || subscriptionTier === "Ultimate") && (
+      {!loadingTier && hasChatAccess && (
           <>
             {/* Internal Sidebar for Chat History */}
             <aside

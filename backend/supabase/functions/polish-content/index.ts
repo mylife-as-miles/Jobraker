@@ -2,6 +2,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createGeminiClient, GEMINI_MODEL, createGeminiConfig } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import {
+  SubscriptionAccessError,
+  requireSubscriptionTier,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
 
 interface PolishContentRequest {
   content: string;
@@ -57,6 +62,7 @@ serve(async (req) => {
   }
 
   try {
+    await requireSubscriptionTier(req, "Basics", "AI writing tools");
     const { content, instruction } = await req.json();
 
     if (!content) {
@@ -82,6 +88,9 @@ serve(async (req) => {
     return new Response(JSON.stringify(parsed), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error: any) {
+    if (error instanceof SubscriptionAccessError) {
+      return subscriptionErrorResponse(error, corsHeaders);
+    }
     console.error("Error in polish-content:", error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }

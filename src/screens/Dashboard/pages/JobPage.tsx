@@ -21,6 +21,7 @@ import {
   Trash2,
   Target,
   TrendingUp,
+  Lock,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Switch } from "../../../components/ui/switch";
@@ -52,6 +53,8 @@ import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { AnimatedSVGBackground } from "../../../components/AnimatedSVGBackground";
+import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
+import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -96,8 +99,21 @@ type MatchContext = {
   profile?: Profile | null;
 };
 
-const fetchJobMatchInsights = async (jobs: Job[], context: MatchContext, onError?: (err: any) => void): Promise<Job[]> => {
+const fetchJobMatchInsights = async (
+  jobs: Job[],
+  context: MatchContext,
+  enabled: boolean,
+  onError?: (err: any) => void,
+): Promise<Job[]> => {
   if (jobs.length === 0) return jobs;
+  if (!enabled) {
+    return jobs.map((job) => ({
+      ...job,
+      matchScore: undefined,
+      matchBreakdown: undefined,
+      matchSummary: undefined,
+    }));
+  }
 
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -138,7 +154,6 @@ const fetchJobMatchInsights = async (jobs: Job[], context: MatchContext, onError
 
   } catch (err) {
     console.error("fetchJobMatchInsights error:", err);
-    if (onError) onError(err);
     if (onError) onError(err);
     return jobs; // Fallback to raw jobs if scoring fails
   }
@@ -524,9 +539,9 @@ export const JobPage = (): JSX.Element => {
     string | null
   >(null);
   const [jobToAutoApply, setJobToAutoApply] = useState<Job | null>(null);
-  const [subscriptionTier, setSubscriptionTier] = useState<
-    "Free" | "Basics" | "Pro" | "Ultimate"
-  >("Free");
+  const { subscriptionTier, loadingTier } = useSubscriptionTier();
+  const hasMatchScoreAccess = hasSubscriptionAccess(subscriptionTier, "Basics");
+  const hasAutoApplyAccess = hasSubscriptionAccess(subscriptionTier, "Basics");
 
   // AI Decision Boundary states
   const [evaluatingJob, setEvaluatingJob] = useState(false);
@@ -832,10 +847,11 @@ export const JobPage = (): JSX.Element => {
   const decorateJobsRef = useRef<(list: Job[]) => Promise<Job[]>>(async (list) => list);
 
   const decorateJobs = useCallback(
-    async (list: Job[]) => await fetchJobMatchInsights(list, matchContext, (err) => {
-      toastError("Match Insights Failed", "Could not fetch AI match scores. Showing basic results.");
-    }),
-    [matchContext, toastError],
+    async (list: Job[]) =>
+      await fetchJobMatchInsights(list, matchContext, hasMatchScoreAccess, () => {
+        toastError("Match Insights Failed", "Could not fetch AI match scores. Showing basic results.");
+      }),
+    [hasMatchScoreAccess, matchContext, toastError],
   );
 
   useEffect(() => {
@@ -1271,9 +1287,13 @@ export const JobPage = (): JSX.Element => {
 
   const openAutoApplyFlow = useCallback(() => {
     setAutoApplyStep(1);
-    setResumeDialogOpen(true);
     setAiEvaluation(null);
     setForceSubmit(false);
+    if (!hasAutoApplyAccess) {
+      setResumeDialogOpen(true);
+      return;
+    }
+    setResumeDialogOpen(true);
     loadCoverLetterLibrary();
     setSelectedResumeId((prev) => {
       if (prev && resumes?.some((r: any) => r.id === prev)) return prev;
@@ -1283,7 +1303,7 @@ export const JobPage = (): JSX.Element => {
       }
       return null;
     });
-  }, [resumes, loadCoverLetterLibrary]);
+  }, [hasAutoApplyAccess, resumes, loadCoverLetterLibrary]);
 
   useEffect(() => {
     if (!resumeDialogOpen) return;
@@ -1293,6 +1313,17 @@ export const JobPage = (): JSX.Element => {
   // Apply all jobs by delegating to automation workflow, then prune applied rows
   const applyAllJobs = useCallback(async (saveAsDraftOnly: boolean = false) => {
     if (applyingAll) return;
+    if (!hasAutoApplyAccess) {
+      setError({
+        message: "Auto apply requires a Basics, Pro, or Ultimate subscription.",
+        link: "/dashboard/billing",
+      });
+      safeInfo(
+        "Upgrade required",
+        "Upgrade to Basics or above to unlock auto apply.",
+      );
+      return;
+    }
     const targetJobs = jobToAutoApply ? [jobToAutoApply] : jobs;
     if (!targetJobs.length) return;
 
@@ -1661,6 +1692,7 @@ export const JobPage = (): JSX.Element => {
     }
   }, [
     applyingAll,
+    hasAutoApplyAccess,
     jobs,
     profileSnapshot,
     selectedCoverLetter,
@@ -1671,46 +1703,8 @@ export const JobPage = (): JSX.Element => {
     safeInfo,
     setError,
     forceSubmit,
-    aiEvaluation
+    aiEvaluation,
   ]);
-
-  // Fetch subscription tier
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data: userData } = await supabase.auth.getUser();
-        const userId = userData?.user?.id;
-        if (!userId) return;
-
-        // Try to get from active subscription first
-        const { data: subscription } = await supabase
-          .from("user_subscriptions")
-          .select("subscription_plans(name)")
-          .eq("user_id", userId)
-          .eq("status", "active")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
-
-        if (subscription && (subscription as any).subscription_plans?.name) {
-          setSubscriptionTier((subscription as any).subscription_plans.name);
-        } else {
-          // Fallback to profile subscription_tier
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("subscription_tier")
-            .eq("id", userId)
-            .single();
-
-          if (profileData?.subscription_tier) {
-            setSubscriptionTier(profileData.subscription_tier);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching subscription tier:", error);
-      }
-    })();
-  }, [supabase]);
 
   // Unified effect for initial load and real-time updates
   useEffect(() => {
@@ -1792,7 +1786,9 @@ export const JobPage = (): JSX.Element => {
       resumes.length === 0 ||
       Boolean(selectedResumeId));
   const autoApplyPrimaryDisabled =
-    autoApplyStep === 1 ? !canAdvanceFromStepOne : !canLaunchAutoApply;
+    loadingTier ||
+    !hasAutoApplyAccess ||
+    (autoApplyStep === 1 ? !canAdvanceFromStepOne : !canLaunchAutoApply);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const clampedPage = Math.min(Math.max(1, currentPage), totalPages);
   const startIdx = (clampedPage - 1) * pageSize;
@@ -2070,6 +2066,7 @@ export const JobPage = (): JSX.Element => {
                     title='Auto apply all visible jobs'
                     disabled={
                       applyingAll ||
+                      loadingTier ||
                       queueStatus !== "ready" ||
                       jobs.length === 0
                     }
@@ -2086,6 +2083,9 @@ export const JobPage = (): JSX.Element => {
                         <Loader2 className='w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin' />
                       ) : (
                         <Briefcase className='w-3.5 h-3.5 sm:w-4 sm:h-4' />
+                      )}
+                      {!hasAutoApplyAccess && !applyingAll && (
+                        <Lock className='w-3.5 h-3.5 sm:w-4 sm:h-4 opacity-60' />
                       )}
                       <span className='hidden sm:inline'>
                         {applyingAll
@@ -3322,6 +3322,9 @@ export const JobPage = (): JSX.Element => {
                                   >
                                     <Briefcase className='w-4 h-4' />
                                     Auto Apply
+                                    {!hasAutoApplyAccess && (
+                                      <Lock className='w-3 h-3 opacity-60' />
+                                    )}
                                   </Button>
                                 </div>
                               </div>
@@ -3365,8 +3368,8 @@ export const JobPage = (): JSX.Element => {
                         </div>
                       </Card>
 
-                      {/* AI Match Score Card - Gated for Pro/Ultimate */}
-                      {subscriptionTier === "Free" ? (
+                      {/* AI Match Score Card - Gated for Basics+ */}
+                      {!hasMatchScoreAccess ? (
                         <UpgradePrompt
                           title='AI Match Score Analysis'
                           description='Get detailed compatibility insights powered by advanced AI to find your perfect job match.'
@@ -3390,7 +3393,7 @@ export const JobPage = (): JSX.Element => {
                                 "Get smart recommendations for improvement",
                             },
                           ]}
-                          requiredTier='Pro/Ultimate'
+                          requiredTier='Basics'
                           icon={
                             <Sparkles className='h-12 w-12 text-[#1dff00]' />
                           }
@@ -3615,6 +3618,23 @@ export const JobPage = (): JSX.Element => {
                   )}
                 </div>
               </div>
+
+              {loadingTier ? (
+                <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-8 text-center'>
+                  <div className='mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-[#1dff00]' />
+                  <p className='text-sm text-foreground/70'>
+                    Checking auto apply access...
+                  </p>
+                </div>
+              ) : !hasAutoApplyAccess ? (
+                <UpgradePrompt
+                  compact
+                  requiredTier='Basics'
+                  showPricing={false}
+                  title='Auto Apply Suite'
+                  description='Unlock governed auto apply, AI draft generation, and AI decision checks with Basics or above.'
+                />
+              ) : null}
 
               <div className='flex flex-col sm:flex-row gap-3'>
                 {autoApplySteps.map((step) => {
@@ -4418,6 +4438,9 @@ export const JobPage = (): JSX.Element => {
                           >
                             <Briefcase className='w-4 h-4' />
                             Auto Apply
+                            {!hasAutoApplyAccess && (
+                              <Lock className='w-3 h-3 opacity-60' />
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -4440,8 +4463,8 @@ export const JobPage = (): JSX.Element => {
                   </div>
                 </Card>
 
-                {/* AI Match Score Card - Mobile - Gated for Pro/Ultimate */}
-                {subscriptionTier === "Free" ? (
+                {/* AI Match Score Card - Mobile - Gated for Basics+ */}
+                {!hasMatchScoreAccess ? (
                   <UpgradePrompt
                     title='AI Match Score Analysis'
                     description='Get detailed compatibility insights powered by advanced AI to find your perfect job match.'
@@ -4464,7 +4487,7 @@ export const JobPage = (): JSX.Element => {
                           "Get smart recommendations for improvement",
                       },
                     ]}
-                    requiredTier='Pro/Ultimate'
+                    requiredTier='Basics'
                     icon={<Sparkles className='h-12 w-12 text-[#1dff00]' />}
                     compact={true}
                   />

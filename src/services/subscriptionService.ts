@@ -25,7 +25,7 @@ export class SubscriptionService {
         price: plan.price,
         currency: plan.currency,
         billingCycle: plan.billing_cycle,
-        creditsPerCycle: plan.credits_per_cycle,
+        creditsPerCycle: plan.credits_per_month ?? plan.credits_per_cycle ?? 0,
         maxUsers: plan.max_users,
         features: plan.features || [],
         isActive: plan.is_active,
@@ -84,7 +84,8 @@ export class SubscriptionService {
           price: data.plan.price,
           currency: data.plan.currency,
           billingCycle: data.plan.billing_cycle,
-          creditsPerCycle: data.plan.credits_per_cycle,
+          creditsPerCycle:
+            data.plan.credits_per_month ?? data.plan.credits_per_cycle ?? 0,
           maxUsers: data.plan.max_users,
           features: data.plan.features || [],
           isActive: data.plan.is_active,
@@ -110,7 +111,7 @@ export class SubscriptionService {
       // Get the plan to determine billing cycle
       const { data: plan, error: planError } = await supabase
         .from('subscription_plans')
-        .select('billing_cycle, credits_per_cycle')
+        .select('billing_cycle, credits_per_month, credits_per_cycle')
         .eq('id', planId)
         .single();
 

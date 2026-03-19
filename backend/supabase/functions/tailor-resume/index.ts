@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createGeminiClient, GEMINI_MODEL, createGeminiConfig } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import {
+  SubscriptionAccessError,
+  requireSubscriptionTier,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
 
 function buildPrompt(jobDescription: string, resumeText: string, instructions?: string): string {
   return `You are an expert executive resume writer. 
@@ -34,6 +39,7 @@ serve(async (req) => {
   }
 
   try {
+    await requireSubscriptionTier(req, "Basics", "AI resume optimization");
     const { jobDescription, resumeText, instructions } = await req.json();
 
     if (!jobDescription || !resumeText) {
@@ -63,6 +69,9 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
+    if (error instanceof SubscriptionAccessError) {
+      return subscriptionErrorResponse(error, corsHeaders);
+    }
     console.error("Error in tailor-resume:", error);
     return new Response(JSON.stringify({ error: error.message }), { 
       status: 500, 

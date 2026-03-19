@@ -6,9 +6,13 @@ type Granularity = 'day' | 'week' | 'month';
 
 export type DataPoint = { name: string; value: number; timestamp: number };
 
-export function useAnalyticsData(period: Period, opts?: { granularity?: Granularity }) {
+export function useAnalyticsData(
+  period: Period,
+  opts?: { granularity?: Granularity; enabled?: boolean },
+) {
   const supabase = useMemo(() => createClient(), []);
   const granularity: Granularity = opts?.granularity ?? 'day';
+  const enabled = opts?.enabled ?? true;
   const [chartDataApps, setChartDataApps] = useState<DataPoint[]>([]);
   const [chartDataJobs, setChartDataJobs] = useState<DataPoint[]>([]);
   const [barData, setBarData] = useState<{ name: string; value: number; color: string }[]>([]);
@@ -157,6 +161,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
   };
 
   const refresh = (options?: { bypassCache?: boolean }) => {
+    if (!enabled) return;
     refreshRequestedRef.current = true;
     loadData(options);
   };
@@ -167,6 +172,21 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
     const controller = new AbortController();
     abortRef.current = controller;
     try {
+      if (!enabled) {
+        setError(null);
+        setChartDataApps([]);
+        setChartDataJobs([]);
+        setBarData([]);
+        setDonutData([]);
+        setMatchBarData([]);
+        setSourceBreakdown([]);
+        setMetrics({ applications: 0, interviews: 0, sources: 0, jobsFound: 0, avgMatchScore: 0 });
+        setComparisons({ applicationsDeltaPct: 0, interviewsDeltaPct: 0, jobsFoundDeltaPct: 0, avgMatchDelta: 0 });
+        setLastUpdated(null);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
       const { data: { user } } = await supabase.auth.getUser();
@@ -420,6 +440,13 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
   }
 
   useEffect(() => {
+    if (!enabled) {
+      abortRef.current?.abort();
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     loadData();
 
     // Realtime updates for changes to user's rows
@@ -441,7 +468,7 @@ export function useAnalyticsData(period: Period, opts?: { granularity?: Granular
       abortRef.current?.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase, range.start, range.end, granularity]);
+  }, [enabled, supabase, range.start, range.end, granularity]);
 
   return { chartDataApps, chartDataJobs, barData, sourceBreakdown, donutData, matchBarData, metrics, comparisons, loading, error, lastUpdated, refresh, exportCSV, exportJSON, snapshot } as const;
 }

@@ -1,10 +1,14 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createGeminiClient, GEMINI_MODEL, GEMINI_TOOLS } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { fetchUserContext, formatUserContextForPrompt } from "../_shared/user-context.ts";
 import { APP_INTERFACE_GUIDE } from "../_shared/app-map.ts";
+import {
+  SubscriptionAccessError,
+  requireSubscriptionTier,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
 
 console.log("Hello from ai-chat!");
 
@@ -62,26 +66,16 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
     const { messages, system, mode = "ask" } = await req.json();
+    const { authHeader, user } = await requireSubscriptionTier(
+      req,
+      "Pro",
+      "AI chat assistant",
+    );
 
     const ai = createGeminiClient();
-
-    // Get user context if authenticated
-    let userContext = null;
-    let userId = null;
-    if (authHeader) {
-      const supabase = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: authHeader } } }
-      );
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        userId = user.id;
-        userContext = await fetchUserContext(user.id, authHeader);
-      }
-    }
+    const userId = user.id;
+    const userContext = await fetchUserContext(user.id, authHeader);
 
     // Build system instruction based on mode
     let systemInstruction = system || "";
@@ -251,6 +245,9 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
+    if (error instanceof SubscriptionAccessError) {
+      return subscriptionErrorResponse(error, corsHeaders);
+    }
     console.error("AI Chat Error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

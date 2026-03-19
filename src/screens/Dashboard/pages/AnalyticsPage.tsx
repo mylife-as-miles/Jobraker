@@ -5,6 +5,9 @@ import { Button } from '../../../components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { AnalyticsContent } from '../../../components/analytics/AnalyticsContent';
 import { useAnalyticsData } from '../../../hooks/useAnalyticsData';
+import { UpgradePrompt } from '../../../components/UpgradePrompt';
+import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
+import { hasSubscriptionAccess } from '@/lib/subscriptionAccess';
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 type Granularity = 'day' | 'week' | 'month';
@@ -12,7 +15,12 @@ type Granularity = 'day' | 'week' | 'month';
 export function AnalyticsPage() {
   const [period, setPeriod] = useState<Period>('30d');
   const [granularity, setGranularity] = useState<Granularity>((localStorage.getItem('analytics:granularity') as Granularity) || 'day');
-  const analytics = useAnalyticsData(period, { granularity });
+  const { subscriptionTier, loadingTier } = useSubscriptionTier();
+  const hasAnalyticsAccess = hasSubscriptionAccess(subscriptionTier, 'Pro');
+  const analytics = useAnalyticsData(period, {
+    granularity,
+    enabled: hasAnalyticsAccess,
+  });
 
   // Initialize from URL (deep links inside dashboard context)
   useEffect(() => {
@@ -73,6 +81,24 @@ export function AnalyticsPage() {
       <div className='fixed bottom-0 left-0 h-96 w-96 bg-foreground/5 rounded-full blur-3xl opacity-20 pointer-events-none -z-10'></div>
 
       <div className='relative space-y-6 p-4 sm:p-6 lg:p-8 mx-auto max-w-7xl'>
+        {loadingTier ? (
+          <Card className='rounded-2xl border border-foreground/10 bg-foreground/5 p-10 text-center'>
+            <div className='mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-[#1dff00]' />
+            <p className='text-sm text-foreground/70'>Loading analytics access...</p>
+          </Card>
+        ) : !hasAnalyticsAccess ? (
+          <UpgradePrompt
+            title='Advanced Analytics'
+            description='Unlock conversion trends, exports, match-score reporting, and deeper pipeline insight.'
+            requiredTier='Pro'
+            features={[
+              { title: 'Pipeline performance', description: 'Track applications, interviews, and source quality over time.' },
+              { title: 'Exports', description: 'Download your analytics as CSV or JSON.' },
+              { title: 'Match-score reporting', description: 'Compare where your strongest opportunities are coming from.' },
+            ]}
+          />
+        ) : (
+          <>
         {/* Page Header */}
         <div className='space-y-1 mb-6 sm:mb-8'>
           <h1 className='text-3xl sm:text-4xl font-bold text-foreground bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text'>
@@ -196,6 +222,8 @@ export function AnalyticsPage() {
         <div id='analytics-main-card' data-tour='analytics-main-card'>
           <AnalyticsContent period={period} data={analytics} />
         </div>
+          </>
+        )}
       </div>
     </div>
   );

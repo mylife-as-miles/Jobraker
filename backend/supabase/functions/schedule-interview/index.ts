@@ -1,7 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.6"
 import { corsHeaders } from "../_shared/cors.ts"
 import { generateGeminiContent } from "../_shared/gemini.ts";
+import {
+  SubscriptionAccessError,
+  requireSubscriptionTier,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
 
 export const buildPrompt = (emailText: string, applicantName: string, companyName: string): string => {
   return `You are an AI Interview Scheduling Assistant helping "${applicantName}" respond to a recruiter from "${companyName}".
@@ -30,19 +34,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+    await requireSubscriptionTier(
+      req,
+      "Pro",
+      "Interview scheduling assistant",
     );
-
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
 
     const { emailText, applicantName, companyName } = await req.json();
 
@@ -64,6 +60,9 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
+    if (error instanceof SubscriptionAccessError) {
+      return subscriptionErrorResponse(error, corsHeaders);
+    }
     console.error('Error generating schedule response:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -1,5 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import {
+  SubscriptionAccessError,
+  requireSubscriptionTier,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
 
 interface JobData {
   title: string;
@@ -200,6 +205,7 @@ serve(async (req) => {
   }
 
   try {
+    await requireSubscriptionTier(req, "Basics", "AI match score");
     const { jobs, context } = await req.json();
 
     if (!Array.isArray(jobs) || !context) {
@@ -243,6 +249,9 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
+    if (error instanceof SubscriptionAccessError) {
+      return subscriptionErrorResponse(error, corsHeaders);
+    }
     console.error("Match Score Error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,

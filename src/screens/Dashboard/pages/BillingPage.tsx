@@ -48,32 +48,58 @@ const defaultPlans: SubscriptionPlan[] = [
     name: 'Free',
     price: 0,
     credits_per_month: 10,
-    description: 'Perfect for trying out JobRaker',
-    features: ['10 AI Job Applications/mo', 'Basic Resume Parsing', 'Standard Support']
+    description: 'Core job-search tools for getting started',
+    features: [
+      'Job search',
+      'Resume builder and storage',
+      'Resume import and parsing',
+      'Cover letter builder',
+      'Application tracking',
+      'Email notifications',
+    ]
   },
   {
     id: 'basics',
     name: 'Basics',
-    price: 19,
-    credits_per_month: 100,
-    description: 'For active job seekers',
-    features: ['100 AI Job Applications/mo', 'Advanced Resume Optimization', 'Priority Queue']
+    price: 14,
+    credits_per_month: 200,
+    description: 'AI-assisted application prep for active job seekers',
+    features: [
+      'Everything in Free',
+      'AI match score',
+      'AI resume optimization',
+      'AI cover letter generation and polish',
+      'Auto apply suite',
+      '200 monthly credits',
+    ]
   },
   {
     id: 'pro',
     name: 'Pro',
     price: 49,
-    credits_per_month: 500,
-    description: 'Power through your job search',
-    features: ['500 AI Job Applications/mo', 'Cover Letter Generation', 'LinkedIn Optimization', '24/7 Priority Support']
+    credits_per_month: 1000,
+    description: 'Advanced coaching and analytics for serious search velocity',
+    features: [
+      'Everything in Basics',
+      'AI chat assistant',
+      'Advanced analytics',
+      'Interview scheduling assistant',
+      '1,000 monthly credits',
+    ]
   },
   {
     id: 'ultimate',
     name: 'Ultimate',
-    price: 99,
-    credits_per_month: 2000,
-    description: 'Maximum automation & reach',
-    features: ['2000 AI Job Applications/mo', 'Personal Career Agent', 'Interview Prep AI', 'Dedicated Account Manager']
+    price: 199,
+    credits_per_month: 5000,
+    description: 'Full automation and integration access for power users',
+    features: [
+      'Everything in Pro',
+      'Gmail integration',
+      'Custom integrations',
+      'Priority support',
+      '5,000 monthly credits',
+    ]
   }
 ];
 
@@ -137,7 +163,7 @@ export const BillingPage = () => {
         .from('subscription_plans')
         .select('*')
         .eq('is_active', true)
-        .order('price', { ascending: true });
+        .order('sort_order', { ascending: true });
 
       if (plansData && plansData.length > 0) {
         setPlans(plansData);
@@ -214,6 +240,8 @@ export const BillingPage = () => {
 
   const getTierIcon = (tier: string) => {
     switch (tier) {
+      case 'Basics':
+        return <Sparkles className="w-5 h-5 text-[#1dff00]" />;
       case 'Pro':
         return <Zap className="w-5 h-5 text-blue-400" />;
       case 'Ultimate':
@@ -225,6 +253,8 @@ export const BillingPage = () => {
 
   const getTierGradient = (tier: string) => {
     switch (tier) {
+      case 'Basics':
+        return 'from-[#1dff00] via-[#5fff4a] to-[#b8ffb0]';
       case 'Pro':
         return 'from-blue-500 via-blue-600 to-blue-700';
       case 'Ultimate':
