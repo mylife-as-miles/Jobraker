@@ -77,11 +77,13 @@ Deno.serve({
 
     // Default domains (fallback if user settings not found)
     const defaultDomains = [
-      'remote.co',
-      'remotive.com',
-      'remoteok.com',
-      'jobicy.com',
-      'levels.fyi',
+      'remote.co', 'remotive.com', 'remoteok.com', 'jobicy.com', 
+      'levels.fyi', 'greenhouse.io', 'lever.co', 'wellfound.com',
+      'builtin.com', 'workingnomads.com', 'weworkremotely.com',
+      'flexjobs.com', 'cryptojobslist.com', 'otta.com', 'hired.com',
+      'dice.com', 'ycombinator.com', 'startup.jobs', 'nodesk.co',
+      'remoterocketship.com', 'jobspresso.com', 'talent.hubstaff.com',
+      'flexa.careers'
     ];
     
     // Blocklist: exclude problematic domains from search
@@ -158,66 +160,36 @@ Deno.serve({
 
     // Firecrawl search payload per API spec
     const firecrawlApiKey = await resolveFirecrawlApiKey();
-    const searchPayload: any = {
-      query: fullQuery,
-      limit,
-      sources: ['web'],
-      tbs,
-      ...(location ? { location } : {}),
-      scrapeOptions: {
-        onlyMainContent: true,
-        skipTlsVerification: true,
-        removeBase64Images: true,
-        blockAds: true,
-        proxy: "auto",
-        actions: [
-          { type: "wait", milliseconds: 1000 },
-          { type: "scroll", direction: "down", count: 2 }
-        ],
-        formats: [
-          // Include full content for better descriptions
-          "markdown",
-          "html",
-          {
-            type: "json",
-            // Use a JSON Schema to strongly type the output and allow the AI to infer missing fields
-            schema: {
-              type: "object",
-              properties: {
-                title: { type: "string" },
-                company: { type: "string" },
-                description: { type: "string" },
-                employment_type: { type: "string" },
-                experience_level: { type: "string" },
-                tags: { type: "array", items: { type: "string" } },
-                // Raw salary string if present
-                salary: { type: "string" },
-                // Structured salary fields when possible
-                salary_min: { type: "number" },
-                salary_max: { type: "number" },
-                salary_currency: { type: "string" },
-                location: { type: "string" },
-                deadline: { type: "string" },
-                apply_link: { type: "string" }
-              }
-            },
-            prompt: "You are extracting structured job posting data. If the page does not explicitly state a field, infer it conservatively from the content. Return concise values. For salary, prefer annual ranges. Populate: title, company, description (the full, complete job description, do not summarize), employment_type (e.g., Full-time, Contract, Internship), experience_level (e.g., Junior, Mid, Senior), tags (skills and technologies), salary, salary_min, salary_max, salary_currency (USD/GBP/EUR/CAD/AUD), location, deadline, apply_link."
-          },
-          {
-            type: "screenshot",
-            fullPage: false,
-            quality: 80
-          }
-        ]
-      }
+
+    const performSearch = async (query: string, timeFilter?: string) => {
+      const payload: any = {
+        ...searchPayload,
+        query: query,
+        tbs: timeFilter
+      };
+      if (!timeFilter) delete payload.tbs;
+      
+      console.log(`[jobs-search] Calling Firecrawl with query: ${query} (tbs: ${timeFilter || 'none'})...`);
+      return await withRetry(() => firecrawlFetch('/search', firecrawlApiKey, payload, userId), 1, 1000);
     };
 
-    console.log('jobs-search.firecrawl_payload', { payload: searchPayload, user_id: userId });
-
-    // Perform search
     let searchRes: any;
     try {
-      searchRes = await withRetry(() => firecrawlFetch('/search', firecrawlApiKey, searchPayload, userId), 2, 600);
+      // Primary search: Restricted domains, past month
+      searchRes = await performSearch(fullQuery, tbs);
+      
+      // Fallback 1: Restricted domains, past 6 months
+      if (!searchRes?.data?.web?.length) {
+        console.log('[jobs-search] No results in past month, trying past 6 months...');
+        searchRes = await performSearch(fullQuery, 'qdr:m6');
+      }
+
+      // Fallback 2: General web search for remote jobs, past month
+      if (!searchRes?.data?.web?.length) {
+        console.log('[jobs-search] Still no results, trying general web search...');
+        const generalQuery = `${rawQuery} ${location || 'Remote'} jobs (hiring OR careers) -inurl:search`;
+        searchRes = await performSearch(generalQuery, tbs);
+      }
     } catch (e: any) {
       const msg = String(e?.message || '');
       if (e?.status === 429 || /Rate limit exceeded/i.test(msg)) {

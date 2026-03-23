@@ -59,8 +59,11 @@ Deno.serve(async (req) => {
     const defaultDomains = [
       'remote.co', 'remotive.com', 'remoteok.com', 'jobicy.com', 
       'levels.fyi', 'greenhouse.io', 'lever.co', 'wellfound.com',
-      'builtin.com', 'workingnomads.com', 'weuowkremotely.com',
-      'flexjobs.com', 'cryptojobslist.com'
+      'builtin.com', 'workingnomads.com', 'weworkremotely.com',
+      'flexjobs.com', 'cryptojobslist.com', 'otta.com', 'hired.com',
+      'dice.com', 'ycombinator.com', 'startup.jobs', 'nodesk.co',
+      'remoterocketship.com', 'jobspresso.com', 'talent.hubstaff.com',
+      'flexa.careers'
     ];
     const blocked = new Set(['techsolutions.com']);
     let domainList: string[] = defaultDomains;
