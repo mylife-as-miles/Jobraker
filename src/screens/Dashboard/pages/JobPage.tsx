@@ -2311,7 +2311,7 @@ export const JobPage = (): JSX.Element => {
               )}
             </div>
 
-            {queueStatus === "ready" && total > 0 && (
+            {queueStatus === "ready" && total > 0 && !incrementalMode && (
               <div className='hidden lg:grid grid-cols-[auto,1fr,auto] items-center gap-3 px-3 py-2 text-xs uppercase tracking-wider text-[#1dff00]/60 font-semibold bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border border-[#1dff00]/10 rounded-xl'>
                 <span className='pl-2'>Role</span>
                 <div className='grid grid-cols-3 gap-2'>
