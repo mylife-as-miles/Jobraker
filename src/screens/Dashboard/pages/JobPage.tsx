@@ -2565,7 +2565,7 @@ export const JobPage = (): JSX.Element => {
               </Card>
             )}
 
-            {queueStatus === "empty" && (
+            {queueStatus === "empty" && !incrementalMode && (
               <div className='relative min-h-[600px] flex items-center justify-center py-12'>
                 {/* Ambient Background Effects */}
                 <div className='absolute inset-0 overflow-hidden rounded-3xl'>
