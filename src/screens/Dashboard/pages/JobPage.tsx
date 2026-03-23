@@ -806,7 +806,7 @@ export const JobPage = (): JSX.Element => {
   );
 
   const [stepIndex, setStepIndex] = useState(0);
-  const steps = useMemo(() => ["Searching Web", "Saving Results"], []);
+  const steps = useMemo(() => ["Searching Web", "Saving Results", "Finalizing List"], []);
   const autoApplySteps = useMemo(
     () => [
       {
@@ -1241,11 +1241,25 @@ export const JobPage = (): JSX.Element => {
           }
         }
 
-        setStepIndex(1); // Complete: Saving Results
+        setStepIndex(1); // Stage 1: Saving Results
         setInsertedThisRun(inserted);
 
-        // Refresh job list
-        await fetchJobQueue();
+        // Transition to Finalizing
+        if (inserted > 0) {
+          // Poll for results if we know we inserted some, but fetch returns empty
+          let currentJobs = await fetchJobQueue();
+          if (currentJobs.length === 0) {
+            // Wait 1.5s and retry once
+            await new Promise((r) => setTimeout(r, 1500));
+            currentJobs = await fetchJobQueue();
+          }
+        } else {
+          await fetchJobQueue();
+        }
+
+        setStepIndex(2); // Stage 2: Finalizing List
+        // Brief pause for visual closure
+        await new Promise((r) => setTimeout(r, 800));
 
         setIncrementalMode(false);
         safeInfo(
@@ -2179,7 +2193,7 @@ export const JobPage = (): JSX.Element => {
           </div>
         </div>
 
-        {queueStatus === "populating" && (
+        {(queueStatus === "populating" || incrementalMode) && (
           <LoadingBanner
             subtitle={`Streaming results… ${currentSource ? `Source: ${currentSource}` : ""}`}
             steps={steps}
@@ -2264,9 +2278,9 @@ export const JobPage = (): JSX.Element => {
                     d='M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z'
                   />
                 </svg>
-                {queueStatus === "loading" && "Loading results..."}
-                {queueStatus === "populating" && "Building your results..."}
-                {(queueStatus === "ready" || queueStatus === "empty") && (
+                {queueStatus === "loading" && !incrementalMode && "Loading results..."}
+                {(queueStatus === "populating" || incrementalMode) && "Building your results..."}
+                {(queueStatus === "ready" || queueStatus === "empty") && !incrementalMode && (
                   <>
                     <span>{total} Jobs Found</span>
                     {total > 0 && (
@@ -2277,7 +2291,7 @@ export const JobPage = (): JSX.Element => {
                   </>
                 )}
               </h2>
-              {(queueStatus === "ready" || queueStatus === "empty") && (
+              {(queueStatus === "ready" || queueStatus === "empty") && !incrementalMode && (
                 <div className='hidden sm:flex items-center gap-2'>
                   <span className='text-xs text-foreground/50 font-medium'>
                     Sort
@@ -2308,7 +2322,7 @@ export const JobPage = (): JSX.Element => {
               </div>
             )}
 
-            {queueStatus === "loading" && (
+            {queueStatus === "loading" && !incrementalMode && (
               <div className='space-y-4'>
                 <div className='grid gap-4'>
                   {Array.from({ length: pageSize }).map((_, i) => (
@@ -2349,7 +2363,7 @@ export const JobPage = (): JSX.Element => {
                 </div>
               </div>
             )}
-            {queueStatus === "populating" && (
+            {(queueStatus === "populating" || incrementalMode) && (
               <div className='space-y-5'>
                 <Card className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-background via-background/98 to-background/95 p-6 sm:p-7'>
                   <motion.div
