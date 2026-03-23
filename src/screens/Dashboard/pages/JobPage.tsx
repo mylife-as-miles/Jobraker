@@ -456,7 +456,7 @@ const getCompanyLogoUrl = (
       sourceUrl ||
       `https://www.${companyName.toLowerCase().replace(/\s/g, "")}.com`,
     ).hostname;
-    return `https://logo.clearbit.com/${domain}`;
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
   } catch {
     return undefined;
   }
@@ -2943,7 +2943,7 @@ export const JobPage = (): JSX.Element => {
                                 "";
                               const host = getHost(href);
                               const ico = host
-                                ? `https://icons.duckduckgo.com/ip3/${host}.ico`
+                                ? `https://www.google.com/s2/favicons?domain=${host}&sz=64`
                                 : "";
                               if (!host) return null;
                               return (
@@ -3152,7 +3152,7 @@ export const JobPage = (): JSX.Element => {
                           ? getHost(primaryHref)
                           : "";
                         const ico = siteHost
-                          ? `https://icons.duckduckgo.com/ip3/${siteHost}.ico`
+                          ? `https://www.google.com/s2/favicons?domain=${siteHost}&sz=64`
                           : "";
                         const employmentType =
                           (job as any)?.employment_type ??
@@ -3474,9 +3474,8 @@ export const JobPage = (): JSX.Element => {
                                     ? s
                                     : s?.url || s?.source || "";
                                 if (!href) return null;
-                                const host = getHost(href);
                                 const ico = host
-                                  ? `https://icons.duckduckgo.com/ip3/${host}.ico`
+                                  ? `https://www.google.com/s2/favicons?domain=${host}&sz=64`
                                   : "";
                                 return (
                                   <li
@@ -4270,7 +4269,7 @@ export const JobPage = (): JSX.Element => {
                     j.source_id;
                   const siteHost = primaryHref ? getHost(primaryHref) : "";
                   const ico = siteHost
-                    ? `https://icons.duckduckgo.com/ip3/${siteHost}.ico`
+                    ? `https://www.google.com/s2/favicons?domain=${siteHost}&sz=64`
                     : "";
                   const employmentType =
                     (j as any)?.employment_type ??
@@ -4561,9 +4560,8 @@ export const JobPage = (): JSX.Element => {
                               ? s
                               : s?.url || s?.source || "";
                           if (!href) return null;
-                          const host = getHost(href);
                           const ico = host
-                            ? `https://icons.duckduckgo.com/ip3/${host}.ico`
+                            ? `https://www.google.com/s2/favicons?domain=${host}&sz=64`
                             : "";
                           return (
                             <li
