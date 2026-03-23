@@ -56,7 +56,12 @@ Deno.serve(async (req) => {
     // --- Search Logic (Ported from process-job-search) ---
 
     // 1. Domain allowlist logic
-    const defaultDomains = ['remote.co', 'remotive.com', 'remoteok.com', 'jobicy.com', 'levels.fyi', 'greenhouse.io', 'lever.co'];
+    const defaultDomains = [
+      'remote.co', 'remotive.com', 'remoteok.com', 'jobicy.com', 
+      'levels.fyi', 'greenhouse.io', 'lever.co', 'wellfound.com',
+      'builtin.com', 'workingnomads.com', 'weuowkremotely.com',
+      'flexjobs.com', 'cryptojobslist.com'
+    ];
     const blocked = new Set(['techsolutions.com']);
     let domainList: string[] = defaultDomains;
 
@@ -75,21 +80,39 @@ Deno.serve(async (req) => {
     ].filter(Boolean).join(' ');
 
     const firecrawlApiKey = await resolveFirecrawlApiKey();
-    const searchPayload: any = {
-      query: fullQuery,
-      limit: limit,
-      sources: ['web'],
-      tbs: tbs,
-      scrapeOptions: { formats: ["markdown", "json"] }
+    
+    const performSearch = async (query: string, timeFilter?: string) => {
+      const payload: any = {
+        query: query,
+        limit: limit,
+        sources: ['web'],
+        scrapeOptions: { formats: ["markdown", "json"] }
+      };
+      if (timeFilter) payload.tbs = timeFilter;
+      
+      console.log(`[jobs-search] Calling Firecrawl with query: ${query}...`);
+      return await withRetry(() => firecrawlFetch('/search', firecrawlApiKey, payload, userId), 1, 1000);
     };
 
-    console.log('[jobs-search] Calling Firecrawl...');
     let searchRes: any;
     try {
-      searchRes = await withRetry(() => firecrawlFetch('/search', firecrawlApiKey, searchPayload, userId), 1, 1000);
+      // Primary search: Restricted domains, past month
+      searchRes = await performSearch(fullQuery, tbs);
+      
+      // Fallback 1: Restricted domains, past 6 months
+      if (!searchRes?.data?.web?.length) {
+        console.log('[jobs-search] No results in past month, trying past 6 months...');
+        searchRes = await performSearch(fullQuery, 'qdr:m6');
+      }
+
+      // Fallback 2: General web search for remote jobs, past month
+      if (!searchRes?.data?.web?.length) {
+        console.log('[jobs-search] Still no results, trying general web search...');
+        const generalQuery = `${rawQuery} ${location || 'Remote'} jobs (hiring OR careers) -inurl:search`;
+        searchRes = await performSearch(generalQuery, tbs);
+      }
     } catch (e: any) {
       console.error('[jobs-search] Firecrawl failed', e);
-      // Return empty instead of error so Agent doesn't crash
       return new Response(JSON.stringify({ success: true, jobs: [], message: "Search provider unavailable." }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
     }
 
@@ -100,9 +123,21 @@ Deno.serve(async (req) => {
         const url = item.url || item.metadata?.sourceURL;
         if (!url) return null;
         
+        let company = 'Unknown';
+        if (item.metadata?.title) {
+          // Try to extract company from title like "Job | Company" or "Job at Company"
+          const title = item.metadata.title;
+          const parts = title.split(/[|:-]| at /i);
+          if (parts.length > 1) {
+            company = parts[parts.length - 1].trim();
+          } else {
+            company = title.split(' - ')[0].trim(); // Try another common separator
+          }
+        }
+        
         return {
             title: item.title || rawQuery,
-            company: item.metadata?.title || 'Unknown', // Simplification
+            company: company,
             location: location || 'Remote',
             url: url,
             description: item.markdown || item.description || '',
