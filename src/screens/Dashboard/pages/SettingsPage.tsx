@@ -348,13 +348,16 @@ export const SettingsPage = (): JSX.Element => {
     Set<string>
   >(
     new Set([
-      "remote.co",
-      "remotive.com",
-      "remoteok.com",
-      "jobicy.com",
-      "levels.fyi",
+      "remote.co", "remotive.com", "remoteok.com", "jobicy.com",
+      "levels.fyi", "greenhouse.io", "lever.co", "wellfound.com",
+      "builtin.com", "workingnomads.com", "weworkremotely.com",
+      "flexjobs.com", "cryptojobslist.com", "otta.com", "hired.com",
+      "dice.com", "ycombinator.com", "startup.jobs", "nodesk.co",
+      "remoterocketship.com", "jobspresso.com", "talent.hubstaff.com",
+      "flexa.careers"
     ]),
   );
+
   const [loadingDomains, setLoadingDomains] = useState(true);
   const [savingDomains, setSavingDomains] = useState(false);
   const passwordCheck = useMemo(
@@ -774,13 +777,16 @@ export const SettingsPage = (): JSX.Element => {
             // Fallback: if column doesn't exist yet, use default values
             setEnabledDefaultDomains(
               new Set([
-                "remote.co",
-                "remotive.com",
-                "remoteok.com",
-                "jobicy.com",
-                "levels.fyi",
+                "remote.co", "remotive.com", "remoteok.com", "jobicy.com",
+                "levels.fyi", "greenhouse.io", "lever.co", "wellfound.com",
+                "builtin.com", "workingnomads.com", "weworkremotely.com",
+                "flexjobs.com", "cryptojobslist.com", "otta.com", "hired.com",
+                "dice.com", "ycombinator.com", "startup.jobs", "nodesk.co",
+                "remoterocketship.com", "jobspresso.com", "talent.hubstaff.com",
+                "flexa.careers"
               ]),
             );
+
           }
         }
       } catch (e: any) {
@@ -3500,47 +3506,31 @@ export const SettingsPage = (): JSX.Element => {
       case "job-sources":
         // Define the 5 default job source domains
         const defaultJobSourceDomains = [
-          {
-            id: "remote.co",
-            domain: "remote.co",
-            name: "Remote.co",
-            description: "Remote.co job board",
-            logo: remoteCoLogo,
-            color: "blue",
-          },
-          {
-            id: "remotive.com",
-            domain: "remotive.com",
-            name: "Remotive",
-            description: "Remotive job board",
-            logo: remotiveLogo,
-            color: "green",
-          },
-          {
-            id: "remoteok.com",
-            domain: "remoteok.com",
-            name: "RemoteOK",
-            description: "RemoteOK job board",
-            logo: remoteokLogo,
-            color: "purple",
-          },
-          {
-            id: "jobicy.com",
-            domain: "jobicy.com",
-            name: "Jobicy",
-            description: "Jobicy job board",
-            logo: jobicyLogo,
-            color: "orange",
-          },
-          {
-            id: "levels.fyi",
-            domain: "levels.fyi",
-            name: "Levels.fyi",
-            description: "Levels.fyi (salary/compensation data)",
-            logo: levelsFyiLogo,
-            color: "indigo",
-          },
+          { id: "remote.co", domain: "remote.co", name: "Remote.co", description: "Remote.co job board", logo: remoteCoLogo, color: "blue" },
+          { id: "remotive.com", domain: "remotive.com", name: "Remotive", description: "Remotive job board", logo: remotiveLogo, color: "green" },
+          { id: "remoteok.com", domain: "remoteok.com", name: "RemoteOK", description: "RemoteOK job board", logo: remoteokLogo, color: "purple" },
+          { id: "jobicy.com", domain: "jobicy.com", name: "Jobicy", description: "Jobicy job board", logo: jobicyLogo, color: "orange" },
+          { id: "levels.fyi", domain: "levels.fyi", name: "Levels.fyi", description: "Levels.fyi (salary/compensation data)", logo: levelsFyiLogo, color: "indigo" },
+          { id: "weworkremotely.com", domain: "weworkremotely.com", name: "We Work Remotely", description: "Remote work community", logo: "https://logo.clearbit.com/weworkremotely.com", color: "blue" },
+          { id: "wellfound.com", domain: "wellfound.com", name: "Wellfound (AngelList)", description: "Startup jobs platform", logo: "https://logo.clearbit.com/wellfound.com", color: "purple" },
+          { id: "otta.com", domain: "otta.com", name: "Otta", description: "Curated tech roles", logo: "https://logo.clearbit.com/otta.com", color: "green" },
+          { id: "builtin.com", domain: "builtin.com", name: "Built In", description: "US Tech hubs & hubs", logo: "https://logo.clearbit.com/builtin.com", color: "orange" },
+          { id: "workingnomads.com", domain: "workingnomads.com", name: "Working Nomads", description: "Curated remote jobs", logo: "https://logo.clearbit.com/workingnomads.com", color: "indigo" },
+          { id: "flexjobs.com", domain: "flexjobs.com", name: "FlexJobs", description: "Vetted remote/flexible jobs", logo: "https://logo.clearbit.com/flexjobs.com", color: "blue" },
+          { id: "cryptojobslist.com", domain: "cryptojobslist.com", name: "CryptoJobsList", description: "Web3 & Crypto jobs", logo: "https://logo.clearbit.com/cryptojobslist.com", color: "green" },
+          { id: "hired.com", domain: "hired.com", name: "Hired", description: "Tech talent marketplace", logo: "https://logo.clearbit.com/hired.com", color: "purple" },
+          { id: "dice.com", domain: "dice.com", name: "Dice", description: "Tech job board", logo: "https://logo.clearbit.com/dice.com", color: "orange" },
+          { id: "ycombinator.com", domain: "ycombinator.com", name: "Y Combinator", description: "Work at a startup", logo: "https://logo.clearbit.com/ycombinator.com", color: "indigo" },
+          { id: "startup.jobs", domain: "startup.jobs", name: "Startup.jobs", description: "Startup job aggregator", logo: "https://logo.clearbit.com/startup.jobs", color: "blue" },
+          { id: "nodesk.co", domain: "nodesk.co", name: "NoDesk", description: "Remote work resources", logo: "https://logo.clearbit.com/nodesk.co", color: "green" },
+          { id: "remoterocketship.com", domain: "remoterocketship.com", name: "Remote Rocketship", description: "AI-curated remote jobs", logo: "https://logo.clearbit.com/remoterocketship.com", color: "purple" },
+          { id: "jobspresso.com", domain: "jobspresso.com", name: "Jobspresso", description: "High-quality remote jobs", logo: "https://logo.clearbit.com/jobspresso.com", color: "orange" },
+          { id: "talent.hubstaff.com", domain: "talent.hubstaff.com", name: "Hubstaff Talent", description: "Free remote job board", logo: "https://logo.clearbit.com/talent.hubstaff.com", color: "indigo" },
+          { id: "flexa.careers", domain: "flexa.careers", name: "Flexa Careers", description: "Verified flexible companies", logo: "https://logo.clearbit.com/flexa.careers", color: "blue" },
+          { id: "greenhouse.io", domain: "greenhouse.io", name: "Greenhouse", description: "Company job boards", logo: "https://logo.clearbit.com/greenhouse.io", color: "green" },
+          { id: "lever.co", domain: "lever.co", name: "Lever", description: "Company job boards", logo: "https://logo.clearbit.com/lever.co", color: "purple" }
         ];
+
 
         const handleToggleDefaultDomain = (domain: string) => {
           setEnabledDefaultDomains((prev) => {
@@ -3863,9 +3853,9 @@ export const SettingsPage = (): JSX.Element => {
                       ? "bg-blue-500/20 text-blue-400"
                       : billingSubscriptionTier === "Basics"
                         ? "bg-[#1dff00]/20 text-[#1dff00]"
-                      : billingSubscriptionTier === "Ultimate"
-                        ? "bg-purple-500/20 text-purple-400"
-                        : "bg-[#ffd700]/20 text-[#ffd700]"
+                        : billingSubscriptionTier === "Ultimate"
+                          ? "bg-purple-500/20 text-purple-400"
+                          : "bg-[#ffd700]/20 text-[#ffd700]"
                       }`}
                   >
                     {billingSubscriptionTier.toUpperCase()}
