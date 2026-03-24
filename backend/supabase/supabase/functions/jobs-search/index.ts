@@ -160,6 +160,57 @@ Deno.serve({
 
     // Firecrawl search payload per API spec
     const firecrawlApiKey = await resolveFirecrawlApiKey();
+    const searchPayload: any = {
+      query: fullQuery,
+      limit,
+      sources: ['web'],
+      tbs,
+      ...(location ? { location } : {}),
+      scrapeOptions: {
+        onlyMainContent: true,
+        skipTlsVerification: true,
+        removeBase64Images: true,
+        blockAds: true,
+        proxy: "auto",
+        actions: [
+          { type: "wait", milliseconds: 1000 },
+          { type: "scroll", direction: "down", count: 2 }
+        ],
+        formats: [
+          "markdown",
+          "html",
+          {
+            type: "json",
+            schema: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                company: { type: "string" },
+                description: { type: "string" },
+                employment_type: { type: "string" },
+                experience_level: { type: "string" },
+                tags: { type: "array", items: { type: "string" } },
+                salary: { type: "string" },
+                salary_min: { type: "number" },
+                salary_max: { type: "number" },
+                salary_currency: { type: "string" },
+                location: { type: "string" },
+                deadline: { type: "string" },
+                apply_link: { type: "string" }
+              }
+            },
+            prompt: "You are extracting structured job posting data. If the page does not explicitly state a field, infer it conservatively from the content. Return concise values. For salary, prefer annual ranges. Populate: title, company, description (the full, complete job description, do not summarize), employment_type (e.g., Full-time, Contract, Internship), experience_level (e.g., Junior, Mid, Senior), tags (skills and technologies), salary, salary_min, salary_max, salary_currency (USD/GBP/EUR/CAD/AUD), location, deadline, apply_link."
+          },
+          {
+            type: "screenshot",
+            fullPage: false,
+            quality: 80
+          }
+        ]
+      }
+    };
+
+    console.log('jobs-search.firecrawl_payload', { user_id: userId });
 
     const performSearch = async (query: string, timeFilter?: string) => {
       const payload: any = {
