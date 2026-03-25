@@ -805,6 +805,55 @@ export const JobPage = (): JSX.Element => {
     </Card>
   );
 
+  // Patience Banner for low result scenarios
+  const PatienceBanner = ({
+    count,
+    isSearching,
+  }: {
+    count: number;
+    isSearching: boolean;
+  }) => (
+    <Card className='relative overflow-hidden bg-gradient-to-br from-[#1dff00]/5 via-background to-background  border border-[#1dff00]/20 p-5 mb-6 rounded-2xl'>
+      <motion.div
+        className='absolute inset-0 opacity-20'
+        animate={{
+          background: [
+            "radial-gradient(400px at 0% 0%, rgba(29,255,0,0.15) 0%, transparent 100%)",
+            "radial-gradient(400px at 100% 100%, rgba(29,255,0,0.15) 0%, transparent 100%)",
+            "radial-gradient(400px at 0% 0%, rgba(29,255,0,0.15) 0%, transparent 100%)",
+          ],
+        }}
+        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+      />
+      <div className='relative z-10 flex flex-col sm:flex-row items-center gap-4'>
+        <div className='flex-shrink-0 w-12 h-12 rounded-full bg-[#1dff00]/10 flex items-center justify-center border border-[#1dff00]/20'>
+          {isSearching ? (
+            <Loader2 className='w-6 h-6 text-[#1dff00] animate-spin' />
+          ) : (
+            <Sparkles className='w-6 h-6 text-[#1dff00]' />
+          )}
+        </div>
+        <div className='flex-1 text-center sm:text-left'>
+          <h3 className='text-lg font-bold text-foreground'>
+            {count === 0
+              ? "Scouring the web for matches..."
+              : "Gathering even more roles for you..."}
+          </h3>
+          <p className='text-sm text-foreground/60 max-w-lg'>
+            Our AI is currently exploring premium job boards and verified
+            sources. Stay patient—we're enriching your feed with the highest
+            quality matches in the background.
+          </p>
+        </div>
+        {isSearching && (
+          <div className='flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1dff00]/10 border border-[#1dff00]/20 text-[10px] font-bold uppercase tracking-wider text-[#1dff00] animate-pulse'>
+            Deep Search Active
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+
   const [stepIndex, setStepIndex] = useState(0);
   const steps = useMemo(() => ["Searching Web", "Saving Results", "Finalizing List"], []);
   const autoApplySteps = useMemo(
@@ -1494,12 +1543,6 @@ export const JobPage = (): JSX.Element => {
         selectedResumeId || undefined,
         selectedCoverLetterId || undefined,
       );
-
-      const payloadJobs = jobsToAutoApply.map(({ job, target }) => ({
-        sourceUrl: target,
-        url: job.apply_url ?? target,
-        source_url: job.source_id ?? target,
-      }));
 
       const launchedAt = new Date();
       let resumeSignedUrl: string | undefined;
@@ -2202,6 +2245,15 @@ export const JobPage = (): JSX.Element => {
             foundCount={insertedThisRun}
           />
         )}
+
+        {/* Patience Indicator: Show if results are very few (< 10) but we might be finding more, or if we are still in incremental mode */}
+        {((total < 10 && queueStatus === "ready") ||
+          (incrementalMode && total === 0)) && (
+            <PatienceBanner
+              count={total}
+              isSearching={incrementalMode || queueStatus === "populating"}
+            />
+          )}
 
         <Card
           className='relative overflow-hidden bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  border border-[#1dff00]/20 p-5 sm:p-6 mb-6 sm:mb-8 rounded-2xl shadow-[0_0_30px_rgba(29,255,0,0.1)] backdrop-blur-xl transition-colors duration-300 hover:border-[#1dff00]/30 hover:shadow-[0_0_40px_rgba(29,255,0,0.15)]'
@@ -3488,6 +3540,7 @@ export const JobPage = (): JSX.Element => {
                                     ? s
                                     : s?.url || s?.source || "";
                                 if (!href) return null;
+                                const host = getHost(href);
                                 const ico = host
                                   ? `https://www.google.com/s2/favicons?domain=${host}&sz=64`
                                   : "";
@@ -4574,6 +4627,7 @@ export const JobPage = (): JSX.Element => {
                               ? s
                               : s?.url || s?.source || "";
                           if (!href) return null;
+                          const host = getHost(href);
                           const ico = host
                             ? `https://www.google.com/s2/favicons?domain=${host}&sz=64`
                             : "";
