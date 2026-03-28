@@ -337,9 +337,21 @@ Deno.serve({
       // Generate company logo URL using Clearbit Logo API
       const getCompanyLogoUrl = (companyName: string, url: string): string | null => {
         try {
+          // List of common job board domains to exclude as they usually don't have company logos on Clearbit
+          const jobBoardBlocklist = [
+            'dice.com', 'greenhouse.io', 'lever.co', 'indeed.com', 
+            'linkedin.com', 'ziprecruiter.com', 'glassdoor.com', 
+            'monster.com', 'workable.com', 'smartrecruiters.com'
+          ];
+
           // Try to extract domain from URL for more accurate logo lookup
           const hostname = new URL(url).hostname.replace('www.', '');
           
+          // Skip if domain is in blocklist or contains common job board substrings
+          if (jobBoardBlocklist.some(domain => hostname.includes(domain))) {
+            return null;
+          }
+
           // Use Clearbit Logo API (free, no API key required)
           // Format: https://logo.clearbit.com/:domain
           return `https://logo.clearbit.com/${encodeURIComponent(hostname)}`;
