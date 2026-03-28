@@ -861,13 +861,17 @@ export const JobPage = (): JSX.Element => {
       {
         id: 1 as const,
         label: "Select resume",
-        description: "Choose the profile we attach to each submission.",
+        description: "Choose the target profile.",
       },
       {
         id: 2 as const,
         label: "Review & launch",
-        description:
-          "Confirm scope, safeguards, and telemetry before automation.",
+        description: "Confirm scope and safeguards.",
+      },
+      {
+        id: 4 as const,
+        label: "Execution",
+        description: "Monitor live telemetry.",
       },
     ],
     [],

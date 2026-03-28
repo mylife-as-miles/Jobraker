@@ -20,15 +20,19 @@ export class SubscriptionAccessError extends Error {
 }
 
 export function normalizeSubscriptionTier(tier?: string | null): SubscriptionTier {
-  switch ((tier || "").trim()) {
+  const normalized = (tier || "").trim();
+  switch (normalized) {
     case "Basics":
+    case "Basic":
     case "Starter":
       return "Basics";
     case "Pro":
     case "Professional":
       return "Pro";
     case "Ultimate":
+    case "Ultimate Plan":
     case "Executive":
+    case "Enterprise":
       return "Ultimate";
     case "Free":
     default:
@@ -135,6 +139,10 @@ export async function requireSubscriptionTier(
       p_required_tier: requiredTier,
     },
   );
+
+  if (accessError) {
+    console.error("check_tier_access RPC error:", accessError);
+  }
 
   const subscriptionTier = await resolveSubscriptionTier(
     context.user.id,
