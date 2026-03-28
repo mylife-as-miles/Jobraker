@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createGeminiClient, GEMINI_MODEL, createGeminiConfig } from "../_shared/gemini.ts";
+import { createGeminiClient, GEMINI_MODEL, createGeminiConfig, extractGeminiText } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 console.log("Hello from generate-title!");
@@ -42,7 +42,8 @@ serve(async (req) => {
       contents: [{ role: 'user', parts: [{ text: message }] }]
     });
 
-    const title = (typeof response.text === 'function' ? response.text() : response.text)?.trim() || "New Chat";
+    let title = "New Chat";
+    try { title = extractGeminiText(response)?.trim() || "New Chat"; } catch { /* fallback */ }
     
     // Ensure title isn't too long
     const cleanTitle = title.length > 50 ? title.substring(0, 47) + "..." : title;

@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createGeminiClient, GEMINI_MODEL, createGeminiConfig } from "../_shared/gemini.ts";
+import { createGeminiClient, GEMINI_MODEL, createGeminiConfig, extractGeminiText } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 interface ResumeAnalysisRequest {
@@ -166,7 +166,7 @@ serve(async (req) => {
         contents: [{ role: 'user', parts: [{ text: userPrompt }] }]
     });
 
-    const content = (typeof response.text === 'function' ? response.text() : response.text);
+    const content = extractGeminiText(response);
     if (!content) throw new Error("Invalid response from Gemini (empty)");
 
     let parsed;

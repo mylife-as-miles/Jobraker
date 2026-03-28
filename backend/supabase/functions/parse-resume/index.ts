@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createGeminiClient, GEMINI_MODEL, createGeminiConfig } from "../_shared/gemini.ts";
+import { createGeminiClient, GEMINI_MODEL, createGeminiConfig, extractGeminiText } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
   SubscriptionAccessError,
@@ -99,7 +99,7 @@ serve(async (req) => {
         contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
 
-    const text = (typeof result.text === 'function' ? result.text() : result.text);
+    const text = extractGeminiText(result);
     if (!text) throw new Error("Empty response from AI");
     
     const parsed = JSON.parse(text);

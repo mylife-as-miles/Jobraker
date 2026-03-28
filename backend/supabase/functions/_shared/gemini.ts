@@ -36,6 +36,40 @@ export const createGeminiConfig = (options?: {
     ...(options?.systemInstruction ? { systemInstruction: options.systemInstruction } : {}),
 });
 
+/**
+ * Safely extract text from a Gemini generateContent response.
+ * Handles multiple SDK response shapes:
+ *  - response.text (string property or getter)
+ *  - response.text() (function in older SDK versions)
+ *  - response.candidates[0].content.parts[0].text (raw structure)
+ */
+export function extractGeminiText(response: any): string {
+    // 1. Direct string property or getter
+    if (typeof response?.text === 'string' && response.text.length > 0) {
+        return response.text;
+    }
+    // 2. Function (older SDK versions)
+    if (typeof response?.text === 'function') {
+        try {
+            const val = response.text();
+            if (typeof val === 'string' && val.length > 0) return val;
+        } catch { /* fall through */ }
+    }
+    // 3. Nested candidates structure
+    try {
+        const parts = response?.candidates?.[0]?.content?.parts;
+        if (Array.isArray(parts)) {
+            const textParts = parts.filter((p: any) => typeof p?.text === 'string').map((p: any) => p.text);
+            if (textParts.length > 0) return textParts.join('');
+        }
+    } catch { /* fall through */ }
+    // 4. response.response wrapper (some SDK versions wrap the result)
+    if (response?.response) {
+        return extractGeminiText(response.response);
+    }
+    throw new Error("Failed to extract text from Gemini response");
+}
+
 export interface AiDescriptionResponse {
   description: string;
   tags?: string[];
@@ -83,7 +117,7 @@ export const generateGeminiDescription = async (
         ]
      });
 
-     const text = (typeof response.text === 'function' ? response.text() : response.text);
+     const text = extractGeminiText(response);
      if (!text) throw new Error("Empty response from Gemini");
      
      return JSON.parse(text) as AiDescriptionResponse;
