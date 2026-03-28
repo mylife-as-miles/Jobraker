@@ -520,6 +520,8 @@ export const JobPage = (): JSX.Element => {
     success: 0,
     fail: 0,
   });
+  const [automationLogs, setAutomationLogs] = useState<Array<{ time: string; message: string; status: 'info' | 'success' | 'error' }>>([]);
+  const [automationFinished, setAutomationFinished] = useState(false);
   const [sortBy, setSortBy] = useState<"recent" | "company" | "deadline">(
     "recent",
   );
@@ -1424,6 +1426,14 @@ export const JobPage = (): JSX.Element => {
     }
 
     setApplyingAll(true);
+    setAutomationLogs([]);
+    setAutomationFinished(false);
+    setAutoApplyStep(4);
+    const pushLog = (message: string, status: 'info' | 'success' | 'error' = 'info') => {
+      const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      setAutomationLogs(prev => [...prev, { time, message, status }]);
+    };
+    pushLog(`Initializing automation for ${jobsWithTargets.length} job(s)...`);
     setApplyProgress({
       done: 0,
       total: jobsWithTargets.length,
@@ -1584,6 +1594,7 @@ export const JobPage = (): JSX.Element => {
         try {
           const isDraft = jobsToDraft.some(d => d.job.id === job.id);
           const isLaunch = jobsToAutoApply.some(d => d.job.id === job.id);
+          pushLog(`Processing: ${job.title || 'Untitled'} @ ${job.company || 'Unknown'}`);
 
           let runId = null;
           let workflowId = null;
@@ -1592,6 +1603,7 @@ export const JobPage = (): JSX.Element => {
 
           // Dispatch to Skyvern INDIVIDUALLY to isolate batch failures 
           if (isLaunch) {
+            pushLog(`Dispatching automation to ${new URL(target).hostname}...`);
             const automationResult = await applyToJobs({
               jobs: [{
                 sourceUrl: target,
@@ -1630,6 +1642,7 @@ export const JobPage = (): JSX.Element => {
             appliedIds.push(job.id);
             setApplyProgress((prev) => ({ ...prev, done, success }));
             events.autoApplyJobSuccess(job.id, job.status || "unknown", 0);
+            pushLog(`✓ ${job.title} — ${isDraft ? 'Saved as draft' : 'Applied successfully'}`, 'success');
             // Gamification: award XP for each successful application
             try { gamificationHook.recordEvent('job_applied', { jobId: job.id, title: job.title }); } catch { }
             if (userId) {
@@ -1669,6 +1682,7 @@ export const JobPage = (): JSX.Element => {
           done += 1;
           fail += 1;
           setApplyProgress((prev) => ({ ...prev, done, fail }));
+          pushLog(`✗ ${job.title} — Failed: ${inner instanceof Error ? inner.message : 'Unknown error'}`, 'error');
           events.autoApplyJobFailed(
             job.id,
             job.status || "unknown",
@@ -1746,10 +1760,9 @@ export const JobPage = (): JSX.Element => {
       events.autoApplyFinished(0, jobsWithTargets.length);
     } finally {
       setApplyingAll(false);
-      // Only reset step if we aren't waiting on the AI Evaluation UI
-      if (!aiEvaluation) {
-        setAutoApplyStep(1);
-      }
+      setAutomationFinished(true);
+      pushLog(`Automation complete. ${success} succeeded, ${fail} failed.`, success > 0 ? 'success' : 'error');
+      // Keep step 4 (Execution view) open so user sees results
     }
   }, [
     applyingAll,
@@ -4215,6 +4228,84 @@ export const JobPage = (): JSX.Element => {
                 </div>
               )}
 
+              {autoApplyStep === 4 && (
+                <div className='grid gap-4 mt-2'>
+                  {/* Progress Bar */}
+                  <div className='rounded-xl border border-[#1dff00]/30 bg-[#1dff00]/5 p-5'>
+                    <div className='flex items-center justify-between mb-3'>
+                      <div className='flex items-center gap-2 text-sm font-medium text-[#1dff00]'>
+                        {!automationFinished ? (
+                          <Loader2 className='w-4 h-4 animate-spin' />
+                        ) : applyProgress.fail === 0 ? (
+                          <Check className='w-4 h-4' />
+                        ) : (
+                          <AlertTriangle className='w-4 h-4 text-[#ffb347]' />
+                        )}
+                        {automationFinished ? 'Automation Complete' : 'Automation Running'}
+                      </div>
+                      <div className='text-sm font-mono text-foreground/70'>
+                        {applyProgress.done}/{applyProgress.total}
+                      </div>
+                    </div>
+                    <div className='w-full h-2 rounded-full bg-foreground/10 overflow-hidden'>
+                      <motion.div
+                        className='h-full rounded-full bg-gradient-to-r from-[#1dff00] to-[#00ff88]'
+                        initial={{ width: '0%' }}
+                        animate={{ width: `${applyProgress.total > 0 ? Math.round((applyProgress.done / applyProgress.total) * 100) : 0}%` }}
+                        transition={{ duration: 0.5, ease: 'easeOut' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Summary Cards */}
+                  <div className='grid grid-cols-3 gap-3'>
+                    <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-3 text-center'>
+                      <div className='text-2xl font-semibold text-foreground'>{applyProgress.total}</div>
+                      <div className='text-[10px] uppercase tracking-wider text-foreground/50 mt-1'>Queued</div>
+                    </div>
+                    <div className='rounded-xl border border-[#1dff00]/25 bg-[#1dff00]/5 p-3 text-center'>
+                      <div className='text-2xl font-semibold text-[#1dff00]'>{applyProgress.success}</div>
+                      <div className='text-[10px] uppercase tracking-wider text-[#1dff00]/70 mt-1'>Success</div>
+                    </div>
+                    <div className={`rounded-xl border p-3 text-center ${applyProgress.fail > 0 ? 'border-[#ff4747]/25 bg-[#ff4747]/5' : 'border-foreground/12 bg-foreground/[0.02]'}`}>
+                      <div className={`text-2xl font-semibold ${applyProgress.fail > 0 ? 'text-[#ff4747]' : 'text-foreground/30'}`}>{applyProgress.fail}</div>
+                      <div className={`text-[10px] uppercase tracking-wider mt-1 ${applyProgress.fail > 0 ? 'text-[#ff4747]/70' : 'text-foreground/30'}`}>Failed</div>
+                    </div>
+                  </div>
+
+                  {/* Live Telemetry Log */}
+                  <div className='rounded-xl border border-foreground/12 bg-black/40 overflow-hidden'>
+                    <div className='flex items-center justify-between px-4 py-2 border-b border-foreground/10'>
+                      <div className='flex items-center gap-2 text-[11px] uppercase tracking-wider text-foreground/50'>
+                        <span className={`inline-block h-1.5 w-1.5 rounded-full ${!automationFinished ? 'bg-[#1dff00] animate-pulse' : 'bg-foreground/30'}`} />
+                        Live Telemetry
+                      </div>
+                      <span className='text-[10px] text-foreground/30 font-mono'>{automationLogs.length} events</span>
+                    </div>
+                    <div className='max-h-48 overflow-y-auto p-3 space-y-1 font-mono text-xs' ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }}>
+                      {automationLogs.map((log, i) => (
+                        <div key={i} className='flex gap-2'>
+                          <span className='text-foreground/30 flex-shrink-0'>{log.time}</span>
+                          <span className={`${log.status === 'success' ? 'text-[#1dff00]' : log.status === 'error' ? 'text-[#ff4747]' : 'text-foreground/60'}`}>
+                            {log.message}
+                          </span>
+                        </div>
+                      ))}
+                      {!automationFinished && (
+                        <div className='flex gap-2 items-center'>
+                          <span className='text-foreground/30 flex-shrink-0'>{new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                          <span className='text-foreground/40 flex items-center gap-1'>
+                            <span className='inline-block h-1 w-1 rounded-full bg-[#1dff00] animate-pulse' />
+                            <span className='inline-block h-1 w-1 rounded-full bg-[#1dff00] animate-pulse [animation-delay:150ms]' />
+                            <span className='inline-block h-1 w-1 rounded-full bg-[#1dff00] animate-pulse [animation-delay:300ms]' />
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-foreground/12'>
                 <p className='text-xs text-foreground/50 flex items-center gap-2'>
                   <ShieldCheck className='w-3.5 h-3.5 text-[#1dff00]' />
@@ -4222,86 +4313,110 @@ export const JobPage = (): JSX.Element => {
                   audit trails.
                 </p>
                 <div className='flex items-center gap-2'>
-                  <Button
-                    variant='ghost'
-                    className='border border-transparent text-foreground/60 hover:text-foreground'
-                    onClick={() => {
-                      setResumeDialogOpen(false);
-                      setAutoApplyStep(1);
-                      setDraftData(null);
-                    }}
-                  >
-                    Close
-                  </Button>
-                  {(autoApplyStep === 2 || autoApplyStep === 3) && (
+                  {autoApplyStep === 4 ? (
                     <Button
-                      variant='outline'
-                      className='border-foreground/20 text-foreground hover:border-foreground/40 hover:bg-foreground/10'
-                      onClick={() => {
-                        if (autoApplyStep === 3) {
-                          setAutoApplyStep(1);
-                          setDraftData(null);
-                        } else {
-                          setAutoApplyStep(1);
-                          setAiEvaluation(null);
-                          setForceSubmit(false);
-                        }
-                      }}
-                    >
-                      Back
-                    </Button>
-                  )}
-                  {aiEvaluation && aiEvaluation.missing_requirements.length > 0 ? (
-                    <Button
-                      className={`border border-[#ff4747]/50 text-[#ff4747] bg-[#ff4747]/15 hover:bg-[#ff4747]/25`}
+                      className={automationFinished
+                        ? 'border border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25'
+                        : 'border border-foreground/20 text-foreground/40 cursor-not-allowed opacity-50'}
+                      disabled={!automationFinished}
                       onClick={() => {
                         setResumeDialogOpen(false);
+                        setAutoApplyStep(1);
+                        setDraftData(null);
+                        setAutomationLogs([]);
+                        setAutomationFinished(false);
                       }}
                     >
-                      Acknowledge & Edit Profile
+                      {automationFinished ? (
+                        <><Check className='w-4 h-4 mr-1.5' /> Done</>
+                      ) : (
+                        <><Loader2 className='w-4 h-4 mr-1.5 animate-spin' /> Running...</>
+                      )}
                     </Button>
-                  ) : autoApplyStep === 3 ? (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        className='bg-foreground/10 hover:bg-foreground/20 text-foreground'
-                        onClick={() => applyAllJobs(true)}
-                        disabled={applyingAll}
-                      >
-                        {applyingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Save as Draft"}
-                      </Button>
-                      <Button
-                        className='border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25'
-                        onClick={() => applyAllJobs(false)}
-                        disabled={applyingAll}
-                      >
-                        {applyingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Launch automation"}
-                      </Button>
-                    </div>
                   ) : (
-                    <Button
-                      className={`border ${evaluatingJob || generatingDraft ? "border-[#1dff00]/50" : (aiEvaluation ? "border-[#ffb347]/50 text-[#ffb347] bg-[#ffb347]/15 hover:bg-[#ffb347]/25" : "border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25")} ${autoApplyPrimaryDisabled || evaluatingJob || generatingDraft ? "opacity-50 cursor-not-allowed" : ""}`}
-                      disabled={autoApplyPrimaryDisabled || evaluatingJob || generatingDraft}
-                      onClick={() => {
-                        if (autoApplyStep === 1) {
-                          if (canAdvanceFromStepOne) setAutoApplyStep(2);
-                        } else if (canLaunchAutoApply) {
-                          if (aiEvaluation) {
-                            // User is forcing submit despite warnings
-                            setForceSubmit(true);
-                            setAiEvaluation(null);
-                          } else {
-                            applyAllJobs();
-                          }
-                        }
-                      }}
-                    >
-                      {evaluatingJob || generatingDraft ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          {evaluatingJob ? "Evaluating Job Fit..." : "Drafting Materials..."}
-                        </>
-                      ) : autoApplyStep === 1 ? "Continue" : (aiEvaluation ? "Ignore & Proceed" : "Launch automation")}
-                    </Button>
+                    <>
+                      <Button
+                        variant='ghost'
+                        className='border border-transparent text-foreground/60 hover:text-foreground'
+                        onClick={() => {
+                          setResumeDialogOpen(false);
+                          setAutoApplyStep(1);
+                          setDraftData(null);
+                        }}
+                      >
+                        Close
+                      </Button>
+                      {(autoApplyStep === 2 || autoApplyStep === 3) && (
+                        <Button
+                          variant='outline'
+                          className='border-foreground/20 text-foreground hover:border-foreground/40 hover:bg-foreground/10'
+                          onClick={() => {
+                            if (autoApplyStep === 3) {
+                              setAutoApplyStep(1);
+                              setDraftData(null);
+                            } else {
+                              setAutoApplyStep(1);
+                              setAiEvaluation(null);
+                              setForceSubmit(false);
+                            }
+                          }}
+                        >
+                          Back
+                        </Button>
+                      )}
+                      {aiEvaluation && aiEvaluation.missing_requirements.length > 0 ? (
+                        <Button
+                          className={`border border-[#ff4747]/50 text-[#ff4747] bg-[#ff4747]/15 hover:bg-[#ff4747]/25`}
+                          onClick={() => {
+                            setResumeDialogOpen(false);
+                          }}
+                        >
+                          Acknowledge & Edit Profile
+                        </Button>
+                      ) : autoApplyStep === 3 ? (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            className='bg-foreground/10 hover:bg-foreground/20 text-foreground'
+                            onClick={() => applyAllJobs(true)}
+                            disabled={applyingAll}
+                          >
+                            {applyingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Save as Draft"}
+                          </Button>
+                          <Button
+                            className='border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25'
+                            onClick={() => applyAllJobs(false)}
+                            disabled={applyingAll}
+                          >
+                            {applyingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Launch automation"}
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          className={`border ${evaluatingJob || generatingDraft ? "border-[#1dff00]/50" : (aiEvaluation ? "border-[#ffb347]/50 text-[#ffb347] bg-[#ffb347]/15 hover:bg-[#ffb347]/25" : "border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25")} ${autoApplyPrimaryDisabled || evaluatingJob || generatingDraft ? "opacity-50 cursor-not-allowed" : ""}`}
+                          disabled={autoApplyPrimaryDisabled || evaluatingJob || generatingDraft}
+                          onClick={() => {
+                            if (autoApplyStep === 1) {
+                              if (canAdvanceFromStepOne) setAutoApplyStep(2);
+                            } else if (canLaunchAutoApply) {
+                              if (aiEvaluation) {
+                                // User is forcing submit despite warnings
+                                setForceSubmit(true);
+                                setAiEvaluation(null);
+                              } else {
+                                applyAllJobs();
+                              }
+                            }
+                          }}
+                        >
+                          {evaluatingJob || generatingDraft ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              {evaluatingJob ? "Evaluating Job Fit..." : "Drafting Materials..."}
+                            </>
+                          ) : autoApplyStep === 1 ? "Continue" : (aiEvaluation ? "Ignore & Proceed" : "Launch automation")}
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
