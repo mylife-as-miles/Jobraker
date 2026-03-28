@@ -530,7 +530,7 @@ export const JobPage = (): JSX.Element => {
   // Resume attach dialog state
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
-  const [autoApplyStep, setAutoApplyStep] = useState<1 | 2 | 3>(1);
+  const [autoApplyStep, setAutoApplyStep] = useState<1 | 2 | 3 | 4>(1);
   const [generatingDraft, setGeneratingDraft] = useState(false);
   const [draftData, setDraftData] = useState<{ resumeText: string; coverLetterText: string } | null>(null);
   const [trueAutonomyEnabled, setTrueAutonomyEnabled] = useState(true);
@@ -1441,6 +1441,11 @@ export const JobPage = (): JSX.Element => {
       fail: 0,
     });
 
+    let success = 0;
+    let fail = 0;
+    let done = 0;
+    const appliedIds: string[] = [];
+
     try {
       // Check if user has enough credits for auto apply (5 credits per job)
       const { data: authData } = await supabase.auth.getUser();
@@ -1585,10 +1590,7 @@ export const JobPage = (): JSX.Element => {
         safeInfo("Drafts saved", `Saved ${jobsToDraft.length} application(s) as draft (untrusted source or <90% match).`);
       }
 
-      let success = 0;
-      let fail = 0;
-      let done = 0;
-      const appliedIds: string[] = [];
+      // Counters already initialized outside try block
 
       for (const { job, target } of jobsWithTargets) {
         try {
