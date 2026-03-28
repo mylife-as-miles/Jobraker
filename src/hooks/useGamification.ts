@@ -247,10 +247,10 @@ export function useGamification(): GamificationState {
       }
 
       if (met) {
-        const { error } = await supabase.from('user_achievements').insert({
+        const { error } = await supabase.from('user_achievements').upsert({
           user_id: userId,
           achievement_key: ach.key,
-        });
+        }, { onConflict: 'user_id,achievement_key' });
         if (!error) {
           newlyUnlocked.push(ach.key);
           unlockedKeys.add(ach.key);
