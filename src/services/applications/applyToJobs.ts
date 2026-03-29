@@ -1,4 +1,4 @@
-import { createClient } from '../../lib/supabaseClient';
+import { invokeProtectedFunction } from "../supabase/invokeProtectedFunction";
 
 export type ApplyToJobsParams = {
   job_urls?: string[] | string;
@@ -15,14 +15,13 @@ export type ApplyToJobsParams = {
 };
 
 export async function applyToJobs(payload: ApplyToJobsParams) {
-  const supabase = createClient();
-  const { data, error } = await (supabase as any).functions.invoke('apply-to-jobs', {
-    body: payload,
-  });
-  if (error) throw error;
-  return data as {
+  const data = await invokeProtectedFunction<{
     ok: boolean;
     skyvern: any;
     submitted: { workflow_id: string; count: number };
-  };
+  }>("apply-to-jobs", {
+    body: payload,
+  });
+
+  return data;
 }

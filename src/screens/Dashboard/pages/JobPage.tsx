@@ -53,6 +53,7 @@ import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { AnimatedSVGBackground } from "../../../components/AnimatedSVGBackground";
+import { invokeProtectedFunction } from "../../../services/supabase/invokeProtectedFunction";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 
@@ -99,6 +100,147 @@ type MatchContext = {
   profile?: Profile | null;
 };
 
+type MatchScoreRequestJob = {
+  id: string;
+  title: string;
+  description?: string;
+  location?: string;
+  remote_type?: string;
+  raw_data?: {
+    location?: string;
+    scraped_data?: {
+      location?: string;
+      description?: string;
+      tags?: string[];
+      skills?: string[];
+    };
+  };
+};
+
+const MATCH_SCORE_BATCH_SIZE = 10;
+const MATCH_SCORE_TEXT_LIMIT = 6_000;
+const MATCH_SCORE_META_LIMIT = 500;
+const MATCH_SCORE_LIST_LIMIT = 25;
+
+const compactText = (value: unknown, maxLength: number): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return trimmed.slice(0, maxLength);
+};
+
+const compactStringList = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+
+  const cleaned = value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, MATCH_SCORE_LIST_LIMIT);
+
+  return cleaned.length > 0 ? cleaned : undefined;
+};
+
+const buildMatchScoreRequestJob = (job: Job): MatchScoreRequestJob => {
+  const raw =
+    job.raw_data && typeof job.raw_data === "object"
+      ? (job.raw_data as Record<string, unknown>)
+      : undefined;
+  const scraped =
+    raw?.scraped_data && typeof raw.scraped_data === "object"
+      ? (raw.scraped_data as Record<string, unknown>)
+      : undefined;
+
+  const compactRawData: MatchScoreRequestJob["raw_data"] = {};
+  const rawLocation = compactText(raw?.location, MATCH_SCORE_META_LIMIT);
+  if (rawLocation) {
+    compactRawData.location = rawLocation;
+  }
+
+  const compactScrapedData: NonNullable<
+    MatchScoreRequestJob["raw_data"]
+  >["scraped_data"] = {};
+  const scrapedLocation = compactText(scraped?.location, MATCH_SCORE_META_LIMIT);
+  const scrapedDescription = compactText(
+    scraped?.description,
+    MATCH_SCORE_TEXT_LIMIT,
+  );
+  const scrapedTags = compactStringList(scraped?.tags);
+  const scrapedSkills = compactStringList(scraped?.skills);
+
+  if (scrapedLocation) {
+    compactScrapedData.location = scrapedLocation;
+  }
+  if (scrapedDescription) {
+    compactScrapedData.description = scrapedDescription;
+  }
+  if (scrapedTags) {
+    compactScrapedData.tags = scrapedTags;
+  }
+  if (scrapedSkills) {
+    compactScrapedData.skills = scrapedSkills;
+  }
+
+  if (Object.keys(compactScrapedData).length > 0) {
+    compactRawData.scraped_data = compactScrapedData;
+  }
+
+  return {
+    id: job.id,
+    title: compactText(job.title, MATCH_SCORE_META_LIMIT) || "Untitled role",
+    ...(compactText(job.description, MATCH_SCORE_TEXT_LIMIT)
+      ? { description: compactText(job.description, MATCH_SCORE_TEXT_LIMIT) }
+      : {}),
+    ...(compactText(job.location, MATCH_SCORE_META_LIMIT)
+      ? { location: compactText(job.location, MATCH_SCORE_META_LIMIT) }
+      : {}),
+    ...(compactText(job.remote_type, MATCH_SCORE_META_LIMIT)
+      ? { remote_type: compactText(job.remote_type, MATCH_SCORE_META_LIMIT) }
+      : {}),
+    ...(Object.keys(compactRawData).length > 0 ? { raw_data: compactRawData } : {}),
+  };
+};
+
+const buildMatchScoreContext = (
+  context: MatchContext,
+): Omit<MatchContext, "profile"> & {
+  profile?: {
+    job_title?: string;
+    location?: string;
+    goals?: string[];
+  } | null;
+} => ({
+  searchQuery: compactText(context.searchQuery, MATCH_SCORE_META_LIMIT) || "",
+  selectedLocation:
+    compactText(context.selectedLocation, MATCH_SCORE_META_LIMIT) || "",
+  profile: context.profile
+    ? {
+        ...(compactText(context.profile.job_title, MATCH_SCORE_META_LIMIT)
+          ? {
+              job_title: compactText(
+                context.profile.job_title,
+                MATCH_SCORE_META_LIMIT,
+              ),
+            }
+          : {}),
+        ...(compactText(context.profile.location, MATCH_SCORE_META_LIMIT)
+          ? {
+              location: compactText(
+                context.profile.location,
+                MATCH_SCORE_META_LIMIT,
+              ),
+            }
+          : {}),
+        ...(Array.isArray(context.profile.goals)
+          ? {
+              goals:
+                compactStringList(context.profile.goals)?.slice(0, 10) ?? [],
+            }
+          : {}),
+      }
+    : null,
+});
+
 const fetchJobMatchInsights = async (
   jobs: Job[],
   context: MatchContext,
@@ -116,22 +258,42 @@ const fetchJobMatchInsights = async (
   }
 
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session?.access_token) return jobs;
 
-    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL || 'https://yquhsllwrwfvrwolqywh.supabase.co'}/functions/v1/calculate-match-score`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`
-      },
-      body: JSON.stringify({ jobs, context })
-    });
+    const compactJobs = jobs.map(buildMatchScoreRequestJob);
+    const compactContext = buildMatchScoreContext(context);
+    const results: Array<{
+      id?: string;
+      score?: number;
+      breakdown?: MatchScoreBreakdown[];
+      summary?: string;
+    }> = [];
 
-    if (!res.ok) throw new Error("Match score fetch failed");
+    for (let index = 0; index < compactJobs.length; index += MATCH_SCORE_BATCH_SIZE) {
+      const batch = compactJobs.slice(index, index + MATCH_SCORE_BATCH_SIZE);
+      const data = await invokeProtectedFunction<{
+        results?: Array<{
+          id?: string;
+          score?: number;
+          breakdown?: MatchScoreBreakdown[];
+          summary?: string;
+        }>;
+      }>("calculate-match-score", {
+        body: {
+          jobs: batch,
+          context: compactContext,
+        },
+      });
 
-    const { results } = await res.json();
-    if (!Array.isArray(results)) return jobs;
+      if (Array.isArray(data?.results)) {
+        results.push(...data.results);
+      }
+    }
+
+    if (!results.length) return jobs;
 
     // Map insights back to jobs
     const scoreMap = new Map();
@@ -4805,5 +4967,4 @@ export const JobPage = (): JSX.Element => {
     </div>
   );
 };
-
 

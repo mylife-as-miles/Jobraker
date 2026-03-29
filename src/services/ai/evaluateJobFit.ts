@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabaseClient";
+import { invokeProtectedFunction } from "../supabase/invokeProtectedFunction";
 
 export interface EvaluateJobFitResponse {
   confidence_score: number;
@@ -6,8 +6,6 @@ export interface EvaluateJobFitResponse {
   tailoring_suggestions: string[];
   matched_keywords: string[];
 }
-
-const supabase = createClient();
 
 export async function evaluateJobFit(
   jobDescription: string,
@@ -19,19 +17,18 @@ export async function evaluateJobFit(
   }
 
   try {
-    const { data, error } = await supabase.functions.invoke('evaluate-job-fit', {
-      body: { jobDescription, profileSnapshot, resumeText }
-    });
+    const data = await invokeProtectedFunction<EvaluateJobFitResponse>(
+      "evaluate-job-fit",
+      {
+        body: { jobDescription, profileSnapshot, resumeText },
+      },
+    );
 
-    if (error) {
-       console.error("Evaluate Job Fit function error:", error);
-       throw new Error(error.message || "Failed to evaluate job fit");
+    if (!data) {
+      throw new Error("No evaluation data returned from AI");
     }
 
-    if (!data) throw new Error("No evaluation data returned from AI");
-
-    return data as EvaluateJobFitResponse;
-
+    return data;
   } catch (err: any) {
     console.error("Evaluate Job Fit service error:", err);
     throw new Error(`Failed to evaluate job fit: ${err.message || err}`);

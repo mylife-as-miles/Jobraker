@@ -1,14 +1,16 @@
-import { createClient } from "@/lib/supabaseClient";
+import { invokeProtectedFunction } from "../supabase/invokeProtectedFunction";
 
 export async function tailorResumeViaEdge(opts: {
   jobDescription: string;
   resumeText: string;
   instructions?: string;
 }) {
-  const supabase = createClient();
-  const { data, error } = await (supabase as any).functions.invoke('tailor-resume', {
-    body: opts,
-  });
-  if (error) throw new Error(error?.message || 'Failed to tailor resume');
-  return String(data?.tailored_resume || '');
+  const data = await invokeProtectedFunction<{ tailored_resume?: string }>(
+    "tailor-resume",
+    {
+      body: opts,
+    },
+  );
+
+  return String(data?.tailored_resume || "");
 }
