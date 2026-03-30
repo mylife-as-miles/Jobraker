@@ -1587,26 +1587,16 @@ export const JobPage = (): JSX.Element => {
         });
     }
 
-    setApplyingAll(true);
-    setAutomationLogs([]);
-    setAutomationFinished(false);
-    setAutoApplyStep(3);
     const pushLog = (message: string, status: 'info' | 'success' | 'error' = 'info') => {
       const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
       setAutomationLogs(prev => [...prev, { time, message, status }]);
     };
-    pushLog(`Initializing automation for ${jobsWithTargets.length} job(s)...`);
-    setApplyProgress({
-      done: 0,
-      total: jobsWithTargets.length,
-      success: 0,
-      fail: 0,
-    });
 
     let success = 0;
     let fail = 0;
     let done = 0;
     const appliedIds: string[] = [];
+    let executionStarted = false;
 
     try {
       // Check if user has enough credits for auto apply (5 credits per job)
@@ -1668,6 +1658,7 @@ export const JobPage = (): JSX.Element => {
 
           if ((evaluation.missing_requirements && evaluation.missing_requirements.length > 0) || evaluation.confidence_score < 70) {
             setAiEvaluation(evaluation);
+            setAutoApplyStep(2);
             return; // Stop execution here and wait for user response
           }
         } catch (evalErr) {
@@ -1692,17 +1683,16 @@ export const JobPage = (): JSX.Element => {
             generateCoverLetterViaEdge({ jobDescription: targetJob?.description || "", resumeText: (selectedResume as any)?.raw_text || "No resume text" })
           ]);
           setDraftData({ resumeText: tailoredResume, coverLetterText: tailoredCoverLetter });
-          setAutoApplyStep(3);
-          setGeneratingDraft(false);
-          setApplyingAll(false);
+          setAutoApplyStep(4);
           return; // Pause auto-apply to wait for user to review Draft step
         } catch (draftErr) {
           console.error("Draft generation failed", draftErr);
           toastError("Draft Generation Failed", "Failed to generate custom resume/cover letter.");
           toastError("Draft Generation Failed", "Failed to generate custom resume/cover letter.");
           safeInfo("Draft Generation Failed", "Skipping draft mode and falling back to base materials.");
+        } finally {
+          setGeneratingDraft(false);
         }
-        setGeneratingDraft(false);
       }
 
       const finalCoverLetterPayload = draftData ? draftData.coverLetterText : composeCoverLetterPayload(selectedCoverLetter);
@@ -1718,6 +1708,19 @@ export const JobPage = (): JSX.Element => {
         jobsToAutoApply = jobsWithTargets.filter(item => isTrustedSource(item.target) && (item.job.matchScore ?? 0) >= 90);
         jobsToDraft = jobsWithTargets.filter(item => !isTrustedSource(item.target) || (item.job.matchScore ?? 0) < 90);
       }
+
+      setApplyingAll(true);
+      setAutomationLogs([]);
+      setAutomationFinished(false);
+      setAutoApplyStep(3);
+      executionStarted = true;
+      pushLog(`Initializing automation for ${jobsWithTargets.length} job(s)...`);
+      setApplyProgress({
+        done: 0,
+        total: jobsWithTargets.length,
+        success: 0,
+        fail: 0,
+      });
 
       events.autoApplyStarted(
         jobsToAutoApply.length,
@@ -1924,9 +1927,11 @@ export const JobPage = (): JSX.Element => {
       events.autoApplyFinished(0, jobsWithTargets.length);
     } finally {
       setApplyingAll(false);
-      setAutomationFinished(true);
-      pushLog(`Automation complete. ${success} succeeded, ${fail} failed.`, success > 0 ? 'success' : 'error');
-      // Keep step 4 (Execution view) open so user sees results
+      if (executionStarted) {
+        setApplyProgress((prev) => ({ ...prev, done, success, fail }));
+        setAutomationFinished(true);
+        pushLog(`Automation complete. ${success} succeeded, ${fail} failed.`, success > 0 ? 'success' : 'error');
+      }
     }
   }, [
     applyingAll,
@@ -4971,4 +4976,3 @@ export const JobPage = (): JSX.Element => {
     </div>
   );
 };
-
