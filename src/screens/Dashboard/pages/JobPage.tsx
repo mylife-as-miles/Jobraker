@@ -215,29 +215,29 @@ const buildMatchScoreContext = (
     compactText(context.selectedLocation, MATCH_SCORE_META_LIMIT) || "",
   profile: context.profile
     ? {
-        ...(compactText(context.profile.job_title, MATCH_SCORE_META_LIMIT)
-          ? {
-              job_title: compactText(
-                context.profile.job_title,
-                MATCH_SCORE_META_LIMIT,
-              ),
-            }
-          : {}),
-        ...(compactText(context.profile.location, MATCH_SCORE_META_LIMIT)
-          ? {
-              location: compactText(
-                context.profile.location,
-                MATCH_SCORE_META_LIMIT,
-              ),
-            }
-          : {}),
-        ...(Array.isArray(context.profile.goals)
-          ? {
-              goals:
-                compactStringList(context.profile.goals)?.slice(0, 10) ?? [],
-            }
-          : {}),
-      }
+      ...(compactText(context.profile.job_title, MATCH_SCORE_META_LIMIT)
+        ? {
+          job_title: compactText(
+            context.profile.job_title,
+            MATCH_SCORE_META_LIMIT,
+          ),
+        }
+        : {}),
+      ...(compactText(context.profile.location, MATCH_SCORE_META_LIMIT)
+        ? {
+          location: compactText(
+            context.profile.location,
+            MATCH_SCORE_META_LIMIT,
+          ),
+        }
+        : {}),
+      ...(Array.isArray(context.profile.goals)
+        ? {
+          goals:
+            compactStringList(context.profile.goals)?.slice(0, 10) ?? [],
+        }
+        : {}),
+    }
     : null,
 });
 
@@ -1033,7 +1033,7 @@ export const JobPage = (): JSX.Element => {
         description: "Confirm scope and safeguards.",
       },
       {
-        id: 4 as const,
+        id: 3 as const,
         label: "Execution",
         description: "Monitor live telemetry.",
       },
@@ -1590,7 +1590,7 @@ export const JobPage = (): JSX.Element => {
     setApplyingAll(true);
     setAutomationLogs([]);
     setAutomationFinished(false);
-    setAutoApplyStep(4);
+    setAutoApplyStep(3);
     const pushLog = (message: string, status: 'info' | 'success' | 'error' = 'info') => {
       const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
       setAutomationLogs(prev => [...prev, { time, message, status }]);
@@ -4359,7 +4359,7 @@ export const JobPage = (): JSX.Element => {
                 </div>
               )}
 
-              {draftData && autoApplyStep === 3 && (
+              {draftData && autoApplyStep === 4 && (
                 <div className='grid gap-4 mt-4'>
                   <div className='rounded-xl border border-[#1dff00]/30 bg-[#1dff00]/5 p-5'>
                     <div className='flex items-center gap-2 text-sm font-medium text-[#1dff00]'>
@@ -4392,7 +4392,7 @@ export const JobPage = (): JSX.Element => {
                 </div>
               )}
 
-              {autoApplyStep === 4 && (
+              {autoApplyStep === 3 && (
                 <div className='grid gap-4 mt-2'>
                   {/* Progress Bar */}
                   <div className='rounded-xl border border-[#1dff00]/30 bg-[#1dff00]/5 p-5'>
@@ -4477,7 +4477,7 @@ export const JobPage = (): JSX.Element => {
                   audit trails.
                 </p>
                 <div className='flex items-center gap-2'>
-                  {autoApplyStep === 4 ? (
+                  {autoApplyStep === 3 ? (
                     <Button
                       className={automationFinished
                         ? 'border border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25'
@@ -4510,14 +4510,18 @@ export const JobPage = (): JSX.Element => {
                       >
                         Close
                       </Button>
-                      {(autoApplyStep === 2 || autoApplyStep === 3) && (
+                      {(autoApplyStep === 2 || autoApplyStep === 3 || autoApplyStep === 4) && (
                         <Button
                           variant='outline'
                           className='border-foreground/20 text-foreground hover:border-foreground/40 hover:bg-foreground/10'
                           onClick={() => {
-                            if (autoApplyStep === 3) {
+                            if (autoApplyStep === 4) {
                               setAutoApplyStep(1);
                               setDraftData(null);
+                            } else if (autoApplyStep === 3) {
+                              // We don't really have a 'back' from execution once started
+                              // but if they click it, maybe go to 2
+                              setAutoApplyStep(2);
                             } else {
                               setAutoApplyStep(1);
                               setAiEvaluation(null);
@@ -4537,7 +4541,7 @@ export const JobPage = (): JSX.Element => {
                         >
                           Acknowledge & Edit Profile
                         </Button>
-                      ) : autoApplyStep === 3 ? (
+                      ) : autoApplyStep === 4 ? (
                         <div className="flex items-center gap-2">
                           <Button
                             className='bg-foreground/10 hover:bg-foreground/20 text-foreground'

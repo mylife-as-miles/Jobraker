@@ -149,10 +149,22 @@ export async function requireSubscriptionTier(
     context.serviceClient,
   );
 
+  const hasAccessByResolvedTier =
+    TIER_RANK[subscriptionTier] >= TIER_RANK[requiredTier];
+
+  if (accessError == null && accessData !== hasAccessByResolvedTier) {
+    console.warn("check_tier_access mismatch; using resolved subscription tier", {
+      userId: context.user.id,
+      requiredTier,
+      rpcAccess: accessData,
+      resolvedTier: subscriptionTier,
+    });
+  }
+
   const hasAccess =
     accessError == null
-      ? accessData === true
-      : TIER_RANK[subscriptionTier] >= TIER_RANK[requiredTier];
+      ? accessData === true || hasAccessByResolvedTier
+      : hasAccessByResolvedTier;
 
   if (!hasAccess) {
     throw new SubscriptionAccessError(
