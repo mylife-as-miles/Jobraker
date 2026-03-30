@@ -30,7 +30,7 @@ import {
   Lock,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useArtboardStore } from "../../../store/artboard";
+import { initialResumeState, useArtboardStore } from "../../../store/artboard";
 import { useResumeProfilePhoto } from "../../../hooks/useResumeProfilePhoto";
 import { createClient } from "../../../lib/supabaseClient";
 import { ResumeTemplateRenderer } from "../../../templates/render-resume-template";
@@ -123,6 +123,7 @@ export const ResumeBuilderPage = () => {
   const setResumeId = useArtboardStore((state) => state.setResumeId);
   const setResumeData = useArtboardStore((state) => state.setResumeData);
   const setResumeTitle = useArtboardStore((state) => state.setResumeTitle);
+  const updateBasics = useArtboardStore((state) => state.updateBasics);
 
   React.useEffect(() => {
     latestResumeStateRef.current = resumeState;
@@ -224,8 +225,6 @@ export const ResumeBuilderPage = () => {
   const {
     profile,
     experiences,
-    education: profileEducation,
-    skills: profileSkills,
   } = useProfileSettings();
   const [userEmail, setUserEmail] = useState("");
 
@@ -351,31 +350,81 @@ export const ResumeBuilderPage = () => {
     };
   }, [draftStorageKey, resumeState]);
 
-  // Auto-populate logic (simplified for brevity, keeping existing logic)
+  const defaultBasics = initialResumeState.data.basics;
+  const normalizeFieldValue = (value?: string) => value?.trim().toLowerCase() || "";
+  const isPlaceholderBasicsValue = (value: string | undefined, fallback: string) => {
+    const normalizedValue = normalizeFieldValue(value);
+    if (!normalizedValue) return true;
+    return normalizedValue === normalizeFieldValue(fallback);
+  };
+
+  // Auto-populate personal details from the user's profile whenever the resume
+  // still contains placeholder content or empty fields.
   React.useEffect(() => {
-    if (!resumeId && resumeData.basics.name === "John Doe" && profile) {
-      const updatedBasics = {
-        ...resumeData.basics,
-        name: `${profile.first_name || ""} ${profile.last_name || ""}`.trim(),
-        headline: profile.job_title || resumeData.basics.headline,
-        location: profile.location || resumeData.basics.location,
-        email: userEmail || resumeData.basics.email,
-        phone: profile.phone || resumeData.basics.phone,
-      };
-      updateBasics(updatedBasics);
+    const profileName = `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim();
+    const profileHeadline =
+      profile?.job_title?.trim() ||
+      experiences.data.find((item) => item.is_current)?.title?.trim() ||
+      experiences.data[0]?.title?.trim() ||
+      "";
+    const nextBasicsPatch: Partial<typeof resumeData.basics> = {};
+
+    if (
+      profileName &&
+      isPlaceholderBasicsValue(resumeData.basics.name, defaultBasics.name)
+    ) {
+      nextBasicsPatch.name = profileName;
+    }
+
+    if (
+      profileHeadline &&
+      isPlaceholderBasicsValue(resumeData.basics.headline, defaultBasics.headline)
+    ) {
+      nextBasicsPatch.headline = profileHeadline;
+    }
+
+    if (
+      userEmail &&
+      isPlaceholderBasicsValue(resumeData.basics.email, defaultBasics.email)
+    ) {
+      nextBasicsPatch.email = userEmail;
+    }
+
+    if (
+      profile?.phone &&
+      isPlaceholderBasicsValue(resumeData.basics.phone, defaultBasics.phone)
+    ) {
+      nextBasicsPatch.phone = profile.phone;
+    }
+
+    if (
+      profile?.location &&
+      isPlaceholderBasicsValue(resumeData.basics.location, defaultBasics.location)
+    ) {
+      nextBasicsPatch.location = profile.location;
+    }
+
+    if (Object.keys(nextBasicsPatch).length > 0) {
+      updateBasics(nextBasicsPatch);
     }
   }, [
-    profile,
+    defaultBasics.email,
+    defaultBasics.headline,
+    defaultBasics.location,
+    defaultBasics.name,
+    defaultBasics.phone,
     experiences.data,
-    profileEducation.data,
-    profileSkills.data,
-    resumeId,
+    profile,
+    resumeData.basics.email,
+    resumeData.basics.headline,
+    resumeData.basics.location,
     resumeData.basics.name,
+    resumeData.basics.phone,
     userEmail,
+    updateBasics,
   ]);
 
   // Actions
-  const updateBasics = useArtboardStore((state) => state.updateBasics);
   const toggleSectionVisibility = useArtboardStore(
     (state) => state.toggleSectionVisibility,
   );
