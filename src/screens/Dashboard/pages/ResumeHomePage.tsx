@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Upload,
   FileText,
-  MoreVertical,
   Grid,
   List,
   Calendar,
@@ -19,7 +18,11 @@ import { ResumeCreationModal } from "../components/ResumeCreationModal";
 import { ResumePreviewCard } from "../components/ResumePreviewCard";
 import { createClient } from "@/lib/supabaseClient";
 import { extractTextFromPdf } from "@/lib/pdf-loader";
-import { parseResumeWithAI } from "@/services/ai/parseResumeProfile";
+import {
+  buildFallbackParsedProfileData,
+  parseResumeWithAI,
+} from "@/services/ai/parseResumeProfile";
+import { getResumeDisplayName } from "@/lib/resumeDisplay";
 import { mapParsedDataToResume } from "@/lib/resume-mapper";
 import { initialResumeState } from "@/store/artboard";
 import { nanoid } from "nanoid";
@@ -37,6 +40,15 @@ export const ResumeHomePage = () => {
 
   const setResumeId = useArtboardStore((state) => state.setResumeId);
   const setResumeTitle = useArtboardStore((state) => state.setResumeTitle);
+
+  const normalizedResumes = useMemo(
+    () =>
+      resumes.map((resume) => ({
+        record: resume,
+        displayName: getResumeDisplayName(resume),
+      })),
+    [resumes],
+  );
 
   useEffect(() => {
     const fetchResumes = async () => {
@@ -67,10 +79,11 @@ export const ResumeHomePage = () => {
     setIsCreateModalOpen(true);
   };
 
-  const handleEdit = (id: string, name: string) => {
-    setResumeId(id);
-    setResumeTitle(name);
-    navigate(`/dashboard/resume/edit/${id}`);
+  const handleEdit = (resume: any, displayName?: string) => {
+    const resolvedTitle = displayName || getResumeDisplayName(resume);
+    setResumeId(resume.id);
+    setResumeTitle(resolvedTitle);
+    navigate(`/dashboard/resume/edit/${resume.id}`);
   };
 
   const handleImportClick = () => {
@@ -87,7 +100,15 @@ export const ResumeHomePage = () => {
       const text = await extractTextFromPdf(file);
 
       console.log("Parsing with AI...");
-      const parsedData = await parseResumeWithAI({ resumeText: text });
+      const parsedData = await parseResumeWithAI({ resumeText: text }).catch(
+        (parseError) => {
+          console.warn(
+            "AI resume parsing failed. Falling back to heuristic parsing.",
+            parseError,
+          );
+          return buildFallbackParsedProfileData(text, file.name);
+        },
+      );
 
       console.log("Mapping to ResumeData...");
       const resumeData = mapParsedDataToResume(
@@ -219,7 +240,7 @@ export const ResumeHomePage = () => {
       {!loading && viewMode === "grid" && (
         <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6'>
           {/* Resume Cards */}
-          {resumes.map((resume) => (
+          {normalizedResumes.map(({ record: resume, displayName }) => (
             <motion.div
               key={resume.id}
               whileHover={{ y: -5 }}
@@ -227,7 +248,7 @@ export const ResumeHomePage = () => {
             >
               {/* Preview Area (Top 2/3) */}
               <div
-                onClick={() => handleEdit(resume.id, resume.name)}
+                onClick={() => handleEdit(resume, displayName)}
                 className='flex-1 bg-white relative cursor-pointer overflow-hidden'
               >
                 {/* Mini Resume Preview */}
@@ -246,7 +267,7 @@ export const ResumeHomePage = () => {
                 <div className='flex items-start justify-between'>
                   <div>
                     <h3 className='font-semibold text-foreground truncate pr-2'>
-                      {resume.name}
+                      {displayName}
                     </h3>
                     <p className='text-xs text-foreground/60 mt-1 flex items-center gap-1'>
                       <Calendar className='w-3 h-3' />
@@ -312,7 +333,7 @@ export const ResumeHomePage = () => {
             <div className='col-span-3'>Last Modified</div>
             <div className='col-span-3 text-right'>Actions</div>
           </div>
-          {resumes.map((resume) => (
+          {normalizedResumes.map(({ record: resume, displayName }) => (
             <div
               key={resume.id}
               className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 hover:border-[#ffd700]/45 items-center transition-all group'
@@ -322,7 +343,7 @@ export const ResumeHomePage = () => {
                   <FileText className='w-5 h-5 text-foreground/60' />
                 </div>
                 <div>
-                  <h3 className='font-semibold text-foreground'>{resume.name}</h3>
+                  <h3 className='font-semibold text-foreground'>{displayName}</h3>
                   <p className='product-helper-text text-xs'>A4 - PDF</p>
                 </div>
               </div>
@@ -331,7 +352,7 @@ export const ResumeHomePage = () => {
               </div>
               <div className='col-span-3 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity'>
                 <button
-                  onClick={() => handleEdit(resume.id, resume.name)}
+                  onClick={() => handleEdit(resume, displayName)}
                   className='p-2 product-helper-text hover:text-foreground hover:bg-[#ffd700]/10 rounded-lg transition-colors'
                   title='Edit'
                 >

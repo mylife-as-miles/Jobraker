@@ -51,8 +51,8 @@ export const PersonalDetailsEditor = ({
 
     return (
         <div className="p-5 pt-0 space-y-4 animate-in slide-in-from-top-2 duration-200">
-            <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
                     <label className="block text-xs font-medium product-helper-text mb-1.5">Full Name</label>
                     <Input
                         value={basics.name}
@@ -60,7 +60,7 @@ export const PersonalDetailsEditor = ({
                         placeholder="John Doe"
                     />
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                     <label className="block text-xs font-medium product-helper-text mb-1.5">Job Title</label>
                     <Input
                         value={basics.headline}
@@ -84,7 +84,7 @@ export const PersonalDetailsEditor = ({
                         placeholder="+1 (555) 123-4567"
                     />
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                     <label className="block text-xs font-medium product-helper-text mb-1.5">Location</label>
                     <Input
                         value={basics.location}
@@ -92,7 +92,7 @@ export const PersonalDetailsEditor = ({
                         placeholder="San Francisco, CA"
                     />
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                     <label className="block text-xs font-medium product-helper-text mb-1.5">Personal Website</label>
                     <Input
                         value={basics.website?.url || ''}
@@ -114,8 +114,8 @@ export const PersonalDetailsEditor = ({
                 <label className="block text-xs font-medium product-helper-text mb-3">Social Profiles</label>
                 <div className="space-y-3">
                     {basics.profiles?.map((profile, index) => (
-                        <div key={index} className="flex gap-2 items-start group">
-                            <div className="flex-1 grid grid-cols-2 gap-2">
+                        <div key={index} className="group flex flex-col gap-2 sm:flex-row sm:items-start">
+                            <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
                                 <Input
                                     value={profile.network}
                                     onChange={(e) => updateProfile(index, 'network', e.target.value)}
@@ -132,14 +132,14 @@ export const PersonalDetailsEditor = ({
                                     value={profile.url}
                                     onChange={(e) => updateProfile(index, 'url', e.target.value)}
                                     placeholder="URL"
-                                    className="col-span-2"
+                                    className="sm:col-span-2"
                                 />
                             </div>
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => removeProfile(index)}
-                                className="product-helper-text hover:bg-red-500/10 hover:text-red-500"
+                                className="product-helper-text self-end hover:bg-red-500/10 hover:text-red-500 sm:self-start"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </Button>

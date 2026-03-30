@@ -154,7 +154,7 @@ export const AddSectionDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className='grid grid-cols-2 gap-3 py-4'>
+        <div className='grid grid-cols-1 gap-3 py-4 sm:grid-cols-2'>
           {availableSections.map((section) => (
             <button
               key={section.id}
@@ -174,7 +174,7 @@ export const AddSectionDialog = ({
 
         <div className='mt-2 border-t border-border/40 pt-4'>
           <h4 className='text-sm font-medium mb-3'>Custom Section</h4>
-          <div className='flex gap-2'>
+          <div className='flex flex-col gap-2 sm:flex-row'>
             <Input
               placeholder='e.g. Speaking Engagements'
               value={customName}

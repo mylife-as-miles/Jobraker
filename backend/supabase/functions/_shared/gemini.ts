@@ -27,11 +27,13 @@ export const GEMINI_TOOLS = [
 export const createGeminiConfig = (options?: {
     systemInstruction?: string;
     responseMimeType?: string;
+    includeTools?: boolean;
+    thinkingLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
 }) => ({
     thinkingConfig: {
-        thinkingLevel: 'HIGH',
+        thinkingLevel: options?.thinkingLevel || 'HIGH',
     },
-    tools: GEMINI_TOOLS,
+    ...(options?.includeTools === false ? {} : { tools: GEMINI_TOOLS }),
     responseMimeType: options?.responseMimeType || 'application/json',
     ...(options?.systemInstruction ? { systemInstruction: options.systemInstruction } : {}),
 });

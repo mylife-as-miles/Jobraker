@@ -92,8 +92,8 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
 
           {expandedItem === item.id && (
             <div className='border-t border-border/40 bg-background p-4 space-y-3'>
-              <div className='grid grid-cols-2 gap-3'>
-                <div className='col-span-2'>
+              <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+                <div className='sm:col-span-2'>
                   <label className='product-helper-text mb-1 block text-xs font-medium'>
                     {sectionId === "education"
                       ? "School / University"
@@ -121,7 +121,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
                   />
                 </div>
 
-                <div className='col-span-2 sm:col-span-1'>
+                <div>
                   <label className='product-helper-text mb-1 block text-xs font-medium'>
                     {sectionId === "education"
                       ? "Degree"
@@ -156,7 +156,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
                   />
                 </div>
 
-                <div className='col-span-2 sm:col-span-1'>
+                <div>
                   <label className='product-helper-text mb-1 block text-xs font-medium'>
                     {sectionId === "awards"
                       ? "Date"
@@ -177,7 +177,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
                 </div>
 
                 {sectionId === "references" && (
-                  <div className='col-span-2 sm:col-span-1'>
+                  <div>
                     <label className='product-helper-text mb-1 block text-xs font-medium'>
                       Referee Contact (Email / Phone)
                     </label>
@@ -193,7 +193,7 @@ export const SectionEditor = ({ sectionId, title }: SectionEditorProps) => {
                   </div>
                 )}
 
-                <div className='col-span-2'>
+                <div className='sm:col-span-2'>
                   <label className='product-helper-text mb-1 block text-xs font-medium'>
                     Description
                   </label>
