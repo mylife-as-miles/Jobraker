@@ -2466,7 +2466,7 @@ export const JobPage = (): JSX.Element => {
                 }}
                 className='h-12 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#1dff00]/20 text-foreground placeholder:text-foreground/40 transition-all duration-300 rounded-xl'
               />
-              <div className='absolute right-10 top-1/2 transform -translate-y-1/2'>
+              <div className='pointer-events-none select-none absolute right-10 top-1/2 transform -translate-y-1/2'>
                 <span className='text-[10px] font-medium text-[#1dff00]/80 bg-gradient-to-br from-[#1dff00]/15 to-[#1dff00]/5 px-2.5 py-1 rounded-lg border border-[#1dff00]/30 whitespace-nowrap'>
                   {subscriptionTier === "Ultimate"
                     ? "100"
@@ -2480,7 +2480,7 @@ export const JobPage = (): JSX.Element => {
               </div>
             </div>
             <div className='relative group md:col-span-1 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#1dff00]/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00]/60 focus:ring-2 focus:ring-[#1dff00]/30 transition-all duration-300 rounded-xl'>
-              <MapPin className='w-5 h-5 absolute right-3 top-1/2  -translate-y-1/2 text-[#1dff00]/60 transition-colors group-focus-within:text-[#1dff00]' />
+              <MapPin className='pointer-events-none w-5 h-5 absolute right-3 top-1/2  -translate-y-1/2 text-[#1dff00]/60 transition-colors group-focus-within:text-[#1dff00]' />
               <Input
                 id='jobs-location'
                 data-tour='jobs-location'

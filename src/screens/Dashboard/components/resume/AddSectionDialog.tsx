@@ -106,15 +106,14 @@ export const AddSectionDialog = ({
 }: AddSectionDialogProps) => {
   const [customName, setCustomName] = useState("");
   const sections = useArtboardStore((state) => state.resume.data.sections);
-  const toggleSectionVisibility = useArtboardStore(
-    (state) => state.toggleSectionVisibility,
-  );
   const addSection = useArtboardStore((state) => state.addSection);
 
   const handleAddStandard = (id: string) => {
-    // If it's hidden, just toggle it
     if (sections[id] && sections[id].hidden) {
-      toggleSectionVisibility(id);
+      addSection({
+        ...sections[id],
+        hidden: false,
+      });
     } else if (!sections[id]) {
       // Should not happen for standard sections if store is initialized correctly,
       // but if so, we'd need to add it.

@@ -55,6 +55,7 @@ import {
   removeResumeDraft,
   saveResumeDraft,
 } from "@/lib/resumeDraftStorage";
+import { resolveResumePageLayout } from "@/lib/resumeLayout";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 
@@ -403,10 +404,16 @@ export const ResumeBuilderPage = () => {
     setResumeData({ summary: { ...resumeData.summary, content: val } });
 
   const { basics, sections, summary, metadata } = resumeData;
+  const resolvedLayoutPage = React.useMemo(
+    () => resolveResumePageLayout(resumeData, 0),
+    [resumeData],
+  );
 
   // Get active sections from layout order
-  const layoutPage = metadata.layout.pages[0];
-  const orderedSectionIds = [...layoutPage.main, ...layoutPage.sidebar];
+  const orderedSectionIds = [
+    ...resolvedLayoutPage.main,
+    ...resolvedLayoutPage.sidebar,
+  ];
   // Filter for unique IDs and ensure they exist in sections and are not hidden.
   // Exclude 'summary' because it is rendered explicitly above.
   const visibleSections = orderedSectionIds.filter(
@@ -791,14 +798,17 @@ export const ResumeBuilderPage = () => {
             }}
           >
             <div
-              className='origin-top-left bg-white shadow-2xl transition-transform duration-200'
+              className='origin-top-left transition-transform duration-200'
               style={{
                 width: `${PREVIEW_BASE_WIDTH}px`,
                 minHeight: `${PREVIEW_BASE_HEIGHT}px`,
                 transform: `scale(${effectivePreviewScale})`,
               }}
             >
-              <ResumeTemplateRenderer templateId={selectedTemplate} />
+              <ResumeTemplateRenderer
+                templateId={selectedTemplate}
+                pageLayout={resolvedLayoutPage}
+              />
             </div>
           </div>
         </div>

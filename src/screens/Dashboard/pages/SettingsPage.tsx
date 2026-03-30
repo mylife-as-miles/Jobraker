@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Skeleton } from "../../../components/ui/skeleton";
@@ -340,6 +340,7 @@ export const SettingsPage = (): JSX.Element => {
     useState(false);
   const [accountDeletionEmail, setAccountDeletionEmail] = useState("");
   const [userEmail, setUserEmail] = useState<string>("");
+  const pendingEmailUpdateRef = useRef<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   // Sign out dialog state
   const [signOutDialogOpen, setSignOutDialogOpen] = useState(false);
@@ -676,7 +677,14 @@ export const SettingsPage = (): JSX.Element => {
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
-      const email = (data as any)?.user?.email ?? "";
+      const authEmail = (data as any)?.user?.email ?? "";
+      if (pendingEmailUpdateRef.current === authEmail) {
+        pendingEmailUpdateRef.current = null;
+      }
+      const email =
+        pendingEmailUpdateRef.current && pendingEmailUpdateRef.current !== authEmail
+          ? pendingEmailUpdateRef.current
+          : authEmail;
       setFormData((prev: FormData) => ({
         ...prev,
         email,
@@ -911,6 +919,9 @@ export const SettingsPage = (): JSX.Element => {
   );
 
   const handleInputChange = (field: string, value: string) => {
+    if (field === "email" && pendingEmailUpdateRef.current) {
+      pendingEmailUpdateRef.current = null;
+    }
     setFormData((prev: FormData) => ({ ...prev, [field]: value }));
   };
 
@@ -989,23 +1000,45 @@ export const SettingsPage = (): JSX.Element => {
   };
 
   const handleSaveProfile = async () => {
-    // create or update
-    if (!profile) {
-      await createProfile({
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        location: formData.location,
-        phone: formData.phone as any,
-        avatar_url: formData.avatar_url as any,
-      } as any);
-    } else {
-      await updateProfile({
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        location: formData.location,
-        phone: formData.phone as any,
-        avatar_url: formData.avatar_url as any,
-      } as any);
+    try {
+      const nextEmail = formData.email.trim();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const currentEmail = user?.email?.trim() || "";
+
+      if (!profile) {
+        await createProfile({
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          location: formData.location,
+          phone: formData.phone as any,
+          avatar_url: formData.avatar_url as any,
+        } as any);
+      } else {
+        await updateProfile({
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          location: formData.location,
+          phone: formData.phone as any,
+          avatar_url: formData.avatar_url as any,
+        } as any);
+      }
+
+      if (nextEmail && nextEmail !== currentEmail) {
+        pendingEmailUpdateRef.current = nextEmail;
+        const { error } = await supabase.auth.updateUser({ email: nextEmail });
+        if (error) {
+          pendingEmailUpdateRef.current = null;
+          throw error;
+        }
+        success(
+          "Email update requested",
+          "Check your inbox to confirm the new email address.",
+        );
+      }
+    } catch (e: any) {
+      toastError("Profile save failed", e.message || "Unable to save profile.");
     }
   };
 
@@ -1361,11 +1394,11 @@ export const SettingsPage = (): JSX.Element => {
             className='space-y-6 bg-background'
           >
             {/* Avatar Section */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
+            <div className='bg-card border border-border/40 rounded-xl p-4 sm:p-6 shadow-sm ring-1 ring-foreground/5'>
               <h3 className='text-base font-medium text-foreground mb-6'>
                 Profile Picture
               </h3>
-              <div className='flex items-center gap-6'>
+              <div className='flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6'>
                 <div className='w-20 h-20 rounded-2xl overflow-hidden bg-muted/50 border border-border/40 flex items-center justify-center text-foreground font-semibold text-xl shadow-inner'>
                   {avatarUrl ? (
                     <img
@@ -1377,11 +1410,11 @@ export const SettingsPage = (): JSX.Element => {
                     <span>{initials}</span>
                   )}
                 </div>
-                <div className='flex gap-3'>
+                <div className='flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:gap-3'>
                   <Button
                     variant='outline'
                     onClick={handleUploadAvatar}
-                    className='border-border/40 text-muted-foreground hover:text-[#ffd700] hover:bg-[#ffd700]/10 hover:border-[#ffd700]/30 transition-all shadow-sm'
+                    className='w-full border-border/40 text-muted-foreground hover:text-[#ffd700] hover:bg-[#ffd700]/10 hover:border-[#ffd700]/30 transition-all shadow-sm sm:w-auto'
                   >
                     <Upload className='w-4 h-4 mr-2' />
                     Upload
@@ -1390,7 +1423,7 @@ export const SettingsPage = (): JSX.Element => {
                     <Button
                       variant='outline'
                       onClick={handleRemoveAvatar}
-                      className='border-border/40 text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:border-red-500/30 transition-all shadow-sm'
+                      className='w-full border-border/40 text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:border-red-500/30 transition-all shadow-sm sm:w-auto'
                     >
                       <Trash2 className='w-4 h-4 mr-2' />
                       Remove
@@ -1401,7 +1434,7 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Personal Information */}
-            <div className='bg-card border border-border/40 rounded-xl p-6 shadow-sm ring-1 ring-foreground/5'>
+            <div className='bg-card border border-border/40 rounded-xl p-4 sm:p-6 shadow-sm ring-1 ring-foreground/5'>
               <h3 className='text-base font-medium text-foreground mb-6'>
                 Personal Information
               </h3>
@@ -1415,6 +1448,7 @@ export const SettingsPage = (): JSX.Element => {
                     onChange={(e) =>
                       handleInputChange("firstName", e.target.value)
                     }
+                    autoComplete='given-name'
                     className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#ffd700]/50 focus:ring-1 focus:ring-[#ffd700]/30 transition-all shadow-inner'
                   />
                 </div>
@@ -1427,6 +1461,7 @@ export const SettingsPage = (): JSX.Element => {
                     onChange={(e) =>
                       handleInputChange("lastName", e.target.value)
                     }
+                    autoComplete='family-name'
                     className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#ffd700]/50 focus:ring-1 focus:ring-[#ffd700]/30 transition-all shadow-inner'
                   />
                 </div>
@@ -1438,6 +1473,7 @@ export const SettingsPage = (): JSX.Element => {
                     type='email'
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
+                    autoComplete='email'
                     className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#ffd700]/50 focus:ring-1 focus:ring-[#ffd700]/30 transition-all shadow-inner'
                   />
                 </div>
@@ -1448,6 +1484,8 @@ export const SettingsPage = (): JSX.Element => {
                   <Input
                     value={formData.phone}
                     onChange={(e) => handleInputChange("phone", e.target.value)}
+                    autoComplete='tel'
+                    inputMode='tel'
                     className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#ffd700]/50 focus:ring-1 focus:ring-[#ffd700]/30 transition-all shadow-inner'
                   />
                 </div>
@@ -1460,16 +1498,17 @@ export const SettingsPage = (): JSX.Element => {
                     onChange={(e) =>
                       handleInputChange("location", e.target.value)
                     }
+                    autoComplete='address-level2'
                     className='bg-muted/50 border-border/40 text-foreground placeholder:text-muted-foreground/50 focus:border-[#ffd700]/50 focus:ring-1 focus:ring-[#ffd700]/30 transition-all shadow-inner'
                     placeholder='City, Country'
                   />
                 </div>
               </div>
 
-              <div className='flex items-center gap-3 pt-6 mt-6 border-t border-border/30'>
+              <div className='flex flex-col gap-3 pt-6 mt-6 border-t border-border/30 sm:flex-row sm:items-center'>
                 <Button
                   onClick={handleSaveProfile}
-                  className='bg-[#ffd700] hover:bg-[#e6c200] text-black font-semibold tracking-wide shadow-lg shadow-[#ffd700]/20 transition-all border border-[#ffd700]/50'
+                  className='w-full bg-[#ffd700] hover:bg-[#e6c200] text-black font-semibold tracking-wide shadow-lg shadow-[#ffd700]/20 transition-all border border-[#ffd700]/50 sm:w-auto'
                 >
                   <Save className='w-4 h-4 mr-2' />
                   Save Changes
@@ -1477,7 +1516,7 @@ export const SettingsPage = (): JSX.Element => {
                 <Button
                   variant='outline'
                   onClick={handleResetForm}
-                  className='border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all'
+                  className='w-full border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all sm:w-auto'
                 >
                   <RefreshCw className='w-4 h-4 mr-2' />
                   Reset
@@ -4095,7 +4134,7 @@ export const SettingsPage = (): JSX.Element => {
         <div className='w-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-6'>
           {/* Modern Header */}
           <div className='mb-8 border-b border-foreground/10 pb-6'>
-            <div className='flex items-center justify-between'>
+            <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
               <div>
                 <h1 className='text-3xl font-medium tracking-tight text-foreground/95 mb-1'>
                   Settings
@@ -4104,11 +4143,11 @@ export const SettingsPage = (): JSX.Element => {
                   Manage your account preferences and configurations
                 </p>
               </div>
-              <div className='flex items-center gap-3'>
+              <div className='flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center'>
                 <Button
                   variant='outline'
                   onClick={handleResetForm}
-                  className='border-foreground/[0.08] text-foreground/70 hover:text-foreground/90 hover:bg-foreground/5 hover:border-foreground/[0.12] transition-all'
+                  className='w-full border-foreground/[0.08] text-foreground/70 hover:text-foreground/90 hover:bg-foreground/5 hover:border-foreground/[0.12] transition-all sm:w-auto'
                 >
                   <RefreshCw className='w-4 h-4 mr-2' />
                   Reset
@@ -4116,7 +4155,7 @@ export const SettingsPage = (): JSX.Element => {
                 <Button
                   variant='outline'
                   onClick={handleExportData}
-                  className='border-foreground/[0.08] text-foreground/70 hover:text-foreground/90 hover:bg-foreground/5 hover:border-foreground/[0.12] transition-all'
+                  className='w-full border-foreground/[0.08] text-foreground/70 hover:text-foreground/90 hover:bg-foreground/5 hover:border-foreground/[0.12] transition-all sm:w-auto'
                 >
                   <Download className='w-4 h-4 mr-2' />
                   Export Data
@@ -4177,7 +4216,7 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             {/* Content Area */}
-            <div className='lg:col-span-4'>
+              <div className='lg:col-span-4 min-w-0'>
               <motion.div
                 key={activeTab}
                 initial={{ opacity: 0, y: 10 }}

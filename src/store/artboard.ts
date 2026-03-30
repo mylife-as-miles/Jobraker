@@ -431,6 +431,11 @@ export const initialResumeState: ResumeState = {
   },
 };
 
+const SIDEBAR_SECTION_IDS = new Set(["skills", "languages", "interests"]);
+
+const shouldUseSidebarLayout = (section: Pick<ResumeSection, "id" | "type">) =>
+  section.type === "list" || SIDEBAR_SECTION_IDS.has(section.id);
+
 export const useArtboardStore = create<ArtboardStore>((set) => ({
   resume: initialResumeState,
   coverLetter: {
@@ -626,17 +631,23 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
 
   addSection: (section) =>
     set((state) => {
-      // Check if section already exists in layout
-      const page = state.resume.data.metadata.layout.pages[0];
+      const existingPages = state.resume.data.metadata.layout.pages;
+      const page = existingPages[0] ?? {
+        fullWidth: false,
+        main: [],
+        sidebar: [],
+      };
       const existsInLayout =
         page.main.includes(section.id) || page.sidebar.includes(section.id);
-
-      let newLayout = [...state.resume.data.metadata.layout.pages];
-
-      if (!existsInLayout) {
-        // Add to main layout by default at the end
-        newLayout[0].main.push(section.id);
-      }
+      const nextFirstPage = existsInLayout
+        ? page
+        : shouldUseSidebarLayout(section)
+          ? { ...page, sidebar: [...page.sidebar, section.id] }
+          : { ...page, main: [...page.main, section.id] };
+      const nextPages =
+        existingPages.length > 0
+          ? [nextFirstPage, ...existingPages.slice(1)]
+          : [nextFirstPage];
 
       return {
         resume: {
@@ -651,7 +662,7 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
               ...state.resume.data.metadata,
               layout: {
                 ...state.resume.data.metadata.layout,
-                pages: newLayout,
+                pages: nextPages,
               },
             },
           },
@@ -724,21 +735,51 @@ export const useArtboardStore = create<ArtboardStore>((set) => ({
     }),
 
   toggleSectionVisibility: (sectionId) =>
-    set((state) => ({
-      resume: {
-        ...state.resume,
-        data: {
-          ...state.resume.data,
-          sections: {
-            ...state.resume.data.sections,
-            [sectionId]: {
-              ...state.resume.data.sections[sectionId],
-              hidden: !state.resume.data.sections[sectionId].hidden,
+    set((state) => {
+      const section = state.resume.data.sections[sectionId];
+      const nextHidden = !section.hidden;
+      const existingPages = state.resume.data.metadata.layout.pages;
+      const page = existingPages[0] ?? {
+        fullWidth: false,
+        main: [],
+        sidebar: [],
+      };
+      const existsInLayout =
+        page.main.includes(sectionId) || page.sidebar.includes(sectionId);
+      const nextFirstPage =
+        !nextHidden && !existsInLayout
+          ? shouldUseSidebarLayout(section)
+            ? { ...page, sidebar: [...page.sidebar, sectionId] }
+            : { ...page, main: [...page.main, sectionId] }
+          : page;
+      const nextPages =
+        existingPages.length > 0
+          ? [nextFirstPage, ...existingPages.slice(1)]
+          : [nextFirstPage];
+
+      return {
+        resume: {
+          ...state.resume,
+          data: {
+            ...state.resume.data,
+            sections: {
+              ...state.resume.data.sections,
+              [sectionId]: {
+                ...section,
+                hidden: nextHidden,
+              },
+            },
+            metadata: {
+              ...state.resume.data.metadata,
+              layout: {
+                ...state.resume.data.metadata.layout,
+                pages: nextPages,
+              },
             },
           },
         },
-      },
-    })),
+      };
+    }),
 
   reorderSection: (sectionId, direction) =>
     set((state) => {
