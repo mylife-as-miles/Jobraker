@@ -362,10 +362,8 @@ export const Dashboard = (): JSX.Element => {
           <div
             className={`flex items-center gap-3 relative z-10 w-full ${isCollapsed ? "justify-center" : ""}`}
           >
-            <div className='w-9 h-9 bg-gradient-to-br from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(29,255,0,0.3)] shrink-0'>
-              <span className='text-fore font-extrabold text-sm tracking-tighter'>
-                JR
-              </span>
+            <div className='w-9 h-9  rounded-xl flex items-center justify-center  shrink-0 overflow-clip'>
+            <img src="/logo/logo.jpeg" className="object-cover" alt="logo" />
             </div>
             {!isCollapsed && (
               <motion.div
