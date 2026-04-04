@@ -29,6 +29,3 @@ Run `npm audit` regularly and apply patches for high and critical vulnerabilitie
 ## Browser Storage
 Authentication tokens are managed by Supabase; avoid manually storing tokens in `localStorage` outside of the managed client to reduce XSS blast radius.
 
-## Content Security Policy (Planned)
-A restrictive CSP is recommended in production to mitigate XSS. Future improvement: add `meta http-equiv="Content-Security-Policy"` via a Vite plugin or HTML transform.
-
