@@ -58,7 +58,7 @@ import { useAppearance } from "../../../providers/AppearanceProvider";
 import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
 import { validatePassword } from "../../../utils/password";
-import { CheckCircle2, XCircle, Linkedin, Github } from "lucide-react";
+import { CheckCircle2, XCircle, Linkedin, Github, Key, Lock } from "lucide-react";
 import { encryptSymmetric } from "../../../utils/crypto";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
