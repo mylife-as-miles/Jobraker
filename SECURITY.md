@@ -32,5 +32,3 @@ Authentication tokens are managed by Supabase; avoid manually storing tokens in 
 ## Content Security Policy (Planned)
 A restrictive CSP is recommended in production to mitigate XSS. Future improvement: add `meta http-equiv="Content-Security-Policy"` via a Vite plugin or HTML transform.
 
----
-Stay vigilant: treat any logged or pasted key as compromised until confirmed otherwise.
