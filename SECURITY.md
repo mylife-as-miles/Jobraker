@@ -14,8 +14,3 @@
 ## Local Development
 Store secrets in `.env.local` which is already gitignored. Never commit `.env` or any file containing private tokens.
 
-## Access Tokens
-If using `SUPABASE_ACCESS_TOKEN` for CLI automation:
-- Store it in your shell keychain or secret manager.
-- Provide it to CI via an encrypted secret (e.g., GitHub Actions Secrets).
-- Rotate periodically (e.g., every 90 days) or immediately after suspected exposure.
