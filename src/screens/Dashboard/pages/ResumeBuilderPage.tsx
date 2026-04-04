@@ -22,7 +22,8 @@ import {
 } from "lucide-react";
 import { useArtboardStore } from "@/store/artboard";
 import { useAuthStore } from "@/store/auth";
-import { useTierAccess } from "@/hooks/useTierAccess";
+import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
+import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 import { useAiTools } from "@/hooks/useAiTools";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useResumeProfilePhoto } from "@/hooks/useResumeProfilePhoto";
@@ -63,7 +64,8 @@ const ResumeBuilderPage = () => {
   const navigate = useNavigate();
   const { id: urlId } = useParams();
   const { success, error: toastError, info } = useNotifications();
-  const { hasResumeAiAccess, loading: loadingTier } = useTierAccess();
+  const { subscriptionTier, loadingTier } = useSubscriptionTier();
+  const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, 'Basics');
   const { polishContent } = useAiTools();
 
   // Store actions/state
