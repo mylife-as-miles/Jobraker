@@ -20,6 +20,7 @@ import {
   requireSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
+import { decryptSymmetric } from "../_shared/crypto.ts";
 
 const SKYVERN_ENDPOINT = "https://api.skyvern.com/v1/run/workflows";
 
@@ -116,10 +117,37 @@ Deno.serve(async (req) => {
   const user_id = user.id;
   let email = typeof body?.email === "string" ? body.email : user.email || "";
   const user_input = typeof body?.user_input === "object" ? body.user_input : {};
+  
+  // Fetch and decrypt source credentials if available
+  let source_credentials: Record<string, any> = {};
+  try {
+    const { data: sourceSettings } = await serviceClient
+      .from('job_source_settings')
+      .select('source_credentials')
+      .eq('id', user_id)
+      .single();
+
+    if (sourceSettings && sourceSettings.source_credentials) {
+      for (const [domain, encryptedCreds] of Object.entries(sourceSettings.source_credentials)) {
+        if (typeof encryptedCreds === 'string') {
+          try {
+            const decryptedJson = await decryptSymmetric(encryptedCreds);
+            source_credentials[domain] = JSON.parse(decryptedJson);
+          } catch (e: any) {
+            console.error(`Failed to decrypt credentials for ${domain}:`, e.message);
+          }
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error("Error fetching job source settings:", err.message);
+  }
+
   const safeUserInput = {
     ...user_input,
     id: user_id,
     ...(email ? { email } : {}),
+    ...(Object.keys(source_credentials).length > 0 ? { source_credentials } : {})
   };
 
     const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
