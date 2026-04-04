@@ -11,6 +11,3 @@
 4. Re-deploy (`vercel --prod` or via Git push).
 5. Invalidate old builds (Vercel handles this automatically post-deploy).
 
-## Local Development
-Store secrets in `.env.local` which is already gitignored. Never commit `.env` or any file containing private tokens.
-
