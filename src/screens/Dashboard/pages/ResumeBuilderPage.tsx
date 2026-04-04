@@ -28,16 +28,16 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useResumeProfilePhoto } from "@/hooks/useResumeProfilePhoto";
 import { useProfileSettings } from "@/hooks/useProfileSettings";
 import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
-import { TemplateSelector } from "../components/resume/TemplateSelector";
+import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
+import { TemplateSelector } from "../components/TemplateSelector";
 import { AddSectionDialog } from "../components/resume/AddSectionDialog";
 import { ShareDialog } from "../components/resume/ShareDialog";
 import { SectionEditor } from "../components/resume/SectionEditor";
 import { ListEditor } from "../components/resume/ListEditor";
 import { PersonalDetailsEditor } from "../components/resume/PersonalDetailsEditor";
-import { ResumeTemplateRenderer } from "../components/resume/ResumeTemplateRenderer";
-import { UpgradePrompt } from "../components/UpgradePrompt";
+import { ResumeTemplateRenderer } from "@/templates/render-resume-template";
+import { UpgradePrompt } from "@/components/UpgradePrompt";
 import {
   resolveResumePageLayout,
   PREVIEW_BASE_WIDTH,
