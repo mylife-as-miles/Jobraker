@@ -15,7 +15,7 @@ import {
   X,
   LayoutTemplate,
   Edit2,
-  Lock,
+  Lock as LockIcon,
   ZoomIn,
   ZoomOut,
   PenLine,
@@ -586,7 +586,7 @@ const ResumeBuilderPage = () => {
             <span className='hidden sm:inline'>
               {aiLoading ? "Polishing..." : "AI Polish"}
             </span>
-            {!hasResumeAiAccess && <Lock className='w-3 h-3 opacity-60' />}
+            {!hasResumeAiAccess && <LockIcon className='w-3 h-3 opacity-60' />}
           </button>
 
           <button
@@ -598,7 +598,7 @@ const ResumeBuilderPage = () => {
             <span className='hidden sm:inline'>
               {aiLoading ? "Generating..." : "AI Generate"}
             </span>
-            {!hasResumeAiAccess && <Lock className='w-3 h-3 opacity-60' />}
+            {!hasResumeAiAccess && <LockIcon className='w-3 h-3 opacity-60' />}
           </button>
 
           <button

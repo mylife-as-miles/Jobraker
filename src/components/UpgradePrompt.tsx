@@ -1,4 +1,4 @@
-import { Lock, Sparkles, Zap, Crown, ArrowRight, Check } from 'lucide-react';
+import { Lock as LockIcon, Sparkles, Zap, Crown, ArrowRight, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from './ui/button';
 import { motion } from 'framer-motion';
@@ -69,7 +69,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
 
         <div className="relative z-10 text-center">
           <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1dff00]/20 to-purple-500/20 border border-foreground/10">
-            <Lock className="h-8 w-8 text-[#1dff00]" />
+            <LockIcon className="h-8 w-8 text-[#1dff00]" />
           </div>
           
           <h3 className="mb-2 text-xl font-semibold text-white">{title}</h3>
@@ -124,7 +124,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
               className='mx-auto mb-6 inline-flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-[#1dff00]/20 via-purple-500/10 to-blue-500/10 border border-foreground/10 backdrop-blur-xl'
             >
               {icon || (
-                <Lock className='h-10 w-10 sm:h-12 sm:w-12 text-[#1dff00]' />
+                <LockIcon className='h-10 w-10 sm:h-12 sm:w-12 text-[#1dff00]' />
               )}
             </motion.div>
 

@@ -3,7 +3,7 @@ import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { motion } from "framer-motion";
-import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award, GraduationCap, Briefcase, Lightbulb, Crown, Zap, Trophy, Lock } from "lucide-react";
+import { Edit, Mail, Phone, MapPin, Plus, ExternalLink, Calendar, Trash2, Award, GraduationCap, Briefcase, Lightbulb, Crown, Zap, Trophy, Lock as LockIcon } from "lucide-react";
 import { EmptyState } from "../../../components/ui/empty-state";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { useProfileSettings } from "../../../hooks/useProfileSettings";
@@ -485,7 +485,7 @@ const ProfilePage = (): JSX.Element => {
                         {ach.title}
                       </span>
                       {!ach.unlocked && (
-                        <Lock className='absolute top-1 right-1 w-2.5 h-2.5 text-foreground/20' />
+                        <LockIcon className='absolute top-1 right-1 w-2.5 h-2.5 text-foreground/20' />
                       )}
                     </motion.div>
                   ))}

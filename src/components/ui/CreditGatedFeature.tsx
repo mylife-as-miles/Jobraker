@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Lock, Coins, AlertTriangle } from 'lucide-react';
+import { Lock as LockIcon, Coins, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 interface CreditGatedFeatureProps {
@@ -144,7 +144,7 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
                   {children}
                 </div>
                 <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center">
-                  <Lock className="w-8 h-8 text-foreground/40" />
+                  <LockIcon className="w-8 h-8 text-foreground/40" />
                 </div>
               </div>
             )}
@@ -177,7 +177,7 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
     <Card className={`border-red-200 bg-red-50 ${className}`}>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg text-red-800">
-          <Lock className="w-5 h-5" />
+          <LockIcon className="w-5 h-5" />
           Insufficient Credits
         </CardTitle>
       </CardHeader>
@@ -212,7 +212,7 @@ export const CreditGatedFeature: React.FC<CreditGatedFeatureProps> = ({
             </div>
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center">
               <div className="text-center">
-                <Lock className="w-12 h-12 text-foreground/40 mx-auto mb-2" />
+                <LockIcon className="w-12 h-12 text-foreground/40 mx-auto mb-2" />
                 <p className="text-sm text-foreground/60">Locked Feature</p>
               </div>
             </div>
