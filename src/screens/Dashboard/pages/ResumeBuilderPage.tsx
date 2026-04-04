@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -20,15 +20,14 @@ import {
   ZoomOut,
   PenLine,
 } from "lucide-react";
-import { useArtboardStore } from "@/store/artboard";
-import { useAuthStore } from "@/store/auth";
+import { useArtboardStore, initialResumeState } from "@/store/artboard";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 import { polishContent } from "@/services/ai/polishContent";
-import { useNotifications } from "@/hooks/useNotifications";
+import { useToast } from "@/components/ui/toast";
 import { useResumeProfilePhoto } from "@/hooks/useResumeProfilePhoto";
 import { useProfileSettings } from "@/hooks/useProfileSettings";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { TemplateSelector } from "../components/TemplateSelector";
@@ -39,13 +38,12 @@ import { ListEditor } from "../components/resume/ListEditor";
 import { PersonalDetailsEditor } from "../components/resume/PersonalDetailsEditor";
 import { ResumeTemplateRenderer } from "@/templates/render-resume-template";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
-import {
-  resolveResumePageLayout,
-  PREVIEW_BASE_WIDTH,
-  PREVIEW_BASE_HEIGHT,
-} from "@/lib/resume-layout-utils";
-import { downloadResumePDF } from "@/lib/pdf-utils";
-import { saveResumeDraft, getResumeDraft, removeResumeDraft } from "@/lib/resume-draft-utils";
+import { resolveResumePageLayout } from "@/lib/resumeLayout";
+import { downloadResumePDF } from "@/utils/resume-download";
+import { saveResumeDraft, loadResumeDraft, removeResumeDraft } from "@/lib/resumeDraftStorage";
+
+const PREVIEW_BASE_WIDTH = 794;
+const PREVIEW_BASE_HEIGHT = 1123;
 
 const SECTION_ICONS: Record<string, any> = {
   education: FileText,
@@ -61,9 +59,10 @@ const SECTION_ICONS: Record<string, any> = {
 const DRAFT_AUTOSAVE_DELAY_MS = 2000;
 
 const ResumeBuilderPage = () => {
+  const supabase = createClient();
   const navigate = useNavigate();
   const { id: urlId } = useParams();
-  const { success, error: toastError, info } = useNotifications();
+  const { success, error: toastError, info } = useToast();
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, 'Basics');
 
@@ -71,14 +70,14 @@ const ResumeBuilderPage = () => {
   // Store actions/state
   const resumeState = useArtboardStore();
   const {
-    resume: resumeData,
+    resume: resumeStateData,
     setResume,
     setResumeId,
     setResumeData,
     setResumeTitle,
     updateBasics,
-    initialResumeState,
   } = resumeState;
+  const resumeData = resumeStateData.data;
 
   // Local UI State
   const [saving, setSaving] = useState(false);
@@ -95,7 +94,7 @@ const ResumeBuilderPage = () => {
   const previewPanelRef = useRef<HTMLDivElement>(null);
   const autosaveTimerRef = useRef<number | null>(null);
   const draftHydratedRef = useRef(false);
-  const latestResumeStateRef = useRef(resumeState);
+  const latestResumeStateRef = useRef(resumeStateData);
   const lastDraftSignatureRef = useRef<string>("");
   const serverUpdatedAtRef = useRef<string | null>(null);
 
@@ -103,8 +102,8 @@ const ResumeBuilderPage = () => {
 
   // Keep latest ref updated for autosave
   useEffect(() => {
-    latestResumeStateRef.current = resumeState;
-  }, [resumeState]);
+    latestResumeStateRef.current = resumeStateData;
+  }, [resumeStateData]);
 
   // Responsive Check
   useEffect(() => {
@@ -128,7 +127,7 @@ const ResumeBuilderPage = () => {
 
       const [remoteResumeResult, localDraft] = await Promise.all([
         supabase.from("resumes").select("*").eq("id", urlId).single(),
-        getResumeDraft(draftStorageKey),
+        loadResumeDraft(draftStorageKey),
       ]);
 
       if (cancelled) return;
@@ -194,7 +193,7 @@ const ResumeBuilderPage = () => {
   const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(({ data }: { data: any }) => {
       if (data?.user?.email) setUserEmail(data.user.email);
     });
   }, [supabase]);
@@ -237,7 +236,7 @@ const ResumeBuilderPage = () => {
   useEffect(() => {
     if (!draftHydratedRef.current) return;
 
-    const signature = JSON.stringify(resumeState);
+    const signature = JSON.stringify(resumeStateData);
     if (signature === lastDraftSignatureRef.current) return;
 
     if (autosaveTimerRef.current) {
@@ -247,7 +246,7 @@ const ResumeBuilderPage = () => {
     autosaveTimerRef.current = window.setTimeout(() => {
       const snapshot = JSON.parse(
         JSON.stringify(latestResumeStateRef.current),
-      ) as typeof resumeState;
+      ) as typeof resumeStateData;
       const snapshotSignature = JSON.stringify(snapshot);
 
       void saveResumeDraft({
@@ -260,7 +259,7 @@ const ResumeBuilderPage = () => {
           lastDraftSignatureRef.current = snapshotSignature;
           setLastDraftSavedAt(Date.now());
         })
-        .catch((draftError) => {
+        .catch((draftError: Error) => {
           console.error("Resume draft autosave failed:", draftError);
         });
     }, DRAFT_AUTOSAVE_DELAY_MS);
@@ -270,7 +269,7 @@ const ResumeBuilderPage = () => {
         window.clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [draftStorageKey, resumeState]);
+  }, [draftStorageKey, resumeStateData]);
 
   useEffect(() => {
     const flushDraft = () => {
@@ -278,7 +277,7 @@ const ResumeBuilderPage = () => {
 
       const snapshot = JSON.parse(
         JSON.stringify(latestResumeStateRef.current),
-      ) as typeof resumeState;
+      ) as typeof resumeStateData;
       const snapshotSignature = JSON.stringify(snapshot);
 
       if (snapshotSignature === lastDraftSignatureRef.current) return;
@@ -292,7 +291,7 @@ const ResumeBuilderPage = () => {
         .then(() => {
           lastDraftSignatureRef.current = snapshotSignature;
         })
-        .catch((draftError) => {
+        .catch((draftError: Error) => {
           console.error("Resume draft flush failed:", draftError);
         });
     };
@@ -313,7 +312,7 @@ const ResumeBuilderPage = () => {
         handleVisibilityChange,
       );
     };
-  }, [draftStorageKey, resumeState]);
+  }, [draftStorageKey, resumeStateData]);
 
   const defaultBasics = initialResumeState.data.basics;
   const normalizeFieldValue = (value?: string) => value?.trim().toLowerCase() || "";
@@ -880,4 +879,5 @@ const ResumeBuilderPage = () => {
   );
 };
 
+export { ResumeBuilderPage };
 export default ResumeBuilderPage;
