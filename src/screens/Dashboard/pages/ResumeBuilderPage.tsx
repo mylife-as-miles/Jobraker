@@ -24,7 +24,7 @@ import { useArtboardStore } from "@/store/artboard";
 import { useAuthStore } from "@/store/auth";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
-import { useAiTools } from "@/hooks/useAiTools";
+import { polishContent } from "@/services/ai/polishContent";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useResumeProfilePhoto } from "@/hooks/useResumeProfilePhoto";
 import { useProfileSettings } from "@/hooks/useProfileSettings";
@@ -66,7 +66,7 @@ const ResumeBuilderPage = () => {
   const { success, error: toastError, info } = useNotifications();
   const { subscriptionTier, loadingTier } = useSubscriptionTier();
   const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, 'Basics');
-  const { polishContent } = useAiTools();
+
 
   // Store actions/state
   const resumeState = useArtboardStore();
