@@ -11,6 +11,7 @@ import type { ProfileEducationRecord as TProfileEducation, ProfileExperienceReco
 import { useApplications } from "../../../hooks/useApplications";
 import { createClient } from "../../../lib/supabaseClient";
 import { useGamification } from "../../../hooks/useGamification";
+import { CandidateMemoryEditor } from "../components/CandidateMemoryEditor";
 
 // Data now comes from Supabase via useProfileCollections
 
@@ -1052,6 +1053,22 @@ const ProfilePage = (): JSX.Element => {
                 </div>
               </Card>
             </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.55 }}
+              whileHover={{ scale: 1.01 }}
+              className="transition-transform duration-300"
+            >
+              <CandidateMemoryEditor
+                profile={profile}
+                loading={profileLoading}
+                onSave={async (patch) => {
+                  await updateProfile(patch as any);
+                }}
+              />
+            </motion.div>
           </div>
         </div>
       </div>
@@ -1093,6 +1110,5 @@ function AboutEditor({ profile, onSave, onCancel }: { profile: { job_title: stri
 }
 
 export default ProfilePage;
-
 
 

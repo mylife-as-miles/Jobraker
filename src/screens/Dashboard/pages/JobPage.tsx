@@ -46,6 +46,11 @@ import { applyToJobs } from "../../../services/applications/applyToJobs";
 import { evaluateJobFit, type EvaluateJobFitResponse } from "../../../services/ai/evaluateJobFit";
 import { tailorResumeViaEdge } from "../../../services/ai/tailorResume";
 import { generateCoverLetterViaEdge } from "../../../services/ai/generateCoverLetter";
+import { intakeJobUrl } from "../../../services/jobs/intakeJobUrl";
+import {
+  fetchJobEvaluationReport,
+  type JobEvaluationReport as JobEvaluationReportData,
+} from "../../../services/jobs/jobEvaluation";
 import { isTrustedSource } from "../../../utils/trustedSources";
 import { useGamification } from "../../../hooks/useGamification";
 import { cn } from "../../../lib/utils";
@@ -53,6 +58,7 @@ import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { AnimatedSVGBackground } from "../../../components/AnimatedSVGBackground";
+import { JobEvaluationReport } from "../components/JobEvaluationReport";
 import { invokeProtectedFunction } from "../../../services/supabase/invokeProtectedFunction";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
@@ -706,9 +712,16 @@ export const JobPage = (): JSX.Element => {
   const navigate = useNavigate();
   const gamificationHook = useGamification();
   const [searchQuery, setSearchQuery] = useState("");
+  const [jobUrlInput, setJobUrlInput] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("Remote");
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [evaluationReports, setEvaluationReports] = useState<
+    Record<string, JobEvaluationReportData>
+  >({});
+  const [evaluationLoadingByJob, setEvaluationLoadingByJob] = useState<
+    Record<string, boolean>
+  >({});
   const [queueStatus, setQueueStatus] = useState<
     "idle" | "loading" | "populating" | "ready" | "empty"
   >("loading");
@@ -742,8 +755,10 @@ export const JobPage = (): JSX.Element => {
   // Resume attach dialog state
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
+  const [selectedResumeRawText, setSelectedResumeRawText] = useState("");
   const [autoApplyStep, setAutoApplyStep] = useState<1 | 2 | 3 | 4>(1);
   const [generatingDraft, setGeneratingDraft] = useState(false);
+  const [intakingJobUrl, setIntakingJobUrl] = useState(false);
   const [draftData, setDraftData] = useState<{ resumeText: string; coverLetterText: string } | null>(null);
   const [trueAutonomyEnabled, setTrueAutonomyEnabled] = useState(true);
   const [coverLetterLibrary, setCoverLetterLibrary] = useState<
@@ -766,7 +781,8 @@ export const JobPage = (): JSX.Element => {
   const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);
   const [dbgSearchRes, setDbgSearchRes] = useState<any>(null);
 
-  const { profile, loading: profileLoading } = useProfileSettings();
+  const { profile, updateProfile, loading: profileLoading } =
+    useProfileSettings();
   // Load user resumes for selection (used by the Auto Apply -> "Choose a resume" dialog)
   const { resumes, loading: resumesLoading } = useResumes();
   const { info, error: toastError } = useToast();
@@ -1102,6 +1118,23 @@ export const JobPage = (): JSX.Element => {
       null
     );
   }, [coverLetterLibrary, selectedCoverLetterId]);
+  const activeResumeText = useMemo(
+    () => selectedResumeRawText || (selectedResume as any)?.raw_text || "",
+    [selectedResume, selectedResumeRawText],
+  );
+  const selectedJobRecord = useMemo(
+    () => jobs.find((job) => job.id === selectedJob) ?? null,
+    [jobs, selectedJob],
+  );
+  const savedStoryTitles = useMemo(
+    () =>
+      Array.isArray(profile?.story_bank)
+        ? profile.story_bank
+            .map((story) => story?.title?.trim())
+            .filter((title): title is string => Boolean(title))
+        : [],
+    [profile?.story_bank],
+  );
   const matchContext = useMemo<MatchContext>(
     () => ({
       searchQuery,
@@ -1157,6 +1190,56 @@ export const JobPage = (): JSX.Element => {
     [profile],
   );
   const profileReady = Boolean(profileSnapshot);
+  useEffect(() => {
+    if (selectedResumeId) return;
+    if (!Array.isArray(resumes) || resumes.length === 0) return;
+    const favorite = resumes.find((record: any) => record.is_favorite);
+    setSelectedResumeId(favorite?.id ?? resumes[0]?.id ?? null);
+  }, [resumes, selectedResumeId]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadResumeText = async () => {
+      if (!selectedResumeId) {
+        if (active) setSelectedResumeRawText("");
+        return;
+      }
+
+      if (typeof (selectedResume as any)?.raw_text === "string") {
+        if (active) {
+          setSelectedResumeRawText((selectedResume as any).raw_text);
+        }
+        return;
+      }
+
+      try {
+        const { data, error: parsedError } = await supabase
+          .from("parsed_resumes")
+          .select("raw_text")
+          .eq("resume_id", selectedResumeId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (parsedError) throw parsedError;
+        if (active) {
+          setSelectedResumeRawText(
+            typeof data?.raw_text === "string" ? data.raw_text : "",
+          );
+        }
+      } catch (error) {
+        console.error("load parsed resume text failed", error);
+        if (active) setSelectedResumeRawText("");
+      }
+    };
+
+    loadResumeText();
+    return () => {
+      active = false;
+    };
+  }, [selectedResume, selectedResumeId]);
+
   const resumeLibraryReady = useMemo(
     () =>
       Array.isArray(resumes) &&
@@ -1235,6 +1318,79 @@ export const JobPage = (): JSX.Element => {
 
   // Steps reflect phases; no cancel/try-different actions per request
 
+  const loadJobEvaluationReport = useCallback(
+    async (jobId: string, force = false) => {
+      if (!jobId) return null;
+      if (!force && evaluationReports[jobId]) return evaluationReports[jobId];
+      if (!force && evaluationLoadingByJob[jobId]) return null;
+
+      setEvaluationLoadingByJob((prev) => ({ ...prev, [jobId]: true }));
+      try {
+        const report = await fetchJobEvaluationReport(jobId);
+        if (report) {
+          setEvaluationReports((prev) => ({ ...prev, [jobId]: report }));
+        }
+        return report;
+      } catch (error) {
+        console.error("loadJobEvaluationReport failed", error);
+        return null;
+      } finally {
+        setEvaluationLoadingByJob((prev) => ({ ...prev, [jobId]: false }));
+      }
+    },
+    [evaluationLoadingByJob, evaluationReports],
+  );
+
+  useEffect(() => {
+    if (!selectedJobRecord?.id) return;
+    const status = selectedJobRecord.canonical_status;
+    const shouldLoad =
+      status === "evaluated" ||
+      status === "draft_ready" ||
+      status === "queued" ||
+      status === "submitted" ||
+      Boolean(selectedJobRecord.evaluation_summary?.evaluation_id);
+
+    if (!shouldLoad) return;
+    void loadJobEvaluationReport(selectedJobRecord.id);
+  }, [loadJobEvaluationReport, selectedJobRecord]);
+
+  const saveInterviewStoryToMemory = useCallback(
+    async (story: JobEvaluationReportData["interview_stories"][number]) => {
+      const existingStories = Array.isArray(profile?.story_bank)
+        ? profile.story_bank
+        : [];
+      const alreadySaved = existingStories.some(
+        (item) =>
+          item?.title?.trim().toLowerCase() === story.title.trim().toLowerCase(),
+      );
+
+      if (alreadySaved) {
+        safeInfo("Story already saved", story.title);
+        return;
+      }
+
+      const nextStories = [
+        ...existingStories,
+        {
+          title: story.title,
+          situation:
+            story.talking_points.length > 0
+              ? `${story.reason}\n- ${story.talking_points.join("\n- ")}`
+              : story.reason,
+          outcome: story.talking_points[story.talking_points.length - 1] || "",
+          relevance: story.reason,
+        },
+      ];
+
+      await updateProfile({
+        story_bank: nextStories,
+      } as any);
+      safeInfo("Story saved to memory", story.title);
+    },
+    [profile?.story_bank, safeInfo, updateProfile],
+  );
+
   const fetchJobQueue = useCallback(async (): Promise<Job[]> => {
     setQueueStatus("loading");
     setError(null);
@@ -1290,6 +1446,125 @@ export const JobPage = (): JSX.Element => {
       return [];
     }
   }, []);
+
+  const handleIntakeJobUrl = useCallback(async () => {
+    if (intakingJobUrl || incrementalMode) return;
+    const trimmedUrl = jobUrlInput.trim();
+
+    if (!trimmedUrl) {
+      setError({ message: "Paste a job posting URL to evaluate it." });
+      return;
+    }
+
+    setIntakingJobUrl(true);
+    setError(null);
+
+    try {
+      const intake = await intakeJobUrl({
+        url: trimmedUrl,
+        profileSnapshot: profileSnapshot || undefined,
+        resumeText: activeResumeText || undefined,
+      });
+
+      const jobId = String((intake.job as any)?.id || "");
+      const rawData =
+        intake.job &&
+        typeof (intake.job as any).raw_data === "object" &&
+        (intake.job as any).raw_data !== null
+          ? { ...((intake.job as any).raw_data as Record<string, unknown>) }
+          : {};
+
+      setEvaluationReports((prev) => ({
+        ...prev,
+        [jobId]: {
+          ...intake.evaluation,
+          candidate_memory: prev[jobId]?.candidate_memory ?? null,
+        },
+      }));
+
+      if (jobId && activeResumeText) {
+        const [tailoredResume, tailoredCoverLetter] = await Promise.all([
+          tailorResumeViaEdge({
+            jobDescription:
+              typeof (intake.job as any)?.description === "string"
+                ? (intake.job as any).description
+                : "",
+            resumeText: activeResumeText,
+          }),
+          generateCoverLetterViaEdge({
+            jobDescription:
+              typeof (intake.job as any)?.description === "string"
+                ? (intake.job as any).description
+                : "",
+            resumeText: activeResumeText,
+          }),
+        ]);
+
+        const applicationDraft = {
+          resumeText: tailoredResume,
+          coverLetterText: tailoredCoverLetter,
+          savedAt: new Date().toISOString(),
+        };
+
+        const { error: draftPersistError } = await supabase
+          .from("jobs")
+          .update({
+            canonical_status: "draft_ready",
+            raw_data: {
+              ...rawData,
+              application_draft: applicationDraft,
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", jobId);
+
+        if (draftPersistError) {
+          throw draftPersistError;
+        }
+      }
+
+      const refreshedJobs = await fetchJobQueue();
+      const hydrated =
+        refreshedJobs.find((job) => job.id === jobId) ??
+        refreshedJobs.find(
+          (job) => job.source_id === ((intake.job as any)?.source_id ?? null),
+        ) ??
+        null;
+
+      if (hydrated?.id) {
+        setSelectedJob(hydrated.id);
+        void loadJobEvaluationReport(hydrated.id, true);
+      } else if (jobId) {
+        setSelectedJob(jobId);
+        void loadJobEvaluationReport(jobId, true);
+      }
+
+      setJobUrlInput("");
+      safeInfo(
+        "Evaluation ready",
+        activeResumeText
+          ? "Saved to your pipeline with a tailored draft-ready package."
+          : "Saved to your pipeline. Add or parse a resume to generate tailored drafts.",
+      );
+    } catch (error: any) {
+      setError({
+        message:
+          error?.message || "Failed to ingest and evaluate that job posting.",
+      });
+    } finally {
+      setIntakingJobUrl(false);
+    }
+  }, [
+    activeResumeText,
+    fetchJobQueue,
+    incrementalMode,
+    intakingJobUrl,
+    jobUrlInput,
+    loadJobEvaluationReport,
+    profileSnapshot,
+    safeInfo,
+    supabase,
+  ]);
 
   const executeClearAllJobs = useCallback(async () => {
     setConfirmDeleteOpen(false);
@@ -1712,10 +1987,17 @@ export const JobPage = (): JSX.Element => {
             targetJob.company,
             targetJob.description || "",
             profileSnapshot || "No profile provided.",
-            (selectedResume as any)?.raw_text || "No resume content provided."
+            activeResumeText || "No resume content provided."
           );
 
           matchedKeywords = evaluation.matched_keywords || [];
+          setEvaluationReports((prev) => ({
+            ...prev,
+            [targetJob.id]: {
+              ...evaluation,
+              candidate_memory: prev[targetJob.id]?.candidate_memory ?? null,
+            },
+          }));
 
           if ((evaluation.missing_requirements && evaluation.missing_requirements.length > 0) || evaluation.confidence_score < 70) {
             setAiEvaluation(evaluation);
@@ -1740,8 +2022,8 @@ export const JobPage = (): JSX.Element => {
         setGeneratingDraft(true);
         try {
           const [tailoredResume, tailoredCoverLetter] = await Promise.all([
-            tailorResumeViaEdge({ jobDescription: targetJob?.description || "", resumeText: (selectedResume as any)?.raw_text || "No resume text" }),
-            generateCoverLetterViaEdge({ jobDescription: targetJob?.description || "", resumeText: (selectedResume as any)?.raw_text || "No resume text" })
+            tailorResumeViaEdge({ jobDescription: targetJob?.description || "", resumeText: activeResumeText || "No resume text" }),
+            generateCoverLetterViaEdge({ jobDescription: targetJob?.description || "", resumeText: activeResumeText || "No resume text" })
           ]);
           setDraftData({ resumeText: tailoredResume, coverLetterText: tailoredCoverLetter });
           setAutoApplyStep(4);
@@ -1995,6 +2277,7 @@ export const JobPage = (): JSX.Element => {
       }
     }
   }, [
+    activeResumeText,
     applyingAll,
     hasAutoApplyAccess,
     jobs,
@@ -2076,10 +2359,17 @@ export const JobPage = (): JSX.Element => {
           job.company,
           job.description || "",
           profileSnapshot || "No profile provided.",
-          (selectedResume as any)?.raw_text || "No resume content provided.",
+          activeResumeText || "No resume content provided.",
         );
 
         evaluationCache.set(job.id, evaluation);
+        setEvaluationReports((prev) => ({
+          ...prev,
+          [job.id]: {
+            ...evaluation,
+            candidate_memory: prev[job.id]?.candidate_memory ?? null,
+          },
+        }));
         const summary = {
           evaluation_id: evaluation.evaluation_id ?? null,
           archetype: evaluation.archetype,
@@ -2163,11 +2453,11 @@ export const JobPage = (): JSX.Element => {
           const [tailoredResume, tailoredCoverLetter] = await Promise.all([
             tailorResumeViaEdge({
               jobDescription: targetJob?.description || "",
-              resumeText: (selectedResume as any)?.raw_text || "No resume text",
+              resumeText: activeResumeText || "No resume text",
             }),
             generateCoverLetterViaEdge({
               jobDescription: targetJob?.description || "",
-              resumeText: (selectedResume as any)?.raw_text || "No resume text",
+              resumeText: activeResumeText || "No resume text",
             }),
           ]);
           setDraftData({
@@ -2554,6 +2844,7 @@ export const JobPage = (): JSX.Element => {
       }
     }
   }, [
+    activeResumeText,
     applyingAll,
     hasAutoApplyAccess,
     jobs,
@@ -3045,6 +3336,83 @@ export const JobPage = (): JSX.Element => {
             </div>
           </div>
         </div>
+
+        <Card className='relative mb-6 overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 p-5 sm:p-6 rounded-2xl shadow-[0_0_24px_rgba(29,255,0,0.08)] backdrop-blur-xl'>
+          <div className='absolute inset-0 bg-gradient-to-br from-[#1dff00]/5 via-transparent to-transparent pointer-events-none' />
+          <div className='relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between'>
+            <div className='space-y-2 max-w-2xl'>
+              <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#1dff00]/80'>
+                <Sparkles className='h-3.5 w-3.5' />
+                Paste URL
+              </div>
+              <div className='text-lg font-semibold text-foreground'>
+                Evaluate a single posting end to end
+              </div>
+              <p className='text-sm text-foreground/65'>
+                Drop in a job URL and Jobraker will ingest it, run the structured evaluation, save it to your pipeline, and generate draft-ready materials when a parsed resume is available.
+              </p>
+            </div>
+            <div className='grid gap-2 text-xs text-foreground/55 sm:grid-cols-3 lg:min-w-[360px]'>
+              <div className='rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-3'>
+                <div className='text-[10px] uppercase tracking-wide text-foreground/35'>Evaluation</div>
+                <div className='mt-1 text-sm font-medium text-foreground/80'>6-block report</div>
+              </div>
+              <div className='rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-3'>
+                <div className='text-[10px] uppercase tracking-wide text-foreground/35'>Tracker</div>
+                <div className='mt-1 text-sm font-medium text-foreground/80'>Saved instantly</div>
+              </div>
+              <div className='rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-3'>
+                <div className='text-[10px] uppercase tracking-wide text-foreground/35'>Resume context</div>
+                <div className='mt-1 text-sm font-medium text-foreground/80'>
+                  {activeResumeText ? selectedResume?.name || "Parsed resume ready" : "Needed for drafts"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className='relative z-10 mt-5 flex flex-col gap-3 lg:flex-row'>
+            <div className='relative flex-1'>
+              <Input
+                value={jobUrlInput}
+                onChange={(event) => setJobUrlInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void handleIntakeJobUrl();
+                  }
+                }}
+                placeholder='Paste a Greenhouse, Lever, Ashby, Workable, or direct careers URL...'
+                className='h-12 rounded-xl border-[#1dff00]/20 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] pr-28 text-foreground placeholder:text-foreground/40'
+              />
+              <span className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-lg border border-[#1dff00]/25 bg-[#1dff00]/10 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-[#1dff00]/80'>
+                Direct intake
+              </span>
+            </div>
+            <Button
+              type='button'
+              variant='ghost'
+              onClick={() => void handleIntakeJobUrl()}
+              disabled={intakingJobUrl}
+              className={`group relative overflow-hidden rounded-xl border px-4 py-2 text-sm font-medium tracking-wide transition-all duration-300 ${intakingJobUrl ? "border-[#1dff00]/60 bg-[#1dff00]/15 text-[#1dff00]" : "border-[#1dff00]/40 bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 text-foreground hover:border-[#1dff00]/60 hover:bg-[#1dff00]/15"}`}
+            >
+              <span
+                className='pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300'
+                style={{
+                  background:
+                    "linear-gradient(120deg, transparent 0%, rgba(29,255,0,0.25) 45%, transparent 90%)",
+                }}
+              />
+              <span className='relative inline-flex items-center gap-2'>
+                {intakingJobUrl ? (
+                  <Loader2 className='h-4 w-4 animate-spin' />
+                ) : (
+                  <Sparkles className='h-4 w-4 text-[#1dff00]' />
+                )}
+                {intakingJobUrl ? "Evaluating URL..." : "Evaluate URL"}
+              </span>
+            </Button>
+          </div>
+        </Card>
 
         {(queueStatus === "populating" || incrementalMode) && (
           <LoadingBanner
@@ -4287,6 +4655,13 @@ export const JobPage = (): JSX.Element => {
                         />
                       )}
 
+                      <JobEvaluationReport
+                        evaluation={evaluationReports[job.id] ?? null}
+                        loading={Boolean(evaluationLoadingByJob[job.id])}
+                        savedStoryTitles={savedStoryTitles}
+                        onSaveStory={saveInterviewStoryToMemory}
+                      />
+
                       {(() => {
                         const screenshot = (job as any)?.raw_data?.screenshot;
                         if (!screenshot) return null;
@@ -5480,6 +5855,13 @@ export const JobPage = (): JSX.Element => {
                     breakdown={j.matchBreakdown}
                   />
                 )}
+
+                <JobEvaluationReport
+                  evaluation={evaluationReports[j.id] ?? null}
+                  loading={Boolean(evaluationLoadingByJob[j.id])}
+                  savedStoryTitles={savedStoryTitles}
+                  onSaveStory={saveInterviewStoryToMemory}
+                />
 
                 {(() => {
                   const screenshot = (j as any)?.raw_data?.screenshot;
