@@ -58,7 +58,8 @@ import { useAppearance } from "../../../providers/AppearanceProvider";
 import { useToast } from "../../../components/ui/toast";
 import Modal from "../../../components/ui/modal";
 import { validatePassword } from "../../../utils/password";
-import { CheckCircle2, XCircle, Linkedin, Github } from "lucide-react";
+import { CheckCircle2, XCircle, Linkedin, Github, Key, Lock } from "lucide-react";
+import { encryptSymmetric } from "../../../utils/crypto";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
@@ -349,18 +350,27 @@ export const SettingsPage = (): JSX.Element => {
     Set<string>
   >(
     new Set([
+      "dice.com", "wellfound.com", "hired.com", "ycombinator.com",
       "remote.co", "remotive.com", "remoteok.com", "jobicy.com",
-      "levels.fyi", "greenhouse.io", "lever.co", "wellfound.com",
+      "levels.fyi", "greenhouse.io", "lever.co",
       "builtin.com", "workingnomads.com", "weworkremotely.com",
-      "flexjobs.com", "cryptojobslist.com", "otta.com", "hired.com",
-      "dice.com", "ycombinator.com", "startup.jobs", "nodesk.co",
+      "flexjobs.com", "cryptojobslist.com", "otta.com",
+      "dice.com", "startup.jobs", "nodesk.co",
       "remoterocketship.com", "jobspresso.com", "talent.hubstaff.com",
       "flexa.careers"
     ]),
   );
 
+  const [sourceCredentials, setSourceCredentials] = useState<Record<string, string>>({});
   const [loadingDomains, setLoadingDomains] = useState(true);
   const [savingDomains, setSavingDomains] = useState(false);
+  
+  // Job Sources Dialog State
+  const [configModalSource, setConfigModalSource] = useState<any>(null);
+  const [configUsername, setConfigUsername] = useState("");
+  const [configPassword, setConfigPassword] = useState("");
+  const [configEncrypting, setConfigEncrypting] = useState(false);
+
   const passwordCheck = useMemo(
     () => validatePassword(formData.newPassword, formData.email),
     [formData.newPassword, formData.email],
@@ -768,11 +778,14 @@ export const SettingsPage = (): JSX.Element => {
         }
         const { data } = await (supabase as any)
           .from("job_source_settings")
-          .select("enabled_default_sources, allowed_domains")
+          .select("enabled_default_sources, allowed_domains, source_credentials")
           .eq("id", uid)
           .maybeSingle();
 
         if (data) {
+          if (data.source_credentials) {
+            setSourceCredentials(data.source_credentials);
+          }
           // Load enabled default sources from dedicated column
           if (Array.isArray(data.enabled_default_sources)) {
             const enabledDefaults = new Set<string>(
@@ -3543,31 +3556,33 @@ export const SettingsPage = (): JSX.Element => {
         );
 
       case "job-sources":
-        // Define the 5 default job source domains
+        // Define the default job source domains
         const defaultJobSourceDomains = [
-          { id: "remote.co", domain: "remote.co", name: "Remote.co", description: "Remote.co job board", logo: remoteCoLogo, color: "blue" },
-          { id: "remotive.com", domain: "remotive.com", name: "Remotive", description: "Remotive job board", logo: remotiveLogo, color: "green" },
-          { id: "remoteok.com", domain: "remoteok.com", name: "RemoteOK", description: "RemoteOK job board", logo: remoteokLogo, color: "purple" },
-          { id: "jobicy.com", domain: "jobicy.com", name: "Jobicy", description: "Jobicy job board", logo: jobicyLogo, color: "orange" },
-          { id: "levels.fyi", domain: "levels.fyi", name: "Levels.fyi", description: "Levels.fyi (salary/compensation data)", logo: levelsFyiLogo, color: "indigo" },
-          { id: "weworkremotely.com", domain: "weworkremotely.com", name: "We Work Remotely", description: "Remote work community", logo: "https://www.google.com/s2/favicons?domain=weworkremotely.com&sz=128", color: "blue" },
-          { id: "wellfound.com", domain: "wellfound.com", name: "Wellfound (AngelList)", description: "Startup jobs platform", logo: "https://www.google.com/s2/favicons?domain=wellfound.com&sz=128", color: "purple" },
-          { id: "otta.com", domain: "otta.com", name: "Otta", description: "Curated tech roles", logo: "https://www.google.com/s2/favicons?domain=otta.com&sz=128", color: "green" },
-          { id: "builtin.com", domain: "builtin.com", name: "Built In", description: "US Tech hubs & hubs", logo: "https://www.google.com/s2/favicons?domain=builtin.com&sz=128", color: "orange" },
-          { id: "workingnomads.com", domain: "workingnomads.com", name: "Working Nomads", description: "Curated remote jobs", logo: "https://www.google.com/s2/favicons?domain=workingnomads.com&sz=128", color: "indigo" },
-          { id: "flexjobs.com", domain: "flexjobs.com", name: "FlexJobs", description: "Vetted remote/flexible jobs", logo: "https://www.google.com/s2/favicons?domain=flexjobs.com&sz=128", color: "blue" },
-          { id: "cryptojobslist.com", domain: "cryptojobslist.com", name: "CryptoJobsList", description: "Web3 & Crypto jobs", logo: "https://www.google.com/s2/favicons?domain=cryptojobslist.com&sz=128", color: "green" },
-          { id: "hired.com", domain: "hired.com", name: "Hired", description: "Tech talent marketplace", logo: "https://www.google.com/s2/favicons?domain=hired.com&sz=128", color: "purple" },
-          { id: "dice.com", domain: "dice.com", name: "Dice", description: "Tech job board", logo: "https://www.google.com/s2/favicons?domain=dice.com&sz=128", color: "orange" },
-          { id: "ycombinator.com", domain: "ycombinator.com", name: "Y Combinator", description: "Work at a startup", logo: "https://www.google.com/s2/favicons?domain=ycombinator.com&sz=128", color: "indigo" },
-          { id: "startup.jobs", domain: "startup.jobs", name: "Startup.jobs", description: "Startup job aggregator", logo: "https://www.google.com/s2/favicons?domain=startup.jobs&sz=128", color: "blue" },
-          { id: "nodesk.co", domain: "nodesk.co", name: "NoDesk", description: "Remote work resources", logo: "https://www.google.com/s2/favicons?domain=nodesk.co&sz=128", color: "green" },
-          { id: "remoterocketship.com", domain: "remoterocketship.com", name: "Remote Rocketship", description: "AI-curated remote jobs", logo: "https://www.google.com/s2/favicons?domain=remoterocketship.com&sz=128", color: "purple" },
-          { id: "jobspresso.com", domain: "jobspresso.com", name: "Jobspresso", description: "High-quality remote jobs", logo: "https://www.google.com/s2/favicons?domain=jobspresso.com&sz=128", color: "orange" },
-          { id: "talent.hubstaff.com", domain: "talent.hubstaff.com", name: "Hubstaff Talent", description: "Free remote job board", logo: "https://www.google.com/s2/favicons?domain=hubstaff.com&sz=128", color: "indigo" },
-          { id: "flexa.careers", domain: "flexa.careers", name: "Flexa Careers", description: "Verified flexible companies", logo: "https://www.google.com/s2/favicons?domain=flexa.careers&sz=128", color: "blue" },
-          { id: "greenhouse.io", domain: "greenhouse.io", name: "Greenhouse", description: "Company job boards", logo: "https://www.google.com/s2/favicons?domain=greenhouse.io&sz=128", color: "green" },
-          { id: "lever.co", domain: "lever.co", name: "Lever", description: "Company job boards", logo: "https://www.google.com/s2/favicons?domain=lever.co&sz=128", color: "purple" }
+          // IMPORTANT/PREMIUM SOURCES
+          { id: "dice.com", domain: "dice.com", name: "Dice", description: "Tech job board", logo: "https://www.google.com/s2/favicons?domain=dice.com&sz=128", color: "orange", requiresCredentials: true },
+          { id: "wellfound.com", domain: "wellfound.com", name: "Wellfound (AngelList)", description: "Startup jobs platform", logo: "https://www.google.com/s2/favicons?domain=wellfound.com&sz=128", color: "purple", requiresCredentials: true },
+          { id: "hired.com", domain: "hired.com", name: "Hired", description: "Tech talent marketplace", logo: "https://www.google.com/s2/favicons?domain=hired.com&sz=128", color: "purple", requiresCredentials: true },
+          { id: "ycombinator.com", domain: "ycombinator.com", name: "Y Combinator", description: "Work at a startup", logo: "https://www.google.com/s2/favicons?domain=ycombinator.com&sz=128", color: "indigo", requiresCredentials: true },
+          { id: "otta.com", domain: "otta.com", name: "Otta", description: "Curated tech roles", logo: "https://www.google.com/s2/favicons?domain=otta.com&sz=128", color: "green", requiresCredentials: true },
+          { id: "flexjobs.com", domain: "flexjobs.com", name: "FlexJobs", description: "Vetted remote/flexible jobs", logo: "https://www.google.com/s2/favicons?domain=flexjobs.com&sz=128", color: "blue", requiresCredentials: true },
+          { id: "talent.hubstaff.com", domain: "talent.hubstaff.com", name: "Hubstaff Talent", description: "Free remote job board", logo: "https://www.google.com/s2/favicons?domain=hubstaff.com&sz=128", color: "indigo", requiresCredentials: true },
+          { id: "levels.fyi", domain: "levels.fyi", name: "Levels.fyi", description: "Levels.fyi (salary/compensation data)", logo: levelsFyiLogo, color: "indigo", requiresCredentials: false },
+          { id: "builtin.com", domain: "builtin.com", name: "Built In", description: "US Tech hubs & hubs", logo: "https://www.google.com/s2/favicons?domain=builtin.com&sz=128", color: "orange", requiresCredentials: false },
+          // LOW RISK / NO ACCOUNT NEEDED
+          { id: "greenhouse.io", domain: "greenhouse.io", name: "Greenhouse", description: "Company job boards", logo: "https://www.google.com/s2/favicons?domain=greenhouse.io&sz=128", color: "green", requiresCredentials: false },
+          { id: "lever.co", domain: "lever.co", name: "Lever", description: "Company job boards", logo: "https://www.google.com/s2/favicons?domain=lever.co&sz=128", color: "purple", requiresCredentials: false },
+          { id: "remote.co", domain: "remote.co", name: "Remote.co", description: "Remote.co job board", logo: remoteCoLogo, color: "blue", requiresCredentials: false },
+          { id: "remotive.com", domain: "remotive.com", name: "Remotive", description: "Remotive job board", logo: remotiveLogo, color: "green", requiresCredentials: false },
+          { id: "remoteok.com", domain: "remoteok.com", name: "RemoteOK", description: "RemoteOK job board", logo: remoteokLogo, color: "purple", requiresCredentials: false },
+          { id: "weworkremotely.com", domain: "weworkremotely.com", name: "We Work Remotely", description: "Remote work community", logo: "https://www.google.com/s2/favicons?domain=weworkremotely.com&sz=128", color: "blue", requiresCredentials: false },
+          { id: "jobicy.com", domain: "jobicy.com", name: "Jobicy", description: "Jobicy job board", logo: jobicyLogo, color: "orange", requiresCredentials: false },
+          { id: "cryptojobslist.com", domain: "cryptojobslist.com", name: "CryptoJobsList", description: "Web3 & Crypto jobs", logo: "https://www.google.com/s2/favicons?domain=cryptojobslist.com&sz=128", color: "green", requiresCredentials: false },
+          { id: "startup.jobs", domain: "startup.jobs", name: "Startup.jobs", description: "Startup job aggregator", logo: "https://www.google.com/s2/favicons?domain=startup.jobs&sz=128", color: "blue", requiresCredentials: false },
+          { id: "nodesk.co", domain: "nodesk.co", name: "NoDesk", description: "Remote work resources", logo: "https://www.google.com/s2/favicons?domain=nodesk.co&sz=128", color: "green", requiresCredentials: false },
+          { id: "remoterocketship.com", domain: "remoterocketship.com", name: "Remote Rocketship", description: "AI-curated remote jobs", logo: "https://www.google.com/s2/favicons?domain=remoterocketship.com&sz=128", color: "purple", requiresCredentials: false },
+          { id: "jobspresso.com", domain: "jobspresso.com", name: "Jobspresso", description: "High-quality remote jobs", logo: "https://www.google.com/s2/favicons?domain=jobspresso.com&sz=128", color: "orange", requiresCredentials: false },
+          { id: "flexa.careers", domain: "flexa.careers", name: "Flexa Careers", description: "Verified flexible companies", logo: "https://www.google.com/s2/favicons?domain=flexa.careers&sz=128", color: "blue", requiresCredentials: false },
+          { id: "workingnomads.com", domain: "workingnomads.com", name: "Working Nomads", description: "Curated remote jobs", logo: "https://www.google.com/s2/favicons?domain=workingnomads.com&sz=128", color: "indigo", requiresCredentials: false }
         ];
 
 
@@ -3618,6 +3633,7 @@ export const SettingsPage = (): JSX.Element => {
               id: uid,
               enabled_default_sources: enabledDefaults,
               allowed_domains: enabledDefaults, // Custom domains are now retired, only save defaults
+              source_credentials: sourceCredentials,
               updated_at: new Date().toISOString(),
             };
             const { error } = await (supabase as any)
@@ -3666,7 +3682,12 @@ export const SettingsPage = (): JSX.Element => {
                   return (
                     <div
                       key={source.id}
-                      className={`p-4 rounded-xl border transition-all flex flex-col gap-4 ${isEnabled
+                      onClick={() => {
+                        setConfigModalSource(source);
+                        setConfigUsername("");
+                        setConfigPassword("");
+                      }}
+                      className={`cursor-pointer p-4 rounded-xl border transition-all flex flex-col gap-4 group ${isEnabled
                         ? "bg-[#ffd700]/5 border-[#ffd700]/30 shadow-[0_0_15px_rgba(255,215,0,0.05)]"
                         : "bg-background/50 border-border/40 hover:border-border/60 hover:bg-muted/50"
                         }`}
@@ -3707,30 +3728,147 @@ export const SettingsPage = (): JSX.Element => {
                           />
                         </div>
 
-                        <button
-                          onClick={() => handleToggleDefaultDomain(source.domain)}
-                          disabled={loadingDomains}
-                          className={`relative w-11 h-6 rounded-full transition-all duration-300 ${isEnabled ? 'bg-[#ffd700]' : 'bg-muted'}`}
-                        >
-                          <div
-                            className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-black shadow-sm transition-transform duration-300 ${isEnabled ? 'translate-x-5' : 'translate-x-0'}`}
-                          />
-                        </button>
-                      </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleDefaultDomain(source.domain);
+                            }}
+                            disabled={loadingDomains}
+                            className={`relative w-11 h-6 rounded-full transition-all duration-300 ${isEnabled ? 'bg-[#ffd700]' : 'bg-muted'}`}
+                          >
+                            <div
+                              className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-black shadow-sm transition-transform duration-300 ${isEnabled ? 'translate-x-5' : 'translate-x-0'}`}
+                            />
+                          </button>
+                        </div>
 
-                      <div className='space-y-1.5'>
-                        <h4 className='font-semibold text-foreground/95 tracking-tight'>
-                          {source.name}
-                        </h4>
-                        <p className='text-xs text-muted-foreground leading-relaxed max-w-[200px]'>
-                          {source.description}
-                        </p>
+                        <div className='space-y-1.5'>
+                          <h4 className='font-semibold text-foreground/95 tracking-tight flex items-center gap-2'>
+                            {source.name}
+                            {source.requiresCredentials && isEnabled && (
+                              <div className={`p-1 rounded-full ${sourceCredentials[source.domain] ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'} shadow-sm`}>
+                                {sourceCredentials[source.domain] ? <Key className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                              </div>
+                            )}
+                          </h4>
+                          <p className='text-xs text-muted-foreground leading-relaxed max-w-[200px]'>
+                            {source.description}
+                          </p>
+                        </div>
                       </div>
-                    </div>
                   );
                 })}
               </div>
             </div>
+
+            {/* Premium Source Config Modal */}
+            <Modal 
+              open={!!configModalSource} 
+              onClose={() => setConfigModalSource(null)}
+              title={configModalSource ? `${configModalSource.name} Configuration` : "Configuration"}
+            >
+                {configModalSource && (() => {
+                  const s = configModalSource;
+                  const isEnabled = enabledDefaultDomains.has(s.domain);
+                  
+                  return (
+                    <div className='flex flex-col gap-6 p-2'>
+                      {/* Header Area */}
+                      <div className='flex items-start gap-4'>
+                        <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br from-${s.color}-500/20 to-${s.color}-500/10 border border-${s.color}-500/30 flex items-center justify-center p-3 shrink-0 shadow-[0_0_20px_rgba(var(--${s.color}-500),0.1)]`}>
+                           <img src={s.logo} alt={s.name} className='w-full h-full object-contain filter drop-shadow-md' />
+                        </div>
+                        <div className='flex-1 pt-1'>
+                          <h3 className='text-xl font-bold tracking-tight text-white flex items-center gap-2'>
+                            {s.name} Access
+                            {s.requiresCredentials && <Lock className="w-4 h-4 text-[#ffd700]" />}
+                          </h3>
+                          <p className='text-sm text-foreground/60 mt-1 leading-relaxed'>
+                            Control agent access and securely manage credentials for automated applications on {s.name}.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Power Toggle */}
+                      <div className='bg-[#16161D] border border-border/10 rounded-xl p-5 flex items-center justify-between'>
+                        <div>
+                          <p className='text-sm font-semibold text-white'>Job Source Status</p>
+                          <p className='text-xs text-foreground/50 mt-0.5'>Enable automated browsing on this site</p>
+                        </div>
+                        <button
+                          onClick={() => handleToggleDefaultDomain(s.domain)}
+                          className={`relative w-14 h-8 rounded-full transition-all duration-300 ${isEnabled ? 'bg-[#ffd700] shadow-[0_0_15px_rgba(255,215,0,0.3)]' : 'bg-muted/30'}`}
+                        >
+                          <div className={`absolute top-1 left-1 w-6 h-6 rounded-full bg-black shadow-sm transition-transform duration-300 ${isEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                        </button>
+                      </div>
+
+                      {/* Credentials Context */}
+                      {s.requiresCredentials && (
+                        <div className='space-y-4'>
+                          <div className='flex items-center gap-2 text-xs text-[#ffd700] bg-[#ffd700]/10 px-3 py-2 rounded-lg border border-[#ffd700]/20'>
+                            <Shield className='w-4 h-4 shrink-0' />
+                            <span>This platform enforces login walls. Connecting credentials yields a 100% higher completion rate.</span>
+                          </div>
+
+                          <div className='space-y-3 p-5 rounded-xl border border-white/5 bg-black/20'>
+                            <div className='space-y-1.5'>
+                              <label className='text-xs font-semibold text-foreground/70 uppercase tracking-wider ml-1'>Access Email</label>
+                              <Input
+                                value={configUsername}
+                                onChange={(e) => setConfigUsername(e.target.value)}
+                                placeholder='hello@jobraker.com'
+                                className='bg-[#0A0A0D] border-border/30 h-11'
+                              />
+                            </div>
+                            <div className='space-y-1.5'>
+                              <label className='text-xs font-semibold text-foreground/70 uppercase tracking-wider ml-1'>Access Password</label>
+                              <div className='relative'>
+                                <Input
+                                  type='password'
+                                  value={configPassword}
+                                  onChange={(e) => setConfigPassword(e.target.value)}
+                                  placeholder='••••••••••••'
+                                  className='bg-[#0A0A0D] border-border/30 h-11 pr-10'
+                                />
+                                <Key className='w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40' />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Footer Actions */}
+                      <div className='flex items-center justify-between pt-2'>
+                        <p className='text-[10px] text-foreground/40 max-w-[200px] leading-tight'>
+                          Credentials are AES-GCM encrypted browser-side before transit.
+                        </p>
+                        <Button 
+                          onClick={async () => {
+                            if (s.requiresCredentials && (configUsername || configPassword)) {
+                              setConfigEncrypting(true);
+                              try {
+                                const enc = await encryptSymmetric(JSON.stringify({ username: configUsername, password: configPassword }));
+                                setSourceCredentials(prev => ({ ...prev, [s.domain]: enc }));
+                                success("Credentials encrypted & stored locally.", "Press 'Save Configuration' to commit to database.");
+                              } catch(e) {
+                                toastError("Encryption Error", "Failed to encrypt browser-side.");
+                              }
+                              setConfigEncrypting(false);
+                            }
+                            setConfigModalSource(null);
+                          }}
+                          disabled={configEncrypting}
+                          className='bg-white text-black hover:bg-zinc-200'
+                        >
+                          {configEncrypting ? "Encrypting..." : "Confirm & Close"}
+                        </Button>
+                      </div>
+
+                    </div>
+                  );
+                })()}
+            </Modal>
 
             {/* Save Button */}
             <div className='flex justify-end'>

@@ -75,7 +75,8 @@
     }
   },
   "include": [
-    "src"
+    "src",
+    "backend/supabase/shared/**/*.ts"
   ],
   "exclude": [
     // Legacy client subtree merged into main app and not compiled

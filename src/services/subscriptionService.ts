@@ -26,6 +26,7 @@ export class SubscriptionService {
         currency: plan.currency,
         billingCycle: plan.billing_cycle,
         creditsPerCycle: plan.credits_per_month ?? plan.credits_per_cycle ?? 0,
+        autoApplyRunsPerMonth: plan.auto_apply_monthly_limit ?? 0,
         maxUsers: plan.max_users,
         features: plan.features || [],
         isActive: plan.is_active,
@@ -86,6 +87,7 @@ export class SubscriptionService {
           billingCycle: data.plan.billing_cycle,
           creditsPerCycle:
             data.plan.credits_per_month ?? data.plan.credits_per_cycle ?? 0,
+          autoApplyRunsPerMonth: data.plan.auto_apply_monthly_limit ?? 0,
           maxUsers: data.plan.max_users,
           features: data.plan.features || [],
           isActive: data.plan.is_active,

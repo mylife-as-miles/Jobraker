@@ -7,6 +7,7 @@ export interface SubscriptionPlan {
   currency: string;
   billingCycle: 'monthly' | 'quarterly' | 'yearly' | 'lifetime';
   creditsPerCycle: number;
+  autoApplyRunsPerMonth?: number;
   maxUsers: number | null;
   features: Array<
     | string

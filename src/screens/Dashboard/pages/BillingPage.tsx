@@ -9,14 +9,26 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/components/ui/toast';
+import {
+  BILLING_CREDIT_PACK_DEFINITIONS,
+  BILLING_PLAN_DEFINITIONS,
+} from '@/lib/billingCatalog';
 
 interface SubscriptionPlan {
   id: string;
   name: string;
   price: number;
   credits_per_month: number;
+  auto_apply_monthly_limit?: number;
   description: string;
-  features: string[];
+  features: Array<
+    | string
+    | {
+        name: string;
+        value?: string;
+        included?: boolean;
+      }
+  >;
 }
 
 interface CreditTransaction {
@@ -29,59 +41,41 @@ interface CreditTransaction {
 }
 
 interface CreditPack {
+  sku: string;
+  name: string;
+  description: string;
   credits: number;
-  price: number;
-  bonus: number;
-  popular?: boolean;
+  price_usd: number;
+  bonus_credits: number;
+  is_popular?: boolean;
 }
 
-const creditPacks: CreditPack[] = [
-  { credits: 100, price: 9, bonus: 0 },
-  { credits: 500, price: 39, bonus: 50, popular: true },
-  { credits: 1000, price: 69, bonus: 150 },
-  { credits: 2500, price: 149, bonus: 500 },
-];
+const defaultCreditPacks: CreditPack[] = BILLING_CREDIT_PACK_DEFINITIONS.map((pack) => ({
+  sku: pack.sku,
+  name: pack.name,
+  description: pack.description,
+  credits: pack.credits,
+  price_usd: pack.priceUsd,
+  bonus_credits: pack.bonusCredits,
+  is_popular: pack.isPopular,
+}));
 
-const defaultPlans: SubscriptionPlan[] = [
-  {
-    id: 'free',
-    name: 'Free',
-    price: 0,
-    credits_per_month: 10,
-    description: 'Perfect for trying out JobRaker',
-    features: ['10 AI Job Applications/mo', 'Basic Resume Parsing', 'Standard Support']
-  },
-  {
-    id: 'basics',
-    name: 'Basics',
-    price: 19,
-    credits_per_month: 100,
-    description: 'For active job seekers',
-    features: ['100 AI Job Applications/mo', 'Advanced Resume Optimization', 'Priority Queue']
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: 49,
-    credits_per_month: 500,
-    description: 'Power through your job search',
-    features: ['500 AI Job Applications/mo', 'Cover Letter Generation', 'LinkedIn Optimization', '24/7 Priority Support']
-  },
-  {
-    id: 'ultimate',
-    name: 'Ultimate',
-    price: 99,
-    credits_per_month: 2000,
-    description: 'Maximum automation & reach',
-    features: ['2000 AI Job Applications/mo', 'Personal Career Agent', 'Interview Prep AI', 'Dedicated Account Manager']
-  }
-];
+const defaultPlans: SubscriptionPlan[] = BILLING_PLAN_DEFINITIONS.map((plan) => ({
+  id: plan.tier.toLowerCase(),
+  name: plan.name,
+  price: plan.monthlyPriceUsd,
+  credits_per_month: plan.creditsPerMonth,
+  auto_apply_monthly_limit: plan.autoApplyRunsPerMonth,
+  description: plan.description,
+  features: plan.marketingFeatures,
+}));
 
 export const BillingPage = () => {
   const [currentCredits, setCurrentCredits] = useState(0);
   const [subscriptionTier, setSubscriptionTier] = useState<'Free' | 'Basics' | 'Pro' | 'Ultimate'>('Free');
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState<string | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [creditPacks, setCreditPacks] = useState<CreditPack[]>(defaultCreditPacks);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'subscription' | 'packs' | 'history'>('subscription');
@@ -101,6 +95,7 @@ export const BillingPage = () => {
       // If no user (e.g. preview mode), populate with defaults
       if (!userId) {
         setPlans(defaultPlans);
+        setCreditPacks(defaultCreditPacks);
         setTransactions([
           { id: '1', transaction_type: 'bonus', amount: 50, balance_after: 50, description: 'Welcome Bonus', created_at: new Date().toISOString() }
         ]);
@@ -145,6 +140,18 @@ export const BillingPage = () => {
         setPlans(defaultPlans);
       }
 
+      const { data: packsData } = await supabase
+        .from('credit_pack_catalog')
+        .select('sku, name, description, credits, bonus_credits, price_usd, is_popular')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      if (packsData && packsData.length > 0) {
+        setCreditPacks(packsData as CreditPack[]);
+      } else {
+        setCreditPacks(defaultCreditPacks);
+      }
+
       // Fetch recent transactions
       const { data: transactionsData } = await supabase
         .from('credit_transactions')
@@ -160,6 +167,7 @@ export const BillingPage = () => {
       console.error('Error fetching billing data:', error);
       // Fallback to defaults on error
       setPlans(defaultPlans);
+      setCreditPacks(defaultCreditPacks);
     } finally {
       setLoading(false);
     }
@@ -180,13 +188,9 @@ export const BillingPage = () => {
       }
 
       // Prepare payload
-      const payload = {
-        planType: type,
-        amount: item.price,
-        metadata: type === 'credit_pack'
-          ? { credits: item.credits, bonus: item.bonus }
-          : { plan_id: item.id, credits_per_month: item.credits_per_month }
-      };
+      const payload = type === 'credit_pack'
+        ? { purchaseType: type, packSku: item.sku }
+        : { purchaseType: type, planId: item.id };
 
       // Call Edge Function
       const { data, error } = await supabase.functions.invoke('init-payment', {
@@ -306,7 +310,7 @@ export const BillingPage = () => {
               </span>
             </h1>
             <p className="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
-              Supercharge your job search with AI credits. Choose a plan that fits your ambition or top up anytime.
+              Price search and drafting separately from automation. Plans include governed auto-apply runs, while packs top up search and AI usage.
             </p>
           </motion.div>
 
@@ -366,7 +370,10 @@ export const BillingPage = () => {
                       {subscriptionTier}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {plans.find(p => p.name === subscriptionTier)?.credits_per_month.toLocaleString() || 0} credits/month
+                      {plans.find((p) => p.name === subscriptionTier)?.credits_per_month?.toLocaleString() || 0} credits
+                      {plans.find((p) => p.name === subscriptionTier)?.auto_apply_monthly_limit
+                        ? ` + ${plans.find((p) => p.name === subscriptionTier)?.auto_apply_monthly_limit} auto-apply runs/mo`
+                        : ' / manual only'}
                     </p>
                   </div>
                 </CardContent>
@@ -522,24 +529,45 @@ export const BillingPage = () => {
                                   </div>
                                 </div>
 
-                                {/* Credits */}
-                                <div className="flex items-center gap-3 p-3 rounded-xl mb-6 bg-foreground/5 border border-foreground/5 group-hover:bg-foreground/10 transition-colors">
-                                  <div className="p-1.5 rounded-lg bg-background/40">
-                                    <Zap className={`w-4 h-4 ${
-                                      plan.name === 'Pro' ? 'text-blue-400' :
-                                      plan.name === 'Ultimate' ? 'text-purple-400' : 'text-[#1dff00]'
-                                    }`} />
+                                {/* Included usage */}
+                                <div className="grid gap-3 mb-6 sm:grid-cols-2">
+                                  <div className="flex items-center gap-3 p-3 rounded-xl bg-foreground/5 border border-foreground/5 group-hover:bg-foreground/10 transition-colors">
+                                    <div className="p-1.5 rounded-lg bg-background/40">
+                                      <Zap className={`w-4 h-4 ${
+                                        plan.name === 'Pro' ? 'text-blue-400' :
+                                        plan.name === 'Ultimate' ? 'text-purple-400' : 'text-[#1dff00]'
+                                      }`} />
+                                    </div>
+                                    <div>
+                                      <span className={`block text-sm font-bold ${textColors.primary}`}>{plan.credits_per_month} credits</span>
+                                      <span className={`block text-[10px] uppercase tracking-wider ${textColors.muted}`}>Search + AI / month</span>
+                                    </div>
                                   </div>
-                                  <div>
-                                    <span className={`block text-sm font-bold ${textColors.primary}`}>{plan.credits_per_month} credits</span>
-                                    <span className={`block text-[10px] uppercase tracking-wider ${textColors.muted}`}>Monthly Refill</span>
+                                  <div className="flex items-center gap-3 p-3 rounded-xl bg-foreground/5 border border-foreground/5 group-hover:bg-foreground/10 transition-colors">
+                                    <div className="p-1.5 rounded-lg bg-background/40">
+                                      <Target className={`w-4 h-4 ${
+                                        plan.name === 'Pro' ? 'text-blue-400' :
+                                        plan.name === 'Ultimate' ? 'text-purple-400' : 'text-[#1dff00]'
+                                      }`} />
+                                    </div>
+                                    <div>
+                                      <span className={`block text-sm font-bold ${textColors.primary}`}>
+                                        {plan.auto_apply_monthly_limit && plan.auto_apply_monthly_limit > 0
+                                          ? `${plan.auto_apply_monthly_limit} runs`
+                                          : 'Manual only'}
+                                      </span>
+                                      <span className={`block text-[10px] uppercase tracking-wider ${textColors.muted}`}>Governed auto apply</span>
+                                    </div>
                                   </div>
                                 </div>
 
                                 {/* Features */}
                                 <div className="space-y-3 mb-8 flex-grow">
                                   {plan.features && Array.isArray(plan.features) && plan.features.map((feature: any, idx: number) => {
-                                    const featureName = typeof feature === 'string' ? feature : feature.name;
+                                    const featureName =
+                                      typeof feature === 'string'
+                                        ? feature
+                                        : [feature.name, feature.value].filter(Boolean).join(' • ');
                                     const isIncluded = typeof feature === 'object' ? feature.included !== false : true;
                                     
                                     if (!isIncluded) return null;
@@ -607,19 +635,19 @@ export const BillingPage = () => {
             >
               <div className="text-center">
                 <h2 className="text-3xl font-bold text-foreground mb-3">One-Time Credit Packs</h2>
-                <p className="text-gray-400">Need a boost? Add credits that never expire.</p>
+                <p className="text-gray-400">These packs top up search, evaluation, and drafting. Auto-apply capacity comes from your subscription plan.</p>
               </div>
 
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 {creditPacks.map((pack, index) => (
                   <motion.div
-                    key={index}
+                    key={pack.sku}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
                     className="relative"
                   >
-                    {pack.popular && (
+                    {pack.is_popular && (
                       <div className="absolute -top-3 left-0 right-0 flex justify-center z-10">
                         <span className="bg-[#1dff00] text-background text-[10px] font-bold px-3 py-1 rounded-full shadow-lg shadow-[#1dff00]/20">
                           BEST VALUE
@@ -628,40 +656,41 @@ export const BillingPage = () => {
                     )}
 
                     <Card className={`relative overflow-hidden transition-all duration-300 group hover:scale-105 ${
-                      pack.popular
+                      pack.is_popular
                         ? 'border-[#1dff00]/30 bg-gradient-to-b from-[#1dff00]/5 to-transparent'
                         : 'border-foreground/10 bg-foreground/[0.02] hover:bg-foreground/[0.04]'
                     }`}>
                       <CardContent className="p-6 flex flex-col items-center text-center">
                         <div className={`p-3 rounded-2xl mb-4 ${
-                          pack.popular ? 'bg-[#1dff00]/10 text-[#1dff00]' : 'bg-foreground/5 text-gray-400 group-hover:text-foreground group-hover:bg-foreground/10'
+                          pack.is_popular ? 'bg-[#1dff00]/10 text-[#1dff00]' : 'bg-foreground/5 text-gray-400 group-hover:text-foreground group-hover:bg-foreground/10'
                         } transition-colors`}>
                           <Package className="w-8 h-8" />
                         </div>
 
-                        {pack.bonus > 0 && (
+                        {pack.bonus_credits > 0 && (
                           <span className="mb-2 text-[10px] font-bold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded-full flex items-center gap-1 border border-yellow-400/20">
                             <Sparkles className="w-3 h-3" />
-                            +{pack.bonus} BONUS
+                            +{pack.bonus_credits} BONUS
                           </span>
                         )}
 
                         <div className="mb-6">
                           <p className="text-4xl font-bold text-foreground mb-1">
-                            {(pack.credits + pack.bonus).toLocaleString()}
+                            {(pack.credits + pack.bonus_credits).toLocaleString()}
                           </p>
-                          <p className="text-xs text-gray-400 uppercase tracking-widest font-medium">Credits</p>
+                          <p className="text-xs text-gray-400 uppercase tracking-widest font-medium">Search + AI Credits</p>
+                          <p className="text-xs text-gray-500 mt-2">{pack.description}</p>
                         </div>
 
                         <div className="w-full pt-4 border-t border-foreground/5">
-                          <p className="text-3xl font-bold text-foreground mb-1">${pack.price}</p>
+                          <p className="text-3xl font-bold text-foreground mb-1">${pack.price_usd}</p>
                           <p className="text-xs text-gray-500 mb-4">
-                            ${(pack.price / (pack.credits + pack.bonus)).toFixed(3)} per credit
+                            ${(pack.price_usd / (pack.credits + pack.bonus_credits)).toFixed(3)} per credit
                           </p>
 
                           <Button
                             className={`w-full font-bold transition-all duration-300 ${
-                              pack.popular
+                              pack.is_popular
                                 ? 'bg-[#1dff00] text-background hover:bg-[#1dff00] hover:brightness-110 shadow-[0_0_20px_rgba(29,255,0,0.3)]'
                                 : 'bg-foreground/10 text-foreground hover:bg-foreground/20'
                             }`}

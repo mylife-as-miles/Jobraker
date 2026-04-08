@@ -2,7 +2,7 @@ import {
   createGeminiClient,
   createGeminiConfig,
   extractGeminiText,
-  GEMINI_MODEL,
+  GEMINI_PREMIUM_MODEL,
 } from "./gemini.ts";
 import {
   fetchCandidateMemory,
@@ -274,7 +274,7 @@ export async function evaluateAndPersistJobFit(
   const ai = createGeminiClient();
 
   const response = await ai.models.generateContent({
-    model: GEMINI_MODEL,
+    model: GEMINI_PREMIUM_MODEL,
     config: createGeminiConfig({
       systemInstruction:
         "You are Jobraker's structured evaluation engine. Reply with JSON only.",

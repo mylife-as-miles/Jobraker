@@ -1675,8 +1675,6 @@ export const JobPage = (): JSX.Element => {
         );
 
         if (checkError) {
-          console.error("Failed to check credits:", checkError);
-          toastError("Credit Check Failed", "Unable to verify credits.");
           toastError("Credit Check Failed", "Unable to verify credits.");
           setError({
             message: "Failed to verify credits. Please try again.",
@@ -2236,35 +2234,37 @@ export const JobPage = (): JSX.Element => {
       }
 
       if (userId && jobsToAutoApply.length > 0) {
-        const { data: creditCheck, error: checkError } = await supabase.rpc(
-          "check_credits_available",
+        const { data: quotaCheck, error: checkError } = await supabase.rpc(
+          "check_auto_apply_quota",
           {
             p_user_id: userId,
-            p_feature_type: "auto_apply",
-            p_quantity: jobsToAutoApply.length,
+            p_requested_quantity: jobsToAutoApply.length,
           },
         );
 
         if (checkError) {
-          console.error("Failed to check credits:", checkError);
-          toastError("Credit Check Failed", "Unable to verify credits.");
+          console.error("Failed to check auto apply quota:", checkError);
+          toastError(
+            "Quota Check Failed",
+            "Unable to verify auto apply capacity.",
+          );
           setError({
-            message: "Failed to verify credits. Please try again.",
+            message: "Failed to verify auto apply capacity. Please try again.",
             link: "/dashboard/billing",
           });
           return;
         }
 
-        if (!creditCheck?.available) {
-          const required = creditCheck?.required || jobsToAutoApply.length * 5;
-          const available = creditCheck?.current_balance || 0;
+        if (!quotaCheck?.available) {
+          const required = quotaCheck?.required || jobsToAutoApply.length;
+          const available = quotaCheck?.remaining || 0;
           setError({
-            message: `Insufficient credits. Auto apply requires ${required} credits (5 per job × ${jobsToAutoApply.length} jobs) but you only have ${available}.`,
+            message: `This batch needs ${required} auto-apply run(s), but your current plan only has ${available} remaining this billing period.`,
             link: "/dashboard/billing",
           });
           safeInfo(
-            "Not enough credits",
-            "Upgrade or purchase credits to use auto apply.",
+            "Automation limit reached",
+            "Upgrade your plan to unlock more governed auto-apply capacity.",
           );
           return;
         }
@@ -2499,34 +2499,39 @@ export const JobPage = (): JSX.Element => {
 
       if (userId && launchedSuccess > 0) {
         try {
-          const { data: deductResult, error: deductError } = await supabase.rpc(
-            "deduct_auto_apply_credits",
+          const { data: quotaResult, error: quotaError } = await supabase.rpc(
+            "consume_auto_apply_quota",
             {
               p_user_id: userId,
-              p_jobs_count: launchedSuccess,
+              p_requested_quantity: launchedSuccess,
+              p_reference_id: jobToAutoApply?.id ?? null,
+              p_metadata: {
+                launched_success: launchedSuccess,
+                draft_count: jobsToDraft.length,
+              },
             },
           );
 
-          if (deductError) {
-            console.error("Failed to deduct auto apply credits:", deductError);
+          if (quotaError) {
+            console.error("Failed to consume auto apply quota:", quotaError);
             safeInfo(
-              "Credit deduction failed",
-              "There was an issue processing your credits.",
+              "Quota update failed",
+              "There was an issue processing your auto apply usage.",
             );
-          } else if (deductResult && !deductResult.success) {
-            console.warn("Credit deduction failed:", deductResult.message);
-            safeInfo("Credit deduction failed", deductResult.message);
-          } else if (deductResult?.success) {
+          } else if (quotaResult && !quotaResult.success) {
+            console.warn("Auto apply quota update failed:", quotaResult.message);
+            safeInfo("Quota update failed", quotaResult.message);
+          } else if (quotaResult?.success) {
             safeInfo(
-              "Credits deducted",
-              `Used ${deductResult.credits_deducted} credits. ${deductResult.remaining_balance} remaining.`,
+              "Automation quota updated",
+              `Used ${quotaResult.quantity_consumed} auto-apply run(s). ${quotaResult.remaining} remaining this period.`,
             );
           }
-        } catch (creditErr) {
-          console.error("Error deducting auto apply credits:", creditErr);
+        } catch (quotaErr) {
+          console.error("Error consuming auto apply quota:", quotaErr);
           toastError(
-            "Credit Error",
-            "Failed to deduct credits after auto-applying.",
+            "Quota Error",
+            "Failed to update auto apply usage after launching automation.",
           );
         }
       }

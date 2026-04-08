@@ -14,8 +14,14 @@ export const createGeminiClient = () => {
     return new GoogleGenAI({ apiKey });
 }
 
-// Default model - Gemini 3 Pro Preview
-export const GEMINI_MODEL = 'gemini-3.1-pro-preview';
+// Cost-aware model defaults:
+// - day-to-day generation uses Flash by default
+// - premium evaluation flows can opt into the heavier model explicitly
+export const GEMINI_FAST_MODEL =
+  Deno.env.get("GEMINI_FAST_MODEL") ?? "gemini-2.5-flash";
+export const GEMINI_PREMIUM_MODEL =
+  Deno.env.get("GEMINI_PREMIUM_MODEL") ?? "gemini-3.1-pro-preview";
+export const GEMINI_MODEL = GEMINI_FAST_MODEL;
 
 // Standard tools configuration
 export const GEMINI_TOOLS = [
@@ -31,9 +37,9 @@ export const createGeminiConfig = (options?: {
     thinkingLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
 }) => ({
     thinkingConfig: {
-        thinkingLevel: options?.thinkingLevel || 'HIGH',
+        thinkingLevel: options?.thinkingLevel || 'MEDIUM',
     },
-    ...(options?.includeTools === false ? {} : { tools: GEMINI_TOOLS }),
+    ...(options?.includeTools ? { tools: GEMINI_TOOLS } : {}),
     responseMimeType: options?.responseMimeType || 'application/json',
     ...(options?.systemInstruction ? { systemInstruction: options.systemInstruction } : {}),
 });
