@@ -30,7 +30,7 @@ import { useProfileSettings } from "@/hooks/useProfileSettings";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
-import { TemplateSelector } from "../components/resume/TemplateSelector";
+import TemplateSelector from "../components/TemplateSelector";
 import { AddSectionDialog } from "../components/resume/AddSectionDialog";
 import { ShareDialog } from "../components/resume/ShareDialog";
 import { SectionEditor } from "../components/resume/SectionEditor";

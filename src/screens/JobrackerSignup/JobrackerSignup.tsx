@@ -273,11 +273,8 @@ export const JobrackerSignup = (): JSX.Element => {
               className='space-y-1'
             >
               <div className='flex items-center gap-2 mb-4'>
-                <div className='relative flex items-center justify-center w-7 h-7 bg-[#1dff00] rounded-md shadow-[0_0_10px_rgba(29,255,0,0.4)]'>
-                  <Sparkles
-                    className='text-background w-3.5 h-3.5'
-                    strokeWidth={2.5}
-                  />
+                <div className='relative flex items-center justify-center w-9 h-9 overflow-clip  rounded-md'>
+                 <img src="/logo/logo.jpeg" alt="logo" className="object-cover" />
                 </div>
                 <span className='text-base font-bold tracking-tight text-foreground font-mono'>
                   JOBRAKER

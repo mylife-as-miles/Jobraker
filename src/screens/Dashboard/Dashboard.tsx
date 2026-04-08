@@ -400,11 +400,10 @@ export const Dashboard = (): JSX.Element => {
           <div
             className={`flex items-center gap-3 relative z-10 w-full ${isCollapsed ? "justify-center" : ""}`}
           >
-            <div className='w-9 h-9 bg-gradient-to-br from-[#1dff00] to-background rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(29,255,0,0.3)] shrink-0'>
-              <span className='text-fore font-extrabold text-sm tracking-tighter'>
-                JR
-              </span>
+            <div className='w-9 h-9 rounded-xl flex items-center justify-center shrink-0 overflow-clip'>
+              <img src="/logo/logo.jpeg" className="object-cover w-full h-full" alt="logo" />
             </div>
+
             {!isCollapsed && (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -428,7 +427,6 @@ export const Dashboard = (): JSX.Element => {
             >
               <X className='w-5 h-5' />
             </Button>
-            {/* Desktop Collapse Toggle - Removed, moved to header */}
           </div>
         </div>
 
