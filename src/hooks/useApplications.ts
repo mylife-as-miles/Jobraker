@@ -2,17 +2,26 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "../lib/supabaseClient";
 import { useToast } from "../components/ui/toast";
 import { createNotification } from "../utils/notifications";
+import {
+  APPLICATION_STATUS_OPTIONS,
+  canonicalStageFromDisplayStatus,
+  normalizeApplicationRecord,
+  type ApplicationCanonicalStage,
+  type ApplicationStatus,
+} from "../lib/applicationState";
 
-export type ApplicationStatus = "Pending" | "Applied" | "Interview" | "Offer" | "Rejected" | "Withdrawn";
+export type { ApplicationStatus } from "../lib/applicationState";
 
 export interface ApplicationRecord {
   id: string;
   user_id: string;
+  job_id?: string | null;
   job_title: string;
   company: string;
   location: string;
   applied_date: string; // ISO string
   status: ApplicationStatus;
+  canonical_stage: ApplicationCanonicalStage;
   salary: string | null;
   notes: string | null;
   next_step: string | null;
@@ -56,14 +65,10 @@ export function useApplications() {
    * Lightweight memo so downstream UIs do not have to recalculate.
    */
   const stats = useMemo(() => {
-    const byStatus: Record<ApplicationStatus, number> = {
-      Pending: 0,
-      Applied: 0,
-      Interview: 0,
-      Offer: 0,
-      Rejected: 0,
-      Withdrawn: 0,
-    };
+    const byStatus = APPLICATION_STATUS_OPTIONS.reduce(
+      (acc, status) => ({ ...acc, [status]: 0 }),
+      {} as Record<ApplicationStatus, number>,
+    );
     let newest: string | null = null;
     let interviewsNext7 = 0;
     const now = Date.now();
@@ -131,7 +136,11 @@ export function useApplications() {
       const { data, error } = await query;
       if (reqId !== listRequestId.current) return; // stale
       if (error) throw error;
-      setApplications((data ?? []) as ApplicationRecord[]);
+      setApplications(
+        ((data ?? []) as ApplicationRecord[]).map((row) =>
+          normalizeApplicationRecord(row),
+        ),
+      );
     } catch (e: any) {
       if (reqId !== listRequestId.current) return; // stale
       const msg = e.message || "Failed to load applications";
@@ -160,9 +169,10 @@ export function useApplications() {
             switch (eventType) {
               case 'INSERT':
                 if (prev.find((r) => r.id === newRow.id)) return prev;
-                return [newRow as ApplicationRecord, ...prev];
+                return [normalizeApplicationRecord(newRow as ApplicationRecord), ...prev];
               case 'UPDATE': {
-                const updated = prev.map((r) => (r.id === newRow.id ? { ...r, ...newRow } : r));
+                const normalized = normalizeApplicationRecord(newRow as ApplicationRecord);
+                const updated = prev.map((r) => (r.id === newRow.id ? { ...r, ...normalized } : r));
                 // Move updated to top
                 const idx = updated.findIndex((r) => r.id === newRow.id);
                 if (idx > 0) {
@@ -192,11 +202,15 @@ export function useApplications() {
     try {
       const payload = {
         user_id: userId,
+        job_id: input.job_id ?? null,
         job_title: input.job_title,
         company: input.company,
         location: input.location ?? "",
     applied_date: input.applied_date ?? new Date().toISOString(),
     status: (input.status ?? "Pending") as ApplicationStatus,
+        canonical_stage:
+          input.canonical_stage ??
+          canonicalStageFromDisplayStatus(input.status ?? "Pending"),
         salary: input.salary ?? null,
         notes: input.notes ?? null,
         match_score: input.match_score ?? null,
@@ -216,7 +230,7 @@ export function useApplications() {
         .select("*")
         .single();
       if (error) throw error;
-      const rec = data as ApplicationRecord;
+      const rec = normalizeApplicationRecord(data as ApplicationRecord);
       setApplications((prev) => [rec, ...prev]);
       success("Application added", `${rec.job_title} @ ${rec.company}`);
       // Notification: new application added
@@ -253,10 +267,20 @@ export function useApplications() {
     const newStatus = patch.status ?? oldStatus;
     const oldInterviewDate = current?.interview_date;
     try {
-      setApplications((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+      const normalizedPatch = {
+        ...patch,
+        ...(patch.status
+          ? { canonical_stage: canonicalStageFromDisplayStatus(patch.status) }
+          : {}),
+      };
+      setApplications((prev) =>
+        prev.map((r) =>
+          r.id === id ? normalizeApplicationRecord({ ...r, ...normalizedPatch }) : r,
+        ),
+      );
       const { error } = await (supabase as any)
         .from("applications")
-        .update(patch)
+        .update(normalizedPatch)
         .eq("id", id);
       if (error) throw error;
       success("Saved changes");
@@ -306,7 +330,7 @@ export function useApplications() {
       }
       // Provider failure or explicit failure_reason update
       if (userId && patch.failure_reason) {
-        createNotification({
+      createNotification({
           user_id: userId,
           type: 'system',
           title: 'Application error',
@@ -334,11 +358,18 @@ export function useApplications() {
     if (!ids.length) return;
     const prev = applications;
     const affected = new Set(ids);
-    setApplications(applications.map(a => affected.has(a.id) ? { ...a, status } : a));
+    const canonicalStage = canonicalStageFromDisplayStatus(status);
+    setApplications(
+      applications.map((a) =>
+        affected.has(a.id)
+          ? normalizeApplicationRecord({ ...a, status, canonical_stage: canonicalStage })
+          : a,
+      ),
+    );
     try {
       const { error } = await (supabase as any)
         .from('applications')
-        .update({ status })
+        .update({ status, canonical_stage: canonicalStage })
         .in('id', ids);
       if (error) throw error;
       success('Statuses updated', `${ids.length} application${ids.length > 1 ? 's' : ''}`);
@@ -347,7 +378,7 @@ export function useApplications() {
         const label = status === 'Offer' ? 'Offer stage' : status === 'Interview' ? 'Interview stage' : `Status: ${status}`;
         createNotification({
           user_id: userId,
-          type: status === 'Rejected' ? 'system' : 'application',
+          type: status === 'Rejected' || status === 'Failed' ? 'system' : 'application',
           title: `${label} (${ids.length})`,
           message: `Updated ${ids.length} application${ids.length>1?'s':''} to ${status}.`,
         });

@@ -1,11 +1,13 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { fetchCandidateMemory } from "./candidate-memory.ts";
 
 export interface UserContext {
   userId: string;
   name: string;
   email: string;
   resumeSummary: string | null;
+  candidateMemorySummary: string | null;
   recentChatTitles: string[];
   subscriptionTier: string;
   credits: number;
@@ -25,6 +27,7 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
   );
 
   // Parallel fetches for speed
+  const candidateMemoryPromise = fetchCandidateMemory(supabase, userId).catch(() => null);
   const [
     profileRes,
     resumeRes,
@@ -32,7 +35,8 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     creditsRes,
     appsRes,
     coversRes,
-    resumesRes
+    resumesRes,
+    candidateMemory,
   ] = await Promise.all([
     supabase.from("profiles").select("first_name, last_name, job_title").eq("id", userId).single(),
     supabase.from("parsed_resumes").select("json").eq("user_id", userId).order("extracted_at", { ascending: false }).limit(1).single(),
@@ -40,7 +44,8 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     supabase.from("user_credits").select("balance").eq("user_id", userId).single(),
     supabase.from("applications").select("job_title, company, status").eq("user_id", userId).order("updated_at", { ascending: false }).limit(5),
     supabase.from("cover_letters").select("name, role, company, content").eq("user_id", userId).order("updated_at", { ascending: false }).limit(3),
-    supabase.from("resumes").select("name, status").eq("user_id", userId).order("updated_at", { ascending: false }).limit(3)
+    supabase.from("resumes").select("name, status").eq("user_id", userId).order("updated_at", { ascending: false }).limit(3),
+    candidateMemoryPromise
   ]);
 
   // Build resume summary string from JSON blob
@@ -72,6 +77,7 @@ export async function fetchUserContext(userId: string, authHeader: string): Prom
     name,
     email: "", // Not strictly needed for context
     resumeSummary,
+    candidateMemorySummary: candidateMemory?.summaryText || null,
     recentChatTitles: chatsRes.data?.map(c => c.title) || [],
     subscriptionTier: "Free", // Default if not found
     credits: creditsRes.data?.balance || 0,
@@ -94,6 +100,11 @@ export function formatUserContextForPrompt(context: UserContext): string {
   if (context.resumeSummary) {
     lines.push(`\n## Resume Summary`);
     lines.push(context.resumeSummary);
+  }
+
+  if (context.candidateMemorySummary) {
+    lines.push(`\n## Candidate Memory`);
+    lines.push(context.candidateMemorySummary);
   }
 
   if (context.recentApplications.length > 0) {

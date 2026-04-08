@@ -56,6 +56,9 @@ import { AnimatedSVGBackground } from "../../../components/AnimatedSVGBackground
 import { invokeProtectedFunction } from "../../../services/supabase/invokeProtectedFunction";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
+import {
+  type JobCanonicalStatus,
+} from "@/lib/applicationState";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -78,8 +81,22 @@ interface Job {
   logoUrl?: string;
   logo: string;
   status?: string;
+  canonical_status?: JobCanonicalStatus | null;
+  verification_status?: "unverified" | "verified" | "stale" | "failed" | null;
   source_type?: string | null;
   source_id?: string | null;
+  source_kind?: string | null;
+  source_confidence?: number | null;
+  is_tracked_company?: boolean;
+  evaluation_summary?: {
+    evaluation_id?: string | null;
+    archetype?: string;
+    canonical_decision?: "strong_yes" | "draft_first" | "risky" | "no_go";
+    confidence_score?: number;
+    blockers?: string[];
+    exact_fit_evidence?: string[];
+    matched_keywords?: string[];
+  } | null;
   matchScore?: number;
   matchBreakdown?: MatchScoreBreakdown[];
   matchSummary?: string;
@@ -535,6 +552,25 @@ const composeProfileSnapshot = (
   return lines.length ? lines.join("\n") : undefined;
 };
 
+const getStoredDraftData = (
+  job?: Job | null,
+): { resumeText: string; coverLetterText: string } | null => {
+  const raw =
+    job?.raw_data && typeof job.raw_data === "object"
+      ? (job.raw_data as Record<string, unknown>)
+      : undefined;
+  const draft =
+    raw?.application_draft && typeof raw.application_draft === "object"
+      ? (raw.application_draft as Record<string, unknown>)
+      : undefined;
+  const resumeText =
+    typeof draft?.resumeText === "string" ? draft.resumeText : null;
+  const coverLetterText =
+    typeof draft?.coverLetterText === "string" ? draft.coverLetterText : null;
+  if (!resumeText || !coverLetterText) return null;
+  return { resumeText, coverLetterText };
+};
+
 const formatSalaryRange = (job: Job): string | null => {
   const { salary_min: min, salary_max: max, salary_currency: currency } = job;
   if (!min && !max && !currency) return null;
@@ -639,8 +675,22 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
       getCompanyLogoUrl(dbJob.company, dbJob.apply_url),
     logo: dbJob.company?.[0]?.toUpperCase() || "?",
     status: dbJob.status,
+    canonical_status: dbJob.canonical_status ?? "discovered",
+    verification_status: dbJob.verification_status ?? "unverified",
     source_type: dbJob.source_type ?? null,
     source_id: dbJob.source_id ?? null,
+    source_kind: dbJob.source_kind ?? null,
+    source_confidence:
+      typeof dbJob.source_confidence === "number"
+        ? dbJob.source_confidence
+        : dbJob.source_confidence != null
+          ? Number(dbJob.source_confidence)
+          : null,
+    is_tracked_company: Boolean(dbJob.is_tracked_company),
+    evaluation_summary:
+      dbJob.evaluation_summary && typeof dbJob.evaluation_summary === "object"
+        ? dbJob.evaluation_summary
+        : null,
     matchScore:
       typeof insights?.score === "number" ? insights.score : undefined,
     matchBreakdown: Array.isArray(insights?.breakdown)
@@ -1204,6 +1254,13 @@ export const JobPage = (): JSX.Element => {
         .from("jobs")
         .select("*")
         .eq("user_id", user.id)
+        .eq("hidden", false)
+        .in("canonical_status", [
+          "discovered",
+          "evaluated",
+          "draft_ready",
+          "failed",
+        ])
         .order("created_at", { ascending: false });
 
       if (fetchError) throw fetchError;
@@ -1351,7 +1408,7 @@ export const JobPage = (): JSX.Element => {
         safeInfo("Searching the web for jobs...");
         const searchPayload = {
           searchQuery: query,
-          location: "Remote", // Always search for remote jobs for broader results
+          location: selectedLocation || "Remote",
           limit: maxResultsPerSearch, // Use tier-based result limit per search
         };
         const attemptInvoke = async (): Promise<any> => {
@@ -1503,6 +1560,7 @@ export const JobPage = (): JSX.Element => {
       fetchJobQueue,
       safeInfo,
       setErrorDedup,
+      selectedLocation,
       subscriptionTier,
       info,
     ],
@@ -1517,9 +1575,11 @@ export const JobPage = (): JSX.Element => {
   }, [jobs.length]);
 
   const openAutoApplyFlow = useCallback(() => {
-    setAutoApplyStep(1);
     setAiEvaluation(null);
     setForceSubmit(false);
+    const existingDraft = getStoredDraftData(jobToAutoApply);
+    setDraftData(existingDraft);
+    setAutoApplyStep(existingDraft ? 4 : 1);
     if (!hasAutoApplyAccess) {
       setResumeDialogOpen(true);
       return;
@@ -1534,7 +1594,7 @@ export const JobPage = (): JSX.Element => {
       }
       return null;
     });
-  }, [hasAutoApplyAccess, resumes, loadCoverLetterLibrary]);
+  }, [hasAutoApplyAccess, resumes, loadCoverLetterLibrary, jobToAutoApply]);
 
   useEffect(() => {
     if (!resumeDialogOpen) return;
@@ -1542,7 +1602,7 @@ export const JobPage = (): JSX.Element => {
   }, [resumeDialogOpen, loadCoverLetterLibrary]);
 
   // Apply all jobs by delegating to automation workflow, then prune applied rows
-  const applyAllJobs = useCallback(async (saveAsDraftOnly: boolean = false) => {
+  const _legacyApplyAllJobs = useCallback(async (saveAsDraftOnly: boolean = false) => {
     if (applyingAll) return;
     if (!hasAutoApplyAccess) {
       setError({
@@ -1649,6 +1709,9 @@ export const JobPage = (): JSX.Element => {
         setEvaluatingJob(true);
         try {
           const evaluation = await evaluateJobFit(
+            targetJob.id,
+            targetJob.title,
+            targetJob.company,
             targetJob.description || "",
             profileSnapshot || "No profile provided.",
             (selectedResume as any)?.raw_text || "No resume content provided."
@@ -1949,6 +2012,562 @@ export const JobPage = (): JSX.Element => {
     aiEvaluation,
   ]);
 
+  const applyAllJobs = useCallback(async (saveAsDraftOnly: boolean = false) => {
+    if (applyingAll) return;
+    if (!hasAutoApplyAccess) {
+      setError({
+        message: "Auto apply requires a Basics, Pro, or Ultimate subscription.",
+        link: "/dashboard/billing",
+      });
+      safeInfo(
+        "Upgrade required",
+        "Upgrade to Basics or above to unlock auto apply.",
+      );
+      return;
+    }
+
+    const targetJobs = jobToAutoApply ? [jobToAutoApply] : jobs;
+    if (!targetJobs.length) return;
+
+    const jobsWithTargets = targetJobs
+      .map((job) => ({ job, target: getJobApplyTarget(job) }))
+      .filter(
+        (item): item is { job: Job; target: string } => Boolean(item.target),
+      );
+
+    if (!jobsWithTargets.length) {
+      safeInfo(
+        "No automation targets",
+        "This job is missing an apply link. Refresh your queue or open the job detail to locate one manually.",
+      );
+      return;
+    }
+
+    const pushLog = (
+      message: string,
+      status: "info" | "success" | "error" = "info",
+    ) => {
+      const time = new Date().toLocaleTimeString("en-US", {
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+      setAutomationLogs((prev) => [...prev, { time, message, status }]);
+    };
+
+    let success = 0;
+    let fail = 0;
+    let done = 0;
+    let launchedSuccess = 0;
+    let executionStarted = false;
+
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id;
+      const userEmail = authData?.user?.email;
+
+      const evaluationCache = new Map<string, EvaluateJobFitResponse>();
+      const getEvaluationForJob = async (job: Job) => {
+        const cached = evaluationCache.get(job.id);
+        if (cached) return cached;
+
+        const evaluation = await evaluateJobFit(
+          job.id,
+          job.title,
+          job.company,
+          job.description || "",
+          profileSnapshot || "No profile provided.",
+          (selectedResume as any)?.raw_text || "No resume content provided.",
+        );
+
+        evaluationCache.set(job.id, evaluation);
+        const summary = {
+          evaluation_id: evaluation.evaluation_id ?? null,
+          archetype: evaluation.archetype,
+          canonical_decision: evaluation.canonical_decision,
+          confidence_score: evaluation.confidence_score,
+          blockers: evaluation.blockers,
+          exact_fit_evidence: evaluation.exact_fit_evidence,
+          matched_keywords: evaluation.matched_keywords,
+        };
+
+        setJobs((prev) =>
+          prev.map((row) =>
+            row.id === job.id
+              ? {
+                  ...row,
+                  canonical_status:
+                    row.canonical_status === "draft_ready"
+                      ? "draft_ready"
+                      : "evaluated",
+                  evaluation_summary: summary,
+                }
+              : row,
+          ),
+        );
+
+        if (jobToAutoApply?.id === job.id) {
+          setJobToAutoApply((prev) =>
+            prev && prev.id === job.id
+              ? {
+                  ...prev,
+                  canonical_status:
+                    prev.canonical_status === "draft_ready"
+                      ? "draft_ready"
+                      : "evaluated",
+                  evaluation_summary: summary,
+                }
+              : prev,
+          );
+        }
+
+        return evaluation;
+      };
+
+      if (jobsWithTargets.length === 1 && !forceSubmit && !draftData) {
+        const targetJob = jobsWithTargets[0].job;
+        setEvaluatingJob(true);
+        try {
+          const evaluation = await getEvaluationForJob(targetJob);
+          setAiEvaluation(evaluation);
+
+          const hasHardBlockers =
+            (evaluation.blockers?.length ?? 0) > 0 ||
+            (evaluation.missing_requirements?.length ?? 0) > 0 ||
+            evaluation.canonical_decision === "risky" ||
+            evaluation.canonical_decision === "no_go" ||
+            evaluation.confidence_score < 70;
+
+          if (hasHardBlockers) {
+            setAutoApplyStep(2);
+            return;
+          }
+        } catch (evalErr) {
+          console.error("Failed to evaluate job fit", evalErr);
+          toastError(
+            "Job Evaluation Failed",
+            "The AI model encountered an error evaluating this job.",
+          );
+          safeInfo(
+            "AI Evaluation Failed",
+            "Could not complete confidence check, proceeding to draft review instead.",
+          );
+        } finally {
+          setEvaluatingJob(false);
+        }
+      }
+
+      const targetJob = jobsWithTargets[0]?.job;
+      if (jobsWithTargets.length === 1 && !draftData) {
+        setGeneratingDraft(true);
+        try {
+          const [tailoredResume, tailoredCoverLetter] = await Promise.all([
+            tailorResumeViaEdge({
+              jobDescription: targetJob?.description || "",
+              resumeText: (selectedResume as any)?.raw_text || "No resume text",
+            }),
+            generateCoverLetterViaEdge({
+              jobDescription: targetJob?.description || "",
+              resumeText: (selectedResume as any)?.raw_text || "No resume text",
+            }),
+          ]);
+          setDraftData({
+            resumeText: tailoredResume,
+            coverLetterText: tailoredCoverLetter,
+          });
+          setAutoApplyStep(4);
+          return;
+        } catch (draftErr) {
+          console.error("Draft generation failed", draftErr);
+          toastError(
+            "Draft Generation Failed",
+            "Failed to generate custom resume/cover letter.",
+          );
+          safeInfo(
+            "Draft Generation Failed",
+            "Skipping draft mode and falling back to base materials.",
+          );
+        } finally {
+          setGeneratingDraft(false);
+        }
+      }
+
+      let jobsToAutoApply = jobsWithTargets;
+      let jobsToDraft: typeof jobsWithTargets = [];
+
+      if (saveAsDraftOnly) {
+        jobsToAutoApply = [];
+        jobsToDraft = jobsWithTargets;
+      } else if (trueAutonomyEnabled && jobsWithTargets.length > 1) {
+        jobsToAutoApply = [];
+        jobsToDraft = [];
+
+        for (const item of jobsWithTargets) {
+          const prequalified =
+            isTrustedSource(item.target) && (item.job.matchScore ?? 0) >= 90;
+          if (!prequalified) {
+            jobsToDraft.push(item);
+            continue;
+          }
+
+          try {
+            const evaluation = await getEvaluationForJob(item.job);
+            const safeToLaunch =
+              evaluation.canonical_decision === "strong_yes" &&
+              evaluation.confidence_score >= 85 &&
+              (evaluation.blockers?.length ?? 0) === 0 &&
+              (evaluation.missing_requirements?.length ?? 0) === 0;
+
+            if (safeToLaunch) {
+              jobsToAutoApply.push(item);
+            } else {
+              jobsToDraft.push(item);
+            }
+          } catch (evaluationError) {
+            console.error("Batch evaluation failed", evaluationError);
+            jobsToDraft.push(item);
+            pushLog(
+              `Moved ${item.job.title} to draft review because evaluation failed.`,
+              "info",
+            );
+          }
+        }
+      }
+
+      if (userId && jobsToAutoApply.length > 0) {
+        const { data: creditCheck, error: checkError } = await supabase.rpc(
+          "check_credits_available",
+          {
+            p_user_id: userId,
+            p_feature_type: "auto_apply",
+            p_quantity: jobsToAutoApply.length,
+          },
+        );
+
+        if (checkError) {
+          console.error("Failed to check credits:", checkError);
+          toastError("Credit Check Failed", "Unable to verify credits.");
+          setError({
+            message: "Failed to verify credits. Please try again.",
+            link: "/dashboard/billing",
+          });
+          return;
+        }
+
+        if (!creditCheck?.available) {
+          const required = creditCheck?.required || jobsToAutoApply.length * 5;
+          const available = creditCheck?.current_balance || 0;
+          setError({
+            message: `Insufficient credits. Auto apply requires ${required} credits (5 per job × ${jobsToAutoApply.length} jobs) but you only have ${available}.`,
+            link: "/dashboard/billing",
+          });
+          safeInfo(
+            "Not enough credits",
+            "Upgrade or purchase credits to use auto apply.",
+          );
+          return;
+        }
+      }
+
+      setApplyingAll(true);
+      setAutomationLogs([]);
+      setAutomationFinished(false);
+      setAutoApplyStep(3);
+      executionStarted = true;
+      pushLog(`Initializing automation for ${jobsWithTargets.length} job(s)...`);
+      setApplyProgress({
+        done: 0,
+        total: jobsWithTargets.length,
+        success: 0,
+        fail: 0,
+      });
+
+      events.autoApplyStarted(
+        jobsToAutoApply.length,
+        selectedResumeId || undefined,
+        selectedCoverLetterId || undefined,
+      );
+
+      const launchedAt = new Date();
+      let resumeSignedUrl: string | undefined;
+      if (jobsToAutoApply.length > 0 && selectedResume?.file_path) {
+        try {
+          const { data: signed, error: signErr } = await supabase.storage
+            .from("resumes")
+            .createSignedUrl(selectedResume.file_path, 60 * 60);
+          if (!signErr && signed?.signedUrl) {
+            resumeSignedUrl = signed.signedUrl;
+          }
+        } catch (signErr) {
+          console.error("auto-apply resume signing threw", signErr);
+        }
+      }
+
+      const finalCoverLetterPayload = draftData
+        ? draftData.coverLetterText
+        : composeCoverLetterPayload(selectedCoverLetter);
+
+      if (jobsToAutoApply.length > 0) {
+        safeInfo(
+          "Automation launching",
+          `Dispatching ${jobsToAutoApply.length} job(s) individually to the automation runner.`,
+        );
+      }
+      if (jobsToDraft.length > 0) {
+        safeInfo(
+          "Draft queue updated",
+          `Saved ${jobsToDraft.length} job(s) as draft-ready for review.`,
+        );
+      }
+
+      for (const { job, target } of jobsWithTargets) {
+        try {
+          const isDraft = jobsToDraft.some((entry) => entry.job.id === job.id);
+          const isLaunch = jobsToAutoApply.some((entry) => entry.job.id === job.id);
+          const evaluation =
+            evaluationCache.get(job.id) ||
+            (jobToAutoApply?.id === job.id ? aiEvaluation || undefined : undefined);
+          const matchedKeywords =
+            evaluation?.matched_keywords ||
+            job.evaluation_summary?.matched_keywords ||
+            [];
+
+          pushLog(`Processing: ${job.title || "Untitled"} @ ${job.company || "Unknown"}`);
+
+          if (isLaunch) {
+            pushLog(`Dispatching automation to ${new URL(target).hostname}...`);
+            const automationResult = await applyToJobs({
+              jobs: [
+                {
+                  sourceUrl: target,
+                  url: job.apply_url ?? target,
+                  source_url: job.source_id ?? target,
+                  job_id: job.id,
+                  job_title: job.title,
+                  company: job.company,
+                  location: job.location ?? null,
+                  salary: formatSalaryRange(job),
+                  match_score:
+                    typeof job.matchScore === "number"
+                      ? Math.round(job.matchScore)
+                      : null,
+                  match_reasons:
+                    matchedKeywords.length > 0 ? matchedKeywords : null,
+                  ai_confidence_score:
+                    evaluation?.confidence_score ??
+                    job.evaluation_summary?.confidence_score ??
+                    null,
+                  evaluation_id:
+                    evaluation?.evaluation_id ??
+                    job.evaluation_summary?.evaluation_id ??
+                    null,
+                },
+              ],
+              job_id: job.id,
+              job_title: job.title,
+              company: job.company,
+              location: job.location ?? null,
+              salary: formatSalaryRange(job),
+              match_score:
+                typeof job.matchScore === "number"
+                  ? Math.round(job.matchScore)
+                  : null,
+              match_reasons: matchedKeywords.length > 0 ? matchedKeywords : null,
+              ai_confidence_score:
+                evaluation?.confidence_score ??
+                job.evaluation_summary?.confidence_score ??
+                null,
+              evaluation_id:
+                evaluation?.evaluation_id ??
+                job.evaluation_summary?.evaluation_id ??
+                null,
+              title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
+              cover_letter: finalCoverLetterPayload,
+              ...(profileSnapshot
+                ? { additional_information: profileSnapshot }
+                : {}),
+              ...(draftData
+                ? { resume: draftData.resumeText }
+                : resumeSignedUrl
+                  ? { resume: resumeSignedUrl }
+                  : {}),
+              ...(userEmail ? { email: userEmail } : {}),
+            });
+
+            const metadata = extractAutomationMetadata(automationResult);
+            done += 1;
+            success += 1;
+            launchedSuccess += 1;
+            setApplyProgress((prev) => ({ ...prev, done, success }));
+            events.autoApplyJobSuccess(job.id, job.status || "unknown", 0);
+            pushLog(
+              `✓ ${job.title} — queued for automation (${metadata.providerStatus ?? "pending"})`,
+              "success",
+            );
+            try {
+              gamificationHook.recordEvent("job_applied", {
+                jobId: job.id,
+                title: job.title,
+              });
+            } catch {
+              // Best effort only.
+            }
+            continue;
+          }
+
+          if (!isDraft) continue;
+
+          const existingRawData =
+            job.raw_data && typeof job.raw_data === "object"
+              ? (job.raw_data as Record<string, unknown>)
+              : {};
+          const nextDraftPayload =
+            draftData && jobsWithTargets.length === 1
+              ? {
+                  ...draftData,
+                  savedAt: new Date().toISOString(),
+                }
+              : existingRawData.application_draft &&
+                  typeof existingRawData.application_draft === "object"
+                ? existingRawData.application_draft
+                : { savedAt: new Date().toISOString() };
+
+          const { error: draftUpdateError } = await supabase
+            .from("jobs")
+            .update({
+              canonical_status: "draft_ready",
+              evaluation_summary: {
+                evaluation_id:
+                  evaluation?.evaluation_id ??
+                  job.evaluation_summary?.evaluation_id ??
+                  null,
+                archetype: evaluation?.archetype ?? job.evaluation_summary?.archetype,
+                canonical_decision:
+                  evaluation?.canonical_decision ??
+                  job.evaluation_summary?.canonical_decision,
+                confidence_score:
+                  evaluation?.confidence_score ??
+                  job.evaluation_summary?.confidence_score,
+                blockers:
+                  evaluation?.blockers ?? job.evaluation_summary?.blockers ?? [],
+                exact_fit_evidence:
+                  evaluation?.exact_fit_evidence ??
+                  job.evaluation_summary?.exact_fit_evidence ??
+                  [],
+                matched_keywords: matchedKeywords,
+              },
+              raw_data: {
+                ...existingRawData,
+                application_draft: nextDraftPayload,
+              },
+            })
+            .eq("id", job.id);
+
+          if (draftUpdateError) {
+            throw draftUpdateError;
+          }
+
+          done += 1;
+          success += 1;
+          setApplyProgress((prev) => ({ ...prev, done, success }));
+          pushLog(`✓ ${job.title} — saved as draft-ready`, "success");
+        } catch (inner) {
+          done += 1;
+          fail += 1;
+          setApplyProgress((prev) => ({ ...prev, done, fail }));
+          pushLog(
+            `✗ ${job.title} — Failed: ${inner instanceof Error ? inner.message : "Unknown error"}`,
+            "error",
+          );
+          events.autoApplyJobFailed(
+            job.id,
+            job.status || "unknown",
+            "exception_queue",
+          );
+
+          try {
+            await supabase
+              .from("jobs")
+              .update({ canonical_status: "failed" })
+              .eq("id", job.id);
+          } catch {
+            // Best effort only.
+          }
+        }
+      }
+
+      if (userId && launchedSuccess > 0) {
+        try {
+          const { data: deductResult, error: deductError } = await supabase.rpc(
+            "deduct_auto_apply_credits",
+            {
+              p_user_id: userId,
+              p_jobs_count: launchedSuccess,
+            },
+          );
+
+          if (deductError) {
+            console.error("Failed to deduct auto apply credits:", deductError);
+            safeInfo(
+              "Credit deduction failed",
+              "There was an issue processing your credits.",
+            );
+          } else if (deductResult && !deductResult.success) {
+            console.warn("Credit deduction failed:", deductResult.message);
+            safeInfo("Credit deduction failed", deductResult.message);
+          } else if (deductResult?.success) {
+            safeInfo(
+              "Credits deducted",
+              `Used ${deductResult.credits_deducted} credits. ${deductResult.remaining_balance} remaining.`,
+            );
+          }
+        } catch (creditErr) {
+          console.error("Error deducting auto apply credits:", creditErr);
+          toastError(
+            "Credit Error",
+            "Failed to deduct credits after auto-applying.",
+          );
+        }
+      }
+
+      events.autoApplyFinished(success, fail);
+      await fetchJobQueue();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setError({ message: `Failed to launch automation: ${message}` });
+      events.autoApplyFinished(0, jobsWithTargets.length);
+    } finally {
+      setApplyingAll(false);
+      if (executionStarted) {
+        setApplyProgress((prev) => ({ ...prev, done, success, fail }));
+        setAutomationFinished(true);
+        pushLog(
+          `Automation complete. ${success} succeeded, ${fail} failed.`,
+          success > 0 ? "success" : "error",
+        );
+      }
+    }
+  }, [
+    applyingAll,
+    hasAutoApplyAccess,
+    jobs,
+    profileSnapshot,
+    selectedCoverLetter,
+    selectedCoverLetterId,
+    selectedResume,
+    selectedResumeId,
+    jobToAutoApply,
+    fetchJobQueue,
+    safeInfo,
+    setError,
+    forceSubmit,
+    aiEvaluation,
+    draftData,
+    trueAutonomyEnabled,
+    gamificationHook,
+  ]);
+
   // Unified effect for initial load and real-time updates
   useEffect(() => {
     if (profileLoading) {
@@ -1969,7 +2588,7 @@ export const JobPage = (): JSX.Element => {
       .channel("jobs-queue-changes")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "jobs" },
+        { event: "*", schema: "public", table: "jobs" },
         () => {
           // During an active search/extraction run, avoid thrashing the UI
           if (incrementalMode) return;

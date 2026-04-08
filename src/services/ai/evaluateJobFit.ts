@@ -1,13 +1,38 @@
 import { invokeProtectedFunction } from "../supabase/invokeProtectedFunction";
 
 export interface EvaluateJobFitResponse {
+  evaluation_id?: string | null;
+  archetype: string;
+  canonical_decision: "strong_yes" | "draft_first" | "risky" | "no_go";
   confidence_score: number;
+  exact_fit_evidence: string[];
+  blockers: string[];
+  compensation: {
+    summary: string;
+    notes: string[];
+    signals: string[];
+  };
+  personalization_plan: {
+    narrative: string;
+    emphasis_points: string[];
+    ats_keywords: string[];
+    proof_points_to_highlight: string[];
+    risk_mitigation: string[];
+  };
+  interview_stories: Array<{
+    title: string;
+    reason: string;
+    talking_points: string[];
+  }>;
   missing_requirements: string[];
   tailoring_suggestions: string[];
   matched_keywords: string[];
 }
 
 export async function evaluateJobFit(
+  jobId: string | null,
+  jobTitle: string,
+  company: string,
   jobDescription: string,
   profileSnapshot: string,
   resumeText: string
@@ -20,7 +45,14 @@ export async function evaluateJobFit(
     const data = await invokeProtectedFunction<EvaluateJobFitResponse>(
       "evaluate-job-fit",
       {
-        body: { jobDescription, profileSnapshot, resumeText },
+        body: {
+          jobId,
+          jobTitle,
+          company,
+          jobDescription,
+          profileSnapshot,
+          resumeText,
+        },
       },
     );
 

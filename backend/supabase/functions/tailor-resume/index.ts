@@ -6,11 +6,22 @@ import {
   requireSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
+import { fetchCandidateMemory, formatCandidateMemoryForPrompt } from "../_shared/candidate-memory.ts";
 
-function buildPrompt(jobDescription: string, resumeText: string, instructions?: string): string {
+function buildPrompt(
+  jobDescription: string,
+  resumeText: string,
+  candidateMemory: string,
+  instructions?: string,
+): string {
   return `You are an expert executive resume writer. 
   
   Your task is to tailor the candidate's existing resume to perfectly align with the target job description.
+
+  CANDIDATE MEMORY:
+  """
+  ${candidateMemory}
+  """
   
   JOB DESCRIPTION:
   """
@@ -39,7 +50,7 @@ serve(async (req) => {
   }
 
   try {
-    await requireSubscriptionTier(req, "Basics", "AI resume optimization");
+    const { user, serviceClient } = await requireSubscriptionTier(req, "Basics", "AI resume optimization");
     const { jobDescription, resumeText, instructions } = await req.json();
 
     if (!jobDescription || !resumeText) {
@@ -50,7 +61,13 @@ serve(async (req) => {
     }
 
     const ai = createGeminiClient();
-    const prompt = buildPrompt(jobDescription, resumeText, instructions);
+    const candidateMemory = await fetchCandidateMemory(serviceClient, user.id);
+    const prompt = buildPrompt(
+      jobDescription,
+      resumeText,
+      formatCandidateMemoryForPrompt(candidateMemory),
+      instructions,
+    );
 
     const result = await ai.models.generateContent({
         model: GEMINI_MODEL,

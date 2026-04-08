@@ -6,6 +6,7 @@ import {
   requireSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
+import { fetchCandidateMemory, formatCandidateMemoryForPrompt } from "../_shared/candidate-memory.ts";
 
 function sanitizeInput(text: string, maxLength: number): string {
   if (!text) return "";
@@ -24,10 +25,19 @@ function sanitizeInput(text: string, maxLength: number): string {
   return sanitized;
 }
 
-function buildPrompt(jobDescription: string, resumeText: string, instructions?: string): string {
+function buildPrompt(
+  jobDescription: string,
+  resumeText: string,
+  candidateMemory: string,
+  instructions?: string,
+): string {
   return `You are an expert career coach and professional copywriter writing a highly persuasive cover letter.
   
   Please write a tailored cover letter for the following job using the candidate's resume as source material.
+
+  <CANDIDATE_MEMORY>
+  ${candidateMemory}
+  </CANDIDATE_MEMORY>
   
   <JOB_DESCRIPTION>
   ${jobDescription}
@@ -55,7 +65,7 @@ serve(async (req) => {
   }
 
   try {
-    await requireSubscriptionTier(req, "Basics", "AI cover letter generation");
+    const { user, serviceClient } = await requireSubscriptionTier(req, "Basics", "AI cover letter generation");
     const { jobDescription, resumeText, instructions } = await req.json();
 
     if (!jobDescription || !resumeText) {
@@ -70,7 +80,13 @@ serve(async (req) => {
     const safeInstructions = sanitizeInput(instructions || "", 2000);
 
     const ai = createGeminiClient();
-    const prompt = buildPrompt(safeJobDesc, safeResume, safeInstructions);
+    const candidateMemory = await fetchCandidateMemory(serviceClient, user.id);
+    const prompt = buildPrompt(
+      safeJobDesc,
+      safeResume,
+      formatCandidateMemoryForPrompt(candidateMemory),
+      safeInstructions,
+    );
 
     const result = await ai.models.generateContent({
         model: GEMINI_MODEL,
