@@ -47,7 +47,6 @@ import { applyToJobs } from "../../../services/applications/applyToJobs";
 import { evaluateJobFit, type EvaluateJobFitResponse } from "../../../services/ai/evaluateJobFit";
 import { tailorResumeViaEdge } from "../../../services/ai/tailorResume";
 import { generateCoverLetterViaEdge } from "../../../services/ai/generateCoverLetter";
-import { intakeJobUrl } from "../../../services/jobs/intakeJobUrl";
 import {
   fetchJobEvaluationReport,
   type JobEvaluationReport as JobEvaluationReportData,
@@ -714,7 +713,6 @@ export const JobPage = (): JSX.Element => {
   const navigate = useNavigate();
   const gamificationHook = useGamification();
   const [searchQuery, setSearchQuery] = useState("");
-  const [jobUrlInput, setJobUrlInput] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("Remote");
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -760,7 +758,6 @@ export const JobPage = (): JSX.Element => {
   const [selectedResumeRawText, setSelectedResumeRawText] = useState("");
   const [autoApplyStep, setAutoApplyStep] = useState<1 | 2 | 3 | 4>(1);
   const [generatingDraft, setGeneratingDraft] = useState(false);
-  const [intakingJobUrl, setIntakingJobUrl] = useState(false);
   const [draftData, setDraftData] = useState<{ resumeText: string; coverLetterText: string } | null>(null);
   const [trueAutonomyEnabled, setTrueAutonomyEnabled] = useState(true);
   const [coverLetterLibrary, setCoverLetterLibrary] = useState<
@@ -782,6 +779,10 @@ export const JobPage = (): JSX.Element => {
   // Debug payload capture for in-app panel
   const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);
   const [dbgSearchRes, setDbgSearchRes] = useState<any>(null);
+  const backgroundEvaluationRunnerRef = useRef(false);
+  const backgroundEvaluationInFlightRef = useRef<Set<string>>(new Set());
+  const backgroundEvaluationFailedRef = useRef<Set<string>>(new Set());
+  const jobsRef = useRef<Job[]>([]);
 
   const { profile, updateProfile, loading: profileLoading } =
     useProfileSettings();
@@ -1339,6 +1340,62 @@ export const JobPage = (): JSX.Element => {
     [evaluationLoadingByJob, evaluationReports],
   );
 
+  const buildEvaluationSummary = useCallback(
+    (evaluation: EvaluateJobFitResponse) => ({
+      evaluation_id: evaluation.evaluation_id ?? null,
+      archetype: evaluation.archetype,
+      canonical_decision: evaluation.canonical_decision,
+      confidence_score: evaluation.confidence_score,
+      blockers: evaluation.blockers,
+      exact_fit_evidence: evaluation.exact_fit_evidence,
+      matched_keywords: evaluation.matched_keywords,
+    }),
+    [],
+  );
+
+  const mergeEvaluationIntoState = useCallback(
+    (jobId: string, evaluation: EvaluateJobFitResponse) => {
+      const summary = buildEvaluationSummary(evaluation);
+
+      setEvaluationReports((prev) => ({
+        ...prev,
+        [jobId]: {
+          ...evaluation,
+          candidate_memory: prev[jobId]?.candidate_memory ?? null,
+        },
+      }));
+
+      setJobs((prev) =>
+        prev.map((row) =>
+          row.id === jobId
+            ? {
+                ...row,
+                canonical_status:
+                  row.canonical_status === "draft_ready"
+                    ? "draft_ready"
+                    : "evaluated",
+                evaluation_summary: summary,
+              }
+            : row,
+        ),
+      );
+
+      setJobToAutoApply((prev) =>
+        prev && prev.id === jobId
+          ? {
+              ...prev,
+              canonical_status:
+                prev.canonical_status === "draft_ready"
+                  ? "draft_ready"
+                  : "evaluated",
+              evaluation_summary: summary,
+            }
+          : prev,
+      );
+    },
+    [buildEvaluationSummary],
+  );
+
   useEffect(() => {
     if (!selectedJobRecord?.id) return;
     const status = selectedJobRecord.canonical_status;
@@ -1352,6 +1409,10 @@ export const JobPage = (): JSX.Element => {
     if (!shouldLoad) return;
     void loadJobEvaluationReport(selectedJobRecord.id);
   }, [loadJobEvaluationReport, selectedJobRecord]);
+
+  useEffect(() => {
+    jobsRef.current = jobs;
+  }, [jobs]);
 
   const saveInterviewStoryToMemory = useCallback(
     async (story: JobEvaluationReportData["interview_stories"][number]) => {
@@ -1445,124 +1506,75 @@ export const JobPage = (): JSX.Element => {
     }
   }, []);
 
-  const handleIntakeJobUrl = useCallback(async () => {
-    if (intakingJobUrl || incrementalMode) return;
-    const trimmedUrl = jobUrlInput.trim();
+  const runBackgroundEvaluations = useCallback(async () => {
+    if (backgroundEvaluationRunnerRef.current || !hasMatchScoreAccess) return;
 
-    if (!trimmedUrl) {
-      setError({ message: "Paste a job posting URL to evaluate it." });
-      return;
-    }
-
-    setIntakingJobUrl(true);
-    setError(null);
-
+    backgroundEvaluationRunnerRef.current = true;
     try {
-      const intake = await intakeJobUrl({
-        url: trimmedUrl,
-        profileSnapshot: profileSnapshot || undefined,
-        resumeText: activeResumeText || undefined,
-      });
+      while (true) {
+        const nextJob = jobsRef.current.find((job) => {
+          const needsEvaluation =
+            job.canonical_status === "discovered" &&
+            !job.evaluation_summary?.evaluation_id;
+          const hasDescription =
+            typeof job.description === "string" && job.description.trim().length > 0;
 
-      const jobId = String((intake.job as any)?.id || "");
-      const rawData =
-        intake.job &&
-        typeof (intake.job as any).raw_data === "object" &&
-        (intake.job as any).raw_data !== null
-          ? { ...((intake.job as any).raw_data as Record<string, unknown>) }
-          : {};
+          return (
+            needsEvaluation &&
+            hasDescription &&
+            !backgroundEvaluationInFlightRef.current.has(job.id) &&
+            !backgroundEvaluationFailedRef.current.has(job.id)
+          );
+        });
 
-      setEvaluationReports((prev) => ({
-        ...prev,
-        [jobId]: {
-          ...intake.evaluation,
-          candidate_memory: prev[jobId]?.candidate_memory ?? null,
-        },
-      }));
+        if (!nextJob) {
+          break;
+        }
 
-      if (jobId && activeResumeText) {
-        const [tailoredResume, tailoredCoverLetter] = await Promise.all([
-          tailorResumeViaEdge({
-            jobDescription:
-              typeof (intake.job as any)?.description === "string"
-                ? (intake.job as any).description
-                : "",
-            resumeText: activeResumeText,
-          }),
-          generateCoverLetterViaEdge({
-            jobDescription:
-              typeof (intake.job as any)?.description === "string"
-                ? (intake.job as any).description
-                : "",
-            resumeText: activeResumeText,
-          }),
-        ]);
+        backgroundEvaluationInFlightRef.current.add(nextJob.id);
+        setEvaluationLoadingByJob((prev) => ({ ...prev, [nextJob.id]: true }));
 
-        const applicationDraft = {
-          resumeText: tailoredResume,
-          coverLetterText: tailoredCoverLetter,
-          savedAt: new Date().toISOString(),
-        };
+        try {
+          const evaluation = await evaluateJobFit(
+            nextJob.id,
+            nextJob.title,
+            nextJob.company,
+            nextJob.description || "",
+            profileSnapshot || "No profile provided.",
+            activeResumeText || "No resume content provided.",
+          );
 
-        const { error: draftPersistError } = await supabase
-          .from("jobs")
-          .update({
-            canonical_status: "draft_ready",
-            raw_data: {
-              ...rawData,
-              application_draft: applicationDraft,
-            },
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", jobId);
-
-        if (draftPersistError) {
-          throw draftPersistError;
+          backgroundEvaluationFailedRef.current.delete(nextJob.id);
+          mergeEvaluationIntoState(nextJob.id, evaluation);
+        } catch (error) {
+          backgroundEvaluationFailedRef.current.add(nextJob.id);
+          console.error("background job evaluation failed", {
+            jobId: nextJob.id,
+            error,
+          });
+        } finally {
+          backgroundEvaluationInFlightRef.current.delete(nextJob.id);
+          setEvaluationLoadingByJob((prev) => {
+            if (!(nextJob.id in prev)) return prev;
+            const next = { ...prev };
+            delete next[nextJob.id];
+            return next;
+          });
         }
       }
-
-      const refreshedJobs = await fetchJobQueue();
-      const hydrated =
-        refreshedJobs.find((job) => job.id === jobId) ??
-        refreshedJobs.find(
-          (job) => job.source_id === ((intake.job as any)?.source_id ?? null),
-        ) ??
-        null;
-
-      if (hydrated?.id) {
-        setSelectedJob(hydrated.id);
-        void loadJobEvaluationReport(hydrated.id, true);
-      } else if (jobId) {
-        setSelectedJob(jobId);
-        void loadJobEvaluationReport(jobId, true);
-      }
-
-      setJobUrlInput("");
-      safeInfo(
-        "Evaluation ready",
-        activeResumeText
-          ? "Saved to your pipeline with a tailored draft-ready package."
-          : "Saved to your pipeline. Add or parse a resume to generate tailored drafts.",
-      );
-    } catch (error: any) {
-      setError({
-        message:
-          error?.message || "Failed to ingest and evaluate that job posting.",
-      });
     } finally {
-      setIntakingJobUrl(false);
+      backgroundEvaluationRunnerRef.current = false;
     }
   }, [
     activeResumeText,
-    fetchJobQueue,
-    incrementalMode,
-    intakingJobUrl,
-    jobUrlInput,
-    loadJobEvaluationReport,
+    hasMatchScoreAccess,
+    mergeEvaluationIntoState,
     profileSnapshot,
-    safeInfo,
-    supabase,
   ]);
+
+  useEffect(() => {
+    void runBackgroundEvaluations();
+  }, [jobs, runBackgroundEvaluations]);
 
   const executeClearAllJobs = useCallback(async () => {
     setConfirmDeleteOpen(false);
@@ -1620,6 +1632,7 @@ export const JobPage = (): JSX.Element => {
       setStepIndex(0); // Step 0: Searching Web
       setIncrementalMode(true);
       setInsertedThisRun(0);
+      backgroundEvaluationFailedRef.current.clear();
 
       try {
         // Determine max results per search based on subscription tier
@@ -1812,7 +1825,7 @@ export const JobPage = (): JSX.Element => {
         safeInfo(
           "Job search complete!",
           inserted > 0
-            ? `Found and saved ${inserted} jobs.`
+            ? `Found and saved ${inserted} jobs. Evaluations are running in the background.`
             : "No jobs found for this search.",
         );
         setCurrentSource(null);
@@ -3334,83 +3347,6 @@ export const JobPage = (): JSX.Element => {
             </div>
           </div>
         </div>
-
-        <Card className='relative mb-6 overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0 p-5 sm:p-6 rounded-2xl shadow-[0_0_24px_rgba(29,255,0,0.08)] backdrop-blur-xl'>
-          <div className='absolute inset-0 bg-gradient-to-br from-[#1dff00]/5 via-transparent to-transparent pointer-events-none' />
-          <div className='relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between'>
-            <div className='space-y-2 max-w-2xl'>
-              <div className='inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#1dff00]/80'>
-                <Sparkles className='h-3.5 w-3.5' />
-                Paste URL
-              </div>
-              <div className='text-lg font-semibold text-foreground'>
-                Evaluate a single posting end to end
-              </div>
-              <p className='text-sm text-foreground/65'>
-                Drop in a job URL and Jobraker will ingest it, run the structured evaluation, save it to your pipeline, and generate draft-ready materials when a parsed resume is available.
-              </p>
-            </div>
-            <div className='grid gap-2 text-xs text-foreground/55 sm:grid-cols-3 lg:min-w-[360px]'>
-              <div className='rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-3'>
-                <div className='text-[10px] uppercase tracking-wide text-foreground/35'>Evaluation</div>
-                <div className='mt-1 text-sm font-medium text-foreground/80'>6-block report</div>
-              </div>
-              <div className='rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-3'>
-                <div className='text-[10px] uppercase tracking-wide text-foreground/35'>Tracker</div>
-                <div className='mt-1 text-sm font-medium text-foreground/80'>Saved instantly</div>
-              </div>
-              <div className='rounded-xl border border-foreground/10 bg-foreground/5 px-3 py-3'>
-                <div className='text-[10px] uppercase tracking-wide text-foreground/35'>Resume context</div>
-                <div className='mt-1 text-sm font-medium text-foreground/80'>
-                  {activeResumeText ? selectedResume?.name || "Parsed resume ready" : "Needed for drafts"}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className='relative z-10 mt-5 flex flex-col gap-3 lg:flex-row'>
-            <div className='relative flex-1'>
-              <Input
-                value={jobUrlInput}
-                onChange={(event) => setJobUrlInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void handleIntakeJobUrl();
-                  }
-                }}
-                placeholder='Paste a Greenhouse, Lever, Ashby, Workable, or direct careers URL...'
-                className='h-12 rounded-xl border-[#1dff00]/20 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] pr-28 text-foreground placeholder:text-foreground/40'
-              />
-              <span className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-lg border border-[#1dff00]/25 bg-[#1dff00]/10 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-[#1dff00]/80'>
-                Direct intake
-              </span>
-            </div>
-            <Button
-              type='button'
-              variant='ghost'
-              onClick={() => void handleIntakeJobUrl()}
-              disabled={intakingJobUrl}
-              className={`group relative overflow-hidden rounded-xl border px-4 py-2 text-sm font-medium tracking-wide transition-all duration-300 ${intakingJobUrl ? "border-[#1dff00]/60 bg-[#1dff00]/15 text-[#1dff00]" : "border-[#1dff00]/40 bg-gradient-to-r from-[#1dff00]/10 via-transparent to-[#1dff00]/10 text-foreground hover:border-[#1dff00]/60 hover:bg-[#1dff00]/15"}`}
-            >
-              <span
-                className='pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300'
-                style={{
-                  background:
-                    "linear-gradient(120deg, transparent 0%, rgba(29,255,0,0.25) 45%, transparent 90%)",
-                }}
-              />
-              <span className='relative inline-flex items-center gap-2'>
-                {intakingJobUrl ? (
-                  <Loader2 className='h-4 w-4 animate-spin' />
-                ) : (
-                  <Sparkles className='h-4 w-4 text-[#1dff00]' />
-                )}
-                {intakingJobUrl ? "Evaluating URL..." : "Evaluate URL"}
-              </span>
-            </Button>
-          </div>
-        </Card>
 
         {(queueStatus === "populating" || incrementalMode) && (
           <LoadingBanner
