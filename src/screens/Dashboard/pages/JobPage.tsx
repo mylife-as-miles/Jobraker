@@ -61,6 +61,7 @@ import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { AnimatedSVGBackground } from "../../../components/AnimatedSVGBackground";
 import { JobEvaluationReport } from "../components/JobEvaluationReport";
 import { invokeProtectedFunction } from "../../../services/supabase/invokeProtectedFunction";
+import { loadParsedResumeText } from "../../../lib/parsedResume";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 import {
@@ -1215,19 +1216,15 @@ export const JobPage = (): JSX.Element => {
       }
 
       try {
-        const { data, error: parsedError } = await supabase
-          .from("parsed_resumes")
-          .select("raw_text")
-          .eq("resume_id", selectedResumeId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const rawText = await loadParsedResumeText({
+          supabase,
+          resumeId: selectedResumeId,
+          filePath: (selectedResume as any)?.file_path,
+          fileExt: (selectedResume as any)?.file_ext,
+        });
 
-        if (parsedError) throw parsedError;
         if (active) {
-          setSelectedResumeRawText(
-            typeof data?.raw_text === "string" ? data.raw_text : "",
-          );
+          setSelectedResumeRawText(rawText);
         }
       } catch (error) {
         console.error("load parsed resume text failed", error);

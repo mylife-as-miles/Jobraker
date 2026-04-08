@@ -8,6 +8,7 @@ import { createClient } from "../lib/supabaseClient";
 import { useToast } from "../components/ui/toast";
 import { createResumeVersion, latestResumeVersion } from '@/lib/resumeVersions';
 import { validateParsedResume } from '@/types/resume-parse-schemas';
+import { persistParsedResume } from "@/lib/parsedResume";
 
 export type ResumeStatus = "Active" | "Draft" | "Archived";
 
@@ -281,14 +282,15 @@ export function useResumes() {
             const validated = validateParsedResume({ ...analyzed, sections: analyzed.sections, structured: analyzed.structured, entities: analyzed.entities, emails: analyzed.emails||[], phones: analyzed.phones||[], urls: analyzed.urls||[], skills: analyzed.skills });
             if (!validated) { events.resumeParsedFailure('validation_failed'); return; }
             const embedding = hashEmbedding(parsed.text);
-            await (supabase as any).from('parsed_resumes').insert({
-              resume_id: rec.id,
-              user_id: userId,
-      raw_text: parsed.text,
+            await persistParsedResume({
+              supabase,
+              resumeId: rec.id,
+              userId,
+              rawText: parsed.text,
               json: { lines: parsed.lines, entities: analyzed.entities },
               structured: analyzed.structured,
               skills: analyzed.skills,
-              embedding
+              embedding,
             });
             events.resumeParsedSuccess({
               duration_ms: Math.round(performance.now() - t0),
@@ -374,14 +376,15 @@ export function useResumes() {
             const validated = validateParsedResume({ ...analyzed, sections: analyzed.sections, structured: analyzed.structured, entities: analyzed.entities, emails: analyzed.emails||[], phones: analyzed.phones||[], urls: analyzed.urls||[], skills: analyzed.skills });
             if (!validated) { events.resumeParsedFailure('validation_failed'); return; }
             const embedding = hashEmbedding(parsed.text);
-            await (supabase as any).from('parsed_resumes').insert({
-              resume_id: rec.id,
-              user_id: userId,
-      raw_text: parsed.text,
+            await persistParsedResume({
+              supabase,
+              resumeId: rec.id,
+              userId,
+              rawText: parsed.text,
               json: { lines: parsed.lines, entities: analyzed.entities },
               structured: analyzed.structured,
               skills: analyzed.skills,
-              embedding
+              embedding,
             });
             events.resumeParsedSuccess({
               duration_ms: Math.round(performance.now() - t0),
@@ -493,14 +496,15 @@ export function useResumes() {
       const validated = validateParsedResume({ ...analyzed, sections: analyzed.sections, structured: analyzed.structured, entities: analyzed.entities, emails: analyzed.emails||[], phones: analyzed.phones||[], urls: analyzed.urls||[], skills: analyzed.skills });
       if (!validated) { events.resumeParsedFailure('validation_failed'); return false; }
       const embedding = hashEmbedding(parsed.text);
-      await (supabase as any).from('parsed_resumes').insert({
-        resume_id: resume.id,
-        user_id: resume.user_id,
-        raw_text: parsed.text,
+      await persistParsedResume({
+        supabase,
+        resumeId: resume.id,
+        userId: resume.user_id,
+        rawText: parsed.text,
         json: { lines: parsed.lines, entities: analyzed.entities },
         structured: analyzed.structured,
         skills: analyzed.skills,
-        embedding
+        embedding,
       });
       success('Re-parsed', resume.name);
       events.resumeParsedSuccess({
