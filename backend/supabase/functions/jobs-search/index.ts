@@ -2,6 +2,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/types.ts";
 import { discoverJobsHybrid } from "../_shared/discovery-hybrid.ts";
+import { attachExistingJobIdsBySourceId } from "../_shared/jobs.ts";
 
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -101,9 +102,15 @@ Deno.serve(async (req) => {
         },
       }));
 
+      const rowsWithIds = await attachExistingJobIdsBySourceId(
+        supabaseAdmin,
+        user.id,
+        rows,
+      );
+
       const { error: upsertError } = await supabaseAdmin
         .from("jobs")
-        .upsert(rows, { onConflict: "user_id,source_id" });
+        .upsert(rowsWithIds, { onConflict: "id" });
 
       if (upsertError) {
         console.error("jobs-search upsert error", upsertError);

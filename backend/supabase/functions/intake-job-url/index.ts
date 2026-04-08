@@ -19,6 +19,7 @@ import {
   evaluateAndPersistJobFit,
   type JobEvaluationResult,
 } from "../_shared/job-evaluation.ts";
+import { attachExistingJobIdsBySourceId } from "../_shared/jobs.ts";
 
 interface IntakeJobUrlRequest {
   url?: string;
@@ -420,54 +421,55 @@ Deno.serve(async (req) => {
     const sourceKind = sourceKindFromUrl(normalizedUrl);
     const sourceId = `direct-url:${normalizedUrl}`;
 
+    const [jobRow] = await attachExistingJobIdsBySourceId(serviceClient, user.id, [
+      {
+        user_id: user.id,
+        source_type: "adapter",
+        source_id: sourceId,
+        source_kind: sourceKind,
+        source_confidence: sourceKind === "direct" ? 0.84 : 0.93,
+        verification_status: verificationStatus,
+        is_tracked_company: false,
+        status: "active",
+        canonical_status: "discovered",
+        discovered_at: nowIso,
+        last_verified_at: nowIso,
+        title: extracted.title,
+        company: extracted.company,
+        company_logo: extracted.company_logo,
+        location: extracted.location,
+        remote_type: extracted.remote_type,
+        employment_type: extracted.employment_type,
+        experience_level: extracted.experience_level,
+        apply_url: normalizedUrl,
+        description: extracted.description,
+        posted_at: extracted.posted_at,
+        raw_data: {
+          sourceUrl: normalizedUrl,
+          screenshot: scrapeData.screenshot ?? null,
+          scraped_data: {
+            title: extracted.title,
+            company: extracted.company,
+            location: extracted.location,
+            remote_type: extracted.remote_type,
+            employment_type: extracted.employment_type,
+            experience_level: extracted.experience_level,
+            description: extracted.description,
+          },
+          intake: {
+            mode: "direct_url",
+            source_kind: sourceKind,
+            verification_status: verificationStatus,
+            ingested_at: nowIso,
+          },
+          metadata,
+        },
+      },
+    ]);
+
     const { data: upsertedJob, error: jobUpsertError } = await serviceClient
       .from("jobs")
-      .upsert(
-        {
-          user_id: user.id,
-          source_type: "adapter",
-          source_id: sourceId,
-          source_kind: sourceKind,
-          source_confidence: sourceKind === "direct" ? 0.84 : 0.93,
-          verification_status: verificationStatus,
-          is_tracked_company: false,
-          status: "active",
-          canonical_status: "discovered",
-          discovered_at: nowIso,
-          last_verified_at: nowIso,
-          title: extracted.title,
-          company: extracted.company,
-          company_logo: extracted.company_logo,
-          location: extracted.location,
-          remote_type: extracted.remote_type,
-          employment_type: extracted.employment_type,
-          experience_level: extracted.experience_level,
-          apply_url: normalizedUrl,
-          description: extracted.description,
-          posted_at: extracted.posted_at,
-          raw_data: {
-            sourceUrl: normalizedUrl,
-            screenshot: scrapeData.screenshot ?? null,
-            scraped_data: {
-              title: extracted.title,
-              company: extracted.company,
-              location: extracted.location,
-              remote_type: extracted.remote_type,
-              employment_type: extracted.employment_type,
-              experience_level: extracted.experience_level,
-              description: extracted.description,
-            },
-            intake: {
-              mode: "direct_url",
-              source_kind: sourceKind,
-              verification_status: verificationStatus,
-              ingested_at: nowIso,
-            },
-            metadata,
-          },
-        },
-        { onConflict: "user_id,source_id" },
-      )
+      .upsert(jobRow, { onConflict: "id" })
       .select("*")
       .single();
 
