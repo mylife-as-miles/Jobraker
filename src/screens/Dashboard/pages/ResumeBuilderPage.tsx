@@ -27,17 +27,10 @@ import { polishContent } from "@/services/ai/polishContent";
 import { useToast } from "@/components/ui/toast";
 import { useResumeProfilePhoto } from "@/hooks/useResumeProfilePhoto";
 import { useProfileSettings } from "@/hooks/useProfileSettings";
-<<<<<<< HEAD
-import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
-import TemplateSelector from "../components/TemplateSelector";
-=======
 import { createClient } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { TemplateSelector } from "../components/TemplateSelector";
->>>>>>> a08bc7811408a6f67d29a9b0e13797b7941934ea
 import { AddSectionDialog } from "../components/resume/AddSectionDialog";
 import { ShareDialog } from "../components/resume/ShareDialog";
 import { SectionEditor } from "../components/resume/SectionEditor";

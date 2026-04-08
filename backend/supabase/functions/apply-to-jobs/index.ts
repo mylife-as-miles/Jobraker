@@ -117,7 +117,6 @@ Deno.serve(async (req) => {
       "Auto apply",
     );
 
-<<<<<<< HEAD
     const userId = user.id;
     const email =
       typeof body?.email === "string" && body.email.trim()
@@ -125,56 +124,43 @@ Deno.serve(async (req) => {
         : user.email || "";
     const jobUrlsFromJobUrls = extractJobUrls(body?.job_urls);
     const jobUrlsFromJobs = extractJobUrls(body?.jobs);
-    const jobUrls = jobUrlsFromJobUrls.length > 0 ? jobUrlsFromJobUrls : jobUrlsFromJobs;
+    const jobUrls =
+      jobUrlsFromJobUrls.length > 0 ? jobUrlsFromJobUrls : jobUrlsFromJobs;
     const jobContext = extractJobContext(body);
-=======
-  let additional_information = typeof body?.additional_information === "string" ? body.additional_information : "";
-  const resume = typeof body?.resume === "string" ? body.resume : "";
-  const cover_letter = typeof body?.cover_letter === "string" ? body.cover_letter : undefined;
-  const proxy_location = typeof body?.proxy_location === "string" ? body.proxy_location : undefined;
-  // SECURITY FIX: Never trust client-provided webhook URLs to prevent SSRF
-  let webhook_url: string | undefined = undefined;
-  const title = typeof body?.title === "string" ? body.title : undefined;
-  const user_id = user.id;
-  let email = typeof body?.email === "string" ? body.email : user.email || "";
-  const user_input = typeof body?.user_input === "object" ? body.user_input : {};
-  
-  // Fetch and decrypt source credentials if available
-  let source_credentials: Record<string, any> = {};
-  try {
-    const { data: sourceSettings } = await serviceClient
-      .from('job_source_settings')
-      .select('source_credentials')
-      .eq('id', user_id)
-      .single();
+    const userInput = typeof body?.user_input === "object" ? body.user_input : {};
+    const sourceCredentials: Record<string, any> = {};
 
-    if (sourceSettings && sourceSettings.source_credentials) {
-      for (const [domain, encryptedCreds] of Object.entries(sourceSettings.source_credentials)) {
-        if (typeof encryptedCreds === 'string') {
-          try {
-            const decryptedJson = await decryptSymmetric(encryptedCreds);
-            source_credentials[domain] = JSON.parse(decryptedJson);
-          } catch (e: any) {
-            console.error(`Failed to decrypt credentials for ${domain}:`, e.message);
+    // Pull per-domain login credentials into the Skyvern payload when available.
+    try {
+      const { data: sourceSettings } = await serviceClient
+        .from("job_source_settings")
+        .select("source_credentials")
+        .eq("id", userId)
+        .single();
+
+      if (sourceSettings && sourceSettings.source_credentials) {
+        for (const [domain, encryptedCreds] of Object.entries(
+          sourceSettings.source_credentials,
+        )) {
+          if (typeof encryptedCreds === "string") {
+            try {
+              const decryptedJson = await decryptSymmetric(encryptedCreds);
+              sourceCredentials[domain] = JSON.parse(decryptedJson);
+            } catch (error: any) {
+              console.error(`Failed to decrypt credentials for ${domain}:`, error.message);
+            }
           }
         }
       }
+    } catch (error: any) {
+      console.error("Error fetching job source settings:", error.message);
     }
-  } catch (err: any) {
-    console.error("Error fetching job source settings:", err.message);
-  }
-
-  const safeUserInput = {
-    ...user_input,
-    id: user_id,
-    ...(email ? { email } : {}),
-    ...(Object.keys(source_credentials).length > 0 ? { source_credentials } : {})
-  };
->>>>>>> a08bc7811408a6f67d29a9b0e13797b7941934ea
 
     if (!jobUrls.length) {
       return new Response(
-        JSON.stringify({ error: "job_urls is required (array of URLs or jobs with sourceUrl)" }),
+        JSON.stringify({
+          error: "job_urls is required (array of URLs or jobs with sourceUrl)",
+        }),
         {
           status: 400,
           headers: { ...corsHeaders, "content-type": "application/json" },
@@ -207,7 +193,9 @@ Deno.serve(async (req) => {
     const apiKey = envKey || headerKey;
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: "SKYVERN_API_KEY missing (env or x-skyvern-api-key header)" }),
+        JSON.stringify({
+          error: "SKYVERN_API_KEY missing (env or x-skyvern-api-key header)",
+        }),
         {
           status: 400,
           headers: { ...corsHeaders, "content-type": "application/json" },
@@ -242,12 +230,14 @@ Deno.serve(async (req) => {
     const title = typeof body?.title === "string" ? body.title : undefined;
     const proxyLocation =
       typeof body?.proxy_location === "string" ? body.proxy_location : undefined;
-    const userInput = typeof body?.user_input === "object" ? body.user_input : {};
 
     const safeUserInput = {
       ...userInput,
       id: userId,
       ...(email ? { email } : {}),
+      ...(Object.keys(sourceCredentials).length > 0
+        ? { source_credentials: sourceCredentials }
+        : {}),
     };
 
     if (!additionalInformation && safeUserInput && typeof safeUserInput === "object") {
