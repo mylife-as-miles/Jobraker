@@ -1,12 +1,24 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createGeminiClient, GEMINI_MODEL, createGeminiConfig, extractGeminiText } from "../_shared/gemini.ts";
+import {
+  createGeminiClient,
+  GEMINI_MODEL,
+  createGeminiConfig,
+  extractGeminiText,
+  getGeminiAccessDeniedMessage,
+  isGeminiAccessDeniedError,
+} from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
   SubscriptionAccessError,
   requireSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
-import { fetchCandidateMemory, formatCandidateMemoryForPrompt } from "../_shared/candidate-memory.ts";
+import {
+  createEmptyCandidateMemory,
+  fetchCandidateMemory,
+  formatCandidateMemoryForPrompt,
+  type CandidateMemory,
+} from "../_shared/candidate-memory.ts";
 
 function sanitizeInput(text: string, maxLength: number): string {
   if (!text) return "";
@@ -59,6 +71,47 @@ function buildPrompt(
   `;
 }
 
+function buildFallbackCoverLetter(
+  jobDescription: string,
+  resumeText: string,
+  candidateMemory: CandidateMemory,
+): string {
+  const headline =
+    candidateMemory.headline || "a candidate with relevant operating experience";
+  const topProofPoints =
+    candidateMemory.proofPoints.slice(0, 2).map((point) => point.evidence);
+  const fallbackAchievements =
+    topProofPoints.length > 0
+      ? topProofPoints
+      : resumeText
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter((line) => line.length > 40)
+          .slice(0, 2);
+  const keywords = jobDescription
+    .toLowerCase()
+    .match(/\b[a-z][a-z0-9+#.-]{3,}\b/g);
+  const topKeywords = Array.from(new Set(keywords ?? []))
+    .filter((token) => !["with", "your", "team", "role", "must", "have"].includes(token))
+    .slice(0, 4);
+  const keywordPhrase =
+    topKeywords.length > 0
+      ? `especially around ${topKeywords.join(", ")}`
+      : "for the needs outlined in the job description";
+
+  return [
+    "Dear Hiring Manager,",
+    "",
+    `I am excited to apply for this opportunity. My background as ${headline} makes me well suited to contribute quickly, ${keywordPhrase}. I am especially motivated by roles where I can translate execution discipline into measurable business results.`,
+    "",
+    fallbackAchievements.length > 0
+      ? `Across my recent work, I have focused on outcomes that matter: ${fallbackAchievements.join(" ")}`
+      : "Across my recent work, I have focused on delivering clear, measurable outcomes, collaborating across teams, and maintaining a high standard of ownership.",
+    "",
+    "I would welcome the chance to bring that same focus, adaptability, and follow-through to your team. Thank you for your time and consideration.",
+  ].join("\n");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -79,8 +132,16 @@ serve(async (req) => {
     const safeResume = sanitizeInput(resumeText || "", 20000);
     const safeInstructions = sanitizeInput(instructions || "", 2000);
 
-    const ai = createGeminiClient();
-    const candidateMemory = await fetchCandidateMemory(serviceClient, user.id);
+    let candidateMemory: CandidateMemory;
+    try {
+      candidateMemory = await fetchCandidateMemory(serviceClient, user.id);
+    } catch (candidateMemoryError) {
+      console.error(
+        "Failed to fetch candidate memory for cover letter generation",
+        candidateMemoryError,
+      );
+      candidateMemory = createEmptyCandidateMemory();
+    }
     const prompt = buildPrompt(
       safeJobDesc,
       safeResume,
@@ -88,18 +149,35 @@ serve(async (req) => {
       safeInstructions,
     );
 
-    const result = await ai.models.generateContent({
+    let coverLetter = "";
+    try {
+      const ai = createGeminiClient();
+      const result = await ai.models.generateContent({
         model: GEMINI_MODEL,
-        config: createGeminiConfig({ 
-            systemInstruction: "You are an expert cover letter writer. Return ONLY the plain text of the cover letter.",
+        config: createGeminiConfig({
+          systemInstruction:
+            "You are an expert cover letter writer. Return ONLY the plain text of the cover letter.",
+          responseMimeType: "text/plain",
         }),
-        contents: [{ role: 'user', parts: [{ text: prompt }] }]
-    });
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      });
 
-    const text = extractGeminiText(result);
-    if (!text) throw new Error("Empty response from AI");
-    
-    return new Response(JSON.stringify({ cover_letter: text.trim() }), { 
+      const text = extractGeminiText(result);
+      if (!text) throw new Error("Empty response from AI");
+      coverLetter = text.trim();
+    } catch (error: any) {
+      console.error("generate-cover-letter falling back", error);
+      if (isGeminiAccessDeniedError(error)) {
+        console.warn(getGeminiAccessDeniedMessage("AI cover letter generation"));
+      }
+      coverLetter = buildFallbackCoverLetter(
+        safeJobDesc,
+        safeResume,
+        candidateMemory,
+      );
+    }
+
+    return new Response(JSON.stringify({ cover_letter: coverLetter }), { 
       status: 200, 
       headers: { ...corsHeaders, "Content-Type": "application/json" } 
     });

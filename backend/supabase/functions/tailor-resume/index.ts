@@ -1,12 +1,23 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createGeminiClient, GEMINI_MODEL, createGeminiConfig, extractGeminiText } from "../_shared/gemini.ts";
+import {
+  createGeminiClient,
+  GEMINI_MODEL,
+  createGeminiConfig,
+  extractGeminiText,
+  getGeminiAccessDeniedMessage,
+  isGeminiAccessDeniedError,
+} from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
   SubscriptionAccessError,
   requireSubscriptionTier,
   subscriptionErrorResponse,
 } from "../_shared/subscription.ts";
-import { fetchCandidateMemory, formatCandidateMemoryForPrompt } from "../_shared/candidate-memory.ts";
+import {
+  createEmptyCandidateMemory,
+  fetchCandidateMemory,
+  formatCandidateMemoryForPrompt,
+} from "../_shared/candidate-memory.ts";
 
 function buildPrompt(
   jobDescription: string,
@@ -60,8 +71,16 @@ serve(async (req) => {
       });
     }
 
-    const ai = createGeminiClient();
-    const candidateMemory = await fetchCandidateMemory(serviceClient, user.id);
+    let candidateMemory;
+    try {
+      candidateMemory = await fetchCandidateMemory(serviceClient, user.id);
+    } catch (candidateMemoryError) {
+      console.error(
+        "Failed to fetch candidate memory for resume tailoring",
+        candidateMemoryError,
+      );
+      candidateMemory = createEmptyCandidateMemory();
+    }
     const prompt = buildPrompt(
       jobDescription,
       resumeText,
@@ -69,18 +88,30 @@ serve(async (req) => {
       instructions,
     );
 
-    const result = await ai.models.generateContent({
+    let tailoredResume = resumeText.trim();
+    try {
+      const ai = createGeminiClient();
+      const result = await ai.models.generateContent({
         model: GEMINI_MODEL,
-        config: createGeminiConfig({ 
-            systemInstruction: "You are an expert resume writer. Return ONLY the tailored resume in clean markdown format.",
+        config: createGeminiConfig({
+          systemInstruction:
+            "You are an expert resume writer. Return ONLY the tailored resume in clean markdown format.",
+          responseMimeType: "text/plain",
         }),
-        contents: [{ role: 'user', parts: [{ text: prompt }] }]
-    });
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      });
 
-    const text = extractGeminiText(result);
-    if (!text) throw new Error("Empty response from AI");
-    
-    return new Response(JSON.stringify({ tailored_resume: text.trim() }), { 
+      const text = extractGeminiText(result);
+      if (!text) throw new Error("Empty response from AI");
+      tailoredResume = text.trim();
+    } catch (error: any) {
+      console.error("tailor-resume falling back", error);
+      if (isGeminiAccessDeniedError(error)) {
+        console.warn(getGeminiAccessDeniedMessage("AI resume optimization"));
+      }
+    }
+
+    return new Response(JSON.stringify({ tailored_resume: tailoredResume }), { 
       status: 200, 
       headers: { ...corsHeaders, "Content-Type": "application/json" } 
     });

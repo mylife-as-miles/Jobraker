@@ -3,8 +3,12 @@ import {
   createGeminiConfig,
   extractGeminiText,
   GEMINI_PREMIUM_MODEL,
+  getGeminiAccessDeniedMessage,
+  isGeminiAccessDeniedError,
 } from "./gemini.ts";
 import {
+  type CandidateMemory,
+  createEmptyCandidateMemory,
   fetchCandidateMemory,
   formatCandidateMemoryForPrompt,
 } from "./candidate-memory.ts";
@@ -78,6 +82,56 @@ const DEFAULT_EVALUATION: JobEvaluationResult = {
   tailoring_suggestions: [],
   matched_keywords: [],
 };
+
+const STOPWORDS = new Set([
+  "about",
+  "above",
+  "across",
+  "after",
+  "again",
+  "against",
+  "also",
+  "and",
+  "any",
+  "are",
+  "because",
+  "been",
+  "being",
+  "between",
+  "both",
+  "building",
+  "candidate",
+  "company",
+  "could",
+  "customer",
+  "deliver",
+  "each",
+  "experience",
+  "from",
+  "have",
+  "into",
+  "join",
+  "just",
+  "like",
+  "looking",
+  "must",
+  "need",
+  "needs",
+  "our",
+  "role",
+  "should",
+  "skills",
+  "team",
+  "that",
+  "their",
+  "them",
+  "they",
+  "this",
+  "using",
+  "with",
+  "work",
+  "your",
+]);
 
 const clampScore = (value: unknown): number => {
   if (typeof value !== "number" || Number.isNaN(value)) {
@@ -266,26 +320,258 @@ const chooseNextJobStatus = (currentStatus?: string | null): string => {
   return "evaluated";
 };
 
+const tokenize = (value: string): string[] =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9+#.\-/\s]/g, " ")
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(
+      (token) =>
+        token.length >= 3 &&
+        !STOPWORDS.has(token) &&
+        !/^\d+$/.test(token),
+    );
+
+const unique = (values: string[]): string[] => Array.from(new Set(values));
+
+const topKeywords = (text: string, limit: number): string[] => {
+  const counts = new Map<string, number>();
+  for (const token of tokenize(text)) {
+    counts.set(token, (counts.get(token) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, limit)
+    .map(([token]) => token);
+};
+
+const sentenceFragments = (text: string): string[] =>
+  text
+    .split(/\r?\n|[.!?]/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 24);
+
+const formatKeyword = (token: string): string =>
+  token
+    .split(/[-/]/)
+    .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1) : part))
+    .join("/");
+
+const inferArchetype = (jobTitle: string, jobDescription: string): string => {
+  const combined = `${jobTitle} ${jobDescription}`.toLowerCase();
+  if (/(product|pm\b|roadmap|go-to-market)/.test(combined)) {
+    return "Product and growth operator";
+  }
+  if (/(sales|account executive|business development|customer success)/.test(combined)) {
+    return "Revenue and customer operator";
+  }
+  if (/(data|analytics|bi\b|machine learning|ai\b)/.test(combined)) {
+    return "Data and AI builder";
+  }
+  if (/(backend|frontend|full stack|software|engineer|developer|platform|devops)/.test(combined)) {
+    return "Technical builder";
+  }
+  if (/(operations|program|project|implementation|support|risk|compliance)/.test(combined)) {
+    return "Operations and execution lead";
+  }
+  return DEFAULT_EVALUATION.archetype;
+};
+
+const extractCompensationSignals = (jobDescription: string) => {
+  const salaryMatches = jobDescription.match(
+    /([$£€₦]\s?\d[\d,]*(?:\s?-\s?[$£€₦]?\s?\d[\d,]*)?)|(\d[\d,]*\s?(?:usd|ngn|eur|gbp))/gi,
+  );
+
+  if (!salaryMatches || salaryMatches.length === 0) {
+    return {
+      summary: "Compensation not listed in the job description.",
+      notes: [],
+      signals: [],
+    };
+  }
+
+  return {
+    summary: `Compensation signals found: ${salaryMatches.slice(0, 2).join(", ")}.`,
+    notes: salaryMatches.slice(0, 3).map((value) => `Quoted comp signal: ${value}`),
+    signals: salaryMatches.slice(0, 3),
+  };
+};
+
+const deriveMissingRequirements = (
+  jobDescription: string,
+  candidateText: string,
+): string[] => {
+  const candidateTokens = new Set(tokenize(candidateText));
+  return sentenceFragments(jobDescription)
+    .filter((line) => /(must|required|requirement|qualification|experience with|experience in|certification|license|\d+\+?\s+years?)/i.test(line))
+    .filter((line) => {
+      const keywords = topKeywords(line, 5);
+      if (keywords.length === 0) return false;
+      const overlap = keywords.filter((keyword) => candidateTokens.has(keyword)).length;
+      return overlap === 0;
+    })
+    .slice(0, 4);
+};
+
+const buildFallbackEvaluation = (
+  args: EvaluateJobFitArgs,
+  candidateMemory: CandidateMemory,
+  reason?: string,
+): JobEvaluationResult => {
+  const candidateText = [
+    args.profileSnapshot || "",
+    args.resumeText || "",
+    candidateMemory.summaryText,
+    candidateMemory.skillKeywords.join(" "),
+  ]
+    .join("\n")
+    .toLowerCase();
+
+  const jobKeywords = topKeywords(
+    `${args.jobTitle || ""}\n${args.jobDescription}`,
+    14,
+  );
+  const matchedKeywords = jobKeywords.filter((keyword) =>
+    candidateText.includes(keyword),
+  );
+  const missingRequirements = deriveMissingRequirements(
+    args.jobDescription,
+    candidateText,
+  );
+  const blockers = missingRequirements.slice(0, 2);
+  const overlapRatio =
+    jobKeywords.length > 0 ? matchedKeywords.length / jobKeywords.length : 0;
+  const confidenceScore = clampScore(
+    35 +
+      overlapRatio * 55 +
+      Math.min(candidateMemory.proofPoints.length, 4) * 3 -
+      blockers.length * 8,
+  );
+
+  let canonicalDecision: CanonicalJobDecision = "draft_first";
+  if (confidenceScore < 30 && missingRequirements.length >= 3) {
+    canonicalDecision = "no_go";
+  } else if (confidenceScore >= 78 && blockers.length === 0) {
+    canonicalDecision = "strong_yes";
+  } else if (confidenceScore < 45 && blockers.length >= 2) {
+    canonicalDecision = "risky";
+  }
+
+  const exactFitEvidence = matchedKeywords
+    .slice(0, 5)
+    .map((keyword) => `Candidate background aligns with ${formatKeyword(keyword)}.`);
+
+  const emphasisPoints =
+    matchedKeywords.length > 0
+      ? matchedKeywords.slice(0, 5).map((keyword) => `Lead with ${formatKeyword(keyword)} experience.`)
+      : candidateMemory.proofPoints
+          .slice(0, 3)
+          .map((point) => `Lead with ${point.title}.`);
+
+  const proofPointsToHighlight =
+    candidateMemory.proofPoints.length > 0
+      ? candidateMemory.proofPoints.slice(0, 4).map((point) => point.title)
+      : ["Highlight the strongest quantified outcomes already present in the resume."];
+
+  const interviewStories =
+    candidateMemory.storyBank.length > 0
+      ? candidateMemory.storyBank.slice(0, 3).map((story) => ({
+          title: story.title,
+          reason: story.relevance || "Relevant reusable story from candidate memory.",
+          talking_points: unique(
+            [story.situation, story.outcome || ""].filter(Boolean),
+          ),
+        }))
+      : candidateMemory.proofPoints.slice(0, 3).map((point) => ({
+          title: point.title,
+          reason: "Useful example for behavioral or impact questions.",
+          talking_points: unique(
+            [point.evidence, point.metric || ""].filter(Boolean),
+          ),
+        }));
+
+  const fallbackTailoringSuggestions = [
+    ...matchedKeywords
+      .slice(0, 4)
+      .map((keyword) => `Mirror the job language around ${formatKeyword(keyword)} in the summary and top bullets.`),
+    ...missingRequirements
+      .slice(0, 2)
+      .map((line) => `Address the gap around: ${line}`),
+  ].slice(0, 6);
+
+  const riskMitigation = [
+    ...blockers.map((blocker) => `Prepare a concise answer for: ${blocker}`),
+    ...(reason ? [reason] : []),
+  ].slice(0, 4);
+
+  return {
+    archetype: inferArchetype(args.jobTitle || "", args.jobDescription),
+    canonical_decision: canonicalDecision,
+    confidence_score: confidenceScore,
+    exact_fit_evidence:
+      exactFitEvidence.length > 0
+        ? exactFitEvidence
+        : ["Fallback evaluation used deterministic keyword overlap because AI evaluation was unavailable."],
+    blockers,
+    compensation: extractCompensationSignals(args.jobDescription),
+    personalization_plan: {
+      narrative:
+        candidateMemory.headline ||
+        "Lead with the strongest relevant outcomes and keep the framing tightly aligned to the role.",
+      emphasis_points: emphasisPoints,
+      ats_keywords: matchedKeywords.slice(0, 8).map(formatKeyword),
+      proof_points_to_highlight: proofPointsToHighlight,
+      risk_mitigation: riskMitigation,
+    },
+    interview_stories,
+    missing_requirements: missingRequirements,
+    tailoring_suggestions:
+      fallbackTailoringSuggestions.length > 0
+        ? fallbackTailoringSuggestions
+        : ["Tailor the resume summary and top bullets to the role before submitting."],
+    matched_keywords: matchedKeywords.map(formatKeyword),
+  };
+};
+
 export async function evaluateAndPersistJobFit(
   args: EvaluateJobFitArgs,
 ): Promise<JobEvaluationResult> {
-  const candidateMemory = await fetchCandidateMemory(args.serviceClient, args.userId);
+  let candidateMemory: CandidateMemory;
+  try {
+    candidateMemory = await fetchCandidateMemory(
+      args.serviceClient,
+      args.userId,
+    );
+  } catch (error) {
+    console.error("Failed to fetch candidate memory for job evaluation", error);
+    candidateMemory = createEmptyCandidateMemory();
+  }
   const prompt = buildPrompt(args, formatCandidateMemoryForPrompt(candidateMemory));
-  const ai = createGeminiClient();
+  let parsed: JobEvaluationResult;
 
-  const response = await ai.models.generateContent({
-    model: GEMINI_PREMIUM_MODEL,
-    config: createGeminiConfig({
-      systemInstruction:
-        "You are Jobraker's structured evaluation engine. Reply with JSON only.",
-      includeTools: false,
-      thinkingLevel: "HIGH",
-    }),
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-  });
+  try {
+    const ai = createGeminiClient();
+    const response = await ai.models.generateContent({
+      model: GEMINI_PREMIUM_MODEL,
+      config: createGeminiConfig({
+        systemInstruction:
+          "You are Jobraker's structured evaluation engine. Reply with JSON only.",
+        includeTools: false,
+        thinkingLevel: "HIGH",
+      }),
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+    });
 
-  const rawText = extractGeminiText(response);
-  const parsed = normalizeEvaluation(parseJsonObject(rawText));
+    const rawText = extractGeminiText(response);
+    parsed = normalizeEvaluation(parseJsonObject(rawText));
+  } catch (error) {
+    const fallbackReason = isGeminiAccessDeniedError(error)
+      ? getGeminiAccessDeniedMessage("AI job evaluation")
+      : "AI job evaluation fell back to deterministic scoring.";
+    console.error("evaluateAndPersistJobFit falling back", error);
+    parsed = buildFallbackEvaluation(args, candidateMemory, fallbackReason);
+  }
 
   if (!args.jobId) {
     return parsed;

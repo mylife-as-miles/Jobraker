@@ -34,6 +34,25 @@ export interface CandidateMemory {
   summaryText: string;
 }
 
+export function createEmptyCandidateMemory(
+  fullName = "Candidate",
+): CandidateMemory {
+  return {
+    fullName,
+    headline: null,
+    location: null,
+    goals: [],
+    preferredNarratives: [],
+    redFlags: [],
+    targetArchetypes: [],
+    proofPoints: [],
+    storyBank: [],
+    trackedCompanies: [],
+    skillKeywords: [],
+    summaryText: `Candidate: ${fullName}`,
+  };
+}
+
 const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();

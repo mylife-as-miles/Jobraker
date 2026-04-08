@@ -2351,12 +2351,10 @@ export const JobPage = (): JSX.Element => {
     let success = 0;
     let fail = 0;
     let done = 0;
-    let launchedSuccess = 0;
     let executionStarted = false;
 
     try {
       const { data: authData } = await supabase.auth.getUser();
-      const userId = authData?.user?.id;
       const userEmail = authData?.user?.email;
 
       const evaluationCache = new Map<string, EvaluateJobFitResponse>();
@@ -2534,42 +2532,8 @@ export const JobPage = (): JSX.Element => {
         }
       }
 
-      if (userId && jobsToAutoApply.length > 0) {
-        const { data: quotaCheck, error: checkError } = await supabase.rpc(
-          "check_auto_apply_quota",
-          {
-            p_user_id: userId,
-            p_requested_quantity: jobsToAutoApply.length,
-          },
-        );
-
-        if (checkError) {
-          console.error("Failed to check auto apply quota:", checkError);
-          toastError(
-            "Quota Check Failed",
-            "Unable to verify auto apply capacity.",
-          );
-          setError({
-            message: "Failed to verify auto apply capacity. Please try again.",
-            link: "/dashboard/billing",
-          });
-          return;
-        }
-
-        if (!quotaCheck?.available) {
-          const required = quotaCheck?.required || jobsToAutoApply.length;
-          const available = quotaCheck?.remaining || 0;
-          setError({
-            message: `This batch needs ${required} auto-apply run(s), but your current plan only has ${available} remaining this billing period.`,
-            link: "/dashboard/billing",
-          });
-          safeInfo(
-            "Automation limit reached",
-            "Upgrade your plan to unlock more governed auto-apply capacity.",
-          );
-          return;
-        }
-      }
+      // Temporarily skip client-side quota RPC checks until the remote quota
+      // functions are repaired. We still require paid access before launch.
 
       setApplyingAll(true);
       setAutomationLogs([]);
@@ -2699,7 +2663,6 @@ export const JobPage = (): JSX.Element => {
             const metadata = extractAutomationMetadata(automationResult);
             done += 1;
             success += 1;
-            launchedSuccess += 1;
             setApplyProgress((prev) => ({ ...prev, done, success }));
             events.autoApplyJobSuccess(job.id, job.status || "unknown", 0);
             pushLog(
@@ -2798,44 +2761,8 @@ export const JobPage = (): JSX.Element => {
         }
       }
 
-      if (userId && launchedSuccess > 0) {
-        try {
-          const { data: quotaResult, error: quotaError } = await supabase.rpc(
-            "consume_auto_apply_quota",
-            {
-              p_user_id: userId,
-              p_requested_quantity: launchedSuccess,
-              p_reference_id: jobToAutoApply?.id ?? null,
-              p_metadata: {
-                launched_success: launchedSuccess,
-                draft_count: jobsToDraft.length,
-              },
-            },
-          );
-
-          if (quotaError) {
-            console.error("Failed to consume auto apply quota:", quotaError);
-            safeInfo(
-              "Quota update failed",
-              "There was an issue processing your auto apply usage.",
-            );
-          } else if (quotaResult && !quotaResult.success) {
-            console.warn("Auto apply quota update failed:", quotaResult.message);
-            safeInfo("Quota update failed", quotaResult.message);
-          } else if (quotaResult?.success) {
-            safeInfo(
-              "Automation quota updated",
-              `Used ${quotaResult.quantity_consumed} auto-apply run(s). ${quotaResult.remaining} remaining this period.`,
-            );
-          }
-        } catch (quotaErr) {
-          console.error("Error consuming auto apply quota:", quotaErr);
-          toastError(
-            "Quota Error",
-            "Failed to update auto apply usage after launching automation.",
-          );
-        }
-      }
+      // Temporarily skip client-side quota consumption until the remote quota
+      // functions are repaired.
 
       events.autoApplyFinished(success, fail);
       await fetchJobQueue();
