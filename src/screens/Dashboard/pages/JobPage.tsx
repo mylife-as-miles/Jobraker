@@ -29,6 +29,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
 import Modal from "../../../components/ui/modal";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
+import { MarkdownContent } from "../../../components/ui/MarkdownContent";
 import { useResumes } from "../../../hooks/useResumes";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
@@ -4607,9 +4608,10 @@ export const JobPage = (): JSX.Element => {
                             Full brief
                           </span>
                         </div>
-                        <div className='max-w-none max-h-[32rem] overflow-y-auto pr-2 text-foreground/80 leading-relaxed whitespace-pre-wrap'>
-                          {job.description || ""}
-                        </div>
+                        <MarkdownContent
+                          content={job.description}
+                          className='max-h-[32rem] overflow-y-auto pr-2'
+                        />
                       </Card>
 
                       {/* AI Match Score Card - Gated for Basics+ */}
@@ -5815,9 +5817,10 @@ export const JobPage = (): JSX.Element => {
                       Full brief
                     </span>
                   </div>
-                  <div className='max-w-none max-h-[45dvh] overflow-y-auto pr-1 text-foreground/80 leading-relaxed text-[13px] whitespace-pre-wrap'>
-                    {j.description || ""}
-                  </div>
+                  <MarkdownContent
+                    content={j.description}
+                    className='max-h-[45dvh] overflow-y-auto pr-1 text-[13px]'
+                  />
                 </Card>
 
                 {/* AI Match Score Card - Mobile - Gated for Basics+ */}
