@@ -69,36 +69,9 @@ async function parseResumeFromStorage(
 
 export async function loadParsedResumeText({
   supabase,
-  resumeId,
   filePath,
   fileExt,
 }: LoadParsedResumeTextInput): Promise<string> {
-  if (parsedResumesTableState !== "missing") {
-    try {
-      const { data, error } = await supabase
-        .from("parsed_resumes")
-        .select("raw_text")
-        .eq("resume_id", resumeId)
-        .order("extracted_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      parsedResumesTableState = "available";
-
-      if (typeof data?.raw_text === "string" && data.raw_text.trim()) {
-        return data.raw_text;
-      }
-    } catch (error) {
-      if (isParsedResumesMissingTableError(error)) {
-        parsedResumesTableState = "missing";
-      } else {
-        console.error("load parsed resume text failed", error);
-      }
-    }
-  }
-
   try {
     return await parseResumeFromStorage(supabase, filePath, fileExt);
   } catch (error) {

@@ -14,6 +14,42 @@ export const createGeminiClient = () => {
     return new GoogleGenAI({ apiKey });
 }
 
+const readNestedErrorMessage = (value: unknown): string => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return [
+      typeof record.message === "string" ? record.message : "",
+      typeof record.status === "string" ? record.status : "",
+      typeof record.code === "string" ? record.code : "",
+      readNestedErrorMessage(record.error),
+      readNestedErrorMessage(record.cause),
+    ]
+      .filter(Boolean)
+      .join(" ");
+  }
+  return "";
+};
+
+export const isGeminiAccessDeniedError = (error: unknown): boolean => {
+  const record =
+    error && typeof error === "object" ? (error as Record<string, unknown>) : {};
+  const status = typeof record.status === "number" ? record.status : null;
+  const message = readNestedErrorMessage(error).toLowerCase();
+
+  return (
+    status === 403 ||
+    message.includes("permission_denied") ||
+    message.includes("forbidden") ||
+    message.includes("denied access") ||
+    message.includes("project has been denied access")
+  );
+};
+
+export const getGeminiAccessDeniedMessage = (feature: string): string =>
+  `${feature} is temporarily unavailable because the configured Gemini project no longer has model access. Re-enable Gemini access or switch this feature to another provider.`;
+
 // Cost-aware model defaults:
 // - day-to-day generation uses Flash by default
 // - premium evaluation flows can opt into the heavier model explicitly
