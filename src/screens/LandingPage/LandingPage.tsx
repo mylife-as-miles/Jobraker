@@ -82,11 +82,7 @@ export const LandingPage = () => {
 
         {/* 4. Dashboard Preview - "Everything in your control" - Moved after Bento */}
         <AnimatedSection
-<<<<<<< HEAD
           className="relative z-20 w-full bg-background/50 mt-12 sm:mt-16 md:mt-20"
-=======
-          className='relative z-20 w-full bg-black/50 mt-12 sm:mt-16 md:mt-20'
->>>>>>> 6cafc62 (fix: logo placement)
           delay={0.1}
         >
           <DashboardPreview />
