@@ -350,7 +350,6 @@ Deno.serve(async (req) => {
         match_reasons: jobContext.match_reasons,
         ai_confidence_score: jobContext.ai_confidence_score,
         user_review_notes: null,
-        reply_to: email,
       };
 
       const { error: applicationError } = await serviceClient

@@ -5,6 +5,7 @@ import { createNotification } from "../utils/notifications";
 import {
   APPLICATION_STATUS_OPTIONS,
   canonicalStageFromDisplayStatus,
+  displayStatusFromCanonicalStage,
   normalizeApplicationRecord,
   type ApplicationCanonicalStage,
   type ApplicationStatus,
@@ -49,6 +50,47 @@ type CreateInput = Partial<Omit<ApplicationRecord, "id" | "user_id" | "created_a
   job_title: string;
   company: string;
 };
+
+type RecoverableJobRow = {
+  id: string;
+  title: string;
+  company: string;
+  location: string | null;
+  apply_url?: string | null;
+  company_logo?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  canonical_status: ApplicationCanonicalStage;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_currency?: string | null;
+  evaluation_summary?: {
+    confidence_score?: number | null;
+    matched_keywords?: string[] | null;
+  } | null;
+};
+
+const RECOVERABLE_JOB_STATES: ApplicationCanonicalStage[] = [
+  "draft_ready",
+  "queued",
+  "submitted",
+  "failed",
+  "interview",
+  "offer",
+  "rejected",
+  "withdrawn",
+];
+
+function formatRecoveredSalary(job: RecoverableJobRow): string | null {
+  const min = typeof job.salary_min === "number" ? job.salary_min : null;
+  const max = typeof job.salary_max === "number" ? job.salary_max : null;
+  const currency = job.salary_currency?.trim() || "";
+
+  if (min == null && max == null) return null;
+  if (min != null && max != null) return `${currency}${min.toLocaleString()} - ${currency}${max.toLocaleString()}`;
+  const value = min ?? max;
+  return value == null ? null : `${currency}${value.toLocaleString()}`;
+}
 
 export function useApplications() {
   const supabase = useMemo(() => createClient(), []);
@@ -136,11 +178,85 @@ export function useApplications() {
       const { data, error } = await query;
       if (reqId !== listRequestId.current) return; // stale
       if (error) throw error;
-      setApplications(
-        ((data ?? []) as ApplicationRecord[]).map((row) =>
-          normalizeApplicationRecord(row),
-        ),
+
+      const applicationRows = ((data ?? []) as ApplicationRecord[]).map((row) =>
+        normalizeApplicationRecord(row),
       );
+      const existingJobIds = new Set(
+        applicationRows
+          .map((row) => row.job_id)
+          .filter((jobId): jobId is string => typeof jobId === "string" && jobId.length > 0),
+      );
+      const existingAppUrls = new Set(
+        applicationRows
+          .map((row) => row.app_url)
+          .filter((url): url is string => typeof url === "string" && url.length > 0),
+      );
+
+      const { data: recoverableJobs, error: recoverableJobsError } = await (supabase as any)
+        .from("jobs")
+        .select(
+          "id, title, company, location, apply_url, company_logo, created_at, updated_at, canonical_status, salary_min, salary_max, salary_currency, evaluation_summary",
+        )
+        .eq("user_id", userId)
+        .in("canonical_status", RECOVERABLE_JOB_STATES);
+
+      if (recoverableJobsError) {
+        console.warn("Failed to load recoverable jobs for applications sync", recoverableJobsError);
+      }
+
+      let recoveredRows: ApplicationRecord[] = [];
+      const missingJobs = ((recoverableJobs ?? []) as RecoverableJobRow[]).filter(
+        (job) =>
+          !existingJobIds.has(job.id) &&
+          !(job.apply_url && existingAppUrls.has(job.apply_url)),
+      );
+
+      if (missingJobs.length > 0) {
+        const recoveryPayload = missingJobs.map((job) => ({
+          user_id: userId,
+          job_id: job.id,
+          job_title: job.title,
+          company: job.company,
+          location: job.location ?? "",
+          applied_date: job.updated_at || job.created_at || new Date().toISOString(),
+          status: displayStatusFromCanonicalStage(job.canonical_status),
+          canonical_stage: job.canonical_status,
+          salary: formatRecoveredSalary(job),
+          notes: null,
+          next_step: null,
+          interview_date: null,
+          logo: job.company_logo ?? null,
+          app_url: job.apply_url ?? null,
+          provider_status: job.canonical_status,
+          match_reasons:
+            Array.isArray(job.evaluation_summary?.matched_keywords) &&
+            job.evaluation_summary.matched_keywords.length > 0
+              ? job.evaluation_summary.matched_keywords
+              : null,
+          draft_status: job.canonical_status === "draft_ready" ? "draft" : "sent",
+          ai_confidence_score:
+            typeof job.evaluation_summary?.confidence_score === "number"
+              ? job.evaluation_summary.confidence_score
+              : null,
+          user_review_notes: null,
+        }));
+
+        const { data: insertedRecoveredRows, error: recoverError } = await (supabase as any)
+          .from("applications")
+          .insert(recoveryPayload)
+          .select("*");
+
+        if (recoverError) {
+          console.warn("Failed to recover missing application rows from jobs", recoverError);
+        } else {
+          recoveredRows = ((insertedRecoveredRows ?? []) as ApplicationRecord[]).map((row) =>
+            normalizeApplicationRecord(row),
+          );
+        }
+      }
+
+      setApplications([...recoveredRows, ...applicationRows]);
     } catch (e: any) {
       if (reqId !== listRequestId.current) return; // stale
       const msg = e.message || "Failed to load applications";
