@@ -72,10 +72,10 @@ export function useResumes() {
     (async () => {
       try {
         const { data } = await supabase.auth.getUser();
-        const uid = (data as any)?.user?.id ?? "local-demo";
+        const uid = (data as any)?.user?.id ?? null;
         if (mounted) setUserId(uid);
       } catch {
-        if (mounted) setUserId("local-demo");
+        if (mounted) setUserId(null);
       }
     })();
     return () => {

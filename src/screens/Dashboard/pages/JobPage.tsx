@@ -381,6 +381,16 @@ type CoverLetterLibraryEntry = {
   draft?: boolean;
 };
 
+type ApplicationDraftData = {
+  resumeText: string;
+  coverLetterText: string;
+  sourceResumeId?: string | null;
+  sourceResumeName?: string | null;
+  sourceResumeUpdatedAt?: string | null;
+  sourceCandidateName?: string | null;
+  savedAt?: string | null;
+};
+
 const COVER_LETTER_LIBRARY_KEY = "jr.coverLetters.library.v1";
 const COVER_LETTER_DEFAULT_KEY = "jr.coverLetters.defaultId";
 const COVER_LETTER_DRAFT_KEY = "jr.coverLetter.draft.v2";
@@ -394,6 +404,62 @@ const pickString = (
   if (!source) return undefined;
   const value = source[key];
   return typeof value === "string" ? value : undefined;
+};
+
+const normalizeIdentityText = (value?: string | null): string =>
+  (value || "").trim().toLowerCase().replace(/\s+/g, " ");
+
+const getPreferredResumeId = (
+  resumes: Array<{ id: string; is_favorite?: boolean | null }> | null | undefined,
+  currentSelectedResumeId?: string | null,
+): string | null => {
+  if (!Array.isArray(resumes) || resumes.length === 0) {
+    return currentSelectedResumeId ?? null;
+  }
+  if (
+    currentSelectedResumeId &&
+    resumes.some((resume) => resume.id === currentSelectedResumeId)
+  ) {
+    return currentSelectedResumeId;
+  }
+  const favorite = resumes.find((resume) => resume.is_favorite);
+  return favorite?.id ?? resumes[0]?.id ?? null;
+};
+
+const extractCandidateNameFromResumeText = (
+  resumeText?: string | null,
+): string | null => {
+  if (!resumeText) return null;
+  const blockedTerms = new Set([
+    "dear hiring",
+    "hiring manager",
+    "curriculum vitae",
+    "software engineer",
+    "professional summary",
+    "work experience",
+  ]);
+  const lines = resumeText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+
+  for (const line of lines) {
+    const match = line.match(/\b([A-Z][A-Za-z'.-]+(?:\s+[A-Z][A-Za-z'.-]+){1,4})\b/);
+    const candidate = match?.[1]?.trim();
+    if (!candidate) continue;
+    const normalized = normalizeIdentityText(candidate);
+    if (
+      normalized.length < 5 ||
+      blockedTerms.has(normalized) ||
+      /resume|summary|experience|manager|engineer/i.test(candidate)
+    ) {
+      continue;
+    }
+    return candidate;
+  }
+
+  return null;
 };
 
 const getJobApplyTarget = (job: Job): string | null => {
@@ -570,7 +636,8 @@ const composeProfileSnapshot = (
 
 const getStoredDraftData = (
   job?: Job | null,
-): { resumeText: string; coverLetterText: string } | null => {
+  sourceResumeId?: string | null,
+): ApplicationDraftData | null => {
   const raw =
     job?.raw_data && typeof job.raw_data === "object"
       ? (job.raw_data as Record<string, unknown>)
@@ -584,7 +651,27 @@ const getStoredDraftData = (
   const coverLetterText =
     typeof draft?.coverLetterText === "string" ? draft.coverLetterText : null;
   if (!resumeText || !coverLetterText) return null;
-  return { resumeText, coverLetterText };
+  const draftSourceResumeId =
+    typeof draft?.sourceResumeId === "string" && draft.sourceResumeId.trim()
+      ? draft.sourceResumeId
+      : null;
+  if (sourceResumeId && draftSourceResumeId !== sourceResumeId) return null;
+  return {
+    resumeText,
+    coverLetterText,
+    sourceResumeId: draftSourceResumeId,
+    sourceResumeName:
+      typeof draft?.sourceResumeName === "string" ? draft.sourceResumeName : null,
+    sourceResumeUpdatedAt:
+      typeof draft?.sourceResumeUpdatedAt === "string"
+        ? draft.sourceResumeUpdatedAt
+        : null,
+    sourceCandidateName:
+      typeof draft?.sourceCandidateName === "string"
+        ? draft.sourceCandidateName
+        : null,
+    savedAt: typeof draft?.savedAt === "string" ? draft.savedAt : null,
+  };
 };
 
 const formatSalaryRange = (job: Job): string | null => {
@@ -771,12 +858,11 @@ export const JobPage = (): JSX.Element => {
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
   const [selectedResumeRawText, setSelectedResumeRawText] = useState("");
+  const [loadingSelectedResumeText, setLoadingSelectedResumeText] =
+    useState(false);
   const [autoApplyStep, setAutoApplyStep] = useState<1 | 2 | 3 | 4>(1);
   const [generatingDraft, setGeneratingDraft] = useState(false);
-  const [draftData, setDraftData] = useState<{
-    resumeText: string;
-    coverLetterText: string;
-  } | null>(null);
+  const [draftData, setDraftData] = useState<ApplicationDraftData | null>(null);
   const [trueAutonomyEnabled, setTrueAutonomyEnabled] = useState(true);
   const [coverLetterLibrary, setCoverLetterLibrary] = useState<
     CoverLetterLibraryEntry[]
@@ -1139,6 +1225,20 @@ export const JobPage = (): JSX.Element => {
     if (!Array.isArray(resumes)) return null;
     return resumes.find((r: any) => r.id === selectedResumeId) ?? null;
   }, [resumes, selectedResumeId]);
+  const selectedResumeName = useMemo(() => {
+    const name =
+      typeof (selectedResume as any)?.name === "string"
+        ? (selectedResume as any).name.trim()
+        : "";
+    return name || "Selected resume";
+  }, [selectedResume]);
+  const profileFullName = useMemo(() => {
+    const fullName = [profile?.first_name, profile?.last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    return fullName || null;
+  }, [profile]);
   const selectedCoverLetter = useMemo(() => {
     if (!Array.isArray(coverLetterLibrary) || !coverLetterLibrary.length)
       return null;
@@ -1151,6 +1251,21 @@ export const JobPage = (): JSX.Element => {
     () => selectedResumeRawText || (selectedResume as any)?.raw_text || "",
     [selectedResume, selectedResumeRawText],
   );
+  const selectedResumeCandidateName = useMemo(() => {
+    const basicsName =
+      typeof (selectedResume as any)?.data?.basics?.name === "string"
+        ? (selectedResume as any).data.basics.name.trim()
+        : "";
+    if (basicsName) return basicsName;
+    return extractCandidateNameFromResumeText(activeResumeText);
+  }, [activeResumeText, selectedResume]);
+  const resumeIdentityMismatch = useMemo(() => {
+    if (!selectedResumeCandidateName || !profileFullName) return false;
+    return (
+      normalizeIdentityText(selectedResumeCandidateName) !==
+      normalizeIdentityText(profileFullName)
+    );
+  }, [profileFullName, selectedResumeCandidateName]);
   const selectedJobRecord = useMemo(
     () => jobs.find((job) => job.id === selectedJob) ?? null,
     [jobs, selectedJob],
@@ -1234,8 +1349,7 @@ export const JobPage = (): JSX.Element => {
   useEffect(() => {
     if (selectedResumeId) return;
     if (!Array.isArray(resumes) || resumes.length === 0) return;
-    const favorite = resumes.find((record: any) => record.is_favorite);
-    setSelectedResumeId(favorite?.id ?? resumes[0]?.id ?? null);
+    setSelectedResumeId(getPreferredResumeId(resumes, null));
   }, [resumes, selectedResumeId]);
 
   useEffect(() => {
@@ -1244,17 +1358,20 @@ export const JobPage = (): JSX.Element => {
     const loadResumeText = async () => {
       if (!selectedResumeId) {
         if (active) setSelectedResumeRawText("");
+        if (active) setLoadingSelectedResumeText(false);
         return;
       }
 
       if (typeof (selectedResume as any)?.raw_text === "string") {
         if (active) {
           setSelectedResumeRawText((selectedResume as any).raw_text);
+          setLoadingSelectedResumeText(false);
         }
         return;
       }
 
       try {
+        if (active) setLoadingSelectedResumeText(true);
         const rawText = await loadParsedResumeText({
           supabase,
           resumeId: selectedResumeId,
@@ -1268,6 +1385,8 @@ export const JobPage = (): JSX.Element => {
       } catch (error) {
         console.error("load parsed resume text failed", error);
         if (active) setSelectedResumeRawText("");
+      } finally {
+        if (active) setLoadingSelectedResumeText(false);
       }
     };
 
@@ -1907,7 +2026,19 @@ export const JobPage = (): JSX.Element => {
   const openAutoApplyFlow = useCallback(() => {
     setAiEvaluation(null);
     setForceSubmit(false);
-    const existingDraft = getStoredDraftData(jobToAutoApply);
+    const preferredResumeId = getPreferredResumeId(
+      Array.isArray(resumes) ? resumes : [],
+      selectedResumeId,
+    );
+    const existingDraft = getStoredDraftData(jobToAutoApply, preferredResumeId);
+    const hasStoredDraft = Boolean(getStoredDraftData(jobToAutoApply));
+    if (hasStoredDraft && !existingDraft && preferredResumeId) {
+      safeInfo(
+        "Draft reset",
+        "Saved draft belongs to a different resume, so a fresh draft will be generated.",
+      );
+    }
+    setSelectedResumeId(preferredResumeId);
     setDraftData(existingDraft);
     setAutoApplyStep(existingDraft ? 4 : 1);
     if (!hasAutoApplyAccess) {
@@ -1916,20 +2047,47 @@ export const JobPage = (): JSX.Element => {
     }
     setResumeDialogOpen(true);
     loadCoverLetterLibrary();
-    setSelectedResumeId((prev) => {
-      if (prev && resumes?.some((r: any) => r.id === prev)) return prev;
-      if (Array.isArray(resumes) && resumes.length > 0) {
-        const favorite = resumes.find((r: any) => r.is_favorite);
-        return favorite?.id ?? resumes[0].id ?? null;
-      }
-      return null;
-    });
-  }, [hasAutoApplyAccess, resumes, loadCoverLetterLibrary, jobToAutoApply]);
+  }, [
+    hasAutoApplyAccess,
+    jobToAutoApply,
+    loadCoverLetterLibrary,
+    resumes,
+    safeInfo,
+    selectedResumeId,
+  ]);
 
   useEffect(() => {
     if (!resumeDialogOpen) return;
     loadCoverLetterLibrary();
   }, [resumeDialogOpen, loadCoverLetterLibrary]);
+
+  useEffect(() => {
+    if (!resumeDialogOpen || !jobToAutoApply || draftData) return;
+    const existingDraft = getStoredDraftData(jobToAutoApply, selectedResumeId);
+    if (!existingDraft) return;
+    setDraftData(existingDraft);
+    setAutoApplyStep(4);
+  }, [draftData, jobToAutoApply, resumeDialogOpen, selectedResumeId]);
+
+  useEffect(() => {
+    if (!resumeDialogOpen || !draftData || autoApplyStep !== 4) return;
+    if (!selectedResumeId) return;
+    if (draftData.sourceResumeId === selectedResumeId) return;
+    setDraftData(null);
+    setAutoApplyStep(1);
+    setAiEvaluation(null);
+    setForceSubmit(false);
+    safeInfo(
+      "Draft cleared",
+      "You changed the resume selection, so we'll generate a fresh draft for that resume.",
+    );
+  }, [
+    autoApplyStep,
+    draftData,
+    resumeDialogOpen,
+    safeInfo,
+    selectedResumeId,
+  ]);
 
   // Apply all jobs by delegating to automation workflow, then prune applied rows
   const _legacyApplyAllJobs = useCallback(
@@ -2113,6 +2271,13 @@ export const JobPage = (): JSX.Element => {
             setDraftData({
               resumeText: tailoredResume,
               coverLetterText: tailoredCoverLetter,
+              sourceResumeId: selectedResumeId,
+              sourceResumeName: selectedResumeName,
+              sourceResumeUpdatedAt:
+                typeof (selectedResume as any)?.updated_at === "string"
+                  ? (selectedResume as any).updated_at
+                  : null,
+              sourceCandidateName: selectedResumeCandidateName,
             });
             setAutoApplyStep(4);
             return; // Pause auto-apply to wait for user to review Draft step
@@ -2625,6 +2790,13 @@ export const JobPage = (): JSX.Element => {
             setDraftData({
               resumeText: tailoredResume,
               coverLetterText: tailoredCoverLetter,
+              sourceResumeId: selectedResumeId,
+              sourceResumeName: selectedResumeName,
+              sourceResumeUpdatedAt:
+                typeof (selectedResume as any)?.updated_at === "string"
+                  ? (selectedResume as any).updated_at
+                  : null,
+              sourceCandidateName: selectedResumeCandidateName,
             });
             setAutoApplyStep(4);
             return;
@@ -3044,6 +3216,7 @@ export const JobPage = (): JSX.Element => {
   const visibleJobCount = total;
   const canAdvanceFromStepOne =
     !resumesLoading &&
+    !loadingSelectedResumeText &&
     (!Array.isArray(resumes) ||
       resumes.length === 0 ||
       Boolean(selectedResumeId));
@@ -3147,11 +3320,7 @@ export const JobPage = (): JSX.Element => {
   useEffect(() => {
     if (!resumeDialogOpen) return;
     if (!Array.isArray(resumes) || resumes.length === 0) return;
-    setSelectedResumeId((prev) => {
-      if (prev && resumes.some((r: any) => r.id === prev)) return prev;
-      const favorite = resumes.find((r: any) => r.is_favorite);
-      return favorite?.id ?? resumes[0].id ?? null;
-    });
+    setSelectedResumeId((prev) => getPreferredResumeId(resumes, prev));
   }, [resumeDialogOpen, resumes]);
 
   // Small helper for relative timestamps
@@ -5437,6 +5606,62 @@ export const JobPage = (): JSX.Element => {
                       </div>
                     )}
                   </div>
+                  <div className='rounded-xl border border-foreground/12 bg-foreground/[0.03] p-4 space-y-2'>
+                    <div className='flex items-center gap-2 text-[11px] uppercase tracking-wider text-foreground/55'>
+                      <FileText className='w-3.5 h-3.5' />
+                      Resume In Use
+                    </div>
+                    {selectedResume ? (
+                      <>
+                        <p className='text-sm font-medium text-foreground'>
+                          {selectedResumeName}
+                        </p>
+                        <div className='flex flex-wrap gap-2 text-xs text-foreground/60'>
+                          <span>
+                            {(selectedResume as any)?.file_ext
+                              ? String((selectedResume as any).file_ext).toUpperCase()
+                              : "FILE"}
+                          </span>
+                          <span>•</span>
+                          <span>
+                            Updated{" "}
+                            {new Date(
+                              (selectedResume as any)?.updated_at || Date.now(),
+                            ).toLocaleDateString()}
+                          </span>
+                          {loadingSelectedResumeText && (
+                            <>
+                              <span>•</span>
+                              <span>Reading resume text…</span>
+                            </>
+                          )}
+                        </div>
+                        {selectedResumeCandidateName && (
+                          <p className='text-sm text-foreground/80 flex items-center gap-2'>
+                            <User className='w-3.5 h-3.5 text-[#1dff00]' />
+                            Detected candidate: {selectedResumeCandidateName}
+                          </p>
+                        )}
+                        {profileFullName && (
+                          <p className='text-xs text-foreground/55'>
+                            Profile name: {profileFullName}
+                          </p>
+                        )}
+                        {resumeIdentityMismatch && (
+                          <p className='text-xs text-[#ffb347]'>
+                            This resume appears to belong to a different person
+                            than the current profile. Review the selection before
+                            generating a new cover letter.
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className='text-sm text-foreground/60'>
+                        No resume selected. Auto-apply will continue without a
+                        resume attachment.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -5452,6 +5677,27 @@ export const JobPage = (): JSX.Element => {
                       Review and edit the drafts below before launching the
                       automation, or save them for later.
                     </p>
+                    <div className='mt-4 rounded-lg border border-[#1dff00]/20 bg-black/20 p-3 space-y-1'>
+                      <p className='text-xs uppercase tracking-wider text-[#1dff00]/75'>
+                        Draft Source
+                      </p>
+                      <p className='text-sm text-foreground'>
+                        {draftData.sourceResumeName || selectedResumeName}
+                      </p>
+                      {draftData.sourceCandidateName && (
+                        <p className='text-xs text-foreground/65'>
+                          Detected candidate: {draftData.sourceCandidateName}
+                        </p>
+                      )}
+                      {draftData.sourceResumeUpdatedAt && (
+                        <p className='text-xs text-foreground/55'>
+                          Resume last updated{" "}
+                          {new Date(
+                            draftData.sourceResumeUpdatedAt,
+                          ).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
 
                     <div className='mt-5 space-y-4'>
                       <div>

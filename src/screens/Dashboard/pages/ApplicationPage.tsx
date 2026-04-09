@@ -67,6 +67,90 @@ import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 
 type SortOption = "score" | "recent" | "company" | "status";
 
+function getCompanyInitials(company?: string | null, jobTitle?: string | null) {
+  const source = (company || jobTitle || "")
+    .trim()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ");
+
+  const initials = source
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
+
+  return initials || "JR";
+}
+
+function resolveCompanyLogo(logo?: string | null) {
+  const value = logo?.trim();
+  if (!value) return null;
+  if (value.startsWith("//")) return `https:${value}`;
+  if (/^(https?:|data:image\/|blob:|\/)/i.test(value)) return value;
+  return null;
+}
+
+function CompanyMark({
+  logo,
+  company,
+  jobTitle,
+  size = "md",
+}: {
+  logo?: string | null;
+  company?: string | null;
+  jobTitle?: string | null;
+  size?: "sm" | "md" | "lg";
+}) {
+  const [didError, setDidError] = useState(false);
+  const logoUrl = useMemo(() => resolveCompanyLogo(logo), [logo]);
+  const initials = useMemo(
+    () => getCompanyInitials(company, jobTitle),
+    [company, jobTitle],
+  );
+
+  const sizeClass =
+    size === "sm"
+      ? "h-11 w-11 rounded-2xl"
+      : size === "lg"
+        ? "h-16 w-16 rounded-[1.35rem]"
+        : "h-14 w-14 rounded-[1.15rem]";
+  const paddingClass =
+    size === "sm" ? "p-2.5" : size === "lg" ? "p-3.5" : "p-3";
+  const textClass =
+    size === "sm" ? "text-xs" : size === "lg" ? "text-lg tracking-[0.18em]" : "text-sm";
+
+  return (
+    <div
+      className={[
+        "relative isolate shrink-0 overflow-hidden border border-[#1dff00]/15",
+        "bg-[radial-gradient(circle_at_top,_rgba(29,255,0,0.22),_rgba(10,14,18,0.98)_68%)]",
+        "shadow-[0_14px_34px_rgba(0,0,0,0.28)]",
+        sizeClass,
+      ].join(" ")}
+    >
+      <div className='pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.14),transparent_45%)] opacity-60' />
+      {logoUrl && !didError ? (
+        <img
+          src={logoUrl}
+          alt=''
+          loading='lazy'
+          className={`relative h-full w-full object-contain ${paddingClass}`}
+          onError={() => setDidError(true)}
+        />
+      ) : (
+        <div className='relative flex h-full w-full items-center justify-center'>
+          <span
+            className={`font-semibold uppercase text-[#d8ffe2] ${textClass}`}
+          >
+            {initials}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ApplicationPage() {
   const {
     applications,
@@ -2443,4 +2527,3 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
     </div>
   );
 }
-
