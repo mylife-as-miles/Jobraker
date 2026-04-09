@@ -864,13 +864,13 @@ function ApplicationPage() {
                             </span>
                           </div>
                         </ListHeader>
-                        <ListItems className='p-3 sm:p-4 grid gap-2'>
+                        <ListItems className='grid flex-none gap-3 p-3 sm:p-4'>
                           {rows.length === 0 && (
-                            <div className='text-center py-8'>
-                              <div className='inline-flex items-center justify-center h-12 w-12 rounded-xl bg-foreground/5 border border-foreground/10 mb-2'>
-                                <div className='h-6 w-6 rounded-lg bg-gradient-to-br from-foreground/10 to-transparent' />
+                            <div className='rounded-2xl border border-dashed border-foreground/10 bg-foreground/[0.02] px-6 py-10 text-center'>
+                              <div className='mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-foreground/10 bg-foreground/[0.04]'>
+                                <div className='h-6 w-6 rounded-xl bg-gradient-to-br from-foreground/10 to-transparent' />
                               </div>
-                              <div className='text-xs text-foreground/40'>
+                              <div className='text-xs font-medium uppercase tracking-[0.16em] text-foreground/35'>
                                 No {status.toLowerCase()} applications
                               </div>
                             </div>
@@ -882,28 +882,20 @@ function ApplicationPage() {
                               name={a.job_title}
                               index={idx}
                               parent={status}
-                              className='group relative'
+                              className='group relative overflow-hidden rounded-[1.4rem] border-0 bg-transparent p-0 shadow-none'
                             >
                               <div
-                                className='flex items-center gap-4 w-full p-4 rounded-xl border border-foreground/10 bg-gradient-to-br from-background to-background hover:border-[#1dff00]/40 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)] transition-all duration-200 cursor-pointer'
+                                className='w-full cursor-pointer rounded-[1.4rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.018))] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.22)] transition-[border-color,box-shadow,transform,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-[#1dff00]/28 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.024))] hover:shadow-[0_22px_48px_rgba(0,0,0,0.32)] active:scale-[0.985]'
                                 onClick={() => setDetailId(a.id)}
                               >
-                                {/* Company Logo/Initial */}
-                                <div className='w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-[#1dff00] via-background to-[#1dff00] rounded-xl flex items-center justify-center text-foreground font-bold text-sm sm:text-base flex-shrink-0 shadow-lg group-hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] transition-shadow'>
-                                  {a.logo && a.logo.length > 1
-                                    ? a.logo
-                                    : (
-                                      (a.company || a.job_title || "")
-                                        .split(/\s+/)
-                                        .filter(Boolean)
-                                        .slice(0, 2)
-                                        .map((w) => w[0])
-                                        .join("") || ""
-                                    ).toUpperCase()}
-                                </div>
+                                <div className='flex items-start gap-4'>
+                                  <CompanyMark
+                                    logo={a.logo}
+                                    company={a.company}
+                                    jobTitle={a.job_title}
+                                  />
 
-                                {/* Content */}
-                                <div className='min-w-0 flex-1'>
+                                  <div className='min-w-0 flex-1'>
                                   <div className='flex items-center gap-2 mb-1'>
                                     <h3
                                       className='text-foreground text-base font-semibold truncate'
