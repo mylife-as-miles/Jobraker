@@ -1,10 +1,20 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createGeminiClient, GEMINI_MODEL, GEMINI_TOOLS } from "../_shared/gemini.ts";
+import {
+  createGeminiClient,
+  GEMINI_MODEL,
+  GEMINI_TOOLS,
+  getGeminiAccessDeniedMessage,
+  isGeminiAccessDeniedError,
+} from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { fetchUserContext, formatUserContextForPrompt } from "../_shared/user-context.ts";
 import { APP_INTERFACE_GUIDE } from "../_shared/app-map.ts";
+import {
+  SubscriptionAccessError,
+  requireSubscriptionTier,
+  subscriptionErrorResponse,
+} from "../_shared/subscription.ts";
 
 console.log("Hello from ai-chat!");
 
@@ -62,26 +72,16 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
     const { messages, system, mode = "ask" } = await req.json();
+    const { authHeader, user } = await requireSubscriptionTier(
+      req,
+      "Pro",
+      "AI chat assistant",
+    );
 
     const ai = createGeminiClient();
-
-    // Get user context if authenticated
-    let userContext = null;
-    let userId = null;
-    if (authHeader) {
-      const supabase = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: authHeader } } }
-      );
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        userId = user.id;
-        userContext = await fetchUserContext(user.id, authHeader);
-      }
-    }
+    const userId = user.id;
+    const userContext = await fetchUserContext(user.id, authHeader);
 
     // Build system instruction based on mode
     let systemInstruction = system || "";
@@ -125,24 +125,29 @@ serve(async (req) => {
       config.tools = GEMINI_TOOLS;
     }
 
-    const stream = await ai.models.generateContentStream({
-      model: GEMINI_MODEL,
-      config,
-      contents: geminiContent,
-    });
-
     const body = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
+        const enqueueEvent = (event: string, payload: unknown) => {
+          const data =
+            typeof payload === "string" ? payload : JSON.stringify(payload);
+          controller.enqueue(
+            encoder.encode(`event: ${event}\ndata: ${data}\n\n`),
+          );
+        };
 
         try {
+          const stream = await ai.models.generateContentStream({
+            model: GEMINI_MODEL,
+            config,
+            contents: geminiContent,
+          });
+
           for await (const chunk of stream) {
             // Handle text responses
-            const text = typeof chunk.text === 'function' ? chunk.text() : chunk.text;
+            const text = typeof chunk.text === 'function' ? (typeof chunk.text === 'function' ? chunk.text() : chunk.text) : chunk.text;
             if (text) {
-              const data = JSON.stringify({ delta: text });
-              const message = `event: message\ndata: ${data}\n\n`;
-              controller.enqueue(encoder.encode(message));
+              enqueueEvent("message", { delta: text });
             }
 
             // Handle function calls (Agent mode)
@@ -219,23 +224,21 @@ serve(async (req) => {
                 }
 
                 // Send function result back to stream
-                const fnData = JSON.stringify({
+                enqueueEvent("function_result", {
                   functionCall: fn.name,
                   result,
                 });
-                const fnMessage = `event: function_result\ndata: ${fnData}\n\n`;
-                controller.enqueue(encoder.encode(fnMessage));
               }
             }
           }
 
-          const doneMessage = `event: done\ndata: [DONE]\n\n`;
-          controller.enqueue(encoder.encode(doneMessage));
+          enqueueEvent("done", "[DONE]");
           controller.close();
         } catch (e: any) {
-          const errorData = JSON.stringify({ error: e.message });
-          const errorMessage = `event: error\ndata: ${errorData}\n\n`;
-          controller.enqueue(encoder.encode(errorMessage));
+          const errorMessage = isGeminiAccessDeniedError(e)
+            ? getGeminiAccessDeniedMessage("AI chat")
+            : e?.message || "Could not complete the chat request.";
+          enqueueEvent("error", { error: errorMessage });
           controller.close();
         }
       },
@@ -251,10 +254,16 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
+    if (error instanceof SubscriptionAccessError) {
+      return subscriptionErrorResponse(error, corsHeaders);
+    }
     console.error("AI Chat Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const message = isGeminiAccessDeniedError(error)
+      ? getGeminiAccessDeniedMessage("AI chat")
+      : error.message;
+    return new Response(JSON.stringify({ error: message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      status: isGeminiAccessDeniedError(error) ? 503 : 500,
     });
   }
 });

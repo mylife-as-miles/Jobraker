@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   Camera,
   Video,
@@ -46,8 +46,8 @@ const AudioVisualizer = ({ isActive }: { isActive: boolean }) => {
           animate={
             isActive
               ? {
-                  height: [4, Math.random() * 24 + 4, 4],
-                }
+                height: [4, Math.random() * 24 + 4, 4],
+              }
               : { height: 4 }
           }
           transition={{
@@ -103,12 +103,34 @@ export const InterviewStudioPage: React.FC = () => {
   const streamRef = useRef<MediaStream | null>(null);
 
   // 1. AI Logic (Gemini Live)
-  const { isAIActive, connect, disconnect } = useInterviewSession({
+  const { isAIActive, isConnected, error: sessionError, connect, disconnect } = useInterviewSession({
     apiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
   });
 
   // 2. Metrics Logic (Web Speech)
-  const { wpm, fillerWordCount } = useWebSpeech(isRecording);
+  const { transcript, wpm, fillerWordCount } = useWebSpeech(isRecording);
+  const speechRecognitionSupported = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      (("webkitSpeechRecognition" in window) || ("SpeechRecognition" in window)),
+    [],
+  );
+  const clarityScore = useMemo(() => {
+    const fillerPenalty = Math.min(24, fillerWordCount * 4);
+    const pacePenalty = wpm === 0 ? 12 : Math.min(18, Math.abs(wpm - 135) / 2.5);
+    return Math.max(55, Math.round(100 - fillerPenalty - pacePenalty));
+  }, [fillerWordCount, wpm]);
+  const sentimentLabel = useMemo(() => {
+    if (!isRecording) return "Waiting";
+    if (fillerWordCount >= 6) return "Needs focus";
+    if (wpm > 165) return "Rushed";
+    return "Positive";
+  }, [fillerWordCount, isRecording, wpm]);
+  const eyeContactLabel = useMemo(() => {
+    if (!cameraEnabled) return "Camera off";
+    if (!streamInitialized) return "Initializing";
+    return "Good";
+  }, [cameraEnabled, streamInitialized]);
 
   // Register coach marks
   useRegisterCoachMarks({
@@ -205,6 +227,24 @@ export const InterviewStudioPage: React.FC = () => {
       initializeStream();
   }, [selectedCamera, selectedMic]);
 
+  useEffect(() => {
+    if (sessionError) {
+      setPermissionError(sessionError);
+      setIsConnecting(false);
+    }
+  }, [sessionError]);
+
+  useEffect(() => {
+    if (!isRecording || isConnecting) return;
+    if (!isConnected && sessionError) {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      setIsRecording(false);
+    }
+  }, [isConnected, isConnecting, isRecording, sessionError]);
+
   // Prompt rotation
   useEffect(() => {
     let promptInterval: NodeJS.Timeout | null = null;
@@ -230,6 +270,7 @@ export const InterviewStudioPage: React.FC = () => {
   // Handlers
   const handleStartRecording = async () => {
     try {
+      setPermissionError(null);
       setIsConnecting(true);
       if (!streamRef.current) await initializeStream();
       if (!streamRef.current) {
@@ -247,7 +288,11 @@ export const InterviewStudioPage: React.FC = () => {
       setIsConnecting(false);
     } catch (err) {
       console.error("Connection error:", err);
-      setPermissionError("Failed to connect to AI server");
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      setPermissionError(err instanceof Error ? err.message : "Failed to connect to AI server");
       setIsConnecting(false);
     }
   };
@@ -451,15 +496,15 @@ export const InterviewStudioPage: React.FC = () => {
                 className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-red-500 hover:bg-red-600 shadow-red-900/20" : "bg-[#1dff00] hover:bg-[#1dff00]/90 shadow-[#1dff00]/20"} shadow-lg hover:scale-105 active:scale-95`}
               >
                 {isConnecting ? (
-                  <div className='w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin' />
+                  <div className='w-5 h-5 border-2 border-background/30 border-t-black rounded-full animate-spin' />
                 ) : isRecording ? (
                   <Square
-                    fill='foreground'
+                    fill='currentColor'
                     size={20}
                     className='text-foreground'
                   />
                 ) : (
-                  <div className='w-5 h-5 bg-black rounded md:rounded-sm' />
+                  <div className='w-5 h-5 bg-foreground rounded md:rounded-sm' />
                 )}
               </Button>
             </div>
@@ -568,6 +613,18 @@ export const InterviewStudioPage: React.FC = () => {
               </div>
             </div>
 
+            <div className='mt-4 rounded-lg border border-foreground/10 bg-background/40 p-3'>
+              <div className='mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider text-foreground/50'>
+                <span>Transcript</span>
+                <span>{speechRecognitionSupported ? "Live" : "Unavailable"}</span>
+              </div>
+              <p className='text-xs leading-relaxed text-foreground/70 min-h-[56px]'>
+                {speechRecognitionSupported
+                  ? transcript || "Start a session to see your live transcript and coaching cues here."
+                  : "Speech recognition is not supported in this browser, so pace and filler-word tracking are unavailable."}
+              </p>
+            </div>
+
             <div className='mt-auto pt-4 flex items-center justify-center gap-2 opacity-40'>
               <Sparkles size={10} />
               <span className='text-[9px] uppercase tracking-widest'>
@@ -584,15 +641,15 @@ export const InterviewStudioPage: React.FC = () => {
             <div className='space-y-3'>
               <div className='flex items-center justify-between text-sm'>
                 <span className='text-foreground/50'>Clarity</span>
-                <span className='text-[#1dff00]'>98%</span>
+                <span className='text-brand'>{clarityScore}%</span>
               </div>
               <div className='flex items-center justify-between text-sm'>
                 <span className='text-foreground/50'>Sentiment</span>
-                <span className='text-blue-400'>Positive</span>
+                <span className='text-sky-400'>{sentimentLabel}</span>
               </div>
               <div className='flex items-center justify-between text-sm'>
                 <span className='text-foreground/50'>Eye Contact</span>
-                <span className='text-foreground'>Good</span>
+                <span className='text-foreground'>{eyeContactLabel}</span>
               </div>
             </div>
           </Card>

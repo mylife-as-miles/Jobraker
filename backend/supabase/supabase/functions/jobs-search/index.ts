@@ -77,11 +77,13 @@ Deno.serve({
 
     // Default domains (fallback if user settings not found)
     const defaultDomains = [
-      'remote.co',
-      'remotive.com',
-      'remoteok.com',
-      'jobicy.com',
-      'levels.fyi',
+      'remote.co', 'remotive.com', 'remoteok.com', 'jobicy.com', 
+      'levels.fyi', 'greenhouse.io', 'lever.co', 'wellfound.com',
+      'builtin.com', 'workingnomads.com', 'weworkremotely.com',
+      'flexjobs.com', 'cryptojobslist.com', 'otta.com', 'hired.com',
+      'dice.com', 'ycombinator.com', 'startup.jobs', 'nodesk.co',
+      'remoterocketship.com', 'jobspresso.com', 'talent.hubstaff.com',
+      'flexa.careers'
     ];
     
     // Blocklist: exclude problematic domains from search
@@ -175,12 +177,10 @@ Deno.serve({
           { type: "scroll", direction: "down", count: 2 }
         ],
         formats: [
-          // Include full content for better descriptions
           "markdown",
           "html",
           {
             type: "json",
-            // Use a JSON Schema to strongly type the output and allow the AI to infer missing fields
             schema: {
               type: "object",
               properties: {
@@ -190,9 +190,7 @@ Deno.serve({
                 employment_type: { type: "string" },
                 experience_level: { type: "string" },
                 tags: { type: "array", items: { type: "string" } },
-                // Raw salary string if present
                 salary: { type: "string" },
-                // Structured salary fields when possible
                 salary_min: { type: "number" },
                 salary_max: { type: "number" },
                 salary_currency: { type: "string" },
@@ -212,12 +210,37 @@ Deno.serve({
       }
     };
 
-    console.log('jobs-search.firecrawl_payload', { payload: searchPayload, user_id: userId });
+    console.log('jobs-search.firecrawl_payload', { user_id: userId });
 
-    // Perform search
+    const performSearch = async (query: string, timeFilter?: string) => {
+      const payload: any = {
+        ...searchPayload,
+        query: query,
+        tbs: timeFilter
+      };
+      if (!timeFilter) delete payload.tbs;
+      
+      console.log(`[jobs-search] Calling Firecrawl with query: ${query} (tbs: ${timeFilter || 'none'})...`);
+      return await withRetry(() => firecrawlFetch('/search', firecrawlApiKey, payload, userId), 1, 1000);
+    };
+
     let searchRes: any;
     try {
-      searchRes = await withRetry(() => firecrawlFetch('/search', firecrawlApiKey, searchPayload, userId), 2, 600);
+      // Primary search: Restricted domains, past month
+      searchRes = await performSearch(fullQuery, tbs);
+      
+      // Fallback 1: Restricted domains, past 6 months
+      if (!searchRes?.data?.web?.length) {
+        console.log('[jobs-search] No results in past month, trying past 6 months...');
+        searchRes = await performSearch(fullQuery, 'qdr:m6');
+      }
+
+      // Fallback 2: General web search for remote jobs, past month
+      if (!searchRes?.data?.web?.length) {
+        console.log('[jobs-search] Still no results, trying general web search...');
+        const generalQuery = `${rawQuery} ${location || 'Remote'} jobs (hiring OR careers) -inurl:search`;
+        searchRes = await performSearch(generalQuery, tbs);
+      }
     } catch (e: any) {
       const msg = String(e?.message || '');
       if (e?.status === 429 || /Rate limit exceeded/i.test(msg)) {
@@ -314,9 +337,21 @@ Deno.serve({
       // Generate company logo URL using Clearbit Logo API
       const getCompanyLogoUrl = (companyName: string, url: string): string | null => {
         try {
+          // List of common job board domains to exclude as they usually don't have company logos on Clearbit
+          const jobBoardBlocklist = [
+            'dice.com', 'greenhouse.io', 'lever.co', 'indeed.com', 
+            'linkedin.com', 'ziprecruiter.com', 'glassdoor.com', 
+            'monster.com', 'workable.com', 'smartrecruiters.com'
+          ];
+
           // Try to extract domain from URL for more accurate logo lookup
           const hostname = new URL(url).hostname.replace('www.', '');
           
+          // Skip if domain is in blocklist or contains common job board substrings
+          if (jobBoardBlocklist.some(domain => hostname.includes(domain))) {
+            return null;
+          }
+
           // Use Clearbit Logo API (free, no API key required)
           // Format: https://logo.clearbit.com/:domain
           return `https://logo.clearbit.com/${encodeURIComponent(hostname)}`;

@@ -166,7 +166,7 @@ serve(async (req) => {
         contents: [{ role: 'user', parts: [{ text: userPrompt }] }]
     });
 
-    const content = response.text();
+    const content = (typeof response.text === 'function' ? response.text() : response.text);
     if (!content) throw new Error("Invalid response from Gemini (empty)");
 
     let parsed;

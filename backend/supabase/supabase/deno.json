@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "allowJs": true,
+        "lib": [
+            "deno.window"
+        ],
+        "strict": true
+    },
+    "lint": {
+        "include": [
+            "functions/"
+        ]
+    },
+    "fmt": {
+        "include": [
+            "functions/"
+        ]
+    },
+    "imports": {
+        "std/": "https://deno.land/std@0.168.0/",
+        "@supabase/supabase-js": "npm:@supabase/supabase-js@2",
+        "@google/genai": "npm:@google/genai",
+        "cors": "https://esm.sh/cors@2.8.5"
+    }
+}

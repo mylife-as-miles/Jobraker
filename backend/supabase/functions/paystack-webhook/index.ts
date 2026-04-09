@@ -1,14 +1,39 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-// Using Web Crypto API for HMAC
-// Deno (and modern Edge Runtimes) support crypto.subtle
 
 console.log("Hello from paystack-webhook!");
 
+type OrderRow = {
+  id: string;
+  user_id: string;
+  plan_type: "credit_pack" | "subscription";
+  total_amount: number;
+  currency: string | null;
+  metadata: Record<string, unknown> | null;
+  is_success: boolean;
+};
+
 function hex(buffer: ArrayBuffer): string {
   return [...new Uint8Array(buffer)]
-    .map(x => x.toString(16).padStart(2, '0'))
-    .join('');
+    .map((x) => x.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function addBillingCycle(baseDate: Date, billingCycle: string) {
+  const next = new Date(baseDate.getTime());
+  switch (billingCycle) {
+    case "yearly":
+      next.setFullYear(next.getFullYear() + 1);
+      break;
+    case "quarterly":
+      next.setMonth(next.getMonth() + 3);
+      break;
+    case "monthly":
+    default:
+      next.setMonth(next.getMonth() + 1);
+      break;
+  }
+  return next;
 }
 
 serve(async (req) => {
@@ -30,7 +55,6 @@ serve(async (req) => {
 
     const bodyText = await req.text();
 
-    // Verify Signature using Web Crypto API
     const encoder = new TextEncoder();
     const keyData = encoder.encode(paystackSecret);
     const key = await crypto.subtle.importKey(
@@ -38,177 +62,242 @@ serve(async (req) => {
       keyData,
       { name: "HMAC", hash: "SHA-512" },
       false,
-      ["sign", "verify"]
+      ["sign", "verify"],
     );
 
     const signatureBuffer = await crypto.subtle.sign(
       "HMAC",
       key,
-      encoder.encode(bodyText)
+      encoder.encode(bodyText),
     );
 
-    const hash = hex(signatureBuffer);
-
-    if (hash !== signature) {
+    if (hex(signatureBuffer) !== signature) {
       return new Response("Invalid signature", { status: 400 });
     }
 
     const event = JSON.parse(bodyText);
 
-    // ... (rest of the logic remains the same)
-
-    // We only care about success
     if (event.event === "charge.success") {
       const ref = event.data.reference;
 
-      // Verify with Paystack (Double check)
-      const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${ref}`, {
-        headers: {
-          Authorization: `Bearer ${paystackSecret}`,
+      const verifyRes = await fetch(
+        `https://api.paystack.co/transaction/verify/${ref}`,
+        {
+          headers: {
+            Authorization: `Bearer ${paystackSecret}`,
+          },
         },
-      });
+      );
       const verifyData = await verifyRes.json();
 
       if (verifyData.status && verifyData.data.status === "success") {
-
-        // Init Supabase Admin Client
         const supabaseAdmin = createClient(
-            Deno.env.get("SUPABASE_URL") ?? "",
-            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
         );
 
-        // 1. Update Order
+        const { data: existingOrder, error: existingOrderError } =
+          await supabaseAdmin
+            .from("orders")
+            .select("id, user_id, plan_type, total_amount, currency, metadata, is_success")
+            .eq("tx_id", ref)
+            .maybeSingle<OrderRow>();
+
+        if (existingOrderError) {
+          console.error("Failed to read order:", existingOrderError);
+          return new Response("Order read failed", { status: 500 });
+        }
+
+        if (!existingOrder) {
+          console.warn(`Order ${ref} not found.`);
+          return new Response("ok", { status: 200 });
+        }
+
+        if (existingOrder.is_success) {
+          console.log(`Order ${ref} already processed.`);
+          return new Response("ok", { status: 200 });
+        }
+
+        const verifiedAmount = Number(verifyData?.data?.amount || 0);
+        const verifiedCurrency = String(
+          verifyData?.data?.currency || existingOrder.currency || "NGN",
+        ).toUpperCase();
+        const expectedCurrency = String(existingOrder.currency || "NGN").toUpperCase();
+
+        if (
+          verifiedAmount !== Number(existingOrder.total_amount) ||
+          verifiedCurrency !== expectedCurrency
+        ) {
+          console.error("Payment verification mismatch", {
+            ref,
+            expectedAmount: existingOrder.total_amount,
+            verifiedAmount,
+            expectedCurrency,
+            verifiedCurrency,
+          });
+          return new Response("ok", { status: 200 });
+        }
+
         const { data: order, error: orderError } = await supabaseAdmin
           .from("orders")
           .update({
             is_success: true,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
           .eq("tx_id", ref)
-          .select()
-          .single();
+          .eq("is_success", false)
+          .select("id, user_id, plan_type, total_amount, currency, metadata, is_success")
+          .maybeSingle<OrderRow>();
 
-        if (orderError || !order) {
-          console.error("Order not found or update failed:", orderError);
+        if (orderError) {
+          console.error("Order update failed:", orderError);
           return new Response("Order update failed", { status: 500 });
         }
 
-        // 2. Grant Value (Credits or Plan)
-        const planType = order.plan_type;
+        if (!order) {
+          console.log(`Order ${ref} already processed after verification.`);
+          return new Response("ok", { status: 200 });
+        }
+
         const metadata = order.metadata || {};
         const userId = order.user_id;
 
-        if (planType === "credit_pack") {
-            const creditsToAdd = metadata.credits || 0;
-            const bonus = metadata.bonus || 0;
-            const totalCredits = creditsToAdd + bonus;
+        if (order.plan_type === "credit_pack") {
+          const creditsToAdd = Number(metadata.credits || 0);
+          const bonusCredits = Number(metadata.bonus_credits || 0);
+          const totalCredits = creditsToAdd + bonusCredits;
 
-            if (totalCredits > 0) {
-                // Update User Credits
+          if (totalCredits > 0) {
+            const { data: rpcResult, error: creditError } = await supabaseAdmin.rpc(
+              "add_credits",
+              {
+                p_user_id: userId,
+                p_amount: totalCredits,
+                p_description: `Purchased ${String(metadata.pack_name || "credit pack")} (${creditsToAdd} + ${bonusCredits} bonus)`,
+                p_reference_type: "order",
+                p_reference_id: order.id,
+                p_metadata: {
+                  order_id: order.id,
+                  paystack_ref: ref,
+                  sku: metadata.sku,
+                },
+              },
+            );
 
-                // Let's get current balance first to be safe
-                const { data: userCredits } = await supabaseAdmin
-                    .from("user_credits")
-                    .select("balance, total_earned")
-                    .eq("user_id", userId)
-                    .single();
+            if (creditError) {
+              console.error("Failed to add user credits via RPC:", creditError);
+            } else if (!rpcResult?.success) {
+              console.error("add_credits RPC failed:", rpcResult?.message);
+            }
+          }
+        } else if (order.plan_type === "subscription") {
+          const planId = typeof metadata.plan_id === "string" ? metadata.plan_id : null;
+          const planName = String(metadata.plan_name || "Paid");
+          const billingCycle = String(metadata.billing_cycle || "monthly");
+          const monthlyCredits = Number(metadata.credits_per_month || 0);
+          const autoApplyLimit = Number(metadata.auto_apply_monthly_limit || 0);
 
-                const currentBalance = userCredits?.balance || 0;
-                const currentTotal = userCredits?.total_earned || 0;
+          if (planId) {
+            const now = new Date();
+            const currentPeriodStart = now.toISOString();
+            const currentPeriodEnd = addBillingCycle(now, billingCycle).toISOString();
 
-                const { error: creditError } = await supabaseAdmin
-                    .from("user_credits")
-                    .upsert({
-                        user_id: userId,
-                        balance: currentBalance + totalCredits,
-                        total_earned: currentTotal + totalCredits,
-                        updated_at: new Date().toISOString()
-                    });
+            const { error: cancelError } = await supabaseAdmin
+              .from("user_subscriptions")
+              .update({
+                status: "canceled",
+                current_period_end: currentPeriodStart,
+                updated_at: currentPeriodStart,
+              })
+              .eq("user_id", userId)
+              .eq("status", "active");
 
-                if (creditError) {
-                    console.error("Failed to update user credits:", creditError);
-                } else {
-                    // Log transaction
-                    await supabaseAdmin.from("credit_transactions").insert({
-                        user_id: userId,
-                        type: 'earned',
-                        amount: totalCredits,
-                        balance_before: currentBalance,
-                        balance_after: currentBalance + totalCredits,
-                        description: `Purchased Credit Pack (${creditsToAdd} + ${bonus} bonus)`,
-                        reference_type: 'order',
-                        reference_id: order.id,
-                        metadata: { order_id: order.id, paystack_ref: ref }
-                    });
-                }
+            if (cancelError) {
+              console.error("Failed to cancel previous subscriptions:", cancelError);
             }
 
-        } else if (planType === "subscription") {
-            // Update User Subscription
-            const planId = metadata.plan_id;
+            const { error: subError } = await supabaseAdmin
+              .from("user_subscriptions")
+              .insert({
+                user_id: userId,
+                plan_id: planId,
+                status: "active",
+                current_period_start: currentPeriodStart,
+                current_period_end: currentPeriodEnd,
+                updated_at: currentPeriodStart,
+              });
 
-            if (planId) {
-                // Determine periods
-                const now = new Date();
-                const currentPeriodStart = now.toISOString();
-                const currentPeriodEnd = new Date(now.setMonth(now.getMonth() + 1)).toISOString(); // Monthly default
+            if (subError) {
+              console.error("Failed to create subscription:", subError);
+            } else {
+              await supabaseAdmin
+                .from("profiles")
+                .update({
+                  subscription_tier: planName,
+                  updated_at: currentPeriodStart,
+                })
+                .eq("id", userId);
 
-                // Upsert subscription
-                const { error: subError } = await supabaseAdmin
-                    .from("user_subscriptions")
-                    .upsert({
-                        user_id: userId,
+              if (monthlyCredits > 0) {
+                const { data: rpcResult, error: creditError } =
+                  await supabaseAdmin.rpc("add_credits", {
+                    p_user_id: userId,
+                    p_amount: monthlyCredits,
+                    p_description: `${planName} monthly search and AI credits`,
+                    p_reference_type: "subscription",
+                    p_reference_id: order.id,
+                    p_metadata: {
+                      order_id: order.id,
+                      paystack_ref: ref,
+                      plan_id: planId,
+                      plan_name: planName,
+                    },
+                  });
+
+                if (creditError || !rpcResult?.success) {
+                  console.error(
+                    "Failed to add monthly subscription credits via RPC:",
+                    creditError || rpcResult?.message,
+                  );
+                }
+              }
+
+              if (autoApplyLimit > 0) {
+                const { error: quotaError } = await supabaseAdmin
+                  .from("user_feature_quotas")
+                  .upsert(
+                    {
+                      user_id: userId,
+                      feature_key: "auto_apply",
+                      source: "subscription",
+                      period_start: currentPeriodStart,
+                      period_end: currentPeriodEnd,
+                      included_quantity: autoApplyLimit,
+                      used_quantity: 0,
+                      updated_at: currentPeriodStart,
+                      metadata: {
                         plan_id: planId,
-                        status: 'active',
-                        current_period_start: currentPeriodStart,
-                        current_period_end: currentPeriodEnd,
-                        updated_at: new Date().toISOString()
-                    });
+                        plan_name: planName,
+                        order_id: order.id,
+                      },
+                    },
+                    {
+                      onConflict:
+                        "user_id,feature_key,source,period_start,period_end",
+                    },
+                  );
 
-                if (subError) {
-                    console.error("Failed to update subscription:", subError);
-                } else {
-                     // Also grant monthly credits?
-                     const monthlyCredits = metadata.credits_per_month;
-                     if (monthlyCredits) {
-                        const { data: userCredits } = await supabaseAdmin
-                            .from("user_credits")
-                            .select("balance, total_earned")
-                            .eq("user_id", userId)
-                            .single();
-
-                        const currentBalance = userCredits?.balance || 0;
-                        const currentTotal = userCredits?.total_earned || 0;
-
-                         await supabaseAdmin
-                            .from("user_credits")
-                            .upsert({
-                                user_id: userId,
-                                balance: currentBalance + monthlyCredits,
-                                total_earned: currentTotal + monthlyCredits,
-                                updated_at: new Date().toISOString()
-                            });
-
-                         await supabaseAdmin.from("credit_transactions").insert({
-                            user_id: userId,
-                            type: 'earned',
-                            amount: monthlyCredits,
-                            balance_before: currentBalance,
-                            balance_after: currentBalance + monthlyCredits,
-                            description: `Monthly Subscription Credits`,
-                            reference_type: 'subscription',
-                            reference_id: order.id // simplified
-                        });
-                     }
+                if (quotaError) {
+                  console.error("Failed to provision auto apply quota:", quotaError);
                 }
+              }
             }
+          }
         }
-
       }
     }
 
     return new Response("ok", { status: 200 });
-
   } catch (error: any) {
     console.error("Webhook error:", error);
     return new Response(error.message, { status: 500 });

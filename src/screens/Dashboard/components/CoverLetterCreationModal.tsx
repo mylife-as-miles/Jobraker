@@ -136,7 +136,7 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-zinc-950 border-zinc-800 text-white sm:max-w-[600px]">
+            <DialogContent className="bg-zinc-950 border-zinc-800 text-foreground sm:max-w-[600px]">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-xl">
                         <span className="text-brand">+</span> Create a new cover letter
@@ -157,7 +157,7 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="e.g. Google - Software Engineer"
-                            className="bg-zinc-900 border-zinc-800 focus:border-brand text-white placeholder:text-zinc-600"
+                            className="bg-zinc-900 border-zinc-800 focus:border-brand text-foreground placeholder:text-zinc-600"
                             autoFocus
                         />
                         <p className="text-xs text-zinc-500">
@@ -178,7 +178,7 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
                                 id="slug"
                                 value={slug}
                                 onChange={(e) => setSlug(e.target.value)}
-                                className="bg-zinc-900 border-zinc-800 focus:border-brand text-white pl-[230px]"
+                                className="bg-zinc-900 border-zinc-800 focus:border-brand text-foreground pl-[230px]"
                             />
                         </div>
                         <p className="text-xs text-zinc-500">
@@ -195,7 +195,7 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
                             {tags.map((tag) => (
                                 <span key={tag} className="bg-zinc-800 text-zinc-200 px-2 py-1 rounded-md text-sm flex items-center gap-1">
                                     {tag}
-                                    <button onClick={() => removeTag(tag)} className="hover:text-white">
+                                    <button onClick={() => removeTag(tag)} className="hover:text-foreground">
                                         <X size={14} />
                                     </button>
                                 </span>
@@ -206,7 +206,7 @@ export const CoverLetterCreationModal: React.FC<CoverLetterCreationModalProps> =
                                 onChange={(e) => setTagInput(e.target.value)}
                                 onKeyDown={handleAddTag}
                                 placeholder={tags.length === 0 ? "Add a keyword..." : ""}
-                                className="bg-transparent border-none outline-none text-white flex-1 min-w-[120px] text-sm h-7"
+                                className="bg-transparent border-none outline-none text-foreground flex-1 min-w-[120px] text-sm h-7"
                             />
                         </div>
                         <p className="text-xs text-zinc-500">

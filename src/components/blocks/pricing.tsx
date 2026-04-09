@@ -65,7 +65,7 @@ export function Pricing({
         </span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 sm:2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {plans.map((plan, index) => (
           <motion.div
             key={index}
@@ -73,8 +73,7 @@ export function Pricing({
             whileInView={{
               y: plan.isPopular ? -20 : 0,
               opacity: 1,
-              x: index === 2 ? -30 : index === 0 ? 30 : 0,
-              scale: index === 0 || index === 2 ? 0.94 : 1.0,
+              scale: plan.isPopular ? 1.01 : 1,
             }}
             viewport={{ once: true }}
             transition={{
@@ -90,11 +89,7 @@ export function Pricing({
               plan.isPopular ? "border-primary border-2" : "border-border",
               "flex flex-col",
               !plan.isPopular && "mt-5",
-              index === 0 || index === 2
-                ? "z-0 transform translate-x-0 translate-y-0 -translate-z-[50px] rotate-y-[10deg]"
-                : "z-10",
-              index === 0 && "origin-right",
-              index === 2 && "origin-left"
+              plan.isPopular ? "z-10" : "z-0"
             )}
           >
             {plan.isPopular && (

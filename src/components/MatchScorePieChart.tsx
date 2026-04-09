@@ -76,14 +76,14 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
   const hasBreakdown = chartData.length > 0;
 
   return (
-    <Card className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a]">
+    <Card className="relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background">
       <span className="pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60" />
       
       <CardHeader className="relative items-center pb-2">
         <div className="flex w-full items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-[#1dff00]" />
-            <CardTitle className="text-lg text-white/90">AI Match Analysis</CardTitle>
+            <CardTitle className="text-lg text-foreground/90">AI Match Analysis</CardTitle>
           </div>
           <Badge
             variant="outline"
@@ -100,7 +100,7 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
           </Badge>
         </div>
         {summary && (
-          <p className="mt-2 w-full text-left text-sm text-white/60">{summary}</p>
+          <p className="mt-2 w-full text-left text-sm text-foreground/60">{summary}</p>
         )}
       </CardHeader>
 
@@ -145,7 +145,7 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
               {breakdown?.map((item, index) => (
                 <div
                   key={index}
-                  className="rounded-lg border border-white/10 bg-white/5 p-3"
+                  className="rounded-lg border border-foreground/10 bg-foreground/5 p-3"
                 >
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
@@ -153,11 +153,11 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
                         className="h-3 w-3 rounded-full"
                         style={{ backgroundColor: getCategoryColor(item.label) }}
                       />
-                      <span className="text-sm font-medium text-white/90">{item.label}</span>
+                      <span className="text-sm font-medium text-foreground/90">{item.label}</span>
                     </div>
                     <span className="text-sm font-semibold text-[#1dff00]">{item.componentScore}%</span>
                   </div>
-                  <p className="text-xs text-white/60 leading-relaxed">{item.detail}</p>
+                  <p className="text-xs text-foreground/60 leading-relaxed">{item.detail}</p>
                 </div>
               ))}
             </div>
@@ -166,7 +166,7 @@ export function MatchScorePieChart({ score, summary, breakdown }: MatchScorePieC
           <div className="flex h-[250px] items-center justify-center">
             <div className="text-center space-y-2">
               <div className="text-6xl font-bold text-[#1dff00]">{Math.round(score)}%</div>
-              <p className="text-sm text-white/50">Overall Match Score</p>
+              <p className="text-sm text-foreground/50">Overall Match Score</p>
             </div>
           </div>
         )}

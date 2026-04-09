@@ -110,7 +110,7 @@ export default function AdminRevenue() {
         </div>
 
         {/* Time Range Selector */}
-        <div className="flex gap-2 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/20 rounded-xl p-1">
+        <div className="flex gap-2 bg-gradient-to-br from-background via-[#111111] to-background border border-[#1dff00]/20 rounded-xl p-1">
           {[30, 60, 90].map((days) => (
             <button
               key={days}
@@ -132,10 +132,10 @@ export default function AdminRevenue() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-[#0a8246]/20 border border-[#1dff00]/30 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-background/20 border border-[#1dff00]/30 flex items-center justify-center">
                   <DollarSign className="w-6 h-6 text-[#1dff00]" />
                 </div>
                 <div className="flex items-center gap-1 text-[#1dff00]">
@@ -154,10 +154,10 @@ export default function AdminRevenue() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-[#0a8246]/20 border border-[#1dff00]/30 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-background/20 border border-[#1dff00]/30 flex items-center justify-center">
                   <TrendingUp className="w-6 h-6 text-[#1dff00]" />
                 </div>
                 <div className="flex items-center gap-1 text-[#1dff00]">
@@ -176,10 +176,10 @@ export default function AdminRevenue() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-[#0a8246]/20 border border-[#1dff00]/30 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-background/20 border border-[#1dff00]/30 flex items-center justify-center">
                   <CreditCard className="w-6 h-6 text-[#1dff00]" />
                 </div>
                 <div className="flex items-center gap-1 text-[#1dff00]">
@@ -198,10 +198,10 @@ export default function AdminRevenue() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-[#0a8246]/20 border border-[#1dff00]/30 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-background/20 border border-[#1dff00]/30 flex items-center justify-center">
                   <Users className="w-6 h-6 text-[#1dff00]" />
                 </div>
                 <div className="flex items-center gap-1 text-[#1dff00]">
@@ -222,7 +222,7 @@ export default function AdminRevenue() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
           <CardHeader>
             <CardTitle>Revenue Trend</CardTitle>
             <p className="text-sm text-gray-400">Daily revenue and MRR over time</p>
@@ -288,7 +288,7 @@ export default function AdminRevenue() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardHeader>
               <CardTitle>New Subscriptions</CardTitle>
               <p className="text-sm text-gray-400">Daily subscription growth</p>
@@ -326,7 +326,7 @@ export default function AdminRevenue() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
-          <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardHeader>
               <CardTitle>Revenue Breakdown</CardTitle>
               <p className="text-sm text-gray-400">Revenue by subscription tier</p>
@@ -428,7 +428,7 @@ export default function AdminRevenue() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.7 }}
       >
-        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Recent Transactions</CardTitle>
@@ -564,19 +564,19 @@ export default function AdminRevenue() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsDetailOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-background/60 backdrop-blur-sm z-40"
             />
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: "spring", damping: 20 }}
-              className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-[#0a0a0a] border-l border-[#1dff00]/20 z-50 overflow-y-auto"
+              className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-background border-l border-[#1dff00]/20 z-50 overflow-y-auto"
             >
               <div className="p-6">
                 <div className="flex items-center justify-between mb-8">
                   <h2 className="text-xl font-bold text-white">Transaction Details</h2>
-                  <button onClick={() => setIsDetailOpen(false)} className="p-2 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white transition-colors">
+                  <button onClick={() => setIsDetailOpen(false)} className="p-2 hover:bg-foreground/5 rounded-lg text-gray-400 hover:text-white transition-colors">
                     <X className="w-5 h-5" />
                   </button>
                 </div>

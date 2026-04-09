@@ -2,7 +2,7 @@ import React from "react";
 
 export const PrivacyPolicy: React.FC = () => {
   return (
-    <main className="min-h-screen bg-black text-white px-6 py-10">
+    <main className="min-h-screen bg-background text-foreground px-6 py-10">
       <div className="max-w-3xl mx-auto">
         <h1 className="text-3xl font-semibold mb-6">Privacy Policy</h1>
         <p className="opacity-80 mb-8">Last updated: {new Date().toISOString().slice(0, 10)}</p>

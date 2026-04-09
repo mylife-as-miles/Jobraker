@@ -44,11 +44,11 @@ export const ResetPassword: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen grid place-items-center bg-black px-4">
-      <Card className="w-full max-w-md bg-[#ffffff0d] border border-[#ffffff15] backdrop-blur-md rounded-xl">
+    <div className="min-h-screen grid place-items-center bg-background px-4">
+      <Card className="w-full max-w-md bg-foreground/5 border border-foreground/10 backdrop-blur-md rounded-xl">
         <CardContent className="p-6 space-y-4">
-          <h1 className="text-white text-xl font-semibold">Reset password</h1>
-          <p className="text-white/70 text-sm">Enter and confirm your new password.</p>
+          <h1 className="text-foreground text-xl font-semibold">Reset password</h1>
+          <p className="text-foreground/70 text-sm">Enter and confirm your new password.</p>
           <form onSubmit={onSubmit} className="space-y-3">
             <Input
               variant="transparent"
@@ -68,7 +68,7 @@ export const ResetPassword: React.FC = () => {
               onChange={(e) => setConfirm(e.target.value)}
               required
             />
-            <Button type="submit" disabled={submitting} className="w-full bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] text-white">
+            <Button type="submit" disabled={submitting} className="w-full bg-[linear-gradient(270deg,rgba(29,255,0,1)_0%,rgba(10,130,70,1)_85%)] text-foreground">
               {submitting ? "Updating..." : "Update password"}
             </Button>
             <div className="text-center">

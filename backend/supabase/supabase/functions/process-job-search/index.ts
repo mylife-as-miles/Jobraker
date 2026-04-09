@@ -50,11 +50,13 @@ Deno.serve(async (req) => {
 
     // Default domains (fallback if user settings not found)
     const defaultDomains = [
-      'remote.co',
-      'remotive.com',
-      'remoteok.com',
-      'jobicy.com',
-      'levels.fyi',
+      'remote.co', 'remotive.com', 'remoteok.com', 'jobicy.com', 
+      'levels.fyi', 'greenhouse.io', 'lever.co', 'wellfound.com',
+      'builtin.com', 'workingnomads.com', 'weworkremotely.com',
+      'flexjobs.com', 'cryptojobslist.com', 'otta.com', 'hired.com',
+      'dice.com', 'ycombinator.com', 'startup.jobs', 'nodesk.co',
+      'remoterocketship.com', 'jobspresso.com', 'talent.hubstaff.com',
+      'flexa.careers'
     ];
 
     // Blocklist: exclude problematic domains from search
@@ -73,14 +75,7 @@ Deno.serve(async (req) => {
 
       if (!settingsError && settings) {
         if (Array.isArray(settings.enabled_default_sources) && settings.enabled_default_sources.length > 0) {
-          const enabledDefaults = settings.enabled_default_sources.map((d: string) => String(d).toLowerCase().trim());
-          const allDomains = Array.isArray(settings.allowed_domains) ? settings.allowed_domains : [];
-          const customDomains = allDomains
-            .map((d: string) => String(d).toLowerCase().trim())
-            .filter((d: string) => !defaultDomains.includes(d));
-          domainList = [...enabledDefaults, ...customDomains];
-        } else if (Array.isArray(settings.allowed_domains) && settings.allowed_domains.length > 0) {
-          domainList = settings.allowed_domains.map((d: string) => String(d).toLowerCase().trim());
+          domainList = settings.enabled_default_sources.map((d: string) => String(d).toLowerCase().trim());
         }
       }
     } catch (err) {
@@ -211,8 +206,23 @@ Deno.serve(async (req) => {
       if (lower.includes('freelancer.com') && (lower.includes('/projects/') || lower.includes('/jobs/'))) return true;
       // Dice tech jobs
       if (lower.includes('dice.com') && (lower.includes('/jobs/detail/') || lower.includes('/job-detail/'))) return true;
-      // Jobberman jobs
-      if (lower.includes('jobberman.com') && lower.includes('/listings/')) return true;
+      // Otta jobs
+      if (lower.includes('otta.com') && lower.includes('/jobs/')) return true;
+      // BuiltIn jobs
+      if (lower.includes('builtin.com') && lower.includes('/job/')) return true;
+      // WorkingNomads jobs
+      if (lower.includes('workingnomads.com') && lower.includes('/jobs/')) return true;
+      // CryptoJobsList jobs
+      if (lower.includes('cryptojobslist.com') && lower.includes('/jobs/')) return true;
+      // YCombinator jobs
+      if (lower.includes('ycombinator.com') && lower.includes('/jobs/')) return true;
+      // Startup.jobs
+      if (lower.includes('startup.jobs') && lower.split('/').length > 4) return true;
+      // Talent.hubstaff.com
+      if (lower.includes('talent.hubstaff.com') && lower.includes('/jobs/')) return true;
+      // NodeDesk.co
+      if (lower.includes('nodesk.co') && lower.includes('/remote-jobs/')) return true;
+      
       // Generic patterns
       if (lower.match(/\/(job|posting|opening|career|apply|position)s?\/[^\/]+\/?$/)) return true;
       return false;

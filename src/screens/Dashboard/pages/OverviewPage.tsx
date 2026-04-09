@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { MatchScoreAnalytics } from "../../../components/analytics/MatchScoreAnalytics";
 import { Switch } from "../../../components/ui/switch";
@@ -20,6 +20,7 @@ import { SplitLineAreaChart } from "./SplitLineAreaChart";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { useAnalyticsData } from "../../../hooks/useAnalyticsData";
 import { StreakCard } from "../../../components/StreakCard";
+import { useGamification } from "../../../hooks/useGamification";
 // SplitLineAreaChart removed; chart moved to Application section
 
 // Using realtime notifications; no local interface needed here
@@ -54,10 +55,10 @@ export const OverviewPage = (): JSX.Element => {
         className = `${baseSize} ${shared} bg-[#1dff00]/15 ring-[#1dff00]/40 text-[#b6ffb6] group-hover:ring-[#1dff00]/60`;
         inner = (n.company || "A").charAt(0).toUpperCase();
       } else if (n.type === "interview") {
-        className = `${baseSize} ${shared} bg-[#0d4d66]/40 ring-[#56c2ff]/30 text-[#56c2ff] group-hover:ring-[#56c2ff]/60`;
+        className = `${baseSize} ${shared} bg-background/40 ring-[#56c2ff]/30 text-[#56c2ff] group-hover:ring-[#56c2ff]/60`;
         inner = <Building2 className='w-4 h-4 sm:w-5 sm:h-5' />;
       } else if (n.type === "company") {
-        className = `${baseSize} ${shared} bg-[#1e1e1e] ring-foreground/10 text-foreground group-hover:ring-[#1dff00]/50`;
+        className = `${baseSize} ${shared} bg-background ring-foreground/10 text-foreground group-hover:ring-[#1dff00]/50`;
         inner = (n.company || "C").charAt(0).toUpperCase();
       } else {
         // system / fallback
@@ -122,7 +123,7 @@ export const OverviewPage = (): JSX.Element => {
       ) {
         setVisibleSeries(parsed.visible);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   // Persist on change
@@ -132,11 +133,11 @@ export const OverviewPage = (): JSX.Element => {
         "overview_apps_chart_ui",
         JSON.stringify({ stacked, visible: visibleSeries }),
       );
-    } catch {}
+    } catch { }
   }, [stacked, visibleSeries]);
 
   // Build real series based on selected period with status-specific keys
-  const { seriesData, seriesMeta, appliedCount, interviewCount, totals } =
+  const { seriesData, seriesMeta, interviewCount, totals } =
     useMemo(() => {
       const period = selectedPeriod;
 
@@ -323,134 +324,33 @@ export const OverviewPage = (): JSX.Element => {
     });
   }, [applications]);
 
-  // Calculate streak data from applications
+  // Gamification: XP, streaks, achievements from DB
+  const gamification = useGamification();
+  const dailyLoginFired = useRef(false);
+
+  // Emit daily_login XP event once per dashboard visit per day
+  useEffect(() => {
+    if (!gamification.loading && !dailyLoginFired.current) {
+      dailyLoginFired.current = true;
+      gamification.recordEvent('daily_login').catch(() => { });
+    }
+  }, [gamification.loading]);
+
+  // Build streakData from the gamification hook (DB-backed)
   const streakData = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Calculate start of current week (Monday)
-    const currentDayOfWeek = today.getDay();
-    const daysFromMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - daysFromMonday);
-    startOfWeek.setHours(0, 0, 0, 0);
-
-    // Get activity for this week (Mon-Sun)
-    const weekActivity = [false, false, false, false, false, false, false];
-    let weekCount = 0;
-
-    applications.forEach((app) => {
-      // Parse the date string and create a local date (not UTC)
-      const appDate = new Date(app.applied_date);
-      // Normalize to local midnight
-      const localDate = new Date(
-        appDate.getFullYear(),
-        appDate.getMonth(),
-        appDate.getDate(),
-      );
-
-      // Check if in current week
-      const weekEnd = new Date(startOfWeek);
-      weekEnd.setDate(startOfWeek.getDate() + 7);
-
-      if (localDate >= startOfWeek && localDate < weekEnd) {
-        const daysSinceMonday = Math.floor(
-          (localDate.getTime() - startOfWeek.getTime()) / (1000 * 60 * 60 * 24),
-        );
-        if (daysSinceMonday >= 0 && daysSinceMonday < 7) {
-          if (!weekActivity[daysSinceMonday]) {
-            weekActivity[daysSinceMonday] = true;
-            weekCount++;
-          }
-        }
-      }
-    });
-
-    // Calculate current streak (consecutive days with activity, counting back from today or yesterday)
-    let currentStreak = 0;
-    const sortedDates = applications
-      .map((app) => {
-        const d = new Date(app.applied_date);
-        // Normalize to local midnight
-        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      })
-      .sort((a, b) => b.getTime() - a.getTime());
-
-    if (sortedDates.length > 0) {
-      // Start from today
-      let checkDate = new Date(today);
-
-      // Check if there's activity today, if not start from yesterday
-      const hasToday = sortedDates.some(
-        (d) => d.getTime() === checkDate.getTime(),
-      );
-      if (!hasToday) {
-        checkDate.setDate(checkDate.getDate() - 1);
-      }
-
-      // Count consecutive days backwards
-      while (true) {
-        const hasActivity = sortedDates.some(
-          (d) => d.getTime() === checkDate.getTime(),
-        );
-
-        if (hasActivity) {
-          currentStreak++;
-          checkDate.setDate(checkDate.getDate() - 1);
-        } else {
-          break;
-        }
-      }
-    }
-
-    // Calculate longest streak
-    let longestStreak = 0;
-    let tempStreak = 0;
-    const uniqueDays = new Set(
-      applications.map((app) => {
-        const d = new Date(app.applied_date);
-        // Normalize to local midnight
-        const localDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        return localDate.getTime();
-      }),
-    );
-    const sortedUniqueDays = Array.from(uniqueDays)
-      .map((timestamp) => new Date(timestamp))
-      .sort((a, b) => a.getTime() - b.getTime());
-
-    for (let i = 0; i < sortedUniqueDays.length; i++) {
-      if (i === 0) {
-        tempStreak = 1;
-      } else {
-        const prevDay = sortedUniqueDays[i - 1];
-        const currDay = sortedUniqueDays[i];
-        const diffDays = Math.round(
-          (currDay.getTime() - prevDay.getTime()) / (1000 * 60 * 60 * 24),
-        );
-        if (diffDays === 1) {
-          tempStreak++;
-        } else {
-          longestStreak = Math.max(longestStreak, tempStreak);
-          tempStreak = 1;
-        }
-      }
-    }
-    longestStreak = Math.max(longestStreak, tempStreak);
-
-    // Calculate completion rate (active days / total days since first application)
-    const completionRate =
-      sortedUniqueDays.length > 0
-        ? (uniqueDays.size / sortedUniqueDays.length) * 100
-        : 0;
-
+    const s = gamification.streak;
+    const weekCount = s.week_activity.filter(Boolean).length;
+    const completionRate = s.longest_streak > 0
+      ? (s.current_streak / s.longest_streak) * 100
+      : (s.current_streak > 0 ? 100 : 0);
     return {
-      currentStreak,
-      longestStreak,
+      currentStreak: s.current_streak,
+      longestStreak: s.longest_streak,
       weekProgress: weekCount,
       completionRate,
-      activeDays: weekActivity,
+      activeDays: s.week_activity,
     };
-  }, [applications]);
+  }, [gamification.streak]);
 
   // Product tour coach marks for overview dashboard
   useRegisterCoachMarks({
@@ -484,7 +384,7 @@ export const OverviewPage = (): JSX.Element => {
   });
 
   return (
-    <div className='min-h-screen bg-background'>
+    <div className='product-page-shell min-h-screen'>
       <div className='w-full max-w-7xl mx-auto p-3 sm:p-4 lg:p-6 xl:p-8'>
         {/* Responsive overview layout */}
         <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 items-start'>
@@ -511,17 +411,16 @@ export const OverviewPage = (): JSX.Element => {
 
                   {/* Period Selector + Stacked Toggle */}
                   <div className='flex flex-wrap items-center gap-2'>
-                    <div className='bg-foreground/5 p-1 rounded-lg flex items-center gap-1 border border-foreground/10'>
+                    <div className='product-control-surface p-1'>
                       {["Today", "1 Week", "1 Month"].map((period) => (
                         <button
                           key={period}
                           onClick={() => setSelectedPeriod(period)}
                           title={`Show data for ${period}`}
-                          className={`text-xs px-3 py-1.5 rounded-md transition-all duration-300 font-medium ${
-                            selectedPeriod === period
-                              ? "bg-brand text-black shadow-lg shadow-brand/20"
-                              : "text-muted-foreground hover:text-foreground hover:bg-muted/10"
-                          }`}
+                          className={`text-xs px-3 py-1.5 rounded-md transition-all duration-300 font-medium ${selectedPeriod === period
+                            ? "product-control-button-active text-black shadow-sm"
+                            : "product-control-button"
+                            }`}
                         >
                           {period}
                         </button>
@@ -565,7 +464,7 @@ export const OverviewPage = (): JSX.Element => {
                         Applied:
                           "bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/30 hover:bg-[#1dff00]/20",
                         Interview:
-                          "bg-[#00b2ff]/10 text-[#56c2ff] border-[#00b2ff]/30 hover:bg-[#00b2ff]/20",
+                          "bg-background/10 text-[#56c2ff] border-[#00b2ff]/30 hover:bg-background/20",
                         Offer:
                           "bg-[#ffd700]/10 text-[#ffd700] border-[#ffd700]/30 hover:bg-[#ffd700]/20",
                         Rejected:
@@ -621,7 +520,7 @@ export const OverviewPage = (): JSX.Element => {
                   </motion.div>
                   <motion.div
                     whileHover={{ y: -2 }}
-                    className='p-4 rounded-xl bg-gradient-to-br from-[#00b2ff]/10 to-transparent border border-[#00b2ff]/10'
+                    className='p-4 rounded-xl bg-gradient-to-br from-background/10 to-transparent border border-[#00b2ff]/10'
                   >
                     <div className='text-2xl lg:text-3xl font-bold text-[#56c2ff] mb-1'>
                       {interviewCount}
@@ -823,7 +722,7 @@ export const OverviewPage = (): JSX.Element => {
             </motion.div>
           </div>
 
-          {/* Right Column - Notifications and Match Scores */}
+          {/* Right Column - Streaks, Notifications, Match Scores */}
           <div className='space-y-4 sm:space-y-6'>
             {/* Streak Card */}
             <StreakCard
@@ -935,22 +834,15 @@ export const OverviewPage = (): JSX.Element => {
               </Card>
             </motion.div>
 
-            {/* Match Score Analytics Card (moved below notifications) */}
+            {/* Match Score Analytics (Refined layout) */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ scale: 1.01 }}
               className='transition-transform duration-300'
             >
-              <Card className='bg-card/50 border border-border/40 backdrop-blur-xl p-4 sm:p-6 rounded-2xl shadow-xl hover:shadow-2xl hover:border-brand/50 hover:shadow-brand/20 transition-all duration-500'>
-                <div className='flex items-center justify-between mb-4'>
-                  <h2 className='text-lg sm:text-xl lg:text-2xl font-bold text-foreground'>
-                    Recent Match Scores
-                  </h2>
-                </div>
-                <MatchScoreAnalytics period='30d' data={matchAnalytics} />
-              </Card>
+              <MatchScoreAnalytics period='30d' data={matchAnalytics} />
             </motion.div>
           </div>
         </div>
@@ -958,3 +850,4 @@ export const OverviewPage = (): JSX.Element => {
     </div>
   );
 };
+

@@ -35,8 +35,8 @@ export const PublicOnly: React.FC<Props> = ({ children }) => {
 
   if (checking) {
     return (
-      <div className="min-h-screen grid place-items-center bg-black">
-        <div className="w-6 h-6 border-2 border-white/20 border-t-[#1dff00] rounded-full animate-spin" />
+      <div className="min-h-screen grid place-items-center bg-background">
+        <div className="w-6 h-6 border-2 border-foreground/20 border-t-[#1dff00] rounded-full animate-spin" />
       </div>
     )
   }

@@ -23,7 +23,7 @@ function ActivityDetailPanel({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex justify-end"
+        className="fixed inset-0 bg-background/60 backdrop-blur-sm z-[60] flex justify-end"
         onClick={onClose}
       >
         <motion.div
@@ -31,18 +31,18 @@ function ActivityDetailPanel({
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 20 }}
-          className="w-full max-w-md h-full bg-[#0a0a0a] border-l border-[#1dff00]/20 shadow-2xl overflow-y-auto"
+          className="w-full max-w-md h-full bg-background border-l border-[#1dff00]/20 shadow-2xl overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="p-6 border-b border-[#1dff00]/10 flex items-center justify-between sticky top-0 bg-[#0a0a0a]/95 backdrop-blur z-10">
+          <div className="p-6 border-b border-[#1dff00]/10 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-10">
             <div>
               <h2 className="text-xl font-bold text-white">Activity Details</h2>
               <p className="text-sm text-gray-400 font-mono text-xs mt-1">{transaction.id}</p>
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-white"
+              className="p-2 rounded-lg hover:bg-foreground/5 transition-colors text-gray-400 hover:text-white"
             >
               <X className="w-5 h-5" />
             </button>
@@ -247,7 +247,7 @@ export default function AdminActivity() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border border-[#1dff00]/30 rounded-2xl p-6"
+          className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border border-[#1dff00]/30 rounded-2xl p-6"
         >
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center">
@@ -267,7 +267,7 @@ export default function AdminActivity() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border border-[#1dff00]/30 rounded-2xl p-6"
+          className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border border-[#1dff00]/30 rounded-2xl p-6"
         >
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 rounded-xl bg-[#1dff00]/20 flex items-center justify-center">
@@ -308,7 +308,7 @@ export default function AdminActivity() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl p-6"
+        className="bg-background border border-[#1dff00]/20 rounded-2xl p-6"
       >
         <div className="mb-6">
           <h3 className="text-xl font-bold text-white mb-1">Activity Trend</h3>
@@ -354,7 +354,7 @@ export default function AdminActivity() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="bg-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl overflow-hidden shadow-2xl shadow-[#1dff00]/5"
+        className="bg-background border border-[#1dff00]/20 rounded-2xl overflow-hidden shadow-2xl shadow-[#1dff00]/5"
       >
         <div className="p-6 border-b border-[#1dff00]/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -475,7 +475,7 @@ export default function AdminActivity() {
                       -{Math.abs(activity.amount)}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="p-2 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-all">
+                      <button className="p-2 rounded-lg text-gray-500 hover:text-white hover:bg-foreground/10 opacity-0 group-hover:opacity-100 transition-all">
                         <ArrowUpRight className="w-4 h-4" />
                       </button>
                     </td>

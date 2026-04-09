@@ -10,8 +10,15 @@ export interface Profile {
   experience_years: number | null;
   location: string | null;
   goals: string[];
+  proof_points?: Array<{ title: string; evidence: string; metric?: string; tags?: string[] }> | string[];
+  preferred_narratives?: string[];
+  red_flags?: string[];
+  target_archetypes?: string[];
+  story_bank?: Array<{ title: string; situation: string; outcome?: string; relevance?: string }>;
+  tracked_companies?: Array<string | { name: string; careers_url?: string; source_hint?: string; domain?: string }>;
   updated_at: string;
   phone?: string; // Added to interface
+  avatar_url?: string | null;
   // Walkthrough completion flags (added via migration 20251001100000)
   walkthrough_overview?: boolean;
   walkthrough_application?: boolean; // singular version for ApplicationPage

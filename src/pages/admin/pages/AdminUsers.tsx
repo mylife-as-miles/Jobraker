@@ -66,7 +66,7 @@ function UserDetailPanel({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-background/60 backdrop-blur-sm z-50"
             onClick={onClose}
           />
           {/* Panel */}
@@ -75,12 +75,12 @@ function UserDetailPanel({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-gradient-to-b from-[#0a0a0a] via-[#0d0d0d] to-[#0a0a0a] border-l border-[#1dff00]/20 z-50 overflow-y-auto"
+            className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-gradient-to-b from-background via-background to-background border-l border-[#1dff00]/20 z-50 overflow-y-auto"
           >
             {/* Header */}
-            <div className="sticky top-0 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-[#1dff00]/20 px-6 py-4 flex items-center justify-between z-10">
+            <div className="sticky top-0 bg-background/95 backdrop-blur-xl border-b border-[#1dff00]/20 px-6 py-4 flex items-center justify-between z-10">
               <h2 className="text-xl font-bold text-white">User Details</h2>
-              <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-lg">
+              <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-foreground/5 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -88,7 +88,7 @@ function UserDetailPanel({
             <div className="p-6 space-y-6">
               {/* User Identity */}
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#1dff00]/20 to-[#0a8246]/10 border border-[#1dff00]/30 flex items-center justify-center">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#1dff00]/20 to-background/10 border border-[#1dff00]/30 flex items-center justify-center">
                   <User className="w-8 h-8 text-[#1dff00]" />
                 </div>
                 <div>
@@ -243,7 +243,7 @@ function TopUpDialog({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+        className="fixed inset-0 bg-background/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -251,7 +251,7 @@ function TopUpDialog({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-[#1dff00]/30 rounded-2xl w-full max-w-md shadow-2xl shadow-[#1dff00]/10"
+          className="bg-gradient-to-br from-background via-[#111111] to-background border border-[#1dff00]/30 rounded-2xl w-full max-w-md shadow-2xl shadow-[#1dff00]/10"
         >
           {/* Header */}
           <div className="px-6 pt-6 pb-4 border-b border-[#1dff00]/20">
@@ -345,7 +345,7 @@ function TopUpDialog({
               whileTap={{ scale: 0.98 }}
               onClick={() => onConfirm(amount, description)}
               disabled={loading || amount < 1}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-[#1dff00] to-background text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               Add {amount} Credits
@@ -394,7 +394,7 @@ function ChangePlanDialog({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+        className="fixed inset-0 bg-background/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -402,7 +402,7 @@ function ChangePlanDialog({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-yellow-500/30 rounded-2xl w-full max-w-md shadow-2xl shadow-yellow-500/10"
+          className="bg-gradient-to-br from-background via-[#111111] to-background border border-yellow-500/30 rounded-2xl w-full max-w-md shadow-2xl shadow-yellow-500/10"
         >
           {/* Header */}
           <div className="px-6 pt-6 pb-4 border-b border-yellow-500/20">
@@ -515,7 +515,7 @@ function DeleteUserDialog({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+        className="fixed inset-0 bg-background/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -523,7 +523,7 @@ function DeleteUserDialog({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border border-red-500/30 rounded-2xl w-full max-w-md shadow-2xl shadow-red-500/10"
+          className="bg-gradient-to-br from-background via-[#111111] to-background border border-red-500/30 rounded-2xl w-full max-w-md shadow-2xl shadow-red-500/10"
         >
           {/* Header */}
           <div className="px-6 pt-6 pb-4 border-b border-red-500/20">
@@ -614,7 +614,7 @@ function RowActions({
     <div className="relative">
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+        className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-foreground/5 transition-all"
       >
         <MoreVertical className="w-4 h-4" />
       </button>
@@ -626,19 +626,19 @@ function RowActions({
               initial={{ opacity: 0, scale: 0.95, y: -5 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -5 }}
-              className="absolute right-0 top-full mt-1 w-48 bg-[#111111] border border-[#1dff00]/20 rounded-xl shadow-2xl z-50 overflow-hidden"
+              className="absolute right-0 top-full mt-1 w-48 bg-background border border-[#1dff00]/20 rounded-xl shadow-2xl z-50 overflow-hidden"
             >
-              <button onClick={() => { setOpen(false); onView(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+              <button onClick={() => { setOpen(false); onView(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all">
                 <Eye className="w-4 h-4 text-blue-400" /> View Details
               </button>
-              <button onClick={() => { setOpen(false); onTopUp(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+              <button onClick={() => { setOpen(false); onTopUp(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all">
                 <Plus className="w-4 h-4 text-[#1dff00]" /> Top Up Credits
               </button>
-              <button onClick={() => { setOpen(false); onChangePlan(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+              <button onClick={() => { setOpen(false); onChangePlan(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all">
                 <Crown className="w-4 h-4 text-yellow-400" /> Change Plan
               </button>
 
-              <button onClick={() => { setOpen(false); onToggleAdmin(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+              <button onClick={() => { setOpen(false); onToggleAdmin(); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-foreground/5 transition-all">
                 <Shield className={`w-4 h-4 ${isAdmin ? 'text-[#1dff00]' : 'text-gray-400'}`} />
                 {isAdmin ? 'Remove Admin' : 'Make Admin'}
               </button>
@@ -876,7 +876,7 @@ export default function AdminUsers() {
       </div>
 
       {/* Filters Bar */}
-      <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+      <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Search */}
@@ -928,7 +928,7 @@ export default function AdminUsers() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={exportCSV}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-black font-medium rounded-xl hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all"
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#1dff00] to-background text-black font-medium rounded-xl hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all"
             >
               <Download className="w-5 h-5" />
               Export CSV
@@ -939,13 +939,13 @@ export default function AdminUsers() {
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardContent className="p-4">
             <p className="text-sm text-gray-400 mb-1">Total Users</p>
             <p className="text-2xl font-bold text-white">{activities.length}</p>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardContent className="p-4">
             <p className="text-sm text-gray-400 mb-1">Active Users</p>
             <p className="text-2xl font-bold text-[#1dff00]">
@@ -953,7 +953,7 @@ export default function AdminUsers() {
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardContent className="p-4">
             <p className="text-sm text-gray-400 mb-1">Paid Users</p>
             <p className="text-2xl font-bold text-[#1dff00]">
@@ -961,7 +961,7 @@ export default function AdminUsers() {
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20">
           <CardContent className="p-4">
             <p className="text-sm text-gray-400 mb-1">Showing</p>
             <p className="text-2xl font-bold text-white">{filteredActivities.length}</p>
@@ -970,7 +970,7 @@ export default function AdminUsers() {
       </div>
 
       {/* Users Table */}
-      <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20 overflow-hidden">
+      <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-800/50 border-b border-[#1dff00]/20">

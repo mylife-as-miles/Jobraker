@@ -8,7 +8,7 @@ export const HeroSection = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="relative w-full min-h-screen flex flex-col justify-center overflow-hidden bg-black pt-24 pb-20 px-4 sm:px-6 lg:px-8">
+    <div className="relative w-full min-h-screen flex flex-col justify-center overflow-hidden bg-background pt-24 pb-20 px-4 sm:px-6 lg:px-8">
       {/* Background Grid Effect */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1dff000a_1px,transparent_1px),linear-gradient(to_bottom,#1dff000a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
 
@@ -24,9 +24,9 @@ export const HeroSection = () => {
             <span>AI Agent V2.0 Online</span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold font-mono tracking-tight text-white leading-[0.9] lg:leading-[0.9]">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold font-mono tracking-tight text-foreground leading-[0.9] lg:leading-[0.9]">
             Your AI Job Hunter <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1dff00] via-[#80ff72] to-[#00b300]">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1dff00] via-[#80ff72] to-background">
               Never Sleeps
             </span>
           </h1>

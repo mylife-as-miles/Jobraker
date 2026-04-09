@@ -96,9 +96,9 @@ const Header = () => {
         </span>
         <span>AI Agent V2.0 Online</span>
       </div>
-      <h1 className="text-4xl md:text-7xl font-bold dark:text-white font-mono">
+      <h1 className="text-4xl md:text-7xl font-bold dark:text-foreground font-mono">
         Your Job Search <br />
-        <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1dff00] to-[#00b300]">
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1dff00] to-background">
           On Autopilot
         </span>
       </h1>
@@ -154,9 +154,9 @@ export const ProductCard = ({
           className="absolute inset-0 bg-cover bg-center rounded-xl border border-[#1dff00]/30"
           style={{ backgroundImage: `url(${product.thumbnail})` }}
         />
-        <div className="absolute inset-0 bg-black/50 group-hover/product:bg-black/0 transition duration-500 rounded-xl pointer-events-none" />
+        <div className="absolute inset-0 bg-background/50 group-hover/product:bg-background/0 transition duration-500 rounded-xl pointer-events-none" />
       </div>
-      <div className="absolute bottom-4 left-4 opacity-0 group-hover/product:opacity-100 text-white font-mono">
+      <div className="absolute bottom-4 left-4 opacity-0 group-hover/product:opacity-100 text-foreground font-mono">
         {product.title}
       </div>
     </motion.div>

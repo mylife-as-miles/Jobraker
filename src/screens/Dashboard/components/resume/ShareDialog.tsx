@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../../../components/ui/dialog';
 import { Switch } from '../../../../components/ui/switch';
-import { Input } from '../../../../components/ui/input';
 import { Button } from '../../../../components/ui/button';
 import { useArtboardStore } from '../../../../store/artboard';
 import { createClient } from '../../../../lib/supabaseClient';
-import { Copy, Eye, Download, Globe, Share2 } from 'lucide-react';
+import { Copy, Eye, Download, Globe } from 'lucide-react';
 import { useToast } from '../../../../components/ui/toast-provider';
 
 interface ShareDialogProps {
@@ -65,57 +64,71 @@ export const ShareDialog = ({ open, onOpenChange }: ShareDialogProps) => {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md bg-white dark:bg-[#0A0A0A] border-gray-200 dark:border-white/10 text-gray-900 dark:text-white">
-                <DialogHeader>
-                    <DialogTitle>Share Resume</DialogTitle>
-                    <DialogDescription>
-                        Make your resume public to share it with recruiters.
-                    </DialogDescription>
-                </DialogHeader>
+            <DialogContent className="sm:max-w-[480px] bg-white dark:bg-background border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-50 rounded-2xl shadow-2xl p-0 overflow-hidden">
+                <div className="p-6">
+                    <DialogHeader className="mb-6">
+                        <DialogTitle className="text-xl font-bold tracking-tight">Share Resume</DialogTitle>
+                        <DialogDescription className="text-zinc-500 dark:text-zinc-400">
+                            Manage public access and track your resume performance.
+                        </DialogDescription>
+                    </DialogHeader>
 
-                <div className="flex items-center justify-between py-4">
-                    <div className="flex flex-col gap-1">
-                        <span className="font-medium text-sm">Public Access</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                            Anyone with the link can view your resume.
-                        </span>
+                    <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800/50 mb-6">
+                        <div className="flex flex-col gap-0.5">
+                            <span className="font-semibold text-sm">Public Access</span>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                                Share your resume via a public URL.
+                            </p>
+                        </div>
+                        <Switch
+                            checked={!!isPublic}
+                            onCheckedChange={handleToggle}
+                            disabled={loading}
+                            className="data-[state=checked]:bg-[#1dff00] data-[state=checked]:dark:bg-[#1dff00]"
+                        />
                     </div>
-                    <Switch
-                        checked={!!isPublic}
-                        onCheckedChange={handleToggle}
-                        disabled={loading}
-                        className="data-[state=checked]:bg-[#1dff00]"
-                    />
+
+                    {isPublic && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider ml-1">Share Link</label>
+                                <div className="flex items-center gap-2 p-3 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl group transition-all hover:border-zinc-300 dark:hover:border-zinc-700">
+                                    <Globe className="w-4 h-4 text-[#1dff00] shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300 truncate select-all">
+                                            {publicUrl}
+                                        </p>
+                                    </div>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 px-3 text-xs gap-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
+                                        onClick={copyToClipboard}
+                                    >
+                                        <Copy className="w-3.5 h-3.5" />
+                                        Copy
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="relative overflow-hidden group p-5 bg-gradient-to-br from-blue-500/10 via-transparent to-transparent dark:from-blue-500/5 rounded-2xl border border-blue-500/20 dark:border-blue-500/10 flex flex-col items-center justify-center gap-2 transition-all hover:scale-[1.02]">
+                                    <div className="absolute -right-4 -top-4 w-12 h-12 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/20 transition-all" />
+                                    <Eye className="w-6 h-6 text-blue-500 mb-1" />
+                                    <span className="text-3xl font-black tracking-tight">{views || 0}</span>
+                                    <span className="text-[10px] text-blue-600/70 dark:text-blue-400/70 font-bold uppercase tracking-[0.1em]">Total Views</span>
+                                </div>
+
+                                <div className="relative overflow-hidden group p-5 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent dark:from-emerald-500/5 rounded-2xl border border-emerald-500/20 dark:border-emerald-500/10 flex flex-col items-center justify-center gap-2 transition-all hover:scale-[1.02]">
+                                    <div className="absolute -right-4 -top-4 w-12 h-12 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all" />
+                                    <Download className="w-6 h-6 text-emerald-500 mb-1" />
+                                    <span className="text-3xl font-black tracking-tight">{downloads || 0}</span>
+                                    <span className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 font-bold uppercase tracking-[0.1em]">Downloads</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
-
-                {isPublic && (
-                    <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex items-center gap-2 p-3 bg-gray-100 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/5">
-                            <Globe className="w-4 h-4 text-[#1dff00]" />
-                            <div className="flex-1 min-w-0">
-                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate select-all">
-                                    {publicUrl}
-                                </p>
-                            </div>
-                            <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={copyToClipboard}>
-                                <Copy className="w-3 h-3" />
-                            </Button>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/5 flex flex-col items-center justify-center gap-2">
-                                <Eye className="w-5 h-5 text-blue-500" />
-                                <span className="text-2xl font-bold">{views || 0}</span>
-                                <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">Views</span>
-                            </div>
-                            <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/5 flex flex-col items-center justify-center gap-2">
-                                <Download className="w-5 h-5 text-green-500" />
-                                <span className="text-2xl font-bold">{downloads || 0}</span>
-                                <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">Downloads</span>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </DialogContent>
         </Dialog>
     );

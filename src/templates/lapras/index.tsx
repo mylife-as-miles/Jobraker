@@ -12,7 +12,7 @@ const sectionClassName = cn(
 	// Card container
 	"rounded-lg border border-gray-100 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
 
-	// Section Heading — floating above card border
+	// Section Heading ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â floating above card border
 	"[&>h6]:-mt-7 [&>h6]:max-w-fit [&>h6]:bg-white [&>h6]:px-3 [&>h6]:text-[color:var(--page-primary-color)]",
 
 	// First section gets extra top margin
@@ -20,7 +20,7 @@ const sectionClassName = cn(
 );
 
 /**
- * Template: Lapras — Card-Based Layout
+ * Template: Lapras ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Card-Based Layout
  * A modern card-based template with floating section headers and subtle shadows.
  */
 export function LaprasTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
@@ -88,10 +88,10 @@ function Header() {
 		<div
 			className={cn(
 				"page-header flex items-start gap-x-5 mb-2",
-				"rounded-lg border border-gray-100 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
+				"rounded-[2rem] border border-gray-100/80 bg-white/95 p-6 shadow-[0_18px_32px_rgba(15,23,42,0.08)]",
 			)}
 		>
-			<PagePicture className="w-20 h-20 rounded-lg border border-gray-100 shadow-sm shrink-0" />
+			<PagePicture className="w-28 h-28 rounded-[1.75rem] border-[4px] border-[color:var(--page-primary-color)]/18 bg-white p-1.5 shadow-[0_18px_30px_rgba(15,23,42,0.12)] shrink-0" />
 
 			<div className="page-basics space-y-2 min-w-0">
 				<div>
@@ -99,7 +99,7 @@ function Header() {
 					<p className="basics-headline text-sm text-[color:var(--page-primary-color)] font-medium mt-0.5">{basics.headline}</p>
 				</div>
 
-				<div className="basics-items flex flex-wrap gap-x-3 gap-y-1 text-[0.7rem] text-gray-500 *:flex *:items-center *:gap-x-1.5 *:border-r *:border-gray-200 *:pr-3 *:last:border-r-0 *:last:pr-0">
+				<div className="basics-items flex flex-wrap gap-2 text-[0.72rem] text-gray-500 [&_svg]:text-[color:var(--page-primary-color)] *:flex *:items-center *:gap-x-1.5 *:rounded-full *:border *:border-gray-200/80 *:bg-slate-50/90 *:px-3 *:py-1.5 *:shadow-[0_6px_16px_rgba(15,23,42,0.05)]">
 					{basics.email && (
 						<div className="basics-item-email">
 							<Envelope />

@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Upload,
   FileText,
-  MoreVertical,
   Grid,
   List,
   Calendar,
@@ -19,7 +18,11 @@ import { ResumeCreationModal } from "../components/ResumeCreationModal";
 import { ResumePreviewCard } from "../components/ResumePreviewCard";
 import { createClient } from "@/lib/supabaseClient";
 import { extractTextFromPdf } from "@/lib/pdf-loader";
-import { parseResumeWithAI } from "@/services/ai/parseResumeProfile";
+import {
+  buildFallbackParsedProfileData,
+  parseResumeWithAI,
+} from "@/services/ai/parseResumeProfile";
+import { getResumeDisplayName } from "@/lib/resumeDisplay";
 import { mapParsedDataToResume } from "@/lib/resume-mapper";
 import { initialResumeState } from "@/store/artboard";
 import { nanoid } from "nanoid";
@@ -37,6 +40,15 @@ export const ResumeHomePage = () => {
 
   const setResumeId = useArtboardStore((state) => state.setResumeId);
   const setResumeTitle = useArtboardStore((state) => state.setResumeTitle);
+
+  const normalizedResumes = useMemo(
+    () =>
+      resumes.map((resume) => ({
+        record: resume,
+        displayName: getResumeDisplayName(resume),
+      })),
+    [resumes],
+  );
 
   useEffect(() => {
     const fetchResumes = async () => {
@@ -67,10 +79,11 @@ export const ResumeHomePage = () => {
     setIsCreateModalOpen(true);
   };
 
-  const handleEdit = (id: string, name: string) => {
-    setResumeId(id);
-    setResumeTitle(name);
-    navigate(`/dashboard/resume/edit/${id}`);
+  const handleEdit = (resume: any, displayName?: string) => {
+    const resolvedTitle = displayName || getResumeDisplayName(resume);
+    setResumeId(resume.id);
+    setResumeTitle(resolvedTitle);
+    navigate(`/dashboard/resume/edit/${resume.id}`);
   };
 
   const handleImportClick = () => {
@@ -87,7 +100,15 @@ export const ResumeHomePage = () => {
       const text = await extractTextFromPdf(file);
 
       console.log("Parsing with AI...");
-      const parsedData = await parseResumeWithAI({ resumeText: text });
+      const parsedData = await parseResumeWithAI({ resumeText: text }).catch(
+        (parseError) => {
+          console.warn(
+            "AI resume parsing failed. Falling back to heuristic parsing.",
+            parseError,
+          );
+          return buildFallbackParsedProfileData(text, file.name);
+        },
+      );
 
       console.log("Mapping to ResumeData...");
       const resumeData = mapParsedDataToResume(
@@ -129,7 +150,7 @@ export const ResumeHomePage = () => {
   };
 
   return (
-    <div className='flex flex-col h-full bg-background text-foreground p-8 overflow-y-auto'>
+    <div className='product-page-shell flex flex-col h-full bg-background text-foreground p-8 overflow-y-auto'>
       <input
         type='file'
         ref={fileInputRef}
@@ -141,24 +162,24 @@ export const ResumeHomePage = () => {
       {/* Header */}
       <div className='flex items-center justify-between mb-8'>
         <div>
-          <h1 className='text-2xl font-bold'>Resumes</h1>
-          <p className='text-foreground/60 text-sm mt-1'>
+          <h1 className='product-page-title text-2xl font-bold'>Resumes</h1>
+          <p className='product-page-subtitle text-sm mt-1'>
             Manage and create your professional resumes
           </p>
         </div>
 
         <div className='flex items-center gap-3'>
           {/* View Toggle */}
-          <div className='bg-foreground p-1 rounded-lg flex items-center border border-foreground'>
+          <div className='product-control-surface'>
             <button
               onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-md transition-all ${viewMode === "grid" ? "bg-foreground/60 text-white shadow-sm" : "text-foreground/60 hover:text-foreground/60"}`}
+              className={viewMode === "grid" ? "product-control-button-active" : "product-control-button"}
             >
               <Grid className='w-4 h-4' />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={`p-2 rounded-md transition-all ${viewMode === "list" ? "bg-foreground/60 text-white shadow-sm" : "text-foreground/60 hover:text-foreground/60"}`}
+              className={viewMode === "list" ? "product-control-button-active" : "product-control-button"}
             >
               <List className='w-4 h-4' />
             </button>
@@ -166,7 +187,7 @@ export const ResumeHomePage = () => {
 
           <Button
             onClick={handleCreateNew}
-            className='bg-[#1dff00] text-foreground hover:bg-[#1dff00]/90 gap-2 font-semibold'
+            className='bg-[#1dff00] text-black hover:bg-[#1dff00]/90 gap-2 font-semibold'
           >
             <Plus className='w-4 h-4' />
             Create New
@@ -180,36 +201,36 @@ export const ResumeHomePage = () => {
           {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
-              className='aspect-[3/4] rounded-xl bg-foreground/40 border border-[#ffffff10] overflow-hidden flex flex-col'
+              className='aspect-[3/4] rounded-xl bg-foreground/40 border border-foreground/5 overflow-hidden flex flex-col'
             >
               {/* Preview skeleton */}
-              <div className='flex-1 bg-gradient-to-br from-[#ffffff06] to-[#ffffff02] relative overflow-hidden'>
+              <div className='flex-1 bg-gradient-to-br from-foreground/5 to-foreground/5 relative overflow-hidden'>
                 <div
                   className='absolute inset-0 bg-gradient-to-r from-transparent via-foreground/40 to-transparent animate-[shimmer_1.5s_infinite] -translate-x-full'
                   style={{ animation: `shimmer 1.5s infinite ${i * 0.15}s` }}
                 />
                 {/* Fake resume lines */}
                 <div className='p-6 space-y-3 pt-8'>
-                  <div className='h-3 bg-[#ffffff10] rounded-full w-2/3 mx-auto' />
+                  <div className='h-3 bg-foreground/5 rounded-full w-2/3 mx-auto' />
                   <div className='h-2 bg-foreground/40 rounded-full w-1/2 mx-auto' />
-                  <div className='h-px bg-[#ffffff06] w-full mt-4' />
+                  <div className='h-px bg-foreground/5 w-full mt-4' />
                   <div className='space-y-2 mt-4'>
                     <div className='h-2 bg-foreground/40 rounded-full w-1/3' />
-                    <div className='h-2 bg-[#ffffff06] rounded-full w-full' />
-                    <div className='h-2 bg-[#ffffff06] rounded-full w-5/6' />
-                    <div className='h-2 bg-[#ffffff06] rounded-full w-4/6' />
+                    <div className='h-2 bg-foreground/5 rounded-full w-full' />
+                    <div className='h-2 bg-foreground/5 rounded-full w-5/6' />
+                    <div className='h-2 bg-foreground/5 rounded-full w-4/6' />
                   </div>
                   <div className='space-y-2 mt-4'>
                     <div className='h-2 bg-foreground/40 rounded-full w-1/4' />
-                    <div className='h-2 bg-[#ffffff06] rounded-full w-full' />
-                    <div className='h-2 bg-[#ffffff06] rounded-full w-3/4' />
+                    <div className='h-2 bg-foreground/5 rounded-full w-full' />
+                    <div className='h-2 bg-foreground/5 rounded-full w-3/4' />
                   </div>
                 </div>
               </div>
               {/* Meta skeleton */}
-              <div className='p-4 bg-[#0a0a0a] border-t border-[#ffffff10]'>
-                <div className='h-3 bg-[#ffffff10] rounded-full w-3/4 mb-2' />
-                <div className='h-2 bg-[#ffffff06] rounded-full w-1/2' />
+              <div className='p-4 bg-background border-t border-foreground/5'>
+                <div className='h-3 bg-foreground/5 rounded-full w-3/4 mb-2' />
+                <div className='h-2 bg-foreground/5 rounded-full w-1/2' />
               </div>
             </div>
           ))}
@@ -219,7 +240,7 @@ export const ResumeHomePage = () => {
       {!loading && viewMode === "grid" && (
         <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6'>
           {/* Resume Cards */}
-          {resumes.map((resume) => (
+          {normalizedResumes.map(({ record: resume, displayName }) => (
             <motion.div
               key={resume.id}
               whileHover={{ y: -5 }}
@@ -227,7 +248,7 @@ export const ResumeHomePage = () => {
             >
               {/* Preview Area (Top 2/3) */}
               <div
-                onClick={() => handleEdit(resume.id, resume.name)}
+                onClick={() => handleEdit(resume, displayName)}
                 className='flex-1 bg-white relative cursor-pointer overflow-hidden'
               >
                 {/* Mini Resume Preview */}
@@ -246,7 +267,7 @@ export const ResumeHomePage = () => {
                 <div className='flex items-start justify-between'>
                   <div>
                     <h3 className='font-semibold text-foreground truncate pr-2'>
-                      {resume.name}
+                      {displayName}
                     </h3>
                     <p className='text-xs text-foreground/60 mt-1 flex items-center gap-1'>
                       <Calendar className='w-3 h-3' />
@@ -266,7 +287,7 @@ export const ResumeHomePage = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleCreateNew}
-            className='aspect-[3/4] rounded-xl border border-dashed border-[#ffffff20] bg-foreground/5 hover:bg-[#ffffff0a] hover:border-[#1dff00]/30 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
+            className='product-section-card-muted aspect-[3/4] border-dashed hover:border-[#ffd700]/60 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group'
           >
             <div className='w-16 h-16 rounded-full bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00] group-hover:scale-110 transition-transform'>
               <Plus className='w-8 h-8' />
@@ -281,7 +302,7 @@ export const ResumeHomePage = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleImportClick}
-            className='aspect-[3/4] rounded-xl border border-dashed border-[#ffffff20] bg-foreground/5 hover:bg-[#ffffff0a] hover:border-[#ffffff40] cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group relative'
+            className='product-section-card-muted aspect-[3/4] border-dashed hover:border-[#ffd700]/60 cursor-pointer flex flex-col items-center justify-center gap-4 transition-all group relative'
           >
             {isImporting ? (
               <div className='flex flex-col items-center gap-3'>
@@ -292,14 +313,14 @@ export const ResumeHomePage = () => {
               </div>
             ) : (
               <>
-                <div className='w-16 h-16 rounded-full bg-[#ffffff10] flex items-center justify-center text-[#1dff00]  group-hover:scale-110 transition-transform'>
+                <div className='w-16 h-16 rounded-full bg-foreground/5 flex items-center justify-center text-[#1dff00]  group-hover:scale-110 transition-transform'>
                   <Upload className='w-8 h-8' />
                 </div>
                 <span className='font-medium text-foreground/60 group-hover:text-foreground transition-colors'>
-                  Import Existing
-                </span>
-              </>
-            )}
+                Import Existing
+              </span>
+            </>
+          )}
           </motion.div>
         </div>
       )}
@@ -307,38 +328,38 @@ export const ResumeHomePage = () => {
       {/* List View */}
       {!loading && viewMode === "list" && (
         <div className='space-y-4'>
-          <div className='grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-foreground/60 uppercase tracking-wider'>
+          <div className='grid grid-cols-12 gap-4 px-4 py-2 product-helper-text text-xs font-medium uppercase tracking-wider'>
             <div className='col-span-6'>Name</div>
             <div className='col-span-3'>Last Modified</div>
             <div className='col-span-3 text-right'>Actions</div>
           </div>
-          {resumes.map((resume) => (
+          {normalizedResumes.map(({ record: resume, displayName }) => (
             <div
               key={resume.id}
-              className='grid grid-cols-12 gap-4 px-4 py-4 rounded-xl bg-foreground/40 border border-[#ffffff10] hover:bg-[#ffffff0c] items-center transition-all group'
+              className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 hover:border-[#ffd700]/45 items-center transition-all group'
             >
               <div className='col-span-6 flex items-center gap-4'>
-                <div className='w-10 h-10 rounded-lg bg-white flex items-center justify-center'>
+                <div className='product-muted-icon-chip w-10 h-10 rounded-lg flex items-center justify-center'>
                   <FileText className='w-5 h-5 text-foreground/60' />
                 </div>
                 <div>
-                  <h3 className='font-semibold text-white'>{resume.name}</h3>
-                  <p className='text-xs text-foreground/60'>A4 • PDF</p>
+                  <h3 className='font-semibold text-foreground'>{displayName}</h3>
+                  <p className='product-helper-text text-xs'>A4 - PDF</p>
                 </div>
               </div>
-              <div className='col-span-3 text-sm text-foreground/60'>
+              <div className='col-span-3 product-helper-text text-sm'>
                 {new Date(resume.updated_at).toLocaleDateString()}
               </div>
               <div className='col-span-3 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity'>
                 <button
-                  onClick={() => handleEdit(resume.id, resume.name)}
-                  className='p-2 text-foreground/60 hover:text-foreground/60 hover:bg-[#ffffff10] rounded-lg'
+                  onClick={() => handleEdit(resume, displayName)}
+                  className='p-2 product-helper-text hover:text-foreground hover:bg-[#ffd700]/10 rounded-lg transition-colors'
                   title='Edit'
                 >
                   <Edit2 className='w-4 h-4' />
                 </button>
                 <button
-                  className='p-2 text-foreground/60 hover:text-foreground/60 hover:bg-[#ffffff10] rounded-lg'
+                  className='p-2 product-helper-text hover:text-foreground hover:bg-[#ffd700]/10 rounded-lg transition-colors'
                   title='Download'
                 >
                   <Download className='w-4 h-4' />
@@ -355,13 +376,13 @@ export const ResumeHomePage = () => {
 
           <div
             onClick={handleCreateNew}
-            className='grid grid-cols-12 gap-4 px-4 py-4 rounded-xl border border-dashed border-[#ffffff20] bg-[#ffffff05] hover:bg-[#ffffff0a] cursor-pointer items-center group transition-all'
+            className='product-section-card-muted grid grid-cols-12 gap-4 px-4 py-4 border-dashed hover:border-[#ffd700]/60 cursor-pointer items-center group transition-all'
           >
             <div className='col-span-6 flex items-center gap-3'>
               <div className='w-10 h-10 rounded-lg bg-[#1dff00]/10 flex items-center justify-center text-[#1dff00]'>
                 <Plus className='w-5 h-5' />
               </div>
-              <span className='font-medium text-gray-300 group-hover:text-white'>
+              <span className='product-page-subtitle font-medium group-hover:text-foreground transition-colors'>
                 Create New Resume
               </span>
             </div>

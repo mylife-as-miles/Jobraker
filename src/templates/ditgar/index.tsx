@@ -21,7 +21,7 @@ const sectionClassName = cn(
 );
 
 /**
- * Template: Ditgar — Accent Left Sidebar
+ * Template: Ditgar Ã¢â‚¬â€ Accent Left Sidebar
  * A polished template with a violet left sidebar and bordered section items.
  */
 export function DitgarTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
@@ -92,14 +92,14 @@ function Header() {
 
 	return (
 		<div className="page-header space-y-4 bg-[color:var(--page-primary-color)] px-[var(--page-margin-x)] py-[var(--page-margin-y)] text-white">
-			<PagePicture className="w-20 h-20 rounded-full border-2 border-white/30 shadow-lg" />
+			<PagePicture className="w-28 h-28 rounded-full border-[4px] border-white bg-white/10 p-1.5 shadow-[0_20px_36px_rgba(15,23,42,0.22)]" />
 
 			<div>
 				<h2 className="font-extrabold text-xl tracking-tight">{basics.name}</h2>
 				<p className="text-sm opacity-80 mt-0.5">{basics.headline}</p>
 			</div>
 
-			<div className="flex flex-col items-start gap-y-1.5 text-[0.7rem] text-white/80">
+			<div className="flex flex-col items-start gap-y-2 text-[0.68rem] text-white/85 *:flex *:items-center *:gap-x-1.5 *:rounded-full *:border *:border-white/10 *:bg-white/10 *:px-3 *:py-1.5">
 				{basics.location && (
 					<div className="flex items-center gap-x-1.5">
 						<PageIcon name="MapPin" />

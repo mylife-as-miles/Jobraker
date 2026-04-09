@@ -51,8 +51,8 @@ export default function AdminOverview() {
       change: '+12.5%',
       trend: 'up',
       icon: Users,
-      gradient: 'from-[#1dff00] to-[#0a8246]',
-      bgGradient: 'from-[#1dff00]/20 to-[#0a8246]/10',
+      gradient: 'from-[#1dff00] to-background',
+      bgGradient: 'from-[#1dff00]/20 to-background/10',
     },
     {
       title: 'Active Users',
@@ -60,8 +60,8 @@ export default function AdminOverview() {
       change: '+8.2%',
       trend: 'up',
       icon: Activity,
-      gradient: 'from-[#1dff00] to-[#0a8246]',
-      bgGradient: 'from-[#1dff00]/20 to-[#0a8246]/10',
+      gradient: 'from-[#1dff00] to-background',
+      bgGradient: 'from-[#1dff00]/20 to-background/10',
     },
     {
       title: 'Total Revenue',
@@ -69,8 +69,8 @@ export default function AdminOverview() {
       change: '+23.1%',
       trend: 'up',
       icon: DollarSign,
-      gradient: 'from-[#1dff00] to-[#0a8246]',
-      bgGradient: 'from-[#1dff00]/20 to-[#0a8246]/10',
+      gradient: 'from-[#1dff00] to-background',
+      bgGradient: 'from-[#1dff00]/20 to-background/10',
     },
     {
       title: 'MRR',
@@ -78,8 +78,8 @@ export default function AdminOverview() {
       change: '+15.3%',
       trend: 'up',
       icon: TrendingUp,
-      gradient: 'from-[#1dff00] to-[#0a8246]',
-      bgGradient: 'from-[#1dff00]/20 to-[#0a8246]/10',
+      gradient: 'from-[#1dff00] to-background',
+      bgGradient: 'from-[#1dff00]/20 to-background/10',
     },
     {
       title: 'Credits Available',
@@ -87,8 +87,8 @@ export default function AdminOverview() {
       change: '-5.4%',
       trend: 'down',
       icon: Coins,
-      gradient: 'from-[#1dff00] to-[#0a8246]',
-      bgGradient: 'from-[#1dff00]/20 to-[#0a8246]/10',
+      gradient: 'from-[#1dff00] to-background',
+      bgGradient: 'from-[#1dff00]/20 to-background/10',
     },
     {
       title: 'Credits Consumed',
@@ -96,8 +96,8 @@ export default function AdminOverview() {
       change: '+18.7%',
       trend: 'up',
       icon: Zap,
-      gradient: 'from-[#1dff00] to-[#0a8246]',
-      bgGradient: 'from-[#1dff00]/20 to-[#0a8246]/10',
+      gradient: 'from-[#1dff00] to-background',
+      bgGradient: 'from-[#1dff00]/20 to-background/10',
     },
     {
       title: 'Job Searches',
@@ -105,8 +105,8 @@ export default function AdminOverview() {
       change: '+28.4%',
       trend: 'up',
       icon: Search,
-      gradient: 'from-[#1dff00] to-[#0a8246]',
-      bgGradient: 'from-[#1dff00]/20 to-[#0a8246]/10',
+      gradient: 'from-[#1dff00] to-background',
+      bgGradient: 'from-[#1dff00]/20 to-background/10',
     },
     {
       title: 'Auto Applies',
@@ -114,8 +114,8 @@ export default function AdminOverview() {
       change: '+42.1%',
       trend: 'up',
       icon: Zap,
-      gradient: 'from-[#1dff00] to-[#0a8246]',
-      bgGradient: 'from-[#1dff00]/20 to-[#0a8246]/10',
+      gradient: 'from-[#1dff00] to-background',
+      bgGradient: 'from-[#1dff00]/20 to-background/10',
     },
   ];
 
@@ -161,7 +161,7 @@ export default function AdminOverview() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
             >
-              <Card className="relative group bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-300">
+              <Card className="relative group bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-300">
                 <CardContent className="p-6">
                   {/* Icon */}
                   <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.bgGradient} border border-[#1dff00]/30 flex items-center justify-center mb-4`}>
@@ -195,7 +195,7 @@ export default function AdminOverview() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardHeader>
               <CardTitle>Monthly Recurring Revenue</CardTitle>
               <p className="text-sm text-gray-400">Last 30 days revenue trend</p>
@@ -252,7 +252,7 @@ export default function AdminOverview() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardHeader>
               <CardTitle>Subscription Distribution</CardTitle>
               <p className="text-sm text-gray-400">User distribution across tiers</p>
@@ -300,7 +300,7 @@ export default function AdminOverview() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
       >
-        <Card className="bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a] border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+        <Card className="bg-gradient-to-br from-background via-[#111111] to-background border-[#1dff00]/20 hover:border-[#1dff00]/50 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
           <CardHeader>
             <CardTitle>Feature Usage Comparison</CardTitle>
             <p className="text-sm text-gray-400">Total usage across platform features</p>
@@ -344,7 +344,7 @@ export default function AdminOverview() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
         >
-          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardContent className="p-6">
               <h4 className="text-[#1dff00] font-semibold mb-2">Avg Credits Per User</h4>
               <p className="text-4xl font-bold text-white mb-1">
@@ -360,7 +360,7 @@ export default function AdminOverview() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.75 }}
         >
-          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardContent className="p-6">
               <h4 className="text-[#1dff00] font-semibold mb-2">Conversion Rate</h4>
               <p className="text-4xl font-bold text-white mb-1">
@@ -376,7 +376,7 @@ export default function AdminOverview() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
         >
-          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
+          <Card className="bg-gradient-to-br from-[#1dff00]/10 to-background/10 border-[#1dff00]/30 hover:border-[#1dff00]/60 hover:shadow-lg hover:shadow-[#1dff00]/20 transition-all duration-300">
             <CardContent className="p-6">
               <h4 className="text-[#1dff00] font-semibold mb-2">Churn Rate</h4>
               <p className="text-4xl font-bold text-white mb-1">

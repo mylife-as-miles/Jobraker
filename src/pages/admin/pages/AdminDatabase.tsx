@@ -82,7 +82,7 @@ function DatabaseDetailPanel({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex justify-end"
+        className="fixed inset-0 bg-background/60 backdrop-blur-sm z-[60] flex justify-end"
         onClick={onClose}
       >
         <motion.div
@@ -90,11 +90,11 @@ function DatabaseDetailPanel({
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 20 }}
-          className="w-full max-w-xl h-full bg-[#0a0a0a] border-l border-[#1dff00]/20 shadow-2xl overflow-y-auto"
+          className="w-full max-w-xl h-full bg-background border-l border-[#1dff00]/20 shadow-2xl overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="p-6 border-b border-[#1dff00]/10 flex items-center justify-between sticky top-0 bg-[#0a0a0a]/95 backdrop-blur z-10">
+          <div className="p-6 border-b border-[#1dff00]/10 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-10">
             <div>
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 <Table className="w-5 h-5 text-[#1dff00]" />
@@ -104,7 +104,7 @@ function DatabaseDetailPanel({
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-lg hover:bg-white/5 transition-colors text-gray-400 hover:text-white"
+              className="p-2 rounded-lg hover:bg-foreground/5 transition-colors text-gray-400 hover:text-white"
             >
               <X className="w-5 h-5" />
             </button>
@@ -252,7 +252,7 @@ export default function AdminDatabase() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl p-6 relative overflow-hidden group"
+          className="bg-background border border-[#1dff00]/20 rounded-2xl p-6 relative overflow-hidden group"
         >
           <div className="absolute inset-0 bg-[#1dff00]/5 group-hover:bg-[#1dff00]/10 transition-colors" />
           <div className="relative z-10">
@@ -271,7 +271,7 @@ export default function AdminDatabase() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-[#0a0a0a] border border-blue-500/20 rounded-2xl p-6 relative overflow-hidden group"
+          className="bg-background border border-blue-500/20 rounded-2xl p-6 relative overflow-hidden group"
         >
           <div className="absolute inset-0 bg-blue-500/5 group-hover:bg-blue-500/10 transition-colors" />
           <div className="relative z-10">
@@ -290,7 +290,7 @@ export default function AdminDatabase() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-[#0a0a0a] border border-violet-500/20 rounded-2xl p-6 relative overflow-hidden group"
+          className="bg-background border border-violet-500/20 rounded-2xl p-6 relative overflow-hidden group"
         >
           <div className="absolute inset-0 bg-violet-500/5 group-hover:bg-violet-500/10 transition-colors" />
           <div className="relative z-10">
@@ -311,7 +311,7 @@ export default function AdminDatabase() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-[#0a0a0a] border border-[#1dff00]/20 rounded-2xl overflow-hidden shadow-2xl shadow-[#1dff00]/5"
+        className="bg-background border border-[#1dff00]/20 rounded-2xl overflow-hidden shadow-2xl shadow-[#1dff00]/5"
       >
         <div className="p-6 border-b border-[#1dff00]/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -412,7 +412,7 @@ export default function AdminDatabase() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="p-2 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-all">
+                      <button className="p-2 rounded-lg text-gray-500 hover:text-white hover:bg-foreground/10 opacity-0 group-hover:opacity-100 transition-all">
                         <Code className="w-4 h-4" />
                       </button>
                     </td>

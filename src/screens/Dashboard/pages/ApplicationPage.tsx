@@ -8,6 +8,8 @@ import {
 import { Skeleton } from "../../../components/ui/skeleton";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import MatchScoreBadge from "../../../components/jobs/MatchScoreBadge";
+import { scheduleInterviewViaEdge, type ScheduleInterviewResponse } from "../../../services/ai/scheduleInterview";
+import { useGamification } from "../../../hooks/useGamification";
 
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
@@ -23,6 +25,9 @@ import {
   GanttChart,
   Calendar as CalendarIcon,
   Table as TableIcon,
+  Bot,
+  ClipboardList,
+  Lock,
 } from "lucide-react";
 import {
   KanbanProvider,
@@ -56,6 +61,9 @@ import KiboCalendar, {
 } from "../../../components/ui/kibo-ui/calendar";
 import CalendarDayDetail from "../../../components/ui/kibo-ui/CalendarDayDetail";
 import Modal from "../../../components/ui/modal";
+import { UpgradePrompt } from "../../../components/UpgradePrompt";
+import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
+import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
 
 type SortOption = "score" | "recent" | "company" | "status";
 
@@ -67,6 +75,7 @@ function ApplicationPage() {
     refresh,
     loading: appsLoading,
   } = useApplications();
+  const gamificationHook = useGamification();
 
   // Debounced search state: raw input updates immediately; searchQuery drives filters.
   const [rawSearch, setRawSearch] = useState("");
@@ -90,6 +99,12 @@ function ApplicationPage() {
   const [nextStepText, setNextStepText] = useState("");
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesText, setNotesText] = useState("");
+  const [interviewAgentOpen, setInterviewAgentOpen] = useState(false);
+  const [interviewEmailText, setInterviewEmailText] = useState("");
+  const [interviewAgentLoading, setInterviewAgentLoading] = useState(false);
+  const [interviewAgentResult, setInterviewAgentResult] = useState<ScheduleInterviewResponse | null>(null);
+  const { subscriptionTier, loadingTier } = useSubscriptionTier();
+  const hasInterviewAssistantAccess = hasSubscriptionAccess(subscriptionTier, "Pro");
   const detailApp = useMemo(
     () => applications.find((a) => a.id === detailId) || null,
     [detailId, applications],
@@ -167,7 +182,7 @@ function ApplicationPage() {
         if (!qsQuery && typeof p.searchQuery === "string")
           setSearchQuery(p.searchQuery);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   // Persist preferences when they change
@@ -175,18 +190,18 @@ function ApplicationPage() {
     try {
       const payload = { viewMode, selectedStatus, sortBy, searchQuery };
       localStorage.setItem("jr.apps.prefs.v1", JSON.stringify(payload));
-    } catch {}
+    } catch { }
   }, [viewMode, selectedStatus, sortBy, searchQuery]);
 
   useEffect(() => {
     try {
       localStorage.setItem("jr.apps.gantt.zoom", String(ganttZoom));
-    } catch {}
+    } catch { }
   }, [ganttZoom]);
   useEffect(() => {
     try {
       localStorage.setItem("jr.apps.gantt.future", showFuture ? "1" : "0");
-    } catch {}
+    } catch { }
   }, [showFuture]);
 
   // Keyboard shortcuts for Gantt view
@@ -276,7 +291,7 @@ function ApplicationPage() {
     return () => {
       try {
         delete (window as any).__apps_update;
-      } catch {}
+      } catch { }
     };
   }, [update]);
 
@@ -353,17 +368,17 @@ function ApplicationPage() {
       {/* Header Section */}
       <div className='flex flex-col gap-6 md:flex-row md:items-center md:justify-between'>
         <div className='space-y-1'>
-          <h1 className='text-3xl font-bold text-foreground bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text'>
+          <h1 className='product-page-title text-3xl font-bold'>
             Applications
           </h1>
-          <p className='text-sm text-foreground/50'>
+          <p className='product-page-subtitle text-sm'>
             Track and manage your job applications in one place
           </p>
         </div>
         <div className='flex items-center gap-3'>
           <Button
             variant='outline'
-            className='border-[#1dff00]/30 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  text-foreground/ hover:border-[#1dff00]/50 transition-all duration-200 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)]'
+            className='product-outline-button transition-all duration-200 hover:border-[#ffd700]/60 hover:bg-[#fff2b3]'
             onClick={exportCSV}
           >
             <svg
@@ -507,11 +522,10 @@ function ApplicationPage() {
                   size='sm'
                   variant='ghost'
                   onClick={() => setSelectedStatus(s)}
-                  className={`text-sm px-4 py-2 rounded-xl transition-all duration-200 border ${
-                    isActive
-                      ? "border-[#1dff00]/50 bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]"
-                      : "border-foreground/10 text-foreground/70 hover:text-foreground hover:bg-foreground/5 hover:border-foreground/20"
-                  }`}
+                  className={`text-sm px-4 py-2 rounded-xl transition-all duration-200 border ${isActive
+                    ? "border-[#1dff00]/50 bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 text-[#1dff00] shadow-[0_0_15px_rgba(29,255,0,0.2)]"
+                    : "border-foreground/10 text-foreground/70 hover:text-foreground hover:bg-foreground/5 hover:border-foreground/20"
+                    }`}
                   style={isActive ? {} : { color: color + "b3" }}
                 >
                   {isActive && (
@@ -576,7 +590,7 @@ function ApplicationPage() {
             </div>
           </div>
         ) : filtered.length === 0 ? (
-          <div className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#0a0a0a] to-[#0f0f0f] rounded-2xl p-12 text-center shadow-[0_0_30px_rgba(29,255,0,0.1)]'>
+          <div className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-background to-background rounded-2xl p-12 text-center shadow-[0_0_30px_rgba(29,255,0,0.1)]'>
             {/* Ambient glow */}
             <div className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 bg-yellow-400/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
 
@@ -609,7 +623,7 @@ function ApplicationPage() {
                     <span className='font-medium'>Pending</span>
                   </span>
                   <span className='inline-flex items-center gap-2'>
-                    <span className='h-3 w-8 rounded-md bg-gradient-to-r from-[#1dff00] to-[#0a8246] shadow-lg shadow-[#1dff00]/20' />
+                    <span className='h-3 w-8 rounded-md bg-gradient-to-r from-[#1dff00] to-background shadow-lg shadow-[#1dff00]/20' />
                     <span className='font-medium'>Applied</span>
                   </span>
                   <span className='inline-flex items-center gap-2'>
@@ -694,7 +708,7 @@ function ApplicationPage() {
               </div>
             )}
             {viewMode === "list" && (
-              <div className='border border-[#1dff00]/20 rounded-2xl bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] overflow-hidden'>
+              <div className='border border-[#1dff00]/20 rounded-2xl bg-gradient-to-br from-background via-background to-background backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] overflow-hidden'>
                 {/* Ambient glow */}
                 <div className='pointer-events-none absolute -top-20 left-0 h-64 w-64 rounded-full bg-[#1dff00]/10 blur-3xl opacity-40' />
 
@@ -748,7 +762,7 @@ function ApplicationPage() {
                         <ListHeader
                           name={status}
                           color={color}
-                          className='sticky top-0 z-10 backdrop-blur-xl bg-[#0a0a0a]/95 border-b border-[#1dff00]/10'
+                          className='sticky top-0 z-10 backdrop-blur-xl bg-background/95 border-b border-[#1dff00]/10'
                         >
                           <div className='flex items-center gap-3 px-4 py-3'>
                             <div
@@ -787,21 +801,21 @@ function ApplicationPage() {
                               className='group relative'
                             >
                               <div
-                                className='flex items-center gap-4 w-full p-4 rounded-xl border border-foreground/10 bg-gradient-to-br from-[#0a0a0a] to-[#0f0f0f] hover:border-[#1dff00]/40 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)] transition-all duration-200 cursor-pointer'
+                                className='flex items-center gap-4 w-full p-4 rounded-xl border border-foreground/10 bg-gradient-to-br from-background to-background hover:border-[#1dff00]/40 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)] transition-all duration-200 cursor-pointer'
                                 onClick={() => setDetailId(a.id)}
                               >
                                 {/* Company Logo/Initial */}
-                                <div className='w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-[#1dff00] via-[#0a8246] to-[#1dff00] rounded-xl flex items-center justify-center text-foreground font-bold text-sm sm:text-base flex-shrink-0 shadow-lg group-hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] transition-shadow'>
+                                <div className='w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-[#1dff00] via-background to-[#1dff00] rounded-xl flex items-center justify-center text-foreground font-bold text-sm sm:text-base flex-shrink-0 shadow-lg group-hover:shadow-[0_0_20px_rgba(29,255,0,0.4)] transition-shadow'>
                                   {a.logo && a.logo.length > 1
                                     ? a.logo
                                     : (
-                                        (a.company || a.job_title || "")
-                                          .split(/\s+/)
-                                          .filter(Boolean)
-                                          .slice(0, 2)
-                                          .map((w) => w[0])
-                                          .join("") || ""
-                                      ).toUpperCase()}
+                                      (a.company || a.job_title || "")
+                                        .split(/\s+/)
+                                        .filter(Boolean)
+                                        .slice(0, 2)
+                                        .map((w) => w[0])
+                                        .join("") || ""
+                                    ).toUpperCase()}
                                 </div>
 
                                 {/* Content */}
@@ -943,7 +957,7 @@ function ApplicationPage() {
               </div>
             )}
             {viewMode === "calendar" && (
-              <div className='relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] p-6 shadow-[0_0_30px_rgba(29,255,0,0.1)] overflow-hidden'>
+              <div className='relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background p-6 shadow-[0_0_30px_rgba(29,255,0,0.1)] overflow-hidden'>
                 {/* Ambient Glow Effect */}
                 <div className='absolute -top-20 -left-20 h-64 w-64 bg-[#1dff00]/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
 
@@ -971,7 +985,7 @@ function ApplicationPage() {
                       setSelectedRange(r);
                       if (r) setSelectedDate(null);
                     }}
-                    className='border border-[#1dff00]/20 rounded-xl bg-gradient-to-br from-[#0a0a0a]/50 to-[#0f0f0f]/50 backdrop-blur-sm'
+                    className='border border-[#1dff00]/20 rounded-xl bg-gradient-to-br from-background/50 to-background/50 backdrop-blur-sm'
                   />
                 </div>
                 <CalendarDayDetail
@@ -1016,6 +1030,12 @@ function ApplicationPage() {
                   if (rec.status === toColumn) return;
                   try {
                     await update(id, { status: toColumn as ApplicationStatus });
+                    // Gamification: emit XP events for status transitions
+                    if (toColumn === 'Interview') {
+                      try { gamificationHook.recordEvent('interview_scheduled', { applicationId: id }); } catch { }
+                    } else if (toColumn === 'Offer') {
+                      try { gamificationHook.recordEvent('offer_received', { applicationId: id }); } catch { }
+                    }
                   } catch {
                     await refresh();
                   }
@@ -1046,7 +1066,7 @@ function ApplicationPage() {
                       {(a: any) => (
                         <KanbanCard key={a.id} id={a.id}>
                           <div className='flex items-start gap-3'>
-                            <div className='w-10 h-10 bg-gradient-to-br from-[#1dff00]/90 to-[#0a8246] rounded-lg flex items-center justify-center text-foreground font-bold text-xs flex-shrink-0 shadow-sm'>
+                            <div className='w-10 h-10 bg-gradient-to-br from-[#1dff00]/90 to-background rounded-lg flex items-center justify-center text-foreground font-bold text-xs flex-shrink-0 shadow-sm'>
                               {a.logo || (a.company?.[0] ?? "")}
                             </div>
                             <div className='min-w-0 flex-1 space-y-1'>
@@ -1107,30 +1127,28 @@ function ApplicationPage() {
             <div className='relative pb-6 border-b border-[#1dff00]/10'>
               <div className='absolute top-0 right-0'>
                 <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                    detailApp.status === "Applied"
-                      ? "bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/20"
-                      : detailApp.status === "Interview"
-                        ? "bg-amber-400/10 text-amber-400 border border-amber-400/20"
-                        : detailApp.status === "Offer"
-                          ? "bg-lime-400/10 text-lime-400 border border-lime-400/20"
-                          : detailApp.status === "Rejected"
-                            ? "bg-rose-400/10 text-rose-400 border border-rose-400/20"
-                            : "bg-gray-400/10 text-gray-400 border border-gray-400/20"
-                  }`}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${detailApp.status === "Applied"
+                    ? "bg-[#1dff00]/10 text-[#1dff00] border border-[#1dff00]/20"
+                    : detailApp.status === "Interview"
+                      ? "bg-amber-400/10 text-amber-400 border border-amber-400/20"
+                      : detailApp.status === "Offer"
+                        ? "bg-lime-400/10 text-lime-400 border border-lime-400/20"
+                        : detailApp.status === "Rejected"
+                          ? "bg-rose-400/10 text-rose-400 border border-rose-400/20"
+                          : "bg-gray-400/10 text-gray-400 border border-gray-400/20"
+                    }`}
                 >
                   <div
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      detailApp.status === "Applied"
-                        ? "bg-[#1dff00]"
-                        : detailApp.status === "Interview"
-                          ? "bg-amber-400"
-                          : detailApp.status === "Offer"
-                            ? "bg-lime-400"
-                            : detailApp.status === "Rejected"
-                              ? "bg-rose-400"
-                              : "bg-gray-400"
-                    } shadow-[0_0_4px_currentColor]`}
+                    className={`h-1.5 w-1.5 rounded-full ${detailApp.status === "Applied"
+                      ? "bg-[#1dff00]"
+                      : detailApp.status === "Interview"
+                        ? "bg-amber-400"
+                        : detailApp.status === "Offer"
+                          ? "bg-lime-400"
+                          : detailApp.status === "Rejected"
+                            ? "bg-rose-400"
+                            : "bg-gray-400"
+                      } shadow-[0_0_4px_currentColor]`}
                   />
                   {detailApp.status}
                 </span>
@@ -1151,6 +1169,39 @@ function ApplicationPage() {
                 </div>
               </div>
             </div>
+
+            {/* Draft Status & AI Confidence Badges */}
+            {(detailApp.draft_status || detailApp.ai_confidence_score != null) && (
+              <div className='flex flex-wrap items-center gap-2'>
+                {detailApp.draft_status && detailApp.draft_status !== 'sent' && (
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-wider border ${detailApp.draft_status === 'draft'
+                      ? 'bg-yellow-400/10 text-yellow-400 border-yellow-400/20'
+                      : 'bg-cyan-400/10 text-cyan-400 border-cyan-400/20'
+                      }`}
+                  >
+                    <div className={`h-1.5 w-1.5 rounded-full ${detailApp.draft_status === 'draft' ? 'bg-yellow-400' : 'bg-cyan-400'
+                      }`} />
+                    {detailApp.draft_status}
+                  </span>
+                )}
+                {detailApp.ai_confidence_score != null && (
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border ${detailApp.ai_confidence_score >= 70
+                      ? 'bg-[#1dff00]/10 text-[#1dff00] border-[#1dff00]/20'
+                      : detailApp.ai_confidence_score >= 40
+                        ? 'bg-amber-400/10 text-amber-400 border-amber-400/20'
+                        : 'bg-rose-400/10 text-rose-400 border-rose-400/20'
+                      }`}
+                  >
+                    <svg className='w-3.5 h-3.5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' />
+                    </svg>
+                    AI Confidence: {detailApp.ai_confidence_score}%
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Timeline & Key Dates */}
             <div className='space-y-3'>
@@ -1266,6 +1317,28 @@ function ApplicationPage() {
               </div>
             </div>
 
+            {/* Trust & Explainability: Why this match? */}
+            {detailApp.match_reasons && detailApp.match_reasons.length > 0 && (
+              <div className='space-y-3'>
+                <h3 className='text-xs font-semibold flex items-center gap-2 uppercase tracking-wider text-[#1dff00]'>
+                  <svg className='w-4 h-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 10V3L4 14h7v7l9-11h-7z' />
+                  </svg>
+                  Why this match?
+                </h3>
+                <div className='flex flex-wrap gap-2 p-3 rounded-xl bg-gradient-to-br from-[#1dff00]/10 to-transparent border border-[#1dff00]/20'>
+                  {detailApp.match_reasons.map((reason, idx) => (
+                    <span
+                      key={idx}
+                      className='inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-[#1dff00]/20 text-[#1dff00]'
+                    >
+                      {reason}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Additional Information */}
             {detailApp.salary && (
               <div className='space-y-3'>
@@ -1346,7 +1419,7 @@ function ApplicationPage() {
                     </Button>
                     <Button
                       size='sm'
-                      className='bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-foreground font-semibold hover:shadow-[0_0_20px_rgba(29,255,0,0.3)]'
+                      className='bg-gradient-to-r from-[#1dff00] to-background text-foreground font-semibold hover:shadow-[0_0_20px_rgba(29,255,0,0.3)]'
                       onClick={async () => {
                         if (!detailApp) return;
                         try {
@@ -1382,6 +1455,93 @@ function ApplicationPage() {
               )}
             </div>
 
+            {/* Failure Handoff */}
+            {detailApp.provider_status === 'failed' && (
+              <div className='space-y-3'>
+                <div className='p-4 rounded-xl border border-[#ff4747]/35 bg-[#ff4747]/10'>
+                  <div className='flex items-center gap-2 text-sm font-medium text-[#ff4747] mb-2'>
+                    <svg className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' />
+                    </svg>
+                    Automation Failed
+                  </div>
+                  <p className='text-sm text-foreground/80 mb-4'>
+                    I couldn't finish this, but I did the heavy lifting. Click here to finish.
+                  </p>
+                  <Button
+                    onClick={() => {
+                      const sourceUrl = detailApp.app_url || (detailApp.notes?.includes("Source:") ? detailApp.notes.split("Source:")[1].split('\n')[0].trim() : "");
+                      const summaryData = `Role: ${detailApp.job_title}\nCompany: ${detailApp.company}`;
+
+                      if (navigator.clipboard?.writeText) {
+                        navigator.clipboard.writeText(summaryData).then(() => {
+                          if (sourceUrl) window.open(sourceUrl, '_blank', 'noopener,noreferrer');
+                        });
+                      } else {
+                        if (sourceUrl) window.open(sourceUrl, '_blank', 'noopener,noreferrer');
+                      }
+                    }}
+                    className='w-full bg-[#ff4747]/15 hover:bg-[#ff4747]/25 text-[#ff4747] border border-[#ff4747]/50 transition-colors py-2 h-auto whitespace-normal text-left sm:text-center block break-words'
+                  >
+                    Copy Basic Info & Complete Manually
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Trust & Explainability: What did you send? / Did it work? */}
+            {(detailApp.receipt_url || detailApp.success_url) && (
+              <div className='space-y-3'>
+                <h3 className='text-xs font-semibold uppercase tracking-wider text-foreground/40'>
+                  Application Receipts
+                </h3>
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                  {detailApp.receipt_url && (
+                    <a
+                      href={detailApp.receipt_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className='group relative block overflow-hidden rounded-xl border border-foreground/10 bg-foreground/5 transition-all hover:border-[#1dff00]/50 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)] aspect-[4/3]'
+                    >
+                      <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10' />
+                      <img
+                        src={detailApp.receipt_url}
+                        alt="Application Form Receipt"
+                        className='absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-80'
+                      />
+                      <div className='absolute bottom-0 left-0 right-0 p-3 z-20 flex items-center justify-between'>
+                        <span className='text-xs font-medium text-foreground'>View Form Data</span>
+                        <svg className='w-4 h-4 text-foreground opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14' />
+                        </svg>
+                      </div>
+                    </a>
+                  )}
+                  {detailApp.success_url && (
+                    <a
+                      href={detailApp.success_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className='group relative block overflow-hidden rounded-xl border border-foreground/10 bg-foreground/5 transition-all hover:border-[#1dff00]/50 hover:shadow-[0_0_20px_rgba(29,255,0,0.15)] aspect-[4/3]'
+                    >
+                      <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10' />
+                      <img
+                        src={detailApp.success_url}
+                        alt="Success Confirmation"
+                        className='absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-80'
+                      />
+                      <div className='absolute bottom-0 left-0 right-0 p-3 z-20 flex items-center justify-between'>
+                        <span className='text-xs font-medium focus:text-foreground text-[#1dff00]'>Success Screenshot</span>
+                        <svg className='w-4 h-4 focus:text-foreground text-[#1dff00] opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-1 group-hover:translate-x-0' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' />
+                        </svg>
+                      </div>
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Quick Actions */}
             <div className='space-y-3'>
               <h3 className='text-xs font-semibold uppercase tracking-wider text-foreground/40'>
@@ -1410,6 +1570,22 @@ function ApplicationPage() {
                     </svg>
                     Open Application
                   </a>
+                )}
+                {detailApp.status === "Interview" && (
+                  <button
+                    onClick={() => {
+                      setInterviewAgentOpen(true);
+                      setInterviewEmailText("");
+                      setInterviewAgentResult(null);
+                    }}
+                    className='inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#b347ff]/10 border border-[#b347ff]/30 text-[#b347ff] hover:bg-[#b347ff]/20 hover:shadow-[0_0_20px_rgba(179,71,255,0.2)] transition-all duration-200 text-sm font-medium'
+                  >
+                    <Bot className='w-4 h-4' />
+                    Schedule Interview
+                    {!hasInterviewAssistantAccess && (
+                      <Lock className='w-3 h-3 opacity-60' />
+                    )}
+                  </button>
                 )}
                 {detailApp.recording_url && (
                   <a
@@ -1483,6 +1659,25 @@ function ApplicationPage() {
               </div>
             </div>
 
+            {/* User Review Notes */}
+            <div className='space-y-3'>
+              <h3 className='text-xs font-semibold uppercase tracking-wider text-foreground/40'>
+                Your Review Notes
+              </h3>
+              <textarea
+                defaultValue={detailApp.user_review_notes || ''}
+                placeholder='Add personal review notes about this application…'
+                onBlur={(e) => {
+                  const val = e.target.value.trim();
+                  if (val !== (detailApp.user_review_notes || '')) {
+                    update(detailApp.id, { user_review_notes: val || null });
+                  }
+                }}
+                rows={3}
+                className='w-full rounded-xl bg-foreground/[0.03] border border-foreground/10 px-4 py-3 text-sm text-foreground/80 placeholder:text-foreground/30 focus:border-[#1dff00]/40 focus:ring-1 focus:ring-[#1dff00]/20 focus:outline-none transition-all resize-none'
+              />
+            </div>
+
             {/* Footer Actions */}
             <div className='pt-4 border-t border-foreground/10 flex gap-3'>
               <Button
@@ -1495,7 +1690,7 @@ function ApplicationPage() {
               </Button>
               <Button
                 size='sm'
-                className='flex-1 bg-gradient-to-r from-[#1dff00] to-[#0a8246] hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] text-foreground font-semibold transition-all'
+                className='flex-1 bg-gradient-to-r from-[#1dff00] to-background hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] text-foreground font-semibold transition-all'
                 onClick={() => {
                   // Edit functionality can be added here
                   console.log("Edit application:", detailApp.id);
@@ -1532,7 +1727,7 @@ function ApplicationPage() {
               Cancel
             </Button>
             <Button
-              className='bg-gradient-to-r from-[#1dff00] to-[#0a8246] text-foreground font-semibold hover:shadow-[0_0_20px_rgba(29,255,0,0.3)]'
+              className='bg-gradient-to-r from-[#1dff00] to-background text-foreground font-semibold hover:shadow-[0_0_20px_rgba(29,255,0,0.3)]'
               onClick={async () => {
                 if (!detailApp) {
                   setNextStepOpen(false);
@@ -1553,6 +1748,142 @@ function ApplicationPage() {
               Save Note
             </Button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Interview Agent Modal */}
+      <Modal
+        isOpen={interviewAgentOpen}
+        onClose={() => setInterviewAgentOpen(false)}
+        title="Interview Scheduling Agent"
+      >
+        <div className='space-y-4'>
+          {loadingTier ? (
+            <div className='py-10 text-center'>
+              <div className='mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-[#b347ff]' />
+              <p className='text-sm text-foreground/70'>Checking interview assistant access...</p>
+            </div>
+          ) : !hasInterviewAssistantAccess ? (
+            <UpgradePrompt
+              compact
+              requiredTier='Pro'
+              showPricing={false}
+              title='Interview Scheduling Assistant'
+              description='Unlock recruiter-email analysis, booking-link detection, and drafted scheduling replies with Pro.'
+            />
+          ) : !interviewAgentResult ? (
+            <>
+              <p className='text-sm text-foreground/70'>
+                Paste the email from the recruiter below. The AI will extract booking links or draft a professional reply offering your availability.
+              </p>
+              <textarea
+                value={interviewEmailText}
+                onChange={(e) => setInterviewEmailText(e.target.value)}
+                placeholder='E.g. Hi there, we would love to schedule a 30 min chat with you. Please let me know when you are free...'
+                className='w-full min-h-[200px] rounded-xl bg-foreground/5 border border-[#b347ff]/30 text-foreground placeholder:text-foreground/40 p-4 outline-none focus:border-[#b347ff]/50 focus:ring-2 focus:ring-[#b347ff]/20 transition-all resize-y text-sm'
+              />
+              <div className='flex justify-end gap-3'>
+                <Button
+                  variant='outline'
+                  onClick={() => setInterviewAgentOpen(false)}
+                  className='border-foreground/20 hover:bg-foreground/5'
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    if (!hasInterviewAssistantAccess) return;
+                    if (!interviewEmailText.trim()) return;
+                    setInterviewAgentLoading(true);
+                    try {
+                      const res = await scheduleInterviewViaEdge({
+                        emailText: interviewEmailText,
+                        applicantName: "Candidate",
+                        companyName: detailApp?.company || "the company"
+                      });
+                      setInterviewAgentResult(res);
+                    } catch (e) {
+                      console.error("AI scheduling failed", e);
+                    } finally {
+                      setInterviewAgentLoading(false);
+                    }
+                  }}
+                  disabled={interviewAgentLoading || !interviewEmailText.trim()}
+                  className='bg-gradient-to-r from-[#b347ff] to-[#8000ff] text-foreground font-semibold hover:shadow-[0_0_20px_rgba(179,71,255,0.4)] transition-all'
+                >
+                  {interviewAgentLoading ? (
+                    <span className='flex items-center gap-2'>
+                      <RefreshCw className='w-4 h-4 animate-spin' />
+                      Analyzing...
+                    </span>
+                  ) : (
+                    <span className='flex items-center gap-2'>
+                      <Bot className='w-4 h-4' />
+                      Generate Reply
+                    </span>
+                  )}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className='space-y-5'>
+              {interviewAgentResult.booking_link ? (
+                <div className='p-4 rounded-xl border border-[#1dff00]/30 bg-[#1dff00]/10 space-y-2'>
+                  <div className='flex items-center gap-2 text-[#1dff00] font-medium text-sm'>
+                    <Link2 className='w-4 h-4' />
+                    Booking Link Found!
+                  </div>
+                  <p className='text-sm text-foreground/80'>
+                    The recruiter provided a direct link to book your interview:
+                  </p>
+                  <a href={interviewAgentResult.booking_link} target='_blank' rel='noreferrer' className='inline-flex items-center gap-2 text-[#1dff00] underline text-sm break-all'>
+                    {interviewAgentResult.booking_link}
+                  </a>
+                </div>
+              ) : (
+                <div className='p-4 rounded-xl border border-[#ffb347]/30 bg-[#ffb347]/10 space-y-2'>
+                  <div className='flex items-center gap-2 text-[#ffb347] font-medium text-sm'>
+                    <CalendarIcon className='w-4 h-4' />
+                    No direct link found
+                  </div>
+                  <p className='text-sm text-foreground/80'>
+                    I've drafted a polite reply offering your availability instead.
+                  </p>
+                </div>
+              )}
+
+              <div className='space-y-2'>
+                <div className='flex items-center justify-between'>
+                  <label className='text-xs font-semibold text-foreground/60 uppercase tracking-wider'>Suggested Reply</label>
+                  <button
+                    onClick={() => {
+                      if (navigator.clipboard?.writeText) {
+                        navigator.clipboard.writeText(interviewAgentResult.suggested_reply);
+                      }
+                    }}
+                    className='text-xs text-[#b347ff] hover:text-[#b347ff]/80 font-medium flex items-center gap-1'
+                  >
+                    <ClipboardList className='w-3 h-3' />
+                    Copy to clipboard
+                  </button>
+                </div>
+                <textarea
+                  className='w-full min-h-[160px] rounded-xl bg-background border border-foreground/10 text-foreground text-sm p-4 outline-none focus:border-[#b347ff]/50 transition-all resize-y'
+                  defaultValue={interviewAgentResult.suggested_reply}
+                />
+              </div>
+
+              <div className='flex justify-end pt-2 pb-1 border-t border-foreground/10'>
+                <Button
+                  variant='ghost'
+                  onClick={() => setInterviewAgentOpen(false)}
+                  className='text-foreground/70 hover:text-foreground'
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
     </div>
@@ -1823,8 +2154,8 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
             {info.row.original.company && (
               <div className='flex items-center gap-2'>
                 {info.row.original.logo_url && (
-                  <div className='relative w-4 h-4 rounded overflow-hidden flex-shrink-0 bg-gradient-to-br from-[#1dff00] via-[#0a8246] to-[#1dff00] p-[1px]'>
-                    <div className='w-full h-full bg-[#0a0a0a] rounded flex items-center justify-center'>
+                  <div className='relative w-4 h-4 rounded overflow-hidden flex-shrink-0 bg-gradient-to-br from-[#1dff00] via-background to-[#1dff00] p-[1px]'>
+                    <div className='w-full h-full bg-background rounded flex items-center justify-center'>
                       <img
                         src={info.row.original.logo_url}
                         alt=''
@@ -1907,7 +2238,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
                 </button>
               )}
               {isEditing && (
-                <div className='absolute z-30 top-0 left-0 min-w-[140px] rounded-xl border border-[#1dff00]/30 bg-gradient-to-br from-[#0a0a0a] to-[#0f0f0f] backdrop-blur-xl p-2 shadow-[0_0_30px_rgba(29,255,0,0.2)] flex flex-col gap-1'>
+                <div className='absolute z-30 top-0 left-0 min-w-[140px] rounded-xl border border-[#1dff00]/30 bg-gradient-to-br from-background to-background backdrop-blur-xl p-2 shadow-[0_0_30px_rgba(29,255,0,0.2)] flex flex-col gap-1'>
                   {selectableStatuses.map((s) => {
                     const sColor = statusColors[s] || "#6B7280";
                     return (
@@ -2048,7 +2379,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
   return (
     <div
       ref={(n) => (tableRef.current = n)}
-      className='relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] overflow-hidden shadow-[0_0_30px_rgba(29,255,0,0.1)]'
+      className='relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background overflow-hidden shadow-[0_0_30px_rgba(29,255,0,0.1)]'
     >
       {/* Ambient Glow Effect */}
       <div className='absolute -top-20 -right-20 h-64 w-64 bg-[#1dff00]/10 rounded-full blur-3xl opacity-40 pointer-events-none'></div>
@@ -2059,7 +2390,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
           columns={columns}
           className='min-w-full'
         >
-          <KTableHeader className='sticky top-0 z-20 backdrop-blur-xl bg-gradient-to-r from-[#0a0a0a]/95 to-[#0f0f0f]/95 border-b border-[#1dff00]/20'>
+          <KTableHeader className='sticky top-0 z-20 backdrop-blur-xl bg-gradient-to-r from-background/95 to-background/95 border-b border-[#1dff00]/20'>
             {(headerGroup) => (
               <TableHeaderGroup headerGroup={headerGroup.headerGroup}>
                 {({ header }) => (
@@ -2091,7 +2422,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
           </KTableBody>
         </TableProvider>
       </div>
-      <div className='px-6 py-3 text-xs text-foreground/40 flex items-center justify-between border-t border-[#1dff00]/20 bg-[#0a0a0a]/50 backdrop-blur'>
+      <div className='px-6 py-3 text-xs text-foreground/40 flex items-center justify-between border-t border-[#1dff00]/20 bg-background/50 backdrop-blur'>
         <div className='flex items-center gap-2'>
           <svg
             className='w-3.5 h-3.5'
@@ -2112,3 +2443,4 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
     </div>
   );
 }
+

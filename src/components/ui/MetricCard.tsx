@@ -45,7 +45,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       case 'down':
         return 'text-red-400';
       default:
-        return 'text-[#ffffff]/60';
+        return 'text-foreground/60';
     }
   };
 
@@ -86,7 +86,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
                     {icon}
                   </div>
                 )}
-                <h3 className="text-sm font-medium text-[#ffffff]/80">{title}</h3>
+                <h3 className="text-sm font-medium text-foreground/80">{title}</h3>
               </div>
               
               <div className="space-y-1">
@@ -104,7 +104,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
                 </motion.div>
                 
                 {subtitle && (
-                  <p className="text-xs text-[#ffffff]/60">{subtitle}</p>
+                  <p className="text-xs text-foreground/60">{subtitle}</p>
                 )}
               </div>
             </div>

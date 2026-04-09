@@ -1,7 +1,12 @@
-import { Lock, Sparkles, Zap, Crown, ArrowRight, Check } from 'lucide-react';
+import { Lock as LockIcon, Sparkles, Zap, Crown, ArrowRight, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from './ui/button';
 import { motion } from 'framer-motion';
+import {
+  getPromptBadgeLabel,
+  getUpgradePlanCards,
+  type UpgradePromptTier,
+} from '@/lib/subscriptionAccess';
 
 interface Feature {
   icon?: React.ReactNode;
@@ -13,7 +18,7 @@ interface UpgradePromptProps {
   title: string;
   description: string;
   features?: Feature[];
-  requiredTier?: 'Pro' | 'Ultimate' | 'Pro/Ultimate';
+  requiredTier?: UpgradePromptTier;
   icon?: React.ReactNode;
   showPricing?: boolean;
   compact?: boolean;
@@ -30,6 +35,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
   compact = false,
   className = '',
 }) => {
+  const planCards = getUpgradePlanCards(requiredTier);
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { 
@@ -53,7 +59,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
         initial="hidden"
         animate="visible"
         variants={containerVariants}
-        className={`relative overflow-hidden rounded-2xl border border-foreground/10 bg-gradient-to-br from-[#0a0a0a] via-[#0f0f0f] to-[#0a0a0a] p-8 ${className}`}
+        className={`relative overflow-hidden rounded-2xl border border-foreground/10 bg-gradient-to-br from-background via-background to-background p-8 ${className}`}
       >
         {/* Ambient background effects */}
         <div className="pointer-events-none absolute inset-0">
@@ -62,15 +68,15 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
         </div>
 
         <div className="relative z-10 text-center">
-          <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1dff00]/20 to-purple-500/20 border border-white/10">
-            <Lock className="h-8 w-8 text-[#1dff00]" />
+          <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1dff00]/20 to-purple-500/20 border border-foreground/10">
+            <LockIcon className="h-8 w-8 text-[#1dff00]" />
           </div>
           
           <h3 className="mb-2 text-xl font-semibold text-white">{title}</h3>
-          <p className="mb-6 text-sm text-white/60">{description}</p>
+          <p className="mb-6 text-sm text-foreground/60">{description}</p>
 
           <Link to="/dashboard/billing">
-            <Button className="bg-gradient-to-r from-[#1dff00] to-[#0a8246] hover:from-[#1dff00]/90 hover:to-[#0a8246]/90 text-black font-semibold">
+            <Button className="bg-gradient-to-r from-[#1dff00] to-background hover:from-[#1dff00]/90 hover:to-background/90 text-black font-semibold">
               Upgrade Now
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -85,7 +91,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
       initial='hidden'
       animate='visible'
       variants={containerVariants}
-      className={`relative overflow-hidden rounded-3xl border border-white/10bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  ${className}`}
+      className={`relative overflow-hidden rounded-3xl border border-foreground/10bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  ${className}`}
     >
       {/* Ambient background effects */}
       <div className='pointer-events-none absolute inset-0'>
@@ -118,7 +124,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
               className='mx-auto mb-6 inline-flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-[#1dff00]/20 via-purple-500/10 to-blue-500/10 border border-foreground/10 backdrop-blur-xl'
             >
               {icon || (
-                <Lock className='h-10 w-10 sm:h-12 sm:w-12 text-[#1dff00]' />
+                <LockIcon className='h-10 w-10 sm:h-12 sm:w-12 text-[#1dff00]' />
               )}
             </motion.div>
 
@@ -127,11 +133,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
               className='mb-3 inline-flex items-center gap-2 rounded-full border border-foreground/10 bg-foreground/5 px-4 py-1.5 text-xs font-medium text-foreground/70'
             >
               <Sparkles className='h-3 w-3 text-[#1dff00]' />
-              {requiredTier === "Pro"
-                ? "Pro Feature"
-                : requiredTier === "Ultimate"
-                  ? "Ultimate Feature"
-                  : "Premium Feature"}
+              {getPromptBadgeLabel(requiredTier)}
             </motion.div>
 
             <motion.h2
@@ -187,108 +189,96 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
           {showPricing && (
             <motion.div
               variants={itemVariants}
-              className='grid gap-4 sm:grid-cols-2 mb-8'
+              className={`grid gap-4 mb-8 ${planCards.length > 2 ? "lg:grid-cols-3" : "sm:grid-cols-2"}`}
             >
-              {/* Pro Plan */}
-              <div className='group relative overflow-hidden rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent p-6 hover:border-blue-500/40 transition-all duration-300 hover:scale-[1.02]'>
-                <div className='absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+              {planCards.map((plan) => {
+                const isBasics = plan.tier === "Basics";
+                const isPro = plan.tier === "Pro";
+                const borderClass = isBasics
+                  ? "border-[#1dff00]/30 bg-gradient-to-br from-[#1dff00]/10 via-[#1dff00]/5 to-transparent hover:border-[#1dff00]/50"
+                  : isPro
+                    ? "border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent hover:border-blue-500/40"
+                    : "border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent hover:border-purple-500/50 ring-2 ring-purple-500/20";
+                const iconBgClass = isBasics
+                  ? "bg-[#1dff00]/20"
+                  : isPro
+                    ? "bg-blue-500/20"
+                    : "bg-purple-500/20";
+                const iconClass = isBasics
+                  ? "text-[#1dff00]"
+                  : isPro
+                    ? "text-blue-400"
+                    : "text-purple-400";
+                const buttonClass = isBasics
+                  ? "bg-[#1dff00] hover:bg-[#1dff00]/90 text-black"
+                  : isPro
+                    ? "bg-blue-500 hover:bg-blue-600 text-foreground"
+                    : "bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-foreground";
+                const Icon = isBasics ? Sparkles : isPro ? Zap : Crown;
 
-                <div className='relative z-10'>
-                  <div className='mb-4 flex items-center justify-between'>
-                    <div className='flex items-center gap-2'>
-                      <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20'>
-                        <Zap className='h-4 w-4 text-blue-400' />
+                return (
+                  <div
+                    key={plan.tier}
+                    className={`group relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:scale-[1.02] ${borderClass}`}
+                  >
+                    {plan.isPopular && (
+                      <div className='absolute top-3 right-3'>
+                        <span className='inline-flex items-center gap-1 rounded-full bg-purple-500/20 px-2 py-1 text-[10px] font-semibold text-purple-300 border border-purple-500/30'>
+                          <Sparkles className='h-3 w-3' />
+                          POPULAR
+                        </span>
                       </div>
-                      <h3 className='text-lg font-semibold text-foreground'>Pro</h3>
-                    </div>
-                    <div className='text-right'>
-                      <div className='text-2xl font-bold text-foreground'>$49</div>
-                      <div className='text-xs text-foreground/50'>per month</div>
+                    )}
+
+                    <div className='absolute inset-0 bg-gradient-to-br from-white/0 to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+
+                    <div className='relative z-10'>
+                      <div className='mb-4 flex items-center justify-between'>
+                        <div className='flex items-center gap-2'>
+                          <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconBgClass}`}>
+                            <Icon className={`h-4 w-4 ${iconClass}`} />
+                          </div>
+                          <h3 className='text-lg font-semibold text-foreground'>
+                            {plan.name}
+                          </h3>
+                        </div>
+                        <div className='text-right'>
+                          <div className='text-2xl font-bold text-foreground'>
+                            ${plan.price}
+                          </div>
+                          <div className='text-xs text-foreground/50'>per month</div>
+                        </div>
+                      </div>
+
+                      <ul className='mb-6 space-y-2'>
+                        {plan.features.slice(0, 4).map((feature, index) => {
+                          const label =
+                            typeof feature === "string"
+                              ? feature
+                              : [feature.name, feature.value].filter(Boolean).join(" • ");
+
+                          return (
+                            <li
+                              key={`${plan.tier}-${index}`}
+                              className='flex items-start gap-2 text-sm text-foreground/70'
+                            >
+                              <Check className={`h-4 w-4 mt-0.5 flex-shrink-0 ${iconClass}`} />
+                              <span>{label}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+
+                      <Link to='/dashboard/billing' className='block'>
+                        <Button className={`w-full font-semibold ${buttonClass}`}>
+                          Upgrade to {plan.name}
+                          <ArrowRight className='ml-2 h-4 w-4' />
+                        </Button>
+                      </Link>
                     </div>
                   </div>
-
-                  <ul className='mb-6 space-y-2'>
-                    <li className='flex items-start gap-2 text-sm text-foreground/70'>
-                      <Check className='h-4 w-4 mt-0.5 text-blue-400 flex-shrink-0' />
-                      <span>1,000 monthly credits</span>
-                    </li>
-                    <li className='flex items-start gap-2 text-sm text-foreground/70'>
-                      <Check className='h-4 w-4 mt-0.5 text-blue-400 flex-shrink-0' />
-                      <span>AI match score analysis</span>
-                    </li>
-                    <li className='flex items-start gap-2 text-sm text-foreground/70'>
-                      <Check className='h-4 w-4 mt-0.5 text-blue-400 flex-shrink-0' />
-                      <span>AI cover letter generation</span>
-                    </li>
-                    <li className='flex items-start gap-2 text-sm text-foreground/70'>
-                      <Check className='h-4 w-4 mt-0.5 text-blue-400 flex-shrink-0' />
-                      <span>AI chat assistant</span>
-                    </li>
-                  </ul>
-
-                  <Link to='/dashboard/billing' className='block'>
-                    <Button className='w-full bg-blue-500 hover:bg-blue-600 text-foreground font-semibold'>
-                      Upgrade to Pro
-                      <ArrowRight className='ml-2 h-4 w-4' />
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-
-              {/* Ultimate Plan */}
-              <div className='group relative overflow-hidden rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent p-6 hover:border-purple-500/50 transition-all duration-300 hover:scale-[1.02] ring-2 ring-purple-500/20'>
-                <div className='absolute top-3 right-3'>
-                  <span className='inline-flex items-center gap-1 rounded-full bg-purple-500/20 px-2 py-1 text-[10px] font-semibold text-purple-300 border border-purple-500/30'>
-                    <Sparkles className='h-3 w-3' />
-                    POPULAR
-                  </span>
-                </div>
-
-                <div className='absolute inset-0 bg-gradient-to-br from-purple-500/0 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
-
-                <div className='relative z-10'>
-                  <div className='mb-4 flex items-center justify-between'>
-                    <div className='flex items-center gap-2'>
-                      <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/20'>
-                        <Crown className='h-4 w-4 text-purple-400' />
-                      </div>
-                      <h3 className='text-lg font-semibold text-foreground'>
-                        Ultimate
-                      </h3>
-                    </div>
-                    <div className='text-right'>
-                      <div className='text-2xl font-bold text-foreground'>$199</div>
-                      <div className='text-xs text-foreground/50'>per month</div>
-                    </div>
-                  </div>
-
-                  <ul className='mb-6 space-y-2'>
-                    <li className='flex items-start gap-2 text-sm text-foreground/70'>
-                      <Check className='h-4 w-4 mt-0.5 text-purple-400 flex-shrink-0' />
-                      <span>5,000 monthly credits</span>
-                    </li>
-                    <li className='flex items-start gap-2 text-sm text-foreground/70'>
-                      <Check className='h-4 w-4 mt-0.5 text-purple-400 flex-shrink-0' />
-                      <span>Everything in Pro</span>
-                    </li>
-                    <li className='flex items-start gap-2 text-sm text-foreground/70'>
-                      <Check className='h-4 w-4 mt-0.5 text-purple-400 flex-shrink-0' />
-                      <span>Priority support</span>
-                    </li>
-                    <li className='flex items-start gap-2 text-sm text-foreground/70'>
-                      <Check className='h-4 w-4 mt-0.5 text-purple-400 flex-shrink-0' />
-                      <span>Advanced analytics</span>
-                    </li>
-                  </ul>
-
-                  <Link to='/dashboard/billing' className='block'>
-                    <Button className='w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-foreground font-semibold'>
-                      Upgrade to Ultimate
-                      <ArrowRight className='ml-2 h-4 w-4' />
-                    </Button>
-                  </Link>
-                </div>
-              </div>
+                );
+              })}
             </motion.div>
           )}
 

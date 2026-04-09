@@ -485,7 +485,7 @@ export const JobrackerSignup = (): JSX.Element => {
 
               <Button
                 type='submit'
-                disabled={submitting}
+                disabled={submitting || (isSignUp && (!passwordCheck.valid || formData.password !== formData.confirmPassword))}
                 className='w-full h-9 bg-[#1dff00] hover:bg-[#1dff00]/90 text-background font-semibold rounded-lg text-xs transition-all shadow-[0_0_15px_rgba(29,255,0,0.2)] hover:shadow-[0_0_20px_rgba(29,255,0,0.3)] mt-1'
               >
                 {submitting ? (
@@ -544,7 +544,7 @@ export const JobrackerSignup = (): JSX.Element => {
       </div>
 
       {/* RIGHT SIDE: Immersive Visual */}
-      <div className='hidden lg:block lg:w-1/2 relative bg-[#050505] overflow-hidden h-full'>
+      <div className='hidden lg:block lg:w-1/2 relative bg-background overflow-hidden h-full'>
         {/* Background Grid */}
         <div className='absolute inset-0 bg-[linear-gradient(rgba(29,255,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(29,255,0,0.03)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,background_40%,transparent_80%)]' />
 

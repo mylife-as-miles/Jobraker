@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 export const VoiceInteractionVisual = () => {
   return (
-    <div className="w-full h-full min-h-[200px] flex items-center justify-center relative overflow-hidden bg-[#0B0C0E]">
+    <div className="w-full h-full min-h-[200px] flex items-center justify-center relative overflow-hidden bg-background">
       {/* Background Mesh */}
       <div className="absolute inset-0 opacity-20" style={{
           backgroundImage: 'radial-gradient(#1dff00 1px, transparent 1px)',

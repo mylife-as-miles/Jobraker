@@ -29,8 +29,8 @@ export const FAQSection = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section className="py-24 bg-black max-w-3xl mx-auto px-4">
-      <h2 className="text-3xl md:text-5xl font-bold font-mono text-center text-white mb-12">
+    <section className="py-24 bg-background max-w-3xl mx-auto px-4">
+      <h2 className="text-3xl md:text-5xl font-bold font-mono text-center text-foreground mb-12">
         SYSTEM <span className="text-[#1dff00]">FAQ</span>
       </h2>
 
@@ -41,7 +41,7 @@ export const FAQSection = () => {
               onClick={() => setOpenIndex(openIndex === i ? null : i)}
               className="w-full flex items-center justify-between p-6 text-left bg-black hover:bg-white/5 transition-colors"
             >
-              <span className="text-white font-mono font-bold">{faq.question}</span>
+              <span className="text-foreground font-mono font-bold">{faq.question}</span>
               <ChevronDown className={`w-5 h-5 text-[#1dff00] transition-transform ${openIndex === i ? 'rotate-180' : ''}`} />
             </button>
             <AnimatePresence>
@@ -52,7 +52,7 @@ export const FAQSection = () => {
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div className="p-6 pt-0 text-gray-400 font-mono text-sm leading-relaxed border-t border-white/5">
+                  <div className="p-6 pt-0 text-gray-400 font-mono text-sm leading-relaxed border-t border-foreground/5">
                     {faq.answer}
                   </div>
                 </motion.div>

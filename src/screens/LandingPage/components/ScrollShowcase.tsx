@@ -30,7 +30,7 @@ export const ScrollShowcase = () => {
   });
 
   return (
-    <section ref={containerRef} className="bg-black relative">
+    <section ref={containerRef} className="bg-background relative">
       {steps.map((step, i) => (
         <ShowcaseStep key={i} step={step} index={i} total={steps.length} />
       ))}
@@ -40,7 +40,7 @@ export const ScrollShowcase = () => {
 
 const ShowcaseStep = ({ step, index, total }: { step: typeof steps[0], index: number, total: number }) => {
   return (
-    <div className="min-h-screen sticky top-0 flex items-center justify-center overflow-hidden border-t border-[#1dff00]/10 bg-black">
+    <div className="min-h-screen sticky top-0 flex items-center justify-center overflow-hidden border-t border-[#1dff00]/10 bg-background">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
 
@@ -54,7 +54,7 @@ const ShowcaseStep = ({ step, index, total }: { step: typeof steps[0], index: nu
             <div className="text-[#1dff00] text-6xl md:text-8xl font-mono font-bold opacity-20 mb-4">
               {step.num}
             </div>
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 font-mono">
+            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6 font-mono">
               {step.title}
             </h2>
             <p className="text-xl text-gray-400 max-w-lg leading-relaxed font-mono">
@@ -78,7 +78,7 @@ const ShowcaseStep = ({ step, index, total }: { step: typeof steps[0], index: nu
               />
 
               {/* Overlay UI Mockup */}
-              <div className="absolute bottom-4 left-4 right-4 bg-black/80 backdrop-blur-md border border-[#1dff00]/20 p-4 rounded z-20">
+              <div className="absolute bottom-4 left-4 right-4 bg-background/80 backdrop-blur-md border border-[#1dff00]/20 p-4 rounded z-20">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 bg-[#1dff00] rounded-full animate-pulse" />
                   <div className="h-2 w-2/3 bg-[#1dff00]/20 rounded" />

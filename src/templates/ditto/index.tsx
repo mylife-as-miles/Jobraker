@@ -14,7 +14,7 @@ const sectionClassName = cn(
 );
 
 /**
- * Template: Ditto — Overlapping Portrait
+ * Template: Ditto Ã¢â‚¬â€ Overlapping Portrait
  * A striking template with a rose-colored banner and an overlapping profile picture.
  */
 export function DittoTemplate({ pageIndex = 0, pageLayout }: TemplateProps) {
@@ -75,7 +75,7 @@ function Header() {
 				<div className="basics-header flex items-center">
 					<div className="flex w-[var(--page-sidebar-width)] shrink-0 justify-center ps-[var(--page-margin-x)] relative">
 						<div className="absolute top-6 left-[var(--page-margin-x)] z-10">
-							<PagePicture className="w-28 h-28 rounded-full border-4 border-white shadow-lg object-cover bg-white" />
+							<PagePicture className="w-36 h-36 rounded-full border-4 border-white shadow-[0_20px_36px_rgba(15,23,42,0.22)] object-cover bg-white p-1.5" />
 						</div>
 					</div>
 
@@ -89,7 +89,7 @@ function Header() {
 			<div className="flex items-start mt-6">
 				<div className="w-[var(--page-sidebar-width)] shrink-0" />
 
-				<div className="basics-items flex flex-wrap gap-x-4 gap-y-1.5 px-[var(--page-margin-x)] text-[0.7rem] text-gray-500 *:flex *:items-center *:gap-x-1.5">
+				<div className="basics-items flex flex-wrap gap-2 px-[var(--page-margin-x)] text-[0.72rem] text-gray-500 [&_svg]:text-[color:var(--page-primary-color)] *:flex *:items-center *:gap-x-1.5 *:rounded-full *:border *:border-gray-200/80 *:bg-white/95 *:px-3 *:py-1.5 *:shadow-[0_8px_18px_rgba(15,23,42,0.08)]">
 					{basics.email && (
 						<div className="basics-item-email">
 							<Envelope />

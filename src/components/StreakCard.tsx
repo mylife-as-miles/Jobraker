@@ -70,7 +70,7 @@ export const StreakCard = ({
               initial={{ width: 0 }}
               animate={{ width: `${progressPercent}%` }}
               transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
-              className="absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-[#1dff00] to-[#0ea855] shadow-lg shadow-[#1dff00]/50"
+              className="absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-[#1dff00] to-background shadow-lg shadow-[#1dff00]/50"
             />
           </div>
         </div>

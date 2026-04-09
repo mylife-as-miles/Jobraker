@@ -1,182 +1,413 @@
-import React, { useState, useEffect } from "react";
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
-  Edit2,
-  LayoutTemplate,
-  Sparkles,
-  Wand2,
-  Download,
-  User,
-  ChevronUp,
   ChevronDown,
-  Briefcase,
-  Plus,
-  Trash2,
-  GraduationCap,
-  BrainCircuit,
-  X,
+  ChevronUp,
+  Download,
   Eye,
-  PenLine,
+  FileText,
+  Plus,
+  Share2,
+  Sparkles,
+  User,
+  Wand2,
+  X,
+  LayoutTemplate,
+  Edit2,
+  Lock as LockIcon,
   ZoomIn,
   ZoomOut,
-  FileText,
-  FolderGit2,
-  Languages,
-  Heart,
-  Trophy,
-  Scroll,
-  BookOpen,
-  HandHeart,
-  Users,
+  PenLine,
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
-import { useArtboardStore } from "../../../store/artboard";
-import { createClient } from "../../../lib/supabaseClient";
-import jsPDF from "jspdf";
-import { AzurillTemplate } from "../../../templates/azurill/index";
+import { useArtboardStore, initialResumeState } from "@/store/artboard";
+import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
+import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
+import { polishContent } from "@/services/ai/polishContent";
+import { useToast } from "@/components/ui/toast";
+import { useResumeProfilePhoto } from "@/hooks/useResumeProfilePhoto";
+import { useProfileSettings } from "@/hooks/useProfileSettings";
+import { createClient } from "@/lib/supabaseClient";
+import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
 import { TemplateSelector } from "../components/TemplateSelector";
 import { AddSectionDialog } from "../components/resume/AddSectionDialog";
+import { ShareDialog } from "../components/resume/ShareDialog";
 import { SectionEditor } from "../components/resume/SectionEditor";
 import { ListEditor } from "../components/resume/ListEditor";
 import { PersonalDetailsEditor } from "../components/resume/PersonalDetailsEditor";
-import { ShareDialog } from "../components/resume/ShareDialog";
-import { Share2 } from "lucide-react";
+import { ResumeTemplateRenderer } from "@/templates/render-resume-template";
+import { UpgradePrompt } from "@/components/UpgradePrompt";
+import { resolveResumePageLayout } from "@/lib/resumeLayout";
+import { downloadResumePDF } from "@/utils/resume-download";
+import { saveResumeDraft, loadResumeDraft, removeResumeDraft } from "@/lib/resumeDraftStorage";
 
-// ... templates imports ...
-import { OnyxTemplate } from "../../../templates/onyx";
-import { BronzorTemplate } from "../../../templates/bronzor";
-import { ChikoritaTemplate } from "../../../templates/chikorita";
-import { DitgarTemplate } from "../../../templates/ditgar";
-import { DittoTemplate } from "../../../templates/ditto";
-import { GengarTemplate } from "../../../templates/gengar";
-import { GlalieTemplate } from "../../../templates/glalie";
-import { KakunaTemplate } from "../../../templates/kakuna";
-import { PikachuTemplate } from "../../../templates/pikachu";
-import { RhyhornTemplate } from "../../../templates/rhyhorn";
-import { useProfileSettings } from "../../../hooks/useProfileSettings";
-import { Button } from "../../../components/ui/button";
-import { downloadResumePDF } from "../../../utils/resume-download";
+const PREVIEW_BASE_WIDTH = 794;
+const PREVIEW_BASE_HEIGHT = 1123;
 
 const SECTION_ICONS: Record<string, any> = {
-  experience: Briefcase,
-  education: GraduationCap,
-  skills: BrainCircuit,
-  projects: FolderGit2,
-  languages: Languages,
-  interests: Heart,
-  awards: Trophy,
-  certifications: Scroll,
-  publications: BookOpen,
-  volunteer: HandHeart,
-  references: Users,
-  custom: LayoutTemplate,
+  education: FileText,
+  experience: FileText,
+  projects: FileText,
+  skills: FileText,
+  languages: FileText,
+  certifications: FileText,
+  interests: FileText,
+  custom: FileText,
 };
 
-export const ResumeBuilderPage = () => {
+const DRAFT_AUTOSAVE_DELAY_MS = 2000;
+
+const ResumeBuilderPage = () => {
+  const supabase = createClient();
   const navigate = useNavigate();
   const { id: urlId } = useParams();
-  const [zoom, setZoom] = useState(0.8);
+  const { success, error: toastError, info } = useToast();
+  const { subscriptionTier, loadingTier } = useSubscriptionTier();
+  const hasResumeAiAccess = hasSubscriptionAccess(subscriptionTier, 'Basics');
+
+
+  // Store actions/state
+  const resumeState = useArtboardStore();
+  const {
+    resume: resumeStateData,
+    setResume,
+    setResumeId,
+    setResumeData,
+    setResumeTitle,
+    updateBasics,
+  } = resumeState;
+  const resumeData = resumeStateData.data;
+
+  // Local UI State
+  const [saving, setSaving] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
+  const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [mobileView, setMobileView] = useState<"editor" | "preview">("editor");
   const [isMobile, setIsMobile] = useState(false);
+  const [zoom, setZoom] = useState(0.85);
+  const [previewScale, setPreviewScale] = useState(1);
+  const [lastDraftSavedAt, setLastDraftSavedAt] = useState<number | null>(null);
 
-  // Detect mobile screen
+  const previewPanelRef = useRef<HTMLDivElement>(null);
+  const autosaveTimerRef = useRef<number | null>(null);
+  const draftHydratedRef = useRef(false);
+  const latestResumeStateRef = useRef(resumeStateData);
+  const lastDraftSignatureRef = useRef<string>("");
+  const serverUpdatedAtRef = useRef<string | null>(null);
+
+  const draftStorageKey = `resume_draft_${urlId || 'new'}`;
+
+  // Keep latest ref updated for autosave
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    latestResumeStateRef.current = resumeStateData;
+  }, [resumeStateData]);
+
+  // Responsive Check
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
-  const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
-  const [isShareOpen, setIsShareOpen] = useState(false);
-  const supabase = createClient();
 
-  // Store State & Actions
-  const resumeId = useArtboardStore((state) => state.resume.id);
-  const resumeData = useArtboardStore((state) => state.resume.data);
-  const setResume = useArtboardStore((state) => state.setResume);
-  const setResumeId = useArtboardStore((state) => state.setResumeId);
-  const setResumeData = useArtboardStore((state) => state.setResumeData);
-  const setResumeTitle = useArtboardStore((state) => state.setResumeTitle);
+  // Hydration and Initial Fetch
+  useEffect(() => {
+    let cancelled = false;
+    const hydrateResume = async () => {
+      if (!urlId) {
+        setResume(initialResumeState);
+        draftHydratedRef.current = true;
+        return;
+      }
 
-  // Fetch Resume if ID changes or is provided in URL
-  React.useEffect(() => {
-    const loadResume = async () => {
-      if (urlId && urlId !== resumeId) {
-        try {
-          const { data, error } = await supabase
-            .from("resumes")
-            .select("*")
-            .eq("id", urlId)
-            .single();
+      const [remoteResumeResult, localDraft] = await Promise.all([
+        supabase.from("resumes").select("*").eq("id", urlId).single(),
+        loadResumeDraft(draftStorageKey),
+      ]);
 
-          if (error) throw error;
-          if (data && data.data) {
-            setResumeId(data.id);
-            setResumeData(data.data);
-            setResume({
-              is_public: data.public_share_enabled,
-              views: data.views || 0,
-              downloads: data.downloads || 0,
-            });
-          }
-        } catch (error) {
-          console.error("Error loading resume:", error);
+      if (cancelled) return;
+
+      const remoteResume = remoteResumeResult.data;
+
+      if (remoteResumeResult.error) {
+        if (localDraft?.resume) {
+          setResume(localDraft.resume);
+          setResumeId(localDraft.resume.id);
+          info(
+            "Draft restored",
+            "We restored your local unsaved changes.",
+          );
+        } else {
+          toastError(
+            "Resume not found",
+            "We couldn't load this resume. You'll be using a fresh template.",
+          );
+        }
+      } else if (remoteResume?.data) {
+        const remoteState = {
+          id: remoteResume.id,
+          is_public: remoteResume.public_share_enabled,
+          views: remoteResume.views || 0,
+          downloads: remoteResume.downloads || 0,
+          data: remoteResume.data,
+        };
+
+        serverUpdatedAtRef.current = remoteResume.updated_at ?? null;
+        lastDraftSignatureRef.current = JSON.stringify(remoteState);
+        setResume(remoteState);
+      } else if (localDraft?.resume) {
+        serverUpdatedAtRef.current = localDraft.sourceUpdatedAt ?? null;
+        lastDraftSignatureRef.current = JSON.stringify(localDraft.resume);
+        setResume(localDraft.resume);
+        setResumeId(localDraft.resume.id);
+        if (!restoredDraftNoticeRef.current) {
+          restoredDraftNoticeRef.current = true;
+          info(
+            "Draft restored",
+            "We restored your unsaved resume draft from this device.",
+          );
         }
       }
+      draftHydratedRef.current = true;
     };
-    loadResume();
-  }, [urlId, resumeId, setResumeId, setResumeData, supabase]);
+
+    void hydrateResume();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [draftStorageKey, info, setResume, setResumeId, supabase, urlId]);
+
+  const restoredDraftNoticeRef = useRef(false);
 
   // Profile Data for Auto-population
   const {
     profile,
     experiences,
-    education: profileEducation,
-    skills: profileSkills,
   } = useProfileSettings();
   const [userEmail, setUserEmail] = useState("");
 
-  React.useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }: { data: any }) => {
       if (data?.user?.email) setUserEmail(data.user.email);
     });
   }, [supabase]);
 
-  // Auto-populate logic (simplified for brevity, keeping existing logic)
-  React.useEffect(() => {
-    if (!resumeId && resumeData.basics.name === "John Doe" && profile) {
-      // ... existing auto-populate logic ...
-      const newBasics = {
-        ...resumeData.basics,
-        name: `${profile.first_name || ""} ${profile.last_name || ""}`.trim(),
-        headline: profile.job_title || resumeData.basics.headline,
-        location: profile.location || resumeData.basics.location,
-        email: userEmail || resumeData.basics.email,
-        phone: profile.phone || resumeData.basics.phone,
-      };
-      // (Keeping the rest of the auto-populate logic as is in store or handled here)
-      // For brevity in this replacement, I'm assuming the existing logic was sufficient
-      // or I should copy it fully. I'll copy the key parts.
+  useEffect(() => {
+    const updatePreviewScale = () => {
+      const container = previewPanelRef.current;
+      if (!container) return;
 
-      // ... (Skipping full re-implementation of auto-populate for this step to focus on UI,
-      // but ideally it should be preserved. Since I'm overwriting, I should preserve it.)
+      if (!isMobile) {
+        setPreviewScale(zoom);
+        return;
+      }
+
+      const availableWidth = Math.max(280, container.clientWidth - 24);
+      const nextScale = Math.min(1, availableWidth / PREVIEW_BASE_WIDTH);
+      setPreviewScale(Number(nextScale.toFixed(3)));
+    };
+
+    updatePreviewScale();
+
+    if (typeof window === "undefined") return;
+
+    window.addEventListener("resize", updatePreviewScale);
+    const observer =
+      typeof ResizeObserver !== "undefined" && previewPanelRef.current
+        ? new ResizeObserver(updatePreviewScale)
+        : null;
+
+    if (observer && previewPanelRef.current) {
+      observer.observe(previewPanelRef.current);
+    }
+
+    return () => {
+      window.removeEventListener("resize", updatePreviewScale);
+      observer?.disconnect();
+    };
+  }, [isMobile, zoom]);
+
+  useEffect(() => {
+    if (!draftHydratedRef.current) return;
+
+    const signature = JSON.stringify(resumeStateData);
+    if (signature === lastDraftSignatureRef.current) return;
+
+    if (autosaveTimerRef.current) {
+      window.clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = window.setTimeout(() => {
+      const snapshot = JSON.parse(
+        JSON.stringify(latestResumeStateRef.current),
+      ) as typeof resumeStateData;
+      const snapshotSignature = JSON.stringify(snapshot);
+
+      void saveResumeDraft({
+        key: draftStorageKey,
+        resume: snapshot,
+        updatedAt: Date.now(),
+        sourceUpdatedAt: serverUpdatedAtRef.current,
+      })
+        .then(() => {
+          lastDraftSignatureRef.current = snapshotSignature;
+          setLastDraftSavedAt(Date.now());
+        })
+        .catch((draftError: Error) => {
+          console.error("Resume draft autosave failed:", draftError);
+        });
+    }, DRAFT_AUTOSAVE_DELAY_MS);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        window.clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, [draftStorageKey, resumeStateData]);
+
+  useEffect(() => {
+    const flushDraft = () => {
+      if (!draftHydratedRef.current) return;
+
+      const snapshot = JSON.parse(
+        JSON.stringify(latestResumeStateRef.current),
+      ) as typeof resumeStateData;
+      const snapshotSignature = JSON.stringify(snapshot);
+
+      if (snapshotSignature === lastDraftSignatureRef.current) return;
+
+      void saveResumeDraft({
+        key: draftStorageKey,
+        resume: snapshot,
+        updatedAt: Date.now(),
+        sourceUpdatedAt: serverUpdatedAtRef.current,
+      })
+        .then(() => {
+          lastDraftSignatureRef.current = snapshotSignature;
+        })
+        .catch((draftError: Error) => {
+          console.error("Resume draft flush failed:", draftError);
+        });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        flushDraft();
+      }
+    };
+
+    window.addEventListener("pagehide", flushDraft);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pagehide", flushDraft);
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+      );
+    };
+  }, [draftStorageKey, resumeStateData]);
+
+  const defaultBasics = initialResumeState.data.basics;
+  const normalizeFieldValue = (value?: string) => value?.trim().toLowerCase() || "";
+  const isPlaceholderBasicsValue = (value: string | undefined, fallback: string) => {
+    const normalizedValue = normalizeFieldValue(value);
+    if (!normalizedValue) return true;
+    return normalizedValue === normalizeFieldValue(fallback);
+  };
+
+  useEffect(() => {
+    const profileName = `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim();
+    const profileHeadline =
+      profile?.job_title?.trim() ||
+      experiences.data.find((item) => item.is_current)?.title?.trim() ||
+      experiences.data[0]?.title?.trim() ||
+      "";
+    const nextBasicsPatch: Partial<typeof resumeData.basics> = {};
+
+    if (
+      profileName &&
+      isPlaceholderBasicsValue(resumeData.basics.name, defaultBasics.name)
+    ) {
+      nextBasicsPatch.name = profileName;
+    }
+
+    if (
+      profileHeadline &&
+      isPlaceholderBasicsValue(resumeData.basics.headline, defaultBasics.headline)
+    ) {
+      nextBasicsPatch.headline = profileHeadline;
+    }
+
+    if (
+      userEmail &&
+      isPlaceholderBasicsValue(resumeData.basics.email, defaultBasics.email)
+    ) {
+      nextBasicsPatch.email = userEmail;
+    }
+
+    if (
+      profile?.phone &&
+      isPlaceholderBasicsValue(resumeData.basics.phone, defaultBasics.phone)
+    ) {
+      nextBasicsPatch.phone = profile.phone;
+    }
+
+    if (
+      profile?.location &&
+      isPlaceholderBasicsValue(resumeData.basics.location, defaultBasics.location)
+    ) {
+      nextBasicsPatch.location = profile.location;
+    }
+
+    if (Object.keys(nextBasicsPatch).length > 0) {
+      updateBasics(nextBasicsPatch);
     }
   }, [
-    profile,
+    defaultBasics.email,
+    defaultBasics.headline,
+    defaultBasics.location,
+    defaultBasics.name,
+    defaultBasics.phone,
     experiences.data,
-    profileEducation.data,
-    profileSkills.data,
+    profile,
+    resumeData.basics.email,
+    resumeData.basics.headline,
+    resumeData.basics.location,
     resumeData.basics.name,
+    resumeData.basics.phone,
     userEmail,
+    updateBasics,
   ]);
 
   // Actions
-  const updateBasics = useArtboardStore((state) => state.updateBasics);
   const toggleSectionVisibility = useArtboardStore(
     (state) => state.toggleSectionVisibility,
+  );
+  const {
+    profileAvatarUrl,
+    syncingProfilePhoto,
+    syncProfilePicture,
+  } = useResumeProfilePhoto({
+    picture: resumeData.basics.picture,
+    profileAvatarPath: profile?.avatar_url || null,
+    supabase,
+    updateBasics,
+  });
+
+  const useProfileImage = useCallback(
+    async () => Boolean(await syncProfilePicture(true)),
+    [syncProfilePicture],
+  );
+  const refreshProfileImage = useCallback(
+    async () => Boolean(await syncProfilePicture(true)),
+    [syncProfilePicture],
   );
 
   // Helper for summary
@@ -184,10 +415,16 @@ export const ResumeBuilderPage = () => {
     setResumeData({ summary: { ...resumeData.summary, content: val } });
 
   const { basics, sections, summary, metadata } = resumeData;
+  const resolvedLayoutPage = useMemo(
+    () => resolveResumePageLayout(resumeData, 0),
+    [resumeData],
+  );
 
   // Get active sections from layout order
-  const layoutPage = metadata.layout.pages[0];
-  const orderedSectionIds = [...layoutPage.main, ...layoutPage.sidebar];
+  const orderedSectionIds = [
+    ...resolvedLayoutPage.main,
+    ...resolvedLayoutPage.sidebar,
+  ];
   // Filter for unique IDs and ensure they exist in sections and are not hidden.
   // Exclude 'summary' because it is rendered explicitly above.
   const visibleSections = orderedSectionIds.filter(
@@ -204,75 +441,128 @@ export const ResumeBuilderPage = () => {
     setExpandedSection(expandedSection === section ? null : section);
   };
 
-  const updatePersonalInfo = (field: keyof typeof basics, value: any) => {
-    updateBasics({ [field]: value });
-  };
-
-  // Keep existing downloadPDF logic or update it
   const downloadPDF = () => {
-    // ... (preserving existing download logic for now) ...
-    // Real implementation should probably use the renderer
-    const doc = new jsPDF({ format: "a4", unit: "pt" });
-    // ... (simplified placeholder for brevity)
-    doc.text(basics.name, 50, 50);
-    doc.save("resume.pdf");
+    downloadResumePDF(resumeData);
   };
 
-  const aiGenerateResume = async () => {
-    // ... (preserving AI logic) ...
+  const aiPolishSummary = async (instruction = "Polish this resume summary for clarity, confidence, and measurable impact.") => {
+    if (!hasResumeAiAccess) {
+      toastError("Upgrade required", "Resume AI tools are available on Basics and above.");
+      return;
+    }
     setAiLoading(true);
-    setTimeout(() => setAiLoading(false), 1000); // Mock
+    try {
+      const source = (summary.content || basics.headline || basics.name || "").trim();
+      if (!source) throw new Error("Add a summary or headline first.");
+      const suggestions = await polishContent(source, instruction);
+      const nextSummary = suggestions.find((item) => item.isRecommended)?.content || suggestions[0]?.content || "";
+      if (!nextSummary) throw new Error("No AI suggestion was returned.");
+      setSummary(nextSummary);
+      success(
+        instruction.includes("fresh") ? "Summary generated" : "Summary polished",
+        instruction.includes("fresh") ? "A new AI summary has been added to your resume." : "AI suggestions have been applied to your resume summary."
+      );
+    } catch (e: any) {
+      toastError(instruction.includes("fresh") ? "AI generation failed" : "AI rewrite failed", e?.message || "AI is temporarily unavailable.");
+    } finally {
+      setAiLoading(false);
+    }
   };
+
+  const aiGenerateResume = async () => aiPolishSummary("Write a fresh professional resume summary in 3-4 concise sentences.");
+  const [saveAlertOpen, setSaveAlertOpen] = useState(false);
+  const effectivePreviewScale = isMobile ? previewScale : zoom;
+  const previewFrameWidth = PREVIEW_BASE_WIDTH * effectivePreviewScale;
+  const previewFrameHeight = PREVIEW_BASE_HEIGHT * effectivePreviewScale;
+  const editorStatusLabel = saving
+    ? "Saving..."
+    : lastDraftSavedAt
+      ? "Autosaved locally"
+      : "Ready";
 
   const handleSave = async () => {
     if (!urlId) return;
     setSaving(true);
     try {
+      const pictureSnapshot = await syncProfilePicture(false);
+      const dataToSave = pictureSnapshot
+        ? {
+            ...resumeData,
+            basics: { ...resumeData.basics, picture: pictureSnapshot },
+          }
+        : resumeData;
       const { error } = await supabase
         .from("resumes")
         .update({
-          data: resumeData,
-          name: resumeData.title,
-          slug: resumeData.slug,
-          tags: resumeData.tags,
+          data: dataToSave,
+          name: dataToSave.title,
+          slug: dataToSave.slug,
+          tags: dataToSave.tags,
           updated_at: new Date().toISOString(),
         })
         .eq("id", urlId);
       if (error) throw error;
-    } catch (e) {
-      console.error(e);
+      serverUpdatedAtRef.current = new Date().toISOString();
+      lastDraftSignatureRef.current = JSON.stringify({
+        ...latestResumeStateRef.current,
+        id: urlId,
+        data: dataToSave,
+      });
+      await removeResumeDraft(draftStorageKey);
+      setLastDraftSavedAt(null);
+      success("Resume saved", "Your latest resume changes have been saved.");
+      setSaveAlertOpen(true);
+    } catch (e: any) {
+      toastError("Save failed", e?.message || "Unable to save your resume right now.");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className='flex flex-col h-full relative overflow-hidden bg-white dark:bg-[#0A0A0A]'>
+    <div className='product-page-shell flex flex-col h-full relative overflow-hidden'>
+      {/* Save Alert Modal */}
+      <Modal
+        open={saveAlertOpen}
+        onClose={() => setSaveAlertOpen(false)}
+        title="Resume Saved"
+        size="sm"
+        footer={
+          <div className="flex justify-end">
+            <Button onClick={() => setSaveAlertOpen(false)}>Close</Button>
+          </div>
+        }
+      >
+        <div className="text-foreground/80 py-4">
+          Your resume has been saved successfully.
+        </div>
+      </Modal>
+
       {/* Header toolbar */}
-      <header className='h-14 md:h-16 flex items-center justify-between px-3 md:px-6 border-b border-gray-200 dark:border-white/10 bg-white dark:bg-[#0A0A0A] z-10 shrink-0'>
-        <div className='flex items-center gap-4'>
+      <header className='shrink-0 border-b border-border/40 bg-background/95 px-3 py-3 md:h-16 md:px-6 md:py-0 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex flex-col gap-3 md:flex-row md:items-center md:justify-between z-10'>
+        <div className='flex min-w-0 items-center gap-3 md:gap-4'>
           <button
             onClick={() => navigate("/dashboard/resume")}
-            className='flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-900 dark:hover:text-white transition-colors'
+            className='product-helper-text flex items-center gap-2 text-sm transition-colors hover:text-foreground'
           >
             <ArrowLeft className='w-4 h-4' />
             <span>Back</span>
           </button>
-          <div className='h-6 w-px bg-gray-200 dark:bg-white/10' />
-          <div className='flex items-center gap-2 group'>
+          <div className='h-6 w-px shrink-0 bg-border/60' />
+          <div className='group flex min-w-0 flex-1 items-center gap-2'>
             <input
               value={resumeData.title || "Untitled Resume"}
               onChange={(e) => setResumeTitle(e.target.value)}
-              className='font-semibold text-gray-900 dark:text-white bg-transparent border-none outline-none focus:ring-1 focus:ring-[#1dff00] rounded px-1 min-w-[200px]'
+              className='product-page-title w-full min-w-0 rounded bg-transparent px-1 text-base font-semibold outline-none focus:ring-1 focus:ring-[#ffd700] md:text-lg'
             />
-            <Edit2 className='w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity' />
+            <Edit2 className='product-helper-text w-3.5 h-3.5 opacity-0 transition-opacity group-hover:opacity-100' />
           </div>
         </div>
 
-        <div className='flex items-center gap-2 md:gap-3 overflow-x-auto no-scrollbar'>
+        <div className='flex items-center gap-2 overflow-x-auto pb-1 md:gap-3 md:pb-0 no-scrollbar'>
           <button
             onClick={() => setIsTemplateSelectorOpen(true)}
-            className='flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-xs md:text-sm font-medium transition-colors text-gray-700 dark:text-gray-300 whitespace-nowrap'
+            className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-2 text-xs md:text-sm font-medium whitespace-nowrap'
           >
             <LayoutTemplate className='w-4 h-4 shrink-0' />
             <span className='hidden sm:inline'>Templates</span>
@@ -281,30 +571,40 @@ export const ResumeBuilderPage = () => {
 
           <button
             onClick={() => setIsShareOpen(true)}
-            className='flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-xs md:text-sm font-medium transition-colors text-gray-700 dark:text-gray-300 whitespace-nowrap'
+            className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-2 text-xs md:text-sm font-medium whitespace-nowrap'
           >
             <Share2 className='w-4 h-4 shrink-0' />
             <span className='hidden sm:inline'>Share</span>
           </button>
 
-          <button className='flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-xs md:text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)] whitespace-nowrap'>
+          <button
+            onClick={() => aiPolishSummary()}
+            disabled={aiLoading || loadingTier}
+            className='flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 rounded-lg bg-[#1dff00] hover:bg-[#15bd00] text-black text-xs md:text-sm font-bold transition-all shadow-[0_0_15px_rgba(29,255,0,0.3)] whitespace-nowrap disabled:opacity-60'
+          >
             <Sparkles className='w-4 h-4 shrink-0' />
-            <span className='hidden sm:inline'>AI Polish</span>
+            <span className='hidden sm:inline'>
+              {aiLoading ? "Polishing..." : "AI Polish"}
+            </span>
+            {!hasResumeAiAccess && <LockIcon className='w-3 h-3 opacity-60' />}
           </button>
 
           <button
             onClick={aiGenerateResume}
-            disabled={aiLoading}
-            className='hidden md:flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-[#1dff00]/30 hover:bg-[#1dff00]/10 text-gray-700 dark:text-white text-sm font-bold transition-all whitespace-nowrap'
+            disabled={aiLoading || loadingTier}
+            className='product-outline-button hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold hover:border-[#ffd700]/60 hover:bg-[#fff2b3] dark:hover:bg-white/10 dark:hover:border-white/20'
           >
             <Wand2 className={`w-4 h-4 ${aiLoading ? "animate-spin" : ""}`} />
-            {aiLoading ? "Generating..." : "AI Generate"}
+            <span className='hidden sm:inline'>
+              {aiLoading ? "Generating..." : "AI Generate"}
+            </span>
+            {!hasResumeAiAccess && <LockIcon className='w-3 h-3 opacity-60' />}
           </button>
 
           <button
             onClick={handleSave}
             disabled={saving || !urlId}
-            className='flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-brand/50 hover:bg-brand/10 text-gray-700 dark:text-white text-xs md:text-sm font-bold transition-all disabled:opacity-50 whitespace-nowrap'
+            className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 text-xs md:text-sm font-bold whitespace-nowrap disabled:opacity-50'
           >
             <FileText
               className={`w-4 h-4 shrink-0 ${saving ? "animate-pulse" : ""}`}
@@ -316,37 +616,49 @@ export const ResumeBuilderPage = () => {
 
           <button
             onClick={downloadPDF}
-            className='flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 rounded-lg bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/20 text-xs md:text-sm font-medium transition-all text-gray-700 dark:text-white whitespace-nowrap'
+            className='product-outline-button flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 text-xs md:text-sm font-medium whitespace-nowrap'
           >
             <Download className='w-4 h-4 shrink-0' />
-            <span className='hidden sm:inline'>PDF</span>
+            <span className='hidden sm:inline'>PDF export</span>
           </button>
         </div>
       </header>
+
+      {!loadingTier && !hasResumeAiAccess && (
+        <div className='px-4 pt-4 md:px-6 md:pt-6'>
+          <UpgradePrompt
+            compact
+            requiredTier='Basics'
+            showPricing={false}
+            title='Resume AI Optimization'
+            description='Unlock AI polish and AI-generated summaries while keeping manual editing and exports on Free.'
+          />
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div className='flex-1 flex flex-col md:flex-row overflow-hidden'>
         {/* Editor Panel (Left) */}
         <div
-          className={`${isMobile && mobileView !== "editor" ? "hidden" : "flex"} md:flex w-full md:w-[40%] md:min-w-[350px] md:max-w-[500px] bg-gray-50 dark:bg-[#0A0A0A] border-r border-gray-200 dark:border-white/10 flex-col overflow-y-auto custom-scrollbar ${isMobile ? "pb-24" : "pb-20"} flex-1 md:flex-initial`}
+          className={`${isMobile && mobileView !== "editor" ? "hidden" : "flex"} product-section-card-muted w-full flex-col overflow-y-auto custom-scrollbar rounded-none border-y-0 border-l-0 ${isMobile ? "pb-24" : "pb-20"} flex-1 md:w-[40%] md:min-w-[350px] md:max-w-[500px] md:flex-initial`}
         >
-          <div className='p-6 space-y-4'>
+          <div className='p-4 md:p-6 space-y-4'>
             {/* Content Header */}
             <div className='flex items-center justify-between mb-2'>
-              <h3 className='text-xs font-bold uppercase tracking-wider text-gray-500'>
+              <h3 className='product-helper-text text-xs font-bold uppercase tracking-wider'>
                 Content
               </h3>
               <div className='text-[10px] text-[#1dff00] flex items-center gap-1 font-medium'>
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${saving ? "bg-yellow-500 animate-pulse" : "bg-[#1dff00]"}`}
                 />
-                {saving ? "Saving..." : "Ready"}
+                {editorStatusLabel}
               </div>
             </div>
 
             {/* Personal Info Section */}
             <div
-              className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === "personal" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
+              className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === "personal" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
             >
               <div
                 className='p-5 flex items-center justify-between cursor-pointer'
@@ -354,23 +666,31 @@ export const ResumeBuilderPage = () => {
               >
                 <div className='flex items-center gap-3'>
                   <User className='w-5 h-5 text-[#1dff00]' />
-                  <h4 className='font-semibold text-gray-900 dark:text-white'>
+                  <h4 className='font-semibold product-page-title'>
                     Personal Info
                   </h4>
                 </div>
                 {expandedSection === "personal" ? (
-                  <ChevronUp className='w-4 h-4 text-gray-500' />
+                  <ChevronUp className='w-4 h-4 product-helper-text' />
                 ) : (
-                  <ChevronDown className='w-4 h-4 text-gray-500' />
+                  <ChevronDown className='w-4 h-4 product-helper-text' />
                 )}
               </div>
-              {expandedSection === "personal" && <PersonalDetailsEditor />}
+              {expandedSection === "personal" && (
+                <PersonalDetailsEditor
+                  hasProfileAvatar={Boolean(profile?.avatar_url)}
+                  profileAvatarUrl={profileAvatarUrl}
+                  syncingProfilePhoto={syncingProfilePhoto}
+                  onUseProfileImage={useProfileImage}
+                  onRefreshProfileImage={refreshProfileImage}
+                />
+              )}
             </div>
 
             {/* Summary Section */}
             {!summary.hidden && (
               <div
-                className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === "summary" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
+                className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === "summary" ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
               >
                 <div
                   className='p-5 flex items-center justify-between cursor-pointer'
@@ -378,14 +698,14 @@ export const ResumeBuilderPage = () => {
                 >
                   <div className='flex items-center gap-3'>
                     <FileText className='w-5 h-5 text-[#1dff00]' />
-                    <h4 className='font-semibold text-gray-900 dark:text-white'>
+                    <h4 className='font-semibold product-page-title'>
                       Summary
                     </h4>
                   </div>
                   {expandedSection === "summary" ? (
-                    <ChevronUp className='w-4 h-4 text-gray-500' />
+                    <ChevronUp className='w-4 h-4 product-helper-text' />
                   ) : (
-                    <ChevronDown className='w-4 h-4 text-gray-500' />
+                    <ChevronDown className='w-4 h-4 product-helper-text' />
                   )}
                 </div>
 
@@ -395,7 +715,7 @@ export const ResumeBuilderPage = () => {
                       value={summary.content || ""}
                       onChange={(e) => setSummary(e.target.value)}
                       rows={4}
-                      className='w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:border-[#1dff00] focus:ring-1 focus:ring-[#1dff00] outline-none transition-all text-gray-900 dark:text-gray-100'
+                      className='product-input-surface w-full rounded-lg px-3 py-2 text-sm outline-none transition-all focus:border-[#ffd700] focus:ring-1 focus:ring-[#ffd700]'
                       placeholder='Brief professional summary...'
                     />
                   </div>
@@ -413,7 +733,7 @@ export const ResumeBuilderPage = () => {
               return (
                 <div
                   key={sectionId}
-                  className={`bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden transition-all ${expandedSection === sectionId ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
+                  className={`product-section-card rounded-xl overflow-hidden transition-all ${expandedSection === sectionId ? "ring-1 ring-[#1dff00]/50" : "hover:border-[#1dff00]/30"}`}
                 >
                   <div
                     className='p-5 flex items-center justify-between cursor-pointer'
@@ -421,13 +741,13 @@ export const ResumeBuilderPage = () => {
                   >
                     <div className='flex items-center gap-3'>
                       <Icon className='w-5 h-5 text-[#1dff00]' />
-                      <h4 className='font-semibold text-gray-900 dark:text-white'>
+                      <h4 className='font-semibold product-page-title'>
                         {section.title}
                       </h4>
                     </div>
                     <div className='flex items-center gap-2'>
                       <button
-                        className='p-1 hover:bg-white/10 rounded text-gray-500 hover:text-red-500 transition-colors'
+                        className='p-1 hover:bg-muted rounded product-helper-text hover:text-red-500 transition-colors'
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleSectionVisibility(sectionId);
@@ -437,9 +757,9 @@ export const ResumeBuilderPage = () => {
                         <X className='w-4 h-4' />
                       </button>
                       {expandedSection === sectionId ? (
-                        <ChevronUp className='w-4 h-4 text-gray-500' />
+                        <ChevronUp className='w-4 h-4 product-helper-text' />
                       ) : (
-                        <ChevronDown className='w-4 h-4 text-gray-500' />
+                        <ChevronDown className='w-4 h-4 product-helper-text' />
                       )}
                     </div>
                   </div>
@@ -461,7 +781,7 @@ export const ResumeBuilderPage = () => {
             <div className='pt-4 pb-20'>
               <Button
                 variant='outline'
-                className='w-full py-6 border-dashed border-gray-300 dark:border-white/20 hover:border-[#1dff00] hover:text-[#1dff00] hover:bg-[#1dff00]/5'
+                className='w-full py-6 border-dashed border-gray-300 dark:border-foreground/20 hover:border-[#1dff00] hover:text-[#1dff00] hover:bg-[#1dff00]/5'
                 onClick={() => setIsAddSectionOpen(true)}
               >
                 <Plus className='w-5 h-5 mr-2' />
@@ -473,66 +793,71 @@ export const ResumeBuilderPage = () => {
 
         {/* Preview Panel (Right) */}
         <div
-          className={`${isMobile && mobileView !== "preview" ? "hidden" : "flex"} md:flex flex-1 overflow-y-auto justify-center p-1 md:p-8 relative custom-scrollbar ${isMobile ? "pb-24" : ""}`}
+          ref={previewPanelRef}
+          className={`${isMobile && mobileView !== "preview" ? "hidden" : "flex"} flex-1 overflow-auto justify-center p-3 md:p-8 relative custom-scrollbar bg-[hsl(var(--product-surface-muted))] dark:bg-background ${isMobile ? "pb-24 pt-4" : ""}`}
         >
-          <div className='fixed top-20 md:top-24 right-4 md:right-8 z-10 flex flex-col gap-2'>
-            <button
-              onClick={() => setZoom((z) => Math.min(z + 0.1, 1.5))}
-              className='w-8 h-8 md:w-10 md:h-10 bg-white dark:bg-[#121212] rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-white/10'
-            >
-              <ZoomIn className='w-4 h-4 md:w-5 md:h-5' />
-            </button>
-            <button
-              onClick={() => setZoom((z) => Math.max(z - 0.1, 0.5))}
-              className='w-8 h-8 md:w-10 md:h-10 bg-white dark:bg-[#121212] rounded-full shadow-xl flex items-center justify-center text-gray-500 hover:text-[#1dff00] transition-colors border border-gray-200 dark:border-white/10'
-            >
-              <ZoomOut className='w-4 h-4 md:w-5 md:h-5' />
-            </button>
-          </div>
+          {!isMobile && (
+            <div className='absolute right-4 top-4 z-10 flex flex-col gap-2 md:right-8 md:top-8'>
+              <button
+                onClick={() => setZoom((z) => Math.min(z + 0.1, 1.5))}
+                className='product-section-card flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#ffd700]'
+              >
+                <ZoomIn className='w-4 h-4 md:w-5 md:h-5' />
+              </button>
+              <button
+                onClick={() => setZoom((z) => Math.max(z - 0.1, 0.5))}
+                className='product-section-card flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full shadow-xl product-helper-text transition-colors hover:text-[#ffd700]'
+              >
+                <ZoomOut className='w-4 h-4 md:w-5 md:h-5' />
+              </button>
+            </div>
+          )}
 
           <div
-            className='bg-white shadow-2xl origin-top transition-transform duration-200 min-h-[1123px] xl:w-[794px] w-fit max-w-full'
+            className='shrink-0 transition-[width,min-height] duration-200 bg-white shadow-2xl relative'
             style={{
-              transform: `scale(${zoom})`,
-              marginBottom: `${(zoom - 1) * 1123}px`,
+              width: `${previewFrameWidth}px`,
+              minHeight: `${previewFrameHeight}px`,
             }}
           >
-            {selectedTemplate === "azurill" && <AzurillTemplate />}
-            {selectedTemplate === "onyx" && <OnyxTemplate />}
-            {selectedTemplate === "bronzor" && <BronzorTemplate />}
-            {selectedTemplate === "chikorita" && <ChikoritaTemplate />}
-            {selectedTemplate === "ditgar" && <DitgarTemplate />}
-            {selectedTemplate === "ditto" && <DittoTemplate />}
-            {selectedTemplate === "gengar" && <GengarTemplate />}
-            {selectedTemplate === "glalie" && <GlalieTemplate />}
-            {selectedTemplate === "kakuna" && <KakunaTemplate />}
-            {selectedTemplate === "pikachu" && <PikachuTemplate />}
-            {selectedTemplate === "rhyhorn" && <RhyhornTemplate />}
+            <div
+              className='origin-top-left transition-transform duration-200'
+              style={{
+                width: `${PREVIEW_BASE_WIDTH}px`,
+                minHeight: `${PREVIEW_BASE_HEIGHT}px`,
+                transform: `scale(${effectivePreviewScale})`,
+              }}
+            >
+              <ResumeTemplateRenderer
+                templateId={selectedTemplate}
+                pageLayout={resolvedLayoutPage}
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Mobile Bottom Tab Bar */}
       {isMobile && (
-        <div className='fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-[#121212] border-t border-gray-200 dark:border-white/10 flex h-16 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.4)]'>
+        <div className='fixed bottom-0 left-0 right-0 z-50 bg-background/95 border-t border-border/40 backdrop-blur supports-[backdrop-filter]:bg-background/85 flex h-16 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]'>
           <button
             onClick={() => setMobileView("editor")}
             className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
               mobileView === "editor"
                 ? "text-[#1dff00] bg-[#1dff00]/5"
-                : "text-gray-500 dark:text-gray-400"
+                : "text-muted-foreground"
             }`}
           >
             <PenLine className='w-5 h-5' />
             <span className='text-[11px] font-medium'>Editor</span>
           </button>
-          <div className='w-px bg-gray-200 dark:bg-white/10 my-3' />
+          <div className='w-px bg-border/40 my-3' />
           <button
             onClick={() => setMobileView("preview")}
             className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
               mobileView === "preview"
                 ? "text-[#1dff00] bg-[#1dff00]/5"
-                : "text-gray-500 dark:text-gray-400"
+                : "text-muted-foreground"
             }`}
           >
             <Eye className='w-5 h-5' />
@@ -553,3 +878,6 @@ export const ResumeBuilderPage = () => {
     </div>
   );
 };
+
+export { ResumeBuilderPage };
+export default ResumeBuilderPage;

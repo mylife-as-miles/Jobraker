@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }]
     });
 
-    const text = response.text()?.trim() || '';
+    const text = (typeof response.text === 'function' ? response.text() : response.text)?.trim() || '';
 
     return new Response(JSON.stringify({ text }), { status: 200, headers: { ...corsHeaders, 'content-type': 'application/json' } });
   } catch (e: any) {

@@ -21,6 +21,7 @@ import {
   Trash2,
   Target,
   TrendingUp,
+  Lock,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Switch } from "../../../components/ui/switch";
@@ -28,6 +29,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "../../../components/ui/button";
 import Modal from "../../../components/ui/modal";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
+import { MarkdownContent } from "../../../components/ui/MarkdownContent";
 import { useResumes } from "../../../hooks/useResumes";
 import { Card } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
@@ -42,11 +44,28 @@ import { events } from "../../../lib/analytics";
 import { useToast } from "../../../components/ui/toast";
 import { SimpleDropdown } from "../../../components/SimpleDropdown";
 import { applyToJobs } from "../../../services/applications/applyToJobs";
+import { evaluateJobFit, type EvaluateJobFitResponse } from "../../../services/ai/evaluateJobFit";
+import { tailorResumeViaEdge } from "../../../services/ai/tailorResume";
+import { generateCoverLetterViaEdge } from "../../../services/ai/generateCoverLetter";
+import {
+  fetchJobEvaluationReport,
+  type JobEvaluationReport as JobEvaluationReportData,
+} from "../../../services/jobs/jobEvaluation";
+import { isTrustedSource } from "../../../utils/trustedSources";
+import { useGamification } from "../../../hooks/useGamification";
 import { cn } from "../../../lib/utils";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { AnimatedSVGBackground } from "../../../components/AnimatedSVGBackground";
+import { JobEvaluationReport } from "../components/JobEvaluationReport";
+import { invokeProtectedFunction } from "../../../services/supabase/invokeProtectedFunction";
+import { loadParsedResumeText } from "../../../lib/parsedResume";
+import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
+import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
+import {
+  type JobCanonicalStatus,
+} from "@/lib/applicationState";
 
 // The Job interface now represents a row from our personal 'jobs' table.
 interface Job {
@@ -69,8 +88,22 @@ interface Job {
   logoUrl?: string;
   logo: string;
   status?: string;
+  canonical_status?: JobCanonicalStatus | null;
+  verification_status?: "unverified" | "verified" | "stale" | "failed" | null;
   source_type?: string | null;
   source_id?: string | null;
+  source_kind?: string | null;
+  source_confidence?: number | null;
+  is_tracked_company?: boolean;
+  evaluation_summary?: {
+    evaluation_id?: string | null;
+    archetype?: string;
+    canonical_decision?: "strong_yes" | "draft_first" | "risky" | "no_go";
+    confidence_score?: number;
+    blockers?: string[];
+    exact_fit_evidence?: string[];
+    matched_keywords?: string[];
+  } | null;
   matchScore?: number;
   matchBreakdown?: MatchScoreBreakdown[];
   matchSummary?: string;
@@ -91,263 +124,224 @@ type MatchContext = {
   profile?: Profile | null;
 };
 
-const tokenize = (input?: string | null): string[] => {
-  if (!input) return [];
-  return input
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .map((token) => token.trim())
-    .filter((token) => token.length > 1);
-};
-
-const uniqueTokens = (tokens: string[]): string[] =>
-  Array.from(new Set(tokens));
-
-const clamp = (value: number, min = 0, max = 100) =>
-  Math.min(max, Math.max(min, value));
-
-const buildTokenSet = (
-  ...segments: Array<string | undefined | null>
-): Set<string> => {
-  const tokens = segments.flatMap((segment) => uniqueTokens(tokenize(segment)));
-  return new Set(tokens);
-};
-
-const measureOverlap = (needles: Set<string>, haystack: Set<string>) => {
-  if (!needles.size) return { score: 0, matches: [] as string[] };
-  const matches: string[] = [];
-  needles.forEach((token) => {
-    if (haystack.has(token)) matches.push(token);
-  });
-  const score = clamp((matches.length / needles.size) * 100);
-  return { score, matches };
-};
-
-const evaluateLocationFit = (
-  job: Job,
-  context: MatchContext,
-): { score: number; detail: string } => {
-  const preferredLocationRaw = context.selectedLocation?.trim();
-  const profileLocationRaw = context.profile?.location?.trim();
-  const preference = preferredLocationRaw || profileLocationRaw || "";
-  const preferenceTokens = buildTokenSet(preference);
-  const jobLocationPieces: string[] = [];
-  if (job.location) jobLocationPieces.push(job.location);
-  if (job.remote_type) jobLocationPieces.push(job.remote_type);
-  const rawData = job.raw_data as Record<string, any> | undefined;
-  if (rawData?.location) jobLocationPieces.push(String(rawData.location));
-  if (rawData?.scraped_data?.location)
-    jobLocationPieces.push(String(rawData.scraped_data.location));
-  const jobLocationString = jobLocationPieces.join(" ").toLowerCase();
-  const wantsRemote = preference.toLowerCase().includes("remote");
-  const jobIsRemote =
-    /remote|anywhere/i.test(jobLocationString) ||
-    /remote/i.test(job.remote_type || "");
-
-  if (!preferenceTokens.size) {
-    if (jobIsRemote) {
-      return {
-        score: 85,
-        detail: "Remote-friendly role suits broad location preferences.",
-      };
-    }
-    if (!jobLocationString) {
-      return {
-        score: 60,
-        detail: "Location unspecified; monitor posting for details.",
-      };
-    }
-    return {
-      score: 65,
-      detail: "No location preference set; defaulting to neutral fit.",
+type MatchScoreRequestJob = {
+  id: string;
+  title: string;
+  description?: string;
+  location?: string;
+  remote_type?: string;
+  raw_data?: {
+    location?: string;
+    scraped_data?: {
+      location?: string;
+      description?: string;
+      tags?: string[];
+      skills?: string[];
     };
-  }
-
-  if (jobIsRemote && wantsRemote) {
-    return {
-      score: 95,
-      detail: "Remote flexibility aligns with your preference.",
-    };
-  }
-
-  const matchedTokens: string[] = [];
-  preferenceTokens.forEach((token) => {
-    if (token && jobLocationString.includes(token)) matchedTokens.push(token);
-  });
-
-  if (matchedTokens.length) {
-    return {
-      score: 100,
-      detail: `Job location highlights ${matchedTokens.join(", ")}, matching your preference.`,
-    };
-  }
-
-  if (jobIsRemote) {
-    return {
-      score: 80,
-      detail:
-        "Role is remote-friendly, partially offsetting location mismatch.",
-    };
-  }
-
-  if (!jobLocationString) {
-    return {
-      score: 45,
-      detail: "Job location not specified; unable to confirm alignment.",
-    };
-  }
-
-  return {
-    score: 30,
-    detail: "Location does not mention your preferred region.",
   };
 };
 
-const computeJobMatchInsights = (job: Job, context: MatchContext) => {
-  const breakdown: MatchScoreBreakdown[] = [];
-  const totalWeights = {
-    role: 0.35,
-    keywords: 0.3,
-    goals: 0.2,
-    location: 0.15,
-  } as const;
+const MATCH_SCORE_BATCH_SIZE = 10;
+const MATCH_SCORE_TEXT_LIMIT = 6_000;
+const MATCH_SCORE_META_LIMIT = 500;
+const MATCH_SCORE_LIST_LIMIT = 25;
 
-  const profileTitleTokens = buildTokenSet(
-    context.profile?.job_title,
-    context.profile?.goals?.join(" ") || "",
-  );
-  const searchTokens = buildTokenSet(context.searchQuery);
-  const roleTargetTokens = new Set<string>([
-    ...profileTitleTokens,
-    ...searchTokens,
-  ]);
-  const jobTitleTokens = buildTokenSet(job.title);
-  const roleOverlap = measureOverlap(roleTargetTokens, jobTitleTokens);
-  const roleScore = roleTargetTokens.size
-    ? roleOverlap.score
-    : clamp(jobTitleTokens.size ? 55 : 40);
-  breakdown.push({
-    label: "Role focus",
-    componentScore: roleScore,
-    contribution: roleScore * totalWeights.role,
-    weight: totalWeights.role,
-    detail: roleTargetTokens.size
-      ? roleOverlap.matches.length
-        ? `Matches ${roleOverlap.matches.length}/${roleTargetTokens.size} target role keywords.`
-        : "Job title only loosely overlaps with your role focus."
-      : "No role keywords provided; using neutral baseline.",
-    matches: roleOverlap.matches,
-  });
+const compactText = (value: unknown, maxLength: number): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return trimmed.slice(0, maxLength);
+};
 
-  const jobDescriptionText = [
-    job.description,
-    (job.raw_data as any)?.scraped_data?.description,
-    toPlainText(job.description || ""),
-  ]
+const compactStringList = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+
+  const cleaned = value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
     .filter(Boolean)
-    .join(" ");
-  const jobTagTokens = buildTokenSet(
-    Array.isArray((job.raw_data as any)?.scraped_data?.tags)
-      ? ((job.raw_data as any)?.scraped_data?.tags as string[]).join(" ")
-      : undefined,
-    Array.isArray((job.raw_data as any)?.scraped_data?.skills)
-      ? ((job.raw_data as any)?.scraped_data?.skills as string[]).join(" ")
-      : undefined,
-  );
-  const jobTextTokens = new Set<string>([
-    ...buildTokenSet(jobDescriptionText),
-    ...jobTagTokens,
-    ...jobTitleTokens,
-  ]);
-  const keywordOverlap = measureOverlap(searchTokens, jobTextTokens);
-  const keywordScore = searchTokens.size
-    ? keywordOverlap.score
-    : clamp(jobTextTokens.size ? 60 : 40);
-  breakdown.push({
-    label: "Keyword match",
-    componentScore: keywordScore,
-    contribution: keywordScore * totalWeights.keywords,
-    weight: totalWeights.keywords,
-    detail: searchTokens.size
-      ? keywordOverlap.matches.length
-        ? `Job content covers ${keywordOverlap.matches.join(", ")}.`
-        : "Posting lacks your search keywords."
-      : "No search keywords supplied; treated as neutral.",
-    matches: keywordOverlap.matches,
-  });
+    .slice(0, MATCH_SCORE_LIST_LIMIT);
 
-  const goalTokens = buildTokenSet(context.profile?.goals?.join(" ") || "");
-  const goalOverlap = measureOverlap(goalTokens, jobTextTokens);
-  const goalScore = goalTokens.size
-    ? goalOverlap.score
-    : clamp(jobTextTokens.size ? 55 : 40);
-  breakdown.push({
-    label: "Profile goals",
-    componentScore: goalScore,
-    contribution: goalScore * totalWeights.goals,
-    weight: totalWeights.goals,
-    detail: goalTokens.size
-      ? goalOverlap.matches.length
-        ? `Mentions your goals: ${goalOverlap.matches.join(", ")}.`
-        : "Job description does not reference your stated goals."
-      : "Add goals to your profile for deeper matching.",
-    matches: goalOverlap.matches,
-  });
+  return cleaned.length > 0 ? cleaned : undefined;
+};
 
-  const locationFit = evaluateLocationFit(job, context);
-  breakdown.push({
-    label: "Location alignment",
-    componentScore: locationFit.score,
-    contribution: locationFit.score * totalWeights.location,
-    weight: totalWeights.location,
-    detail: locationFit.detail,
-  });
+const buildMatchScoreRequestJob = (job: Job): MatchScoreRequestJob => {
+  const raw =
+    job.raw_data && typeof job.raw_data === "object"
+      ? (job.raw_data as Record<string, unknown>)
+      : undefined;
+  const scraped =
+    raw?.scraped_data && typeof raw.scraped_data === "object"
+      ? (raw.scraped_data as Record<string, unknown>)
+      : undefined;
 
-  const totalScore = clamp(
-    Math.round(breakdown.reduce((acc, item) => acc + item.contribution, 0)),
-  );
-
-  const positiveHighlights = breakdown
-    .filter((item) => item.componentScore >= 70)
-    .map((item) => item.label.toLowerCase());
-  const opportunityAreas = breakdown
-    .filter((item) => item.componentScore < 50)
-    .map((item) => item.label.toLowerCase());
-
-  let summary = "";
-  if (positiveHighlights.length) {
-    summary = `Strong alignment on ${positiveHighlights.join(", ")}.`;
+  const compactRawData: MatchScoreRequestJob["raw_data"] = {};
+  const rawLocation = compactText(raw?.location, MATCH_SCORE_META_LIMIT);
+  if (rawLocation) {
+    compactRawData.location = rawLocation;
   }
-  if (opportunityAreas.length) {
-    summary = summary
-      ? `${summary} Needs attention on ${opportunityAreas.join(", ")}.`
-      : `Needs attention on ${opportunityAreas.join(", ")}.`;
+
+  const compactScrapedData: NonNullable<
+    MatchScoreRequestJob["raw_data"]
+  >["scraped_data"] = {};
+  const scrapedLocation = compactText(scraped?.location, MATCH_SCORE_META_LIMIT);
+  const scrapedDescription = compactText(
+    scraped?.description,
+    MATCH_SCORE_TEXT_LIMIT,
+  );
+  const scrapedTags = compactStringList(scraped?.tags);
+  const scrapedSkills = compactStringList(scraped?.skills);
+
+  if (scrapedLocation) {
+    compactScrapedData.location = scrapedLocation;
   }
-  if (!summary) {
-    summary =
-      "Limited signals detected — consider refining your search or profile.";
+  if (scrapedDescription) {
+    compactScrapedData.description = scrapedDescription;
+  }
+  if (scrapedTags) {
+    compactScrapedData.tags = scrapedTags;
+  }
+  if (scrapedSkills) {
+    compactScrapedData.skills = scrapedSkills;
+  }
+
+  if (Object.keys(compactScrapedData).length > 0) {
+    compactRawData.scraped_data = compactScrapedData;
   }
 
   return {
-    score: totalScore,
-    breakdown,
-    summary,
+    id: job.id,
+    title: compactText(job.title, MATCH_SCORE_META_LIMIT) || "Untitled role",
+    ...(compactText(job.description, MATCH_SCORE_TEXT_LIMIT)
+      ? { description: compactText(job.description, MATCH_SCORE_TEXT_LIMIT) }
+      : {}),
+    ...(compactText(job.location, MATCH_SCORE_META_LIMIT)
+      ? { location: compactText(job.location, MATCH_SCORE_META_LIMIT) }
+      : {}),
+    ...(compactText(job.remote_type, MATCH_SCORE_META_LIMIT)
+      ? { remote_type: compactText(job.remote_type, MATCH_SCORE_META_LIMIT) }
+      : {}),
+    ...(Object.keys(compactRawData).length > 0 ? { raw_data: compactRawData } : {}),
   };
 };
 
-const decorateJobWithMatchInsights = (job: Job, context: MatchContext): Job => {
-  try {
-    const insights = computeJobMatchInsights(job, context);
-    return {
+const buildMatchScoreContext = (
+  context: MatchContext,
+): Omit<MatchContext, "profile"> & {
+  profile?: {
+    job_title?: string;
+    location?: string;
+    goals?: string[];
+  } | null;
+} => ({
+  searchQuery: compactText(context.searchQuery, MATCH_SCORE_META_LIMIT) || "",
+  selectedLocation:
+    compactText(context.selectedLocation, MATCH_SCORE_META_LIMIT) || "",
+  profile: context.profile
+    ? {
+      ...(compactText(context.profile.job_title, MATCH_SCORE_META_LIMIT)
+        ? {
+          job_title: compactText(
+            context.profile.job_title,
+            MATCH_SCORE_META_LIMIT,
+          ),
+        }
+        : {}),
+      ...(compactText(context.profile.location, MATCH_SCORE_META_LIMIT)
+        ? {
+          location: compactText(
+            context.profile.location,
+            MATCH_SCORE_META_LIMIT,
+          ),
+        }
+        : {}),
+      ...(Array.isArray(context.profile.goals)
+        ? {
+          goals:
+            compactStringList(context.profile.goals)?.slice(0, 10) ?? [],
+        }
+        : {}),
+    }
+    : null,
+});
+
+const fetchJobMatchInsights = async (
+  jobs: Job[],
+  context: MatchContext,
+  enabled: boolean,
+  onError?: (err: any) => void,
+): Promise<Job[]> => {
+  if (jobs.length === 0) return jobs;
+  if (!enabled) {
+    return jobs.map((job) => ({
       ...job,
-      matchScore: insights.score,
-      matchBreakdown: insights.breakdown,
-      matchSummary: insights.summary,
-    };
+      matchScore: undefined,
+      matchBreakdown: undefined,
+      matchSummary: undefined,
+    }));
+  }
+
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return jobs;
+
+    const compactJobs = jobs.map(buildMatchScoreRequestJob);
+    const compactContext = buildMatchScoreContext(context);
+    const results: Array<{
+      id?: string;
+      score?: number;
+      breakdown?: MatchScoreBreakdown[];
+      summary?: string;
+    }> = [];
+
+    for (let index = 0; index < compactJobs.length; index += MATCH_SCORE_BATCH_SIZE) {
+      const batch = compactJobs.slice(index, index + MATCH_SCORE_BATCH_SIZE);
+      const data = await invokeProtectedFunction<{
+        results?: Array<{
+          id?: string;
+          score?: number;
+          breakdown?: MatchScoreBreakdown[];
+          summary?: string;
+        }>;
+      }>("calculate-match-score", {
+        body: {
+          jobs: batch,
+          context: compactContext,
+        },
+      });
+
+      if (Array.isArray(data?.results)) {
+        results.push(...data.results);
+      }
+    }
+
+    if (!results.length) return jobs;
+
+    // Map insights back to jobs
+    const scoreMap = new Map();
+    results.forEach((r: any) => {
+      if (r.id) scoreMap.set(r.id, r);
+    });
+
+    return jobs.map(j => {
+      const insight = scoreMap.get(j.id);
+      if (insight) {
+        return {
+          ...j,
+          matchScore: insight.score,
+          matchBreakdown: insight.breakdown,
+          matchSummary: insight.summary
+        };
+      }
+      return j;
+    });
+
   } catch (err) {
-    console.error("match insight computation failed", err);
-    return job;
+    console.error("fetchJobMatchInsights error:", err);
+    if (onError) onError(err);
+    return jobs; // Fallback to raw jobs if scoring fails
   }
 };
 
@@ -508,9 +502,9 @@ const composeCoverLetterPayload = (
 
   const paragraphs = Array.isArray(data.paragraphs)
     ? (data.paragraphs as unknown[])
-        .filter((p): p is string => typeof p === "string")
-        .map((p) => p.trim())
-        .filter((p) => p.length > 0)
+      .filter((p): p is string => typeof p === "string")
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0)
     : [];
   const body = read("content");
   if (typeof body === "string") {
@@ -563,6 +557,25 @@ const composeProfileSnapshot = (
   if (Array.isArray(profile.goals) && profile.goals.length)
     lines.push(`Goals: ${profile.goals.join(", ")}`);
   return lines.length ? lines.join("\n") : undefined;
+};
+
+const getStoredDraftData = (
+  job?: Job | null,
+): { resumeText: string; coverLetterText: string } | null => {
+  const raw =
+    job?.raw_data && typeof job.raw_data === "object"
+      ? (job.raw_data as Record<string, unknown>)
+      : undefined;
+  const draft =
+    raw?.application_draft && typeof raw.application_draft === "object"
+      ? (raw.application_draft as Record<string, unknown>)
+      : undefined;
+  const resumeText =
+    typeof draft?.resumeText === "string" ? draft.resumeText : null;
+  const coverLetterText =
+    typeof draft?.coverLetterText === "string" ? draft.coverLetterText : null;
+  if (!resumeText || !coverLetterText) return null;
+  return { resumeText, coverLetterText };
 };
 
 const formatSalaryRange = (job: Job): string | null => {
@@ -646,9 +659,9 @@ const getCompanyLogoUrl = (
   try {
     const domain = new URL(
       sourceUrl ||
-        `https://www.${companyName.toLowerCase().replace(/\s/g, "")}.com`,
+      `https://www.${companyName.toLowerCase().replace(/\s/g, "")}.com`,
     ).hostname;
-    return `https://logo.clearbit.com/${domain}`;
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
   } catch {
     return undefined;
   }
@@ -669,8 +682,22 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
       getCompanyLogoUrl(dbJob.company, dbJob.apply_url),
     logo: dbJob.company?.[0]?.toUpperCase() || "?",
     status: dbJob.status,
+    canonical_status: dbJob.canonical_status ?? "discovered",
+    verification_status: dbJob.verification_status ?? "unverified",
     source_type: dbJob.source_type ?? null,
     source_id: dbJob.source_id ?? null,
+    source_kind: dbJob.source_kind ?? null,
+    source_confidence:
+      typeof dbJob.source_confidence === "number"
+        ? dbJob.source_confidence
+        : dbJob.source_confidence != null
+          ? Number(dbJob.source_confidence)
+          : null,
+    is_tracked_company: Boolean(dbJob.is_tracked_company),
+    evaluation_summary:
+      dbJob.evaluation_summary && typeof dbJob.evaluation_summary === "object"
+        ? dbJob.evaluation_summary
+        : null,
     matchScore:
       typeof insights?.score === "number" ? insights.score : undefined,
     matchBreakdown: Array.isArray(insights?.breakdown)
@@ -681,22 +708,20 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
   };
 };
 
-const toPlainText = (html: string) => {
-  if (typeof window === "undefined" || !html) {
-    return "";
-  }
-  const div = document.createElement("div");
-  div.innerHTML = html;
-  return div.textContent || div.innerText || "";
-};
-
 export const JobPage = (): JSX.Element => {
   const isMobile = useMediaQuery("(max-width: 1023px)");
   const navigate = useNavigate();
+  const gamificationHook = useGamification();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("Remote");
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [evaluationReports, setEvaluationReports] = useState<
+    Record<string, JobEvaluationReportData>
+  >({});
+  const [evaluationLoadingByJob, setEvaluationLoadingByJob] = useState<
+    Record<string, boolean>
+  >({});
   const [queueStatus, setQueueStatus] = useState<
     "idle" | "loading" | "populating" | "ready" | "empty"
   >("loading");
@@ -720,6 +745,8 @@ export const JobPage = (): JSX.Element => {
     success: 0,
     fail: 0,
   });
+  const [automationLogs, setAutomationLogs] = useState<Array<{ time: string; message: string; status: 'info' | 'success' | 'error' }>>([]);
+  const [automationFinished, setAutomationFinished] = useState(false);
   const [sortBy, setSortBy] = useState<"recent" | "company" | "deadline">(
     "recent",
   );
@@ -728,7 +755,11 @@ export const JobPage = (): JSX.Element => {
   // Resume attach dialog state
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
-  const [autoApplyStep, setAutoApplyStep] = useState<1 | 2>(1);
+  const [selectedResumeRawText, setSelectedResumeRawText] = useState("");
+  const [autoApplyStep, setAutoApplyStep] = useState<1 | 2 | 3 | 4>(1);
+  const [generatingDraft, setGeneratingDraft] = useState(false);
+  const [draftData, setDraftData] = useState<{ resumeText: string; coverLetterText: string } | null>(null);
+  const [trueAutonomyEnabled, setTrueAutonomyEnabled] = useState(true);
   const [coverLetterLibrary, setCoverLetterLibrary] = useState<
     CoverLetterLibraryEntry[]
   >([]);
@@ -736,18 +767,28 @@ export const JobPage = (): JSX.Element => {
     string | null
   >(null);
   const [jobToAutoApply, setJobToAutoApply] = useState<Job | null>(null);
-  const [subscriptionTier, setSubscriptionTier] = useState<
-    "Free" | "Basics" | "Pro" | "Ultimate"
-  >("Free");
+  const { subscriptionTier, loadingTier } = useSubscriptionTier();
+  const hasMatchScoreAccess = hasSubscriptionAccess(subscriptionTier, "Basics");
+  const hasAutoApplyAccess = hasSubscriptionAccess(subscriptionTier, "Basics");
+
+  // AI Decision Boundary states
+  const [evaluatingJob, setEvaluatingJob] = useState(false);
+  const [aiEvaluation, setAiEvaluation] = useState<EvaluateJobFitResponse | null>(null);
+  const [forceSubmit, setForceSubmit] = useState(false);
 
   // Debug payload capture for in-app panel
   const [dbgSearchReq, setDbgSearchReq] = useState<any>(null);
   const [dbgSearchRes, setDbgSearchRes] = useState<any>(null);
+  const backgroundEvaluationRunnerRef = useRef(false);
+  const backgroundEvaluationInFlightRef = useRef<Set<string>>(new Set());
+  const backgroundEvaluationFailedRef = useRef<Set<string>>(new Set());
+  const jobsRef = useRef<Job[]>([]);
 
-  const { profile, loading: profileLoading } = useProfileSettings();
+  const { profile, updateProfile, loading: profileLoading } =
+    useProfileSettings();
   // Load user resumes for selection (used by the Auto Apply -> "Choose a resume" dialog)
   const { resumes, loading: resumesLoading } = useResumes();
-  const { info } = useToast();
+  const { info, error: toastError } = useToast();
 
   // Register walkthrough for Jobs page
   useRegisterCoachMarks({
@@ -901,13 +942,12 @@ export const JobPage = (): JSX.Element => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
-              className={`relative flex items-center gap-2 rounded-lg border p-2.5 transition-all duration-300 ${
-                isActive
-                  ? "border-[#1dff00] bg-[#1dff00]/10 shadow-[0_0_15px_rgba(29,255,0,0.2)]"
-                  : isCompleted
-                    ? "border-[#1dff00]/50 bg-[#1dff00]/5"
-                    : "border-[#ffffff18] bg-[#ffffff08]"
-              }`}
+              className={`relative flex items-center gap-2 rounded-lg border p-2.5 transition-all duration-300 ${isActive
+                ? "border-[#1dff00] bg-[#1dff00]/10 shadow-[0_0_15px_rgba(29,255,0,0.2)]"
+                : isCompleted
+                  ? "border-[#1dff00]/50 bg-[#1dff00]/5"
+                  : "border-foreground/10 bg-foreground/5"
+                }`}
             >
               <div className='relative flex-shrink-0'>
                 {isCompleted ? (
@@ -942,11 +982,11 @@ export const JobPage = (): JSX.Element => {
                     }}
                   />
                 ) : (
-                  <div className='w-4 h-4 rounded-full border-2 border-[#ffffff40]' />
+                  <div className='w-4 h-4 rounded-full border-2 border-foreground/20' />
                 )}
               </div>
               <div
-                className={`text-[11px] sm:text-xs truncate font-medium ${isActive ? "text-[#eaffea]" : isCompleted ? "text-[#1dff00]/80" : "text-[#ffffff90]"}`}
+                className={`text-[11px] sm:text-xs truncate font-medium ${isActive ? "text-[#eaffea]" : isCompleted ? "text-[#1dff00]/80" : "text-foreground/60"}`}
               >
                 {label}
               </div>
@@ -998,20 +1038,73 @@ export const JobPage = (): JSX.Element => {
     </Card>
   );
 
+  // Patience Banner for low result scenarios
+  const PatienceBanner = ({
+    count,
+    isSearching,
+  }: {
+    count: number;
+    isSearching: boolean;
+  }) => (
+    <Card className='relative overflow-hidden bg-gradient-to-br from-[#1dff00]/5 via-background to-background  border border-[#1dff00]/20 p-5 mb-6 rounded-2xl'>
+      <motion.div
+        className='absolute inset-0 opacity-20'
+        animate={{
+          background: [
+            "radial-gradient(400px at 0% 0%, rgba(29,255,0,0.15) 0%, transparent 100%)",
+            "radial-gradient(400px at 100% 100%, rgba(29,255,0,0.15) 0%, transparent 100%)",
+            "radial-gradient(400px at 0% 0%, rgba(29,255,0,0.15) 0%, transparent 100%)",
+          ],
+        }}
+        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+      />
+      <div className='relative z-10 flex flex-col sm:flex-row items-center gap-4'>
+        <div className='flex-shrink-0 w-12 h-12 rounded-full bg-[#1dff00]/10 flex items-center justify-center border border-[#1dff00]/20'>
+          {isSearching ? (
+            <Loader2 className='w-6 h-6 text-[#1dff00] animate-spin' />
+          ) : (
+            <Sparkles className='w-6 h-6 text-[#1dff00]' />
+          )}
+        </div>
+        <div className='flex-1 text-center sm:text-left'>
+          <h3 className='text-lg font-bold text-foreground'>
+            {count === 0
+              ? "Scouring the web for matches..."
+              : "Gathering even more roles for you..."}
+          </h3>
+          <p className='text-sm text-foreground/60 max-w-lg'>
+            Our AI is currently exploring premium job boards and verified
+            sources. Stay patient—we're enriching your feed with the highest
+            quality matches in the background.
+          </p>
+        </div>
+        {isSearching && (
+          <div className='flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1dff00]/10 border border-[#1dff00]/20 text-[10px] font-bold uppercase tracking-wider text-[#1dff00] animate-pulse'>
+            Deep Search Active
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+
   const [stepIndex, setStepIndex] = useState(0);
-  const steps = useMemo(() => ["Searching Web", "Saving Results"], []);
+  const steps = useMemo(() => ["Searching Web", "Saving Results", "Finalizing List"], []);
   const autoApplySteps = useMemo(
     () => [
       {
         id: 1 as const,
         label: "Select resume",
-        description: "Choose the profile we attach to each submission.",
+        description: "Choose the target profile.",
       },
       {
         id: 2 as const,
         label: "Review & launch",
-        description:
-          "Confirm scope, safeguards, and telemetry before automation.",
+        description: "Confirm scope and safeguards.",
+      },
+      {
+        id: 3 as const,
+        label: "Execution",
+        description: "Monitor live telemetry.",
       },
     ],
     [],
@@ -1028,6 +1121,23 @@ export const JobPage = (): JSX.Element => {
       null
     );
   }, [coverLetterLibrary, selectedCoverLetterId]);
+  const activeResumeText = useMemo(
+    () => selectedResumeRawText || (selectedResume as any)?.raw_text || "",
+    [selectedResume, selectedResumeRawText],
+  );
+  const selectedJobRecord = useMemo(
+    () => jobs.find((job) => job.id === selectedJob) ?? null,
+    [jobs, selectedJob],
+  );
+  const savedStoryTitles = useMemo(
+    () =>
+      Array.isArray(profile?.story_bank)
+        ? profile.story_bank
+            .map((story) => story?.title?.trim())
+            .filter((title): title is string => Boolean(title))
+        : [],
+    [profile?.story_bank],
+  );
   const matchContext = useMemo<MatchContext>(
     () => ({
       searchQuery,
@@ -1036,16 +1146,32 @@ export const JobPage = (): JSX.Element => {
     }),
     [searchQuery, selectedLocation, profile],
   );
-  const decorateJobsRef = useRef<(list: Job[]) => Job[]>((list) => list);
+
+  const decorateJobsRef = useRef<(list: Job[]) => Promise<Job[]>>(async (list) => list);
+
   const decorateJobs = useCallback(
-    (list: Job[]) =>
-      list.map((job) => decorateJobWithMatchInsights(job, matchContext)),
-    [matchContext],
+    async (list: Job[]) =>
+      await fetchJobMatchInsights(list, matchContext, hasMatchScoreAccess, () => {
+        toastError("Match Insights Failed", "Could not fetch AI match scores. Showing basic results.");
+      }),
+    [hasMatchScoreAccess, matchContext, toastError],
   );
+
   useEffect(() => {
     decorateJobsRef.current = decorateJobs;
-    setJobs((prev) => (prev.length ? decorateJobs(prev) : prev));
   }, [decorateJobs]);
+
+  // Re-decorate jobs when context changes
+  useEffect(() => {
+    let active = true;
+    const redecorate = async () => {
+      if (jobs.length === 0) return;
+      const decorated = await decorateJobs(jobs);
+      if (active) setJobs(decorated);
+    };
+    redecorate();
+    return () => { active = false; };
+  }, [decorateJobs]); // Note: jobs is intentionally omitted to avoid infinite loop
 
   // Check admin status
   useEffect(() => {
@@ -1067,6 +1193,52 @@ export const JobPage = (): JSX.Element => {
     [profile],
   );
   const profileReady = Boolean(profileSnapshot);
+  useEffect(() => {
+    if (selectedResumeId) return;
+    if (!Array.isArray(resumes) || resumes.length === 0) return;
+    const favorite = resumes.find((record: any) => record.is_favorite);
+    setSelectedResumeId(favorite?.id ?? resumes[0]?.id ?? null);
+  }, [resumes, selectedResumeId]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadResumeText = async () => {
+      if (!selectedResumeId) {
+        if (active) setSelectedResumeRawText("");
+        return;
+      }
+
+      if (typeof (selectedResume as any)?.raw_text === "string") {
+        if (active) {
+          setSelectedResumeRawText((selectedResume as any).raw_text);
+        }
+        return;
+      }
+
+      try {
+        const rawText = await loadParsedResumeText({
+          supabase,
+          resumeId: selectedResumeId,
+          filePath: (selectedResume as any)?.file_path,
+          fileExt: (selectedResume as any)?.file_ext,
+        });
+
+        if (active) {
+          setSelectedResumeRawText(rawText);
+        }
+      } catch (error) {
+        console.error("load parsed resume text failed", error);
+        if (active) setSelectedResumeRawText("");
+      }
+    };
+
+    loadResumeText();
+    return () => {
+      active = false;
+    };
+  }, [selectedResume, selectedResumeId]);
+
   const resumeLibraryReady = useMemo(
     () =>
       Array.isArray(resumes) &&
@@ -1105,8 +1277,8 @@ export const JobPage = (): JSX.Element => {
             const draftName =
               String(
                 parsedDraft?.subject ||
-                  parsedDraft?.role ||
-                  "Latest cover letter",
+                parsedDraft?.role ||
+                "Latest cover letter",
               ).trim() || "Latest cover letter";
             const draftUpdatedAt =
               parsedDraft?.savedAt || new Date().toISOString();
@@ -1145,31 +1317,264 @@ export const JobPage = (): JSX.Element => {
 
   // Steps reflect phases; no cancel/try-different actions per request
 
+  const loadJobEvaluationReport = useCallback(
+    async (jobId: string, force = false) => {
+      if (!jobId) return null;
+      if (!force && evaluationReports[jobId]) return evaluationReports[jobId];
+      if (!force && evaluationLoadingByJob[jobId]) return null;
+
+      setEvaluationLoadingByJob((prev) => ({ ...prev, [jobId]: true }));
+      try {
+        const report = await fetchJobEvaluationReport(jobId);
+        if (report) {
+          setEvaluationReports((prev) => ({ ...prev, [jobId]: report }));
+        }
+        return report;
+      } catch (error) {
+        console.error("loadJobEvaluationReport failed", error);
+        return null;
+      } finally {
+        setEvaluationLoadingByJob((prev) => ({ ...prev, [jobId]: false }));
+      }
+    },
+    [evaluationLoadingByJob, evaluationReports],
+  );
+
+  const buildEvaluationSummary = useCallback(
+    (evaluation: EvaluateJobFitResponse) => ({
+      evaluation_id: evaluation.evaluation_id ?? null,
+      archetype: evaluation.archetype,
+      canonical_decision: evaluation.canonical_decision,
+      confidence_score: evaluation.confidence_score,
+      blockers: evaluation.blockers,
+      exact_fit_evidence: evaluation.exact_fit_evidence,
+      matched_keywords: evaluation.matched_keywords,
+    }),
+    [],
+  );
+
+  const mergeEvaluationIntoState = useCallback(
+    (jobId: string, evaluation: EvaluateJobFitResponse) => {
+      const summary = buildEvaluationSummary(evaluation);
+
+      setEvaluationReports((prev) => ({
+        ...prev,
+        [jobId]: {
+          ...evaluation,
+          candidate_memory: prev[jobId]?.candidate_memory ?? null,
+        },
+      }));
+
+      setJobs((prev) =>
+        prev.map((row) =>
+          row.id === jobId
+            ? {
+                ...row,
+                canonical_status:
+                  row.canonical_status === "draft_ready"
+                    ? "draft_ready"
+                    : "evaluated",
+                evaluation_summary: summary,
+              }
+            : row,
+        ),
+      );
+
+      setJobToAutoApply((prev) =>
+        prev && prev.id === jobId
+          ? {
+              ...prev,
+              canonical_status:
+                prev.canonical_status === "draft_ready"
+                  ? "draft_ready"
+                  : "evaluated",
+              evaluation_summary: summary,
+            }
+          : prev,
+      );
+    },
+    [buildEvaluationSummary],
+  );
+
+  useEffect(() => {
+    if (!selectedJobRecord?.id) return;
+    const status = selectedJobRecord.canonical_status;
+    const shouldLoad =
+      status === "evaluated" ||
+      status === "draft_ready" ||
+      status === "queued" ||
+      status === "submitted" ||
+      Boolean(selectedJobRecord.evaluation_summary?.evaluation_id);
+
+    if (!shouldLoad) return;
+    void loadJobEvaluationReport(selectedJobRecord.id);
+  }, [loadJobEvaluationReport, selectedJobRecord]);
+
+  useEffect(() => {
+    jobsRef.current = jobs;
+  }, [jobs]);
+
+  const saveInterviewStoryToMemory = useCallback(
+    async (story: JobEvaluationReportData["interview_stories"][number]) => {
+      const existingStories = Array.isArray(profile?.story_bank)
+        ? profile.story_bank
+        : [];
+      const alreadySaved = existingStories.some(
+        (item) =>
+          item?.title?.trim().toLowerCase() === story.title.trim().toLowerCase(),
+      );
+
+      if (alreadySaved) {
+        safeInfo("Story already saved", story.title);
+        return;
+      }
+
+      const nextStories = [
+        ...existingStories,
+        {
+          title: story.title,
+          situation:
+            story.talking_points.length > 0
+              ? `${story.reason}\n- ${story.talking_points.join("\n- ")}`
+              : story.reason,
+          outcome: story.talking_points[story.talking_points.length - 1] || "",
+          relevance: story.reason,
+        },
+      ];
+
+      await updateProfile({
+        story_bank: nextStories,
+      } as any);
+      safeInfo("Story saved to memory", story.title);
+    },
+    [profile?.story_bank, safeInfo, updateProfile],
+  );
+
   const fetchJobQueue = useCallback(async (): Promise<Job[]> => {
     setQueueStatus("loading");
     setError(null);
     try {
-      const { data, error: fetchError } =
-        await supabase.functions.invoke("get-jobs");
-      if (fetchError) throw new Error(fetchError.message);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-      const jobList = (data.jobs || []).map(mapDbJobToUiJob);
-      const decorated = decorateJobsRef.current(jobList);
+      if (!user) {
+        setJobs([]);
+        setSelectedJob(null);
+        setQueueStatus("empty");
+        return [];
+      }
+
+      const { data, error: fetchError } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("hidden", false)
+        .in("canonical_status", [
+          "discovered",
+          "evaluated",
+          "draft_ready",
+          "failed",
+        ])
+        .order("created_at", { ascending: false });
+
+      if (fetchError) throw fetchError;
+
+      const jobList = (data || []).map(mapDbJobToUiJob);
+      const decorated = await decorateJobsRef.current(jobList);
       setJobs(decorated);
 
       if (decorated.length > 0) {
         setQueueStatus("ready");
-        setSelectedJob(decorated[0].id);
+        setSelectedJob((prev) =>
+          prev && decorated.some((job) => job.id === prev)
+            ? prev
+            : decorated[0].id,
+        );
       } else {
+        setSelectedJob(null);
         setQueueStatus("empty");
       }
-      return decorated; // Return the list for chaining
+
+      return decorated;
     } catch (e: any) {
-      setError({ message: e.message });
+      setJobs([]);
+      setSelectedJob(null);
+      setError({ message: e.message || "Failed to load jobs." });
       setQueueStatus("idle");
-      return []; // Return empty array on error
+      return [];
     }
-  }, [supabase]);
+  }, []);
+
+  const runBackgroundEvaluations = useCallback(async () => {
+    if (backgroundEvaluationRunnerRef.current || !hasMatchScoreAccess) return;
+
+    backgroundEvaluationRunnerRef.current = true;
+    try {
+      while (true) {
+        const nextJob = jobsRef.current.find((job) => {
+          const needsEvaluation =
+            job.canonical_status === "discovered" &&
+            !job.evaluation_summary?.evaluation_id;
+          const hasDescription =
+            typeof job.description === "string" && job.description.trim().length > 0;
+
+          return (
+            needsEvaluation &&
+            hasDescription &&
+            !backgroundEvaluationInFlightRef.current.has(job.id) &&
+            !backgroundEvaluationFailedRef.current.has(job.id)
+          );
+        });
+
+        if (!nextJob) {
+          break;
+        }
+
+        backgroundEvaluationInFlightRef.current.add(nextJob.id);
+        setEvaluationLoadingByJob((prev) => ({ ...prev, [nextJob.id]: true }));
+
+        try {
+          const evaluation = await evaluateJobFit(
+            nextJob.id,
+            nextJob.title,
+            nextJob.company,
+            nextJob.description || "",
+            profileSnapshot || "No profile provided.",
+            activeResumeText || "No resume content provided.",
+          );
+
+          backgroundEvaluationFailedRef.current.delete(nextJob.id);
+          mergeEvaluationIntoState(nextJob.id, evaluation);
+        } catch (error) {
+          backgroundEvaluationFailedRef.current.add(nextJob.id);
+          console.error("background job evaluation failed", {
+            jobId: nextJob.id,
+            error,
+          });
+        } finally {
+          backgroundEvaluationInFlightRef.current.delete(nextJob.id);
+          setEvaluationLoadingByJob((prev) => {
+            if (!(nextJob.id in prev)) return prev;
+            const next = { ...prev };
+            delete next[nextJob.id];
+            return next;
+          });
+        }
+      }
+    } finally {
+      backgroundEvaluationRunnerRef.current = false;
+    }
+  }, [
+    activeResumeText,
+    hasMatchScoreAccess,
+    mergeEvaluationIntoState,
+    profileSnapshot,
+  ]);
+
+  useEffect(() => {
+    void runBackgroundEvaluations();
+  }, [jobs, runBackgroundEvaluations]);
 
   const executeClearAllJobs = useCallback(async () => {
     setConfirmDeleteOpen(false);
@@ -1227,6 +1632,7 @@ export const JobPage = (): JSX.Element => {
       setStepIndex(0); // Step 0: Searching Web
       setIncrementalMode(true);
       setInsertedThisRun(0);
+      backgroundEvaluationFailedRef.current.clear();
 
       try {
         // Determine max results per search based on subscription tier
@@ -1271,7 +1677,7 @@ export const JobPage = (): JSX.Element => {
             });
             safeInfo(
               "Not enough credits",
-              `Upgrade or purchase credits to use job search.`,
+              "Upgrade or purchase credits to use job search.",
             );
             setQueueStatus("idle");
             setIncrementalMode(false);
@@ -1285,23 +1691,34 @@ export const JobPage = (): JSX.Element => {
         }
 
         // Use backend jobs-search to discover and save jobs directly
-        safeInfo("Searching the web for jobs…");
+        safeInfo("Searching the web for jobs...");
+        const searchPayload = {
+          searchQuery: query,
+          location: selectedLocation || "Remote",
+          limit: maxResultsPerSearch, // Use tier-based result limit per search
+        };
         const attemptInvoke = async (): Promise<any> => {
-          const searchPayload = {
-            searchQuery: query,
-            location: "Remote", // Always search for remote jobs for broader results
-            limit: maxResultsPerSearch, // Use tier-based result limit per search
-          };
           if (debugMode)
             console.log("[debug] jobs-search request", searchPayload);
           setDbgSearchReq(searchPayload);
-          const { data, error: invokeErr } = await supabase.functions.invoke(
-            "jobs-search",
-            {
+
+          const result = (await Promise.race([
+            supabase.functions.invoke("jobs-search", {
               body: searchPayload,
-            },
-          );
-          if (invokeErr) throw new Error(invokeErr.message);
+            }),
+            new Promise<never>((_, reject) =>
+              setTimeout(
+                () => reject(new Error("Job search timed out. Please try again.")),
+                45000,
+              ),
+            ),
+          ])) as {
+            data: any;
+            error?: { message?: string } | null;
+          };
+
+          const { data, error: invokeErr } = result;
+          if (invokeErr) throw new Error(invokeErr.message || "Job search failed.");
           if (debugMode) console.log("[debug] jobs-search response", data);
           setDbgSearchRes(data);
           return data;
@@ -1334,8 +1751,16 @@ export const JobPage = (): JSX.Element => {
             const detail = searchData.detail || "An unknown error occurred.";
             setErrorDedup({ message: `Failed to search: ${detail}` });
           }
-          setQueueStatus("ready");
+
+          const cachedJobs = await fetchJobQueue();
+          safeInfo(
+            "Search fallback",
+            cachedJobs.length > 0
+              ? "Showing your recently saved jobs instead due to search failure."
+              : "Search failed and no saved jobs were available.",
+          );
           setIncrementalMode(false);
+          setCurrentSource(null);
           return;
         }
 
@@ -1359,6 +1784,8 @@ export const JobPage = (): JSX.Element => {
 
           if (deductError) {
             console.error("Failed to deduct job search credits:", deductError);
+            toastError("Credit Deduction Failed", deductError.message);
+            toastError("Credit Deduction Failed", deductError.message);
             safeInfo(
               "Credit deduction failed",
               "There was an issue processing your credits.",
@@ -1374,23 +1801,41 @@ export const JobPage = (): JSX.Element => {
           }
         }
 
-        setStepIndex(1); // Complete: Saving Results
+        setStepIndex(1); // Stage 1: Saving Results
         setInsertedThisRun(inserted);
 
-        // Refresh job list
-        await fetchJobQueue();
+        // Transition to Finalizing
+        if (inserted > 0) {
+          // Poll for results if we know we inserted some, but fetch returns empty
+          let currentJobs = await fetchJobQueue();
+          if (currentJobs.length === 0) {
+            // Wait 1.5s and retry once
+            await new Promise((r) => setTimeout(r, 1500));
+            currentJobs = await fetchJobQueue();
+          }
+        } else {
+          await fetchJobQueue();
+        }
+
+        setStepIndex(2); // Stage 2: Finalizing List
+        // Brief pause for visual closure
+        await new Promise((r) => setTimeout(r, 800));
 
         setIncrementalMode(false);
         safeInfo(
           "Job search complete!",
           inserted > 0
-            ? `Found and saved ${inserted} jobs.`
+            ? `Found and saved ${inserted} jobs. Evaluations are running in the background.`
             : "No jobs found for this search.",
         );
         setCurrentSource(null);
       } catch (e: any) {
+        const fallbackJobs = await fetchJobQueue();
         setError({ message: `Failed to search jobs: ${e.message}` });
-        setQueueStatus("idle");
+        if (fallbackJobs.length === 0) {
+          setQueueStatus("idle");
+        }
+        setCurrentSource(null);
         setIncrementalMode(false);
       }
     },
@@ -1401,6 +1846,7 @@ export const JobPage = (): JSX.Element => {
       fetchJobQueue,
       safeInfo,
       setErrorDedup,
+      selectedLocation,
       subscriptionTier,
       info,
     ],
@@ -1410,12 +1856,20 @@ export const JobPage = (): JSX.Element => {
 
   const cancelPopulation = useCallback(() => {
     setIncrementalMode(false);
-    setQueueStatus("ready");
+    setQueueStatus(jobs.length > 0 ? "ready" : "empty");
     setCurrentSource(null);
-  }, []);
+  }, [jobs.length]);
 
   const openAutoApplyFlow = useCallback(() => {
-    setAutoApplyStep(1);
+    setAiEvaluation(null);
+    setForceSubmit(false);
+    const existingDraft = getStoredDraftData(jobToAutoApply);
+    setDraftData(existingDraft);
+    setAutoApplyStep(existingDraft ? 4 : 1);
+    if (!hasAutoApplyAccess) {
+      setResumeDialogOpen(true);
+      return;
+    }
     setResumeDialogOpen(true);
     loadCoverLetterLibrary();
     setSelectedResumeId((prev) => {
@@ -1426,7 +1880,7 @@ export const JobPage = (): JSX.Element => {
       }
       return null;
     });
-  }, [resumes, loadCoverLetterLibrary]);
+  }, [hasAutoApplyAccess, resumes, loadCoverLetterLibrary, jobToAutoApply]);
 
   useEffect(() => {
     if (!resumeDialogOpen) return;
@@ -1434,8 +1888,19 @@ export const JobPage = (): JSX.Element => {
   }, [resumeDialogOpen, loadCoverLetterLibrary]);
 
   // Apply all jobs by delegating to automation workflow, then prune applied rows
-  const applyAllJobs = useCallback(async () => {
+  const _legacyApplyAllJobs = useCallback(async (saveAsDraftOnly: boolean = false) => {
     if (applyingAll) return;
+    if (!hasAutoApplyAccess) {
+      setError({
+        message: "Auto apply requires a Basics, Pro, or Ultimate subscription.",
+        link: "/dashboard/billing",
+      });
+      safeInfo(
+        "Upgrade required",
+        "Upgrade to Basics or above to unlock auto apply.",
+      );
+      return;
+    }
     const targetJobs = jobToAutoApply ? [jobToAutoApply] : jobs;
     if (!targetJobs.length) return;
 
@@ -1468,13 +1933,16 @@ export const JobPage = (): JSX.Element => {
         });
     }
 
-    setApplyingAll(true);
-    setApplyProgress({
-      done: 0,
-      total: jobsWithTargets.length,
-      success: 0,
-      fail: 0,
-    });
+    const pushLog = (message: string, status: 'info' | 'success' | 'error' = 'info') => {
+      const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      setAutomationLogs(prev => [...prev, { time, message, status }]);
+    };
+
+    let success = 0;
+    let fail = 0;
+    let done = 0;
+    const appliedIds: string[] = [];
+    let executionStarted = false;
 
     try {
       // Check if user has enough credits for auto apply (5 credits per job)
@@ -1493,7 +1961,7 @@ export const JobPage = (): JSX.Element => {
         );
 
         if (checkError) {
-          console.error("Failed to check credits:", checkError);
+          toastError("Credit Check Failed", "Unable to verify credits.");
           setError({
             message: "Failed to verify credits. Please try again.",
             link: "/dashboard/billing",
@@ -1518,18 +1986,101 @@ export const JobPage = (): JSX.Element => {
         }
       }
 
-      const coverLetterPayload = composeCoverLetterPayload(selectedCoverLetter);
+      // --- AI Decision Boundary Check (Only for single job apply currently) ---
+      let matchedKeywords: string[] = aiEvaluation?.matched_keywords || [];
+      if (jobsWithTargets.length === 1 && !forceSubmit && !applyingAll) {
+        const targetJob = jobsWithTargets[0].job;
+        setEvaluatingJob(true);
+        try {
+          const evaluation = await evaluateJobFit(
+            targetJob.id,
+            targetJob.title,
+            targetJob.company,
+            targetJob.description || "",
+            profileSnapshot || "No profile provided.",
+            activeResumeText || "No resume content provided."
+          );
+
+          matchedKeywords = evaluation.matched_keywords || [];
+          setEvaluationReports((prev) => ({
+            ...prev,
+            [targetJob.id]: {
+              ...evaluation,
+              candidate_memory: prev[targetJob.id]?.candidate_memory ?? null,
+            },
+          }));
+
+          if ((evaluation.missing_requirements && evaluation.missing_requirements.length > 0) || evaluation.confidence_score < 70) {
+            setAiEvaluation(evaluation);
+            setAutoApplyStep(2);
+            return; // Stop execution here and wait for user response
+          }
+        } catch (evalErr) {
+          console.error("Failed to evaluate job fit", evalErr);
+          toastError("Job Evaluation Failed", "The AI model encountered an error evaluating this job.");
+          toastError("Job Evaluation Failed", "The AI model encountered an error evaluating this job.");
+          // If the AI evaluation fails completely, deciding whether to block or proceed is tricky.
+          // For now, we'll log it and proceed to let them apply anyway so we don't completely break the flow if Gemini is down.
+          safeInfo("AI Evaluation Failed", "Could not complete confidence check, proceeding with submission.");
+        } finally {
+          setEvaluatingJob(false);
+        }
+      }
+      // ------------------------------------------------------------------------
+
+      const targetJob = jobsWithTargets[0]?.job;
+      if (jobsWithTargets.length === 1 && !draftData) {
+        setGeneratingDraft(true);
+        try {
+          const [tailoredResume, tailoredCoverLetter] = await Promise.all([
+            tailorResumeViaEdge({ jobDescription: targetJob?.description || "", resumeText: activeResumeText || "No resume text" }),
+            generateCoverLetterViaEdge({ jobDescription: targetJob?.description || "", resumeText: activeResumeText || "No resume text" })
+          ]);
+          setDraftData({ resumeText: tailoredResume, coverLetterText: tailoredCoverLetter });
+          setAutoApplyStep(4);
+          return; // Pause auto-apply to wait for user to review Draft step
+        } catch (draftErr) {
+          console.error("Draft generation failed", draftErr);
+          toastError("Draft Generation Failed", "Failed to generate custom resume/cover letter.");
+          toastError("Draft Generation Failed", "Failed to generate custom resume/cover letter.");
+          safeInfo("Draft Generation Failed", "Skipping draft mode and falling back to base materials.");
+        } finally {
+          setGeneratingDraft(false);
+        }
+      }
+
+      const finalCoverLetterPayload = draftData ? draftData.coverLetterText : composeCoverLetterPayload(selectedCoverLetter);
+
+      let jobsToAutoApply = jobsWithTargets;
+      let jobsToDraft: typeof jobsWithTargets = [];
+
+      if (saveAsDraftOnly) {
+        jobsToAutoApply = [];
+        jobsToDraft = jobsWithTargets;
+      } else if (trueAutonomyEnabled && jobsWithTargets.length > 1) {
+        // Enforce Phase 2.0 True Autonomy: Only auto-apply trusted sources with >90% match. Draft the rest.
+        jobsToAutoApply = jobsWithTargets.filter(item => isTrustedSource(item.target) && (item.job.matchScore ?? 0) >= 90);
+        jobsToDraft = jobsWithTargets.filter(item => !isTrustedSource(item.target) || (item.job.matchScore ?? 0) < 90);
+      }
+
+      setApplyingAll(true);
+      setAutomationLogs([]);
+      setAutomationFinished(false);
+      setAutoApplyStep(3);
+      executionStarted = true;
+      pushLog(`Initializing automation for ${jobsWithTargets.length} job(s)...`);
+      setApplyProgress({
+        done: 0,
+        total: jobsWithTargets.length,
+        success: 0,
+        fail: 0,
+      });
+
       events.autoApplyStarted(
-        jobsWithTargets.length,
+        jobsToAutoApply.length,
         selectedResumeId || undefined,
         selectedCoverLetterId || undefined,
       );
-
-      const payloadJobs = jobsWithTargets.map(({ job, target }) => ({
-        sourceUrl: target,
-        url: job.apply_url ?? target,
-        source_url: job.source_id ?? target,
-      }));
 
       const launchedAt = new Date();
       let resumeSignedUrl: string | undefined;
@@ -1548,33 +2099,52 @@ export const JobPage = (): JSX.Element => {
         }
       }
 
-      const automationResult = await applyToJobs({
-        jobs: payloadJobs,
-        title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
-        cover_letter: coverLetterPayload,
-        ...(profileSnapshot ? { additional_information: profileSnapshot } : {}),
-        ...(resumeSignedUrl ? { resume: resumeSignedUrl } : {}),
-        ...(userEmail ? { email: userEmail } : {}),
-      });
-
-      const { runId, workflowId, providerStatus, recordingUrl } =
-        extractAutomationMetadata(automationResult);
-      // userId already declared above, reuse it
       const applicationsToInsert: any[] = [];
       const appliedTimestamp = new Date().toISOString();
 
-      safeInfo(
-        "Automation launched",
-        `Dispatched ${jobsWithTargets.length} job${jobsWithTargets.length === 1 ? "" : "s"} to the automation runner${skipped > 0 ? `; skipped ${skipped}.` : "."}`,
-      );
+      if (jobsToAutoApply.length > 0) {
+        safeInfo("Automation launching", `Dispatching ${jobsToAutoApply.length} job(s) individually to the automation runner.`);
+      }
+      if (jobsToDraft.length > 0) {
+        safeInfo("Drafts saved", `Saved ${jobsToDraft.length} application(s) as draft (untrusted source or <90% match).`);
+      }
 
-      let success = 0;
-      let fail = 0;
-      let done = 0;
-      const appliedIds: string[] = [];
+      // Counters already initialized outside try block
 
       for (const { job, target } of jobsWithTargets) {
         try {
+          const isDraft = jobsToDraft.some(d => d.job.id === job.id);
+          const isLaunch = jobsToAutoApply.some(d => d.job.id === job.id);
+          pushLog(`Processing: ${job.title || 'Untitled'} @ ${job.company || 'Unknown'}`);
+
+          let runId = null;
+          let workflowId = null;
+          let providerStatus = "Draft saved";
+          let recordingUrl = null;
+
+          // Dispatch to Skyvern INDIVIDUALLY to isolate batch failures 
+          if (isLaunch) {
+            pushLog(`Dispatching automation to ${new URL(target).hostname}...`);
+            const automationResult = await applyToJobs({
+              jobs: [{
+                sourceUrl: target,
+                url: job.apply_url ?? target,
+                source_url: job.source_id ?? target,
+              }],
+              title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
+              cover_letter: finalCoverLetterPayload,
+              ...(profileSnapshot ? { additional_information: profileSnapshot } : {}),
+              ...(draftData ? { resume: draftData.resumeText } : (resumeSignedUrl ? { resume: resumeSignedUrl } : {})),
+              ...(userEmail ? { email: userEmail } : {}),
+            });
+
+            const metadata = extractAutomationMetadata(automationResult);
+            runId = metadata.runId;
+            workflowId = metadata.workflowId;
+            providerStatus = metadata.providerStatus ?? "Automation launched";
+            recordingUrl = metadata.recordingUrl;
+          }
+
           const { error } = await supabase
             .from("jobs")
             .delete()
@@ -1593,6 +2163,9 @@ export const JobPage = (): JSX.Element => {
             appliedIds.push(job.id);
             setApplyProgress((prev) => ({ ...prev, done, success }));
             events.autoApplyJobSuccess(job.id, job.status || "unknown", 0);
+            pushLog(`✓ ${job.title} — ${isDraft ? 'Saved as draft' : 'Applied successfully'}`, 'success');
+            // Gamification: award XP for each successful application
+            try { gamificationHook.recordEvent('job_applied', { jobId: job.id, title: job.title }); } catch { }
             if (userId) {
               const matchScore =
                 typeof job.matchScore === "number"
@@ -1607,7 +2180,8 @@ export const JobPage = (): JSX.Element => {
                 company: job.company,
                 location: job.location ?? "",
                 applied_date: appliedTimestamp,
-                status: "Applied",
+                status: isDraft ? "Saved" : "Applied",
+                draft_status: isDraft ? "draft" : "sent",
                 salary: formatSalaryRange(job),
                 notes: matchNote,
                 match_score: matchScore,
@@ -1620,6 +2194,8 @@ export const JobPage = (): JSX.Element => {
                 provider_status: providerStatus ?? "Automation launched",
                 recording_url: recordingUrl,
                 failure_reason: null,
+                match_reasons: matchedKeywords.length > 0 ? matchedKeywords : null,
+                ai_confidence_score: aiEvaluation?.confidence_score ?? null,
               });
             }
           }
@@ -1627,6 +2203,7 @@ export const JobPage = (): JSX.Element => {
           done += 1;
           fail += 1;
           setApplyProgress((prev) => ({ ...prev, done, fail }));
+          pushLog(`✗ ${job.title} — Failed: ${inner instanceof Error ? inner.message : 'Unknown error'}`, 'error');
           events.autoApplyJobFailed(
             job.id,
             job.status || "unknown",
@@ -1640,6 +2217,8 @@ export const JobPage = (): JSX.Element => {
           await supabase.from("applications").insert(applicationsToInsert);
         } catch (appErr) {
           console.error("Failed to insert application records", appErr);
+          toastError("Database Error", "Failed to record your application in the history.");
+          toastError("Database Error", "Failed to record your application in the history.");
         }
       } else if (!userId) {
         console.warn(
@@ -1675,6 +2254,8 @@ export const JobPage = (): JSX.Element => {
           }
         } catch (creditErr) {
           console.error("Error deducting auto apply credits:", creditErr);
+          toastError("Credit Error", "Failed to deduct credits after auto-applying.");
+          toastError("Credit Error", "Failed to deduct credits after auto-applying.");
         }
       }
 
@@ -1700,10 +2281,16 @@ export const JobPage = (): JSX.Element => {
       events.autoApplyFinished(0, jobsWithTargets.length);
     } finally {
       setApplyingAll(false);
-      setAutoApplyStep(1);
+      if (executionStarted) {
+        setApplyProgress((prev) => ({ ...prev, done, success, fail }));
+        setAutomationFinished(true);
+        pushLog(`Automation complete. ${success} succeeded, ${fail} failed.`, success > 0 ? 'success' : 'error');
+      }
     }
   }, [
+    activeResumeText,
     applyingAll,
+    hasAutoApplyAccess,
     jobs,
     profileSnapshot,
     selectedCoverLetter,
@@ -1713,45 +2300,507 @@ export const JobPage = (): JSX.Element => {
     selectedResumeId,
     safeInfo,
     setError,
+    forceSubmit,
+    aiEvaluation,
   ]);
 
-  // Fetch subscription tier
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data: userData } = await supabase.auth.getUser();
-        const userId = userData?.user?.id;
-        if (!userId) return;
+  const applyAllJobs = useCallback(async (saveAsDraftOnly: boolean = false) => {
+    if (applyingAll) return;
+    if (!hasAutoApplyAccess) {
+      setError({
+        message: "Auto apply requires a Basics, Pro, or Ultimate subscription.",
+        link: "/dashboard/billing",
+      });
+      safeInfo(
+        "Upgrade required",
+        "Upgrade to Basics or above to unlock auto apply.",
+      );
+      return;
+    }
 
-        // Try to get from active subscription first
-        const { data: subscription } = await supabase
-          .from("user_subscriptions")
-          .select("subscription_plans(name)")
-          .eq("user_id", userId)
-          .eq("status", "active")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
+    const targetJobs = jobToAutoApply ? [jobToAutoApply] : jobs;
+    if (!targetJobs.length) return;
 
-        if (subscription && (subscription as any).subscription_plans?.name) {
-          setSubscriptionTier((subscription as any).subscription_plans.name);
-        } else {
-          // Fallback to profile subscription_tier
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("subscription_tier")
-            .eq("id", userId)
-            .single();
+    const jobsWithTargets = targetJobs
+      .map((job) => ({ job, target: getJobApplyTarget(job) }))
+      .filter(
+        (item): item is { job: Job; target: string } => Boolean(item.target),
+      );
 
-          if (profileData?.subscription_tier) {
-            setSubscriptionTier(profileData.subscription_tier);
+    if (!jobsWithTargets.length) {
+      safeInfo(
+        "No automation targets",
+        "This job is missing an apply link. Refresh your queue or open the job detail to locate one manually.",
+      );
+      return;
+    }
+
+    const pushLog = (
+      message: string,
+      status: "info" | "success" | "error" = "info",
+    ) => {
+      const time = new Date().toLocaleTimeString("en-US", {
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+      setAutomationLogs((prev) => [...prev, { time, message, status }]);
+    };
+
+    let success = 0;
+    let fail = 0;
+    let done = 0;
+    let executionStarted = false;
+
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const userEmail = authData?.user?.email;
+
+      const evaluationCache = new Map<string, EvaluateJobFitResponse>();
+      const getEvaluationForJob = async (job: Job) => {
+        const cached = evaluationCache.get(job.id);
+        if (cached) return cached;
+
+        const evaluation = await evaluateJobFit(
+          job.id,
+          job.title,
+          job.company,
+          job.description || "",
+          profileSnapshot || "No profile provided.",
+          activeResumeText || "No resume content provided.",
+        );
+
+        evaluationCache.set(job.id, evaluation);
+        setEvaluationReports((prev) => ({
+          ...prev,
+          [job.id]: {
+            ...evaluation,
+            candidate_memory: prev[job.id]?.candidate_memory ?? null,
+          },
+        }));
+        const summary = {
+          evaluation_id: evaluation.evaluation_id ?? null,
+          archetype: evaluation.archetype,
+          canonical_decision: evaluation.canonical_decision,
+          confidence_score: evaluation.confidence_score,
+          blockers: evaluation.blockers,
+          exact_fit_evidence: evaluation.exact_fit_evidence,
+          matched_keywords: evaluation.matched_keywords,
+        };
+
+        setJobs((prev) =>
+          prev.map((row) =>
+            row.id === job.id
+              ? {
+                  ...row,
+                  canonical_status:
+                    row.canonical_status === "draft_ready"
+                      ? "draft_ready"
+                      : "evaluated",
+                  evaluation_summary: summary,
+                }
+              : row,
+          ),
+        );
+
+        if (jobToAutoApply?.id === job.id) {
+          setJobToAutoApply((prev) =>
+            prev && prev.id === job.id
+              ? {
+                  ...prev,
+                  canonical_status:
+                    prev.canonical_status === "draft_ready"
+                      ? "draft_ready"
+                      : "evaluated",
+                  evaluation_summary: summary,
+                }
+              : prev,
+          );
+        }
+
+        return evaluation;
+      };
+
+      if (jobsWithTargets.length === 1 && !forceSubmit && !draftData) {
+        const targetJob = jobsWithTargets[0].job;
+        setEvaluatingJob(true);
+        try {
+          const evaluation = await getEvaluationForJob(targetJob);
+          setAiEvaluation(evaluation);
+
+          const hasHardBlockers =
+            (evaluation.blockers?.length ?? 0) > 0 ||
+            (evaluation.missing_requirements?.length ?? 0) > 0 ||
+            evaluation.canonical_decision === "risky" ||
+            evaluation.canonical_decision === "no_go" ||
+            evaluation.confidence_score < 70;
+
+          if (hasHardBlockers) {
+            setAutoApplyStep(2);
+            return;
+          }
+        } catch (evalErr) {
+          console.error("Failed to evaluate job fit", evalErr);
+          toastError(
+            "Job Evaluation Failed",
+            "The AI model encountered an error evaluating this job.",
+          );
+          safeInfo(
+            "AI Evaluation Failed",
+            "Could not complete confidence check, proceeding to draft review instead.",
+          );
+        } finally {
+          setEvaluatingJob(false);
+        }
+      }
+
+      const targetJob = jobsWithTargets[0]?.job;
+      if (jobsWithTargets.length === 1 && !draftData) {
+        setGeneratingDraft(true);
+        try {
+          const [tailoredResume, tailoredCoverLetter] = await Promise.all([
+            tailorResumeViaEdge({
+              jobDescription: targetJob?.description || "",
+              resumeText: activeResumeText || "No resume text",
+            }),
+            generateCoverLetterViaEdge({
+              jobDescription: targetJob?.description || "",
+              resumeText: activeResumeText || "No resume text",
+            }),
+          ]);
+          setDraftData({
+            resumeText: tailoredResume,
+            coverLetterText: tailoredCoverLetter,
+          });
+          setAutoApplyStep(4);
+          return;
+        } catch (draftErr) {
+          console.error("Draft generation failed", draftErr);
+          toastError(
+            "Draft Generation Failed",
+            "Failed to generate custom resume/cover letter.",
+          );
+          safeInfo(
+            "Draft Generation Failed",
+            "Skipping draft mode and falling back to base materials.",
+          );
+        } finally {
+          setGeneratingDraft(false);
+        }
+      }
+
+      let jobsToAutoApply = jobsWithTargets;
+      let jobsToDraft: typeof jobsWithTargets = [];
+
+      if (saveAsDraftOnly) {
+        jobsToAutoApply = [];
+        jobsToDraft = jobsWithTargets;
+      } else if (trueAutonomyEnabled && jobsWithTargets.length > 1) {
+        jobsToAutoApply = [];
+        jobsToDraft = [];
+
+        for (const item of jobsWithTargets) {
+          const prequalified =
+            isTrustedSource(item.target) && (item.job.matchScore ?? 0) >= 90;
+          if (!prequalified) {
+            jobsToDraft.push(item);
+            continue;
+          }
+
+          try {
+            const evaluation = await getEvaluationForJob(item.job);
+            const safeToLaunch =
+              evaluation.canonical_decision === "strong_yes" &&
+              evaluation.confidence_score >= 85 &&
+              (evaluation.blockers?.length ?? 0) === 0 &&
+              (evaluation.missing_requirements?.length ?? 0) === 0;
+
+            if (safeToLaunch) {
+              jobsToAutoApply.push(item);
+            } else {
+              jobsToDraft.push(item);
+            }
+          } catch (evaluationError) {
+            console.error("Batch evaluation failed", evaluationError);
+            jobsToDraft.push(item);
+            pushLog(
+              `Moved ${item.job.title} to draft review because evaluation failed.`,
+              "info",
+            );
           }
         }
-      } catch (error) {
-        console.error("Error fetching subscription tier:", error);
       }
-    })();
-  }, [supabase]);
+
+      // Temporarily skip client-side quota RPC checks until the remote quota
+      // functions are repaired. We still require paid access before launch.
+
+      setApplyingAll(true);
+      setAutomationLogs([]);
+      setAutomationFinished(false);
+      setAutoApplyStep(3);
+      executionStarted = true;
+      pushLog(`Initializing automation for ${jobsWithTargets.length} job(s)...`);
+      setApplyProgress({
+        done: 0,
+        total: jobsWithTargets.length,
+        success: 0,
+        fail: 0,
+      });
+
+      events.autoApplyStarted(
+        jobsToAutoApply.length,
+        selectedResumeId || undefined,
+        selectedCoverLetterId || undefined,
+      );
+
+      const launchedAt = new Date();
+      let resumeSignedUrl: string | undefined;
+      if (jobsToAutoApply.length > 0 && selectedResume?.file_path) {
+        try {
+          const { data: signed, error: signErr } = await supabase.storage
+            .from("resumes")
+            .createSignedUrl(selectedResume.file_path, 60 * 60);
+          if (!signErr && signed?.signedUrl) {
+            resumeSignedUrl = signed.signedUrl;
+          }
+        } catch (signErr) {
+          console.error("auto-apply resume signing threw", signErr);
+        }
+      }
+
+      const finalCoverLetterPayload = draftData
+        ? draftData.coverLetterText
+        : composeCoverLetterPayload(selectedCoverLetter);
+
+      if (jobsToAutoApply.length > 0) {
+        safeInfo(
+          "Automation launching",
+          `Dispatching ${jobsToAutoApply.length} job(s) individually to the automation runner.`,
+        );
+      }
+      if (jobsToDraft.length > 0) {
+        safeInfo(
+          "Draft queue updated",
+          `Saved ${jobsToDraft.length} job(s) as draft-ready for review.`,
+        );
+      }
+
+      for (const { job, target } of jobsWithTargets) {
+        try {
+          const isDraft = jobsToDraft.some((entry) => entry.job.id === job.id);
+          const isLaunch = jobsToAutoApply.some((entry) => entry.job.id === job.id);
+          const evaluation =
+            evaluationCache.get(job.id) ||
+            (jobToAutoApply?.id === job.id ? aiEvaluation || undefined : undefined);
+          const matchedKeywords =
+            evaluation?.matched_keywords ||
+            job.evaluation_summary?.matched_keywords ||
+            [];
+
+          pushLog(`Processing: ${job.title || "Untitled"} @ ${job.company || "Unknown"}`);
+
+          if (isLaunch) {
+            pushLog(`Dispatching automation to ${new URL(target).hostname}...`);
+            const automationResult = await applyToJobs({
+              jobs: [
+                {
+                  sourceUrl: target,
+                  url: job.apply_url ?? target,
+                  source_url: job.source_id ?? target,
+                  job_id: job.id,
+                  job_title: job.title,
+                  company: job.company,
+                  location: job.location ?? null,
+                  salary: formatSalaryRange(job),
+                  match_score:
+                    typeof job.matchScore === "number"
+                      ? Math.round(job.matchScore)
+                      : null,
+                  match_reasons:
+                    matchedKeywords.length > 0 ? matchedKeywords : null,
+                  ai_confidence_score:
+                    evaluation?.confidence_score ??
+                    job.evaluation_summary?.confidence_score ??
+                    null,
+                  evaluation_id:
+                    evaluation?.evaluation_id ??
+                    job.evaluation_summary?.evaluation_id ??
+                    null,
+                },
+              ],
+              job_id: job.id,
+              job_title: job.title,
+              company: job.company,
+              location: job.location ?? null,
+              salary: formatSalaryRange(job),
+              match_score:
+                typeof job.matchScore === "number"
+                  ? Math.round(job.matchScore)
+                  : null,
+              match_reasons: matchedKeywords.length > 0 ? matchedKeywords : null,
+              ai_confidence_score:
+                evaluation?.confidence_score ??
+                job.evaluation_summary?.confidence_score ??
+                null,
+              evaluation_id:
+                evaluation?.evaluation_id ??
+                job.evaluation_summary?.evaluation_id ??
+                null,
+              title: `Jobraker Auto Apply • ${launchedAt.toLocaleString()}`,
+              cover_letter: finalCoverLetterPayload,
+              ...(profileSnapshot
+                ? { additional_information: profileSnapshot }
+                : {}),
+              ...(draftData
+                ? { resume: draftData.resumeText }
+                : resumeSignedUrl
+                  ? { resume: resumeSignedUrl }
+                  : {}),
+              ...(userEmail ? { email: userEmail } : {}),
+            });
+
+            const metadata = extractAutomationMetadata(automationResult);
+            done += 1;
+            success += 1;
+            setApplyProgress((prev) => ({ ...prev, done, success }));
+            events.autoApplyJobSuccess(job.id, job.status || "unknown", 0);
+            pushLog(
+              `✓ ${job.title} — queued for automation (${metadata.providerStatus ?? "pending"})`,
+              "success",
+            );
+            try {
+              gamificationHook.recordEvent("job_applied", {
+                jobId: job.id,
+                title: job.title,
+              });
+            } catch {
+              // Best effort only.
+            }
+            continue;
+          }
+
+          if (!isDraft) continue;
+
+          const existingRawData =
+            job.raw_data && typeof job.raw_data === "object"
+              ? (job.raw_data as Record<string, unknown>)
+              : {};
+          const nextDraftPayload =
+            draftData && jobsWithTargets.length === 1
+              ? {
+                  ...draftData,
+                  savedAt: new Date().toISOString(),
+                }
+              : existingRawData.application_draft &&
+                  typeof existingRawData.application_draft === "object"
+                ? existingRawData.application_draft
+                : { savedAt: new Date().toISOString() };
+
+          const { error: draftUpdateError } = await supabase
+            .from("jobs")
+            .update({
+              canonical_status: "draft_ready",
+              evaluation_summary: {
+                evaluation_id:
+                  evaluation?.evaluation_id ??
+                  job.evaluation_summary?.evaluation_id ??
+                  null,
+                archetype: evaluation?.archetype ?? job.evaluation_summary?.archetype,
+                canonical_decision:
+                  evaluation?.canonical_decision ??
+                  job.evaluation_summary?.canonical_decision,
+                confidence_score:
+                  evaluation?.confidence_score ??
+                  job.evaluation_summary?.confidence_score,
+                blockers:
+                  evaluation?.blockers ?? job.evaluation_summary?.blockers ?? [],
+                exact_fit_evidence:
+                  evaluation?.exact_fit_evidence ??
+                  job.evaluation_summary?.exact_fit_evidence ??
+                  [],
+                matched_keywords: matchedKeywords,
+              },
+              raw_data: {
+                ...existingRawData,
+                application_draft: nextDraftPayload,
+              },
+            })
+            .eq("id", job.id);
+
+          if (draftUpdateError) {
+            throw draftUpdateError;
+          }
+
+          done += 1;
+          success += 1;
+          setApplyProgress((prev) => ({ ...prev, done, success }));
+          pushLog(`✓ ${job.title} — saved as draft-ready`, "success");
+        } catch (inner) {
+          done += 1;
+          fail += 1;
+          setApplyProgress((prev) => ({ ...prev, done, fail }));
+          pushLog(
+            `✗ ${job.title} — Failed: ${inner instanceof Error ? inner.message : "Unknown error"}`,
+            "error",
+          );
+          events.autoApplyJobFailed(
+            job.id,
+            job.status || "unknown",
+            "exception_queue",
+          );
+
+          try {
+            await supabase
+              .from("jobs")
+              .update({ canonical_status: "failed" })
+              .eq("id", job.id);
+          } catch {
+            // Best effort only.
+          }
+        }
+      }
+
+      // Temporarily skip client-side quota consumption until the remote quota
+      // functions are repaired.
+
+      events.autoApplyFinished(success, fail);
+      await fetchJobQueue();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setError({ message: `Failed to launch automation: ${message}` });
+      events.autoApplyFinished(0, jobsWithTargets.length);
+    } finally {
+      setApplyingAll(false);
+      if (executionStarted) {
+        setApplyProgress((prev) => ({ ...prev, done, success, fail }));
+        setAutomationFinished(true);
+        pushLog(
+          `Automation complete. ${success} succeeded, ${fail} failed.`,
+          success > 0 ? "success" : "error",
+        );
+      }
+    }
+  }, [
+    activeResumeText,
+    applyingAll,
+    hasAutoApplyAccess,
+    jobs,
+    profileSnapshot,
+    selectedCoverLetter,
+    selectedCoverLetterId,
+    selectedResume,
+    selectedResumeId,
+    jobToAutoApply,
+    fetchJobQueue,
+    safeInfo,
+    setError,
+    forceSubmit,
+    aiEvaluation,
+    draftData,
+    trueAutonomyEnabled,
+    gamificationHook,
+  ]);
 
   // Unified effect for initial load and real-time updates
   useEffect(() => {
@@ -1773,7 +2822,7 @@ export const JobPage = (): JSX.Element => {
       .channel("jobs-queue-changes")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "jobs" },
+        { event: "*", schema: "public", table: "jobs" },
         () => {
           // During an active search/extraction run, avoid thrashing the UI
           if (incrementalMode) return;
@@ -1833,7 +2882,9 @@ export const JobPage = (): JSX.Element => {
       resumes.length === 0 ||
       Boolean(selectedResumeId));
   const autoApplyPrimaryDisabled =
-    autoApplyStep === 1 ? !canAdvanceFromStepOne : !canLaunchAutoApply;
+    loadingTier ||
+    !hasAutoApplyAccess ||
+    (autoApplyStep === 1 ? !canAdvanceFromStepOne : !canLaunchAutoApply);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const clampedPage = Math.min(Math.max(1, currentPage), totalPages);
   const startIdx = (clampedPage - 1) * pageSize;
@@ -1872,10 +2923,10 @@ export const JobPage = (): JSX.Element => {
             existing.score === nextInsights.score &&
             existing.summary === nextInsights.summary &&
             JSON.stringify(existing.breakdown ?? null) ===
-              JSON.stringify(nextInsights.breakdown ?? null) &&
+            JSON.stringify(nextInsights.breakdown ?? null) &&
             (existing.search_query || null) === nextInsights.search_query &&
             (existing.location_preference || null) ===
-              nextInsights.location_preference;
+            nextInsights.location_preference;
           if (unchanged) {
             matchInsightSignaturesRef.current.set(job.id, signature);
             return null;
@@ -1884,10 +2935,10 @@ export const JobPage = (): JSX.Element => {
           return { id: job.id, raw_data: rawData, signature };
         })
         .filter(Boolean) as Array<{
-        id: string;
-        raw_data: Record<string, any>;
-        signature: string;
-      }>;
+          id: string;
+          raw_data: Record<string, any>;
+          signature: string;
+        }>;
       if (!updates.length) return;
       try {
         await Promise.all(
@@ -1976,16 +3027,16 @@ export const JobPage = (): JSX.Element => {
         <div className='mb-6 sm:mb-8'>
           <div className='flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6'>
             <div className='space-y-1 mt-2'>
-              <h1 className='text-3xl sm:text-4xl font-bold text-foreground bg-gradient-to-r from-foreground/5 to-foreground/10 bg-clip-text'>
+              <h1 className='product-page-title text-3xl font-bold sm:text-4xl'>
                 Job Search
               </h1>
-              <p className='text-sm sm:text-base text-foreground/50'>
+              <p className='product-page-subtitle text-sm sm:text-base'>
                 Discover opportunities matched to your profile and goals
               </p>
             </div>
 
             <div className='flex flex-col items-start lg:items-end gap-4 w-full lg:w-auto'>
-              <div className='relative flex w-full sm:w-auto flex-col gap-3 rounded-2xl border border-[#1dff00]/30 bg-gradient-to-br from-[#1dff00]/10 to-[#1dff00]/5 px-4 py-3 shadow-[0_0_30px_rgba(29,255,0,0.15)] backdrop-blur-sm sm:flex-row sm:items-center sm:gap-4'>
+              <div className='product-section-card-muted relative flex w-full flex-col gap-3 rounded-2xl px-4 py-3 shadow-sm sm:w-auto sm:flex-row sm:items-center sm:gap-4'>
                 {/* Subtle gradient overlay */}
                 <div className='absolute inset-0 rounded-2xl bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none'></div>
 
@@ -2083,7 +3134,7 @@ export const JobPage = (): JSX.Element => {
               {/* Target selector removed: fixed to 10 to minimize API usage and keep runs bounded */}
               <div className='w-full sm:w-auto flex flex-wrap items-center gap-2 sm:gap-3'>
                 {isAdmin && (
-                  <div className='flex items-center gap-2 text-xs text-[#ffffff70] select-none'>
+                  <div className='flex items-center gap-2 text-xs text-foreground/40 select-none'>
                     <button
                       type='button'
                       onClick={() => setDebugMode((v) => !v)}
@@ -2111,6 +3162,7 @@ export const JobPage = (): JSX.Element => {
                     title='Auto apply all visible jobs'
                     disabled={
                       applyingAll ||
+                      loadingTier ||
                       queueStatus !== "ready" ||
                       jobs.length === 0
                     }
@@ -2128,6 +3180,9 @@ export const JobPage = (): JSX.Element => {
                       ) : (
                         <Briefcase className='w-3.5 h-3.5 sm:w-4 sm:h-4' />
                       )}
+                      {!hasAutoApplyAccess && !applyingAll && (
+                        <Lock className='w-3.5 h-3.5 sm:w-4 sm:h-4 opacity-60' />
+                      )}
                       <span className='hidden sm:inline'>
                         {applyingAll
                           ? `Applying ${applyProgress.done}/${applyProgress.total}`
@@ -2143,11 +3198,10 @@ export const JobPage = (): JSX.Element => {
                   <Button
                     variant='ghost'
                     onClick={() => populateQueue(searchQuery, selectedLocation)}
-                    className={`group relative flex-1 sm:flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${
-                      queueStatus === "populating" || queueStatus === "loading"
-                        ? "border-[#1dff00]/60 text-[#1dff00] bg-[#1dff00]/15"
-                        : "border-foreground/20 text-foreground bg-foreground/5 hover:text-[#1dff00] hover:border-[#1dff00]/60 hover:bg-[#1dff00]/10 shadow-[0_12px_32px_rgba(8,122,52,0.35)]"
-                    }`}
+                    className={`group relative flex-1 sm:flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md disabled:cursor-not-allowed disabled:opacity-60 ${queueStatus === "populating" || queueStatus === "loading"
+                      ? "border-[#1dff00]/60 text-[#1dff00] bg-[#1dff00]/15"
+                      : "border-foreground/20 text-foreground bg-foreground/5 hover:text-[#1dff00] hover:border-[#1dff00]/60 hover:bg-[#1dff00]/10 shadow-[0_12px_32px_rgba(8,122,52,0.35)]"
+                      }`}
                     title='Find a fresh batch of jobs'
                     disabled={
                       queueStatus === "populating" || queueStatus === "loading"
@@ -2181,13 +3235,12 @@ export const JobPage = (): JSX.Element => {
                   <Button
                     variant='ghost'
                     onClick={() => setConfirmDeleteOpen(true)}
-                    className={`group relative flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md ${
-                      clearingJobs
-                        ? "border-red-500/60 text-red-400 bg-red-500/15 cursor-not-allowed opacity-60"
-                        : jobs.length === 0
-                          ? "border-red-500/20 text-red-400/40 bg-red-500/5 cursor-not-allowed opacity-40"
-                          : "border-red-500/40 text-red-400 bg-red-500/10 hover:text-red-300 hover:border-red-500/60 hover:bg-red-500/20"
-                    }`}
+                    className={`group relative flex-none overflow-hidden rounded-xl px-3 py-2 sm:px-4 sm:py-2 md:px-5 text-xs sm:text-sm font-medium tracking-wide transition-all duration-300 border backdrop-blur-md ${clearingJobs
+                      ? "border-red-500/60 text-red-400 bg-red-500/15 cursor-not-allowed opacity-60"
+                      : jobs.length === 0
+                        ? "border-red-500/20 text-red-400/40 bg-red-500/5 cursor-not-allowed opacity-40"
+                        : "border-red-500/40 text-red-400 bg-red-500/10 hover:text-red-300 hover:border-red-500/60 hover:bg-red-500/20"
+                      }`}
                     title={
                       jobs.length === 0
                         ? "No jobs to clear"
@@ -2222,7 +3275,7 @@ export const JobPage = (): JSX.Element => {
           </div>
         </div>
 
-        {queueStatus === "populating" && (
+        {(queueStatus === "populating" || incrementalMode) && (
           <LoadingBanner
             subtitle={`Streaming results… ${currentSource ? `Source: ${currentSource}` : ""}`}
             steps={steps}
@@ -2231,6 +3284,15 @@ export const JobPage = (): JSX.Element => {
             foundCount={insertedThisRun}
           />
         )}
+
+        {/* Patience Indicator: Show if results are very few (< 10) but we might be finding more, or if we are still in incremental mode */}
+        {((total < 10 && queueStatus === "ready") ||
+          (incrementalMode && total === 0)) && (
+            <PatienceBanner
+              count={total}
+              isSearching={incrementalMode || queueStatus === "populating"}
+            />
+          )}
 
         <Card
           className='relative overflow-hidden bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  border border-[#1dff00]/20 p-5 sm:p-6 mb-6 sm:mb-8 rounded-2xl shadow-[0_0_30px_rgba(29,255,0,0.1)] backdrop-blur-xl transition-colors duration-300 hover:border-[#1dff00]/30 hover:shadow-[0_0_40px_rgba(29,255,0,0.15)]'
@@ -2257,8 +3319,8 @@ export const JobPage = (): JSX.Element => {
                 }}
                 className='h-12 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#1dff00]/20 text-foreground placeholder:text-foreground/40 transition-all duration-300 rounded-xl'
               />
-              <div className='absolute right-10 top-1/2 transform -translate-y-1/2'>
-                <span className='text-[10px] font-medium text-[#1dff00]/80 bg-gradient-to-br from-[#1dff00]/15 to-[#1dff00]/5 px-2.5 py-1 rounded-lg border border-[#1dff00]/30 foregroundspace-nowrap'>
+              <div className='pointer-events-none select-none absolute right-10 top-1/2 transform -translate-y-1/2'>
+                <span className='text-[10px] font-medium text-[#1dff00]/80 bg-gradient-to-br from-[#1dff00]/15 to-[#1dff00]/5 px-2.5 py-1 rounded-lg border border-[#1dff00]/30 whitespace-nowrap'>
                   {subscriptionTier === "Ultimate"
                     ? "100"
                     : subscriptionTier === "Pro"
@@ -2271,7 +3333,7 @@ export const JobPage = (): JSX.Element => {
               </div>
             </div>
             <div className='relative group md:col-span-1 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#1dff00]/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00]/60 focus:ring-2 focus:ring-[#1dff00]/30 transition-all duration-300 rounded-xl'>
-              <MapPin className='w-5 h-5 absolute right-3 top-1/2  -translate-y-1/2 text-[#1dff00]/60 transition-colors group-focus-within:text-[#1dff00]' />
+              <MapPin className='pointer-events-none w-5 h-5 absolute right-3 top-1/2  -translate-y-1/2 text-[#1dff00]/60 transition-colors group-focus-within:text-[#1dff00]' />
               <Input
                 id='jobs-location'
                 data-tour='jobs-location'
@@ -2307,9 +3369,9 @@ export const JobPage = (): JSX.Element => {
                     d='M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z'
                   />
                 </svg>
-                {queueStatus === "loading" && "Loading results..."}
-                {queueStatus === "populating" && "Building your results..."}
-                {(queueStatus === "ready" || queueStatus === "empty") && (
+                {queueStatus === "loading" && !incrementalMode && "Loading results..."}
+                {(queueStatus === "populating" || incrementalMode) && "Building your results..."}
+                {(queueStatus === "ready" || queueStatus === "empty") && !incrementalMode && (
                   <>
                     <span>{total} Jobs Found</span>
                     {total > 0 && (
@@ -2320,7 +3382,7 @@ export const JobPage = (): JSX.Element => {
                   </>
                 )}
               </h2>
-              {(queueStatus === "ready" || queueStatus === "empty") && (
+              {(queueStatus === "ready" || queueStatus === "empty") && !incrementalMode && (
                 <div className='hidden sm:flex items-center gap-2'>
                   <span className='text-xs text-foreground/50 font-medium'>
                     Sort
@@ -2340,7 +3402,7 @@ export const JobPage = (): JSX.Element => {
               )}
             </div>
 
-            {queueStatus === "ready" && total > 0 && (
+            {queueStatus === "ready" && total > 0 && !incrementalMode && (
               <div className='hidden lg:grid grid-cols-[auto,1fr,auto] items-center gap-3 px-3 py-2 text-xs uppercase tracking-wider text-[#1dff00]/60 font-semibold bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border border-[#1dff00]/10 rounded-xl'>
                 <span className='pl-2'>Role</span>
                 <div className='grid grid-cols-3 gap-2'>
@@ -2351,7 +3413,7 @@ export const JobPage = (): JSX.Element => {
               </div>
             )}
 
-            {queueStatus === "loading" && (
+            {queueStatus === "loading" && !incrementalMode && (
               <div className='space-y-4'>
                 <div className='grid gap-4'>
                   {Array.from({ length: pageSize }).map((_, i) => (
@@ -2392,9 +3454,9 @@ export const JobPage = (): JSX.Element => {
                 </div>
               </div>
             )}
-            {queueStatus === "populating" && (
+            {(queueStatus === "populating" || incrementalMode) && (
               <div className='space-y-5'>
-                <Card className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#041206] via-[#050a08] to-[#020403] p-6 sm:p-7'>
+                <Card className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-background via-background/98 to-background/95 p-6 sm:p-7'>
                   <motion.div
                     className='pointer-events-none absolute inset-[-40%] bg-[radial-gradient(circle_at_top,rgba(29,255,0,0.28),rgba(29,255,0,0)_60%)] opacity-60'
                     animate={{ rotate: [0, 360] }}
@@ -2426,7 +3488,7 @@ export const JobPage = (): JSX.Element => {
                             </div>
                             <div className='mt-3 h-2 rounded-full bg-foreground/10 overflow-hidden'>
                               <motion.div
-                                className='h-full bg-gradient-to-r from-[#0aff7b] via-[#1dff00] to-[#7bffb2]'
+                                className='h-full bg-gradient-to-r from-background via-[#1dff00] to-[#7bffb2]'
                                 animate={{
                                   width: ["15%", "85%", "35%", "70%"],
                                 }}
@@ -2443,7 +3505,7 @@ export const JobPage = (): JSX.Element => {
                       )}
                     </div>
                     <div className='grid gap-3 sm:grid-cols-2'>
-                      <div className='rounded-xl border border-foreground/10 bg-[#0c0c0c] p-4'>
+                      <div className='rounded-xl border border-foreground/10 bg-muted p-4'>
                         <div className='h-3 w-20 rounded bg-foreground/12' />
                         <div className='mt-3 space-y-2'>
                           <div className='h-4 rounded bg-foreground/10' />
@@ -2451,7 +3513,7 @@ export const JobPage = (): JSX.Element => {
                           <div className='h-4 w-2/3 rounded bg-foreground/6' />
                         </div>
                       </div>
-                      <div className='rounded-xl border border-foreground/10 bg-[#0c0c0c] p-4'>
+                      <div className='rounded-xl border border-foreground/10 bg-muted p-4'>
                         <div className='h-3 w-24 rounded bg-foreground/12' />
                         <div className='mt-3 grid grid-cols-3 gap-3 text-[10px] text-foreground/50'>
                           {Array.from({ length: 3 }).map((_, metricIdx) => (
@@ -2459,8 +3521,8 @@ export const JobPage = (): JSX.Element => {
                               key={metricIdx}
                               className='space-y-2 rounded-lg border border-foreground/10 bg-foreground/5 p-3'
                             >
-                              <div className='h-3 rounded bg-[#ffffff1a]' />
-                              <div className='h-4 rounded bg-[#ffffff14]' />
+                              <div className='h-3 rounded bg-foreground/10' />
+                              <div className='h-4 rounded bg-foreground/10' />
                             </div>
                           ))}
                         </div>
@@ -2473,7 +3535,7 @@ export const JobPage = (): JSX.Element => {
                   {Array.from({ length: pageSize }).map((_, i) => (
                     <Card
                       key={i}
-                      className='relative overflow-hidden border border-[#1dff00]/25 bg-gradient-to-br from-[#020202] via-[#050708] to-[#090b0c] p-5 sm:p-6'
+                      className='relative overflow-hidden border border-[#1dff00]/25 bg-gradient-to-br from-background via-background/98 to-background/95 p-5 sm:p-6'
                     >
                       <motion.div
                         className='absolute inset-0 bg-[linear-gradient(120deg,rgba(29,255,0,0.12)_0%,rgba(29,255,0,0.02)_38%,rgba(29,255,0,0.15)_72%,rgba(29,255,0,0.02)_100%)]'
@@ -2489,7 +3551,7 @@ export const JobPage = (): JSX.Element => {
                       />
                       <div className='relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
                         <div className='flex flex-1 items-start gap-4'>
-                          <div className='relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-[#1dff00]/25 bg-[#0a1a0f]'>
+                          <div className='relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-[#1dff00]/25 bg-card border border-foreground/10'>
                             <motion.span
                               className='absolute h-10 w-10 rounded-full bg-[#1dff00]/20'
                               animate={{
@@ -2505,13 +3567,13 @@ export const JobPage = (): JSX.Element => {
                             <span className='relative h-8 w-8 rounded-full border border-[#1dff00]/40' />
                           </div>
                           <div className='flex-1 space-y-3'>
-                            <div className='h-4 w-3/5 rounded bg-[#ffffff24]' />
-                            <div className='h-3 w-1/2 rounded bg-[#ffffff1a]' />
+                            <div className='h-4 w-3/5 rounded bg-foreground/10' />
+                            <div className='h-3 w-1/2 rounded bg-foreground/10' />
                             <div className='flex flex-wrap items-center gap-2'>
                               {Array.from({ length: 4 }).map((__, chipIdx) => (
                                 <span
                                   key={chipIdx}
-                                  className='inline-flex h-5 w-16 rounded-full border border-foreground/12 bg-[#ffffff14]'
+                                  className='inline-flex h-5 w-16 rounded-full border border-foreground/12 bg-foreground/10'
                                 />
                               ))}
                             </div>
@@ -2523,8 +3585,8 @@ export const JobPage = (): JSX.Element => {
                               key={metricIdx}
                               className='rounded-lg border border-foreground/10 bg-foreground/5 p-3'
                             >
-                              <div className='h-3 rounded bg-[#ffffff1a]' />
-                              <div className='mt-2 h-4 rounded bg-[#ffffff14]' />
+                              <div className='h-3 rounded bg-foreground/10' />
+                              <div className='mt-2 h-4 rounded bg-foreground/10' />
                             </div>
                           ))}
                         </div>
@@ -2541,7 +3603,7 @@ export const JobPage = (): JSX.Element => {
                 {error.link && (
                   <Link
                     to={error.link}
-                    className='underline font-bold ml-4 foregroundspace-nowrap'
+                    className='underline font-bold ml-4 whitespace-nowrap'
                   >
                     Go to Settings
                   </Link>
@@ -2549,7 +3611,7 @@ export const JobPage = (): JSX.Element => {
               </Card>
             )}
             {applyingAll && (
-              <Card className='relative overflow-hidden border border-[#1dff00]/30 bg-gradient-to-br from-[#082514] via-[#04140b] to-[#010503] text-foreground p-4 sm:p-5'>
+              <Card className='relative overflow-hidden border border-[#1dff00]/30 bg-gradient-to-br from-background via-background/98 to-background/95 text-foreground p-4 sm:p-5'>
                 <div className='pointer-events-none absolute -inset-32 bg-[#1dff00]/10 blur-3xl opacity-40' />
                 <div className='relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3'>
                   <div className='flex items-center gap-3'>
@@ -2594,16 +3656,16 @@ export const JobPage = (): JSX.Element => {
               </Card>
             )}
 
-            {queueStatus === "empty" && (
+            {queueStatus === "empty" && !incrementalMode && (
               <div className='relative min-h-[600px] flex items-center justify-center py-12'>
                 {/* Ambient Background Effects */}
                 <div className='absolute inset-0 overflow-hidden rounded-3xl'>
                   <div className='absolute top-1/4 left-1/4 w-96 h-96 bg-[#1dff00]/5 rounded-full blur-3xl animate-pulse' />
-                  <div className='absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#0a8246]/5 rounded-full blur-3xl animate-pulse delay-1000' />
+                  <div className='absolute bottom-1/4 right-1/4 w-80 h-80 bg-background/5 rounded-full blur-3xl animate-pulse delay-1000' />
                 </div>
 
                 {/* Main Content */}
-                <Card className='relative z-10 max-w-2xl mx-auto bg-gradient-to-br from-[#0a0a0a] via-[#0d0d0d] to-[#000000] border border-[#1dff00]/20 backdrop-blur-xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_0_1px_rgba(29,255,0,0.1)]'>
+                <Card className='relative z-10 max-w-2xl mx-auto bg-gradient-to-br from-background via-background/95 to-background/90 border border-[#1dff00]/20 backdrop-blur-xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_0_1px_rgba(29,255,0,0.1)]'>
                   <div className='p-8 sm:p-12 text-center space-y-8'>
                     {/* Icon Container with Animation */}
                     <motion.div
@@ -2613,10 +3675,10 @@ export const JobPage = (): JSX.Element => {
                       className='relative mx-auto w-32 h-32'
                     >
                       {/* Glowing Ring */}
-                      <div className='absolute inset-0 rounded-full bg-gradient-to-br from-[#1dff00]/20 to-[#0a8246]/10 blur-xl animate-pulse' />
+                      <div className='absolute inset-0 rounded-full bg-gradient-to-br from-[#1dff00]/20 to-background/10 blur-xl animate-pulse' />
 
                       {/* Icon Background */}
-                      <div className='relative w-full h-full rounded-full bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/5 border border-[#1dff00]/30 flex items-center justify-center shadow-[0_0_40px_rgba(29,255,0,0.15)]'>
+                      <div className='relative w-full h-full rounded-full bg-gradient-to-br from-[#1dff00]/10 to-background/5 border border-[#1dff00]/30 flex items-center justify-center shadow-[0_0_40px_rgba(29,255,0,0.15)]'>
                         <Briefcase
                           className='w-16 h-16 text-[#1dff00] drop-shadow-[0_0_20px_rgba(29,255,0,0.6)]'
                           strokeWidth={1.5}
@@ -2625,7 +3687,7 @@ export const JobPage = (): JSX.Element => {
 
                       {/* Floating Particles */}
                       <div className='absolute -top-2 -right-2 w-3 h-3 rounded-full bg-[#1dff00] animate-ping opacity-40' />
-                      <div className='absolute -bottom-2 -left-2 w-2 h-2 rounded-full bg-[#0a8246] animate-ping opacity-40 delay-500' />
+                      <div className='absolute -bottom-2 -left-2 w-2 h-2 rounded-full bg-background animate-ping opacity-40 delay-500' />
                     </motion.div>
 
                     {/* Text Content */}
@@ -2634,7 +3696,7 @@ export const JobPage = (): JSX.Element => {
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.2, duration: 0.5 }}
-                        className='text-3xl sm:text-4xl font-bold bg-gradient-to-r from-foreground via-[#ffffff] to-[#ffffff99] bg-clip-text text-transparent'
+                        className='text-3xl sm:text-4xl font-bold bg-gradient-to-r from-foreground via-[#ffffff] to-foreground/60 bg-clip-text text-transparent'
                       >
                         No Jobs Yet
                       </motion.h2>
@@ -2643,7 +3705,7 @@ export const JobPage = (): JSX.Element => {
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.3, duration: 0.5 }}
-                        className='text-base sm:text-lg text-[#ffffff99] max-w-md mx-auto leading-relaxed'
+                        className='text-base sm:text-lg text-foreground/60 max-w-md mx-auto leading-relaxed'
                       >
                         Your personalized job feed is empty. Start discovering
                         opportunities tailored to your profile and career goals.
@@ -2682,7 +3744,7 @@ export const JobPage = (): JSX.Element => {
                           )
                         }
                         disabled={incrementalMode}
-                        className='group relative overflow-hidden px-8 py-6 rounded-xl bg-gradient-to-r from-[#1dff00] to-[#0a8246] text- font-semibold text-base shadow-[0_0_0_1px_#1dff00,0_8px_32px_rgba(29,255,0,0.4)] hover:shadow-[0_0_0_1px_#1dff00,0_12px_48px_rgba(29,255,0,0.6)] transition-all duration-300 hover:scale-105 active:scale-95'
+                        className='group relative overflow-hidden px-8 py-6 rounded-xl bg-gradient-to-r from-[#1dff00] to-background text- font-semibold text-base shadow-[0_0_0_1px_#1dff00,0_8px_32px_rgba(29,255,0,0.4)] hover:shadow-[0_0_0_1px_#1dff00,0_12px_48px_rgba(29,255,0,0.6)] transition-all duration-300 hover:scale-105 active:scale-95'
                       >
                         <span className='relative z-10 flex items-center gap-3'>
                           <Search className='w-5 h-5' />
@@ -2694,7 +3756,7 @@ export const JobPage = (): JSX.Element => {
                       <Button
                         onClick={() => navigate("/dashboard/profile")}
                         variant='ghost'
-                        className='px-6 py-6 rounded-xl border border-[#ffffff20] text-foreground hover:bg-foreground/5 hover:border-[#1dff00]/40 transition-all duration-300'
+                        className='px-6 py-6 rounded-xl border border-foreground/10 text-foreground hover:bg-foreground/5 hover:border-[#1dff00]/40 transition-all duration-300'
                       >
                         <span className='flex items-center gap-2'>
                           <User className='w-4 h-4' />
@@ -2708,7 +3770,7 @@ export const JobPage = (): JSX.Element => {
                       initial={{ y: 20, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
                       transition={{ delay: 0.6, duration: 0.5 }}
-                      className='grid grid-cols-1 sm:grid-cols-3 gap-4 pt-8 border-t border-[#ffffff10]'
+                      className='grid grid-cols-1 sm:grid-cols-3 gap-4 pt-8 border-t border-foreground/5'
                     >
                       {[
                         {
@@ -2729,14 +3791,14 @@ export const JobPage = (): JSX.Element => {
                       ].map((feature) => (
                         <div
                           key={feature.label}
-                          className='flex flex-col items-center gap-2 p-4 rounded-lg bg-[#ffffff05] border border-[#ffffff08] hover:border-[#1dff00]/20 transition-colors'
+                          className='flex flex-col items-center gap-2 p-4 rounded-lg bg-foreground/5 border border-foreground/5 hover:border-[#1dff00]/20 transition-colors'
                         >
                           <feature.icon className='w-5 h-5 text-[#1dff00]' />
                           <div className='text-center'>
                             <div className='text-sm font-medium text-foreground'>
                               {feature.label}
                             </div>
-                            <div className='text-xs text-[#ffffff60]'>
+                            <div className='text-xs text-foreground/40'>
                               {feature.desc}
                             </div>
                           </div>
@@ -2783,19 +3845,17 @@ export const JobPage = (): JSX.Element => {
                   transition={{ duration: 0.4, delay: index * 0.04 }}
                 >
                   <div
-                    className={`relative overflow-hidden rounded-2xl border transition-all duration-300 p-5 sm:p-6 ${
-                      selectedJob === job.id
-                        ? "bg-[#0a0a0a] border-[#1dff00] shadow-[0_0_30px_rgba(29,255,0,0.15)]"
-                        : "bg-gradient-to-br from-[#0f0f0f] to-[#0a0a0a] border-foreground/5 hover:border-[#1dff00]/30 hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
-                    }`}
+                    className={`relative overflow-hidden rounded-2xl border transition-all duration-300 p-5 sm:p-6 ${selectedJob === job.id
+                      ? "bg-background border-[#1dff00] shadow-[0_0_30px_rgba(29,255,0,0.15)]"
+                      : "bg-gradient-to-br from-background to-background/95 border-foreground/5 hover:border-[#1dff00]/30 hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+                      }`}
                   >
                     {/* Selection Indicator Line */}
                     <div
-                      className={`absolute left-0 top-0 bottom-0 w-1 transition-all duration-300 ${
-                        selectedJob === job.id
-                          ? "bg-[#1dff00]"
-                          : "bg-transparent group-hover:bg-[#1dff00]/50"
-                      }`}
+                      className={`absolute left-0 top-0 bottom-0 w-1 transition-all duration-300 ${selectedJob === job.id
+                        ? "bg-[#1dff00]"
+                        : "bg-transparent group-hover:bg-[#1dff00]/50"
+                        }`}
                     />
 
                     {/* Glass highlight effect on hover */}
@@ -2816,7 +3876,7 @@ export const JobPage = (): JSX.Element => {
                             />
                           </div>
                         ) : (
-                          <div className='w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[#1dff00] to-[#0a8246] flex items-center justify-center text- font-bold text-xl shadow-[0_0_15px_rgba(29,255,0,0.2)]'>
+                          <div className='w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[#1dff00] to-background flex items-center justify-center text- font-bold text-xl shadow-[0_0_15px_rgba(29,255,0,0.2)]'>
                             {job.logo}
                           </div>
                         )}
@@ -2828,11 +3888,10 @@ export const JobPage = (): JSX.Element => {
                         <div className='flex flex-col sm:flex-row sm:items-start justify-between gap-2'>
                           <div className='space-y-1'>
                             <h3
-                              className={`font-bold text-lg sm:text-xl leading-tight transition-colors ${
-                                selectedJob === job.id
-                                  ? "text-[#1dff00]"
-                                  : "text-foreground group-hover:text-[#1dff00]"
-                              }`}
+                              className={`font-bold text-lg sm:text-xl leading-tight transition-colors ${selectedJob === job.id
+                                ? "text-[#1dff00]"
+                                : "text-foreground group-hover:text-[#1dff00]"
+                                }`}
                               title={job.title}
                             >
                               {job.title}
@@ -2877,11 +3936,10 @@ export const JobPage = (): JSX.Element => {
                             )}
                             {job.status && (
                               <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${
-                                  job.status === "applied"
-                                    ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
-                                    : "bg-foreground/5 text-gray-400 border-foreground/10"
-                                }`}
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${job.status === "applied"
+                                  ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+                                  : "bg-foreground/5 text-gray-400 border-foreground/10"
+                                  }`}
                               >
                                 {job.status}
                               </span>
@@ -2990,7 +4048,7 @@ export const JobPage = (): JSX.Element => {
                                 "";
                               const host = getHost(href);
                               const ico = host
-                                ? `https://icons.duckduckgo.com/ip3/${host}.ico`
+                                ? `https://www.google.com/s2/favicons?domain=${host}&sz=64`
                                 : "";
                               if (!host) return null;
                               return (
@@ -3000,9 +4058,9 @@ export const JobPage = (): JSX.Element => {
                                     alt=''
                                     className='w-3.5 h-3.5 rounded-sm opacity-70'
                                     onError={(e) =>
-                                      ((
-                                        e.target as HTMLImageElement
-                                      ).style.display = "none")
+                                    ((
+                                      e.target as HTMLImageElement
+                                    ).style.display = "none")
                                     }
                                   />
                                   <span className='truncate max-w-[100px]'>
@@ -3147,8 +4205,8 @@ export const JobPage = (): JSX.Element => {
             )}
 
             {debugMode && (
-              <Card className='bg-[#0b0b0b] border border-[#ffffff20] p-4'>
-                <div className='text-xs text-[#ffffff90] mb-2'>
+              <Card className='bg-background border border-foreground/10 p-4'>
+                <div className='text-xs text-foreground/60 mb-2'>
                   Debug Panel - Simplified Flow
                 </div>
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] text-[#d1d5db]'>
@@ -3199,7 +4257,7 @@ export const JobPage = (): JSX.Element => {
                           ? getHost(primaryHref)
                           : "";
                         const ico = siteHost
-                          ? `https://icons.duckduckgo.com/ip3/${siteHost}.ico`
+                          ? `https://www.google.com/s2/favicons?domain=${siteHost}&sz=64`
                           : "";
                         const employmentType =
                           (job as any)?.employment_type ??
@@ -3261,10 +4319,10 @@ export const JobPage = (): JSX.Element => {
                             : null,
                           deadlineMeta
                             ? {
-                                label: "Deadline",
-                                value: deadlineMeta.label,
-                                tone: deadlineMeta.level,
-                              }
+                              label: "Deadline",
+                              value: deadlineMeta.label,
+                              tone: deadlineMeta.level,
+                            }
                             : null,
                           salaryText
                             ? { label: "Compensation", value: salaryText }
@@ -3279,11 +4337,11 @@ export const JobPage = (): JSX.Element => {
                           <Card
                             id='jobs-ai-match'
                             data-tour='jobs-ai-match'
-                            className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a160a] p-6'
+                            className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background p-6'
                           >
                             <span className='pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60' />
                             <div className='relative flex flex-col gap-6'>
-                              <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5'>
+                              <div className='flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5'>
                                 <div className='flex items-start gap-3 sm:gap-4 flex-1 min-w-0'>
                                   {/* Logo - comes first */}
                                   {job.logoUrl && !logoError[job.id] ? (
@@ -3299,7 +4357,7 @@ export const JobPage = (): JSX.Element => {
                                       }
                                     />
                                   ) : (
-                                    <div className='w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text- font-bold text-xl sm:text-2xl md:text-3xl flex-shrink-0'>
+                                    <div className='w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-r from-[#1dff00] to-background rounded-xl flex items-center justify-center text- font-bold text-xl sm:text-2xl md:text-3xl flex-shrink-0'>
                                       {job.logo}
                                     </div>
                                   )}
@@ -3311,20 +4369,18 @@ export const JobPage = (): JSX.Element => {
                                       Featured Job
                                     </div>
                                     <h1
-                                      className='text-base sm:text-lg md:text-xl font-semibold text-foreground leading-tight line-clamp-3'
+                                      className='text-base sm:text-lg md:text-xl font-semibold text-foreground leading-tight line-clamp-2'
                                       title={job.title}
                                     >
-                                      {job.title.length > 30
-                                        ? job.title.slice(0, 30) + "..."
-                                        : job.title}
+                                      {job.title}
                                     </h1>
-                                    <div className='flex items-center gap-2 text-sm text-[#ffffffc0] overflow-x-auto scrollbar-hide'>
-                                      <span className='font-medium text-foreground/90 foregroundspace-nowrap'>
+                                    <div className='flex flex-wrap items-center gap-2 text-sm text-foreground/70'>
+                                      <span className='font-medium text-foreground/90 whitespace-nowrap'>
                                         {job.company}
                                       </span>
                                       {siteHost && (
                                         <span
-                                          className='inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full border border-foreground/10 bg-foreground/5 text-foreground/60 foregroundspace-nowrap flex-shrink-0'
+                                          className='inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full border border-foreground/10 bg-foreground/5 text-foreground/60 whitespace-nowrap flex-shrink-0'
                                           title={primaryHref || undefined}
                                         >
                                           {ico && (
@@ -3333,9 +4389,9 @@ export const JobPage = (): JSX.Element => {
                                               alt=''
                                               className='w-3 h-3 rounded'
                                               onError={(e) =>
-                                                ((
-                                                  e.target as HTMLImageElement
-                                                ).style.display = "none")
+                                              ((
+                                                e.target as HTMLImageElement
+                                              ).style.display = "none")
                                               }
                                             />
                                           )}
@@ -3343,20 +4399,20 @@ export const JobPage = (): JSX.Element => {
                                         </span>
                                       )}
                                       {job.posted_at && (
-                                        <span className='text-[11px] px-2 py-1 rounded-full border border-foreground/10 text-foreground/50 bg-foreground/5 foregroundspace-nowrap flex-shrink-0'>
+                                        <span className='text-[11px] px-2 py-1 rounded-full border border-foreground/10 text-foreground/50 bg-foreground/5 whitespace-nowrap flex-shrink-0'>
                                           Posted {formatRelative(job.posted_at)}
                                         </span>
                                       )}
                                     </div>
                                   </div>
                                 </div>
-                                <div className='flex items-center gap-2'>
+                                <div className='flex flex-wrap items-center gap-2 lg:justify-end'>
                                   {primaryHref && (
                                     <a
                                       href={primaryHref}
                                       target='_blank'
                                       rel='noopener noreferrer'
-                                      className='inline-flex items-center gap-2 rounded-lg border border-[#1dff00]/50 bg-[#1dff00]/15 px-4 py-2 text-sm font-medium text-[#1dff00] transition hover:bg-[#1dff00]/25 hover:shadow-[0_10px_30px_rgba(29,255,0,0.2)]'
+                                      className='inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-[#1dff00]/50 bg-[#1dff00]/15 px-4 py-2 text-sm font-medium text-[#1dff00] transition hover:bg-[#1dff00]/25 hover:shadow-[0_10px_30px_rgba(29,255,0,0.2)]'
                                     >
                                       View Posting
                                     </a>
@@ -3367,10 +4423,13 @@ export const JobPage = (): JSX.Element => {
                                       setJobToAutoApply(job);
                                       openAutoApplyFlow();
                                     }}
-                                    className='inline-flex items-center gap-2 rounded-lg border border-foreground/20 bg-foreground/10 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/20'
+                                    className='inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-foreground/20 bg-foreground/10 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/20'
                                   >
                                     <Briefcase className='w-4 h-4' />
                                     Auto Apply
+                                    {!hasAutoApplyAccess && (
+                                      <Lock className='w-3 h-3 opacity-60' />
+                                    )}
                                   </Button>
                                 </div>
                               </div>
@@ -3399,7 +4458,7 @@ export const JobPage = (): JSX.Element => {
                         );
                       })()}
 
-                      <Card className='border border-foreground/12 bg-gradient-to-b from-[#0c0c0c] via-[#060606] to-[#020202] p-6'>
+                      <Card className='border border-border bg-card/80 p-6'>
                         <div className='flex items-center justify-between mb-4'>
                           <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
                             <FileText className='w-4 h-4 text-[#1dff00]' />
@@ -3409,13 +4468,14 @@ export const JobPage = (): JSX.Element => {
                             Full brief
                           </span>
                         </div>
-                        <div className='max-w-none text-[#ffffffcc] leading-relaxed foregroundspace-pre-wrap'>
-                          {job.description || ""}
-                        </div>
+                        <MarkdownContent
+                          content={job.description}
+                          className='max-h-[32rem] overflow-y-auto pr-2'
+                        />
                       </Card>
 
-                      {/* AI Match Score Card - Gated for Pro/Ultimate */}
-                      {subscriptionTier === "Free" ? (
+                      {/* AI Match Score Card - Gated for Basics+ */}
+                      {!hasMatchScoreAccess ? (
                         <UpgradePrompt
                           title='AI Match Score Analysis'
                           description='Get detailed compatibility insights powered by advanced AI to find your perfect job match.'
@@ -3439,7 +4499,7 @@ export const JobPage = (): JSX.Element => {
                                 "Get smart recommendations for improvement",
                             },
                           ]}
-                          requiredTier='Pro/Ultimate'
+                          requiredTier='Basics'
                           icon={
                             <Sparkles className='h-12 w-12 text-[#1dff00]' />
                           }
@@ -3457,11 +4517,18 @@ export const JobPage = (): JSX.Element => {
                         />
                       )}
 
+                      <JobEvaluationReport
+                        evaluation={evaluationReports[job.id] ?? null}
+                        loading={Boolean(evaluationLoadingByJob[job.id])}
+                        savedStoryTitles={savedStoryTitles}
+                        onSaveStory={saveInterviewStoryToMemory}
+                      />
+
                       {(() => {
                         const screenshot = (job as any)?.raw_data?.screenshot;
                         if (!screenshot) return null;
                         return (
-                          <Card className='relative overflow-hidden border border-foreground/12 bg-[#020202] p-0'>
+                          <Card className='relative overflow-hidden border border-foreground/12 bg-background p-0'>
                             <div className='flex items-center justify-between px-4 py-3 border-b border-foreground/10 bg-foreground/5'>
                               <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/75'>
                                 <Sparkles className='w-4 h-4 text-[#1dff00]' />
@@ -3471,7 +4538,7 @@ export const JobPage = (): JSX.Element => {
                                 Visual preview
                               </span>
                             </div>
-                            <div className='relative bg-[#050505]'>
+                            <div className='relative bg-background'>
                               <img
                                 src={screenshot}
                                 alt='Job page screenshot'
@@ -3482,7 +4549,7 @@ export const JobPage = (): JSX.Element => {
                                   const parent = target.parentElement;
                                   if (parent) {
                                     parent.innerHTML =
-                                      '<div class="p-6 text-center text-[#ffffff60] text-sm">Screenshot unavailable</div>';
+                                      '<div class="p-6 text-center text-foreground/40 text-sm">Screenshot unavailable</div>';
                                   }
                                 }}
                               />
@@ -3503,7 +4570,7 @@ export const JobPage = (): JSX.Element => {
                           ? sources
                           : [sources];
                         return (
-                          <Card className='border border-foreground/12 bg-gradient-to-br from-[#050505] via-[#040404] to-[#010101] p-6'>
+                          <Card className='border border-foreground/12 bg-gradient-to-br from-background via-background to-background p-6'>
                             <div className='flex items-center justify-between mb-3'>
                               <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/75'>
                                 <ShieldCheck className='w-4 h-4 text-[#1dff00]' />
@@ -3522,7 +4589,7 @@ export const JobPage = (): JSX.Element => {
                                 if (!href) return null;
                                 const host = getHost(href);
                                 const ico = host
-                                  ? `https://icons.duckduckgo.com/ip3/${host}.ico`
+                                  ? `https://www.google.com/s2/favicons?domain=${host}&sz=64`
                                   : "";
                                 return (
                                   <li
@@ -3536,9 +4603,9 @@ export const JobPage = (): JSX.Element => {
                                           alt=''
                                           className='w-4 h-4 rounded'
                                           onError={(e) =>
-                                            ((
-                                              e.target as HTMLImageElement
-                                            ).style.display = "none")
+                                          ((
+                                            e.target as HTMLImageElement
+                                          ).style.display = "none")
                                           }
                                         />
                                       )}
@@ -3568,35 +4635,35 @@ export const JobPage = (): JSX.Element => {
             {(queueStatus === "loading" || queueStatus === "populating") &&
               !selectedJob && (
                 <div className='animate-pulse'>
-                  <Card className='relative overflow-hidden bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-6 mb-6'>
+                  <Card className='relative overflow-hidden bg-gradient-to-br from-foreground/5 to-foreground/5 border border-foreground/10 p-6 mb-6'>
                     <div className='flex items-start gap-4 mb-6'>
-                      <div className='w-16 h-16 bg-[#ffffff1a] rounded-xl' />
+                      <div className='w-16 h-16 bg-foreground/10 rounded-xl' />
                       <div className='flex-1 min-w-0'>
-                        <div className='h-5 bg-[#ffffff1a] rounded w-1/2 mb-2' />
-                        <div className='h-4 bg-[#ffffff12] rounded w-1/3 mb-3' />
+                        <div className='h-5 bg-foreground/10 rounded w-1/2 mb-2' />
+                        <div className='h-4 bg-foreground/5 rounded w-1/3 mb-3' />
                         <div className='flex items-center gap-2'>
-                          <span className='inline-block h-4 w-20 rounded-full bg-[#ffffff12]' />
-                          <span className='inline-block h-4 w-16 rounded-full bg-[#ffffff12]' />
-                          <span className='inline-block h-4 w-24 rounded-full bg-[#ffffff12]' />
+                          <span className='inline-block h-4 w-20 rounded-full bg-foreground/5' />
+                          <span className='inline-block h-4 w-16 rounded-full bg-foreground/5' />
+                          <span className='inline-block h-4 w-24 rounded-full bg-foreground/5' />
                         </div>
                       </div>
                     </div>
                     <div className='space-y-2'>
-                      <div className='h-4 bg-[#ffffff12] rounded w-full' />
-                      <div className='h-4 bg-[#ffffff0f] rounded w-11/12' />
-                      <div className='h-4 bg-[#ffffff0a] rounded w-10/12' />
-                      <div className='h-4 bg-[#ffffff08] rounded w-9/12' />
+                      <div className='h-4 bg-foreground/5 rounded w-full' />
+                      <div className='h-4 bg-foreground/5 rounded w-11/12' />
+                      <div className='h-4 bg-foreground/5 rounded w-10/12' />
+                      <div className='h-4 bg-foreground/5 rounded w-9/12' />
                     </div>
                   </Card>
                 </div>
               )}
             {!selectedJob && queueStatus === "ready" && (
-              <Card className='bg-gradient-to-br from-[#ffffff08] to-[#ffffff05] border border-[#ffffff15] p-8 text-center'>
-                <Briefcase className='w-16 h-16 text-[#ffffff40] mx-auto mb-4' />
+              <Card className='bg-gradient-to-br from-foreground/5 to-foreground/5 border border-foreground/10 p-8 text-center'>
+                <Briefcase className='w-16 h-16 text-foreground/20 mx-auto mb-4' />
                 <h3 className='text-xl font-medium text-foreground mb-2'>
                   Select a job
                 </h3>
-                <p className='text-[#ffffff60]'>
+                <p className='text-foreground/40'>
                   Choose a job from the list to view details
                 </p>
               </Card>
@@ -3614,7 +4681,7 @@ export const JobPage = (): JSX.Element => {
           size='lg'
           side='center'
         >
-          <div className='relative overflow-hidden rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-[#040404] via-[#060606] to-[#0a0a0a] text-foreground'>
+          <div className='relative overflow-hidden rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background text-foreground'>
             <div className='pointer-events-none absolute -top-32 right-0 h-72 w-72 rounded-full bg-[#1dff00]/20 blur-3xl opacity-40' />
             <div className='relative p-6 sm:p-8 space-y-6'>
               <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6'>
@@ -3665,6 +4732,23 @@ export const JobPage = (): JSX.Element => {
                 </div>
               </div>
 
+              {loadingTier ? (
+                <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-8 text-center'>
+                  <div className='mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-[#1dff00]' />
+                  <p className='text-sm text-foreground/70'>
+                    Checking auto apply access...
+                  </p>
+                </div>
+              ) : !hasAutoApplyAccess ? (
+                <UpgradePrompt
+                  compact
+                  requiredTier='Basics'
+                  showPricing={false}
+                  title='Auto Apply Suite'
+                  description='Unlock governed auto apply, AI draft generation, and AI decision checks with Basics or above.'
+                />
+              ) : null}
+
               <div className='flex flex-col sm:flex-row gap-3'>
                 {autoApplySteps.map((step) => {
                   const status =
@@ -3676,13 +4760,12 @@ export const JobPage = (): JSX.Element => {
                   return (
                     <div
                       key={step.id}
-                      className={`flex-1 rounded-xl border p-3 sm:p-4 transition-all duration-300 ${
-                        status === "active"
-                          ? "border-[#1dff00]/60 bg-[#1dff00]/10 shadow-[0_0_18px_rgba(29,255,0,0.25)]"
-                          : status === "done"
-                            ? "border-[#1dff00]/30 bg-[#1dff00]/12 text-foreground/80"
-                            : "border-foreground/12 bg-foreground/[0.02] text-foreground/60"
-                      }`}
+                      className={`flex-1 rounded-xl border p-3 sm:p-4 transition-all duration-300 ${status === "active"
+                        ? "border-[#1dff00]/60 bg-[#1dff00]/10 shadow-[0_0_18px_rgba(29,255,0,0.25)]"
+                        : status === "done"
+                          ? "border-[#1dff00]/30 bg-[#1dff00]/12 text-foreground/80"
+                          : "border-foreground/12 bg-foreground/[0.02] text-foreground/60"
+                        }`}
                     >
                       <div className='flex items-center gap-2 text-sm font-medium'>
                         {status === "done" ? (
@@ -3691,11 +4774,10 @@ export const JobPage = (): JSX.Element => {
                           </span>
                         ) : (
                           <span
-                            className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-[11px] ${
-                              status === "active"
-                                ? "border-[#1dff00]/70 text-[#1dff00]"
-                                : "border-foreground/25 text-foreground/35"
-                            }`}
+                            className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-[11px] ${status === "active"
+                              ? "border-[#1dff00]/70 text-[#1dff00]"
+                              : "border-foreground/25 text-foreground/35"
+                              }`}
                           >
                             0{step.id}
                           </span>
@@ -3743,11 +4825,10 @@ export const JobPage = (): JSX.Element => {
                               key={r.id}
                               type='button'
                               onClick={() => setSelectedResumeId(r.id)}
-                              className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
-                                selected
-                                  ? "border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]"
-                                  : "border-foreground/12 bg-foreground/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8"
-                              }`}
+                              className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${selected
+                                ? "border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]"
+                                : "border-foreground/12 bg-foreground/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8"
+                                }`}
                             >
                               <div className='min-w-0 space-y-1'>
                                 <div className='flex items-center gap-2'>
@@ -3773,11 +4854,10 @@ export const JobPage = (): JSX.Element => {
                                 </div>
                               </div>
                               <span
-                                className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${
-                                  selected
-                                    ? "border-[#1dff00]/70 bg-[#1dff00] text-"
-                                    : "border-foreground/20 text-foreground/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]"
-                                }`}
+                                className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${selected
+                                  ? "border-[#1dff00]/70 bg-[#1dff00] text-"
+                                  : "border-foreground/20 text-foreground/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]"
+                                  }`}
                               >
                                 {selected ? (
                                   <Check className='w-4 h-4' />
@@ -3822,16 +4902,15 @@ export const JobPage = (): JSX.Element => {
                     </div>
                     <div className='max-h-60 overflow-y-auto pr-1 space-y-3'>
                       {Array.isArray(coverLetterLibrary) &&
-                      coverLetterLibrary.length > 0 ? (
+                        coverLetterLibrary.length > 0 ? (
                         <div className='grid gap-3'>
                           <button
                             type='button'
                             onClick={() => setSelectedCoverLetterId(null)}
-                            className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
-                              !selectedCoverLetterId
-                                ? "border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]"
-                                : "border-foreground/12 bg-foreground/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8"
-                            }`}
+                            className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${!selectedCoverLetterId
+                              ? "border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]"
+                              : "border-foreground/12 bg-foreground/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8"
+                              }`}
                           >
                             <div className='min-w-0 space-y-1'>
                               <div className='flex items-center gap-2'>
@@ -3847,11 +4926,10 @@ export const JobPage = (): JSX.Element => {
                               </div>
                             </div>
                             <span
-                              className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${
-                                !selectedCoverLetterId
-                                  ? "border-[#1dff00]/70 bg-[#1dff00] text-"
-                                  : "border-foreground/20 text-foreground/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]"
-                              }`}
+                              className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${!selectedCoverLetterId
+                                ? "border-[#1dff00]/70 bg-[#1dff00] text-"
+                                : "border-foreground/20 text-foreground/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]"
+                                }`}
                             >
                               {!selectedCoverLetterId ? (
                                 <Check className='w-4 h-4' />
@@ -3885,11 +4963,10 @@ export const JobPage = (): JSX.Element => {
                                 onClick={() =>
                                   setSelectedCoverLetterId(entry.id)
                                 }
-                                className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${
-                                  selected
-                                    ? "border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]"
-                                    : "border-foreground/12 bg-foreground/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8"
-                                }`}
+                                className={`group relative flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-300 ${selected
+                                  ? "border-[#1dff00]/60 bg-[#1dff00]/12 shadow-[0_0_16px_rgba(29,255,0,0.25)]"
+                                  : "border-foreground/12 bg-foreground/[0.02] hover:border-[#1dff00]/45 hover:bg-[#1dff00]/8"
+                                  }`}
                               >
                                 <div className='min-w-0 space-y-1'>
                                   <div className='flex items-center gap-2'>
@@ -3919,11 +4996,10 @@ export const JobPage = (): JSX.Element => {
                                   )}
                                 </div>
                                 <span
-                                  className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${
-                                    selected
-                                      ? "border-[#1dff00]/70 bg-[#1dff00] text-"
-                                      : "border-foreground/20 text-foreground/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]"
-                                  }`}
+                                  className={`flex-shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border ${selected
+                                    ? "border-[#1dff00]/70 bg-[#1dff00] text-"
+                                    : "border-foreground/20 text-foreground/40 group-hover:border-[#1dff00]/50 group-hover:text-[#1dff00]"
+                                    }`}
                                 >
                                   {selected ? (
                                     <Check className='w-4 h-4' />
@@ -4076,6 +5152,187 @@ export const JobPage = (): JSX.Element => {
                       </li>
                     </ul>
                   </div>
+
+                  {/* True Autonomy Toggle */}
+                  <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-4 sm:p-5 flex items-center justify-between'>
+                    <div>
+                      <div className='flex items-center gap-2 text-sm font-medium text-[#1dff00]'>
+                        <Sparkles className='w-4 h-4' />
+                        True Autonomy
+                      </div>
+                      <p className='mt-1 text-xs text-foreground/60 max-w-[85%]'>
+                        Restricts auto-submit to trusted sources (e.g. Greenhouse, Lever) with &gt;90% match score. Other jobs will safely fallback to Draft Mode.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTrueAutonomyEnabled(!trueAutonomyEnabled)}
+                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${trueAutonomyEnabled ? 'bg-[#1dff00]' : 'bg-foreground/20'}`}
+                      role="switch"
+                      aria-checked={trueAutonomyEnabled}
+                    >
+                      <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${trueAutonomyEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
+                </div>
+              )}
+
+              {aiEvaluation && autoApplyStep === 2 && (
+                <div className='grid gap-4 mt-4'>
+                  <div className={`rounded-xl border p-5 ${aiEvaluation.missing_requirements.length > 0 ? "border-[#ff4747]/35 bg-[#ff4747]/10" : "border-[#ffb347]/35 bg-[#ffb347]/10"}`}>
+                    <div className={`flex items-center gap-2 text-sm font-medium ${aiEvaluation.missing_requirements.length > 0 ? "text-[#ff4747]" : "text-[#ffb347]"}`}>
+                      <AlertTriangle className='w-5 h-5' />
+                      AI Decision Boundary Alert
+                    </div>
+
+                    <div className='mt-4 flex flex-col sm:flex-row items-baseline gap-4'>
+                      <div className='flex items-baseline gap-2'>
+                        <span className={`text-3xl font-semibold ${aiEvaluation.confidence_score >= 70 ? "text-[#1dff00]" : "text-[#ffb347]"}`}>
+                          {aiEvaluation.confidence_score}%
+                        </span>
+                        <span className='text-sm text-foreground/75'>
+                          Confidence Score
+                        </span>
+                      </div>
+                    </div>
+
+                    {aiEvaluation.missing_requirements.length > 0 && (
+                      <div className='mt-5 pt-4 border-t border-foreground/10'>
+                        <h4 className='text-sm font-medium text-[#ff4747] mb-2'>Strict Missing Requirements:</h4>
+                        <ul className='list-disc pl-5 space-y-1 text-sm text-foreground/80'>
+                          {aiEvaluation.missing_requirements.map((req, i) => (
+                            <li key={i}>{req}</li>
+                          ))}
+                        </ul>
+                        <p className='mt-3 text-xs text-foreground/60'>
+                          The AI has determined your profile/resume explicitly lacks these hard requirements. It is strongly recommended to update your profile before applying.
+                        </p>
+                      </div>
+                    )}
+
+                    {aiEvaluation.tailoring_suggestions.length > 0 && (
+                      <div className='mt-5 pt-4 border-t border-foreground/10'>
+                        <h4 className='text-sm font-medium text-[#ffb347] mb-2'>Tailoring Suggestions:</h4>
+                        <ul className='space-y-2 text-sm text-foreground/80'>
+                          {aiEvaluation.tailoring_suggestions.map((sug, i) => (
+                            <li key={i} className='bg-foreground/5 p-3 rounded-lg border border-foreground/10'>{sug}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {draftData && autoApplyStep === 4 && (
+                <div className='grid gap-4 mt-4'>
+                  <div className='rounded-xl border border-[#1dff00]/30 bg-[#1dff00]/5 p-5'>
+                    <div className='flex items-center gap-2 text-sm font-medium text-[#1dff00]'>
+                      <Sparkles className='w-5 h-5' />
+                      Draft Mode Review
+                    </div>
+                    <p className='mt-2 text-sm text-foreground/70'>
+                      AI has tailored your materials for this specific job. Review and edit the drafts below before launching the automation, or save them for later.
+                    </p>
+
+                    <div className='mt-5 space-y-4'>
+                      <div>
+                        <label className='text-xs font-medium text-foreground/60 uppercase tracking-wider'>Tailored Cover Letter</label>
+                        <textarea
+                          className='w-full mt-1 h-32 p-3 text-sm bg-background border border-foreground/10 rounded-lg focus:outline-none focus:border-[#1dff00]/50 resize-y'
+                          value={draftData.coverLetterText}
+                          onChange={(e) => setDraftData({ ...draftData, coverLetterText: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className='text-xs font-medium text-foreground/60 uppercase tracking-wider'>Tailored Resume Content</label>
+                        <textarea
+                          className='w-full mt-1 h-48 p-3 text-sm bg-background border border-foreground/10 rounded-lg focus:outline-none focus:border-[#1dff00]/50 resize-y'
+                          value={draftData.resumeText}
+                          onChange={(e) => setDraftData({ ...draftData, resumeText: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {autoApplyStep === 3 && (
+                <div className='grid gap-4 mt-2'>
+                  {/* Progress Bar */}
+                  <div className='rounded-xl border border-[#1dff00]/30 bg-[#1dff00]/5 p-5'>
+                    <div className='flex items-center justify-between mb-3'>
+                      <div className='flex items-center gap-2 text-sm font-medium text-[#1dff00]'>
+                        {!automationFinished ? (
+                          <Loader2 className='w-4 h-4 animate-spin' />
+                        ) : applyProgress.fail === 0 ? (
+                          <Check className='w-4 h-4' />
+                        ) : (
+                          <AlertTriangle className='w-4 h-4 text-[#ffb347]' />
+                        )}
+                        {automationFinished ? 'Automation Complete' : 'Automation Running'}
+                      </div>
+                      <div className='text-sm font-mono text-foreground/70'>
+                        {applyProgress.done}/{applyProgress.total}
+                      </div>
+                    </div>
+                    <div className='w-full h-2 rounded-full bg-foreground/10 overflow-hidden'>
+                      <motion.div
+                        className='h-full rounded-full bg-gradient-to-r from-[#1dff00] to-[#00ff88]'
+                        initial={{ width: '0%' }}
+                        animate={{ width: `${applyProgress.total > 0 ? Math.round((applyProgress.done / applyProgress.total) * 100) : 0}%` }}
+                        transition={{ duration: 0.5, ease: 'easeOut' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Summary Cards */}
+                  <div className='grid grid-cols-3 gap-3'>
+                    <div className='rounded-xl border border-foreground/12 bg-foreground/[0.02] p-3 text-center'>
+                      <div className='text-2xl font-semibold text-foreground'>{applyProgress.total}</div>
+                      <div className='text-[10px] uppercase tracking-wider text-foreground/50 mt-1'>Queued</div>
+                    </div>
+                    <div className='rounded-xl border border-[#1dff00]/25 bg-[#1dff00]/5 p-3 text-center'>
+                      <div className='text-2xl font-semibold text-[#1dff00]'>{applyProgress.success}</div>
+                      <div className='text-[10px] uppercase tracking-wider text-[#1dff00]/70 mt-1'>Success</div>
+                    </div>
+                    <div className={`rounded-xl border p-3 text-center ${applyProgress.fail > 0 ? 'border-[#ff4747]/25 bg-[#ff4747]/5' : 'border-foreground/12 bg-foreground/[0.02]'}`}>
+                      <div className={`text-2xl font-semibold ${applyProgress.fail > 0 ? 'text-[#ff4747]' : 'text-foreground/30'}`}>{applyProgress.fail}</div>
+                      <div className={`text-[10px] uppercase tracking-wider mt-1 ${applyProgress.fail > 0 ? 'text-[#ff4747]/70' : 'text-foreground/30'}`}>Failed</div>
+                    </div>
+                  </div>
+
+                  {/* Live Telemetry Log */}
+                  <div className='rounded-xl border border-foreground/12 bg-black/40 overflow-hidden'>
+                    <div className='flex items-center justify-between px-4 py-2 border-b border-foreground/10'>
+                      <div className='flex items-center gap-2 text-[11px] uppercase tracking-wider text-foreground/50'>
+                        <span className={`inline-block h-1.5 w-1.5 rounded-full ${!automationFinished ? 'bg-[#1dff00] animate-pulse' : 'bg-foreground/30'}`} />
+                        Live Telemetry
+                      </div>
+                      <span className='text-[10px] text-foreground/30 font-mono'>{automationLogs.length} events</span>
+                    </div>
+                    <div className='max-h-48 overflow-y-auto p-3 space-y-1 font-mono text-xs' ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }}>
+                      {automationLogs.map((log, i) => (
+                        <div key={i} className='flex gap-2'>
+                          <span className='text-foreground/30 flex-shrink-0'>{log.time}</span>
+                          <span className={`${log.status === 'success' ? 'text-[#1dff00]' : log.status === 'error' ? 'text-[#ff4747]' : 'text-foreground/60'}`}>
+                            {log.message}
+                          </span>
+                        </div>
+                      ))}
+                      {!automationFinished && (
+                        <div className='flex gap-2 items-center'>
+                          <span className='text-foreground/30 flex-shrink-0'>{new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                          <span className='text-foreground/40 flex items-center gap-1'>
+                            <span className='inline-block h-1 w-1 rounded-full bg-[#1dff00] animate-pulse' />
+                            <span className='inline-block h-1 w-1 rounded-full bg-[#1dff00] animate-pulse [animation-delay:150ms]' />
+                            <span className='inline-block h-1 w-1 rounded-full bg-[#1dff00] animate-pulse [animation-delay:300ms]' />
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -4086,39 +5343,115 @@ export const JobPage = (): JSX.Element => {
                   audit trails.
                 </p>
                 <div className='flex items-center gap-2'>
-                  <Button
-                    variant='ghost'
-                    className='border border-transparent text-foreground/60 hover:text-foreground'
-                    onClick={() => {
-                      setResumeDialogOpen(false);
-                      setAutoApplyStep(1);
-                    }}
-                  >
-                    Close
-                  </Button>
-                  {autoApplyStep === 2 && (
+                  {autoApplyStep === 3 ? (
                     <Button
-                      variant='outline'
-                      className='border-foreground/20 text-foreground hover:border-foreground/40 hover:bg-foreground/10'
-                      onClick={() => setAutoApplyStep(1)}
-                    >
-                      Back
-                    </Button>
-                  )}
-                  <Button
-                    className={`border border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25 ${autoApplyPrimaryDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
-                    disabled={autoApplyPrimaryDisabled}
-                    onClick={() => {
-                      if (autoApplyStep === 1) {
-                        if (canAdvanceFromStepOne) setAutoApplyStep(2);
-                      } else if (canLaunchAutoApply) {
+                      className={automationFinished
+                        ? 'border border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25'
+                        : 'border border-foreground/20 text-foreground/40 cursor-not-allowed opacity-50'}
+                      disabled={!automationFinished}
+                      onClick={() => {
                         setResumeDialogOpen(false);
-                        applyAllJobs();
-                      }
-                    }}
-                  >
-                    {autoApplyStep === 1 ? "Continue" : "Launch automation"}
-                  </Button>
+                        setAutoApplyStep(1);
+                        setDraftData(null);
+                        setAutomationLogs([]);
+                        setAutomationFinished(false);
+                      }}
+                    >
+                      {automationFinished ? (
+                        <><Check className='w-4 h-4 mr-1.5' /> Done</>
+                      ) : (
+                        <><Loader2 className='w-4 h-4 mr-1.5 animate-spin' /> Running...</>
+                      )}
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant='ghost'
+                        className='border border-transparent text-foreground/60 hover:text-foreground'
+                        onClick={() => {
+                          setResumeDialogOpen(false);
+                          setAutoApplyStep(1);
+                          setDraftData(null);
+                        }}
+                      >
+                        Close
+                      </Button>
+                      {(autoApplyStep === 2 || autoApplyStep === 3 || autoApplyStep === 4) && (
+                        <Button
+                          variant='outline'
+                          className='border-foreground/20 text-foreground hover:border-foreground/40 hover:bg-foreground/10'
+                          onClick={() => {
+                            if (autoApplyStep === 4) {
+                              setAutoApplyStep(1);
+                              setDraftData(null);
+                            } else if (autoApplyStep === 3) {
+                              // We don't really have a 'back' from execution once started
+                              // but if they click it, maybe go to 2
+                              setAutoApplyStep(2);
+                            } else {
+                              setAutoApplyStep(1);
+                              setAiEvaluation(null);
+                              setForceSubmit(false);
+                            }
+                          }}
+                        >
+                          Back
+                        </Button>
+                      )}
+                      {aiEvaluation && aiEvaluation.missing_requirements.length > 0 ? (
+                        <Button
+                          className={`border border-[#ff4747]/50 text-[#ff4747] bg-[#ff4747]/15 hover:bg-[#ff4747]/25`}
+                          onClick={() => {
+                            setResumeDialogOpen(false);
+                          }}
+                        >
+                          Acknowledge & Edit Profile
+                        </Button>
+                      ) : autoApplyStep === 4 ? (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            className='bg-foreground/10 hover:bg-foreground/20 text-foreground'
+                            onClick={() => applyAllJobs(true)}
+                            disabled={applyingAll}
+                          >
+                            {applyingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Save as Draft"}
+                          </Button>
+                          <Button
+                            className='border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25'
+                            onClick={() => applyAllJobs(false)}
+                            disabled={applyingAll}
+                          >
+                            {applyingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Launch automation"}
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          className={`border ${evaluatingJob || generatingDraft ? "border-[#1dff00]/50" : (aiEvaluation ? "border-[#ffb347]/50 text-[#ffb347] bg-[#ffb347]/15 hover:bg-[#ffb347]/25" : "border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25")} ${autoApplyPrimaryDisabled || evaluatingJob || generatingDraft ? "opacity-50 cursor-not-allowed" : ""}`}
+                          disabled={autoApplyPrimaryDisabled || evaluatingJob || generatingDraft}
+                          onClick={() => {
+                            if (autoApplyStep === 1) {
+                              if (canAdvanceFromStepOne) setAutoApplyStep(2);
+                            } else if (canLaunchAutoApply) {
+                              if (aiEvaluation) {
+                                // User is forcing submit despite warnings
+                                setForceSubmit(true);
+                                setAiEvaluation(null);
+                              } else {
+                                applyAllJobs();
+                              }
+                            }
+                          }}
+                        >
+                          {evaluatingJob || generatingDraft ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              {evaluatingJob ? "Evaluating Job Fit..." : "Drafting Materials..."}
+                            </>
+                          ) : autoApplyStep === 1 ? "Continue" : (aiEvaluation ? "Ignore & Proceed" : "Launch automation")}
+                        </Button>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -4138,6 +5471,15 @@ export const JobPage = (): JSX.Element => {
               title={j.title}
               size='xl'
               side='right'
+              footer={
+                <Button
+                  variant='ghost'
+                  className='w-full rounded-lg border border-foreground/15 bg-foreground/5 text-foreground/70 hover:text-foreground hover:bg-foreground/10'
+                  onClick={() => setSelectedJob(null)}
+                >
+                  Cancel
+                </Button>
+              }
             >
               <div className='-mx-1 space-y-3 pb-2'>
                 {(() => {
@@ -4147,7 +5489,7 @@ export const JobPage = (): JSX.Element => {
                     j.source_id;
                   const siteHost = primaryHref ? getHost(primaryHref) : "";
                   const ico = siteHost
-                    ? `https://icons.duckduckgo.com/ip3/${siteHost}.ico`
+                    ? `https://www.google.com/s2/favicons?domain=${siteHost}&sz=64`
                     : "";
                   const employmentType =
                     (j as any)?.employment_type ??
@@ -4204,10 +5546,10 @@ export const JobPage = (): JSX.Element => {
                       : null,
                     deadlineMeta
                       ? {
-                          label: "Deadline",
-                          value: deadlineMeta.label,
-                          tone: deadlineMeta.level,
-                        }
+                        label: "Deadline",
+                        value: deadlineMeta.label,
+                        tone: deadlineMeta.level,
+                      }
                       : null,
                     salaryText ? { label: "Comp", value: salaryText } : null,
                   ].filter(Boolean) as {
@@ -4217,7 +5559,7 @@ export const JobPage = (): JSX.Element => {
                   }[];
 
                   return (
-                    <Card className='relative overflow-hidden border border-[#1dff00]/25 bg-gradient-to-br from-[#020202] via-[#040404] to-[#0a0a0a] p-5'>
+                    <Card className='relative overflow-hidden border border-[#1dff00]/25 bg-gradient-to-br from-background via-background to-background p-5'>
                       <span className='pointer-events-none absolute -top-20 -right-10 h-40 w-40 rounded-full bg-[#1dff00]/20 blur-3xl opacity-50' />
                       <div className='relative space-y-4'>
                         <div className='flex items-start gap-3'>
@@ -4231,7 +5573,7 @@ export const JobPage = (): JSX.Element => {
                               }
                             />
                           ) : (
-                            <div className='w-12 h-12 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-xl flex items-center justify-center text- font-bold text-lg'>
+                            <div className='w-12 h-12 bg-gradient-to-r from-[#1dff00] to-background rounded-xl flex items-center justify-center text- font-bold text-lg'>
                               {j.logo}
                             </div>
                           )}
@@ -4258,9 +5600,9 @@ export const JobPage = (): JSX.Element => {
                                       alt=''
                                       className='w-3 h-3 rounded-sm'
                                       onError={(e) =>
-                                        ((
-                                          e.target as HTMLImageElement
-                                        ).style.display = "none")
+                                      ((
+                                        e.target as HTMLImageElement
+                                      ).style.display = "none")
                                       }
                                     />
                                   )}
@@ -4315,6 +5657,9 @@ export const JobPage = (): JSX.Element => {
                           >
                             <Briefcase className='w-4 h-4' />
                             Auto Apply
+                            {!hasAutoApplyAccess && (
+                              <Lock className='w-3 h-3 opacity-60' />
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -4322,7 +5667,7 @@ export const JobPage = (): JSX.Element => {
                   );
                 })()}
 
-                <Card className='border border-foreground/12 bg-gradient-to-b from-[#0c0c0c] via-[#050505] to-[#020202] p-4'>
+                <Card className='border border-border bg-card/80 p-4'>
                   <div className='flex items-center justify-between mb-3'>
                     <div className='inline-flex items-center gap-2 text-sm font-medium text-foreground/80'>
                       <FileText className='w-4 h-4 text-[#1dff00]' />
@@ -4332,13 +5677,14 @@ export const JobPage = (): JSX.Element => {
                       Full brief
                     </span>
                   </div>
-                  <div className='max-w-none text-[#ffffffcc] leading-relaxed text-[13px] foregroundspace-pre-wrap'>
-                    {j.description || ""}
-                  </div>
+                  <MarkdownContent
+                    content={j.description}
+                    className='max-h-[45dvh] overflow-y-auto pr-1 text-[13px]'
+                  />
                 </Card>
 
-                {/* AI Match Score Card - Mobile - Gated for Pro/Ultimate */}
-                {subscriptionTier === "Free" ? (
+                {/* AI Match Score Card - Mobile - Gated for Basics+ */}
+                {!hasMatchScoreAccess ? (
                   <UpgradePrompt
                     title='AI Match Score Analysis'
                     description='Get detailed compatibility insights powered by advanced AI to find your perfect job match.'
@@ -4361,7 +5707,7 @@ export const JobPage = (): JSX.Element => {
                           "Get smart recommendations for improvement",
                       },
                     ]}
-                    requiredTier='Pro/Ultimate'
+                    requiredTier='Basics'
                     icon={<Sparkles className='h-12 w-12 text-[#1dff00]' />}
                     compact={true}
                   />
@@ -4373,11 +5719,18 @@ export const JobPage = (): JSX.Element => {
                   />
                 )}
 
+                <JobEvaluationReport
+                  evaluation={evaluationReports[j.id] ?? null}
+                  loading={Boolean(evaluationLoadingByJob[j.id])}
+                  savedStoryTitles={savedStoryTitles}
+                  onSaveStory={saveInterviewStoryToMemory}
+                />
+
                 {(() => {
                   const screenshot = (j as any)?.raw_data?.screenshot;
                   if (!screenshot) return null;
                   return (
-                    <Card className='border border-foreground/12 bg-[#020202] p-0 overflow-hidden'>
+                    <Card className='border border-foreground/12 bg-background p-0 overflow-hidden'>
                       <div className='flex items-center justify-between px-3 py-2 border-b border-foreground/10 bg-foreground/5'>
                         <div className='inline-flex items-center gap-2 text-xs font-medium text-foreground/70'>
                           <Sparkles className='w-3 h-3 text-[#1dff00]' />
@@ -4387,7 +5740,7 @@ export const JobPage = (): JSX.Element => {
                           Preview
                         </span>
                       </div>
-                      <div className='relative bg-[#050505]'>
+                      <div className='relative bg-background'>
                         <img
                           src={screenshot}
                           alt='Job page screenshot'
@@ -4398,7 +5751,7 @@ export const JobPage = (): JSX.Element => {
                             const parent = target.parentElement;
                             if (parent)
                               parent.innerHTML =
-                                '<div class="p-4 text-center text-[#ffffff60] text-sm">Screenshot unavailable</div>';
+                                '<div class="p-4 text-center text-foreground/40 text-sm">Screenshot unavailable</div>';
                           }}
                         />
                         <span className='pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50' />
@@ -4418,7 +5771,7 @@ export const JobPage = (): JSX.Element => {
                     ? sources
                     : [sources];
                   return (
-                    <Card className='border border-foreground/12 bg-gradient-to-br from-[#040404] via-[#030303] to-[#010101] p-4'>
+                    <Card className='border border-foreground/12 bg-gradient-to-br from-background via-background to-background p-4'>
                       <div className='flex items-center justify-between mb-2'>
                         <div className='inline-flex items-center gap-2 text-xs font-medium text-foreground/70'>
                           <ShieldCheck className='w-3 h-3 text-[#1dff00]' />
@@ -4437,7 +5790,7 @@ export const JobPage = (): JSX.Element => {
                           if (!href) return null;
                           const host = getHost(href);
                           const ico = host
-                            ? `https://icons.duckduckgo.com/ip3/${host}.ico`
+                            ? `https://www.google.com/s2/favicons?domain=${host}&sz=64`
                             : "";
                           return (
                             <li
@@ -4451,9 +5804,9 @@ export const JobPage = (): JSX.Element => {
                                     alt=''
                                     className='w-4 h-4 rounded'
                                     onError={(e) =>
-                                      ((
-                                        e.target as HTMLImageElement
-                                      ).style.display = "none")
+                                    ((
+                                      e.target as HTMLImageElement
+                                    ).style.display = "none")
                                     }
                                   />
                                 )}
@@ -4476,15 +5829,6 @@ export const JobPage = (): JSX.Element => {
                     </Card>
                   );
                 })()}
-                <div className='px-1 pt-1'>
-                  <Button
-                    variant='ghost'
-                    className='w-full rounded-lg border border-foreground/15 bg-foreground/5 text-foreground/70 hover:text-foreground hover:bg-foreground/10'
-                    onClick={() => setSelectedJob(null)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
               </div>
             </Modal>
           );

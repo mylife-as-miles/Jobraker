@@ -3,10 +3,12 @@ import { parsePdfFile } from '@/utils/parsePdf';
 import { analyzeResumeText } from '@/utils/analyzeResume';
 import { hashEmbedding } from '@/utils/hashEmbedding';
 import { events } from '@/lib/analytics';
+import { normalizeResumeRecordName } from '@/lib/resumeDisplay';
 import { createClient } from "../lib/supabaseClient";
 import { useToast } from "../components/ui/toast";
 import { createResumeVersion, latestResumeVersion } from '@/lib/resumeVersions';
 import { validateParsedResume } from '@/types/resume-parse-schemas';
+import { persistParsedResume } from "@/lib/parsedResume";
 
 export type ResumeStatus = "Active" | "Draft" | "Archived";
 
@@ -23,6 +25,12 @@ export interface ResumeRecord {
   file_ext: string | null;
   size: number | null;
   updated_at: string;
+  data?: {
+    title?: string | null;
+    basics?: {
+      name?: string | null;
+    } | null;
+  } | null;
 }
 
 type UploadInput = File | { file: File; template?: string };
@@ -89,7 +97,11 @@ export function useResumes() {
         .eq("user_id", userId)
         .order("updated_at", { ascending: false });
       if (error) throw error;
-      setResumes(data || []);
+      setResumes(
+        ((data || []) as ResumeRecord[]).map((record) =>
+          normalizeResumeRecordName(record),
+        ),
+      );
     } catch (e: any) {
       const msg = e.message || "Failed to load resumes";
       setError(msg);
@@ -167,7 +179,7 @@ export function useResumes() {
             .select("*")
             .single();
           if (insErr) throw insErr;
-          const rec = data as ResumeRecord;
+          const rec = normalizeResumeRecordName(data as ResumeRecord);
           results.push(rec);
 
           // Local object URL cache for preview if needed
@@ -251,7 +263,7 @@ export function useResumes() {
       };
       const { data, error: insErr } = await (supabase as any).from('resumes').insert(insertPayload).select('*').single();
       if (insErr) throw insErr;
-      const rec = data as ResumeRecord;
+      const rec = normalizeResumeRecordName(data as ResumeRecord);
       setResumes((prev) => [rec, ...prev]);
       success('Resume imported', `${rec.name}.${rec.file_ext ?? ''}`);
       events.resumeUploaded(file, hashPrefix);
@@ -270,14 +282,15 @@ export function useResumes() {
             const validated = validateParsedResume({ ...analyzed, sections: analyzed.sections, structured: analyzed.structured, entities: analyzed.entities, emails: analyzed.emails||[], phones: analyzed.phones||[], urls: analyzed.urls||[], skills: analyzed.skills });
             if (!validated) { events.resumeParsedFailure('validation_failed'); return; }
             const embedding = hashEmbedding(parsed.text);
-            await (supabase as any).from('parsed_resumes').insert({
-              resume_id: rec.id,
-              user_id: userId,
-      raw_text: parsed.text,
+            await persistParsedResume({
+              supabase,
+              resumeId: rec.id,
+              userId,
+              rawText: parsed.text,
               json: { lines: parsed.lines, entities: analyzed.entities },
               structured: analyzed.structured,
               skills: analyzed.skills,
-              embedding
+              embedding,
             });
             events.resumeParsedSuccess({
               duration_ms: Math.round(performance.now() - t0),
@@ -349,7 +362,7 @@ export function useResumes() {
       };
       const { data, error: insErr } = await (supabase as any).from('resumes').insert(insertPayload).select('*').single();
       if (insErr) throw insErr;
-      const rec = data as ResumeRecord;
+      const rec = normalizeResumeRecordName(data as ResumeRecord);
       setResumes((prev) => [rec, ...prev]);
       success('Resume imported', `${rec.name}.${rec.file_ext ?? ''}`);
       events.resumeUploaded(file, hashPrefix);
@@ -363,14 +376,15 @@ export function useResumes() {
             const validated = validateParsedResume({ ...analyzed, sections: analyzed.sections, structured: analyzed.structured, entities: analyzed.entities, emails: analyzed.emails||[], phones: analyzed.phones||[], urls: analyzed.urls||[], skills: analyzed.skills });
             if (!validated) { events.resumeParsedFailure('validation_failed'); return; }
             const embedding = hashEmbedding(parsed.text);
-            await (supabase as any).from('parsed_resumes').insert({
-              resume_id: rec.id,
-              user_id: userId,
-      raw_text: parsed.text,
+            await persistParsedResume({
+              supabase,
+              resumeId: rec.id,
+              userId,
+              rawText: parsed.text,
               json: { lines: parsed.lines, entities: analyzed.entities },
               structured: analyzed.structured,
               skills: analyzed.skills,
-              embedding
+              embedding,
             });
             events.resumeParsedSuccess({
               duration_ms: Math.round(performance.now() - t0),
@@ -482,14 +496,15 @@ export function useResumes() {
       const validated = validateParsedResume({ ...analyzed, sections: analyzed.sections, structured: analyzed.structured, entities: analyzed.entities, emails: analyzed.emails||[], phones: analyzed.phones||[], urls: analyzed.urls||[], skills: analyzed.skills });
       if (!validated) { events.resumeParsedFailure('validation_failed'); return false; }
       const embedding = hashEmbedding(parsed.text);
-      await (supabase as any).from('parsed_resumes').insert({
-        resume_id: resume.id,
-        user_id: resume.user_id,
-        raw_text: parsed.text,
+      await persistParsedResume({
+        supabase,
+        resumeId: resume.id,
+        userId: resume.user_id,
+        rawText: parsed.text,
         json: { lines: parsed.lines, entities: analyzed.entities },
         structured: analyzed.structured,
         skills: analyzed.skills,
-        embedding
+        embedding,
       });
       success('Re-parsed', resume.name);
       events.resumeParsedSuccess({
@@ -526,9 +541,10 @@ export function useResumes() {
           .select("*")
           .single();
         if (error) throw error;
-        setResumes((p) => [data, ...p]);
+        const rec = normalizeResumeRecordName(data as ResumeRecord);
+        setResumes((p) => [rec, ...p]);
         success("Resume created", name);
-        return data as ResumeRecord;
+        return rec;
       } catch (e: any) {
         const msg = e.message || "Failed to create resume";
         setError(msg);
@@ -648,7 +664,8 @@ export function useResumes() {
         .select("*")
         .single();
       if (error) throw error;
-      setResumes((p) => [data as ResumeRecord, ...p]);
+      const duplicated = normalizeResumeRecordName(data as ResumeRecord);
+      setResumes((p) => [duplicated, ...p]);
       success("Duplicated", rec.name);
     } catch (e: any) {
       const msg = e.message || "Failed to duplicate";
@@ -691,9 +708,19 @@ export function useResumes() {
               case 'INSERT':
                 // Avoid duplicates
                 if (prev.find((r) => r.id === newRow.id)) return prev;
-                return [newRow as ResumeRecord, ...prev];
+                return [
+                  normalizeResumeRecordName(newRow as ResumeRecord),
+                  ...prev,
+                ];
               case 'UPDATE': {
-                const updated = prev.map((r) => (r.id === newRow.id ? { ...r, ...newRow } : r));
+                const updated = prev.map((r) =>
+                  r.id === newRow.id
+                    ? normalizeResumeRecordName({
+                        ...r,
+                        ...newRow,
+                      } as ResumeRecord)
+                    : r,
+                );
                 // Move updated item to top to reflect latest activity
                 const idx = updated.findIndex((r) => r.id === newRow.id);
                 if (idx > 0) {
@@ -742,7 +769,13 @@ export function useResumes() {
     download,
     update: async (id: string, patch: Partial<ResumeRecord>) => {
       try {
-        setResumes((p) => p.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+        setResumes((p) =>
+          p.map((r) =>
+            r.id === id
+              ? normalizeResumeRecordName({ ...r, ...patch } as ResumeRecord)
+              : r,
+          ),
+        );
         const { error } = await (supabase as any).from("resumes").update(patch).eq("id", id);
         if (error) throw error;
         success("Saved changes");

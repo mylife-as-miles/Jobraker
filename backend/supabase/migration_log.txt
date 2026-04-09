@@ -1,0 +1,88 @@
+Using workdir C:\Users\DELL PRECISION 5540\Documents\Jobraker\backend
+Initialising login role...
+Connecting to remote database...
+Skipping migration 20251021120000_create_credit_system.sql.skip... (file name must match pattern "<timestamp>_name.sql")
+Skipping migration 20251021120001_seed_credit_system.sql.skip... (file name must match pattern "<timestamp>_name.sql")
+Skipping migration 20251028000000_add_get_user_email_function.sql.skip... (file name must match pattern "<timestamp>_name.sql")
+Skipping migration 20251029100000_create_user_subscriptions_table.sql.skip... (file name must match pattern "<timestamp>_name.sql")
+Skipping migration query_admin_users.sql... (file name must match pattern "<timestamp>_name.sql")
+Found local migration files to be inserted before the last migration on remote database.
+
+Rerun the command with --include-all flag to apply these migrations:
+supabase\migrations\20250812130000_init_notification_settings.sql                       
+supabase\migrations\20250812133000_alter_profiles_add_fields.sql                        
+supabase\migrations\20250812133500_init_avatars_bucket.sql                              
+supabase\migrations\20250812140000_harden_avatars_privacy.sql                           
+supabase\migrations\20250812140500_init_security_settings.sql                           
+supabase\migrations\20250812150000_alter_security_settings_add_factor_id.sql            
+supabase\migrations\20250812151000_init_backup_codes.sql                                
+supabase\migrations\20250812151500_init_backup_codes.sql                                
+supabase\migrations\20250812152000_init_trusted_devices.sql                             
+supabase\migrations\20250812160000_init_appearance_settings.sql                         
+supabase\migrations\20250812161000_init_privacy_settings.sql                            
+supabase\migrations\20250812162000_enable_realtime_notification_settings.sql            
+supabase\migrations\20250812170000_init_notifications.sql                               
+supabase\migrations\20250812172000_alter_notifications_add_action_url_starred.sql       
+supabase\migrations\20250812172500_alter_notifications_add_action_url_starred.sql       
+supabase\migrations\20250814103000_alter_notifications_add_fields.sql                   
+supabase\migrations\20250819071000_init_applications.sql                                
+supabase\migrations\20250824043600_init_job_matching.sql                                
+supabase\migrations\20250826000000_schedule_jobs_cron.sql                               
+supabase\migrations\20250828_create_job_listings.sql                                    
+supabase\migrations\20250830_add_requirements_benefits.sql                              
+supabase\migrations\20250831100000_add_salary_period_currency.sql                       
+supabase\migrations\20250831100500_alter_job_source_settings_add_enabled_sources.sql    
+supabase\migrations\20250831101000_init_job_source_settings.sql                         
+supabase\migrations\20250910120000_parsed_resumes.sql                                   
+supabase\migrations\20250910120010_fix_parsed_resumes_policies.sql                      
+supabase\migrations\20250910123000_parsed_resume_enhancements.sql                       
+supabase\migrations\20250910124500_parsed_resume_embedding.sql                          
+supabase\migrations\20250911130000_parsed_resumes_embedding_index.sql                   
+supabase\migrations\20250916_add_profile_collections.sql                                
+supabase\migrations\20250922010100_enable_realtime_profiles.sql                         
+supabase\migrations\20250923094500_add_base_resume_to_profiles.sql                      
+supabase\migrations\20250925120000_alter_notifications_add_priority_seen_at.sql         
+supabase\migrations\20250925200500_alter_notifications_add_priority_seen_at_retry.sql   
+supabase\migrations\20250925203000_manual_alter_notifications_add_priority_seen_at.sql  
+supabase\migrations\20250929101500_alter_profiles_add_onboarding_and_extended_fields.sql
+supabase\migrations\20250929110000_init_resume_versions.sql                             
+supabase\migrations\20251009120000_align_job_source_settings_id_policies.sql            
+supabase\migrations\20251027000000_update_credit_system.sql                             
+supabase\migrations\20251027120000_set_existing_users_free_tier_with_bonus.sql          
+supabase\migrations\20251027130000_update_new_user_credits_logic.sql                    
+supabase\migrations\20251028120000_add_get_user_email_rpc.sql                           
+supabase\migrations\20251028130000_create_admin_role_system.sql                         
+supabase\migrations\20251028130001_assign_admin_roles.sql                               
+supabase\migrations\20251028130002_restrict_admin_to_siscostarters.sql                  
+supabase\migrations\20251028140000_add_basics_subscription_plan.sql                     
+supabase\migrations\20251028140001_update_basics_plan_features.sql                      
+supabase\migrations\20251028140002_add_subscription_foreign_key.sql                     
+supabase\migrations\20251028140004_add_basics_to_profile_constraint.sql                 
+supabase\migrations\20251028140005_assign_basics_to_user.sql                            
+supabase\migrations\20251028140006_assign_pro_to_siscostarters.sql                      
+supabase\migrations\20251028140007_create_deduct_job_search_credits_function.sql        
+supabase\migrations\20251028140008_create_deduct_auto_apply_credits_function.sql        
+supabase\migrations\20251028140009_add_credits_to_buzztuneinfo.sql                      
+supabase\migrations\20251028140010_fix_credit_deduction_functions.sql                   
+supabase\migrations\20251028160000_fix_transaction_column_names.sql                     
+supabase\migrations\20251028170000_fix_credit_functions_use_transaction_type.sql        
+supabase\migrations\20251028180000_final_credit_fix.sql                                 
+supabase\migrations\20251028180001_diagnose_table_structure.sql                         
+supabase\migrations\20251028180002_use_correct_transaction_type_value.sql               
+supabase\migrations\20251028190000_add_credit_transactions_foreign_key.sql              
+supabase\migrations\20251029110000_fix_user_subscriptions_rls.sql                       
+supabase\migrations\20251031100000_create_gamification_system.sql                       
+supabase\migrations\20251111000000_init_cover_letters.sql                               
+supabase\migrations\20251111000001_remove_job_search_credit_cap.sql                     
+supabase\migrations\20251111000002_enhance_notification_settings.sql                    
+supabase\migrations\20251111000003_enhance_security_settings.sql                        
+supabase\migrations\20251111000004_enhance_privacy_settings.sql                         
+supabase\migrations\20251111000005_add_match_score_to_applications.sql                  
+supabase\migrations\20251112000000_create_resume_analyses.sql                           
+supabase\migrations\20251112000001_add_enabled_default_sources.sql                      
+supabase\migrations\20251116063300_create_chat_sessions.sql                             
+supabase\migrations\20251116120000_add_data_to_resumes.sql                              
+supabase\migrations\20251117000000_robust_notifications_triggers.sql                    
+supabase\migrations\20251118000000_create_orders_table.sql                              
+supabase\migrations\20251120000000_create_ai_calibration.sql                            
+

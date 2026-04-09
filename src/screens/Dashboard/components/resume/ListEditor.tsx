@@ -47,7 +47,7 @@ export const ListEditor = ({ sectionId }: ListEditorProps) => {
         {section.items.map((item) => (
           <div
             key={item.id}
-            className='group flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-white/10 border border-gray-200 dark:border-white/5 rounded-full text-sm font-medium text-gray-700 dark:text-gray-200 transition-all hover:border-[#1dff00]/30 hover:bg-[#1dff00]/5'
+            className='product-section-card-muted group flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-foreground transition-all hover:border-[#ffd700]/60 hover:bg-[#fff2b3]'
           >
             <span>{item.name}</span>
             <button
@@ -60,7 +60,7 @@ export const ListEditor = ({ sectionId }: ListEditorProps) => {
         ))}
       </div>
 
-      <div className='flex gap-2'>
+      <div className='flex flex-col gap-2 sm:flex-row'>
         <Input
           value={newItemName}
           onChange={(e) => setNewItemName(e.target.value)}
@@ -71,7 +71,7 @@ export const ListEditor = ({ sectionId }: ListEditorProps) => {
         <Button
           onClick={handleAddItem}
           disabled={!newItemName.trim()}
-          className='bg-[#1dff00] text-black hover:bg-[#15bd00]'
+          className='bg-[#1dff00] text-black hover:bg-[#15bd00] sm:w-auto'
         >
           <Plus className='w-4 h-4' />
         </Button>

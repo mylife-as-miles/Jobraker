@@ -1,157 +1,151 @@
-"use client"
+"use client";
 
-import { useMemo } from "react"
-import { Card } from "../ui/card"
-import { Lightbulb, ChevronLeft, ChevronRight } from "lucide-react"
-import { motion } from "framer-motion"
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { useMemo } from "react";
+import { motion } from "framer-motion";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Briefcase, Sparkles, Target } from "lucide-react";
+import { Card } from "../ui/card";
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 
+type SeriesPoint = {
+  name: string;
+  value: number;
+  timestamp: number;
+};
+
 export function InsightCard({ period, data }: { period: Period; data: any }) {
-  const chartData = (data?.chartDataApps?.length ? data.chartDataApps : data?.chartDataJobs) || []
+  const appSeries = (Array.isArray(data?.chartDataApps) ? data.chartDataApps : []) as SeriesPoint[];
+  const jobSeries = (Array.isArray(data?.chartDataJobs) ? data.chartDataJobs : []) as SeriesPoint[];
 
-  const headline = useMemo(() => {
-    const ms = data?.metrics?.avgMatchScore ?? 0
-    const apps = data?.metrics?.applications ?? 0
-    const jobs = data?.metrics?.jobsFound ?? 0
-    if (apps > 0 && ms > 0) return `${ms}% avg match across ${apps} applications`
-    if (jobs > 0) return `${jobs} new jobs in your feed`
-    return `No activity in period`
-  }, [data])
+  const combinedSeries = useMemo(() => {
+    const byTimestamp = new Map<number, { name: string; applications: number; jobs: number }>();
 
-  // Transform data for Recharts
-  const rechartData = useMemo(() => {
-    return chartData.map((item: any) => ({
-      name: item.name,
-      value: item.value || 0,
-    }))
-  }, [chartData])
+    for (const point of appSeries) {
+      byTimestamp.set(point.timestamp, {
+        name: point.name,
+        applications: point.value || 0,
+        jobs: byTimestamp.get(point.timestamp)?.jobs || 0,
+      });
+    }
+
+    for (const point of jobSeries) {
+      const existing = byTimestamp.get(point.timestamp);
+      byTimestamp.set(point.timestamp, {
+        name: point.name,
+        applications: existing?.applications || 0,
+        jobs: point.value || 0,
+      });
+    }
+
+    return Array.from(byTimestamp.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([, value]) => value);
+  }, [appSeries, jobSeries]);
+
+  const hasData = combinedSeries.some((point) => point.applications > 0 || point.jobs > 0);
+  const metrics = data?.metrics || { applications: 0, jobsFound: 0, interviews: 0, avgMatchScore: 0 };
+
+  const peak = useMemo(() => {
+    return combinedSeries.reduce(
+      (best, point) => {
+        const total = point.applications + point.jobs;
+        return total > best.total ? { name: point.name, total } : best;
+      },
+      { name: "", total: 0 },
+    );
+  }, [combinedSeries]);
+
+  const headline =
+    metrics.applications > 0 || metrics.jobsFound > 0
+      ? metrics.applications + " applications from " + metrics.jobsFound + " discovered roles"
+      : "No application or discovery activity in this period";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-      className='h-full'
-    >
-      <Card className='relative overflow-hidden border border-[#1dff00]/20 bg-gradient-to-br from-foreground/10 via-foreground/5 to-foreground/0  p-4 sm:p-6 rounded-2xl shadow-2xl hover:shadow-[0_0_20px_rgba(29,255,0,0.2)] transition-all duration-500 group h-full flex flex-col'>
-        {/* Animated background pattern */}
-        <span className='pointer-events-none absolute -top-24 -right-12 h-56 w-56 rounded-full bg-[#1dff00]/20 blur-3xl opacity-60 animate-pulse' />
-        <span
-          className='pointer-events-none absolute -bottom-24 -left-12 h-56 w-56 rounded-full bg-[#1dff00]/10 blur-3xl opacity-40 animate-pulse'
-          style={{ animationDelay: "1s" }}
-        />
-
-        <div className='relative z-10 flex flex-col h-full'>
-          <div className='flex items-center justify-between mb-4 sm:mb-6'>
-            <div className='flex items-center space-x-2 sm:space-x-3'>
-              <div className='w-10 h-10 sm:w-12 sm:h-12 bg-[#1dff00]/10 border border-[#1dff00]/30 rounded-full flex items-center justify-center backdrop-blur-sm shadow-lg'>
-                <Lightbulb className='w-5 h-5 sm:w-6 sm:h-6 text-[#1dff00] drop-shadow-lg' />
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="h-full">
+      <Card className="h-full overflow-hidden border border-border bg-card/90 shadow-sm">
+        <div className="flex h-full flex-col p-5 sm:p-6">
+          <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#1dff00]/25 bg-[#1dff00]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#1dff00]">
+                <Sparkles className="h-3.5 w-3.5" />
+                Activity trend
               </div>
-              <h2 className='text-lg sm:text-xl font-bold text-foreground drop-shadow-lg'>
-                Insight
-              </h2>
+              <div>
+                <h2 className="text-2xl font-semibold text-foreground">Search momentum</h2>
+                <p className="mt-1 text-sm text-foreground/65">{headline}</p>
+              </div>
             </div>
-            <div className='flex space-x-1 sm:space-x-2'>
-              <button className='w-8 h-8 sm:w-10 sm:h-10 bg-foreground/5 border border-foreground/10 rounded-full flex items-center justify-center hover:bg-foreground/10 transition-all duration-300 backdrop-blur-sm hover:scale-110 group'>
-                <ChevronLeft className='w-4 h-4 sm:w-5 sm:h-5 text-foreground/70 group-hover:text-foreground' />
-              </button>
-              <button className='w-8 h-8 sm:w-10 sm:h-10 bg-foreground/5 border border-foreground/10 rounded-full flex items-center justify-center hover:bg-foreground/10 transition-all duration-300 backdrop-blur-sm hover:scale-110 group'>
-                <ChevronRight className='w-4 h-4 sm:w-5 sm:h-5 text-foreground/70 group-hover:text-foreground' />
-              </button>
+
+            <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
+              <div className="rounded-2xl border border-border bg-background/70 p-4">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-foreground/55">
+                  <Briefcase className="h-4 w-4 text-[#56c2ff]" />
+                  Jobs found
+                </div>
+                <div className="mt-3 text-3xl font-bold text-foreground">{metrics.jobsFound}</div>
+              </div>
+              <div className="rounded-2xl border border-border bg-background/70 p-4">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-foreground/55">
+                  <Target className="h-4 w-4 text-[#1dff00]" />
+                  Applications
+                </div>
+                <div className="mt-3 text-3xl font-bold text-foreground">{metrics.applications}</div>
+              </div>
             </div>
           </div>
 
-          <div className='mb-4 sm:mb-6'>
-            <motion.div
-              key={chartData[chartData.length - 1]?.value ?? "empty"}
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              transition={{ duration: 0.3 }}
-              className='text-3xl sm:text-5xl lg:text-6xl xl:text-7xl font-black text-foreground mb-2 sm:mb-3 drop-shadow-2xl tracking-tight'
-            >
-              {data?.metrics?.avgMatchScore
-                ? `${data.metrics.avgMatchScore}%`
-                : (data?.metrics?.jobsFound ?? 0)}
-            </motion.div>
-            <p className='text-foreground/95 text-sm sm:text-base lg:text-lg mb-1 sm:mb-2 font-medium leading-relaxed'>
-              {headline}
-            </p>
-            <p className='text-foreground/80 text-xs sm:text-sm lg:text-base leading-relaxed'>
-              Period: {String(period ?? "").toUpperCase()}
-            </p>
+          <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-border bg-background/60 p-3">
+              <div className="text-xs uppercase tracking-wide text-foreground/50">Interviews</div>
+              <div className="mt-2 text-xl font-semibold text-foreground">{metrics.interviews}</div>
+            </div>
+            <div className="rounded-2xl border border-border bg-background/60 p-3">
+              <div className="text-xs uppercase tracking-wide text-foreground/50">Avg. match</div>
+              <div className="mt-2 text-xl font-semibold text-foreground">{metrics.avgMatchScore}%</div>
+            </div>
+            <div className="rounded-2xl border border-border bg-background/60 p-3">
+              <div className="text-xs uppercase tracking-wide text-foreground/50">Peak activity</div>
+              <div className="mt-2 text-xl font-semibold text-foreground">{peak.total > 0 ? peak.name : String(period).toUpperCase()}</div>
+            </div>
           </div>
 
-          <div className='flex-1 min-h-[200px]'>
-            {rechartData.length > 0 ? (
-              <ResponsiveContainer width='100%' height='100%'>
-                <AreaChart data={rechartData}>
+          <div className="min-h-[250px] flex-1">
+            {hasData ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={combinedSeries} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                   <defs>
-                    <linearGradient
-                      id='insightGradient'
-                      x1='0'
-                      y1='0'
-                      x2='0'
-                      y2='1'
-                    >
-                      <stop offset='5%' stopColor='#1dff00' stopOpacity={0.4} />
-                      <stop
-                        offset='50%'
-                        stopColor='#1dff00'
-                        stopOpacity={0.2}
-                      />
-                      <stop
-                        offset='95%'
-                        stopColor='#1dff00'
-                        stopOpacity={0.05}
-                      />
+                    <linearGradient id="insightJobs" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#56c2ff" stopOpacity={0.28} />
+                      <stop offset="95%" stopColor="#56c2ff" stopOpacity={0.03} />
+                    </linearGradient>
+                    <linearGradient id="insightApps" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#1dff00" stopOpacity={0.24} />
+                      <stop offset="95%" stopColor="#1dff00" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid
-                    strokeDasharray='3 3'
-                    stroke='rgba(255,255,255,0.1)'
-                  />
-                  <XAxis
-                    dataKey='name'
-                    stroke='rgba(255,255,255,0.5)'
-                    style={{ fontSize: "11px" }}
-                    tick={{ fill: "rgba(255,255,255,0.7)" }}
-                  />
-                  <YAxis
-                    stroke='rgba(255,255,255,0.5)'
-                    style={{ fontSize: "11px" }}
-                    tick={{ fill: "rgba(255,255,255,0.7)" }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "rgba(10, 10, 10, 0.95)",
-                      border: "1px solid rgba(29, 255, 0, 0.3)",
-                      borderRadius: "12px",
-                      color: "#fff",
-                      backdropFilter: "blur(10px)",
-                    }}
-                    labelStyle={{ color: "#1dff00", fontWeight: "bold" }}
-                  />
-                  <Area
-                    type='monotone'
-                    dataKey='value'
-                    stroke='#1dff00'
-                    strokeWidth={3}
-                    fill='url(#insightGradient)'
-                    dot={{ fill: "#1dff00", strokeWidth: 2, r: 4 }}
-                    activeDot={{
-                      r: 6,
-                      fill: "#fff",
-                      stroke: "#1dff00",
-                      strokeWidth: 2,
-                    }}
-                  />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.16)" vertical={false} />
+                  <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "rgba(100,116,139,0.9)", fontSize: 12 }} />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "rgba(100,116,139,0.9)", fontSize: 12 }} width={32} />
+                  <Tooltip contentStyle={{ borderRadius: 16, border: "1px solid rgba(148,163,184,0.18)", background: "rgba(15, 23, 42, 0.92)", color: "#f8fafc", boxShadow: "0 18px 40px rgba(15, 23, 42, 0.35)" }} />
+                  <Legend />
+                  <Area type="monotone" dataKey="jobs" name="Jobs found" stroke="#56c2ff" fill="url(#insightJobs)" strokeWidth={2.5} />
+                  <Line type="monotone" dataKey="applications" name="Applications" stroke="#1dff00" strokeWidth={3} dot={{ r: 3, fill: "#1dff00" }} activeDot={{ r: 5 }} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className='w-full h-full flex items-center justify-center text-foreground/40 text-sm'>
-                No data available for this period
+              <div className="flex h-full min-h-[250px] items-center justify-center rounded-2xl border border-dashed border-border bg-background/45 text-sm text-foreground/55">
+                No activity data is available for this period yet.
               </div>
             )}
           </div>

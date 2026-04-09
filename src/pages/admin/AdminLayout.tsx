@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { isCurrentUserAdmin } from '../../lib/adminUtils';
 import { Button } from '../../components/ui/button';
 
 const navigation = [
@@ -42,7 +43,6 @@ export default function AdminLayout() {
   useEffect(() => {
     const checkAdminAccess = async () => {
       try {
-        const { isCurrentUserAdmin } = await import('@/lib/adminUtils');
         const admin = await isCurrentUserAdmin();
         setIsAdmin(admin);
 
@@ -74,7 +74,7 @@ export default function AdminLayout() {
   // Show loading state while checking admin status
   if (checking) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-background flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-[#1dff00]/20 border-t-[#1dff00] rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-400 text-sm">Verifying admin access...</p>
@@ -86,7 +86,7 @@ export default function AdminLayout() {
   // Show access denied if not admin (shouldn't reach here due to redirect, but safety check)
   if (isAdmin === false) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a] flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-background flex items-center justify-center p-6">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -111,7 +111,7 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#030303] via-[#050505] to-[#0a0a0a]">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-background">
       {/* Mobile sidebar backdrop */}
       <AnimatePresence>
         {sidebarOpen && !isDesktop && (
@@ -119,7 +119,7 @@ export default function AdminLayout() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-background/60 backdrop-blur-sm z-40 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
@@ -130,12 +130,12 @@ export default function AdminLayout() {
         style={{
           transform: isDesktop ? 'translateX(0)' : sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
         }}
-        className="fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-[#030303] via-[#050505] to-[#0a160a] border-r border-[#1dff00]/20 transition-transform duration-300 backdrop-blur-xl shadow-[0_4px_18px_-4px_rgba(0,0,0,0.6)]"
+        className="fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-background via-background to-background border-r border-[#1dff00]/20 transition-transform duration-300 backdrop-blur-xl shadow-[0_4px_18px_-4px_rgba(0,0,0,0.6)]"
       >
         {/* Logo & Close Button */}
         <div className="flex items-center justify-between h-20 px-6 border-b border-[#1dff00]/20">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-[#0a8246]/10 border border-[#1dff00]/30 flex items-center justify-center shadow-inner">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1dff00]/20 to-background/10 border border-[#1dff00]/30 flex items-center justify-center shadow-inner">
               <LayoutDashboard className="w-6 h-6 text-[#1dff00]" />
             </div>
             <div>
@@ -167,8 +167,8 @@ export default function AdminLayout() {
                 whileHover={{ x: 4 }}
                 whileTap={{ scale: 0.98 }}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive
-                    ? 'bg-gradient-to-r from-[#1dff00]/20 to-[#0a8246]/10 text-[#1dff00] shadow-lg shadow-[#1dff00]/10 border border-[#1dff00]/30'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-[#1dff00]/20'
+                  ? 'bg-gradient-to-r from-[#1dff00]/20 to-background/10 text-[#1dff00] shadow-lg shadow-[#1dff00]/10 border border-[#1dff00]/30'
+                  : 'text-gray-400 hover:text-white hover:bg-foreground/5 border border-transparent hover:border-[#1dff00]/20'
                   }`}
               >
                 <div className="flex items-center gap-3">
@@ -188,9 +188,9 @@ export default function AdminLayout() {
 
         {/* Admin Info */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#1dff00]/20">
-          <div className="bg-gradient-to-br from-[#1dff00]/10 to-[#0a8246]/5 rounded-xl p-4 border border-[#1dff00]/20">
+          <div className="bg-gradient-to-br from-[#1dff00]/10 to-background/5 rounded-xl p-4 border border-[#1dff00]/20">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1dff00] to-[#0a8246] flex items-center justify-center text-black font-bold">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1dff00] to-background flex items-center justify-center text-black font-bold">
                 A
               </div>
               <div>
@@ -205,7 +205,7 @@ export default function AdminLayout() {
       {/* Main Content */}
       <div className="lg:pl-72">
         {/* Top Bar */}
-        <header className="sticky top-0 z-30 h-20 bg-gradient-to-br from-[#030303]/80 via-[#050505]/80 to-[#0a160a]/80 backdrop-blur-xl border-b border-[#1dff00]/20">
+        <header className="sticky top-0 z-30 h-20 bg-gradient-to-br from-background/80 via-background/80 to-background/80 backdrop-blur-xl border-b border-[#1dff00]/20">
           <div className="flex items-center justify-between h-full px-6">
             <div className="flex items-center gap-4">
               <button

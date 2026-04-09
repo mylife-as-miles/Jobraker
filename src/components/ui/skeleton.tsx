@@ -29,7 +29,7 @@ export const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
       <div
         ref={ref}
         className={cx(
-          "bg-white/5 border border-white/10 rounded-md relative overflow-hidden",
+          "bg-foreground/5 border border-foreground/10 rounded-md relative overflow-hidden",
           pulse && allowed && "animate-pulse",
           className
         )}

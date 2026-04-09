@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -14,6 +14,7 @@ import { useArtboardStore, initialResumeState } from '@/store/artboard';
 import { useNavigate } from 'react-router-dom';
 
 import { createClient } from '@/lib/supabaseClient';
+import slugify from '@/lib/mocks/slugify';
 
 const supabase = createClient();
 
@@ -32,6 +33,7 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
     const [tagInput, setTagInput] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
+    const [manualSlug, setManualSlug] = useState(false);
 
     const setResumeTitle = useArtboardStore((state) => state.setResumeTitle);
     const setResumeSlug = useArtboardStore((state) => state.setResumeSlug);
@@ -40,19 +42,19 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
     const resetResume = useArtboardStore((state) => state.resetResume);
     // Ideally we would also have a resetResume action
 
-    // Auto-generate slug from name
+    const slugSuggestions = useMemo(() => [
+        slugify(name),
+        slugify(`${name} resume`),
+        tags[0] ? slugify(name + ' ' + tags[0]) : '',
+        tags[0] && tags[1] ? slugify(name + ' ' + tags[0] + ' ' + tags[1]) : '',
+    ], [name, tags]).filter(Boolean).filter((value, index, list) => list.indexOf(value) === index).slice(0, 4);
+
     useEffect(() => {
-        if (name && !slug) { // Only auto-generate if slug is empty or we want to force it? Let's say if it hasn't been manually edited? 
-            // For simplicity, let's just update it if the user hasn't touched the slug input yet? 
-            // A common pattern is: sync until user edits slug.
-            // But for now, let's just sync it if name changes.
-            const generatedSlug = name
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/(^-|-$)+/g, '');
-            setSlug(generatedSlug);
+        if (!manualSlug) {
+            setSlug(slugSuggestions[0] || '');
         }
-    }, [name]); // removed slug dependency to avoid loop if we add logic
+    }, [manualSlug, slugSuggestions]);
+
 
     const handleAddTag = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' || e.key === ',') {
@@ -70,7 +72,7 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
     };
 
     const handleCreate = async () => {
-        if (!name) return;
+        if (!name || !slug) return;
         setLoading(true);
 
         try {
@@ -125,7 +127,7 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-zinc-950 border-zinc-800 text-white sm:max-w-[600px]">
+            <DialogContent className="bg-zinc-950 border-zinc-800 text-foreground sm:max-w-[600px] w-[95vw] mx-auto max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-xl">
                         <span className="text-brand">+</span> Create a new resume
@@ -146,7 +148,7 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="e.g. Full Stack Developer"
-                            className="bg-zinc-900 border-zinc-800 focus:border-brand text-white placeholder:text-zinc-600"
+                            className="bg-zinc-900 border-zinc-800 focus:border-brand text-foreground placeholder:text-zinc-600"
                             autoFocus
                         />
                         <p className="text-xs text-zinc-500">
@@ -159,17 +161,36 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                         <label htmlFor="slug" className="text-sm font-medium text-zinc-300">
                             Slug
                         </label>
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">
+                        <div className="flex items-stretch rounded-md border border-zinc-800 bg-zinc-900 focus-within:border-brand overflow-hidden transition-all">
+                            <div className="flex items-center px-3 bg-zinc-800/30 text-zinc-500 text-sm border-r border-zinc-800 whitespace-nowrap truncate">
                                 jobraker.io/resume/
-                            </span>
+                            </div>
                             <Input
                                 id="slug"
+                                list="slug-suggestions"
                                 value={slug}
-                                onChange={(e) => setSlug(e.target.value)}
-                                className="bg-zinc-900 border-zinc-800 focus:border-brand text-white pl-[180px]"
+                                onChange={(e) => {
+                                    setManualSlug(true);
+                                    setSlug(slugify(e.target.value));
+                                }}
+                                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent flex-1 shadow-none rounded-none text-foreground"
+                                autoComplete="off"
                             />
+                            <datalist id="slug-suggestions">
+                                {slugSuggestions.map((suggestion) => (
+                                    <option key={suggestion} value={suggestion} />
+                                ))}
+                            </datalist>
                         </div>
+                        {slugSuggestions.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {slugSuggestions.map((suggestion) => (
+                                    <button key={suggestion} type="button" onClick={() => { setManualSlug(true); setSlug(suggestion); }} className="text-xs text-zinc-300 underline-offset-4 hover:text-foreground hover:underline">
+                                        {suggestion}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         <p className="text-xs text-zinc-500">
                             This is a URL-friendly name for your resume.
                         </p>
@@ -184,7 +205,7 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                             {tags.map((tag) => (
                                 <span key={tag} className="bg-zinc-800 text-zinc-200 px-2 py-1 rounded-md text-sm flex items-center gap-1">
                                     {tag}
-                                    <button onClick={() => removeTag(tag)} className="hover:text-white">
+                                    <button onClick={() => removeTag(tag)} className="hover:text-foreground">
                                         <X size={14} />
                                     </button>
                                 </span>
@@ -195,7 +216,7 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                                 onChange={(e) => setTagInput(e.target.value)}
                                 onKeyDown={handleAddTag}
                                 placeholder={tags.length === 0 ? "Add a keyword..." : ""}
-                                className="bg-transparent border-none outline-none text-white flex-1 min-w-[120px] text-sm h-7"
+                                className="bg-transparent border-none outline-none text-foreground flex-1 min-w-[120px] text-sm h-7"
                             />
                         </div>
                         <p className="text-xs text-zinc-500">
@@ -207,7 +228,7 @@ export const ResumeCreationModal: React.FC<ResumeCreationModalProps> = ({
                 <DialogFooter>
                     <Button
                         onClick={handleCreate}
-                        disabled={!name || loading}
+                        disabled={!name || !slug || loading}
                         className="bg-white text-black hover:bg-zinc-200 font-semibold"
                     >
                         {loading && <Wand2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -1,21 +1,24 @@
-import React, { useState } from 'react';
 import { useArtboardStore } from '../../../../store/artboard';
 import { Input } from '../../../../components/ui/input';
 import { Button } from '../../../../components/ui/button';
-import { Plus, Trash2, Globe, Github, Linkedin, Twitter, Facebook, Instagram, Youtube } from 'lucide-react';
-import { cn } from '../../../../lib/utils';
+import { Plus, Trash2 } from 'lucide-react';
+import { ResumePhotoEditor } from './ResumePhotoEditor';
 
-const NETWORK_ICONS: Record<string, any> = {
-    website: Globe,
-    github: Github,
-    linkedin: Linkedin,
-    twitter: Twitter,
-    facebook: Facebook,
-    instagram: Instagram,
-    youtube: Youtube
-};
+interface PersonalDetailsEditorProps {
+    hasProfileAvatar: boolean;
+    profileAvatarUrl: string | null;
+    syncingProfilePhoto: boolean;
+    onUseProfileImage: () => Promise<boolean>;
+    onRefreshProfileImage: () => Promise<boolean>;
+}
 
-export const PersonalDetailsEditor = () => {
+export const PersonalDetailsEditor = ({
+    hasProfileAvatar,
+    profileAvatarUrl,
+    syncingProfilePhoto,
+    onUseProfileImage,
+    onRefreshProfileImage,
+}: PersonalDetailsEditorProps) => {
     const basics = useArtboardStore((state) => state.resume.data.basics);
     const updateBasics = useArtboardStore((state) => state.updateBasics);
 
@@ -40,7 +43,6 @@ export const PersonalDetailsEditor = () => {
         newProfiles[index] = { ...newProfiles[index], [field]: value };
         updateBasics({ profiles: newProfiles });
     };
-
     const removeProfile = (index: number) => {
         const newProfiles = [...(basics.profiles || [])];
         newProfiles.splice(index, 1);
@@ -49,17 +51,17 @@ export const PersonalDetailsEditor = () => {
 
     return (
         <div className="p-5 pt-0 space-y-4 animate-in slide-in-from-top-2 duration-200">
-            <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Full Name</label>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium product-helper-text mb-1.5">Full Name</label>
                     <Input
                         value={basics.name}
                         onChange={(e) => updateField('name', e.target.value)}
                         placeholder="John Doe"
                     />
                 </div>
-                <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Job Title</label>
+                <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium product-helper-text mb-1.5">Job Title</label>
                     <Input
                         value={basics.headline}
                         onChange={(e) => updateField('headline', e.target.value)}
@@ -67,7 +69,7 @@ export const PersonalDetailsEditor = () => {
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Email</label>
+                    <label className="block text-xs font-medium product-helper-text mb-1.5">Email</label>
                     <Input
                         value={basics.email}
                         onChange={(e) => updateField('email', e.target.value)}
@@ -75,37 +77,45 @@ export const PersonalDetailsEditor = () => {
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Phone</label>
+                    <label className="block text-xs font-medium product-helper-text mb-1.5">Phone</label>
                     <Input
                         value={basics.phone}
                         onChange={(e) => updateField('phone', e.target.value)}
                         placeholder="+1 (555) 123-4567"
                     />
                 </div>
-                <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Location</label>
+                <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium product-helper-text mb-1.5">Location</label>
                     <Input
                         value={basics.location}
                         onChange={(e) => updateField('location', e.target.value)}
                         placeholder="San Francisco, CA"
                     />
                 </div>
-                <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Personal Website</label>
+                <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium product-helper-text mb-1.5">Personal Website</label>
                     <Input
                         value={basics.website?.url || ''}
                         onChange={(e) => updateField('website', { ...basics.website, url: e.target.value })}
                         placeholder="https://johndoe.dev"
                     />
                 </div>
+
+                <ResumePhotoEditor
+                    hasProfileAvatar={hasProfileAvatar}
+                    profileAvatarUrl={profileAvatarUrl}
+                    syncingProfilePhoto={syncingProfilePhoto}
+                    onUseProfileImage={onUseProfileImage}
+                    onRefreshProfileImage={onRefreshProfileImage}
+                />
             </div>
 
-            <div className="border-t border-gray-200 dark:border-white/10 pt-4">
-                <label className="block text-xs font-medium text-gray-500 mb-3">Social Profiles</label>
+            <div className="border-t border-border/40 pt-4">
+                <label className="block text-xs font-medium product-helper-text mb-3">Social Profiles</label>
                 <div className="space-y-3">
                     {basics.profiles?.map((profile, index) => (
-                        <div key={index} className="flex gap-2 items-start group">
-                            <div className="flex-1 grid grid-cols-2 gap-2">
+                        <div key={index} className="group flex flex-col gap-2 sm:flex-row sm:items-start">
+                            <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
                                 <Input
                                     value={profile.network}
                                     onChange={(e) => updateProfile(index, 'network', e.target.value)}
@@ -122,14 +132,14 @@ export const PersonalDetailsEditor = () => {
                                     value={profile.url}
                                     onChange={(e) => updateProfile(index, 'url', e.target.value)}
                                     placeholder="URL"
-                                    className="col-span-2"
+                                    className="sm:col-span-2"
                                 />
                             </div>
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => removeProfile(index)}
-                                className="text-gray-400 hover:text-red-500 hover:bg-red-500/10"
+                                className="product-helper-text self-end hover:bg-red-500/10 hover:text-red-500 sm:self-start"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </Button>
@@ -138,7 +148,7 @@ export const PersonalDetailsEditor = () => {
                 </div>
                 <Button
                     variant="outline"
-                    className="w-full mt-3 border-dashed border-gray-300 dark:border-white/20 hover:border-[#1dff00] hover:text-[#1dff00]"
+                    className="product-outline-button mt-3 w-full border-dashed hover:border-[#ffd700] hover:text-[#ffd700]"
                     onClick={handleAddProfile}
                 >
                     <Plus className="w-4 h-4 mr-2" />

@@ -123,7 +123,7 @@ Rules:
           contents: [{ role: 'user', parts: [{ text: schemaHint + "\n\n" + user }] }]
         });
         
-        const content = response.text()?.trim() || '';
+        const content = (typeof response.text === 'function' ? response.text() : response.text)?.trim() || '';
         // Extract JSON block
         const jsonMatch = content.match(/\{[\s\S]*\}$/);
         const jsonText = jsonMatch ? jsonMatch[0] : content;

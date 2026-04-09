@@ -28,6 +28,8 @@ import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { useProfileSettings } from "../../hooks/useProfileSettings";
 import { Skeleton } from "../../components/ui/skeleton";
 import { createClient } from "../../lib/supabaseClient";
+import { updateSessionActivity } from "../../utils/sessionManagement";
+import { isCurrentUserAdmin } from "@/lib/adminUtils";
 import { useNotifications } from "../../hooks/useNotifications";
 import { CreditDisplay } from "../../components/CreditDisplay";
 import useMediaQuery from "../../hooks/use-media-query";
@@ -82,11 +84,10 @@ const SidebarItem = ({
     variant='ghost'
     onClick={onClick}
     title={isCollapsed ? item.label : undefined}
-    className={`w-full justify-start rounded-xl mb-1 transition-all duration-200 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${
-      isActive
-        ? "text-foreground bg-[#1dff00]/10 border border-[#1dff00]/20"
-        : "text-foreground/60 hover:text-foreground/40 hover:bg-foreground/5"
-    } ${isCollapsed ? "justify-center px-2" : ""}`}
+    className={`w-full justify-start rounded-xl mb-1 transition-all duration-200 text-sm font-medium px-4 py-2.5 h-auto group relative overflow-hidden ${isActive
+      ? "text-foreground bg-[#1dff00]/10 border border-[#1dff00]/20"
+      : "text-foreground/60 hover:text-foreground/40 hover:bg-foreground/5"
+      } ${isCollapsed ? "justify-center px-2" : ""}`}
   >
     {isActive && (
       <div className='absolute left-0 top-0 bottom-0 w-1 bg-[#1dff00] shadow-[0_0_10px_#1dff00]' />
@@ -117,8 +118,6 @@ export const Dashboard = (): JSX.Element => {
         navigate("/signIn");
       } else if (session.access_token) {
         // Update session activity periodically
-        const { updateSessionActivity } =
-          await import("../../utils/sessionManagement");
         updateSessionActivity(session.access_token);
       }
     };
@@ -131,8 +130,6 @@ export const Dashboard = (): JSX.Element => {
           data: { session },
         } = await supabase.auth.getSession();
         if (session?.access_token) {
-          const { updateSessionActivity } =
-            await import("../../utils/sessionManagement");
           updateSessionActivity(session.access_token);
         }
       },
@@ -142,21 +139,38 @@ export const Dashboard = (): JSX.Element => {
     return () => clearInterval(interval);
   }, [navigate, supabase]);
 
-  const pages: DashboardPage[] = [
-    "overview",
-    "analytics",
-    "chat",
-    "jobs",
-    "application",
-    "billing",
-    "settings",
-    "notifications",
-    "profile",
-    "pricing",
-    "interview-studio",
-    "resume",
-    "cover-letter",
-  ];
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isAdminChecking, setIsAdminChecking] = useState(true);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const admin = await isCurrentUserAdmin();
+      setIsAdmin(admin);
+      setIsAdminChecking(false);
+    };
+    checkAdmin();
+  }, []);
+
+  const pages = useMemo((): DashboardPage[] => {
+    const basePages: DashboardPage[] = [
+      "overview",
+      "analytics",
+      "chat",
+      "jobs",
+      "application",
+      "billing",
+      "settings",
+      "notifications",
+      "profile",
+      "pricing",
+      "resume",
+      "cover-letter",
+    ];
+    if (isAdmin) {
+      basePages.push("interview-studio");
+    }
+    return basePages;
+  }, [isAdmin]);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -218,90 +232,111 @@ export const Dashboard = (): JSX.Element => {
     };
   }, [supabase, (profile as any)?.avatar_url]);
 
-  const allDashboardPages: PageLink[] = [
-    {
-      id: "overview",
-      label: "Dashboard",
-      icon: <BarChart3 className='w-5 h-5' />,
-      path: "Dashboard",
-    },
-    {
-      id: "chat",
-      label: "Chat",
-      icon: <MessageSquare className='w-5 h-5' />,
-      path: "Dashboard / Chat",
-    },
-    {
-      id: "interview-studio",
-      label: "Interview Studio",
-      icon: <Video className='w-5 h-5' />,
-      path: "Dashboard / Interview Studio",
-    },
-    {
-      id: "jobs",
-      label: "Jobs",
-      icon: <Briefcase className='w-5 h-5' />,
-      path: "Dashboard / Jobs",
-    },
-    {
-      id: "application",
-      label: "Application",
-      icon: <Users className='w-5 h-5' />,
-      path: "Dashboard / Application",
-    },
-    {
-      id: "resume",
-      label: "Resume",
-      icon: <FileText className='w-5 h-5' />,
-      path: "Dashboard / Resume",
-    },
-    {
-      id: "cover-letter",
-      label: "Cover Letter",
-      icon: <PenTool className='w-5 h-5' />,
-      path: "Dashboard / Cover Letter",
-    },
-    {
-      id: "analytics",
-      label: "Analytics",
-      icon: <TrendingUp className='w-5 h-5' />,
-      path: "Dashboard / Analytics",
-    },
-    {
-      id: "notifications",
-      label: "Notifications",
-      icon: <Bell className='w-5 h-5' />,
-      path: "Dashboard / Notifications",
-    },
-    {
-      id: "profile",
-      label: "Profile",
-      icon: <User className='w-5 h-5' />,
-      path: "Dashboard / Profile",
-    },
-    {
-      id: "settings",
-      label: "Settings",
-      icon: <Settings className='w-5 h-5' />,
-      path: "Dashboard / Settings",
-    },
-    {
-      id: "pricing",
-      label: "Pricing",
-      icon: <Plus className='w-5 h-5' />,
-      path: "Dashboard / Pricing",
-    },
-  ];
+  const allDashboardPages = useMemo((): PageLink[] => {
+    const base: PageLink[] = [
+      {
+        id: "overview",
+        label: "Dashboard",
+        icon: <BarChart3 className='w-5 h-5' />,
+        path: "Dashboard",
+      },
+      {
+        id: "chat",
+        label: "Chat",
+        icon: <MessageSquare className='w-5 h-5' />,
+        path: "Dashboard / Chat",
+      },
+      {
+        id: "jobs",
+        label: "Jobs",
+        icon: <Briefcase className='w-5 h-5' />,
+        path: "Dashboard / Jobs",
+      },
+      {
+        id: "application",
+        label: "Application",
+        icon: <Users className='w-5 h-5' />,
+        path: "Dashboard / Application",
+      },
+      {
+        id: "resume",
+        label: "Resume",
+        icon: <FileText className='w-5 h-5' />,
+        path: "Dashboard / Resume",
+      },
+      {
+        id: "cover-letter",
+        label: "Cover Letter",
+        icon: <PenTool className='w-5 h-5' />,
+        path: "Dashboard / Cover Letter",
+      },
+      {
+        id: "analytics",
+        label: "Analytics",
+        icon: <TrendingUp className='w-5 h-5' />,
+        path: "Dashboard / Analytics",
+      },
+      {
+        id: "notifications",
+        label: "Notifications",
+        icon: <Bell className='w-5 h-5' />,
+        path: "Dashboard / Notifications",
+      },
+      {
+        id: "profile",
+        label: "Profile",
+        icon: <User className='w-5 h-5' />,
+        path: "Dashboard / Profile",
+      },
+      {
+        id: "settings",
+        label: "Settings",
+        icon: <Settings className='w-5 h-5' />,
+        path: "Dashboard / Settings",
+      },
+      {
+        id: "pricing",
+        label: "Pricing",
+        icon: <Plus className='w-5 h-5' />,
+        path: "Dashboard / Pricing",
+      },
+    ];
 
-  const navigationItems = allDashboardPages.filter(
-    (page) =>
-      !["profile", "settings", "notifications", "pricing"].includes(page.id),
-  );
+    if (isAdmin) {
+      // Insert Interview Studio after Chat
+      const chatIndex = base.findIndex(p => p.id === "chat");
+      base.splice(chatIndex + 1, 0, {
+        id: "interview-studio",
+        label: "Interview Studio",
+        icon: <Video className='w-5 h-5' />,
+        path: "Dashboard / Interview Studio",
+      });
+    }
+
+    return base;
+  }, [isAdmin]);
+
+  const navigationItems = useMemo(() => {
+    return allDashboardPages.filter(
+      (page) =>
+        !["profile", "settings", "notifications", "pricing"].includes(page.id),
+    );
+  }, [allDashboardPages]);
 
   const getCurrentBreadcrumb = () => {
     const currentItem = allDashboardPages.find(
       (item) => item.id === currentPage,
     );
+
+    if (currentPage === "settings") {
+      const tab = location.pathname.split("/")[3];
+      if (tab) {
+        // Capitalize tab name for breadcrumb
+        const formattedTab = tab.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        return `Dashboard / Settings / ${formattedTab}`;
+      }
+    }
+
     return currentItem?.path || "Dashboard";
   };
 
@@ -320,6 +355,9 @@ export const Dashboard = (): JSX.Element => {
       case "billing":
         return <BillingPage />;
       case "interview-studio":
+        if (!isAdmin && !isAdminChecking) {
+          return <OverviewPage />;
+        }
         return <InterviewStudioPage />;
       case "resume":
         return <ResumePage />;
@@ -362,9 +400,10 @@ export const Dashboard = (): JSX.Element => {
           <div
             className={`flex items-center gap-3 relative z-10 w-full ${isCollapsed ? "justify-center" : ""}`}
           >
-            <div className='w-9 h-9  rounded-xl flex items-center justify-center  shrink-0 overflow-clip'>
-            <img src="/logo/logo.jpeg" className="object-cover" alt="logo" />
+            <div className='w-9 h-9 rounded-xl flex items-center justify-center shrink-0 overflow-clip'>
+              <img src="/logo/logo.jpeg" className="object-cover w-full h-full" alt="logo" />
             </div>
+
             {!isCollapsed && (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -388,7 +427,6 @@ export const Dashboard = (): JSX.Element => {
             >
               <X className='w-5 h-5' />
             </Button>
-            {/* Desktop Collapse Toggle - Removed, moved to header */}
           </div>
         </div>
 
@@ -663,7 +701,7 @@ export const Dashboard = (): JSX.Element => {
                   title='Profile'
                   aria-label='Open profile'
                 >
-                  <div className='w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300'>
+                  <div className='w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-[#1dff00] to-background rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform duration-300'>
                     {avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -698,7 +736,7 @@ export const Dashboard = (): JSX.Element => {
                 title='Profile'
                 aria-label='Open profile'
               >
-                <div className='w-6 h-6 bg-gradient-to-r from-[#1dff00] to-[#0a8246] rounded-full overflow-hidden flex items-center justify-center'>
+                <div className='w-6 h-6 bg-gradient-to-r from-[#1dff00] to-background rounded-full overflow-hidden flex items-center justify-center'>
                   {avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -719,11 +757,10 @@ export const Dashboard = (): JSX.Element => {
 
         {/* Page Content - Responsive */}
         <div
-          className={`flex-1 flex flex-col min-h-0 relative ${
-            ["chat", "interview-studio"].includes(currentPage)
-              ? "overflow-hidden"
-              : "overflow-auto"
-          }`}
+          className={`flex-1 flex flex-col min-h-0 relative ${["chat", "interview-studio"].includes(currentPage)
+            ? "overflow-hidden"
+            : "overflow-auto"
+            }`}
         >
           <AnimatePresence mode='wait'>
             <motion.div

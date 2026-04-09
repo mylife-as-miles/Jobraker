@@ -2,17 +2,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "../lib/supabaseClient";
 import { useToast } from "../components/ui/toast";
 import { createNotification } from "../utils/notifications";
+import {
+  APPLICATION_STATUS_OPTIONS,
+  canonicalStageFromDisplayStatus,
+  displayStatusFromCanonicalStage,
+  normalizeApplicationRecord,
+  type ApplicationCanonicalStage,
+  type ApplicationStatus,
+} from "../lib/applicationState";
 
-export type ApplicationStatus = "Pending" | "Applied" | "Interview" | "Offer" | "Rejected" | "Withdrawn";
+export type { ApplicationStatus } from "../lib/applicationState";
 
 export interface ApplicationRecord {
   id: string;
   user_id: string;
+  job_id?: string | null;
   job_title: string;
   company: string;
   location: string;
   applied_date: string; // ISO string
   status: ApplicationStatus;
+  canonical_stage: ApplicationCanonicalStage;
   salary: string | null;
   notes: string | null;
   next_step: string | null;
@@ -28,12 +38,59 @@ export interface ApplicationRecord {
   provider_status?: string | null;
   recording_url?: string | null;
   failure_reason?: string | null;
+  match_reasons?: string[] | null;
+  receipt_url?: string | null;
+  success_url?: string | null;
+  draft_status?: "draft" | "ready" | "sent" | null;
+  ai_confidence_score?: number | null;
+  user_review_notes?: string | null;
 }
 
 type CreateInput = Partial<Omit<ApplicationRecord, "id" | "user_id" | "created_at" | "updated_at">> & {
   job_title: string;
   company: string;
 };
+
+type RecoverableJobRow = {
+  id: string;
+  title: string;
+  company: string;
+  location: string | null;
+  apply_url?: string | null;
+  company_logo?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  canonical_status: ApplicationCanonicalStage;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_currency?: string | null;
+  evaluation_summary?: {
+    confidence_score?: number | null;
+    matched_keywords?: string[] | null;
+  } | null;
+};
+
+const RECOVERABLE_JOB_STATES: ApplicationCanonicalStage[] = [
+  "draft_ready",
+  "queued",
+  "submitted",
+  "failed",
+  "interview",
+  "offer",
+  "rejected",
+  "withdrawn",
+];
+
+function formatRecoveredSalary(job: RecoverableJobRow): string | null {
+  const min = typeof job.salary_min === "number" ? job.salary_min : null;
+  const max = typeof job.salary_max === "number" ? job.salary_max : null;
+  const currency = job.salary_currency?.trim() || "";
+
+  if (min == null && max == null) return null;
+  if (min != null && max != null) return `${currency}${min.toLocaleString()} - ${currency}${max.toLocaleString()}`;
+  const value = min ?? max;
+  return value == null ? null : `${currency}${value.toLocaleString()}`;
+}
 
 export function useApplications() {
   const supabase = useMemo(() => createClient(), []);
@@ -50,14 +107,10 @@ export function useApplications() {
    * Lightweight memo so downstream UIs do not have to recalculate.
    */
   const stats = useMemo(() => {
-    const byStatus: Record<ApplicationStatus, number> = {
-      Pending: 0,
-      Applied: 0,
-      Interview: 0,
-      Offer: 0,
-      Rejected: 0,
-      Withdrawn: 0,
-    };
+    const byStatus = APPLICATION_STATUS_OPTIONS.reduce(
+      (acc, status) => ({ ...acc, [status]: 0 }),
+      {} as Record<ApplicationStatus, number>,
+    );
     let newest: string | null = null;
     let interviewsNext7 = 0;
     const now = Date.now();
@@ -125,7 +178,85 @@ export function useApplications() {
       const { data, error } = await query;
       if (reqId !== listRequestId.current) return; // stale
       if (error) throw error;
-      setApplications((data ?? []) as ApplicationRecord[]);
+
+      const applicationRows = ((data ?? []) as ApplicationRecord[]).map((row) =>
+        normalizeApplicationRecord(row),
+      );
+      const existingJobIds = new Set(
+        applicationRows
+          .map((row) => row.job_id)
+          .filter((jobId): jobId is string => typeof jobId === "string" && jobId.length > 0),
+      );
+      const existingAppUrls = new Set(
+        applicationRows
+          .map((row) => row.app_url)
+          .filter((url): url is string => typeof url === "string" && url.length > 0),
+      );
+
+      const { data: recoverableJobs, error: recoverableJobsError } = await (supabase as any)
+        .from("jobs")
+        .select(
+          "id, title, company, location, apply_url, company_logo, created_at, updated_at, canonical_status, salary_min, salary_max, salary_currency, evaluation_summary",
+        )
+        .eq("user_id", userId)
+        .in("canonical_status", RECOVERABLE_JOB_STATES);
+
+      if (recoverableJobsError) {
+        console.warn("Failed to load recoverable jobs for applications sync", recoverableJobsError);
+      }
+
+      let recoveredRows: ApplicationRecord[] = [];
+      const missingJobs = ((recoverableJobs ?? []) as RecoverableJobRow[]).filter(
+        (job) =>
+          !existingJobIds.has(job.id) &&
+          !(job.apply_url && existingAppUrls.has(job.apply_url)),
+      );
+
+      if (missingJobs.length > 0) {
+        const recoveryPayload = missingJobs.map((job) => ({
+          user_id: userId,
+          job_id: job.id,
+          job_title: job.title,
+          company: job.company,
+          location: job.location ?? "",
+          applied_date: job.updated_at || job.created_at || new Date().toISOString(),
+          status: displayStatusFromCanonicalStage(job.canonical_status),
+          canonical_stage: job.canonical_status,
+          salary: formatRecoveredSalary(job),
+          notes: null,
+          next_step: null,
+          interview_date: null,
+          logo: job.company_logo ?? null,
+          app_url: job.apply_url ?? null,
+          provider_status: job.canonical_status,
+          match_reasons:
+            Array.isArray(job.evaluation_summary?.matched_keywords) &&
+            job.evaluation_summary.matched_keywords.length > 0
+              ? job.evaluation_summary.matched_keywords
+              : null,
+          draft_status: job.canonical_status === "draft_ready" ? "draft" : "sent",
+          ai_confidence_score:
+            typeof job.evaluation_summary?.confidence_score === "number"
+              ? job.evaluation_summary.confidence_score
+              : null,
+          user_review_notes: null,
+        }));
+
+        const { data: insertedRecoveredRows, error: recoverError } = await (supabase as any)
+          .from("applications")
+          .insert(recoveryPayload)
+          .select("*");
+
+        if (recoverError) {
+          console.warn("Failed to recover missing application rows from jobs", recoverError);
+        } else {
+          recoveredRows = ((insertedRecoveredRows ?? []) as ApplicationRecord[]).map((row) =>
+            normalizeApplicationRecord(row),
+          );
+        }
+      }
+
+      setApplications([...recoveredRows, ...applicationRows]);
     } catch (e: any) {
       if (reqId !== listRequestId.current) return; // stale
       const msg = e.message || "Failed to load applications";
@@ -154,9 +285,10 @@ export function useApplications() {
             switch (eventType) {
               case 'INSERT':
                 if (prev.find((r) => r.id === newRow.id)) return prev;
-                return [newRow as ApplicationRecord, ...prev];
+                return [normalizeApplicationRecord(newRow as ApplicationRecord), ...prev];
               case 'UPDATE': {
-                const updated = prev.map((r) => (r.id === newRow.id ? { ...r, ...newRow } : r));
+                const normalized = normalizeApplicationRecord(newRow as ApplicationRecord);
+                const updated = prev.map((r) => (r.id === newRow.id ? { ...r, ...normalized } : r));
                 // Move updated to top
                 const idx = updated.findIndex((r) => r.id === newRow.id);
                 if (idx > 0) {
@@ -186,17 +318,27 @@ export function useApplications() {
     try {
       const payload = {
         user_id: userId,
+        job_id: input.job_id ?? null,
         job_title: input.job_title,
         company: input.company,
         location: input.location ?? "",
     applied_date: input.applied_date ?? new Date().toISOString(),
     status: (input.status ?? "Pending") as ApplicationStatus,
+        canonical_stage:
+          input.canonical_stage ??
+          canonicalStageFromDisplayStatus(input.status ?? "Pending"),
         salary: input.salary ?? null,
         notes: input.notes ?? null,
         match_score: input.match_score ?? null,
         next_step: input.next_step ?? null,
         interview_date: input.interview_date ?? null,
         logo: input.logo ?? null,
+        match_reasons: input.match_reasons ?? null,
+        receipt_url: input.receipt_url ?? null,
+        success_url: input.success_url ?? null,
+        draft_status: input.draft_status ?? 'ready',
+        ai_confidence_score: input.ai_confidence_score ?? null,
+        user_review_notes: input.user_review_notes ?? null,
       };
       const { data, error } = await (supabase as any)
         .from("applications")
@@ -204,7 +346,7 @@ export function useApplications() {
         .select("*")
         .single();
       if (error) throw error;
-      const rec = data as ApplicationRecord;
+      const rec = normalizeApplicationRecord(data as ApplicationRecord);
       setApplications((prev) => [rec, ...prev]);
       success("Application added", `${rec.job_title} @ ${rec.company}`);
       // Notification: new application added
@@ -241,10 +383,20 @@ export function useApplications() {
     const newStatus = patch.status ?? oldStatus;
     const oldInterviewDate = current?.interview_date;
     try {
-      setApplications((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+      const normalizedPatch = {
+        ...patch,
+        ...(patch.status
+          ? { canonical_stage: canonicalStageFromDisplayStatus(patch.status) }
+          : {}),
+      };
+      setApplications((prev) =>
+        prev.map((r) =>
+          r.id === id ? normalizeApplicationRecord({ ...r, ...normalizedPatch }) : r,
+        ),
+      );
       const { error } = await (supabase as any)
         .from("applications")
-        .update(patch)
+        .update(normalizedPatch)
         .eq("id", id);
       if (error) throw error;
       success("Saved changes");
@@ -294,7 +446,7 @@ export function useApplications() {
       }
       // Provider failure or explicit failure_reason update
       if (userId && patch.failure_reason) {
-        createNotification({
+      createNotification({
           user_id: userId,
           type: 'system',
           title: 'Application error',
@@ -322,11 +474,18 @@ export function useApplications() {
     if (!ids.length) return;
     const prev = applications;
     const affected = new Set(ids);
-    setApplications(applications.map(a => affected.has(a.id) ? { ...a, status } : a));
+    const canonicalStage = canonicalStageFromDisplayStatus(status);
+    setApplications(
+      applications.map((a) =>
+        affected.has(a.id)
+          ? normalizeApplicationRecord({ ...a, status, canonical_stage: canonicalStage })
+          : a,
+      ),
+    );
     try {
       const { error } = await (supabase as any)
         .from('applications')
-        .update({ status })
+        .update({ status, canonical_stage: canonicalStage })
         .in('id', ids);
       if (error) throw error;
       success('Statuses updated', `${ids.length} application${ids.length > 1 ? 's' : ''}`);
@@ -335,7 +494,7 @@ export function useApplications() {
         const label = status === 'Offer' ? 'Offer stage' : status === 'Interview' ? 'Interview stage' : `Status: ${status}`;
         createNotification({
           user_id: userId,
-          type: status === 'Rejected' ? 'system' : 'application',
+          type: status === 'Rejected' || status === 'Failed' ? 'system' : 'application',
           title: `${label} (${ids.length})`,
           message: `Updated ${ids.length} application${ids.length>1?'s':''} to ${status}.`,
         });
