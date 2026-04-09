@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createGeminiClient, GEMINI_MODEL, createGeminiConfig, extractGeminiText } from "../_shared/gemini.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { parseStructuredJson } from "../_shared/structured-json.ts";
 
 interface ResumeAnalysisRequest {
   resumeText: string;
@@ -169,14 +170,17 @@ serve(async (req) => {
     const content = extractGeminiText(response);
     if (!content) throw new Error("Invalid response from Gemini (empty)");
 
-    let parsed;
+    let parsed: Record<string, unknown> | null = null;
     try {
-      parsed = JSON.parse(content);
+      parsed = parseStructuredJson<Record<string, unknown>>(content);
     } catch (err: any) {
-      throw new Error(`Failed to parse analysis JSON: ${err?.message || err}`);
+      console.warn(
+        "analyze-resume JSON parse failed, returning failsafe analysis",
+        err,
+      );
     }
 
-    const result = toResult(parsed);
+    const result = parsed ? toResult(parsed) : JSON_FAILSAFE;
 
     if (resumeId && user.id) {
       try {

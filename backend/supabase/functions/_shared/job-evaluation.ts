@@ -12,6 +12,7 @@ import {
   fetchCandidateMemory,
   formatCandidateMemoryForPrompt,
 } from "./candidate-memory.ts";
+import { parseStructuredJson } from "./structured-json.ts";
 
 export type CanonicalJobDecision =
   | "strong_yes"
@@ -153,15 +154,8 @@ const asStringArray = (value: unknown): string[] => {
     .filter((item): item is string => Boolean(item));
 };
 
-const parseJsonObject = (raw: string): Record<string, unknown> => {
-  const trimmed = raw.trim();
-  const cleaned = trimmed
-    .replace(/^```json/i, "")
-    .replace(/^```/i, "")
-    .replace(/```$/i, "")
-    .trim();
-  return JSON.parse(cleaned) as Record<string, unknown>;
-};
+const parseJsonObject = (raw: string): Record<string, unknown> =>
+  parseStructuredJson<Record<string, unknown>>(raw);
 
 const normalizeDecision = (value: unknown): CanonicalJobDecision => {
   switch (value) {
@@ -564,6 +558,9 @@ export async function evaluateAndPersistJobFit(
     });
 
     const rawText = extractGeminiText(response);
+    if (!rawText) {
+      throw new Error("Empty response from AI job evaluation.");
+    }
     parsed = normalizeEvaluation(parseJsonObject(rawText));
   } catch (error) {
     const fallbackReason = isGeminiAccessDeniedError(error)

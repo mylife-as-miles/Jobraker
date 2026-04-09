@@ -151,6 +151,270 @@ function CompanyMark({
   );
 }
 
+function getApplicationStatusColor(status: ApplicationStatus) {
+  if (status === "Applied") return "#1dff00";
+  if (status === "Interview") return "#F59E0B";
+  if (status === "Offer") return "#10B981";
+  if (status === "Rejected") return "#EF4444";
+  if (status === "Withdrawn") return "#94A3B8";
+  return "#6B7280";
+}
+
+function ApplicationsListView({
+  filtered,
+  selectedStatus,
+  update,
+  refresh,
+  setDetailId,
+}: {
+  filtered: Array<{
+    id: string;
+    job_title: string;
+    company: string;
+    location: string;
+    status: ApplicationStatus;
+    applied_date: string;
+    interview_date: string | null;
+    logo: string | null;
+    app_url?: string | null;
+    recording_url?: string | null;
+    match_score?: number;
+  }>;
+  selectedStatus: "All" | ApplicationStatus;
+  update: (
+    id: string,
+    patch: Partial<{ status: ApplicationStatus }>,
+  ) => Promise<unknown>;
+  refresh: () => Promise<unknown>;
+  setDetailId: (id: string) => void;
+}) {
+  const statuses: ApplicationStatus[] = [
+    "Pending",
+    "Applied",
+    "Interview",
+    "Offer",
+    "Rejected",
+    "Withdrawn",
+  ];
+
+  return (
+    <div className='overflow-hidden rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background shadow-[0_0_30px_rgba(29,255,0,0.15)] backdrop-blur-xl'>
+      <div className='pointer-events-none absolute -top-20 left-0 h-64 w-64 rounded-full bg-[#1dff00]/10 blur-3xl opacity-40' />
+
+      <ListProvider
+        onDragEnd={async (e: ListDragEndEvent) => {
+          const active = e.active?.data?.current as any;
+          const over = e.over?.id as string | undefined;
+          if (!active || !over || active.parent === over) return;
+          const appId = active.id as string;
+          try {
+            await update(appId, { status: over as ApplicationStatus });
+          } catch {
+            await refresh();
+          }
+        }}
+        className='divide-y divide-[#1dff00]/5'
+      >
+        {statuses.map((status) => {
+          const rows = filtered.filter((a) => a.status === status);
+          const color = getApplicationStatusColor(status);
+          if (rows.length === 0 && selectedStatus !== "All") return null;
+
+          return (
+            <ListGroup
+              key={status}
+              id={status}
+              className='flex flex-col'
+            >
+              <ListHeader
+                name={status}
+                color={color}
+                className='sticky top-0 z-10 border-b border-[#1dff00]/10 bg-background/95 backdrop-blur-xl'
+              >
+                <div className='flex items-center gap-3 px-4 py-3'>
+                  <div
+                    className='h-2 w-2 rounded-full shadow-[0_0_8px_currentColor]'
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className='text-sm font-semibold text-foreground/90'>
+                    {status}
+                  </span>
+                  <span
+                    className='ml-auto inline-flex items-center gap-1.5 rounded-lg border bg-foreground/5 px-2.5 py-1 text-xs font-medium'
+                    style={{ borderColor: color + "40", color }}
+                  >
+                    {rows.length}
+                  </span>
+                </div>
+              </ListHeader>
+
+              <ListItems className='grid flex-none gap-3 p-3 sm:p-4'>
+                {rows.length === 0 && (
+                  <div className='rounded-2xl border border-dashed border-foreground/10 bg-foreground/[0.02] px-6 py-10 text-center'>
+                    <div className='mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-foreground/10 bg-foreground/[0.04]'>
+                      <div className='h-6 w-6 rounded-xl bg-gradient-to-br from-foreground/10 to-transparent' />
+                    </div>
+                    <div className='text-xs font-medium uppercase tracking-[0.16em] text-foreground/35'>
+                      No {status.toLowerCase()} applications
+                    </div>
+                  </div>
+                )}
+
+                {rows.map((a, idx) => (
+                  <ListItem
+                    key={a.id}
+                    id={a.id}
+                    name={a.job_title}
+                    index={idx}
+                    parent={status}
+                    className='group relative overflow-hidden rounded-[1.4rem] border-0 bg-transparent p-0 shadow-none'
+                  >
+                    <div
+                      className='w-full cursor-pointer rounded-[1.4rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.018))] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.22)] transition-[border-color,box-shadow,transform,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-[#1dff00]/28 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.024))] hover:shadow-[0_22px_48px_rgba(0,0,0,0.32)] active:scale-[0.985]'
+                      onClick={() => setDetailId(a.id)}
+                    >
+                      <div className='flex items-start gap-4'>
+                        <CompanyMark
+                          logo={a.logo}
+                          company={a.company}
+                          jobTitle={a.job_title}
+                        />
+
+                        <div className='min-w-0 flex-1'>
+                          <div className='flex flex-wrap items-start justify-between gap-3'>
+                            <div className='min-w-0'>
+                              <div className='flex flex-wrap items-center gap-2'>
+                                <h3
+                                  className='truncate text-base font-semibold text-foreground'
+                                  title={a.job_title}
+                                >
+                                  {a.job_title}
+                                </h3>
+                                <MatchScoreBadge score={a.match_score ?? 0} />
+                              </div>
+                              <div className='mt-1 truncate text-sm font-medium text-foreground/60'>
+                                {a.company}
+                              </div>
+                            </div>
+
+                            <span
+                              className='inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors'
+                              style={{
+                                backgroundColor: color + "15",
+                                borderColor: color + "3D",
+                                color,
+                              }}
+                            >
+                              {a.status}
+                            </span>
+                          </div>
+
+                          <div className='mt-3 flex flex-wrap items-center gap-2 text-xs text-foreground/45'>
+                            <span className='inline-flex items-center gap-1.5 rounded-full border border-foreground/10 bg-foreground/[0.03] px-2.5 py-1'>
+                              <svg
+                                className='h-3.5 w-3.5'
+                                fill='none'
+                                viewBox='0 0 24 24'
+                                stroke='currentColor'
+                              >
+                                <path
+                                  strokeLinecap='round'
+                                  strokeLinejoin='round'
+                                  strokeWidth={2}
+                                  d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'
+                                />
+                              </svg>
+                              {new Date(a.applied_date).toLocaleDateString()}
+                            </span>
+
+                            {a.location && (
+                              <span className='inline-flex max-w-full items-center gap-1.5 rounded-full border border-foreground/10 bg-foreground/[0.03] px-2.5 py-1'>
+                                <svg
+                                  className='h-3.5 w-3.5 flex-shrink-0'
+                                  fill='none'
+                                  viewBox='0 0 24 24'
+                                  stroke='currentColor'
+                                >
+                                  <path
+                                    strokeLinecap='round'
+                                    strokeLinejoin='round'
+                                    strokeWidth={2}
+                                    d='M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z'
+                                  />
+                                  <path
+                                    strokeLinecap='round'
+                                    strokeLinejoin='round'
+                                    strokeWidth={2}
+                                    d='M15 11a3 3 0 11-6 0 3 3 0 016 0z'
+                                  />
+                                </svg>
+                                <span className='truncate'>{a.location}</span>
+                              </span>
+                            )}
+
+                            {a.interview_date && (
+                              <span className='inline-flex items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-amber-300'>
+                                <svg
+                                  className='h-3.5 w-3.5'
+                                  fill='none'
+                                  viewBox='0 0 24 24'
+                                  stroke='currentColor'
+                                >
+                                  <path
+                                    strokeLinecap='round'
+                                    strokeLinejoin='round'
+                                    strokeWidth={2}
+                                    d='M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z'
+                                  />
+                                </svg>
+                                Interview{" "}
+                                {new Date(a.interview_date).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+
+                          {(a.app_url || a.recording_url) && (
+                            <div className='mt-3 flex flex-wrap items-center gap-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100'>
+                              {a.app_url && (
+                                <a
+                                  href={a.app_url}
+                                  target='_blank'
+                                  rel='noreferrer'
+                                  onClick={(e) => e.stopPropagation()}
+                                  className='inline-flex items-center gap-1.5 rounded-xl border border-[#1dff00]/25 bg-[#1dff00]/10 px-3 py-1.5 text-xs font-medium text-[#7fff8b] transition-[background-color,border-color,transform] duration-150 ease-out hover:bg-[#1dff00]/16 active:scale-95'
+                                >
+                                  <ExternalLink className='h-3.5 w-3.5' />
+                                  Open role
+                                </a>
+                              )}
+                              {a.recording_url && (
+                                <a
+                                  href={a.recording_url}
+                                  target='_blank'
+                                  rel='noreferrer'
+                                  onClick={(e) => e.stopPropagation()}
+                                  className='inline-flex items-center gap-1.5 rounded-xl border border-foreground/10 bg-foreground/[0.04] px-3 py-1.5 text-xs font-medium text-foreground/70 transition-[background-color,border-color,color,transform] duration-150 ease-out hover:border-foreground/15 hover:bg-foreground/[0.08] hover:text-foreground active:scale-95'
+                                >
+                                  <Link2 className='h-3.5 w-3.5' />
+                                  Recording
+                                </a>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </ListItem>
+                ))}
+              </ListItems>
+            </ListGroup>
+          );
+        })}
+      </ListProvider>
+    </div>
+  );
+}
+
 function ApplicationPage() {
   const {
     applications,
@@ -791,7 +1055,7 @@ function ApplicationPage() {
                 </div>
               </div>
             )}
-            {viewMode === "list" && (
+            {false && viewMode === "list" && (
               <div className='border border-[#1dff00]/20 rounded-2xl bg-gradient-to-br from-background via-background to-background backdrop-blur-xl shadow-[0_0_30px_rgba(29,255,0,0.15)] overflow-hidden'>
                 {/* Ambient glow */}
                 <div className='pointer-events-none absolute -top-20 left-0 h-64 w-64 rounded-full bg-[#1dff00]/10 blur-3xl opacity-40' />
@@ -1023,6 +1287,7 @@ function ApplicationPage() {
                                   {a.status}
                                 </span>
                               </div>
+                              </div>
                             </ListItem>
                           ))}
                         </ListItems>
@@ -1031,6 +1296,15 @@ function ApplicationPage() {
                   })}
                 </ListProvider>
               </div>
+            )}
+            {viewMode === "list" && (
+              <ApplicationsListView
+                filtered={filtered}
+                selectedStatus={selectedStatus}
+                update={update}
+                refresh={refresh}
+                setDetailId={setDetailId}
+              />
             )}
             {viewMode === "calendar" && (
               <div className='relative rounded-2xl border border-[#1dff00]/20 bg-gradient-to-br from-background via-background to-background p-6 shadow-[0_0_30px_rgba(29,255,0,0.1)] overflow-hidden'>
@@ -1141,19 +1415,29 @@ function ApplicationPage() {
                     <KanbanCards id={column.id}>
                       {(a: any) => (
                         <KanbanCard key={a.id} id={a.id}>
-                          <div className='flex items-start gap-3'>
-                            <div className='w-10 h-10 bg-gradient-to-br from-[#1dff00]/90 to-background rounded-lg flex items-center justify-center text-foreground font-bold text-xs flex-shrink-0 shadow-sm'>
-                              {a.logo || (a.company?.[0] ?? "")}
-                            </div>
-                            <div className='min-w-0 flex-1 space-y-1'>
-                              <div className='text-foreground/95 text-sm font-semibold leading-tight truncate'>
-                                {a.job_title}
+                          <div className='flex items-start gap-3.5'>
+                            <CompanyMark
+                              logo={a.logo}
+                              company={a.company}
+                              jobTitle={a.job_title}
+                              size='sm'
+                            />
+                            <div className='min-w-0 flex-1'>
+                              <div className='flex items-start justify-between gap-2'>
+                                <div className='min-w-0 space-y-1'>
+                                  <div className='truncate text-sm font-semibold leading-tight text-foreground/95'>
+                                    {a.job_title}
+                                  </div>
+                                  <div className='truncate text-xs font-medium text-foreground/65'>
+                                    {a.company}
+                                  </div>
+                                </div>
+                                <div className='mt-0.5 shrink-0'>
+                                  <MatchScoreBadge score={a.match_score ?? 0} />
+                                </div>
                               </div>
-                              <div className='text-foreground/65 text-xs font-medium truncate'>
-                                {a.company}
-                              </div>
-                              <div className='flex items-center gap-2 text-[11px] text-foreground/50 mt-2 pt-2 border-t border-foreground/5'>
-                                <span className='font-medium'>
+                              <div className='mt-3 flex flex-wrap items-center gap-2 border-t border-foreground/5 pt-3 text-[11px] text-foreground/50'>
+                                <span className='inline-flex items-center rounded-full border border-foreground/10 bg-foreground/[0.03] px-2 py-1 font-medium'>
                                   {new Date(a.applied_date).toLocaleDateString(
                                     "en-US",
                                     {
@@ -1164,19 +1448,12 @@ function ApplicationPage() {
                                   )}
                                 </span>
                                 {a.location && (
-                                  <>
-                                    <span className='text-foreground/20'>
+                                  <span className='inline-flex max-w-full items-center rounded-full border border-foreground/10 bg-foreground/[0.03] px-2 py-1'>
                                       •
-                                    </span>
-                                    <span className='truncate'>
-                                      {a.location}
-                                    </span>
-                                  </>
+                                    {a.location}
+                                  </span>
                                 )}
                               </div>
-                            </div>
-                            <div className='flex-shrink-0 mt-0.5'>
-                              <MatchScoreBadge score={a.match_score ?? 0} />
                             </div>
                           </div>
                         </KanbanCard>
@@ -1233,15 +1510,21 @@ function ApplicationPage() {
                 <h2 className='text-2xl font-bold text-foreground'>
                   {detailApp.job_title}
                 </h2>
-                <div className='flex items-center gap-2 text-foreground/60'>
-                  <div className='h-8 w-8 rounded-lg bg-gradient-to-br from-[#1dff00]/20 to-[#1dff00]/5 flex items-center justify-center'>
-                    <span className='text-xs font-bold text-[#1dff00]'>
-                      {detailApp.company.charAt(0)}
+                <div className='flex items-center gap-3 text-foreground/60'>
+                  <CompanyMark
+                    logo={detailApp.logo}
+                    company={detailApp.company}
+                    jobTitle={detailApp.job_title}
+                    size='sm'
+                  />
+                  <div className='min-w-0'>
+                    <div className='text-[10px] font-semibold uppercase tracking-[0.24em] text-foreground/35'>
+                      Company
+                    </div>
+                    <span className='text-base font-medium text-foreground/80'>
+                      {detailApp.company}
                     </span>
                   </div>
-                  <span className='text-base font-medium text-foreground/80'>
-                    {detailApp.company}
-                  </span>
                 </div>
               </div>
             </div>
