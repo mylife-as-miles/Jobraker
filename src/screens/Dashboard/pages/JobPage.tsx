@@ -3679,21 +3679,15 @@ export const JobPage = (): JSX.Element => {
             </div>
             <div className='relative group md:col-span-1 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] border-[#1dff00]/20 text-foreground placeholder:text-foreground/40 focus:border-[#1dff00]/60 focus:ring-2 focus:ring-[#1dff00]/30 transition-all duration-300 rounded-xl'>
               <MapPin className='pointer-events-none w-5 h-5 absolute right-3 top-1/2  -translate-y-1/2 text-[#1dff00]/60 transition-colors group-focus-within:text-[#1dff00]' />
-              <Input
+              <div
                 id='jobs-location'
                 data-tour='jobs-location'
-                placeholder="Location or 'Remote'..."
-                value={selectedLocation}
-                readOnly
-                aria-readonly='true'
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    populateQueue(searchQuery, selectedLocation);
-                  }
-                }}
-                className='pl-12 h-12 cursor-default outline-none focus:outline-none'
-              />
+                aria-label={`Selected location ${selectedLocation || "Remote"}`}
+                role='status'
+                className='flex h-12 items-center rounded-xl border border-[#1dff00]/20 bg-gradient-to-br from-foreground/5 to-foreground/[0.02] px-6 pr-12 text-base font-medium text-foreground sm:text-lg'
+              >
+                <span className='truncate'>{selectedLocation || "Remote"}</span>
+              </div>
             </div>
           </div>
         </Card>
