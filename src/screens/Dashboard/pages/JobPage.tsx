@@ -753,6 +753,23 @@ const extractAutomationMetadata = (
   } as const;
 };
 
+const getProxiedLogoUrl = (url: string | null | undefined): string | undefined => {
+  if (!url) return undefined;
+  // If it's already a data URL, placeholder, or google favicon, don't proxy
+  if (
+    url.startsWith("data:") ||
+    url.startsWith("/") ||
+    url.startsWith("https://www.google.com/s2/favicons")
+  ) {
+    return url;
+  }
+  // Construct proxy URL using the Supabase project endpoint
+  const supabaseUrl =
+    import.meta.env.VITE_SUPABASE_URL ||
+    "https://yquhsllwrwfvrwolqywh.supabase.co";
+  return `${supabaseUrl}/functions/v1/proxy-image?url=${encodeURIComponent(url)}`;
+};
+
 const getCompanyLogoUrl = (
   companyName?: string,
   sourceUrl?: string,
@@ -778,10 +795,11 @@ const mapDbJobToUiJob = (dbJob: any): Job => {
     id: dbJob.id,
     description: dbJob.description || raw?.fullJobDescription || "",
     // Prioritize: 1) company_logo from DB, 2) raw data logo, 3) generate from Clearbit
-    logoUrl:
+    logoUrl: getProxiedLogoUrl(
       dbJob.company_logo ||
-      raw?.companyLogoUrl ||
-      getCompanyLogoUrl(dbJob.company, dbJob.apply_url),
+        raw?.companyLogoUrl ||
+        getCompanyLogoUrl(dbJob.company, dbJob.apply_url),
+    ),
     logo: dbJob.company?.[0]?.toUpperCase() || "?",
     status: dbJob.status,
     canonical_status: dbJob.canonical_status ?? "discovered",
