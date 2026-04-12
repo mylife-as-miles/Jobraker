@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { ArrowDownRight, ArrowUpRight, Sparkles } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card } from "../ui/card";
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
@@ -19,8 +18,24 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
   const hasData = chartData.length > 0;
   const hasRoleDetails = chartData.some((item: any) => Boolean(item?.summary || item?.company));
   const maxValue = Math.max(...chartData.map((item: any) => Number(item.value) || 0), 0);
-  const xDomain = hasRoleDetails ? [0, 100] : [0, Math.max(4, maxValue + 1)];
   const highlight = hasRoleDetails ? chartData[0] : null;
+  const rows = useMemo(() => {
+    return chartData.map((item: any, index: number) => {
+      const value = Math.max(0, Number(item?.value) || 0);
+      const ratio = hasRoleDetails ? value / 100 : maxValue > 0 ? value / maxValue : 0;
+      const width = Math.max(ratio * 100, value > 0 ? 10 : 0);
+
+      return {
+        id: `${item?.name ?? "match"}-${index}`,
+        company: item?.company,
+        color: item?.color || "#10b981",
+        label: typeof item?.name === "string" && item.name.trim() ? item.name.trim() : `Role ${index + 1}`,
+        rank: index + 1,
+        value,
+        width: Math.min(width, 100),
+      };
+    });
+  }, [chartData, hasRoleDetails, maxValue]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.1 }} className="h-full">
@@ -56,33 +71,63 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
             </div>
           </div>
 
-          <div className="relative min-h-[250px] flex-1">
+          <div className="relative">
             {hasData ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} layout="vertical" margin={{ top: 8, right: 24, left: 12, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="barGradient" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="rgba(52, 211, 153, 0.8)" />
-                      <stop offset="100%" stopColor="rgba(16, 185, 129, 1)" />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(148, 163, 184, 0.08)" />
-                  <XAxis type="number" domain={xDomain} axisLine={false} tickLine={false} tick={false} height={0} />
-                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "rgba(148, 163, 184, 0.8)", fontSize: 11, fontWeight: 500 }} width={100} />
-                  <Tooltip
-                    cursor={{ fill: "rgba(16, 185, 129, 0.04)" }}
-                    contentStyle={{ borderRadius: 16, border: "1px solid rgba(255, 255, 255, 0.08)", background: "rgba(15, 23, 42, 0.95)", color: "#f8fafc", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)" }}
-                    formatter={(value) => [hasRoleDetails ? value + "%" : value, hasRoleDetails ? "Score" : "Matches"]}
-                  />
-                  <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={24}>
-                    {chartData.map((entry: any, index: number) => (
-                      <Cell key={entry.name + index} fill={entry.color ? entry.color : "url(#barGradient)"} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="space-y-3.5">
+                {rows.map((item) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.24, delay: item.rank * 0.04 }}
+                    className="rounded-2xl border border-border/30 bg-background/30 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-[11px] font-bold text-emerald-300">
+                            {String(item.rank).padStart(2, "0")}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-foreground">{item.label}</div>
+                            {item.company ? (
+                              <div className="mt-1 truncate text-xs font-medium text-muted-foreground/70">{item.company}</div>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div
+                        className="shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold tracking-wide shadow-sm"
+                        style={{
+                          borderColor: `${item.color}55`,
+                          backgroundColor: `${item.color}18`,
+                          color: item.color,
+                        }}
+                      >
+                        {hasRoleDetails ? `${Math.round(item.value)}%` : Math.round(item.value)}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 pl-10">
+                      <div className="h-2.5 overflow-hidden rounded-full bg-white/[0.04] ring-1 ring-white/[0.05]">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${item.width}%` }}
+                          transition={{ duration: 0.4, delay: item.rank * 0.05, ease: [0.23, 1, 0.32, 1] }}
+                          className="h-full rounded-full"
+                          style={{
+                            background: `linear-gradient(90deg, ${item.color}99 0%, ${item.color} 100%)`,
+                            boxShadow: `0 0 20px ${item.color}33`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             ) : (
-              <div className="flex h-full min-h-[250px] items-center justify-center rounded-2xl border border-dashed border-border/40 bg-background/20 text-sm text-muted-foreground/60 backdrop-blur-sm">
+              <div className="flex min-h-[250px] items-center justify-center rounded-2xl border border-dashed border-border/40 bg-background/20 text-sm text-muted-foreground/60 backdrop-blur-sm">
                 No match score data is available yet.
               </div>
             )}
