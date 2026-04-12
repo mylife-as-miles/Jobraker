@@ -3684,14 +3684,15 @@ export const JobPage = (): JSX.Element => {
                 data-tour='jobs-location'
                 placeholder="Location or 'Remote'..."
                 value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
+                readOnly
+                aria-readonly='true'
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
                     populateQueue(searchQuery, selectedLocation);
                   }
                 }}
-                className='pl-12 h-12 outline-none focus:outline-none'
+                className='pl-12 h-12 cursor-default outline-none focus:outline-none'
               />
             </div>
           </div>
