@@ -64,6 +64,7 @@ import Modal from "../../../components/ui/modal";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
+import { getProxiedLogoUrl } from "../../../lib/utils";
 
 type SortOption = "score" | "recent" | "company" | "status";
 
@@ -86,9 +87,7 @@ function getCompanyInitials(company?: string | null, jobTitle?: string | null) {
 function resolveCompanyLogo(logo?: string | null) {
   const value = logo?.trim();
   if (!value) return null;
-  if (value.startsWith("//")) return `https:${value}`;
-  if (/^(https?:|data:image\/|blob:|\/)/i.test(value)) return value;
-  return null;
+  return getProxiedLogoUrl(value) || null;
 }
 
 function CompanyMark({

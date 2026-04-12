@@ -56,7 +56,7 @@ import {
 } from "../../../services/jobs/jobEvaluation";
 import { isTrustedSource } from "../../../utils/trustedSources";
 import { useGamification } from "../../../hooks/useGamification";
-import { cn } from "../../../lib/utils";
+import { cn, getProxiedLogoUrl } from "../../../lib/utils";
 import { useRegisterCoachMarks } from "../../../providers/TourProvider";
 import { MatchScorePieChart } from "../../../components/MatchScorePieChart";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
@@ -753,22 +753,7 @@ const extractAutomationMetadata = (
   } as const;
 };
 
-const getProxiedLogoUrl = (url: string | null | undefined): string | undefined => {
-  if (!url) return undefined;
-  // If it's already a data URL, placeholder, or google favicon, don't proxy
-  if (
-    url.startsWith("data:") ||
-    url.startsWith("/") ||
-    url.startsWith("https://www.google.com/s2/favicons")
-  ) {
-    return url;
-  }
-  // Construct proxy URL using the Supabase project endpoint
-  const supabaseUrl =
-    import.meta.env.VITE_SUPABASE_URL ||
-    "https://yquhsllwrwfvrwolqywh.supabase.co";
-  return `${supabaseUrl}/functions/v1/proxy-image?url=${encodeURIComponent(url)}`;
-};
+
 
 const getCompanyLogoUrl = (
   companyName?: string,
