@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "../lib/supabaseClient";
 import { useToast } from "../components/ui/toast";
 import { createNotification } from "../utils/notifications";
@@ -92,9 +92,38 @@ function formatRecoveredSalary(job: RecoverableJobRow): string | null {
   return value == null ? null : `${currency}${value.toLocaleString()}`;
 }
 
+function buildResumeRebuildPrompt(
+  opts?: { jobTitle?: string | null; company?: string | null; count?: number },
+) {
+  const count = opts?.count ?? 1;
+  const company = opts?.company?.trim();
+  const jobTitle = opts?.jobTitle?.trim();
+  const intro =
+    count > 1
+      ? `${count} applications were marked as rejected.`
+      : jobTitle
+        ? `${jobTitle}${company ? ` at ${company}` : ""} was marked as rejected.`
+        : "An application was marked as rejected.";
+
+  return createElement(
+    Fragment,
+    null,
+    `${intro} This is a good moment to tighten your resume. `,
+    createElement(
+      "a",
+      {
+        href: "/dashboard/resume",
+        className: "font-medium text-[#1dff00] underline underline-offset-4 hover:text-[#9dff8a]",
+      },
+      "Open the Resume section",
+    ),
+    " to rebuild and retarget it.",
+  );
+}
+
 export function useApplications() {
   const supabase = useMemo(() => createClient(), []);
-  const { success, error: toastError, info } = useToast();
+  const { success, error: toastError, info, warning } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [applications, setApplications] = useState<ApplicationRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -428,6 +457,14 @@ export function useApplications() {
             message: `${current.job_title} @ ${current.company}`,
             company: current.company,
           });
+          warning(
+            "Resume rebuild recommended",
+            buildResumeRebuildPrompt({
+              jobTitle: current.job_title,
+              company: current.company,
+            }),
+            9000,
+          );
         }
       }
       // Interview date newly scheduled or changed
@@ -467,7 +504,7 @@ export function useApplications() {
         });
       }
     }
-  }, [supabase, success, toastError, list, applications, userId]);
+  }, [supabase, success, toastError, warning, list, applications, userId]);
 
   /** Bulk status update (optimistic). Rolls back to previous collection on failure. */
   const bulkUpdateStatus = useCallback(async (ids: string[], status: ApplicationStatus) => {
@@ -499,13 +536,20 @@ export function useApplications() {
           message: `Updated ${ids.length} application${ids.length>1?'s':''} to ${status}.`,
         });
       }
+      if (status === "Rejected") {
+        warning(
+          "Resume rebuild recommended",
+          buildResumeRebuildPrompt({ count: ids.length }),
+          9000,
+        );
+      }
     } catch (e: any) {
       setApplications(prev); // rollback
       const msg = e.message || 'Bulk status update failed';
       setError(msg);
       toastError('Bulk update failed', msg);
     }
-  }, [applications, supabase, success, toastError, userId]);
+  }, [applications, supabase, success, toastError, userId, warning]);
 
   /** Lightweight client-side search (case-insensitive across title/company/location). */
   const search = useCallback((q: string) => {
