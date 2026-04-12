@@ -7,6 +7,25 @@ import { Card } from "../ui/card";
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 
+function compactRoleLabel(input: unknown) {
+  const raw = typeof input === "string" ? input : "";
+  const normalized = raw
+    .replace(/\s+/g, " ")
+    .replace(/^job ad nigeria:\s*/i, "")
+    .trim();
+
+  const primary = normalized
+    .split(/(?:\s+[|•]\s+|\s+\|\s+|\n+)/)
+    .map((part) => part.trim())
+    .find(Boolean) || normalized;
+
+  if (primary.length <= 54) return primary;
+
+  const trimmed = primary.slice(0, 51);
+  const lastSpace = trimmed.lastIndexOf(" ");
+  return `${(lastSpace > 24 ? trimmed.slice(0, lastSpace) : trimmed).trimEnd()}...`;
+}
+
 export function MatchScoreAnalytics({ period, data }: { period: Period; data: any }) {
   const chartData = useMemo(() => {
     return Array.isArray(data?.matchBarData) ? data.matchBarData.slice(0, 6) : [];
@@ -24,12 +43,14 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
       const value = Math.max(0, Number(item?.value) || 0);
       const ratio = hasRoleDetails ? value / 100 : maxValue > 0 ? value / maxValue : 0;
       const width = Math.max(ratio * 100, value > 0 ? 10 : 0);
+      const fullLabel = typeof item?.name === "string" && item.name.trim() ? item.name.trim() : `Role ${index + 1}`;
 
       return {
         id: `${item?.name ?? "match"}-${index}`,
         company: item?.company,
         color: item?.color || "#10b981",
-        label: typeof item?.name === "string" && item.name.trim() ? item.name.trim() : `Role ${index + 1}`,
+        fullLabel,
+        label: compactRoleLabel(fullLabel),
         rank: index + 1,
         value,
         width: Math.min(width, 100),
@@ -89,9 +110,22 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
                             {String(item.rank).padStart(2, "0")}
                           </div>
                           <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-foreground">{item.label}</div>
+                            <div
+                              className="pr-2 text-sm font-semibold leading-snug text-foreground"
+                              title={item.fullLabel}
+                              style={{
+                                display: "-webkit-box",
+                                WebkitBoxOrient: "vertical",
+                                WebkitLineClamp: 2,
+                                overflow: "hidden",
+                              }}
+                            >
+                              {item.label}
+                            </div>
                             {item.company ? (
-                              <div className="mt-1 truncate text-xs font-medium text-muted-foreground/70">{item.company}</div>
+                              <div className="mt-1 truncate pr-2 text-xs font-medium text-muted-foreground/70" title={item.company}>
+                                {item.company}
+                              </div>
                             ) : null}
                           </div>
                         </div>
@@ -149,7 +183,7 @@ export function MatchScoreAnalytics({ period, data }: { period: Period; data: an
               className="mt-6 rounded-2xl border border-border/30 bg-emerald-500/5 p-4 text-sm text-foreground/80 ring-1 ring-emerald-500/10"
             >
               <div className="flex items-center gap-2 mb-2">
-                <span className="font-bold text-foreground">{highlight.name}</span>
+                <span className="font-bold text-foreground" title={highlight.name}>{compactRoleLabel(highlight.name)}</span>
                 {highlight.company ? (
                   <>
                     <div className="h-1 w-1 rounded-full bg-muted-foreground/40" />

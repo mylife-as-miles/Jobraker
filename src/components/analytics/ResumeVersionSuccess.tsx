@@ -7,6 +7,26 @@ import { Card } from "../ui/card";
 
 type Period = "7d" | "30d" | "90d" | "ytd" | "12m";
 
+function StatusTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  if (!active || !payload?.length) return null;
+
+  const item = payload[0]?.payload;
+  if (!item) return null;
+
+  return (
+    <div className="min-w-[150px] rounded-2xl border border-white/10 bg-slate-950/95 px-3 py-2 text-left shadow-2xl backdrop-blur-md">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+        {item.name}
+      </div>
+      <div className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-50">
+        <span>{item.share ?? 0}%</span>
+        <span className="text-slate-500">:</span>
+        <span>{item.value} applications</span>
+      </div>
+    </div>
+  );
+}
+
 export function ResumeVersionSuccess({ period, data }: { period: Period; data: any }) {
   const chartData = Array.isArray(data?.donutData) ? data.donutData : [];
   const totalApplications = data?.metrics?.applications ?? chartData.reduce((sum: number, item: any) => sum + (item.value || 0), 0);
@@ -37,11 +57,8 @@ export function ResumeVersionSuccess({ period, data }: { period: Period; data: a
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Tooltip
-                      contentStyle={{ borderRadius: 16, border: "1px solid rgba(148,163,184,0.18)", background: "rgba(15, 23, 42, 0.92)", color: "#f8fafc" }}
-                      formatter={(value: number, _name: string, item: any) => {
-                        const share = item?.payload?.share ?? 0;
-                        return [value + " applications", share + "%"];
-                      }}
+                      cursor={false}
+                      content={<StatusTooltip />}
                     />
                     <Pie data={chartData} dataKey="value" nameKey="name" innerRadius={64} outerRadius={96} paddingAngle={4} cornerRadius={8} stroke="none">
                       {chartData.map((entry: any, index: number) => (
