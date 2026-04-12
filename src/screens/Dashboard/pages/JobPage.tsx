@@ -125,6 +125,12 @@ type MatchContext = {
   profile?: Profile | null;
 };
 
+type JobQueueScope = {
+  searchQuery: string;
+  location: string;
+  limit?: number;
+} | null;
+
 type MatchScoreRequestJob = {
   id: string;
   title: string;
@@ -1291,6 +1297,7 @@ export const JobPage = (): JSX.Element => {
   const decorateJobsRef = useRef<(list: Job[]) => Promise<Job[]>>(
     async (list) => list,
   );
+  const activeSearchScopeRef = useRef<JobQueueScope>(null);
 
   const decorateJobs = useCallback(
     async (list: Job[]) =>
@@ -1608,7 +1615,7 @@ export const JobPage = (): JSX.Element => {
     [profile?.story_bank, safeInfo, updateProfile],
   );
 
-  const fetchJobQueue = useCallback(async (): Promise<Job[]> => {
+  const fetchJobQueue = useCallback(async (scope: JobQueueScope = activeSearchScopeRef.current): Promise<Job[]> => {
     setQueueStatus("loading");
     setError(null);
     try {
@@ -1623,7 +1630,7 @@ export const JobPage = (): JSX.Element => {
         return [];
       }
 
-      const { data, error: fetchError } = await supabase
+      let queryBuilder = supabase
         .from("jobs")
         .select("*")
         .eq("user_id", user.id)
@@ -1633,8 +1640,31 @@ export const JobPage = (): JSX.Element => {
           "evaluated",
           "draft_ready",
           "failed",
-        ])
-        .order("created_at", { ascending: false });
+        ]);
+
+      const scopedSearchQuery = scope?.searchQuery?.trim();
+      const scopedLocation = scope?.location?.trim();
+      if (scopedSearchQuery) {
+        const discoveryScope: Record<string, string> = {
+          search_query: scopedSearchQuery,
+        };
+        if (scopedLocation) {
+          discoveryScope.location = scopedLocation;
+        }
+
+        queryBuilder = queryBuilder
+          .contains("raw_data", { discovery: discoveryScope })
+          .order("discovered_at", { ascending: false })
+          .order("created_at", { ascending: false });
+
+        if (typeof scope?.limit === "number" && scope.limit > 0) {
+          queryBuilder = queryBuilder.limit(scope.limit);
+        }
+      } else {
+        queryBuilder = queryBuilder.order("created_at", { ascending: false });
+      }
+
+      const { data, error: fetchError } = await queryBuilder;
 
       if (fetchError) throw fetchError;
 
@@ -1741,6 +1771,7 @@ export const JobPage = (): JSX.Element => {
     setConfirmDeleteOpen(false);
     setClearingJobs(true);
     setError(null);
+    activeSearchScopeRef.current = null;
 
     try {
       const { data: authData } = await supabase.auth.getUser();
@@ -1853,9 +1884,14 @@ export const JobPage = (): JSX.Element => {
 
         // Use backend jobs-search to discover and save jobs directly
         safeInfo("Searching the web for jobs...");
+        const currentSearchScope: JobQueueScope = {
+          searchQuery: query.trim(),
+          location: (selectedLocation || "Remote").trim() || "Remote",
+          limit: maxResultsPerSearch,
+        };
         const searchPayload = {
           searchQuery: query,
-          location: selectedLocation || "Remote",
+          location: currentSearchScope.location,
           limit: maxResultsPerSearch, // Use tier-based result limit per search
         };
         const attemptInvoke = async (): Promise<any> => {
@@ -1901,6 +1937,7 @@ export const JobPage = (): JSX.Element => {
         }
 
         if (searchData?.error) {
+          activeSearchScopeRef.current = null;
           if (searchData.error === "missing_api_key") {
             setErrorDedup({
               message:
@@ -1915,7 +1952,7 @@ export const JobPage = (): JSX.Element => {
             setErrorDedup({ message: `Failed to search: ${detail}` });
           }
 
-          const cachedJobs = await fetchJobQueue();
+          const cachedJobs = await fetchJobQueue(null);
           safeInfo(
             "Search fallback",
             cachedJobs.length > 0
@@ -1966,18 +2003,22 @@ export const JobPage = (): JSX.Element => {
 
         setStepIndex(1); // Stage 1: Saving Results
         setInsertedThisRun(inserted);
+        activeSearchScopeRef.current = currentSearchScope;
 
         // Transition to Finalizing
         if (inserted > 0) {
           // Poll for results if we know we inserted some, but fetch returns empty
-          let currentJobs = await fetchJobQueue();
+          let currentJobs = await fetchJobQueue(currentSearchScope);
           if (currentJobs.length === 0) {
             // Wait 1.5s and retry once
             await new Promise((r) => setTimeout(r, 1500));
-            currentJobs = await fetchJobQueue();
+            currentJobs = await fetchJobQueue(currentSearchScope);
           }
         } else {
-          await fetchJobQueue();
+          setJobs([]);
+          setSelectedJob(null);
+          setCurrentPage(1);
+          setQueueStatus("empty");
         }
 
         setStepIndex(2); // Stage 2: Finalizing List
@@ -1993,7 +2034,8 @@ export const JobPage = (): JSX.Element => {
         );
         setCurrentSource(null);
       } catch (e: any) {
-        const fallbackJobs = await fetchJobQueue();
+        activeSearchScopeRef.current = null;
+        const fallbackJobs = await fetchJobQueue(null);
         setError({ message: `Failed to search jobs: ${e.message}` });
         if (fallbackJobs.length === 0) {
           setQueueStatus("idle");
