@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import { useRecentTransactions } from '../hooks/useAdminStats';
 import type { AdminTransaction } from '../types';
+import { getProxiedLogoUrl } from '../../../lib/utils';
 
 // ─── Activity Detail Slide-Over Panel ─────────────────────────────────────
 function ActivityDetailPanel({
@@ -67,7 +68,7 @@ function ActivityDetailPanel({
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">User</h3>
               <div className="flex items-center gap-4 p-4 bg-gray-800/30 rounded-xl border border-gray-800">
                 {transaction.user.avatar_url ? (
-                  <img src={transaction.user.avatar_url} alt="User" className="w-12 h-12 rounded-full object-cover" />
+                  <img src={getProxiedLogoUrl(transaction.user.avatar_url)} alt="User" className="w-12 h-12 rounded-full object-cover" />
                 ) : (
                   <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
                     <UserIcon className="w-6 h-6 text-gray-400" />
@@ -444,7 +445,7 @@ export default function AdminActivity() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {activity.user?.avatar_url ? (
-                          <img src={activity.user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover border border-gray-700" />
+                          <img src={getProxiedLogoUrl(activity.user.avatar_url)} alt="User" className="w-8 h-8 rounded-full object-cover" />
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center border border-gray-700">
                             <UserIcon className="w-4 h-4 text-gray-400" />

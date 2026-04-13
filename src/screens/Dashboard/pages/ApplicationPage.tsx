@@ -894,7 +894,7 @@ function ApplicationPage() {
                     checked={showFuture}
                     onChange={(e) => setShowFuture(e.target.checked)}
                   />
-                  <span>Extend active bars to today</span>
+                  <span>Show active age to today</span>
                 </label>
               </div>
             )}
@@ -1002,15 +1002,14 @@ function ApplicationPage() {
                       const updated = new Date(
                         a.updated_at || a.applied_date || Date.now(),
                       );
+                      const now = new Date();
                       const activeStatuses: ApplicationStatus[] = [
                         "Pending",
                         "Applied",
                         "Interview",
                       ];
                       let end: Date;
-                      if (activeStatuses.includes(a.status) && showFuture) {
-                        end = new Date();
-                      } else if (a.interview_date && a.status === "Interview") {
+                      if (a.interview_date && a.status === "Interview") {
                         const idate = new Date(a.interview_date);
                         end = idate > applied ? idate : updated;
                       } else {
@@ -1022,11 +1021,18 @@ function ApplicationPage() {
                       if (end.getTime() === applied.getTime()) {
                         end = new Date(end.getTime() + 6 * 3600 * 1000);
                       }
+                      const trailEnd =
+                        showFuture &&
+                        activeStatuses.includes(a.status) &&
+                        now > end
+                          ? now
+                          : undefined;
                       return {
                         id: a.id,
                         label: a.job_title || a.company || "Untitled",
                         start: applied,
                         end,
+                        trailEnd,
                         status: a.status,
                         extra: a.company,
                         groupKey: a.status,
@@ -2515,7 +2521,7 @@ function ApplicationsTable({ data, onRowClick }: ApplicationsTableProps) {
                   <div className='relative w-4 h-4 rounded overflow-hidden flex-shrink-0 bg-gradient-to-br from-[#1dff00] via-background to-[#1dff00] p-[1px]'>
                     <div className='w-full h-full bg-background rounded flex items-center justify-center'>
                       <img
-                        src={info.row.original.logo_url}
+                        src={getProxiedLogoUrl(info.row.original.logo_url)}
                         alt=''
                         className='w-3 h-3 object-contain'
                       />

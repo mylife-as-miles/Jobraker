@@ -1,4 +1,9 @@
 import { parsePdfFile } from "@/utils/parsePdf";
+import {
+  buildFallbackParsedProfileData,
+  type ParsedProfileData,
+  sanitizeParsedProfileData,
+} from "@/services/ai/parseResumeProfile";
 
 type SupabaseLikeClient = any;
 
@@ -20,7 +25,100 @@ type LoadParsedResumeTextInput = {
   fileExt?: string | null;
 };
 
+type ParsedResumeSnapshot = {
+  raw_text: string;
+  json?: Record<string, unknown> | null;
+  structured?: unknown;
+  skills?: string[] | null;
+  extracted_at?: string;
+};
+
+type LoadParsedResumeProfileInput = {
+  supabase: SupabaseLikeClient;
+  resumeId: string;
+  fallbackName?: string | null;
+};
+
 let parsedResumesTableState: "unknown" | "available" | "missing" = "unknown";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function mergeParsedProfileData(
+  base: ParsedProfileData,
+  incoming: ParsedProfileData,
+): ParsedProfileData {
+  return {
+    ...base,
+    firstName: incoming.firstName || base.firstName,
+    lastName: incoming.lastName || base.lastName,
+    email: incoming.email || base.email,
+    phone: incoming.phone || base.phone,
+    location: incoming.location || base.location,
+    jobTitle: incoming.jobTitle || base.jobTitle,
+    experienceYears:
+      incoming.experienceYears ?? base.experienceYears ?? null,
+    about: incoming.about || base.about,
+    skills: incoming.skills.length > 0 ? incoming.skills : base.skills,
+    education:
+      incoming.education.length > 0 ? incoming.education : base.education,
+    experience:
+      incoming.experience.length > 0 ? incoming.experience : base.experience,
+  };
+}
+
+function coerceSkillList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === "string")
+    : [];
+}
+
+function snapshotToParsedProfileData(
+  snapshot: ParsedResumeSnapshot,
+  fallbackName?: string | null,
+): ParsedProfileData | null {
+  const rawText = typeof snapshot.raw_text === "string" ? snapshot.raw_text : "";
+  const fallback = buildFallbackParsedProfileData(rawText, fallbackName || undefined);
+  const jsonRecord = isRecord(snapshot.json) ? snapshot.json : null;
+  const aiParsedData = jsonRecord?.aiParsedData;
+
+  let profileData = fallback;
+
+  if (isRecord(aiParsedData)) {
+    profileData = mergeParsedProfileData(
+      fallback,
+      sanitizeParsedProfileData(aiParsedData),
+    );
+  }
+
+  if (!profileData.about) {
+    const structuredRecord = isRecord(snapshot.structured)
+      ? snapshot.structured
+      : null;
+    const summary = structuredRecord?.summary;
+    if (typeof summary === "string" && summary.trim()) {
+      profileData.about = summary.trim();
+    }
+  }
+
+  if (profileData.skills.length === 0) {
+    const skills = coerceSkillList(snapshot.skills);
+    if (skills.length > 0) {
+      profileData.skills = skills;
+    }
+  }
+
+  const hasContent =
+    Boolean(profileData.firstName || profileData.lastName) ||
+    Boolean(profileData.email || profileData.phone || profileData.location) ||
+    Boolean(profileData.jobTitle || profileData.about) ||
+    profileData.skills.length > 0 ||
+    profileData.education.length > 0 ||
+    profileData.experience.length > 0;
+
+  return hasContent ? profileData : null;
+}
 
 export function isParsedResumesMissingTableError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -77,6 +175,43 @@ export async function loadParsedResumeText({
   } catch (error) {
     console.error("load resume text fallback failed", error);
     return "";
+  }
+}
+
+export async function loadParsedResumeProfileData({
+  supabase,
+  resumeId,
+  fallbackName,
+}: LoadParsedResumeProfileInput): Promise<ParsedProfileData | null> {
+  if (parsedResumesTableState === "missing") {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("parsed_resumes")
+      .select("raw_text, json, structured, skills, extracted_at")
+      .eq("resume_id", resumeId)
+      .order("extracted_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return null;
+
+    parsedResumesTableState = "available";
+    return snapshotToParsedProfileData(
+      data as ParsedResumeSnapshot,
+      fallbackName,
+    );
+  } catch (error) {
+    if (isParsedResumesMissingTableError(error)) {
+      parsedResumesTableState = "missing";
+      return null;
+    }
+
+    console.error("load parsed resume profile failed", error);
+    return null;
   }
 }
 

@@ -14,8 +14,11 @@ export const createGeminiClient = () => {
     return new GoogleGenAI({ apiKey });
 }
 
-// Default model - Gemini 3 Pro Preview
-export const GEMINI_MODEL = 'gemini-3-pro-preview';
+// Default model - Gemini 3 Flash Preview
+export const GEMINI_MODEL =
+  Deno.env.get("GEMINI_MODEL") ??
+  Deno.env.get("GEMINI_FAST_MODEL") ??
+  'gemini-3-flash-preview';
 
 // Standard tools configuration
 export const GEMINI_TOOLS = [
@@ -27,11 +30,13 @@ export const GEMINI_TOOLS = [
 export const createGeminiConfig = (options?: {
     systemInstruction?: string;
     responseMimeType?: string;
+    includeTools?: boolean;
+    thinkingLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
 }) => ({
     thinkingConfig: {
-        thinkingLevel: 'HIGH',
+        thinkingLevel: options?.thinkingLevel || 'LOW',
     },
-    tools: GEMINI_TOOLS,
+    ...(options?.includeTools ? { tools: GEMINI_TOOLS } : {}),
     responseMimeType: options?.responseMimeType || 'application/json',
     ...(options?.systemInstruction ? { systemInstruction: options.systemInstruction } : {}),
 });

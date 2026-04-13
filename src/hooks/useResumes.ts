@@ -9,6 +9,7 @@ import { useToast } from "../components/ui/toast";
 import { createResumeVersion, latestResumeVersion } from '@/lib/resumeVersions';
 import { validateParsedResume } from '@/types/resume-parse-schemas';
 import { persistParsedResume } from "@/lib/parsedResume";
+import { parseResumeWithAI } from "@/services/ai/parseResumeProfile";
 
 export type ResumeStatus = "Active" | "Draft" | "Archived";
 
@@ -34,6 +35,80 @@ export interface ResumeRecord {
 }
 
 type UploadInput = File | { file: File; template?: string };
+
+async function parseAndPersistResumeSnapshot({
+  file,
+  ext,
+  resumeId,
+  userId,
+  supabase,
+}: {
+  file: File;
+  ext: string;
+  resumeId: string;
+  userId: string;
+  supabase: any;
+}) {
+  if (ext !== "pdf") {
+    return;
+  }
+
+  try {
+    const t0 = performance.now();
+    const parsed = await parsePdfFile(file);
+    const analyzed = analyzeResumeText(parsed.text);
+    const validated = validateParsedResume({
+      ...analyzed,
+      sections: analyzed.sections,
+      structured: analyzed.structured,
+      entities: analyzed.entities,
+      emails: analyzed.emails || [],
+      phones: analyzed.phones || [],
+      urls: analyzed.urls || [],
+      skills: analyzed.skills,
+    });
+
+    if (!validated) {
+      events.resumeParsedFailure("validation_failed");
+      return;
+    }
+
+    let aiParsedData: Awaited<ReturnType<typeof parseResumeWithAI>> | null = null;
+    try {
+      aiParsedData = await parseResumeWithAI({ resumeText: parsed.text });
+    } catch (aiError) {
+      console.warn("AI resume parsing failed during import. Using fallback snapshot.", aiError);
+    }
+
+    const embedding = hashEmbedding(parsed.text);
+    await persistParsedResume({
+      supabase,
+      resumeId,
+      userId,
+      rawText: parsed.text,
+      json: {
+        lines: parsed.lines,
+        entities: analyzed.entities,
+        aiParsedData,
+      },
+      structured: analyzed.structured,
+      skills: aiParsedData?.skills?.length ? aiParsedData.skills : analyzed.skills,
+      embedding,
+    });
+
+    events.resumeParsedSuccess({
+      duration_ms: Math.round(performance.now() - t0),
+      skills_count: aiParsedData?.skills?.length ?? analyzed.skills.length,
+      education_count: aiParsedData?.education?.length ?? (
+        Array.isArray(analyzed.structured?.education)
+          ? analyzed.structured.education.length
+          : 0
+      ),
+    });
+  } catch (err: any) {
+    events.resumeParsedFailure(err?.name || err?.message || "parse_error");
+  }
+}
 
 export function useResumes() {
   const supabase = useMemo(() => createClient(), []);
@@ -272,36 +347,13 @@ export function useResumes() {
         progressTimers.current.delete(tempId);
       }
       setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'done', progress: 100, completedAt: Date.now() } : st));
-      // Fire-and-forget PDF parsing
-  if (ext === 'pdf') {
-        (async () => {
-          try {
-            const t0 = performance.now();
-            const parsed = await parsePdfFile(file);
-            const analyzed = analyzeResumeText(parsed.text);
-            const validated = validateParsedResume({ ...analyzed, sections: analyzed.sections, structured: analyzed.structured, entities: analyzed.entities, emails: analyzed.emails||[], phones: analyzed.phones||[], urls: analyzed.urls||[], skills: analyzed.skills });
-            if (!validated) { events.resumeParsedFailure('validation_failed'); return; }
-            const embedding = hashEmbedding(parsed.text);
-            await persistParsedResume({
-              supabase,
-              resumeId: rec.id,
-              userId,
-              rawText: parsed.text,
-              json: { lines: parsed.lines, entities: analyzed.entities },
-              structured: analyzed.structured,
-              skills: analyzed.skills,
-              embedding,
-            });
-            events.resumeParsedSuccess({
-              duration_ms: Math.round(performance.now() - t0),
-              skills_count: analyzed.skills.length,
-              education_count: Array.isArray(analyzed.structured?.education) ? analyzed.structured.education.length : 0,
-            });
-          } catch (err: any) {
-            events.resumeParsedFailure(err?.name || err?.message || 'parse_error');
-          }
-        })();
-      }
+      void parseAndPersistResumeSnapshot({
+        file,
+        ext,
+        resumeId: rec.id,
+        userId,
+        supabase,
+      });
       return rec;
     } catch (e: any) {
       const msg = e.message || 'Import failed';
@@ -367,35 +419,13 @@ export function useResumes() {
       success('Resume imported', `${rec.name}.${rec.file_ext ?? ''}`);
       events.resumeUploaded(file, hashPrefix);
       setImportStatuses((s) => s.map((st) => st.id === tempId ? { ...st, state: 'done', completedAt: Date.now(), progress: 100 } : st));
-  if (ext === 'pdf') {
-        (async () => {
-          try {
-            const t0 = performance.now();
-            const parsed = await parsePdfFile(file);
-            const analyzed = analyzeResumeText(parsed.text);
-            const validated = validateParsedResume({ ...analyzed, sections: analyzed.sections, structured: analyzed.structured, entities: analyzed.entities, emails: analyzed.emails||[], phones: analyzed.phones||[], urls: analyzed.urls||[], skills: analyzed.skills });
-            if (!validated) { events.resumeParsedFailure('validation_failed'); return; }
-            const embedding = hashEmbedding(parsed.text);
-            await persistParsedResume({
-              supabase,
-              resumeId: rec.id,
-              userId,
-              rawText: parsed.text,
-              json: { lines: parsed.lines, entities: analyzed.entities },
-              structured: analyzed.structured,
-              skills: analyzed.skills,
-              embedding,
-            });
-            events.resumeParsedSuccess({
-              duration_ms: Math.round(performance.now() - t0),
-              skills_count: analyzed.skills.length,
-              education_count: Array.isArray(analyzed.structured?.education) ? analyzed.structured.education.length : 0,
-            });
-          } catch (err: any) {
-            events.resumeParsedFailure(err?.name || err?.message || 'parse_error');
-          }
-        })();
-      }
+      void parseAndPersistResumeSnapshot({
+        file,
+        ext,
+        resumeId: rec.id,
+        userId,
+        supabase,
+      });
       return rec;
     } catch (e: any) {
       const msg = e.message || 'Import failed';

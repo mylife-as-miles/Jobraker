@@ -56,7 +56,7 @@ export interface Tables {
       structured: any;
       skills: string[];
       embedding: string | null;
-      created_at?: string;
+      extracted_at?: string;
     }
   }
 }

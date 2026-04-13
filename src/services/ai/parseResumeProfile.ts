@@ -56,7 +56,7 @@ export async function parseResumeWithAI({
 
     if (!data) throw new Error("No data returned from AI");
 
-    return sanitizeData(data);
+    return sanitizeParsedProfileData(data);
   } catch (err: any) {
     throw new Error(`Failed to parse resume: ${err.message || err}`);
   }
@@ -163,7 +163,7 @@ export function buildFallbackParsedProfileData(
 }
 
 // Helper to ensure data matches the interface (sanitize nulls etc)
-function sanitizeData(raw: any): ParsedProfileData {
+export function sanitizeParsedProfileData(raw: any): ParsedProfileData {
     const str = (v: any) => typeof v === 'string' ? v.trim() : "";
     const num = (v: any) => typeof v === 'number' ? v : null;
     const arr = (v: any) => Array.isArray(v) ? v.filter(i => typeof i === 'string') : [];

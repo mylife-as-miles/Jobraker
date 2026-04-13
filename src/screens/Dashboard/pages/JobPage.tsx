@@ -2134,6 +2134,120 @@ export const JobPage = (): JSX.Element => {
     selectedResumeId,
   ]);
 
+  const generateAutoApplyDraft = useCallback(
+    async (targetJob: Job | null | undefined, instructions?: string) => {
+      if (!targetJob) {
+        safeInfo(
+          "No target job",
+          "Choose a job first so we can build a tailored draft for it.",
+        );
+        return false;
+      }
+
+      const resumeText = activeResumeText.trim();
+      if (!resumeText) {
+        safeInfo(
+          "Resume required",
+          "Select a resume with readable text before generating an AI draft.",
+        );
+        return false;
+      }
+
+      setGeneratingDraft(true);
+      try {
+        const [tailoredResume, tailoredCoverLetter] = await Promise.all([
+          tailorResumeViaEdge({
+            jobDescription: targetJob.description || "",
+            resumeText,
+            instructions,
+          }),
+          generateCoverLetterViaEdge({
+            jobDescription: targetJob.description || "",
+            resumeText,
+          }),
+        ]);
+
+        setDraftData({
+          resumeText: tailoredResume,
+          coverLetterText: tailoredCoverLetter,
+          sourceResumeId: selectedResumeId,
+          sourceResumeName: selectedResumeName,
+          sourceResumeUpdatedAt:
+            typeof (selectedResume as any)?.updated_at === "string"
+              ? (selectedResume as any).updated_at
+              : null,
+          sourceCandidateName: selectedResumeCandidateName,
+        });
+        setAutoApplyStep(4);
+        return true;
+      } catch (draftErr) {
+        console.error("Draft generation failed", draftErr);
+        toastError(
+          "Draft Generation Failed",
+          "Failed to generate a custom resume and cover letter draft.",
+        );
+        return false;
+      } finally {
+        setGeneratingDraft(false);
+      }
+    },
+    [
+      activeResumeText,
+      safeInfo,
+      selectedResume,
+      selectedResumeCandidateName,
+      selectedResumeId,
+      selectedResumeName,
+    ],
+  );
+
+  const handleDecisionBoundaryAutoFix = useCallback(async () => {
+    if (!aiEvaluation) return;
+
+    const guidance = [
+      "Revise the resume for this specific job while staying fully truthful to the candidate's existing experience.",
+      "Do not invent or exaggerate employers, projects, dates, tools, certifications, metrics, or hard requirements that are not supported by the source resume.",
+    ];
+
+    if (resumeIdentityMismatch && profileFullName) {
+      guidance.push(
+        `The candidate's correct name is "${profileFullName}". If the resume uses a different name, correct it everywhere in the draft.`,
+      );
+    }
+
+    if ((aiEvaluation.missing_requirements?.length ?? 0) > 0) {
+      guidance.push(
+        `Address these flagged requirements only when the source resume already supports them: ${aiEvaluation.missing_requirements.join("; ")}.`,
+      );
+    }
+
+    if ((aiEvaluation.tailoring_suggestions?.length ?? 0) > 0) {
+      guidance.push(
+        `Apply these tailoring suggestions where truthful and supported: ${aiEvaluation.tailoring_suggestions.join(" ")}`,
+      );
+    }
+
+    const created = await generateAutoApplyDraft(
+      jobToAutoApply,
+      guidance.join("\n\n"),
+    );
+    if (!created) return;
+
+    setAiEvaluation(null);
+    setForceSubmit(false);
+    safeInfo(
+      "AI draft ready",
+      "We turned the validation feedback into a reviewable draft for this job.",
+    );
+  }, [
+    aiEvaluation,
+    generateAutoApplyDraft,
+    jobToAutoApply,
+    profileFullName,
+    resumeIdentityMismatch,
+    safeInfo,
+  ]);
+
   // Apply all jobs by delegating to automation workflow, then prune applied rows
   const _legacyApplyAllJobs = useCallback(
     async (saveAsDraftOnly: boolean = false) => {
@@ -2301,48 +2415,14 @@ export const JobPage = (): JSX.Element => {
 
         const targetJob = jobsWithTargets[0]?.job;
         if (jobsWithTargets.length === 1 && !draftData) {
-          setGeneratingDraft(true);
-          try {
-            const [tailoredResume, tailoredCoverLetter] = await Promise.all([
-              tailorResumeViaEdge({
-                jobDescription: targetJob?.description || "",
-                resumeText: activeResumeText || "No resume text",
-              }),
-              generateCoverLetterViaEdge({
-                jobDescription: targetJob?.description || "",
-                resumeText: activeResumeText || "No resume text",
-              }),
-            ]);
-            setDraftData({
-              resumeText: tailoredResume,
-              coverLetterText: tailoredCoverLetter,
-              sourceResumeId: selectedResumeId,
-              sourceResumeName: selectedResumeName,
-              sourceResumeUpdatedAt:
-                typeof (selectedResume as any)?.updated_at === "string"
-                  ? (selectedResume as any).updated_at
-                  : null,
-              sourceCandidateName: selectedResumeCandidateName,
-            });
-            setAutoApplyStep(4);
+          const draftCreated = await generateAutoApplyDraft(targetJob);
+          if (draftCreated) {
             return; // Pause auto-apply to wait for user to review Draft step
-          } catch (draftErr) {
-            console.error("Draft generation failed", draftErr);
-            toastError(
-              "Draft Generation Failed",
-              "Failed to generate custom resume/cover letter.",
-            );
-            toastError(
-              "Draft Generation Failed",
-              "Failed to generate custom resume/cover letter.",
-            );
-            safeInfo(
-              "Draft Generation Failed",
-              "Skipping draft mode and falling back to base materials.",
-            );
-          } finally {
-            setGeneratingDraft(false);
           }
+          safeInfo(
+            "Draft Generation Failed",
+            "Skipping draft mode and falling back to base materials.",
+          );
         }
 
         const finalCoverLetterPayload = draftData
@@ -2648,16 +2728,14 @@ export const JobPage = (): JSX.Element => {
       }
     },
     [
-      activeResumeText,
       applyingAll,
+      generateAutoApplyDraft,
       hasAutoApplyAccess,
       jobs,
       profileSnapshot,
       selectedCoverLetter,
       selectedCoverLetterId,
       selectedJob,
-      selectedResume,
-      selectedResumeId,
       safeInfo,
       setError,
       forceSubmit,
@@ -2820,44 +2898,14 @@ export const JobPage = (): JSX.Element => {
 
         const targetJob = jobsWithTargets[0]?.job;
         if (jobsWithTargets.length === 1 && !draftData) {
-          setGeneratingDraft(true);
-          try {
-            const [tailoredResume, tailoredCoverLetter] = await Promise.all([
-              tailorResumeViaEdge({
-                jobDescription: targetJob?.description || "",
-                resumeText: activeResumeText || "No resume text",
-              }),
-              generateCoverLetterViaEdge({
-                jobDescription: targetJob?.description || "",
-                resumeText: activeResumeText || "No resume text",
-              }),
-            ]);
-            setDraftData({
-              resumeText: tailoredResume,
-              coverLetterText: tailoredCoverLetter,
-              sourceResumeId: selectedResumeId,
-              sourceResumeName: selectedResumeName,
-              sourceResumeUpdatedAt:
-                typeof (selectedResume as any)?.updated_at === "string"
-                  ? (selectedResume as any).updated_at
-                  : null,
-              sourceCandidateName: selectedResumeCandidateName,
-            });
-            setAutoApplyStep(4);
+          const draftCreated = await generateAutoApplyDraft(targetJob);
+          if (draftCreated) {
             return;
-          } catch (draftErr) {
-            console.error("Draft generation failed", draftErr);
-            toastError(
-              "Draft Generation Failed",
-              "Failed to generate custom resume/cover letter.",
-            );
-            safeInfo(
-              "Draft Generation Failed",
-              "Skipping draft mode and falling back to base materials.",
-            );
-          } finally {
-            setGeneratingDraft(false);
           }
+          safeInfo(
+            "Draft Generation Failed",
+            "Skipping draft mode and falling back to base materials.",
+          );
         }
 
         let jobsToAutoApply = jobsWithTargets;
@@ -3170,8 +3218,8 @@ export const JobPage = (): JSX.Element => {
       }
     },
     [
-      activeResumeText,
       applyingAll,
+      generateAutoApplyDraft,
       hasAutoApplyAccess,
       jobs,
       profileSnapshot,
@@ -3271,6 +3319,9 @@ export const JobPage = (): JSX.Element => {
     (!Array.isArray(resumes) ||
       resumes.length === 0 ||
       Boolean(selectedResumeId));
+  const canAutoFixDecisionBoundary = Boolean(
+    jobToAutoApply && activeResumeText.trim(),
+  );
   const autoApplyPrimaryDisabled =
     loadingTier ||
     !hasAutoApplyAccess ||
@@ -4934,7 +4985,7 @@ export const JobPage = (): JSX.Element => {
                             </div>
                             <div className='relative bg-background'>
                               <img
-                                src={screenshot}
+                                src={getProxiedLogoUrl(screenshot)}
                                 alt='Job page screenshot'
                                 className='w-full h-auto'
                                 onError={(e) => {
@@ -4993,7 +5044,7 @@ export const JobPage = (): JSX.Element => {
                                     <div className='flex items-center gap-2'>
                                       {host && (
                                         <img
-                                          src={ico}
+                                          src={getProxiedLogoUrl(ico)}
                                           alt=''
                                           className='w-4 h-4 rounded'
                                           onError={(e) =>
@@ -5968,14 +6019,32 @@ export const JobPage = (): JSX.Element => {
                       )}
                       {aiEvaluation &&
                       aiEvaluation.missing_requirements.length > 0 ? (
-                        <Button
-                          className={`border border-[#ff4747]/50 text-[#ff4747] bg-[#ff4747]/15 hover:bg-[#ff4747]/25`}
-                          onClick={() => {
-                            setResumeDialogOpen(false);
-                          }}
-                        >
-                          Acknowledge & Edit Profile
-                        </Button>
+                        <div className='flex items-center gap-2'>
+                          <Button
+                            className='border border-[#1dff00]/50 text-[#1dff00] bg-[#1dff00]/15 hover:bg-[#1dff00]/25'
+                            onClick={handleDecisionBoundaryAutoFix}
+                            disabled={
+                              generatingDraft || evaluatingJob || !canAutoFixDecisionBoundary
+                            }
+                          >
+                            {generatingDraft ? (
+                              <>
+                                <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                                Fixing draft...
+                              </>
+                            ) : (
+                              "Fix with AI Draft"
+                            )}
+                          </Button>
+                          <Button
+                            className='border border-[#ff4747]/50 text-[#ff4747] bg-[#ff4747]/15 hover:bg-[#ff4747]/25'
+                            onClick={() => {
+                              setResumeDialogOpen(false);
+                            }}
+                          >
+                            Acknowledge & Edit Profile
+                          </Button>
+                        </div>
                       ) : autoApplyStep === 4 ? (
                         <div className='flex items-center gap-2'>
                           <Button
@@ -6331,7 +6400,7 @@ export const JobPage = (): JSX.Element => {
                       </div>
                       <div className='relative bg-background'>
                         <img
-                          src={screenshot}
+                          src={getProxiedLogoUrl(screenshot)}
                           alt='Job page screenshot'
                           className='w-full h-auto'
                           onError={(e) => {

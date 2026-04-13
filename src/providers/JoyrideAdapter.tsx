@@ -1,6 +1,7 @@
 import React from 'react';
 import Joyride, { CallBackProps, STATUS, Step, TooltipRenderProps } from 'react-joyride';
 import { useProductTour } from './TourProvider';
+import { getProxiedLogoUrl } from '../lib/utils';
 
 /*
   JoyrideAdapter bridges existing internal tour registration with react-joyride to
@@ -63,7 +64,7 @@ const BrandedTooltip: React.FC<TooltipRenderProps & { waiting?: boolean; interna
           {internalStep?.media && (
             <div className="rounded-lg overflow-hidden border border-[#1dff00]/25 shadow-inner">
               {internalStep.media.type === 'image' && (
-                <img src={internalStep.media.src} alt={internalStep.media.alt || ''} className="max-h-40 w-full object-cover" />
+                <img src={getProxiedLogoUrl(internalStep.media.src)} alt={internalStep.media.alt || ''} className="max-h-40 w-full object-cover" />
               )}
               {internalStep.media.type === 'video' && (
                 <video src={internalStep.media.src} className="max-h-40 w-full object-cover" autoPlay muted loop playsInline />

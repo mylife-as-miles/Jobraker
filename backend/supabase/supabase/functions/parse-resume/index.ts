@@ -97,7 +97,9 @@ Deno.serve(async (req: Request) => {
       model: GEMINI_MODEL,
       config: createGeminiConfig({ 
         systemInstruction: systemPrompt,
-        responseMimeType: "application/json"
+        responseMimeType: "application/json",
+        includeTools: false,
+        thinkingLevel: "LOW",
       }),
       contents: [{ role: 'user', parts: [{ text: resumeText }] }]
     });

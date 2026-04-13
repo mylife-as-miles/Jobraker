@@ -5,6 +5,7 @@ export interface GanttItem {
   label: string;
   start: Date; // inclusive
   end: Date;   // exclusive-ish (visual end)
+  trailEnd?: Date; // optional subtle extension for active age
   status?: string;
   extra?: React.ReactNode;
   groupKey?: string; // optional grouping bucket
@@ -48,13 +49,32 @@ export const Gantt: React.FC<GanttProps> = ({
     if (onZoomChange) onZoomChange(clamped); else setUncontrolledZoom(clamped);
   };
 
-  const valid = items.filter(i => i.start instanceof Date && !isNaN(i.start.getTime()) && i.end instanceof Date && !isNaN(i.end.getTime()) && i.end >= i.start);
+  const valid = items.filter((i) => {
+    const hasValidStart =
+      i.start instanceof Date && !isNaN(i.start.getTime());
+    const hasValidEnd = i.end instanceof Date && !isNaN(i.end.getTime());
+    const hasValidTrail =
+      !i.trailEnd ||
+      (i.trailEnd instanceof Date &&
+        !isNaN(i.trailEnd.getTime()) &&
+        i.trailEnd >= i.end);
+
+    return hasValidStart && hasValidEnd && hasValidTrail && i.end >= i.start;
+  });
 
   let min: Date | null = null;
   let max: Date | null = null;
   if (valid.length) {
     min = dateRange?.start ?? valid.reduce((a,i)=> i.start < a ? i.start : a, valid[0].start);
-    max = dateRange?.end ?? valid.reduce((a,i)=> i.end > a ? i.end : a, valid[0].end);
+    max =
+      dateRange?.end ??
+      valid.reduce((a, i) => {
+        const candidate =
+          i.trailEnd && i.trailEnd > i.end ? i.trailEnd : i.end;
+        return candidate > a ? candidate : a;
+      }, valid[0].trailEnd && valid[0].trailEnd > valid[0].end
+        ? valid[0].trailEnd
+        : valid[0].end);
     if (min.getTime() === max.getTime()) {
       max = new Date(min.getTime() + 24*3600*1000);
     }
@@ -204,10 +224,29 @@ export const Gantt: React.FC<GanttProps> = ({
                   {g.rows.map(item => {
                     const startP = percent(item.start);
                     const endP = percent(item.end);
+                    const trailEnd =
+                      item.trailEnd instanceof Date &&
+                      !isNaN(item.trailEnd.getTime()) &&
+                      item.trailEnd > item.end
+                        ? item.trailEnd
+                        : null;
+                    const trailEndP = trailEnd ? percent(trailEnd) : null;
                     const left = startP * 100;
                     const widthPct = Math.max(0.8, (endP - startP) * 100);
+                    const trailWidthPct =
+                      trailEndP != null ? Math.max(0, (trailEndP - endP) * 100) : 0;
                     const color = statusColor(item.status);
+                    const accent = statusAccent(item.status);
                     const days = Math.max(1, Math.round((item.end.getTime() - item.start.getTime())/86400000));
+                    const activeAgeDays = trailEnd
+                      ? Math.max(
+                          days,
+                          Math.round(
+                            (trailEnd.getTime() - item.start.getTime()) / 86400000,
+                          ),
+                        )
+                      : days;
+                    const showBarContent = widthPct >= 6;
                     return (
                       <div key={item.id} className="relative group/item hover:bg-white/[0.02] transition-colors" style={{ height }}>
                         <div className="absolute inset-y-0 left-0 flex items-center pl-4 pr-3 w-64 overflow-hidden">
@@ -220,6 +259,36 @@ export const Gantt: React.FC<GanttProps> = ({
                         </div>
                         <div className="absolute inset-y-0 left-64" style={{ right: 0 }}>
                           <div className="relative h-full">
+                            {trailEnd && trailWidthPct > 0 && (
+                              <>
+                                <div
+                                  className="absolute rounded-full"
+                                  style={{
+                                    left: `${endP * 100}%`,
+                                    width: `${trailWidthPct}%`,
+                                    top: height * 0.46,
+                                    height: Math.max(3, height * 0.08),
+                                    background: `linear-gradient(90deg, ${accent}55, ${accent}12)`,
+                                    boxShadow: `0 0 18px ${accent}18`,
+                                  }}
+                                />
+                                <div
+                                  className="absolute rounded-full border border-white/10 bg-background/90 shadow-[0_0_10px_rgba(0,0,0,0.25)]"
+                                  style={{
+                                    left: `${trailEndP! * 100}%`,
+                                    top: height * 0.5,
+                                    width: 8,
+                                    height: 8,
+                                    transform: "translate(-50%, -50%)",
+                                  }}
+                                >
+                                  <div
+                                    className="h-full w-full rounded-full"
+                                    style={{ backgroundColor: accent }}
+                                  />
+                                </div>
+                              </>
+                            )}
                             <div
                               className="absolute group rounded-lg overflow-hidden ring-1 ring-white/10 shadow-md hover:ring-[#1dff00]/40 hover:shadow-[0_0_20px_rgba(29,255,0,0.2)] transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1dff00]/60 transform hover:scale-[1.02]"
                               style={{ left: `${left}%`, width: widthPct + '%', top: height*0.25, height: height*0.5, background: color.bg }}
@@ -231,7 +300,11 @@ export const Gantt: React.FC<GanttProps> = ({
                             >
                               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-r from-white/10 via-transparent to-white/10 transition-opacity" />
                               <div className="flex h-full w-full items-center justify-center px-3 text-[11px] font-semibold tracking-wide" style={{ color: color.fg }}>
-                                {renderBarContent ? renderBarContent(item) : (item.status || '')}
+                                {showBarContent
+                                  ? renderBarContent
+                                    ? renderBarContent(item)
+                                    : (item.status || '')
+                                  : null}
                               </div>
                               {/* Enhanced Tooltip */}
                               <div className="absolute z-30 hidden group-hover:flex -top-3 left-1/2 -translate-y-full -translate-x-1/2 min-w-[220px] max-w-[280px] flex-col rounded-xl border border-[#1dff00]/30 bg-gradient-to-br from-background to-background backdrop-blur-xl p-3 shadow-[0_0_30px_rgba(29,255,0,0.2)]">
@@ -248,6 +321,12 @@ export const Gantt: React.FC<GanttProps> = ({
                                   <span className="text-foreground/90">{item.end.toLocaleDateString()}</span>
                                   <span className="text-foreground/40">Duration</span>
                                   <span className="text-[#1dff00] font-semibold">{days} day{days !== 1 ? 's' : ''}</span>
+                                  {trailEnd && (
+                                    <>
+                                      <span className="text-foreground/40">Active Age</span>
+                                      <span className="text-foreground/90">{activeAgeDays} day{activeAgeDays !== 1 ? 's' : ''}</span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -278,6 +357,24 @@ function statusColor(status?: string): { bg: string; fg: string } {
   case 'Withdrawn': return { bg: 'linear-gradient(90deg,#94a3b8,#334155)', fg: '#0f1822' };
     case 'Pending':
     default: return { bg: 'linear-gradient(90deg,#71717a,#27272a)', fg: '#111114' };
+  }
+}
+
+function statusAccent(status?: string): string {
+  switch (status) {
+    case "Applied":
+      return "#1dff00";
+    case "Interview":
+      return "#fbbf24";
+    case "Offer":
+      return "#84cc16";
+    case "Rejected":
+      return "#fb7185";
+    case "Withdrawn":
+      return "#94a3b8";
+    case "Pending":
+    default:
+      return "#71717a";
   }
 }
 
@@ -671,4 +768,3 @@ export const GanttCreateMarkerTrigger: React.FC<{ onCreateMarker?: (date: Date) 
 
 // Convenience re-exports for naming parity in user example
 export { GanttProvider as GanttContextProvider };
-

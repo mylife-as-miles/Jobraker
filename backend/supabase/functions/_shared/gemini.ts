@@ -54,7 +54,7 @@ export const getGeminiAccessDeniedMessage = (feature: string): string =>
 // - day-to-day generation uses Flash by default
 // - premium evaluation flows can opt into the heavier model explicitly
 export const GEMINI_FAST_MODEL =
-  Deno.env.get("GEMINI_FAST_MODEL") ?? "gemini-2.5-flash";
+  Deno.env.get("GEMINI_FAST_MODEL") ?? "gemini-3-flash-preview";
 export const GEMINI_PREMIUM_MODEL =
   Deno.env.get("GEMINI_PREMIUM_MODEL") ?? "gemini-3.1-pro-preview";
 export const GEMINI_MODEL = GEMINI_FAST_MODEL;

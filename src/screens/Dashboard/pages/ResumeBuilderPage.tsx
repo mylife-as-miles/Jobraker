@@ -41,6 +41,8 @@ import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { resolveResumePageLayout } from "@/lib/resumeLayout";
 import { downloadResumePDF } from "@/utils/resume-download";
 import { saveResumeDraft, loadResumeDraft, removeResumeDraft } from "@/lib/resumeDraftStorage";
+import { loadParsedResumeProfileData } from "@/lib/parsedResume";
+import { mapParsedDataToResume } from "@/lib/resume-mapper";
 
 const PREVIEW_BASE_WIDTH = 794;
 const PREVIEW_BASE_HEIGHT = 1123;
@@ -57,6 +59,16 @@ const SECTION_ICONS: Record<string, any> = {
 };
 
 const DRAFT_AUTOSAVE_DELAY_MS = 2000;
+
+function buildHydratedResumeState(remoteResume: any, data = initialResumeState.data) {
+  return {
+    id: remoteResume.id,
+    is_public: remoteResume.public_share_enabled,
+    views: remoteResume.views || 0,
+    downloads: remoteResume.downloads || 0,
+    data,
+  };
+}
 
 const ResumeBuilderPage = () => {
   const supabase = createClient();
@@ -149,14 +161,7 @@ const ResumeBuilderPage = () => {
           );
         }
       } else if (remoteResume?.data) {
-        const remoteState = {
-          id: remoteResume.id,
-          is_public: remoteResume.public_share_enabled,
-          views: remoteResume.views || 0,
-          downloads: remoteResume.downloads || 0,
-          data: remoteResume.data,
-        };
-
+        const remoteState = buildHydratedResumeState(remoteResume, remoteResume.data);
         serverUpdatedAtRef.current = remoteResume.updated_at ?? null;
         lastDraftSignatureRef.current = JSON.stringify(remoteState);
         setResume(remoteState);
@@ -170,6 +175,34 @@ const ResumeBuilderPage = () => {
           info(
             "Draft restored",
             "We restored your unsaved resume draft from this device.",
+          );
+        }
+      } else if (remoteResume) {
+        const parsedProfile = await loadParsedResumeProfileData({
+          supabase,
+          resumeId: remoteResume.id,
+          fallbackName: remoteResume.name,
+        });
+
+        if (cancelled) return;
+
+        const hydratedData = parsedProfile
+          ? mapParsedDataToResume(parsedProfile, initialResumeState.data)
+          : {
+              ...structuredClone(initialResumeState.data),
+              title: remoteResume.name || initialResumeState.data.title,
+            };
+        const hydratedState = buildHydratedResumeState(remoteResume, hydratedData);
+
+        serverUpdatedAtRef.current = remoteResume.updated_at ?? null;
+        lastDraftSignatureRef.current = JSON.stringify(hydratedState);
+        setResume(hydratedState);
+        setResumeId(remoteResume.id);
+
+        if (parsedProfile) {
+          info(
+            "Resume imported",
+            "We populated the resume editor with details parsed from your uploaded file.",
           );
         }
       }

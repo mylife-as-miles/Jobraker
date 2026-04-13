@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -16,18 +16,8 @@ import { Button } from "../../../components/ui/button";
 import { motion } from "framer-motion";
 import { ResumeCreationModal } from "../components/ResumeCreationModal";
 import { ResumePreviewCard } from "../components/ResumePreviewCard";
-import { createClient } from "@/lib/supabaseClient";
-import { extractTextFromPdf } from "@/lib/pdf-loader";
-import {
-  buildFallbackParsedProfileData,
-  parseResumeWithAI,
-} from "@/services/ai/parseResumeProfile";
 import { getResumeDisplayName } from "@/lib/resumeDisplay";
-import { mapParsedDataToResume } from "@/lib/resume-mapper";
-import { initialResumeState } from "@/store/artboard";
-import { nanoid } from "nanoid";
-
-const supabase = createClient();
+import { useResumes } from "@/hooks/useResumes";
 
 export const ResumeHomePage = () => {
   const navigate = useNavigate();
@@ -35,8 +25,7 @@ export const ResumeHomePage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [resumes, setResumes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { resumes, loading, importResume } = useResumes();
 
   const setResumeId = useArtboardStore((state) => state.setResumeId);
   const setResumeTitle = useArtboardStore((state) => state.setResumeTitle);
@@ -49,31 +38,6 @@ export const ResumeHomePage = () => {
       })),
     [resumes],
   );
-
-  useEffect(() => {
-    const fetchResumes = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data, error } = await supabase
-          .from("resumes")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("updated_at", { ascending: false });
-
-        if (data) setResumes(data);
-        if (error) console.error(error);
-      } catch (error) {
-        console.error("Error fetching resumes:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchResumes();
-  }, []);
 
   const handleCreateNew = () => {
     setIsCreateModalOpen(true);
@@ -96,50 +60,15 @@ export const ResumeHomePage = () => {
 
     setIsImporting(true);
     try {
-      console.log("Extracting text from PDF...");
-      const text = await extractTextFromPdf(file);
+      const importedResume = await importResume(file);
+      if (!importedResume) {
+        throw new Error("Import did not return a resume record.");
+      }
 
-      console.log("Parsing with AI...");
-      const parsedData = await parseResumeWithAI({ resumeText: text }).catch(
-        (parseError) => {
-          console.warn(
-            "AI resume parsing failed. Falling back to heuristic parsing.",
-            parseError,
-          );
-          return buildFallbackParsedProfileData(text, file.name);
-        },
-      );
-
-      console.log("Mapping to ResumeData...");
-      const resumeData = mapParsedDataToResume(
-        parsedData,
-        initialResumeState.data,
-      );
-
-      // Generate slug
-      const baseSlug = resumeData.title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)+/g, "");
-      const slug = `${baseSlug}-${nanoid(6)}`;
-
-      console.log("Saving to Database...");
-      const { data, error } = await supabase
-        .from("resumes")
-        .insert({
-          user_id: (await supabase.auth.getUser()).data.user?.id,
-          name: resumeData.title,
-          slug: slug,
-          tags: [], // Could auto-tag "Imported"
-          data: resumeData,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      console.log("Import successful, navigating...");
-      navigate(`/dashboard/resume/edit/${data.id}`);
+      const resolvedTitle = getResumeDisplayName(importedResume);
+      setResumeId(importedResume.id);
+      setResumeTitle(resolvedTitle);
+      navigate(`/dashboard/resume/edit/${importedResume.id}`);
     } catch (error: any) {
       console.error("Import failed:", error);
       alert(`Import failed: ${error.message}`);

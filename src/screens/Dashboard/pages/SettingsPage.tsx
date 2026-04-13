@@ -63,6 +63,7 @@ import { encryptSymmetric } from "../../../utils/crypto";
 import { UpgradePrompt } from "../../../components/UpgradePrompt";
 import { useSubscriptionTier } from "@/hooks/useSubscriptionTier";
 import { hasSubscriptionAccess } from "@/lib/subscriptionAccess";
+import { getProxiedLogoUrl } from "../../../lib/utils";
 
 const SignOutDialog = ({
   open,
@@ -3706,7 +3707,7 @@ export const SettingsPage = (): JSX.Element => {
                             } border flex items-center justify-center overflow-hidden shrink-0 shadow-lg`}
                         >
                           <img
-                            src={source.logo}
+                            src={getProxiedLogoUrl(source.logo)}
                             alt={source.name}
                             className='w-10 h-10 object-contain'
                             onError={(e) => {
@@ -3776,7 +3777,7 @@ export const SettingsPage = (): JSX.Element => {
                       {/* Header Area */}
                       <div className='flex items-start gap-4'>
                         <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br from-${s.color}-500/20 to-${s.color}-500/10 border border-${s.color}-500/30 flex items-center justify-center p-3 shrink-0 shadow-[0_0_20px_rgba(var(--${s.color}-500),0.1)]`}>
-                           <img src={s.logo} alt={s.name} className='w-full h-full object-contain filter drop-shadow-md' />
+                           <img src={getProxiedLogoUrl(s.logo)} alt={s.name} className='w-full h-full object-contain filter drop-shadow-md' />
                         </div>
                         <div className='flex-1 pt-1'>
                           <h3 className='text-xl font-bold tracking-tight text-white flex items-center gap-2'>
