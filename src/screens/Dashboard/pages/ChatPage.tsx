@@ -151,14 +151,14 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
             Authorization: `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify({
-            model: chatOpts?.model || "gemini-3-pro-preview",
+            model: chatOpts?.model || "gemini-1.5-flash",
             messages: history
               .filter((m) => m.content.trim() !== "")
               .map((m) => ({
                 role: m.role,
                 content: m.content,
               })),
-            mode: chatOpts?.mode || "ask", // 'ask' for RAG, 'agent' for function calling
+            mode: chatOpts?.mode || "ask",
             webSearch: chatOpts?.webSearch,
             system: chatOpts?.system,
             previous_response_id: responseId,
@@ -201,7 +201,7 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
               currentEvent = trimmedLine.slice(6).trim();
             } else if (trimmedLine.startsWith("data:")) {
               const dataStr = trimmedLine.slice(5).trim();
-              if (dataStr === "[DONE]") continue; // Standard SSE done marker
+              if (dataStr === "[DONE]") continue;
 
               try {
                 const data = JSON.parse(dataStr);
@@ -243,9 +243,9 @@ const useChat = (opts: UseChatOptions): UseChatReturn => {
                         : msg,
                     ),
                   );
-                } else if (currentEvent === "done") {
-                  // Handled by loop exit usually, but if explicit event:
-                  // We can just ignore or finalize here.
+                } else if (currentEvent === "tool_call") {
+                   // Optional: visualize the tool call in the UI
+                   console.log("[Chat] Agent tool call:", data.name, data.args);
                 }
               } catch (e) {
                 // Ignore parse errors for partial lines
@@ -323,7 +323,7 @@ export const ChatPage = () => {
   const { error: toastError } = useToast();
   // UI state
   const [text, setText] = useState("");
-  const [persona, setPersona] = useState<Persona>("concise");
+  const [persona, setPersona] = useState<Persona>("analyst");
   const [sessions, setSessions] = useState<
     {
       id: string;
@@ -377,13 +377,12 @@ export const ChatPage = () => {
       // No sessions, create one
       await createSession(true);
     }
-  }, [supabase]);
+  }, [supabase, toastError]);
 
   useEffect(() => {
     loadSessions();
   }, [loadSessions]);
 
-  // When active session changes, load its messages into the chat hook
   useEffect(() => {
     if (!activeSessionId) return;
     const active = sessions.find((s) => s.id === activeSessionId);
@@ -391,8 +390,7 @@ export const ChatPage = () => {
       setMessages(active.messages || []);
       setResponseId(active.responseId || null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSessionId]);
+  }, [activeSessionId, sessions, setMessages, setResponseId]);
 
   // Debounced save to DB
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -421,7 +419,6 @@ export const ChatPage = () => {
           .eq("id", activeSessionId);
 
         if (!error) {
-          // also update local state to get new updated_at
           setSessions((prev) =>
             prev.map((s) =>
               s.id === activeSessionId
@@ -468,7 +465,6 @@ export const ChatPage = () => {
   };
 
   const deleteSession = async (id: string) => {
-    // Optimistically remove from UI
     const originalSessions = sessions;
     setSessions((prev) => prev.filter((s) => s.id !== id));
     if (activeSessionId === id) {
@@ -483,7 +479,7 @@ export const ChatPage = () => {
 
     if (error) {
       toastError("Could not delete chat", error.message);
-      setSessions(originalSessions); // Revert on error
+      setSessions(originalSessions);
     }
   };
 
@@ -497,10 +493,8 @@ export const ChatPage = () => {
     if ((!message.text.trim() && !attachment) || status === "in_progress")
       return;
 
-    // Reset UI immediately
     setText("");
     setAttachment(null);
-    // Reset textarea height
     const textarea = document.querySelector("textarea");
     if (textarea) textarea.style.height = "auto";
 
@@ -520,7 +514,6 @@ export const ChatPage = () => {
           .upload(filePath, attachment);
 
         if (uploadError) {
-          console.error("Upload error:", uploadError);
           toastError("Failed to upload attachment");
           return;
         }
@@ -547,25 +540,22 @@ export const ChatPage = () => {
     const currentMessages =
       sessions.find((s) => s.id === activeSessionId)?.messages || [];
 
-    // Map persona to mode: 'concise' = ask, 'analyst' = agent
     const mode = persona === "analyst" ? "agent" : "ask";
 
     append(
       { role: "user", content: content },
       {
-        model: "gemini-3-pro-preview",
+        model: "gemini-1.5-flash",
         webSearch: false,
         system: currentMessages.length === 0 ? systemInstruction : undefined,
         mode,
       },
     );
 
-    // Update session title on first user message
     const isFirstMessage =
       currentMessages.filter((m) => m.role === "user").length === 0;
 
     if (isFirstMessage && activeSessionId) {
-      // 1. Optimistically set title to user message (truncated)
       const optimisticTitle = (message.text || "New Chat").slice(0, 40);
       setSessions((prev) =>
         prev.map((s) =>
@@ -573,7 +563,6 @@ export const ChatPage = () => {
         ),
       );
 
-      // 2. Async call to generate AI title
       (async () => {
         try {
           const {
@@ -595,13 +584,11 @@ export const ChatPage = () => {
           if (response.ok) {
             const { title } = await response.json();
             if (title) {
-              // Update UI
               setSessions((prev) =>
                 prev.map((s) =>
                   s.id === activeSessionId ? { ...s, title } : s,
                 ),
               );
-              // Update DB
               await supabase
                 .from("chat_sessions")
                 .update({ title })
@@ -618,7 +605,6 @@ export const ChatPage = () => {
   };
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -639,7 +625,6 @@ export const ChatPage = () => {
     updateScrollState();
   }, [messages.length, updateScrollState]);
 
-  // Filtered sessions based on search
   const filteredSessions = useMemo(() => {
     if (!searchQuery.trim()) return sessions;
     const query = searchQuery.toLowerCase();
@@ -654,7 +639,6 @@ export const ChatPage = () => {
     <div className='relative flex h-full w-full font-sans bg-background overflow-hidden text-foreground'>
       <style>{customStyles}</style>
 
-      {/* Loading state */}
       {loadingTier && (
         <div className='absolute inset-0 z-50 flex items-center justify-center bg-background'>
           <div className='text-foreground text-center'>
@@ -664,7 +648,6 @@ export const ChatPage = () => {
         </div>
       )}
 
-      {/* Access Gate */}
       {!loadingTier && !hasChatAccess && (
           <div className='flex items-center justify-center h-full w-full p-4 sm:p-6 z-40'>
             <UpgradePrompt
@@ -712,10 +695,8 @@ export const ChatPage = () => {
           </div>
         )}
 
-      {/* Main Chat Interface */}
       {!loadingTier && hasChatAccess && (
           <>
-            {/* Internal Sidebar for Chat History */}
             <aside
               className={`w-72 bg-card/40 border-r border-border flex flex-col h-full z-20 transition-all duration-300 ${sidebarCollapsed ? "-ml-72" : ""}`}
             >
@@ -795,11 +776,8 @@ export const ChatPage = () => {
                   </div>
                 </div>
               </div>
-
-              {/* User Profile Snippet Removed */}
             </aside>
 
-            {/* Main Content Area */}
             <main className='flex-1 relative flex flex-col bg-background overflow-hidden'>
               <header className='h-16 flex items-center justify-between px-8 border-b border-border shrink-0 bg-background/85 backdrop-blur-sm'>
                 <div className='flex items-center gap-3'>
@@ -838,14 +816,12 @@ export const ChatPage = () => {
                 </div>
               </header>
 
-              {/* Chat Content */}
               <div
                 ref={chatScrollRef}
                 onScroll={updateScrollState}
                 className='flex-1 overflow-y-auto flex flex-col relative custom-scrollbar'
               >
                 {messages.length === 0 ? (
-                  /* Empty State / Start Screen */
                   <div className='flex-1 flex flex-col items-center justify-center p-6 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700'>
                     <div className='max-w-2xl w-full text-center space-y-6'>
                       <div className='flex justify-center mb-8'>
@@ -866,7 +842,6 @@ export const ChatPage = () => {
                       </p>
 
                       <div className='grid grid-cols-1 md:grid-cols-3 gap-4 mt-12'>
-                        {/* Suggestion Cards */}
                         <button
                           onClick={() =>
                             setText(
@@ -918,7 +893,6 @@ export const ChatPage = () => {
                     </div>
                   </div>
                 ) : (
-                  /* Chat History Stream */
                   <div className='flex-1 w-full max-w-4xl mx-auto p-6 space-y-6 pb-32'>
                     {messages.map((m) => (
                       <div
@@ -1118,7 +1092,6 @@ export const ChatPage = () => {
                 </div>
               )}
 
-              {/* Input Area */}
               <div className='p-4 md:p-6 pt-0 w-full max-w-4xl mx-auto z-10 shrink-0'>
                 <div
                   className={`relative rounded-[24px] border border-border shadow-2xl overflow-hidden transition-all duration-300 ${text.trim()
@@ -1127,7 +1100,6 @@ export const ChatPage = () => {
                     }`}
                 >
                   <div className='flex flex-col'>
-                    {/* Textarea */}
                     <div className='relative flex items-end p-2 pb-2'>
                       <textarea
                         ref={textareaRef}
@@ -1164,7 +1136,6 @@ export const ChatPage = () => {
                       </button>
                     </div>
 
-                    {/* Toolbar - Moved to bottom for cleaner "Input first" feel */}
                     <div className='flex items-center justify-between px-4 pb-3 pt-0'>
                       <div className='flex gap-2'>
                         <button
@@ -1231,9 +1202,6 @@ export const ChatPage = () => {
                 </p>
               </div>
 
-              {/* Guided Tours FAB Removed */}
-
-              {/* Background Glows */}
               <div className='fixed -bottom-48 -right-48 w-96 h-96 bg-brand/5 rounded-full blur-[120px] pointer-events-none'></div>
               <div className='fixed top-24 left-96 w-64 h-64 bg-brand/5 rounded-full blur-[100px] pointer-events-none'></div>
             </main>
@@ -1244,4 +1212,3 @@ export const ChatPage = () => {
 };
 
 export default ChatPage;
-
