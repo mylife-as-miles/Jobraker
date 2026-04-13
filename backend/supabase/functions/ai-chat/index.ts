@@ -44,6 +44,11 @@ const AGENT_FUNCTION_DECLARATIONS = [
     parameters: { type: "object", properties: {} },
   },
   {
+    name: "list_resumes",
+    description: "List all resumes uploaded by the user.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
     name: "get_credits_balance",
     description: "Check remaining AI credits.",
     parameters: { type: "object", properties: {} },
@@ -69,6 +74,31 @@ const AGENT_FUNCTION_DECLARATIONS = [
           },
           required: ["job_id"]
       }
+  },
+  {
+      name: "analyze_resume",
+      description: "Analyze a resume for improvements.",
+      parameters: { type: "object", properties: { target_role: { type: "string" } } }
+  },
+  {
+      name: "generate_cover_letter",
+      description: "Generate a tailored cover letter.",
+      parameters: { type: "object", properties: { job_description: { type: "string" }, instructions: { type: "string" } }, required: ["job_description"] }
+  },
+  {
+      name: "evaluate_job_fit",
+      description: "Evaluate matching between user and a job.",
+      parameters: { type: "object", properties: { job_description: { type: "string" } }, required: ["job_description"] }
+  },
+  {
+      name: "intake_job_url",
+      description: "Import a job from a URL.",
+      parameters: { type: "object", properties: { url: { type: "string" } }, required: ["url"] }
+  },
+  {
+      name: "polish_content",
+      description: "Improve professional text.",
+      parameters: { type: "object", properties: { content: { type: "string" }, instruction: { type: "string" } }, required: ["content"] }
   }
 ];
 
@@ -138,6 +168,8 @@ serve(async (req) => {
                   console.log(`[Agent] Executing: ${fn.name}`);
                   let result;
                   try {
+                    const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+                    
                     if (fn.name === "run_job_search") {
                       const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/jobs-search`, {
                         method: "POST", headers: { "Content-Type": "application/json", Authorization: authHeader! },
@@ -145,11 +177,19 @@ serve(async (req) => {
                       });
                       result = await res.json();
                     } else if (fn.name === "get_credits_balance") {
-                      const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-                      const { data } = await admin.from("user_credits").select("balance").eq("user_id", userId).single();
+                      const { data } = await supabaseAdmin.from("user_credits").select("balance").eq("user_id", userId).single();
                       result = { success: true, balance: data?.balance || 0 };
                     } else if (fn.name === "get_user_profile") {
                         result = { success: true, profile: userContext };
+                    } else if (fn.name === "list_applications") {
+                        const { data } = await supabaseAdmin.from("applications").select("*, jobs(*)").eq("user_id", userId).order("created_at", { ascending: false });
+                        result = { success: true, applications: data || [] };
+                    } else if (fn.name === "list_resumes") {
+                        const { data } = await supabaseAdmin.from("resumes").select("*").eq("user_id", userId).order("created_at", { ascending: false });
+                        result = { success: true, resumes: data || [] };
+                    } else if (fn.name === "list_recent_jobs") {
+                        const { data } = await supabaseAdmin.from("jobs").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(fn.args.limit || 10);
+                        result = { success: true, jobs: data || [] };
                     } else {
                       const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/${fn.name.replace(/_/g, "-")}`, {
                         method: "POST", headers: { "Content-Type": "application/json", Authorization: authHeader! },
